@@ -6,11 +6,13 @@ import {
     selectDashboardFilters,
     selectDashboardWideParameterValues,
     selectDateZoomGranularity,
+    selectEmbedDashboard,
     selectParameterControlInputs,
     selectTileParameterReferences,
     useDashboardSelector,
 } from '../../../../../features/dashboard/store';
 import { getDashboardExportTileParameters } from '../../../../../features/dashboard/store/parameterControls';
+import { isEmbedFilterInteractivityOff } from '../../../../../providers/Dashboard/embedFilterInteractivity';
 import { type DashboardContentState } from '../../events/types';
 import { useEmbedContentStateEvent } from '../../hooks/useEmbedContentStateEvent';
 
@@ -19,9 +21,14 @@ const EmbedDashboardContentStateEvent: FC<{
     dashboardUuid: string;
     dashboardVersion: DashboardVersionedFields;
 }> = ({ dashboardUuid, dashboardVersion }) => {
-    const areFiltersApplied = useDashboardSelector(
-        (state) => selectDashboardFilters(state) !== emptyDashboardFilters,
-    );
+    const areFiltersApplied = useDashboardSelector((state) => {
+        const embedDashboard = selectEmbedDashboard(state);
+        if (!embedDashboard) return false;
+        return (
+            selectDashboardFilters(state) !== emptyDashboardFilters ||
+            isEmbedFilterInteractivityOff(embedDashboard)
+        );
+    });
     const parameters = useDashboardSelector(selectDashboardWideParameterValues);
     const controlInputs = useDashboardSelector(selectParameterControlInputs);
     const tileParameterReferences = useDashboardSelector(

@@ -44,7 +44,6 @@ import {
     selectHaveTabsChanged,
     selectHaveTilesChanged,
     selectIsAddFilterDisabled,
-    selectIsDateZoomDisabled,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
@@ -407,7 +406,6 @@ const EmbedDashboard: FC<{
         (c) => c.resetDashboardFilters,
     );
     const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
-    const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
     const dashboardParameters = useDashboardSelector(selectDashboardParameters);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
@@ -925,7 +923,6 @@ const EmbedDashboard: FC<{
                       filters: dashboardFilters,
                       temporaryFilters: dashboardTemporaryFilters,
                       parameters: dashboardParameters,
-                      isDateZoomDisabled,
                       isAddFilterDisabled,
                       filterLabelOverrides,
                   })
@@ -939,7 +936,6 @@ const EmbedDashboard: FC<{
             dashboardTemporaryFilters,
             filterLabelOverrides,
             isAddFilterDisabled,
-            isDateZoomDisabled,
         ],
     );
 

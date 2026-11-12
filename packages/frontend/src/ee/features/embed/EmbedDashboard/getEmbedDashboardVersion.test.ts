@@ -30,7 +30,6 @@ const baseArgs = {
     filters: filters([rule('saved', 'Status')]),
     temporaryFilters: filters([]),
     parameters: { region: { parameterName: 'region', value: 'EMEA' } },
-    isDateZoomDisabled: true,
     isAddFilterDisabled: true,
     filterLabelOverrides: undefined,
 };
@@ -58,14 +57,26 @@ describe('getEmbedDashboardVersion', () => {
         expect(version.filters?.dimensions[0].label).toBe('Status');
     });
 
-    it('takes the current parameters and edit flags over the saved config', () => {
+    it('takes the current parameters and add filter flag over the saved config', () => {
         const version = getEmbedDashboardVersion(baseArgs);
 
         expect(version.parameters).toEqual(baseArgs.parameters);
         expect(version.config).toEqual({
-            isDateZoomDisabled: true,
+            isDateZoomDisabled: false,
             isAddFilterDisabled: true,
             pinnedParameters: ['region'],
         });
+    });
+
+    it('keeps a saved disabled date zoom', () => {
+        const version = getEmbedDashboardVersion({
+            ...baseArgs,
+            dashboard: {
+                ...baseArgs.dashboard,
+                config: { isDateZoomDisabled: true },
+            },
+        });
+
+        expect(version.config?.isDateZoomDisabled).toBe(true);
     });
 });

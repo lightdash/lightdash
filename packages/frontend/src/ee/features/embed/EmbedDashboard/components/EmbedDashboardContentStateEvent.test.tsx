@@ -1,8 +1,11 @@
 import {
+    FilterInteractivityValues,
     FilterOperator,
+    type Dashboard,
     type DashboardFilterRule,
     type DashboardFilters,
     type DashboardVersionedFields,
+    type InteractivityOptions,
 } from '@lightdash/common';
 import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -36,6 +39,18 @@ const filters = (dimensions: DashboardFilterRule[]): DashboardFilters => ({
     tableCalculations: [],
 });
 
+const embedDashboard = (
+    enabled: FilterInteractivityValues | null,
+): Dashboard & InteractivityOptions =>
+    ({
+        uuid: 'dashboard-uuid',
+        dashboardFiltersInteractivity: enabled ? { enabled } : undefined,
+    }) as Dashboard & InteractivityOptions;
+
+const withFilterInteractivity = {
+    source: { embedDashboard: embedDashboard(FilterInteractivityValues.all) },
+};
+
 const dashboardVersion: DashboardVersionedFields = {
     tiles: [],
     tabs: [],
@@ -65,7 +80,7 @@ describe('EmbedDashboardContentStateEvent', () => {
     });
 
     it('waits for the filters to be applied', () => {
-        const store = createDashboardTestStore();
+        const store = createDashboardTestStore(withFilterInteractivity);
         renderEmitter(store);
         act(() => {
             vi.advanceTimersByTime(CONTENT_STATE_DEBOUNCE_MS);
@@ -83,8 +98,31 @@ describe('EmbedDashboardContentStateEvent', () => {
         expect(dispatchEmbedEvent).toHaveBeenCalledOnce();
     });
 
+    it.each([null, FilterInteractivityValues.none])(
+        'emits with filter interactivity %s, where filters stay empty',
+        (enabled) => {
+            const store = createDashboardTestStore({
+                source: { embedDashboard: embedDashboard(enabled) },
+            });
+            renderEmitter(store);
+            act(() => {
+                vi.advanceTimersByTime(CONTENT_STATE_DEBOUNCE_MS);
+            });
+            expect(dispatchEmbedEvent).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('waits for the embed dashboard to load', () => {
+        renderEmitter(createDashboardTestStore());
+        act(() => {
+            vi.advanceTimersByTime(CONTENT_STATE_DEBOUNCE_MS);
+        });
+        expect(dispatchEmbedEvent).not.toHaveBeenCalled();
+    });
+
     it('emits the dashboard, parameters, date zoom and tab', () => {
         const store = createDashboardTestStore({
+            ...withFilterInteractivity,
             dashboardFilters: filters([rule('saved', ['completed'])]),
             dashboardTemporaryFilters: filters([rule('added', ['placed'])]),
             parameterValues: { region: 'EMEA' },
@@ -122,6 +160,7 @@ describe('EmbedDashboardContentStateEvent', () => {
 
     it('emits again when the user changes the view', () => {
         const store = createDashboardTestStore({
+            ...withFilterInteractivity,
             dashboardFilters: filters([]),
         });
         renderEmitter(store);

@@ -18,7 +18,6 @@ export const getEmbedDashboardVersion = ({
     filters,
     temporaryFilters,
     parameters,
-    isDateZoomDisabled,
     isAddFilterDisabled,
     filterLabelOverrides,
 }: {
@@ -28,7 +27,6 @@ export const getEmbedDashboardVersion = ({
     filters: DashboardFilters;
     temporaryFilters: DashboardFilters;
     parameters: DashboardParameters;
-    isDateZoomDisabled: boolean;
     isAddFilterDisabled: boolean;
     filterLabelOverrides: DashboardFilterLabelOverrides;
 }): DashboardVersionedFields => ({
@@ -40,5 +38,10 @@ export const getEmbedDashboardVersion = ({
         filterLabelOverrides,
     ),
     parameters,
-    config: { ...dashboard.config, isDateZoomDisabled, isAddFilterDisabled },
+    // Embeds never seed the date zoom flag in the store, so keep the saved one
+    config: {
+        ...dashboard.config,
+        isDateZoomDisabled: dashboard.config?.isDateZoomDisabled ?? false,
+        isAddFilterDisabled,
+    },
 });
