@@ -256,7 +256,7 @@ export class SearchConsoleConnector implements ApiConnector {
         return {
             columns,
             rows,
-            truncated: apiRows.length > rowLimit,
+            hasMoreRows: apiRows.length > rowLimit,
             bytesRead: null,
         };
     }

@@ -108,7 +108,7 @@ describe('LinkedInAdsConnector', () => {
                 costInLocalCurrency: 19.91,
             },
         ]);
-        expect(result.truncated).toBe(false);
+        expect(result.hasMoreRows).toBe(false);
     });
 
     it('makes no lookup when only ids are selected', async () => {
@@ -200,7 +200,7 @@ describe('LinkedInAdsConnector', () => {
             1,
         );
         expect(result.rows).toHaveLength(1);
-        expect(result.truncated).toBe(true);
+        expect(result.hasMoreRows).toBe(true);
     });
 
     it('refuses an account with too many campaigns to look up', async () => {

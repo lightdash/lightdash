@@ -176,6 +176,7 @@ import {
     type FieldValueSearchResult,
     type Filters,
     type InvalidateExploresResultsCache,
+    type LiveSourceResultCompleteness,
     type LiveSourceUpstreamErrorCode,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
@@ -393,6 +394,7 @@ import {
 import { toApiSourceQueryError } from '../QuerySourceService/api/apiSourceExplore';
 import {
     compileApiSourceMetricQuery,
+    getApiResultCompleteness,
     toApiSourceResult,
 } from '../QuerySourceService/api/apiSourceExplores';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
@@ -717,6 +719,7 @@ type ExecuteAsyncQueryArgs = Pick<
 type ApiResultShaper = (result: ApiConnectorResult) => {
     rows: Record<string, unknown>[];
     columns: ResultColumns;
+    completeness: LiveSourceResultCompleteness;
 };
 
 type PreparedAsyncQueryArgs = Omit<
@@ -2899,6 +2902,7 @@ export class AsyncQueryService extends ProjectService {
                               queryHistory.preAggregateFallbackReason,
                       }
                     : null,
+                liveSourceCompleteness: queryHistory.liveSourceCompleteness,
             },
             status,
             pivotDetails:
@@ -12245,6 +12249,9 @@ export class AsyncQueryService extends ProjectService {
                         { reference: column.name, type: column.type },
                     ]),
                 ),
+                // A request written by hand is read in the API's own order,
+                // so more rows are only past its own limit.
+                completeness: result.hasMoreRows ? 'own_limit' : 'complete',
             }),
         });
         return { queryUuid };
@@ -12414,8 +12421,13 @@ export class AsyncQueryService extends ProjectService {
                 args.invalidateCache ??
                 false,
             history: { fields, requestParameters, metricQuery, explore },
-            toResult: (result) =>
-                toApiSourceResult({ compiled, rows: result.rows, fields }),
+            toResult: (result) => ({
+                ...toApiSourceResult({ compiled, rows: result.rows, fields }),
+                completeness: getApiResultCompleteness({
+                    compiled,
+                    hasMoreRows: result.hasMoreRows,
+                }),
+            }),
         });
         return {
             queryUuid,
@@ -12563,6 +12575,8 @@ export class AsyncQueryService extends ProjectService {
                     fields:
                         history.fields ??
                         pythonColumnsToFields(reusable.columns ?? {}),
+                    live_source_completeness:
+                        reusable.queryHistory.liveSourceCompleteness,
                 },
                 account,
             );
@@ -12719,7 +12733,7 @@ export class AsyncQueryService extends ProjectService {
                     executeMs = Date.now() - startedAt;
                     span.setAttributes({
                         'lightdash.rowCount': result.rows.length,
-                        'lightdash.truncated': result.truncated,
+                        'lightdash.truncated': result.hasMoreRows,
                         'lightdash.apiCalls': connector.usage().apiCalls,
                         ...(result.bytesRead !== null
                             ? { 'lightdash.bytesRead': result.bytesRead }
@@ -12727,6 +12741,9 @@ export class AsyncQueryService extends ProjectService {
                     });
 
                     const shaped = toResult(result);
+                    span.setAttributes({
+                        'lightdash.liveSourceCompleteness': shaped.completeness,
+                    });
                     const resultsStorageClient =
                         this.getResultsStorageClientForContext(context);
                     if (!resultsStorageClient.isEnabled) {
@@ -12778,6 +12795,7 @@ export class AsyncQueryService extends ProjectService {
                             ),
                             columns,
                             fields: fields ?? pythonColumnsToFields(columns),
+                            live_source_completeness: shaped.completeness,
                         },
                         account,
                     );
@@ -12803,18 +12821,21 @@ export class AsyncQueryService extends ProjectService {
                         errorMessage: null,
                         totalRowCount: shaped.rows.length,
                         columnsCount: Object.keys(shaped.columns).length,
-                        truncated: result.truncated,
+                        truncated: result.hasMoreRows,
+                        liveSourceCompleteness: shaped.completeness,
                     });
                     logCall({
                         outcome: 'ok',
                         errorMessage: null,
                         rowCount: shaped.rows.length,
                         columnCount: Object.keys(shaped.columns).length,
-                        truncated: result.truncated,
+                        truncated: result.hasMoreRows,
                     });
                     this.logger.info(
                         `Api query ${queryUuid} ready: ${shaped.rows.length} rows${
-                            result.truncated ? ' (truncated)' : ''
+                            shaped.completeness === 'complete'
+                                ? ''
+                                : ` (${shaped.completeness})`
                         } from ${connectorType} in ${Date.now() - startedAt}ms`,
                     );
                 } catch (e) {
@@ -12940,7 +12961,7 @@ export class AsyncQueryService extends ProjectService {
                 'ok',
                 Date.now() - startedAt,
             );
-            if (result.truncated) {
+            if (result.hasMoreRows) {
                 this.prometheusMetrics?.incrementApiSourceTruncated(
                     connectorType,
                 );
@@ -12973,6 +12994,7 @@ export class AsyncQueryService extends ProjectService {
         totalRowCount,
         columnsCount,
         truncated,
+        liveSourceCompleteness = null,
         cacheHit = false,
     }: {
         account: Account;
@@ -12988,6 +13010,7 @@ export class AsyncQueryService extends ProjectService {
         totalRowCount: number | null;
         columnsCount: number | null;
         truncated: boolean | null;
+        liveSourceCompleteness?: LiveSourceResultCompleteness | null;
         cacheHit?: boolean;
     }): void {
         const responseTimeMs = Date.now() - queryCreatedAt.getTime();
@@ -13032,6 +13055,9 @@ export class AsyncQueryService extends ProjectService {
                         apiQueryOutcome: outcome,
                         ...(liveSourceErrorCode ? { liveSourceErrorCode } : {}),
                         ...(truncated !== null ? { truncated } : {}),
+                        ...(liveSourceCompleteness !== null
+                            ? { liveSourceCompleteness }
+                            : {}),
                     },
                 });
             })
@@ -16306,6 +16332,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         executionStats: WarehouseExecutionStats | null;
+        liveSourceCompleteness: LiveSourceResultCompleteness | null;
     }> {
         const { account, projectUuid } = args;
         const abortSignal = pollingOptions?.abortSignal;
@@ -16449,6 +16476,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         executionStats: WarehouseExecutionStats | null;
+        liveSourceCompleteness: LiveSourceResultCompleteness | null;
     }> {
         const { account, projectUuid } = args;
 
@@ -16495,6 +16523,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         executionStats: WarehouseExecutionStats | null;
+        liveSourceCompleteness: LiveSourceResultCompleteness | null;
     }> {
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -16543,6 +16572,7 @@ export class AsyncQueryService extends ProjectService {
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
             displayTimezone,
             executionStats: queryHistory.warehouseExecutionStats,
+            liveSourceCompleteness: queryHistory.liveSourceCompleteness,
         };
     }
 
@@ -16804,6 +16834,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         executionStats: WarehouseExecutionStats | null;
+        liveSourceCompleteness: LiveSourceResultCompleteness | null;
     }> {
         const { account, projectUuid } = args;
 
@@ -16932,6 +16963,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
         executionStats: WarehouseExecutionStats | null;
+        liveSourceCompleteness: LiveSourceResultCompleteness | null;
     }> {
         const { account, projectUuid } = args;
 

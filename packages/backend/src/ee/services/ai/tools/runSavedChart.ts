@@ -20,7 +20,10 @@ import type {
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
-import { getContextTruncationNote } from '../utils/queryResultSummary';
+import {
+    getContextTruncationNote,
+    getLiveSourceCompletenessNote,
+} from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
 import type {
     ExecuteStructuredToolResult,
@@ -299,6 +302,8 @@ export const getRunSavedChart = ({
                         {
                             includeFullSpec: true,
                         },
+                    )}${getLiveSourceCompletenessNote(
+                        queryResults.liveSourceCompleteness,
                     )}${truncationNote}${serializeData(csv, 'csv')}${review}`,
                     metadata: {
                         status: 'success',

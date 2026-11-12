@@ -491,7 +491,7 @@ export class LinkedInAdsConnector implements ApiConnector {
         return {
             columns,
             rows,
-            truncated: elements.length > rowLimit,
+            hasMoreRows: elements.length > rowLimit,
             bytesRead: null,
         };
     }

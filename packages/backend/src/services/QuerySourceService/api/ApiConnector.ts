@@ -58,8 +58,11 @@ export type ApiConnectorColumn = {
 export type ApiConnectorResult = {
     columns: ApiConnectorColumn[];
     rows: Record<string, unknown>[];
-    /** True when the API had more rows than the requested limit. */
-    truncated: boolean;
+    /**
+     * True when the API had rows past the ones read. Whether that leaves the
+     * result incomplete depends on the query, see getApiResultCompleteness.
+     */
+    hasMoreRows: boolean;
     /** Bytes the API reports reading, or null when it doesn't report them. */
     bytesRead: number | null;
 };
@@ -117,6 +120,7 @@ export type ApiConnectorCall = {
     durationMs: number;
     rowCount: number | null;
     columnCount: number | null;
+    /** True when the API had rows past the ones read; null when it wasn't called. */
     truncated: boolean | null;
 };
 

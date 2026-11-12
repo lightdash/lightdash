@@ -1,6 +1,7 @@
 import {
     getItemLabel,
     getUnusedDimensions,
+    LIVE_SOURCE_SOURCE_CUT_MESSAGE,
     type ChartConfig,
     type ItemsMap,
     type MetricQuery,
@@ -22,6 +23,7 @@ export type PivotMismatchWarningProps = {
         | 'isInitialLoading'
         | 'isFetchingFirstPage'
         | 'pivotDetails'
+        | 'metadata'
     > & { metricQuery?: MetricQuery; fields?: ItemsMap };
     isLoading: boolean;
     maxColumnLimit: number | undefined;
@@ -93,12 +95,18 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         dirtyPivotDimensions,
     ]);
 
+    const isSourceCut =
+        resultsData.metadata?.liveSourceCompleteness === 'source_cut';
+
     // Determine how many messages to show
     const messages = useMemo(() => {
         // Only show when not loading/fetching
         if (isLoading || isQueryFetching) return [];
 
         const _messages: string[] = [];
+        if (isSourceCut) {
+            _messages.push(LIVE_SOURCE_SOURCE_CUT_MESSAGE);
+        }
         if (unusedDimensionLabels.length > 0) {
             _messages.push(
                 `Your query includes dimensions that are not used in the chart configuration (x-axis, y-axis, or group by): ${unusedDimensionLabels.map((label) => `"${label}"`).join(', ')}. Remove them from the query to avoid incorrect results.`,
@@ -118,6 +126,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     }, [
         isLoading,
         isQueryFetching,
+        isSourceCut,
         shouldShowPivotMismatch,
         unusedDimensionLabels,
         shouldShowPivotColumnLimit,

@@ -34,7 +34,7 @@ describe('readRowsWithinCap', () => {
             fetchPage,
         });
         expect(result.rows).toHaveLength(150);
-        expect(result.truncated).toBe(false);
+        expect(result.hasMoreRows).toBe(false);
         expect(fetchPage).toHaveBeenCalledTimes(2);
     });
 
@@ -46,7 +46,7 @@ describe('readRowsWithinCap', () => {
             fetchPage,
         });
         expect(result.rows).toHaveLength(150);
-        expect(result.truncated).toBe(true);
+        expect(result.hasMoreRows).toBe(true);
         expect(fetchPage).toHaveBeenLastCalledWith({
             limit: 51,
             cursor: '100',
@@ -90,6 +90,6 @@ describe('readRowsWithinCap', () => {
             fetchPage: pagedApi(300),
         });
         expect(result.rows).toHaveLength(300);
-        expect(result.truncated).toBe(false);
+        expect(result.hasMoreRows).toBe(false);
     });
 });

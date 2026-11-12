@@ -32,7 +32,7 @@ export const readRowsWithinCap = async ({
     }) => Promise<ApiSourcePage>;
 }): Promise<{
     rows: Record<string, unknown>[];
-    truncated: boolean;
+    hasMoreRows: boolean;
 }> => {
     const rowLimit = Math.min(requestedRows, maxRows);
     const rows: Record<string, unknown>[] = [];
@@ -64,6 +64,6 @@ export const readRowsWithinCap = async ({
 
     return {
         rows: rows.slice(0, rowLimit),
-        truncated: rows.length > rowLimit,
+        hasMoreRows: rows.length > rowLimit,
     };
 };

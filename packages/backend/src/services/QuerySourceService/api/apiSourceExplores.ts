@@ -9,6 +9,7 @@ import {
     type Explore,
     type ExternalConnectionApiSource,
     type ItemsMap,
+    type LiveSourceResultCompleteness,
     type MetricQuery,
     type ResultColumns,
     type SortField,
@@ -379,6 +380,25 @@ export const toPeriodStart = (
         default:
             return assertUnreachable(format, 'Unknown period format');
     }
+};
+
+/**
+ * Whether a compiled query got every row it needed. Rows past the query's own
+ * limit don't matter when the API returned them in the query's order. A query
+ * sorted on our side needs every row, so rows the API kept back can be the
+ * ones the sort would show, and the result is incomplete.
+ */
+export const getApiResultCompleteness = ({
+    compiled,
+    hasMoreRows,
+}: {
+    compiled: Pick<CompiledApiSourceQuery, 'localSorts'>;
+    hasMoreRows: boolean;
+}): LiveSourceResultCompleteness => {
+    if (!hasMoreRows) {
+        return 'complete';
+    }
+    return compiled.localSorts.length > 0 ? 'source_cut' : 'own_limit';
 };
 
 /** The connector's rows as result rows keyed by field id, sorted and limited. */

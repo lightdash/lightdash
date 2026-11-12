@@ -243,7 +243,7 @@ export class YoutubeAnalyticsConnector implements ApiConnector {
         return {
             columns,
             rows,
-            truncated:
+            hasMoreRows:
                 apiRows.length > rowLimit ||
                 (isTopVideos && apiRows.length >= askedRows),
             bytesRead: null,

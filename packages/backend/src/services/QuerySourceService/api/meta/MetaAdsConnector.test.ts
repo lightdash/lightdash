@@ -218,7 +218,7 @@ describe('MetaAdsConnector', () => {
             limit: '1',
         });
         expect(result.rows).toEqual([{ spend: 1 }, { spend: 2 }]);
-        expect(result.truncated).toBe(true);
+        expect(result.hasMoreRows).toBe(true);
     });
 
     it('reports a complete result when the pages end within the limit', async () => {
@@ -233,7 +233,7 @@ describe('MetaAdsConnector', () => {
         );
 
         expect(send).toHaveBeenCalledTimes(1);
-        expect(result.truncated).toBe(false);
+        expect(result.hasMoreRows).toBe(false);
     });
 
     it('refuses a result the page cap would leave incomplete', async () => {

@@ -254,7 +254,7 @@ export class PostHogConnector implements ApiConnector {
         return {
             columns,
             rows,
-            truncated: parsed.data.results.length > limit,
+            hasMoreRows: parsed.data.results.length > limit,
             bytesRead:
                 bytesReadHeader !== null && Number.isFinite(bytesRead)
                     ? bytesRead

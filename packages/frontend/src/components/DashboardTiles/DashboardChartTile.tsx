@@ -201,6 +201,7 @@ import ExportImageModal from './ExportImageModal';
 import TileBase from './TileBase';
 import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
 import TileExecutionInfo from './TileExecutionInfo';
+import TileLiveSourceWarning from './TileLiveSourceWarning';
 import TileTimezoneInfo from './TileTimezoneInfo';
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
 
@@ -649,6 +650,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
 
         const { totalResults, metadata } = resultsData;
         const performance = metadata?.performance;
+        const isLiveSourceCut =
+            metadata?.liveSourceCompleteness === 'source_cut';
 
         const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
         const projectUuid = useProjectUuid();
@@ -1172,8 +1175,14 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     lockHeaderVisibility={isCommentsMenuOpen}
                     chartKind={chartKind}
                     visibleHeaderElement={
-                        // Dashboard comments button is always visible if they exist
-                        tileHasComments ? dashboardComments : undefined
+                        // Comments, once there are some, and an incomplete
+                        // live data source result stay visible
+                        tileHasComments || isLiveSourceCut ? (
+                            <>
+                                <TileLiveSourceWarning metadata={metadata} />
+                                {tileHasComments ? dashboardComments : null}
+                            </>
+                        ) : undefined
                     }
                     extraHeaderElement={
                         <>

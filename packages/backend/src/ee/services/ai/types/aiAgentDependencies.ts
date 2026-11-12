@@ -32,6 +32,7 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    LiveSourceResultCompleteness,
     McpDocumentAsCode,
     McpDocumentEdit,
     McpDocumentRead,
@@ -529,6 +530,8 @@ export type RunAsyncQueryFn = (
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
     executionStats: WarehouseExecutionStats | null;
+    /** Null for warehouse queries; `source_cut` means the rows are incomplete. */
+    liveSourceCompleteness?: LiveSourceResultCompleteness | null;
 }>;
 
 export type RunSavedChartQueryFn = (args: {
@@ -552,6 +555,8 @@ export type RunSavedChartQueryFn = (args: {
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
     executionStats: WarehouseExecutionStats | null;
+    /** Null for warehouse queries; `source_cut` means the rows are incomplete. */
+    liveSourceCompleteness?: LiveSourceResultCompleteness | null;
 }>;
 
 export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;

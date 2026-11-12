@@ -325,6 +325,7 @@ import type {
     LinearProject,
     LinearTeam,
 } from './linear';
+import { type LiveSourceResultCompleteness } from './liveSourceResultCompleteness';
 import {
     type ApiCompiledMergeQueryResults,
     type MergeFieldOrigins,
@@ -1256,6 +1257,11 @@ export type QueryResultsPreAggregate = {
 export type QueryResultsMetadata = {
     performance: QueryResultsPerformance;
     preAggregate: QueryResultsPreAggregate | null;
+    /**
+     * Whether a live data source returned every row the query needed; null
+     * for warehouse queries. `source_cut` means the result is incomplete.
+     */
+    liveSourceCompleteness?: LiveSourceResultCompleteness | null;
 };
 
 export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
