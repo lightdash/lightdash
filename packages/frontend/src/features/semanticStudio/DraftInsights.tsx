@@ -88,30 +88,22 @@ const PartName: FC<{ path: string }> = ({ path }) =>
     );
 
 /** Drops the draft's change to one part, so what is live stands. */
-const TakeTheirsButton: FC<{
+const KeepTheirsButton: FC<{
     projectUuid: string;
     model: string;
     path: string;
 }> = ({ projectUuid, model, path }) => {
     const takeLive = useTakeLiveDraftPart(projectUuid);
     return (
-        <Tooltip
-            label={
-                path === ''
-                    ? 'Drops everything you changed on this model and keeps what is live.'
-                    : 'Drops your change to this part and keeps what is live. The rest of your changes stay.'
-            }
+        <Button
+            size="compact-xs"
+            variant="default"
+            flex="none"
+            loading={takeLive.isLoading}
+            onClick={() => takeLive.mutate({ model, path })}
         >
-            <Button
-                size="compact-xs"
-                variant="subtle"
-                flex="none"
-                loading={takeLive.isLoading}
-                onClick={() => takeLive.mutate({ model, path })}
-            >
-                Use this
-            </Button>
-        </Tooltip>
+            Keep theirs
+        </Button>
     );
 };
 
@@ -123,85 +115,163 @@ const KeepMineButton: FC<{
 }> = ({ projectUuid, model, label }) => {
     const keep = useKeepDraftModel(projectUuid);
     return (
-        <Tooltip label="Keeps your version. It replaces theirs when you publish.">
-            <Button
-                size="compact-xs"
-                variant="subtle"
-                flex="none"
-                loading={keep.isLoading}
-                onClick={() =>
-                    keep.mutate({
-                        model: model.model,
-                        liveVersion: model.reconciliation?.liveVersion ?? null,
-                    })
-                }
-            >
-                {label}
-            </Button>
-        </Tooltip>
+        <Button
+            size="compact-xs"
+            variant="default"
+            flex="none"
+            loading={keep.isLoading}
+            onClick={() =>
+                keep.mutate({
+                    model: model.model,
+                    liveVersion: model.reconciliation?.liveVersion ?? null,
+                })
+            }
+        >
+            {label}
+        </Button>
     );
 };
 
-/** One of the two versions a contested part can end up as, with what choosing it does. */
-const ConflictOption: FC<{
-    who: string;
-    state: string;
-    value: string;
-    consequence: string;
-    action: ReactNode;
-}> = ({ who, state, value, consequence, action }) => (
-    <Box className={classes.option}>
-        <Group gap="xs" justify="space-between" wrap="nowrap" mih={22}>
-            <Text fz="xs" truncate>
-                <Text span fw={600}>
-                    {who}
-                </Text>{' '}
-                <Text span c="dimmed">
-                    · {state}
-                </Text>
-            </Text>
-            {action}
-        </Group>
-        <Box component="pre" className={classes.value}>
-            {value}
+/** A word without the punctuation around it, so a comma added after it does not count as a change. */
+const toBareWord = (word: string): string =>
+    word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+
+/** A version of a part with the words its start did not have marked, so the difference is the first thing read. */
+const ChangedWords: FC<{ value: string; base: string | null }> = ({
+    value,
+    base,
+}) => {
+    if (base === null) return value;
+    // ponytail: words compared as a set, so a moved or repeated word is not marked; use a real diff if that misleads.
+    const known = new Set(base.split(/\s+/).map(toBareWord));
+    return value.split(/(\s+)/).map((word, index) =>
+        toBareWord(word) === '' || known.has(toBareWord(word)) ? (
+            word
+        ) : (
+            <mark key={index} className={classes.changed}>
+                {word}
+            </mark>
+        ),
+    );
+};
+
+/** Whether a part's value is YAML to read as code, and not a sentence or a name to read as words. */
+const isYaml = (value: string): boolean =>
+    value.includes('\n') || /^[\w-]+:(\s|$)/.test(value);
+
+/** A part's value in the face it is read in: code for YAML, the body face for words. */
+const PartValue: FC<{ value: string; children: ReactNode }> = ({
+    value,
+    children,
+}) =>
+    isYaml(value) ? (
+        <Box component="pre" className={classes.code}>
+            {children}
         </Box>
-        <Text fz="xs" c="dimmed">
-            {consequence}
+    ) : (
+        <Text fz="sm" className={classes.prose}>
+            {children}
         </Text>
+    );
+
+/** One of the two versions a contested part can end up as: whose it is, where it stands, and what keeping it does. */
+const ConflictOption: FC<{
+    title: string;
+    state: string;
+    tone: 'live' | 'draft';
+    /** Null when this side removed the part. */
+    value: string | null;
+    base: string | null;
+    outcome: string;
+    action: ReactNode;
+}> = ({ title, state, tone, value, base, outcome, action }) => (
+    <Box className={classes.option}>
+        <Box>
+            <Text fz="xs" fw={500} truncate>
+                <Box
+                    component="span"
+                    className={classes.tone}
+                    data-tone={tone}
+                />
+                {title}
+            </Text>
+            <Text fz="xs" c="dimmed">
+                {state}
+            </Text>
+        </Box>
+        {value === null ? (
+            <Text fz="sm" c="dimmed">
+                Removed
+            </Text>
+        ) : (
+            <PartValue value={value}>
+                <ChangedWords value={value} base={base} />
+            </PartValue>
+        )}
+        <Group gap="xs" wrap="nowrap" mt="auto">
+            {action}
+            <Text fz="xs" c="dimmed">
+                {outcome}
+            </Text>
+        </Group>
     </Box>
 );
 
-/** One part that changed live and in the draft, drawn as the fork it is: where it started, and the two versions it became. */
+/** One part two people changed: what it said before, then each person's version with the button that keeps it. */
 const ConflictSides: FC<{
     projectUuid: string;
     model: SemanticLayerDraftModel;
     conflict: SemanticLayerDraftConflict;
-    /** Off with several contested parts, where keeping the draft settles all of them at once. */
-    canKeepMineHere: boolean;
-}> = ({ projectUuid, model, conflict, canKeepMineHere }) => (
-    <Stack gap={6} className={classes.conflict}>
-        <PartName path={conflict.path} />
-        <Box className={classes.fork}>
-            <Box className={classes.base}>
-                <Text fz="xs" c="dimmed">
-                    When you started
-                </Text>
-                <Box component="pre" className={classes.side}>
-                    {conflict.base ?? 'Not there'}
-                </Box>
+    /** When theirs went live, in words. */
+    publishedAgo: string;
+    /** False when it is the only contested part: the notice names it, and keeping the draft is offered right here. */
+    isOneOfSeveral: boolean;
+}> = ({ projectUuid, model, conflict, publishedAgo, isOneOfSeveral }) => {
+    const publisher = model.publishedSince?.by ?? null;
+    return (
+        <Stack gap="xs" className={classes.conflict}>
+            <Box>
+                {isOneOfSeveral ? <PartName path={conflict.path} /> : null}
+                {conflict.base !== null && isYaml(conflict.base) ? (
+                    <>
+                        <Text fz="xs" c="dimmed">
+                            Before either change
+                        </Text>
+                        <Box
+                            component="pre"
+                            className={classes.code}
+                            data-before
+                        >
+                            {conflict.base}
+                        </Box>
+                    </>
+                ) : (
+                    <Text fz="xs" c="dimmed">
+                        Before either change:{' '}
+                        {conflict.base === null
+                            ? 'not there'
+                            : `“${conflict.base}”`}
+                    </Text>
+                )}
             </Box>
-            <Box className={classes.branches}>
+            <Box className={classes.options}>
                 <ConflictOption
-                    who={model.publishedSince?.by ?? 'Someone else'}
-                    state="Live now"
-                    value={conflict.live ?? 'Removed'}
-                    consequence={
+                    title={
+                        publisher
+                            ? `${publisher}'s version`
+                            : 'The other version'
+                    }
+                    state={`Live for everyone, published ${publishedAgo}`}
+                    tone="live"
+                    value={conflict.live}
+                    base={conflict.base}
+                    outcome={
                         conflict.path === ''
-                            ? 'Choosing this drops everything you changed on this model.'
-                            : 'Choosing this drops your change to this part.'
+                            ? 'Everything you changed on this model leaves your draft.'
+                            : 'Your edit to this part leaves your draft.'
                     }
                     action={
-                        <TakeTheirsButton
+                        <KeepTheirsButton
                             projectUuid={projectUuid}
                             model={model.model}
                             path={conflict.path}
@@ -209,24 +279,46 @@ const ConflictSides: FC<{
                     }
                 />
                 <ConflictOption
-                    who="You"
-                    state="In development"
-                    value={conflict.mine ?? 'Removed'}
-                    consequence="Choosing this replaces theirs when you publish."
+                    title="Your version"
+                    state="In your draft, not live yet"
+                    tone="draft"
+                    value={conflict.mine}
+                    base={conflict.base}
+                    outcome={
+                        isOneOfSeveral
+                            ? 'Kept with the button under this list.'
+                            : 'Yours replaces theirs when you publish.'
+                    }
                     action={
-                        canKeepMineHere ? (
+                        isOneOfSeveral ? null : (
                             <KeepMineButton
                                 projectUuid={projectUuid}
                                 model={model}
-                                label="Use this"
+                                label="Keep mine"
                             />
-                        ) : null
+                        )
                     }
                 />
             </Box>
-        </Box>
-    </Stack>
-);
+        </Stack>
+    );
+};
+
+/** The one contested part, named inside a sentence. */
+const ContestedPart: FC<{ path: string }> = ({ path }) => {
+    if (path === '') return 'this model';
+    if (!path.includes('.')) {
+        return `this model's ${path.replaceAll('_', ' ')}`;
+    }
+    return (
+        <>
+            <Text span ff="monospace">
+                {path}
+            </Text>{' '}
+            on this model
+        </>
+    );
+};
 
 /** One notice on a model's card: its icon sits in the column the card's own icon uses, so the words line up with the title. */
 const NoticeRow: FC<{
@@ -268,17 +360,21 @@ export const ModelNotices: FC<{
                     <NoticeRow icon={IconAlertTriangle} color="yellow">
                         <Box flex={1}>
                             <Text fz="xs">
+                                You and{' '}
                                 <Text span fw={600}>
                                     {publisher}
                                 </Text>{' '}
-                                published a change to{' '}
-                                {conflicts.length === 1
-                                    ? 'a part'
-                                    : `${conflicts.length} parts`}{' '}
-                                of this model that you changed too.
+                                both changed{' '}
+                                {conflicts.length === 1 ? (
+                                    <ContestedPart path={conflicts[0].path} />
+                                ) : (
+                                    `the same ${conflicts.length} parts of this model`
+                                )}
+                                . Theirs is already live.
                             </Text>
                             <Text fz="xs" c="dimmed">
-                                Pick the version to keep before you publish.
+                                Choose which to keep. You can publish once you
+                                have.
                             </Text>
                         </Box>
                     </NoticeRow>
@@ -288,7 +384,8 @@ export const ModelNotices: FC<{
                             projectUuid={projectUuid}
                             model={model}
                             conflict={conflict}
-                            canKeepMineHere={conflicts.length === 1}
+                            publishedAgo={publishedAgo}
+                            isOneOfSeveral={conflicts.length > 1}
                         />
                     ))}
                     {conflicts.length > 1 ? (

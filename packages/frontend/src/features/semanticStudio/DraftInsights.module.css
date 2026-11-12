@@ -14,86 +14,66 @@
     padding-top: var(--mantine-spacing-xs);
 }
 
-/* Where the part started, then a bracket down to the two versions it became. */
-.fork {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.base {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    max-width: 100%;
-}
-
-.base .side {
-    color: var(--mantine-color-dimmed);
-}
-
-.branches {
-    position: relative;
+/* Side by side while each has room to be read, stacked once they do not. */
+.options {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
     gap: var(--mantine-spacing-sm);
-    width: 100%;
-    margin-top: 18px;
-}
-
-.branches::before {
-    content: '';
-    position: absolute;
-    top: -10px;
-    left: 25%;
-    right: 25%;
-    height: 10px;
-    border: 1px solid var(--mantine-color-ldGray-3);
-    border-bottom: 0;
-    border-radius: 6px 6px 0 0;
-}
-
-.branches::after {
-    content: '';
-    position: absolute;
-    top: -18px;
-    left: 50%;
-    height: 8px;
-    border-left: 1px solid var(--mantine-color-ldGray-3);
 }
 
 .option {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--mantine-spacing-xs);
     min-width: 0;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm);
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
     background-color: var(--mantine-color-body);
 }
 
-.value {
-    margin: 0;
-    font-family: var(--mantine-font-family-monospace);
-    font-size: var(--mantine-font-size-xs);
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
+/* Which state a version is in, in the colours those states already have. */
+.tone {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 6px;
+    border-radius: 50%;
+    vertical-align: middle;
+    background-color: var(--mantine-color-green-6);
 }
 
-.side {
+.tone[data-tone='draft'] {
+    background-color: var(--mantine-color-orange-6);
+}
+
+.changed {
+    padding: 0 2px;
+    border-radius: 2px;
+    background-color: light-dark(
+        var(--mantine-color-green-1),
+        rgb(64 192 87 / 0.2)
+    );
+    color: inherit;
+}
+
+/* YAML keeps the code face; it is the only thing here that does. */
+.code {
     margin: 0;
-    padding: var(--mantine-spacing-xs);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-sm);
-    background-color: var(--mantine-color-body);
     font-family: var(--mantine-font-family-monospace);
     font-size: var(--mantine-font-size-xs);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     max-height: 9rem;
     overflow: auto;
+}
+
+.code[data-before] {
+    color: var(--mantine-color-dimmed);
+}
+
+.prose {
+    overflow-wrap: anywhere;
 }
 
 .section {

@@ -732,7 +732,12 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     <MantineIcon icon={IconTable} size={14} />
                                 </ThemeIcon>
                                 <Box miw={0} flex={1}>
-                                    <Text fz="sm" fw={500} truncate>
+                                    <Text
+                                        component="h3"
+                                        fz="sm"
+                                        fw={500}
+                                        truncate
+                                    >
                                         {title}
                                     </Text>
                                     <Text fz="xs" c="dimmed" truncate>
@@ -742,6 +747,16 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                             ]}
                                     </Text>
                                 </Box>
+                                {modelChange.reconciliation?.state ===
+                                'conflict' ? (
+                                    <Badge color="yellow" flex="none">
+                                        {count(
+                                            modelChange.reconciliation.conflicts
+                                                .length,
+                                            'conflict',
+                                        )}
+                                    </Badge>
+                                ) : null}
                                 {draft.models.length > 1 ? (
                                     <DraftActions
                                         projectUuid={projectUuid}
