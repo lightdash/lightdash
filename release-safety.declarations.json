@@ -284,6 +284,11 @@
                     "mcp": []
                 }
             }
+        },
+        "deep-research-legacy-report-columns-dropped": {
+            "reason": "Drops the legacy Deep Research report columns result_markdown, report_expires_at and report_expired_at on ai_deep_research_runs, with their expiry index. Ships in the same release as the legacy Deep Research report removal (lightdash/lightdash#32457), which stops reading and writing them. During a rolling upgrade from an earlier release, old pods still read these columns when loading Deep Research runs and write them when completing, cancelling or sweeping runs, so those requests fail until the rollout finishes; a run that completes in that window may end up failed. Use the Recreate strategy to avoid the window.",
+            "requiredStop": false,
+            "migration": "packages/backend/src/ee/database/migrations/20261112120000_drop_ai_deep_research_legacy_report_columns.ts"
         }
     }
 }
