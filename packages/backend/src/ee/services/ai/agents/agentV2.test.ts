@@ -196,7 +196,9 @@ describe('flags-off agent turns', () => {
                         options = captured;
                         return {
                             text: 'Answer',
-                            steps: [{ usage: { totalTokens: 1 } }],
+                            steps: [
+                                { toolCalls: [], usage: { totalTokens: 1 } },
+                            ],
                             finalStep: { usage: { totalTokens: 1 } },
                             usage: { totalTokens: 1 },
                             finishReason: 'stop',
@@ -310,7 +312,7 @@ describe('MCP context preparation at the agent boundary', () => {
                     options = captured;
                     return {
                         text: 'Answer',
-                        steps: [{ usage: { totalTokens: 1 } }],
+                        steps: [{ toolCalls: [], usage: { totalTokens: 1 } }],
                         finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
@@ -448,7 +450,7 @@ describe('MCP context preparation at the agent boundary', () => {
                     options = captured;
                     return {
                         text: 'Answer',
-                        steps: [{ usage: { totalTokens: 1 } }],
+                        steps: [{ toolCalls: [], usage: { totalTokens: 1 } }],
                         finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
@@ -630,7 +632,7 @@ describe('unknown error copy at the agent boundary', () => {
 describe('empty finishes and interrupts', () => {
     const emptyGenerateResult = {
         text: '',
-        steps: [{ usage: { totalTokens: 10 } }],
+        steps: [{ toolCalls: [], usage: { totalTokens: 10 } }],
         finalStep: { usage: { totalTokens: 10 } },
         usage: { totalTokens: 10 },
         finishReason: 'tool-calls',
@@ -1182,7 +1184,7 @@ describe('empty finishes and interrupts', () => {
         await capturedOptions.onEnd({
             usage: { totalTokens: 100 },
             totalUsage: { totalTokens: 100 },
-            steps: [{ text: '', usage: { totalTokens: 10 } }],
+            steps: [{ text: '', toolCalls: [], usage: { totalTokens: 10 } }],
             finalStep: { reasoning: [], usage: { totalTokens: 10 } },
             finishReason: 'tool-calls',
         });
@@ -1424,6 +1426,7 @@ describe('generateAgentResponse token usage persistence', () => {
             return {
                 text: 'Answer',
                 steps: stepTotals.map((totalTokens) => ({
+                    toolCalls: [],
                     usage: { totalTokens },
                 })),
                 finalStep: { usage: { totalTokens: stepTotals.at(-1) ?? 0 } },
@@ -3820,7 +3823,7 @@ describe('external MCP tool call activity', () => {
                     options = captured;
                     return {
                         text: 'Answer',
-                        steps: [{ usage: { totalTokens: 1 } }],
+                        steps: [{ toolCalls: [], usage: { totalTokens: 1 } }],
                         finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
@@ -4158,7 +4161,7 @@ describe.each(['generate', 'stream'] as const)(
                     options = captured;
                     return {
                         text: 'Answer',
-                        steps: [{ usage: { totalTokens: 1 } }],
+                        steps: [{ toolCalls: [], usage: { totalTokens: 1 } }],
                         finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
