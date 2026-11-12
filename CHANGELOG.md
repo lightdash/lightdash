@@ -1,3 +1,10 @@
+## [3.234.6](https://github.com/lightdash/lightdash/compare/3.234.5...3.234.6) (2026-11-12)
+
+
+### Bug Fixes
+
+* **live-sources:** refuse a live data source result the source cut ([#32467](https://github.com/lightdash/lightdash/issues/32467)) ([89ccd24](https://github.com/lightdash/lightdash/commit/89ccd24c0789cb953a702f05ea8bddc8ecf9216c))
+
 ## [3.234.5](https://github.com/lightdash/lightdash/compare/3.234.4...3.234.5) (2026-11-12)
 
 
