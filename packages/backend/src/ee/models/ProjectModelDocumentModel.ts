@@ -283,6 +283,7 @@ export class ProjectModelDocumentModel {
         { projectUuid, userUuid }: DraftOwner,
         publish: () => Promise<T>,
     ): Promise<T> {
+        // ponytail: holds one pooled connection per concurrent publish; move to a lock row with a timestamp if publishes pile up.
         return this.database.transaction(async (trx) => {
             await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
                 `semantic-studio-publish:${projectUuid}:${userUuid}`,
