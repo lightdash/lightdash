@@ -4,7 +4,7 @@ import {
     type SemanticLayerDraft,
     type SemanticLayerDraftApplyResult,
 } from '@lightdash/common';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { type ApiClient, type Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 import { pollUntil } from '../helpers/polling';
@@ -21,7 +21,7 @@ type ThreadMessages = {
  * each case asks for one thing in a fresh thread and scores what lands in the
  * person's draft. Cases run in order and build on the draft so far.
  */
-describe('Semantic Studio agent', () => {
+describe.sequential('Semantic Studio agent', () => {
     let admin: ApiClient;
     let projectUuid: string;
     let agentUuid: string;
@@ -52,6 +52,11 @@ describe('Semantic Studio agent', () => {
                 interval: 5_000,
                 condition: ({ results }) => {
                     const last = results.messages.at(-1);
+                    if (last?.role === 'assistant' && last.status === 'error') {
+                        throw new Error(
+                            `The reply failed: ${last.message ?? 'no message'}`,
+                        );
+                    }
                     return last?.role === 'assistant' && last.status === 'idle';
                 },
             },
@@ -82,9 +87,16 @@ describe('Semantic Studio agent', () => {
         admin = await login();
         const flag = await admin.get<Body<{ enabled: boolean }>>(flagUrl);
         if (!flag.body.results.enabled) {
-            expect((await admin.post(flagUrl, { enabled: true })).status).toBe(
-                200,
+            const enabled = await admin.post(
+                flagUrl,
+                { enabled: true },
+                { failOnStatusCode: false },
             );
+            if (enabled.status !== 200) {
+                throw new Error(
+                    `Turning on ${FeatureFlags.SemanticStudioEditing} returned ${enabled.status}; the server needs LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED=true or the flag already on`,
+                );
+            }
             clearFlag = true;
         }
         const project = await admin.post<
@@ -118,6 +130,15 @@ describe('Semantic Studio agent', () => {
         );
         expect(agent.status).toBe(201);
         agentUuid = agent.body.results.uuid;
+    });
+
+    // Each case builds on the draft the last one left, so the first failure stops the rest.
+    let failed = false;
+    beforeEach(({ skip, onTestFailed }) => {
+        if (failed) skip('an earlier case failed');
+        onTestFailed(() => {
+            failed = true;
+        });
     });
 
     afterAll(async () => {
