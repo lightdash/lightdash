@@ -304,15 +304,20 @@ describe('AgentChatDisplay', () => {
         fireEvent.change(screen.getByLabelText('Composer'), {
             target: { value: 'typed while the agent ran' },
         });
-        expect(screen.getByLabelText('November')).toBeVisible();
+        expect(screen.getByRole('radio', { name: /November/ })).toBeVisible();
         expect(screen.getByLabelText('Composer')).not.toBeVisible();
 
         fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
 
-        expect(screen.queryByLabelText('November')).toBeNull();
+        expect(screen.queryByRole('radio', { name: /November/ })).toBeNull();
         expect(screen.getByLabelText('Composer')).toBeVisible();
         expect(screen.getByLabelText('Composer')).toHaveValue(
             'typed while the agent ran',
         );
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Back to questions' }),
+        );
+        expect(screen.getByRole('radio', { name: /November/ })).toBeVisible();
     });
 });

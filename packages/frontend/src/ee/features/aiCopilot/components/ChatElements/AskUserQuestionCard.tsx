@@ -5,20 +5,31 @@ import {
     Checkbox,
     Group,
     Kbd,
-    Paper,
     Radio,
     Stack,
     Text,
     Textarea,
 } from '@mantine/core';
-import { useEffect, useRef, useState, type FC } from 'react';
+import {
+    useEffect,
+    useRef,
+    useState,
+    type FC,
+    type KeyboardEvent,
+} from 'react';
+import composerStyles from '../../../../../components/common/PromptComposer/PromptComposer.module.css';
 import styles from './AskUserQuestionCard.module.css';
 
-const isTypingTarget = (target: EventTarget | null) =>
+const isTypingTarget = (target: EventTarget) =>
     target instanceof HTMLElement &&
     (target.isContentEditable ||
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA');
+
+const isOptionOrCard = ({ target, currentTarget }: KeyboardEvent) =>
+    target === currentTarget ||
+    (target instanceof HTMLElement &&
+        ['radio', 'checkbox'].includes(target.getAttribute('role') ?? ''));
 
 type Props = {
     questions: AskUserQuestion[];
@@ -53,9 +64,18 @@ export const AskUserQuestionCard: FC<Props> = ({
         cardRef.current?.focus({ preventScroll: true });
     }, []);
 
-    const setCurrent = (answer: Answer) =>
+    const setSelected = (selected: string[]) =>
         setAnswers((all) =>
-            all.map((value, i) => (i === index ? answer : value)),
+            all.map((value, i) =>
+                i === index ? { selected, custom: '' } : value,
+            ),
+        );
+
+    const setCustom = (custom: string) =>
+        setAnswers((all) =>
+            all.map((value, i) =>
+                i === index ? { selected: [], custom } : value,
+            ),
         );
 
     const advance = () => {
@@ -74,100 +94,124 @@ export const AskUserQuestionCard: FC<Props> = ({
         );
     };
 
-    const toggle = (label: string) => {
-        const selected = question.multiSelect
-            ? current.selected.includes(label)
+    const pick = (label: string) => {
+        if (!question.multiSelect) {
+            setSelected([label]);
+            return;
+        }
+        setSelected(
+            current.selected.includes(label)
                 ? current.selected.filter((value) => value !== label)
-                : [...current.selected, label]
-            : [label];
-        setCurrent({ selected, custom: '' });
-        if (!question.multiSelect && !isLast) setIndex(index + 1);
+                : [...current.selected, label],
+        );
     };
 
-    const toggleRef = useRef(toggle);
-    toggleRef.current = toggle;
-    useEffect(() => {
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (
-                event.metaKey ||
-                event.ctrlKey ||
-                event.altKey ||
-                isTypingTarget(event.target)
-            ) {
-                return;
-            }
-            const option = question.options[Number(event.key) - 1];
-            if (!option) return;
+    const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (
+            event.metaKey ||
+            event.ctrlKey ||
+            event.altKey ||
+            isTypingTarget(event.target)
+        ) {
+            return;
+        }
+        // Enter on the card or an option moves on; Space still toggles an option.
+        if (event.key === 'Enter' && isOptionOrCard(event)) {
             event.preventDefault();
-            toggleRef.current(option.label);
-        };
-        document.addEventListener('keydown', onKeyDown);
-        return () => document.removeEventListener('keydown', onKeyDown);
-    }, [question]);
+            advance();
+            return;
+        }
+        const option = question.options[Number(event.key) - 1];
+        if (!option) return;
+        event.preventDefault();
+        pick(option.label);
+    };
 
-    const Indicator = question.multiSelect
-        ? Checkbox.Indicator
-        : Radio.Indicator;
+    const groupName = `ask-user-question-${index}`;
+    const options = question.options.map((option, i) => {
+        const OptionCard = question.multiSelect ? Checkbox.Card : Radio.Card;
+        const Indicator = question.multiSelect
+            ? Checkbox.Indicator
+            : Radio.Indicator;
+        return (
+            <OptionCard
+                key={option.label}
+                value={option.label}
+                className={styles.option}
+            >
+                <Group wrap="nowrap" align="flex-start">
+                    <Indicator />
+                    <Stack gap={0} flex={1}>
+                        <Text fz="sm" fw={500}>
+                            {option.label}
+                        </Text>
+                        {option.description && (
+                            <Text fz="xs" c="dimmed">
+                                {option.description}
+                            </Text>
+                        )}
+                    </Stack>
+                    <Kbd size="xs" aria-hidden>
+                        {i + 1}
+                    </Kbd>
+                </Group>
+            </OptionCard>
+        );
+    });
 
     return (
-        <Paper ref={cardRef} tabIndex={-1} p="md" className={styles.card}>
-            <Stack gap="sm">
+        <Box
+            ref={cardRef}
+            tabIndex={-1}
+            onKeyDown={onKeyDown}
+            data-variant="card"
+            className={`${composerStyles.root} ${styles.card}`}
+        >
+            <Stack gap="sm" p="md" className={styles.body}>
                 <Group justify="space-between" wrap="nowrap">
                     <Text fz="xs" fw={500} c="dimmed">
                         {question.header}
                     </Text>
                     {questions.length > 1 && (
                         <Text fz="xs" c="dimmed">
-                            {index + 1}/{questions.length}
+                            {index + 1} of {questions.length}
                         </Text>
                     )}
                 </Group>
-                <Text fw={500}>{question.question}</Text>
-                <Stack gap="xs">
-                    {question.options.map((option, i) => {
-                        const checked = current.selected.includes(option.label);
-                        const OptionCard = question.multiSelect
-                            ? Checkbox.Card
-                            : Radio.Card;
-                        return (
-                            <OptionCard
-                                key={option.label}
-                                checked={checked}
-                                onClick={() => toggle(option.label)}
-                                className={styles.option}
-                                aria-label={option.label}
-                            >
-                                <Group wrap="nowrap" align="flex-start">
-                                    <Indicator checked={checked} />
-                                    <Stack gap={0} flex={1}>
-                                        <Text fz="sm" fw={500}>
-                                            {option.label}
-                                        </Text>
-                                        {option.description && (
-                                            <Text fz="xs" c="dimmed">
-                                                {option.description}
-                                            </Text>
-                                        )}
-                                    </Stack>
-                                    <Kbd size="xs">{i + 1}</Kbd>
-                                </Group>
-                            </OptionCard>
-                        );
-                    })}
-                </Stack>
+                <Box>
+                    <Text fw={500}>{question.question}</Text>
+                    {question.multiSelect && (
+                        <Text fz="xs" c="dimmed">
+                            Select all that apply
+                        </Text>
+                    )}
+                </Box>
+                {question.multiSelect ? (
+                    <Checkbox.Group
+                        value={current.selected}
+                        onChange={setSelected}
+                        aria-label={question.question}
+                    >
+                        <Stack gap="xs">{options}</Stack>
+                    </Checkbox.Group>
+                ) : (
+                    <Radio.Group
+                        name={groupName}
+                        value={current.selected[0] ?? null}
+                        onChange={(label) => setSelected([label])}
+                        aria-label={question.question}
+                    >
+                        <Stack gap="xs">{options}</Stack>
+                    </Radio.Group>
+                )}
                 <Textarea
                     autosize
                     minRows={1}
                     maxRows={4}
                     aria-label="Your own answer"
-                    placeholder="Type your own answer, or leave this blank to use the selected option"
+                    placeholder="Or type your own answer…"
                     value={current.custom}
-                    onChange={(event) =>
-                        setCurrent({
-                            selected: [],
-                            custom: event.currentTarget.value,
-                        })
-                    }
+                    onChange={(event) => setCustom(event.currentTarget.value)}
                     onKeyDown={(event) => {
                         if (event.key === 'Enter' && !event.shiftKey) {
                             event.preventDefault();
@@ -198,6 +242,6 @@ export const AskUserQuestionCard: FC<Props> = ({
                     </Button>
                 </Group>
             </Stack>
-        </Paper>
+        </Box>
     );
 };

@@ -1,5 +1,13 @@
 import { type AiAgentThread } from '@lightdash/common';
-import { Box, Divider, Flex, Stack, Text, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Divider,
+    Flex,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { IconCrop, IconInfoCircle } from '@tabler/icons-react';
 import {
     Fragment,
@@ -199,6 +207,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
         pendingAskUser && pendingAskUser.toolCallId !== skippedAskUserId
             ? pendingAskUser
             : null;
+    const composer = useRef<HTMLDivElement>(null);
     const unanchoredDeepResearchRegistrations =
         deepResearchRegistrations.filter(
             (registration) =>
@@ -359,14 +368,35 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                     key={askUser.toolCallId}
                                     questions={askUser.questions}
                                     onSubmit={onChoiceSelect}
-                                    onSkip={() =>
-                                        setSkippedAskUserId(askUser.toolCallId)
-                                    }
+                                    onSkip={() => {
+                                        setSkippedAskUserId(askUser.toolCallId);
+                                        requestAnimationFrame(() =>
+                                            composer.current
+                                                ?.querySelector<HTMLElement>(
+                                                    '[contenteditable="true"]',
+                                                )
+                                                ?.focus(),
+                                        );
+                                    }}
                                 />
                             </Box>
                         )}
+                        {pendingAskUser && !askUser && (
+                            <Box className={askUserStyles.resume}>
+                                <Button
+                                    size="xs"
+                                    variant="subtle"
+                                    onClick={() => setSkippedAskUserId(null)}
+                                >
+                                    Back to questions
+                                </Button>
+                            </Box>
+                        )}
                         {/* Hidden, not unmounted, so a draft survives the question. */}
-                        <Box display={askUser ? 'none' : undefined}>
+                        <Box
+                            ref={composer}
+                            display={askUser ? 'none' : undefined}
+                        >
                             {children}
                         </Box>
                     </Box>

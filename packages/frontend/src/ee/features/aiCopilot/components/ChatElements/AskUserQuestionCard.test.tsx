@@ -44,28 +44,45 @@ describe('AskUserQuestionCard', () => {
         const submit = screen.getByRole('button', { name: 'Submit answer' });
         expect(submit).toBeDisabled();
 
-        fireEvent.click(screen.getByLabelText('October 2022'));
+        fireEvent.click(screen.getByRole('radio', { name: /October 2022/ }));
         fireEvent.click(submit);
 
         expect(onSubmit).toHaveBeenCalledWith('October 2022');
     });
 
-    it('picks options with number keys outside text inputs', () => {
+    it('picks with a number key and submits with Enter', () => {
         const onSubmit = renderCard([period]);
+        const card = document.activeElement as HTMLElement;
 
-        fireEvent.keyDown(document, { key: '1' });
-        fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }));
+        fireEvent.keyDown(card, { key: '2' });
+        expect(
+            screen.getByRole('radio', { name: /October 2022/ }),
+        ).toBeChecked();
+        fireEvent.keyDown(card, { key: 'Enter' });
 
-        expect(onSubmit).toHaveBeenCalledWith('November 2022');
+        expect(onSubmit).toHaveBeenCalledWith('October 2022');
+    });
+
+    it('ignores number keys typed into the answer box', () => {
+        renderCard([period]);
+
+        fireEvent.keyDown(screen.getByLabelText('Your own answer'), {
+            key: '1',
+        });
+
+        expect(
+            screen.getByRole('radio', { name: /November 2022/ }),
+        ).not.toBeChecked();
     });
 
     it('steps through several questions and labels each answer', () => {
         const onSubmit = renderCard([period, metrics]);
 
-        fireEvent.click(screen.getByLabelText('November 2022'));
+        fireEvent.click(screen.getByRole('radio', { name: /November 2022/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
         expect(screen.getByText('Which metrics?')).toBeVisible();
-        fireEvent.click(screen.getByLabelText('Revenue'));
-        fireEvent.click(screen.getByLabelText('Orders'));
+        fireEvent.click(screen.getByRole('checkbox', { name: /Revenue/ }));
+        fireEvent.click(screen.getByRole('checkbox', { name: /Orders/ }));
         fireEvent.click(screen.getByRole('button', { name: 'Submit answers' }));
 
         expect(onSubmit).toHaveBeenCalledWith(
@@ -80,7 +97,7 @@ describe('AskUserQuestionCard', () => {
             target: { value: 'Q4 2022' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-        fireEvent.click(screen.getByLabelText('Revenue'));
+        fireEvent.click(screen.getByRole('checkbox', { name: /Revenue/ }));
         fireEvent.click(screen.getByRole('button', { name: 'Submit answers' }));
 
         expect(onSubmit).toHaveBeenCalledWith(
@@ -91,7 +108,8 @@ describe('AskUserQuestionCard', () => {
     it('keeps a picked option when the next answer is typed', () => {
         const onSubmit = renderCard([period, metrics]);
 
-        fireEvent.click(screen.getByLabelText('November 2022'));
+        fireEvent.click(screen.getByRole('radio', { name: /November 2022/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
         fireEvent.change(screen.getByLabelText('Your own answer'), {
             target: { value: 'Margin' },
         });
