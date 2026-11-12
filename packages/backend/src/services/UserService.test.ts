@@ -282,6 +282,14 @@ const rolesModelWithoutExtraRoles = {
     })),
 };
 
+const inviteRenewalAuthorization = {
+    assertCanRenew: vi.fn<
+        ConstructorParameters<
+            typeof UserService
+        >[0]['inviteRenewalAuthorization']['assertCanRenew']
+    >(async () => {}),
+};
+
 const licensedConfigMock: LightdashConfig = {
     ...lightdashConfigMock,
     license: { licenseKey: 'license-key', licenseCertificate: null },
@@ -353,6 +361,7 @@ const createUserService = (
             ...rolesModelWithoutExtraRoles,
             ...overrides.rolesModel,
         } as unknown as RolesModel,
+        inviteRenewalAuthorization,
     });
 
 vi.spyOn(analyticsMock, 'track');
@@ -5153,6 +5162,7 @@ describe('UserService', () => {
                 userOnboardingModel: {} as UserOnboardingModel,
                 userLearnProgressModel: {} as UserLearnProgressModel,
                 rolesModel: {} as RolesModel,
+                inviteRenewalAuthorization,
             });
 
             await expect(
@@ -5235,6 +5245,7 @@ describe('UserService', () => {
                 userOnboardingModel: {} as UserOnboardingModel,
                 userLearnProgressModel: {} as UserLearnProgressModel,
                 rolesModel: {} as RolesModel,
+                inviteRenewalAuthorization,
             });
 
             await expect(
@@ -5875,11 +5886,44 @@ describe('UserService', () => {
                 inviteUser,
             );
             expect(
+                inviteRenewalAuthorization.assertCanRenew,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    recipientUuid: userWithoutOrg.userUuid,
+                    organizationUuid: sessionUser.organizationUuid,
+                }),
+            );
+            expect(
+                organizationMemberProfileModel.updateOrganizationMember,
+            ).not.toHaveBeenCalled();
+            expect(
                 userModel.createPendingUser as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
             expect(
                 inviteLinkModel.upsert as import('vitest').Mock,
             ).toHaveBeenCalledTimes(1);
+        });
+        test('keeps the existing invitation when renewal is denied', async () => {
+            userModel.findUserByEmail.mockResolvedValueOnce({
+                ...userWithoutOrg,
+                isPending: true,
+                organizationUuid: sessionUser.organizationUuid,
+            });
+            inviteRenewalAuthorization.assertCanRenew.mockRejectedValueOnce(
+                new ForbiddenError(),
+            );
+
+            await expect(
+                userService.createPendingUserAndInviteLink(
+                    sessionUser,
+                    inviteUser,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(inviteLinkModel.upsert).not.toHaveBeenCalled();
+            expect(emailClient.sendInviteEmail).not.toHaveBeenCalled();
+            expect(
+                organizationMemberProfileModel.updateOrganizationMember,
+            ).not.toHaveBeenCalled();
         });
         test('should throw error when email belongs to user in different org', async () => {
             (

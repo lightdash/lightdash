@@ -169,6 +169,7 @@ import {
     type SnowflakeAgentClientResolver,
 } from './AiAccessService/SnowflakeAgentClientResolver';
 import { BaseService } from './BaseService';
+import { type InviteRenewalAuthorization } from './InviteRenewalAuthorization';
 import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
 import { resolvePersonalCredentialPolicy } from './WarehouseClientFactory/personalCredentialPolicy';
 
@@ -214,6 +215,10 @@ type UserServiceArguments = {
     userOnboardingModel: UserOnboardingModel;
     userLearnProgressModel: UserLearnProgressModel;
     rolesModel: RolesModel;
+    inviteRenewalAuthorization: Pick<
+        InviteRenewalAuthorization,
+        'assertCanRenew'
+    >;
 };
 
 function isSameMinute(a: Date | null, b: Date): boolean {
@@ -351,6 +356,11 @@ export class UserService extends BaseService {
 
     private readonly rolesModel: RolesModel;
 
+    private readonly inviteRenewalAuthorization: Pick<
+        InviteRenewalAuthorization,
+        'assertCanRenew'
+    >;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -384,6 +394,7 @@ export class UserService extends BaseService {
         userOnboardingModel,
         userLearnProgressModel,
         rolesModel,
+        inviteRenewalAuthorization,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -413,6 +424,7 @@ export class UserService extends BaseService {
         this.userOnboardingModel = userOnboardingModel;
         this.userLearnProgressModel = userLearnProgressModel;
         this.rolesModel = rolesModel;
+        this.inviteRenewalAuthorization = inviteRenewalAuthorization;
     }
 
     private identifyUser(
@@ -873,21 +885,32 @@ export class UserService extends BaseService {
                 );
         }
 
-        // Before any user row is written or joined: an invite must not grant a
-        // role the caller could not grant directly. There is no compensating
-        // delete on this path.
-        await validateOrganizationScopesCanBeGranted({
-            user,
-            organizationUuid,
-            grantedScopes: getOrganizationSystemRoleScopes(userRole, {
-                includePersonalAccessToken:
-                    this.lightdashConfig.auth?.pat?.enabled === true &&
-                    this.lightdashConfig.auth.pat.allowedOrgRoles.includes(
-                        userRole,
-                    ),
-            }),
-            rolesModel: this.rolesModel,
-        });
+        if (
+            purpose === InviteLinkPurpose.Member &&
+            existingUserWithEmail?.organizationUuid === organizationUuid
+        ) {
+            // A renewal keeps the pending member's assignments.
+            await this.inviteRenewalAuthorization.assertCanRenew({
+                user,
+                recipientUuid: existingUserWithEmail.userUuid,
+                organizationUuid,
+                canGrantRoles,
+                patEnabled: this.lightdashConfig.auth?.pat?.enabled === true,
+            });
+        } else {
+            await validateOrganizationScopesCanBeGranted({
+                user,
+                organizationUuid,
+                grantedScopes: getOrganizationSystemRoleScopes(userRole, {
+                    includePersonalAccessToken:
+                        this.lightdashConfig.auth?.pat?.enabled === true &&
+                        this.lightdashConfig.auth.pat.allowedOrgRoles.includes(
+                            userRole,
+                        ),
+                }),
+                rolesModel: this.rolesModel,
+            });
+        }
 
         if (!existingUserWithEmail) {
             const onboardingFlow = await this.getOnboardingFlow(user);
