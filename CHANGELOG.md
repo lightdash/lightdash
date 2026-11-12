@@ -1,3 +1,10 @@
+# [3.240.0](https://github.com/lightdash/lightdash/compare/3.239.0...3.240.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** name where a Studio change stands and what your queries read ([#32510](https://github.com/lightdash/lightdash/issues/32510)) ([cdaef6d](https://github.com/lightdash/lightdash/commit/cdaef6d891892198dc8683fbf779cf1dfe35f3ac))
+
 # [3.239.0](https://github.com/lightdash/lightdash/compare/3.238.0...3.239.0) (2026-11-12)
 
 
