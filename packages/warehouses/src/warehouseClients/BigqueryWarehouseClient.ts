@@ -54,7 +54,6 @@ import {
     type WarehouseNestedColumnShape,
     type WarehouseQueryEstimate,
 } from '@lightdash/common';
-import { pipeline, Readable } from 'stream';
 import {
     WarehouseCatalog,
     WarehouseExecuteAsyncQuery,
@@ -67,11 +66,12 @@ import {
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
 import { normalizeUnicode } from '../utils/sql';
-import { createRowBatchWriter } from '../utils/streamRows';
+import { createRowBatchProcessor } from '../utils/streamRows';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
-export const BIGQUERY_RESULTS_PAGE_SIZE = 100;
+export const BIGQUERY_RESULTS_PAGE_SIZE = 5000;
+const BIGQUERY_CONVERSION_BATCH_SIZE = 64;
 
 const MAX_RECOMMENDATION_PROJECTS = 8;
 const MAX_RECOMMENDATION_REGIONS_PER_PROJECT = 3;
@@ -825,32 +825,46 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         ) => void | Promise<void>,
         options: QueryResultsOptions = {},
     ) {
-        async function* readPages() {
-            let nextQuery: QueryResultsOptions | null = options;
-            while (nextQuery) {
-                const [rows, query]: QueryRowsResponse =
+        const processRows = createRowBatchProcessor(parseRow, streamCallback);
+        let nextQuery: QueryResultsOptions | null = options;
+        while (nextQuery) {
+            const [rows, query, response]: QueryRowsResponse =
+                // eslint-disable-next-line no-await-in-loop
+                await job.getQueryResults({
+                    ...nextQuery,
+                    autoPaginate: false,
+                    maxResults: BIGQUERY_RESULTS_PAGE_SIZE,
+                    skipParsing: true,
+                });
+            if (rows.length > 0) {
+                if (!response?.schema) {
+                    throw new WarehouseQueryError(
+                        'Query response has no schema',
+                    );
+                }
+                for (
+                    let offset = 0;
+                    offset < rows.length;
+                    offset += BIGQUERY_CONVERSION_BATCH_SIZE
+                ) {
+                    // eslint-disable-next-line no-underscore-dangle
+                    const converted = BigQuery.mergeSchemaWithRows_(
+                        response.schema,
+                        rows.slice(
+                            offset,
+                            offset + BIGQUERY_CONVERSION_BATCH_SIZE,
+                        ),
+                        {
+                            wrapIntegers: options.wrapIntegers ?? false,
+                            parseJSON: options.parseJSON ?? false,
+                        },
+                    );
                     // eslint-disable-next-line no-await-in-loop
-                    await job.getQueryResults({
-                        ...nextQuery,
-                        autoPaginate: false,
-                        maxResults: BIGQUERY_RESULTS_PAGE_SIZE,
-                    });
-                yield* rows;
-                nextQuery = query ?? null;
+                    await processRows(converted);
+                }
             }
+            nextQuery = query ?? null;
         }
-        return new Promise<void>((resolve, reject) => {
-            pipeline(
-                Readable.from(readPages()),
-                createRowBatchWriter(parseRow, streamCallback),
-                (err: NodeJS.ErrnoException | null) => {
-                    if (err) {
-                        reject(err);
-                    }
-                    resolve();
-                },
-            );
-        });
     }
 
     async streamQuery(

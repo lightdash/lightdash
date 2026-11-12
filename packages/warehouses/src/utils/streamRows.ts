@@ -57,3 +57,29 @@ export function createRowBatchWriter<Input, Output>(
         },
     });
 }
+
+export function createRowBatchProcessor<Input, Output>(
+    mapRow: (row: Input) => Output,
+    onRows: (rows: Output[]) => void | Promise<void>,
+) {
+    const yieldIfNeeded = createTimeBudgetYield();
+    return async (rows: Iterable<Input>): Promise<void> => {
+        let batch: Output[] = [];
+        for (const row of rows) {
+            batch.push(mapRow(row));
+            const yielding = yieldIfNeeded();
+            if (yielding || batch.length >= RESULT_BATCH_SIZE) {
+                if (yielding) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await yielding;
+                }
+                // eslint-disable-next-line no-await-in-loop
+                await onRows(batch);
+                batch = [];
+            }
+        }
+        if (batch.length > 0) await onRows(batch);
+        const yielding = yieldIfNeeded();
+        if (yielding) await yielding;
+    };
+}

@@ -1,7 +1,11 @@
 import { performance } from 'node:perf_hooks';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { createRowBatchWriter, RESULT_YIELD_BUDGET_MS } from './streamRows';
+import {
+    createRowBatchProcessor,
+    createRowBatchWriter,
+    RESULT_YIELD_BUDGET_MS,
+} from './streamRows';
 
 describe('createRowBatchWriter', () => {
     afterEach(() => vi.restoreAllMocks());
@@ -116,5 +120,71 @@ describe('createRowBatchWriter', () => {
                 ),
             ),
         ).rejects.toThrow('source failed');
+    });
+});
+
+describe('createRowBatchProcessor', () => {
+    afterEach(() => vi.restoreAllMocks());
+    it('preserves order and values across pages in bounded batches', async () => {
+        vi.spyOn(performance, 'now').mockReturnValue(0);
+        const rows = Array.from({ length: 1203 }, (_, id) => ({
+            id,
+            value: null,
+        }));
+        const batches: (typeof rows)[] = [];
+        const process = createRowBatchProcessor(
+            (row: (typeof rows)[number]) => row,
+            async (batch) => {
+                await new Promise<void>((resolve) => {
+                    setImmediate(resolve);
+                });
+                batches.push(batch);
+            },
+        );
+        await process(rows.slice(0, 500));
+        await process([]);
+        await process(rows.slice(500));
+        expect(batches.flat()).toEqual(rows);
+        expect(batches.every((batch) => batch.length <= 100)).toBe(true);
+    });
+    it('yields on elapsed time and keeps its budget across pages', async () => {
+        let now = 0;
+        vi.spyOn(performance, 'now').mockImplementation(() => now);
+        const seen: number[] = [];
+        const process = createRowBatchProcessor(
+            (row: number) => {
+                now += 11;
+                return row;
+            },
+            (batch) => {
+                seen.push(...batch);
+            },
+        );
+        await process([1]);
+        let eventLoopRan = false;
+        setImmediate(() => {
+            eventLoopRan = true;
+        });
+        await process([2]);
+        expect(eventLoopRan).toBe(true);
+        expect(seen).toEqual([1, 2]);
+    });
+    it('propagates conversion and consumer errors', async () => {
+        await expect(
+            createRowBatchProcessor(
+                () => {
+                    throw new Error('convert failed');
+                },
+                () => {},
+            )([1]),
+        ).rejects.toThrow('convert failed');
+        await expect(
+            createRowBatchProcessor(
+                (row: number) => row,
+                async () => {
+                    throw new Error('write failed');
+                },
+            )([1]),
+        ).rejects.toThrow('write failed');
     });
 });

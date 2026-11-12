@@ -1,54 +1,89 @@
-# Result pipeline benchmark
+# Result pipeline benchmarks
 
-Run from the repository root with Node 24:
+The repeated review benchmark is in `review/`. Its raw samples and summary are
+in `review/results/` and `review/RESULTS.md`. These replace the initial three-run
+measurements. No sample is discarded. No statistical significance is claimed.
+
+Run on Node 24 from the repository root:
 
 ```sh
-pnpm -F warehouses build
-node packages/warehouses/bench/result-pipeline.cjs
+node packages/warehouses/bench/review/pipeline.cjs
+HEAD_REF=working node packages/warehouses/bench/review/pipeline.cjs
+HEAD_REF=working LATENCY_MS=10 node packages/warehouses/bench/review/pipeline.cjs
+node packages/warehouses/bench/review/herd-runner.cjs
+node packages/warehouses/bench/review/summarize.cjs
 ```
 
-The fixture has 10,000 rows, 20 TIMESTAMP columns, four INTEGER columns and one
-STRING column. This adapts the supplied `pipeline.js` and `bench.js` harnesses.
-The fixture, BigQuery SDK conversion options, cell conversion, JSONL formatting,
-16 MiB output buffer and two AsyncLocalStorage contexts match those harnesses.
+`pipeline.original.cjs` is the supplied pipeline harness with only its SDK
+module path made portable. `e3_herd.original.cjs` is the supplied herd harness
+with only its nats module path made portable. The replay harness retains the
+same 10,000-row fixture: 20 TIMESTAMP, four INTEGER and one STRING column.
 
-The baseline converts one 10,000-row response and calls the writer for each row.
-The changed path simulates separate response arrivals for each page, uses the
-real built `createRowBatchWriter`, and loads the real backend `createJsonlWriter`
-with Node's type stripper. A continuous setImmediate probe measures the longest
-event-loop turn, including SDK conversion, row conversion and output writes.
-Output bytes and SHA-256 are printed for each run. Fixture creation and module
-loading are outside the timed region. One warm-up run precedes three interleaved
-runs per configuration. The output consumer hashes the bytes in both paths.
+`pipeline.cjs` reads the exact base and head source from Git, or the working
+files with `HEAD_REF=working`. It loads the real stream utilities and S3 write
+callback. It extracts the real BigQuery `streamResults` method and row
+converters without loading the rest of the application. It drives an actual
+BigQuery SDK Job with synthetic HTTP responses. SDK conversion runs as part of
+the timed path, not before it. The baseline response contains 10,000 rows;
+the head respects its source page-size constant. Page payloads are created
+before timing, as responses would be received from the remote server.
 
-Measured on Linux x64, Node 24.22.1. The box also runs other workloads, so timings
-vary. Medians below exclude the labelled first warm-up run. The longest turn
-column reports the worst of the three measured runs.
+The 16 MiB PassThrough buffer, two AsyncLocalStorage contexts, first-batch field
+initialisation, backpressure, JSONL output and ordered SHA-256 check are the same
+on both revisions. Each pair runs base then head, ten times, in one Node
+process. Fixture creation and module loading are outside timing. End-to-end
+stream time includes JSON parsing, SDK conversion, row conversion, writes and
+output consumption. Each run has a fresh job, sink, hash and budget state.
 
-| Path | Page rows | Longest turn (ms) | Median total (ms) | Median rows/s |
-| --- | ---: | ---: | ---: | ---: |
-| Before | 10,000 | 2454.6 | 1736.7 | 5758 |
-| After | 500 | 201.8 | 1652.4 | 6052 |
-| After | 250 | 92.0 | 1560.9 | 6406 |
-| After | 100 | 25.7 | 1698.5 | 5888 |
+The longest delay is the larger of a 1 ms `monitorEventLoopDelay` maximum and
+a 1 ms interval's largest callback gap. The latter catches microtask starvation
+that the histogram can miss. Both probes are armed before timing. Measurements
+include garbage collection and host scheduling, so they bound observed
+unresponsiveness rather than measuring CPU in one JavaScript function.
+The raw JSON includes the histogram value separately. A continuous immediate
+probe is deliberately avoided because it makes the loop spin between pages.
 
-Use 100 rows per BigQuery page. It keeps the measured warmed turns below 50 ms;
-250 and 500 rows exceed that target. Throughput increases by 2.3% against the
-baseline median. All configurations produce 7,132,537 bytes with SHA-256
+The SDK is 8.3.1 and Node is 24.22.1 on Linux x64. This shared box runs other
+workloads. All samples, including cold runs and outliers, remain in the report.
+The default synthetic transport has no network latency. `LATENCY_MS=10` adds a
+10 ms response delay to every page on both revisions. This sensitivity check
+is not a measurement of a remote warehouse.
+
+The selected rework fetches 5,000 raw rows per page with `skipParsing: true`.
+It invokes the same SDK converter on at most 64 raw rows at a time, then passes
+them through the elapsed-time budget and existing row conversion. This avoids
+one large synchronous SDK conversion without forcing tiny HTTP pages. The
+10,000-row fixture needs two requests, rather than 100 on the reviewed head.
+Memory holds one bounded page, small conversion batches and stream buffers.
+One exceptionally large cell, JSON response parsing, GC or the OS can still
+exceed the cooperative budget.
+
+The unchanged herd control uses 50 fetch slots, 30 s expiries, 14 boundary
+publications and 1,200 steady-load publications. It takes about 8.6 minutes per
+run, or 2.9 hours for ten sequential base/head pairs. Each run uses a unique
+stream and subject. It never loads application code, so revision labels do not
+change its behaviour. Its lost-message and timer-drift numbers are controls,
+not evidence that this PR fixes or changes NATS delivery. The harness does not
+modify a worker or consumer used by the application.
+
+The pipeline samples all emit 7,132,537 bytes with ordered SHA-256
 `03e5abdaf3beaf559d2592e20fd22b494b0b615042d0c05184079c9a05455f16`.
-The first cold warm-up takes 4475.1 ms with a 77.1 ms longest turn.
-The unmodified supplied pipeline, with only its SDK path changed, reports total
-1558 ms and longest timer gap 1558 ms at the median of three runs on this box.
+These measurements concern the streaming path. They do not show that fetching
+formatted result pages becomes more responsive.
 
-The probe includes garbage collection and OS scheduling. A 20 ms cooperative
-budget cannot interrupt a single row conversion, SDK page conversion, or GC.
-This is a CPU and in-memory pipeline benchmark. It does not measure remote API
-latency or quotas. Smaller pages increase API request count, so remote export
-throughput can differ from these results. The fixture is fully allocated only
-in the benchmark; the application retains a page, a batch of at most 100 rows,
-and the stream buffers, rather than the full result.
+Additional diagnostic blocks are retained, rather than selecting a favourable
+block: `final-raw5000.jsonl` repeats the final source without affinity, and
+`final-pinned8.jsonl` pins both revisions to CPU 8. The affinity run also records
+process CPU time. Pinning is not CPU isolation: other workloads still use that
+CPU. The box has 12 allowed CPUs and was busy during collection. The repeated
+blocks show substantial wall-time spread; the affinity diagnostic includes a
+head delay above 100 ms. Do not infer a hard bound or a statistically established
+throughput improvement from these measurements. The report retains all blocks.
+The unmodified herd results are kept outside Git while that long run proceeds.
+Use `INCLUDE_HERD=1 RESULTS_OUTPUT=/tmp/result-report.md` with the summary command
+to include them in a separate report without changing the committed results.
 
-BigQuery's generic streaming paginator treats `maxResults` as a total limit.
-The application instead requests pages with `autoPaginate: false` and follows
-all returned page tokens. The multi-page unit test includes an empty page with
-a continuation token to guard against truncation.
+`api-identity.cjs` repeats a seeded Postgres wide-row query 24 times in three
+rounds of eight. Pass a seeded preview URL as its sole argument. It checks
+5,000 ordered rows per query and prints the exact JSONL byte length and hash.
+It reads only synthetic warehouse data and uses the development seed PAT.

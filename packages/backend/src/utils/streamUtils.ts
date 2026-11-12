@@ -48,13 +48,17 @@ export function createJsonlWriter(stream: Writable) {
     const yieldIfNeeded = createTimeBudgetYield();
     return async (rows: WarehouseResults['rows']): Promise<void> => {
         let buffer = '';
-        for await (const row of rows) {
+        for (const row of rows) {
             buffer += `${JSON.stringify(row)}\n`;
             const yielding = yieldIfNeeded();
             if (buffer.length >= 64 * 1024 || yielding) {
+                // eslint-disable-next-line no-await-in-loop
                 await writeWithBackpressure(stream, buffer);
                 buffer = '';
-                if (yielding) await yielding;
+                if (yielding) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await yielding;
+                }
             }
         }
         if (buffer.length > 0) await writeWithBackpressure(stream, buffer);
