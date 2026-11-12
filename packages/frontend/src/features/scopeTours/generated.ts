@@ -57,7 +57,6 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
         sources: [
             'packages/frontend/src/features/dashboardFilters/DashboardFiltersBar.tsx',
             'packages/frontend/src/components/DashboardTiles/DashboardChartTile.tsx',
-            'packages/frontend/src/features/dashboardControls/DateZoomPills.tsx',
             'packages/frontend/src/features/dateZoom/components/DateZoom.tsx',
         ],
         steps: [
