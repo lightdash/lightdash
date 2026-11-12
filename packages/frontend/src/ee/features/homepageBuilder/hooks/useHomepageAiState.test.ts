@@ -9,7 +9,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('../../aiCopilot/hooks/useAiAgentsButtonVisibility', () => ({
-    useAiAgentButtonVisibility: () => state.isAiVisible,
+    useProjectAiAgentButtonVisibility: () => state.isAiVisible,
 }));
 
 vi.mock('../../aiCopilot/hooks/useIsCopilotEnabled', () => ({
