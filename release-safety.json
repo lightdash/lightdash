@@ -1,22 +1,36 @@
 {
   "schemaVersion": "2",
-  "version": "3.231.0",
-  "previousVersion": "3.230.0",
-  "releaseDate": "2026-11-12T13:06:15.587Z",
+  "version": "3.232.0",
+  "previousVersion": "3.231.0",
+  "releaseDate": "2026-11-12T13:40:04.300Z",
   "migrations": {
     "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "count": 2,
+    "coreCount": 2,
     "eeCount": 0,
     "files": [
       {
-        "name": "20261112120000_grant_merge_query_scope_to_explore_roles.ts",
+        "name": "20261111130000_add_pull_request_url_to_project_model_draft_changes.ts",
         "edition": "core",
-        "tables": [],
+        "tables": [
+          "project_model_draft_changes"
+        ],
         "heaviness": {
-          "locksTable": false,
+          "locksTable": true,
           "rewritesTable": false,
-          "scansTable": true
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20261111200000_add_base_versions_to_project_model_draft_changes.ts",
+        "edition": "core",
+        "tables": [
+          "project_model_draft_changes"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
         }
       }
     ]

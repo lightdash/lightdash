@@ -6173,6 +6173,10 @@
                     "name": {
                         "type": "string"
                     },
+                    "slug": {
+                        "type": "string",
+                        "description": "Resolves `controlOrder` refs in this file; derived on download, never stored"
+                    },
                     "uuid": {
                         "type": "string"
                     }
@@ -6180,7 +6184,7 @@
                 "required": ["granularity", "name", "uuid"],
                 "type": "object"
             },
-            "DateZoomTileTarget": {
+            "DateZoomTileTargetAsCode": {
                 "properties": {
                     "tableName": {
                         "type": "string",
@@ -6190,6 +6194,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "controlSlug": {
+                        "type": "string",
+                        "description": "Slug of the control at `controlUuid`; written on download, ignored on upload"
+                    },
                     "controlUuid": {
                         "type": "string"
                     }
@@ -6197,10 +6205,10 @@
                 "required": ["tableName", "fieldId", "controlUuid"],
                 "type": "object"
             },
-            "Record_string.DateZoomTileTarget_": {
+            "Record_string.DateZoomTileTargetAsCode_": {
                 "properties": {},
                 "additionalProperties": {
-                    "$ref": "#/components/schemas/DateZoomTileTarget"
+                    "$ref": "#/components/schemas/DateZoomTileTargetAsCode"
                 },
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
@@ -6339,7 +6347,7 @@
                             "$ref": "#/components/schemas/DashboardControlRefAsCode"
                         },
                         "type": "array",
-                        "description": "The order of filters, parameter controls and sections on the bar. Absent: the default order."
+                        "description": "The order of filters, parameter controls, date zoom controls and sections on the bar. Absent: the default order."
                     },
                     "parameterControls": {
                         "items": {
@@ -6365,7 +6373,7 @@
                     "dateZoomConfig": {
                         "properties": {
                             "tileTargets": {
-                                "$ref": "#/components/schemas/Record_string.DateZoomTileTarget_"
+                                "$ref": "#/components/schemas/Record_string.DateZoomTileTargetAsCode_"
                             },
                             "controls": {
                                 "items": {
@@ -9761,6 +9769,31 @@
                 },
                 "required": ["granularity", "name", "uuid"],
                 "type": "object"
+            },
+            "DateZoomTileTarget": {
+                "properties": {
+                    "tableName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "fieldId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "controlUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "fieldId", "controlUuid"],
+                "type": "object"
+            },
+            "Record_string.DateZoomTileTarget_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DateZoomTileTarget"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
             },
             "DateZoomConfig": {
                 "properties": {
@@ -41364,14 +41397,22 @@
                 "required": ["instruction"],
                 "type": "object"
             },
+            "SemanticLayerApplyMode": {
+                "type": "string",
+                "enum": ["live", "pull_request", "dbt_pull_request"]
+            },
             "SemanticLayerStatus": {
                 "properties": {
+                    "appliesAs": {
+                        "$ref": "#/components/schemas/SemanticLayerApplyMode",
+                        "description": "How a change lands: `live` applies a draft here, `pull_request` sends a draft to the project's repository, and `dbt_pull_request` has the agent edit the dbt project in a pull request, with no draft."
+                    },
                     "enabled": {
                         "type": "boolean",
-                        "description": "Whether this person can change this project's models from the server."
+                        "description": "Whether this person can change this project's models from Semantic Studio."
                     }
                 },
-                "required": ["enabled"],
+                "required": ["appliesAs", "enabled"],
                 "type": "object"
             },
             "ApiSuccess_SemanticLayerStatus_": {
@@ -41397,6 +41438,34 @@
             },
             "SemanticLayerModelChange": {
                 "properties": {
+                    "replaced": {
+                        "properties": {
+                            "paths": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "by": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["paths", "by"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "The parts this change wrote over that someone else had changed just before; null when it wrote over nobody."
+                    },
+                    "byUserUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The uuid of who made the change; null when that person is gone."
+                    },
+                    "by": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Who made the change; null when that person is gone."
+                    },
                     "otherModels": {
                         "items": {
                             "type": "string"
@@ -41435,6 +41504,9 @@
                     }
                 },
                 "required": [
+                    "replaced",
+                    "byUserUuid",
+                    "by",
                     "otherModels",
                     "contentAfter",
                     "contentBefore",
@@ -41491,6 +41563,63 @@
             },
             "ApiSemanticLayerModelResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerModelCode-or-null_"
+            },
+            "SemanticLayerDraftState": {
+                "properties": {
+                    "fingerprint": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fingerprint"],
+                "type": "object",
+                "description": "A value that changes whenever a person's draft would read differently; opaque."
+            },
+            "ApiSuccess_SemanticLayerDraftState_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftState"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftStateResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftState_"
+            },
+            "SemanticLayerDraftedModels": {
+                "properties": {
+                    "models": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["models"],
+                "type": "object",
+                "description": "The names of the models a person has changes in development on, read without replaying or compiling anything."
+            },
+            "ApiSuccess_SemanticLayerDraftedModels_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftedModels"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftedModelsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftedModels_"
             },
             "ModelFragmentChange": {
                 "properties": {
@@ -41591,8 +41720,112 @@
                 "type": "object",
                 "description": "One change in a person's draft, replayed on what is live whenever it is read."
             },
+            "SemanticLayerDraftConflict": {
+                "properties": {
+                    "mine": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "What the draft leaves; null when the draft removes it. Publishing puts this in place of what is live."
+                    },
+                    "live": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "What is live now; null when the part was removed."
+                    },
+                    "base": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "What the draft was based on; null when the part was not there."
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Such as `metrics.revenue.sql`; empty for the model as a whole."
+                    }
+                },
+                "required": ["mine", "live", "base", "path"],
+                "type": "object",
+                "description": "A part of a model that changed live and that the draft changes too, with each side's version of it as YAML."
+            },
+            "SemanticLayerDraftReconciliation": {
+                "properties": {
+                    "conflicts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerDraftConflict"
+                        },
+                        "type": "array"
+                    },
+                    "merged": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Paths published since the draft was based that it does not touch."
+                    },
+                    "liveVersion": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "The live version this was worked out against; null when the model is not live. Sent back when keeping the draft over it."
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": ["current", "merged", "conflict"]
+                    }
+                },
+                "required": ["conflicts", "merged", "liveVersion", "state"],
+                "type": "object",
+                "description": "How a drafted model stands against live. `current`: nothing was published to it\nsince. `merged`: something was, in parts the draft does not touch, and the\ndraft sits on top of it. `conflict`: something was, in parts the draft changes\ntoo, so publishing replaces someone else's change."
+            },
+            "SemanticLayerDrafter": {
+                "properties": {
+                    "paths": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["paths", "name"],
+                "type": "object",
+                "description": "Someone else with a draft of a model, and the parts of it they are changing."
+            },
             "SemanticLayerDraftModel": {
                 "properties": {
+                    "publishedSince": {
+                        "properties": {
+                            "at": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "by": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["at", "by"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "The latest change someone else published to this model since this draft first touched it; null when none."
+                    },
+                    "alsoChanging": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerDrafter"
+                        },
+                        "type": "array",
+                        "description": "Other people with unpublished changes to this model, and the parts each is changing; never the content."
+                    },
+                    "reconciliation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticLayerDraftReconciliation"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "How this model's draft stands against what was published since it was based; null when the base was not recorded."
+                    },
                     "explore": {
                         "allOf": [
                             {
@@ -41617,6 +41850,9 @@
                     }
                 },
                 "required": [
+                    "publishedSince",
+                    "alsoChanging",
+                    "reconciliation",
                     "explore",
                     "contentAfter",
                     "contentBefore",
@@ -41627,6 +41863,11 @@
             },
             "SemanticLayerSettledDraftChange": {
                 "properties": {
+                    "pullRequestUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The pull request an applied change was sent as; null when it went live on the server."
+                    },
                     "status": {
                         "type": "string",
                         "enum": ["applied", "discarded", "undone"]
@@ -41635,12 +41876,31 @@
                         "type": "string"
                     }
                 },
-                "required": ["status", "draftChangeUuid"],
+                "required": ["pullRequestUrl", "status", "draftChangeUuid"],
                 "type": "object",
                 "description": "What became of a change that left the draft."
             },
             "SemanticLayerDraft": {
                 "properties": {
+                    "othersDrafting": {
+                        "items": {
+                            "properties": {
+                                "drafters": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/SemanticLayerDrafter"
+                                    },
+                                    "type": "array"
+                                },
+                                "model": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["drafters", "model"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "Every model other people have unpublished changes to, whether or not this draft touches it."
+                    },
                     "settled": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerSettledDraftChange"
@@ -41677,7 +41937,13 @@
                         "description": "Oldest first: each builds on the ones before it."
                     }
                 },
-                "required": ["settled", "errors", "models", "changes"],
+                "required": [
+                    "othersDrafting",
+                    "settled",
+                    "errors",
+                    "models",
+                    "changes"
+                ],
                 "type": "object"
             },
             "ApiSuccess_SemanticLayerDraft_": {
@@ -41753,8 +42019,100 @@
             "ApiSemanticLayerDraftImpactResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftImpact_"
             },
+            "SemanticLayerDraftFieldUsage": {
+                "properties": {
+                    "scheduledDeliveries": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dashboards": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "charts": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["changed", "removed"],
+                        "description": "`changed` keeps the field with a different definition, so numbers move; `removed` takes it away."
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "scheduledDeliveries",
+                    "dashboards",
+                    "charts",
+                    "kind",
+                    "label",
+                    "fieldId",
+                    "model"
+                ],
+                "type": "object",
+                "description": "A field the draft defines differently or removes, with the saved content that reads it."
+            },
+            "SemanticLayerDraftUsage": {
+                "properties": {
+                    "checkedFields": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "How many changed or removed fields were looked up; the rest of a very large draft is not."
+                    },
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerDraftFieldUsage"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["checkedFields", "fields"],
+                "type": "object",
+                "description": "Saved content that reads what the draft changes: what to look at before publishing, whether or not anything breaks."
+            },
+            "ApiSuccess_SemanticLayerDraftUsage_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftUsage"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftUsageResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftUsage_"
+            },
             "SemanticLayerDraftApplyResult": {
                 "properties": {
+                    "pullRequestUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The pull request the draft was sent as, for a project whose models live in a repository; null otherwise."
+                    },
                     "failures": {
                         "items": {
                             "properties": {
@@ -41778,7 +42136,7 @@
                         "description": "Null when nothing went live."
                     }
                 },
-                "required": ["failures", "exploreCount"],
+                "required": ["pullRequestUrl", "failures", "exploreCount"],
                 "type": "object"
             },
             "ApiSuccess_SemanticLayerDraftApplyResult_": {
@@ -41797,6 +42155,42 @@
             },
             "ApiSemanticLayerDraftApplyResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftApplyResult_"
+            },
+            "SemanticLayerDraftMoveDirection": {
+                "type": "string",
+                "enum": ["earlier", "later"],
+                "description": "Which way a change moves in a draft's order."
+            },
+            "ApiSemanticLayerDraftMoveRequest": {
+                "properties": {
+                    "direction": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftMoveDirection"
+                    }
+                },
+                "required": ["direction"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftKeepRequest": {
+                "properties": {
+                    "liveVersion": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "The live version the person was shown, from the model's reconciliation."
+                    }
+                },
+                "required": ["liveVersion"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftTakeLiveRequest": {
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "The part to leave as it is live, such as `metrics.revenue.sql`."
+                    }
+                },
+                "required": ["path"],
+                "type": "object"
             },
             "ApiSuccess__exploreCount-number__": {
                 "properties": {
@@ -44884,11 +45278,11 @@
                 "enum": [
                     "sandbox",
                     "agent",
+                    "pull_request",
                     "install",
                     "clone",
                     "commit",
-                    "push",
-                    "pull_request"
+                    "push"
                 ]
             },
             "AiWritebackRunStatus": {
@@ -77808,7 +78202,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.231.0",
+        "version": "3.232.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -91837,6 +92231,88 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/state": {
+            "get": {
+                "operationId": "getSemanticLayerDraftState",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerDraftStateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "A value that changes whenever this person's draft would read differently.",
+                "summary": "Get the state of my semantic layer draft",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/models": {
+            "get": {
+                "operationId": "getSemanticLayerDraftedModels",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerDraftedModelsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The models this person has changes in development on, by name.",
+                "summary": "List the models in my semantic layer draft",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/semantic-studio/draft": {
             "get": {
                 "operationId": "getSemanticLayerDraft",
@@ -92005,6 +92481,47 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/usage": {
+            "get": {
+                "operationId": "getSemanticLayerDraftUsage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerDraftUsageResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Saved charts and dashboards that read a field this person's draft defines differently or removes.",
+                "summary": "Get the saved content my semantic layer draft changes",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/semantic-studio/draft/apply": {
             "post": {
                 "operationId": "applySemanticLayerDraft",
@@ -92142,6 +92659,183 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/changes/{draftChangeUuid}/move": {
+            "post": {
+                "operationId": "moveSemanticLayerDraftChange",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Moves one change one place earlier or later in this person's draft.",
+                "summary": "Reorder a change in my semantic layer draft",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "draftChangeUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiSemanticLayerDraftMoveRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/models/{model}/keep": {
+            "post": {
+                "operationId": "keepSemanticLayerDraftModel",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Keeps this person's draft of a model over what was published to it since they started.",
+                "summary": "Keep my draft of a model over what was published since",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiSemanticLayerDraftKeepRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/models/{model}/take-live": {
+            "post": {
+                "operationId": "takeLiveSemanticLayerDraftPart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Leaves one part of this person's drafted model as it is live.",
+                "summary": "Take the live version of one part of my drafted model",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiSemanticLayerDraftTakeLiveRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/semantic-studio/draft/changes/{draftChangeUuid}": {

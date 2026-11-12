@@ -1,3 +1,28 @@
+# [3.232.0](https://github.com/lightdash/lightdash/compare/3.231.0...3.232.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** close gaps found reviewing the Semantic Studio stack ([#32476](https://github.com/lightdash/lightdash/issues/32476)) ([73dc3eb](https://github.com/lightdash/lightdash/commit/73dc3eba6fadbaaf7af6cb06ed8c993c017bdc6b))
+* **homepage:** keep the ask input send button inside the card when the starter prompt is long ([#32472](https://github.com/lightdash/lightdash/issues/32472)) ([245b128](https://github.com/lightdash/lightdash/commit/245b128260a5ab74c633da9ec021d3de4e119fc9))
+
+
+### Features
+
+* **ai:** apply a semantic layer draft as a pull request for models kept in GitHub ([#32422](https://github.com/lightdash/lightdash/issues/32422)) ([a67cb3b](https://github.com/lightdash/lightdash/commit/a67cb3bdaa1d423222449e46674dc3dba9b01000))
+* **ai:** let Semantic Studio chat change a dbt project through a pull request ([#32430](https://github.com/lightdash/lightdash/issues/32430)) ([b0571db](https://github.com/lightdash/lightdash/commit/b0571dbb245688b8530e70d8a32381293ea8c9c5))
+* **ai:** make draft versus live and other people's work plain in Semantic Studio ([#32441](https://github.com/lightdash/lightdash/issues/32441)) ([d1a6e64](https://github.com/lightdash/lightdash/commit/d1a6e6400ab0a7ba48217ab5cdf3d75afd097195))
+* **ai:** reconcile a semantic layer draft with what was published under it ([#32435](https://github.com/lightdash/lightdash/issues/32435)) ([d53fb81](https://github.com/lightdash/lightdash/commit/d53fb811fa6e7897851dc23e394d92ed588caa7c))
+* **ai:** show what surrounds a semantic layer draft before publishing ([#32433](https://github.com/lightdash/lightdash/issues/32433)) ([c0f2375](https://github.com/lightdash/lightdash/commit/c0f2375f0bb79bb66e6c39c0c3a69967c3d42d5a))
+* **ai:** try your own semantic layer draft on the live project ([#32432](https://github.com/lightdash/lightdash/issues/32432)) ([0b3e779](https://github.com/lightdash/lightdash/commit/0b3e779fd43e694ac5c6a6ef103a55b5285e16f7))
+* **dashboards-as-code:** date zoom slugs and order in dashboard files ([#32390](https://github.com/lightdash/lightdash/issues/32390)) ([f64838c](https://github.com/lightdash/lightdash/commit/f64838c28c6c0763edac23a449e0e79a1015903a))
+* **dashboards:** resize tiles from every side while editing ([#32462](https://github.com/lightdash/lightdash/issues/32462)) ([b53eb73](https://github.com/lightdash/lightdash/commit/b53eb73bd25da7376ec3dcf67da908d7f984edae))
+
+
+### Performance Improvements
+
+* **ai:** read a small repository in one request for the agent's repo shell ([#32425](https://github.com/lightdash/lightdash/issues/32425)) ([02b1c99](https://github.com/lightdash/lightdash/commit/02b1c99fa105b91dc90049c07ff7514cf400e4b9))
+
 # [3.231.0](https://github.com/lightdash/lightdash/compare/3.230.0...3.231.0) (2026-11-12)
 
 
