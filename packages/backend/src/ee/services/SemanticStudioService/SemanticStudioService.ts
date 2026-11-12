@@ -42,6 +42,7 @@ import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { BaseService } from '../../../services/BaseService';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { type ValidationService } from '../../../services/ValidationService/ValidationService';
+import { runWithConcurrency } from '../../../utils/runWithConcurrency';
 import {
     ModelDocumentsChangedError,
     type ChangeSetSource,
@@ -1013,10 +1014,8 @@ export class SemanticStudioService extends BaseService {
             });
         });
         const checked = touched.slice(0, MAX_USAGE_FIELDS);
-        const reports = await Promise.all(
-            checked.map(({ fieldId }) =>
-                this.savedChartModel.analyzeFieldImpact(projectUuid, fieldId),
-            ),
+        const reports = await runWithConcurrency(checked, 4, ({ fieldId }) =>
+            this.savedChartModel.analyzeFieldImpact(projectUuid, fieldId),
         );
         return {
             checkedFields: checked.length,
