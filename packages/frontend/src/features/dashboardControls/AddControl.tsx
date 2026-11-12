@@ -35,6 +35,7 @@ import { MENU_TRANSITION } from './menuTransition';
 import { getParameterOptions, type ParameterOption } from './parameterOptions';
 import { isNewFilterIn, isPickingNewField } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { useIsControlEdited } from './useIsControlEdited';
 import { useParameterEditorSelector } from './useParameterEditor';
 
@@ -117,8 +118,8 @@ type Props = {
 };
 
 // The bar's shipped "Add filter" button, which starts a new filter in the
-// editor popover, anchored here until a field is picked. For an editor whose
-// tiles use parameters it reads "Add": a choice of Filter or Parameter first. An editor's carries the "..." menu (`FilterBarMenu`) in place of the
+// editor popover, anchored here until a field is picked. For an editor it
+// reads "Add": a choice of Filter, Parameter (when tiles use one) or Date zoom first. An editor's carries the "..." menu (`FilterBarMenu`) in place of the
 // shipped eye; a viewer's is the shipped view-mode one, with the reset button. Its popover
 // is never given an id to open on, so a click only calls `onPopoverOpen`
 export const AddControl: FC<Props> = ({
@@ -140,6 +141,11 @@ export const AddControl: FC<Props> = ({
     );
     const discard = useControlsSidebarSelector((c) => c.discard);
     const addParameterControl = useParameterEditorSelector((c) => c.add);
+    const addDateZoom = useDateZoomEditorSelector((c) => c.add);
+    // As the shipped "Add date zoom": an editor's, on a dashboard with tiles
+    const hasTiles = useDashboardSelector(
+        (state) => (selectDashboardTiles(state)?.length ?? 0) > 0,
+    );
     const parameterValues = useDashboardSelector(selectParameterValues);
     const parameterControls = useDashboardSelector(selectParameterControls);
     const parameters = useParameterOptions(
@@ -160,9 +166,11 @@ export const AddControl: FC<Props> = ({
     const getUiString = useUiStrings();
     const [step, setStep] = useState<Step>('closed');
     const anchorRef = useRef<HTMLDivElement>(null);
-    // No tile uses a parameter: "Add filter", straight to the field search
+    const canAddParameter = referencesReady && parameters.length > 0;
+    const canAddDateZoom = !isViewer && hasTiles;
+    // Nothing but filters: "Add filter", straight to the field search
     const hasChoice =
-        parameterControls !== null && referencesReady && parameters.length > 0;
+        parameterControls !== null && (canAddParameter || canAddDateZoom);
     const backToChoice = useCallback(() => {
         discard();
         setStep('choose');
@@ -311,7 +319,21 @@ export const AddControl: FC<Props> = ({
                                             setStep('filter');
                                             openFilter();
                                         }}
-                                        onParameter={() => setStep('parameter')}
+                                        onParameter={
+                                            canAddParameter
+                                                ? () => setStep('parameter')
+                                                : null
+                                        }
+                                        onDateZoom={
+                                            canAddDateZoom
+                                                ? () => {
+                                                      setStep('closed');
+                                                      addDateZoom(
+                                                          section?.id ?? null,
+                                                      );
+                                                  }
+                                                : null
+                                        }
                                     />
                                 </Menu.Dropdown>
                             </Menu>

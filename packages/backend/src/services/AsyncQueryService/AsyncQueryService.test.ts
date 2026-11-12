@@ -29405,6 +29405,7 @@ describe('fresh execution producer to result reader', () => {
                 }
                 registerPreAggregateStream();
                 const message = {
+                    info: { deliveryCount: 1 },
                     subject: STREAM_CONFIGS[kind].subjects.query,
                     data: StringCodec().encode(
                         JSON.stringify({

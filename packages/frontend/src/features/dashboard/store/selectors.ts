@@ -14,10 +14,13 @@ import { createSelector } from '@reduxjs/toolkit';
 import { type DashboardStoreState } from '.';
 import { applyParameterLabelOverrides } from '../../../providers/Dashboard/parameterLabelOverrides';
 import { getEffectiveControlOrder } from '../../dashboardControls/controlOrder';
+import { getSavedDateZoomSettings } from './dashboardEditReducer';
 import {
     selectControlOrder,
     selectControlSections,
+    selectDateZoomConfig,
 } from './dashboardEditSelectors';
+import { selectDashboard } from './dashboardSourceSelectors';
 import {
     getParameterControlInputs,
     getDashboardParameterOptionValues,
@@ -445,6 +448,13 @@ export const selectAvailableCustomGranularities = (
 export const selectCompletedEmbedTiles = (state: DashboardStoreState) =>
     state.tileStatus.completedEmbedTiles;
 
+/** The date zoom config as edited, resolved against the loaded dashboard's, as `useDashboardDateZoomConfig` */
+export const selectCurrentDateZoomConfig = (state: DashboardStoreState) =>
+    selectDateZoomConfig(
+        state,
+        getSavedDateZoomSettings(selectDashboard(state)?.config).dateZoomConfig,
+    );
+
 /** Every control in bar order: the stored order (none when absent or empty), else the default bar */
 export const selectOrderedControls = createSelector(
     [
@@ -453,8 +463,16 @@ export const selectOrderedControls = createSelector(
         selectParameterControls,
         selectAreParameterControlsSaved,
         selectControlSections,
+        selectCurrentDateZoomConfig,
     ],
-    (controlOrder, filters, parameterControls, areSaved, sections) =>
+    (
+        controlOrder,
+        filters,
+        parameterControls,
+        areSaved,
+        sections,
+        dateZoomConfig,
+    ) =>
         reconcileDashboardControlOrder({
             controlOrder: getEffectiveControlOrder(
                 controlOrder,
@@ -464,6 +482,7 @@ export const selectOrderedControls = createSelector(
             filters,
             parameterControls: parameterControls ?? [],
             sections,
+            dateZoomControls: dateZoomConfig.controls,
         }),
 );
 

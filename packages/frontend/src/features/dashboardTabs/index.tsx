@@ -65,11 +65,11 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
+import { DashboardControlsSummary } from '../dashboardControls/DashboardControlsSummary';
 import { useParameterBarControls } from '../dashboardControls/useParameterBarControls';
 import { useParameterEditorSelector } from '../dashboardControls/useParameterEditor';
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
-import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { type EditFiltersVisibility } from '../dashboardFilters/EditFiltersVisibilityControl';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
 import GuidedFilterSetupOverlay from '../dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
@@ -1286,7 +1286,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             {editFiltersVisibility !== 'hidden' && (
                                 <div className={styles.filtersBar}>
                                     {isFiltersSummaryShown ? (
-                                        <DashboardFiltersBarSummary
+                                        <DashboardControlsSummary
+                                            isControlsEnabled={
+                                                isDashboardControlsEnabled
+                                            }
                                             filtersCount={totalFiltersCount}
                                             parametersCount={
                                                 totalParametersCount

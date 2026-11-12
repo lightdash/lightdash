@@ -234,6 +234,7 @@ const DashboardState: FC<
     const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const temporaryFilters = useDashboardSelector(selectRawTemporaryFilters);
     mockDashboardContext.current = {
+        setDateZoomGranularity: vi.fn(),
         ...setters,
         filterableFieldsByTileUuid: mockFieldsByTile.current,
         dashboard: { uuid: 'dash-1', tiles: mockTiles.saved },

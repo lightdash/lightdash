@@ -1,4 +1,5 @@
 import {
+    DashboardControlRefKind,
     DashboardTileTypes,
     FilterOperator,
     type DashboardFilterRule,
@@ -30,6 +31,7 @@ import {
     selectIsDateZoomRefusedOnAllChartTiles,
     selectMissingParametersByTile,
     selectMissingRequiredParameters,
+    selectOrderedControls,
     selectParameterValues,
 } from './selectors';
 
@@ -596,5 +598,52 @@ describe('selectIsDateZoomRefusedOnAllChartTiles', () => {
         expect(
             selectIsDateZoomRefusedOnAllChartTiles(stateWithTiles([], {})),
         ).toBe(false);
+    });
+});
+
+describe('selectOrderedControls', () => {
+    const zoom = { uuid: 'z1', name: 'Revenue zoom', granularity: 'Week' };
+    const withDashboardZoom = (sectionId?: string): DashboardStoreState => {
+        const state = stateWith({});
+        return {
+            ...state,
+            source: {
+                ...state.source,
+                embedDashboard: {
+                    config: {
+                        isDateZoomDisabled: false,
+                        dateZoomConfig: {
+                            controls: [{ ...zoom, sectionId }],
+                            tileTargets: {},
+                        },
+                    },
+                } as unknown as DashboardStoreState['source']['embedDashboard'],
+            },
+        };
+    };
+
+    it("places the loaded dashboard's date zooms on the bar", () => {
+        expect(
+            selectOrderedControls(withDashboardZoom()).map(
+                ({ kind, id }) => `${kind}:${id}`,
+            ),
+        ).toEqual([`${DashboardControlRefKind.DATE_ZOOM}:z1`]);
+    });
+
+    it("follows the editor's draft of the date zoom config", () => {
+        const loaded = withDashboardZoom();
+        const saved = loaded.source.embedDashboard!.config!.dateZoomConfig!;
+        const state: DashboardStoreState = {
+            ...loaded,
+            edit: {
+                ...loaded.edit,
+                dateZoomConfig: {
+                    value: { controls: [], tileTargets: {} },
+                    changed: true,
+                    basedOn: saved,
+                },
+            },
+        };
+        expect(selectOrderedControls(state)).toEqual([]);
     });
 });

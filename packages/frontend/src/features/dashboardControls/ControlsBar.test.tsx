@@ -1,5 +1,10 @@
-import { DashboardControlRefKind, FilterOperator } from '@lightdash/common';
+import {
+    DashboardControlRefKind,
+    FilterOperator,
+    type DashboardTile,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { type ComponentProps, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -12,6 +17,7 @@ import { dashboardParametersActions } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import type * as AddControlModule from './AddControl';
 import { ControlsBar } from './ControlsBar';
+import type * as DateZoomPillsModule from './DateZoomPills';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -92,8 +98,20 @@ vi.mock('./SectionedFilters', async () => {
     };
 });
 
+// The shipped date zoom on the right; without its controls, Default zoom alone
 vi.mock('../dateZoom', () => ({
-    DateZoom: () => <div data-testid="date-zoom" />,
+    DateZoom: ({ withControls = true }: { withControls?: boolean }) => (
+        <div data-testid={withControls ? 'date-zoom' : 'default-zoom'} />
+    ),
+}));
+
+// An editor's Default zoom opens its popover instead
+vi.mock('./DateZoomPills', async (importOriginal) => ({
+    ...(await importOriginal<typeof DateZoomPillsModule>()),
+    DefaultZoomButton: () => <div data-testid="editor-default-zoom" />,
+}));
+vi.mock('../dateZoom/components/DateZoomCrossTabFieldsLoader', () => ({
+    DateZoomCrossTabFieldsLoader: () => null,
 }));
 
 const baseProps: ComponentProps<typeof ControlsBar> = {
@@ -166,18 +184,22 @@ describe('ControlsBar', () => {
         };
     });
 
-    it('renders Add and the pills in view mode, with date zoom and hide, without Required', () => {
-        renderWithProviders(<ControlsBar {...baseProps} />);
+    it('renders Add and the pills in view mode, with Default zoom on the right and Hide, without Required or group markers', async () => {
+        const onCollapse = vi.fn();
+        renderWithProviders(
+            <ControlsBar {...baseProps} onCollapse={onCollapse} />,
+        );
 
         expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
         expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Add filter' }),
         ).not.toBeInTheDocument();
-        expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Hide' }),
-        ).toBeInTheDocument();
+        // Named zooms are pills among the controls; Default zoom stays on the right
+        expect(screen.queryByTestId('date-zoom')).not.toBeInTheDocument();
+        expect(screen.getByTestId('default-zoom')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Hide' }));
+        expect(onCollapse).toHaveBeenCalledTimes(1);
         expect(
             screen.queryByRole('button', { name: 'Required' }),
         ).not.toBeInTheDocument();
@@ -221,7 +243,7 @@ describe('ControlsBar', () => {
         expect(
             screen.queryByRole('button', { name: 'Add filter' }),
         ).not.toBeInTheDocument();
-        expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
+        expect(screen.queryByTestId('date-zoom')).not.toBeInTheDocument();
     });
 
     it('renders the sectioned filters in view mode for a stored order with no sections, the flat bar for none', () => {
@@ -297,11 +319,15 @@ describe('ControlsBar', () => {
             screen.queryByRole('button', { name: 'Required' }),
         ).not.toBeInTheDocument();
         expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
+        // The eye is the "..." menu's "Hide date zoom for viewers"
         expect(
-            screen.getByRole('button', {
+            screen.queryByRole('button', {
                 name: 'Toggle date zoom visibility for viewers',
             }),
-        ).toBeInTheDocument();
+        ).not.toBeInTheDocument();
+        // An editor's Default zoom opens its popover, not the shipped menu
+        expect(screen.getByTestId('editor-default-zoom')).toBeInTheDocument();
+        expect(screen.queryByTestId('default-zoom')).toBeNull();
         expect(
             screen.queryByRole('button', { name: 'Hide' }),
         ).not.toBeInTheDocument();
@@ -329,7 +355,6 @@ describe('ControlsBar', () => {
                     <ControlsBar {...baseProps} isEditMode={isEditMode} />
                 </DashboardStoreTestProvider>,
             );
-            expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
             expect(screen.queryByRole('note')).toBeNull();
         },
     );
@@ -339,7 +364,6 @@ describe('ControlsBar', () => {
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
         expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
-        expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
     });
 
     it('keeps the walkthrough anchors of the shipped bar in edit mode', () => {
@@ -430,6 +454,68 @@ describe('ControlsBar', () => {
         expect(
             screen.queryByRole('button', { name: 'Filters and parameters' }),
         ).not.toBeInTheDocument();
+    });
+
+    describe('on a dashboard whose tiles take no filters', () => {
+        const markdownOnly = () => {
+            const store = createDashboardTestStore();
+            seedDashboardEditState(store, {
+                dashboardTiles: [
+                    {
+                        uuid: 'tile-1',
+                        type: 'markdown',
+                        properties: {},
+                    } as unknown as DashboardTile,
+                ],
+            });
+            return store;
+        };
+        const noFilterTiles = {
+            ...baseProps,
+            hasTilesThatSupportFilters: false,
+        };
+
+        it.each([false, true])(
+            'shows Default zoom on the right and no filters (edit mode %s), Add for an editor',
+            (isEditMode) => {
+                renderWithAppProviders(
+                    <DashboardStoreTestProvider store={markdownOnly()}>
+                        <ControlsBar
+                            {...noFilterTiles}
+                            isEditMode={isEditMode}
+                        />
+                    </DashboardStoreTestProvider>,
+                );
+                // A viewer's is the shipped menu; an editor's opens its popover
+                expect(
+                    screen.queryByTestId(
+                        isEditMode ? 'editor-default-zoom' : 'default-zoom',
+                    ),
+                ).toBeInTheDocument();
+                expect(
+                    screen.queryByTestId(
+                        isEditMode ? 'default-zoom' : 'editor-default-zoom',
+                    ),
+                ).toBeNull();
+                expect(screen.queryByTestId('filter-pills')).toBeNull();
+                expect(screen.queryByTestId('sectioned-filters')).toBeNull();
+                expect(
+                    screen.queryByRole('button', { name: 'Add' }) !== null,
+                ).toBe(isEditMode);
+            },
+        );
+
+        it('leaves the shipped bar as it is: date zoom on the right, no filters', () => {
+            renderWithAppProviders(
+                <DashboardStoreTestProvider store={markdownOnly()}>
+                    <DashboardFiltersBar {...noFilterTiles} />
+                </DashboardStoreTestProvider>,
+            );
+            expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Add filter' }),
+            ).toBeNull();
+        });
     });
 
     it('keeps the capsules while a tile change reloads the filter fields', () => {

@@ -169,6 +169,9 @@ const setup = ({
                               parameter: 'ld-dashboard-parameter',
                               parameterDropdown:
                                   'ld-dashboard-parameter-dropdown',
+                              dateZoom: 'ld-dashboard-date-zoom',
+                              dateZoomDropdown:
+                                  'ld-dashboard-date-zoom-dropdown',
                           }
                         : null
                 }

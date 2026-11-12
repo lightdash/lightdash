@@ -151,6 +151,7 @@ import { EventName } from '../types/Events';
 import {
     buildDashboardConfig,
     getControlsToSave,
+    getDateZoomConfigToSave,
 } from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
@@ -1528,6 +1529,11 @@ const Dashboard: FC = () => {
             ],
             controlSections,
             haveControlSectionsChanged,
+            dateZoomConfigToSave: getDateZoomConfigToSave({
+                existingConfig: dashboard.config,
+                dateZoomConfig,
+                hasDateZoomConfigChanged,
+            }),
             parameterInputs: {
                 parameterControls: selectParameterControls(dashboardState),
                 areParameterControlsSaved:
