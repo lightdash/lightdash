@@ -53,11 +53,18 @@ Gated on the flag:
   badge before the name in edit mode, for users who can manage the dashboard;
   the `save` class, outlined by `DashboardHeader.module.css` under the guard's
   `[data-dashboard-header-guard][inert]`.
-- `ee/features/embed/EmbedDashboard/components/EmbedDashboard.tsx`:
-  `isEmbedControlsEnabled` (flag on, and not an embed editor in edit mode)
-  turns on `isControlsEnabled` for the header and filter bar, and
-  renders `TileOverlays`, `TabCounts` and `FieldTilesBar` (all three act only in mapping). A dashboard with
-  no tiles has no grid, so its header gets `isControlsEnabled={false}`.
+- `ee/features/embed/EmbedDashboard/components/EmbedDashboard.tsx`: the
+  flag turns on `isControlsEnabled` for the header and filter bar, viewers
+  and an editor in edit mode alike, and renders the tile overlays, tab
+  counts and tile bars of all three kinds (they act only in mapping; no
+  `LinkPrompts`). A dashboard with no tiles has no grid, so its header gets
+  `isControlsEnabled={false}`. For an editor in edit mode it also: wraps
+  the toolbar in `EmbedToolbarGuard` (inert while a control is edited, as
+  `DashboardHeaderGuard`), sets the parameters store's edit mode and clears
+  the runtime zoom pick (restored to the saved default on the way out),
+  builds Save with `buildEmbedDashboardUpdate`, counts control drafts in
+  "changed", and resets them on Cancel and after a save
+  (`useControlDraftResets`).
 - `pages/Dashboard.tsx` Save: `getDimensionFiltersToSave` keeps a required
   filter's value as its default with the flag on; off, it strips it as before.
 - `pages/DashboardVersionComparison.tsx`: a "Filter sections" block after
@@ -107,7 +114,19 @@ Openings (optional props, defaults are today's behaviour):
 - Embed: `EmbedDashboardFilterBar` and `EmbedDashboardHeader` take
   `isControlsEnabled`; with it the filter bar sits in `MappingSwap`, and
   named zooms the viewer sees count towards Hide and the summary, as
-  filters and parameters do (Default zoom stays out, on the right).
+  filters and parameters do (Default zoom stays out, on the right). With
+  `isEditMode` too it is the app's editor bar: always `SectionedFilters`,
+  `DefaultZoomButton` in the shipped Default zoom's place.
+- `SectionedFilters`: `editorActions` (default `AddControl`; the embed
+  passes one with its class contract). `AddControl`: `withParameters` and
+  `withDateZooms` (default `true`; the embed passes what its token shows,
+  so an editor cannot add a control the bar hides). `FilterBarMenu`:
+  `withDateZoomVisibility` (default `true`; `AddControl` passes its
+  `withDateZooms`).
+- `DashboardProvider`: `isParametersEditModeExternal` (default `false`: the
+  route sets the parameters store's edit mode). The embed page passes it
+  and `EmbedDashboard` dispatches the mode; without it the provider's
+  effect, which runs after its children's, would undo that on mount.
 
 Pure moves out of shipped files, now shared by both sides:
 `features/dateZoom/hooks.ts` (`useGranularityData`,
@@ -123,7 +142,7 @@ out of `DateZoomControlPills`),
 `isLockedRequiredMissingValue`, `getFilterRuleFilterType`,
 `getRequiredGroupMemberUpdates`, `getDimensionFiltersToSave`, and
 `getTileFieldOptions`, the Tiles tab's per-tile options),
-`components/common/FieldSelect/fieldSelectLabel.ts` (`getFieldSelectLabel`), the embed's `EmbedResetFiltersButton`, and `Dashboard/DashboardPerformanceWarning`.
+`components/common/FieldSelect/fieldSelectLabel.ts` (`getFieldSelectLabel`), the embed's `EmbedResetFiltersButton`, `Dashboard/DashboardPerformanceWarning`, and `useControlDraftResets` (`resetControlDrafts`, the control part of the page's Cancel).
 Fix behaviour in the shared piece, once, never in a copy.
 
 ## Map
@@ -158,6 +177,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `DateZoomMappingRow.tsx`, `DateZoomTileOverlay.tsx`, `DateZoomTilesBar.tsx`, `useDateZoomMapping.ts` | Choosing a zoom's tiles: the row, a card per tile, the floating bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
 | `DashboardHeaderGuard.tsx` | Wraps the shipped header; inert while an editor's filter is edited |
+| `useControlDraftResets.ts` | The control drafts back to a saved config: the page's and the embed's Cancel, the embed's settle after a save |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
 | `DropdownClass.tsx`, `controlContractClasses.ts` | Embed class contract on the editor popover and portalled lists |
 | `requirements.ts`, `fieldLabels.ts` | Requirement rules, count copy |
@@ -213,10 +233,16 @@ Each one has broken before or would break silently.
   `ld-dashboard-filter-dropdown` on the popover, `ld-dashboard-filter`,
   `ld-dashboard-add-filter`, `ld-dashboard-filter-dropdown` and
   `ld-dashboard-add-filter-dropdown` on lists); keep them on the equivalent
-  element. An embed editor's Save sends the loaded
-  `dashboard.config` and the store's rules, so sections survive. The embed
-  resolves the flag for the JWT's organisation
-  (`FeatureFlagService.getForAccount`).
+  element. An embed editor's Save is `buildEmbedDashboardUpdate`
+  (`embedDashboardSave.ts`): flag off, the loaded `dashboard.config` and
+  the store's rules, exactly as before; flag on, the app's save helpers
+  spread over the loaded config. Keys the embed's store is never seeded
+  with are sent as loaded, never from a store default: `pinnedParameters`,
+  `parameterOrder`, and `isDateZoomDisabled` unless the token allows date
+  zoom, where an editor's edit mode seeds it from the saved config (and
+  puts it back to `false` on the way out: an embed viewer's date zoom
+  follows the token). The embed resolves the flag for the JWT's
+  organisation (`FeatureFlagService.getForAccount`).
 - **Saved section keys survive every rewrite**: `sectionId` is carried in
   `applyDimensionOverrides` / `applyMetricOverrides`, `adoptPlaceholder` and
   the emptied placeholder. See `docs/sections.md`.

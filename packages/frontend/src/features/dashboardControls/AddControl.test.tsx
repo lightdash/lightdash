@@ -534,7 +534,11 @@ describe('AddControl with parameters', () => {
         controls = [],
         triggerClassName,
         section,
+        withParameters,
+        withDateZooms,
     }: {
+        withParameters?: boolean;
+        withDateZooms?: boolean;
         discoveryPending?: boolean;
         isViewer?: boolean;
         tileParameterReferences?: Record<string, string[]>;
@@ -585,6 +589,8 @@ describe('AddControl with parameters', () => {
                     <AddControl
                         triggerClassName={triggerClassName}
                         section={section}
+                        withParameters={withParameters}
+                        withDateZooms={withDateZooms}
                     />
                     <ParameterPills />
                 </ParameterEditorProvider>
@@ -721,6 +727,24 @@ describe('AddControl with parameters', () => {
         ).not.toBeInTheDocument();
         await user.click(screen.getByRole('menuitem', { name: /^Filter/ }));
         expect(openNew).toHaveBeenCalledTimes(1);
+    });
+
+    it('offers only the kinds it is allowed, as in an embed whose token hides the others', async () => {
+        const { user } = setup({ withDateZooms: false });
+        await user.click(screen.getByRole('button', { name: 'Add' }));
+        expect(
+            await screen.findByRole('menuitem', { name: /^Parameter/ }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('menuitem', { name: /^Date zoom/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('is "Add filter" alone for an editor allowed neither parameters nor date zoom', async () => {
+        const { user } = setup({ withParameters: false, withDateZooms: false });
+        await user.click(screen.getByRole('button', { name: 'Add filter' }));
+        expect(openNew).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
     });
 
     it('keeps parameter creation unavailable while controls are not loaded', async () => {

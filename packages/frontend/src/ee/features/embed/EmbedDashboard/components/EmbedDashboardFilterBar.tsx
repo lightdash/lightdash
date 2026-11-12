@@ -21,7 +21,10 @@ import {
 } from '../../../../../features/dashboard/store';
 import { AddControl } from '../../../../../features/dashboardControls/AddControl';
 import { MappingSwap } from '../../../../../features/dashboardControls/ControlsBar';
-import { DateZoomPills } from '../../../../../features/dashboardControls/DateZoomPills';
+import {
+    DateZoomPills,
+    DefaultZoomButton,
+} from '../../../../../features/dashboardControls/DateZoomPills';
 import { FilterPills } from '../../../../../features/dashboardControls/FilterPills';
 import { ParameterPills } from '../../../../../features/dashboardControls/ParameterPills';
 import { SectionedFilters } from '../../../../../features/dashboardControls/SectionedFilters';
@@ -30,6 +33,7 @@ import { useNamedDateZoomCount } from '../../../../../features/dashboardControls
 import { useParameterBarControls } from '../../../../../features/dashboardControls/useParameterBarControls';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
+import { DateZoomCrossTabFieldsLoader } from '../../../../../features/dateZoom/components/DateZoomCrossTabFieldsLoader';
 import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
 import { useActiveTabParameters } from '../../../../../hooks/dashboard/useActiveTabParameters';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
@@ -55,9 +59,10 @@ type Props = {
 // shows them as the app's viewer bar does
 const ControlsFilterArea: FC<{
     canAddFilters: boolean;
+    isEditor: boolean;
     withParameters: boolean;
     withDateZooms: boolean;
-}> = ({ canAddFilters, withParameters, withDateZooms }) => {
+}> = ({ canAddFilters, isEditor, withParameters, withDateZooms }) => {
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     // Sections or a stored order: the bar the app's viewers get
     const isSectioned = useDashboardSelector(
@@ -66,6 +71,30 @@ const ControlsFilterArea: FC<{
             selectHasStoredControlOrder(state),
     );
     const getUiString = useUiStrings();
+    const triggerClassName = embedContractClass('ld-dashboard-filter');
+    // An editor's bar is the app's: always sectioned, adding only the kinds
+    // this embed shows
+    if (isEditor) {
+        return (
+            <SettledFilterFields>
+                <SectionedFilters
+                    activeTabUuid={activeTabUuid}
+                    editorActions={
+                        <AddControl
+                            triggerClassName={embedContractClass(
+                                'ld-dashboard-add-filter',
+                            )}
+                            withParameters={withParameters}
+                            withDateZooms={withDateZooms}
+                        />
+                    }
+                    triggerClassName={triggerClassName}
+                    withParameters={withParameters}
+                    withDateZooms={withDateZooms}
+                />
+            </SettledFilterFields>
+        );
+    }
     const actions = (
         <>
             <AddControl
@@ -77,7 +106,6 @@ const ControlsFilterArea: FC<{
             {!canAddFilters && <EmbedResetFiltersButton />}
         </>
     );
-    const triggerClassName = embedContractClass('ld-dashboard-filter');
     // A tile added or removed keeps the pills, as on the app's bar
     return (
         <SettledFilterFields>
@@ -213,6 +241,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                     (isControlsEnabled ? (
                         <ControlsFilterArea
                             canAddFilters={canAddFilters}
+                            isEditor={isEditMode}
                             withParameters={
                                 parametersEnabled && useParameterControls
                             }
@@ -263,14 +292,22 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                     <Box
                         className={embedContractClass('ld-dashboard-date-zoom')}
                     >
-                        <DateZoom
-                            isEditMode={false}
-                            // Named zooms are pills in the flow
-                            withControls={!isControlsEnabled}
-                            dropdownClassName={embedContractClass(
-                                'ld-dashboard-date-zoom-dropdown',
-                            )}
-                        />
+                        {isControlsEnabled && isEditMode ? (
+                            // An editor's Default zoom, as on the app's bar
+                            <>
+                                <DefaultZoomButton />
+                                <DateZoomCrossTabFieldsLoader />
+                            </>
+                        ) : (
+                            <DateZoom
+                                isEditMode={false}
+                                // Named zooms are pills in the flow
+                                withControls={!isControlsEnabled}
+                                dropdownClassName={embedContractClass(
+                                    'ld-dashboard-date-zoom-dropdown',
+                                )}
+                            />
+                        )}
                     </Box>
                 )}
                 {isCollapsible && (

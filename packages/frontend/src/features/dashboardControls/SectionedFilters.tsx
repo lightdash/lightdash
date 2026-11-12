@@ -362,6 +362,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     isEditorOpen: isEditorOnAdd,
                     allowParameters: withParameters,
                 }}
+                withDateZooms={withDateZooms}
             />
             <SectionMenu
                 label={`${section.name} menu`}
@@ -571,6 +572,8 @@ type Props = {
     activeTabUuid: string | undefined;
     /** A viewer's bar before the pills (default: `AddControl`); an embed passes its own. */
     viewerActions?: ReactNode;
+    /** An editor's bar before the pills (default: `AddControl`); an embed passes its own. */
+    editorActions?: ReactNode;
     /** An embed's class contract hook on each pill (default none). */
     triggerClassName?: string;
     /** Parameter controls after the filters in each pass (default true; an embed may hide them). */
@@ -590,6 +593,7 @@ type Props = {
 export const SectionedFilters: FC<Props> = ({
     activeTabUuid,
     viewerActions = <AddControl />,
+    editorActions = <AddControl />,
     triggerClassName,
     withParameters = true,
     withDateZooms = true,
@@ -1976,7 +1980,7 @@ export const SectionedFilters: FC<Props> = ({
                                 <>
                                     {renderOrderLines(
                                         <UnsectionTarget>
-                                            <AddControl />
+                                            {editorActions}
                                         </UnsectionTarget>,
                                         barEnd,
                                     )}
@@ -1992,7 +1996,7 @@ export const SectionedFilters: FC<Props> = ({
                                         />
                                     )}
                                     <UnsectionTarget>
-                                        <AddControl />
+                                        {editorActions}
                                     </UnsectionTarget>
                                     {pills}
                                     {/* A first section is named inline, where its capsule lands */}

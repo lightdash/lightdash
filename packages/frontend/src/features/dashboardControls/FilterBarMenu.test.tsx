@@ -83,7 +83,12 @@ const setters = {
 const render = ({
     tiles = [tile],
     isDateZoomDisabled = false,
-}: { tiles?: DashboardTile[]; isDateZoomDisabled?: boolean } = {}) => {
+    withDateZoomVisibility,
+}: {
+    tiles?: DashboardTile[];
+    isDateZoomDisabled?: boolean;
+    withDateZoomVisibility?: boolean;
+} = {}) => {
     const store = createDashboardTestStore();
     seedDashboardEditState(store, {
         dashboard: { config },
@@ -97,7 +102,7 @@ const render = ({
     };
     renderWithProviders(
         <DashboardStoreTestProvider store={store}>
-            <FilterBarMenu />
+            <FilterBarMenu withDateZoomVisibility={withDateZoomVisibility} />
         </DashboardStoreTestProvider>,
     );
     return userEvent.click(
@@ -107,6 +112,26 @@ const render = ({
 
 describe('FilterBarMenu', () => {
     beforeEach(() => vi.clearAllMocks());
+
+    it('leaves out hiding date zoom where an embed token allows none, keeping the rest', async () => {
+        await render({ withDateZoomVisibility: false });
+        expect(
+            screen.queryByRole('menuitem', {
+                name: 'Hide date zoom for viewers',
+            }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('menuitem', {
+                name: 'Hide Add filter for viewers',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('menuitem', { name: 'Date zoom grains' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('menuitem', { name: 'Filter rules' }),
+        ).toBeInTheDocument();
+    });
 
     it('hides date zoom from viewers', async () => {
         await render();
