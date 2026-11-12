@@ -171,6 +171,10 @@ describe('BuiltInSkills', () => {
             'MCP clients must generate standard UUID v4 values locally',
         );
         expect(periodReference?.body).toContain('`generate_hashes` (MCP)');
+        expect(dashboardReference?.body).toContain('`sectionSlug`');
+        expect(dashboardReference?.body).not.toMatch(
+            /date zoom can't be ordered/i,
+        );
     });
 
     it('matches skill names case-insensitively and trims input', async () => {

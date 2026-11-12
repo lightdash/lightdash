@@ -787,9 +787,11 @@ from control values.
 
 ### Dashboard control order
 
-`config.controlOrder` is the order of filters, parameter controls and sections
-on the bar, as `{ kind, slug }` refs (`kind` is `filter`,
-`parameter` or `section`) to controls in the same file. With
+`config.controlOrder` is the order of filters, parameter controls, date zoom
+controls and sections on the bar, as `{ kind, slug }` refs (`kind` is
+`filter`, `parameter`, `dateZoom` or `section`) to controls in the same file.
+A `dateZoom` ref names a control's `slug` in `config.dateZoomConfig.controls`,
+derived from its name and written under the same condition as filter slugs. With
 `dashboard-controls` enabled, a dashboard with a saved order downloads its full
 reconciled order and a `slug` on every dimension and metric filter; a
 never-reordered dashboard downloads without either. Filter slugs come from the
@@ -812,7 +814,7 @@ upload, from the CLI or an AI agent, stores a non-empty list as given.
 Slugs in an uploaded file only resolve `controlOrder` refs inside that file.
 An upload keeps a dimension filter's ID only when it is the only filter on its
 table and field on the saved dashboard and in the file; filters sharing a field
-get new IDs, never each other's. Unknown, duplicate and `dateZoom`
+get new IDs, never each other's. Unknown and duplicate
 refs are rejected with the valid slugs listed, and refs with the wrong shape
 fail validation; parameter refs need
 `config.parameterControls` in the file. When dashboard controls are on, a file
