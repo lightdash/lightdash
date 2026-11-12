@@ -8,7 +8,14 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconDeviceMobile } from '@tabler/icons-react';
-import { useId, useState, type FC } from 'react';
+import {
+    useEffect,
+    useId,
+    useRef,
+    useState,
+    type FC,
+    type RefObject,
+} from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useNavBarMenuProps } from '../../components/NavBar/NavBarPortalContext';
 import useHealth from '../../hooks/health/useHealth';
@@ -22,6 +29,23 @@ import { useMobileSignInCode } from './useMobileSignInCode';
 
 const POPOVER_WIDTH = 'calc(min(420px, 100vw - 32px))';
 
+const useFocusAfterConfirm = (
+    isConfirming: boolean,
+    dropdown: RefObject<HTMLDivElement | null>,
+) => {
+    const wasConfirming = useRef(false);
+    useEffect(() => {
+        if (isConfirming) {
+            wasConfirming.current = true;
+            return;
+        }
+        if (!wasConfirming.current) return;
+        wasConfirming.current = false;
+        const node = dropdown.current;
+        if (node && !node.contains(document.activeElement)) node.focus();
+    }, [isConfirming, dropdown]);
+};
+
 const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
     const menuProps = useNavBarMenuProps();
     const { user } = useApp();
@@ -30,6 +54,8 @@ const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
     const [opened, setOpened] = useState(false);
     const signIn = useMobileSignInCode({ autoShow: opened });
     const isConfirming = signIn.phase === 'claimed';
+    const dropdown = useRef<HTMLDivElement>(null);
+    useFocusAfterConfirm(isConfirming, dropdown);
 
     const close = () => {
         setOpened(false);
@@ -76,7 +102,7 @@ const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
                     </Button>
                 </Tooltip>
             </Popover.Target>
-            <Popover.Dropdown>
+            <Popover.Dropdown ref={dropdown}>
                 <Stack gap="sm">
                     <Title order={6}>{MOBILE_STRINGS.signInTitle}</Title>
                     <MobileSignInStep

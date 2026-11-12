@@ -24,8 +24,14 @@ type Call = { url: string; method: string };
 const mockServer = ({
     mintError,
     isClaimed = false,
-}: { mintError?: ApiError; isClaimed?: boolean } = {}) => {
+    appliesDecisions = false,
+}: {
+    mintError?: ApiError;
+    isClaimed?: boolean;
+    appliesDecisions?: boolean;
+} = {}) => {
     const calls: Call[] = [];
+    let decision: 'approve' | 'decline' | null = null;
     api.mockImplementation(
         async ({ url, method }: { url: string; method: string }) => {
             calls.push({ url, method });
@@ -40,20 +46,35 @@ const mockServer = ({
                 };
             }
             if (method === 'POST' && url.endsWith('/approve')) {
+                if (appliesDecisions) decision = 'approve';
                 return {
                     status: MobileSignInCodeStatus.APPROVED,
                     matchNumber: '47',
                 };
             }
+            if (method === 'POST' && url.endsWith('/decline')) {
+                if (appliesDecisions) decision = 'decline';
+                return {
+                    status: MobileSignInCodeStatus.DECLINED,
+                    matchNumber: null,
+                };
+            }
             if (method === 'DELETE') return undefined;
+            const claimedStatus =
+                decision === 'approve'
+                    ? MobileSignInCodeStatus.APPROVED
+                    : MobileSignInCodeStatus.CLAIMED;
             return {
                 codeUuid: 'code-1',
-                status: isClaimed
-                    ? MobileSignInCodeStatus.CLAIMED
-                    : MobileSignInCodeStatus.PENDING,
+                status:
+                    decision === 'decline'
+                        ? MobileSignInCodeStatus.DECLINED
+                        : isClaimed
+                          ? claimedStatus
+                          : MobileSignInCodeStatus.PENDING,
                 expiresAt: new Date(Date.now() + 120_000).toISOString(),
-                matchNumber: null,
-                declinedBy: null,
+                matchNumber: decision === 'approve' ? '47' : null,
+                declinedBy: decision === 'decline' ? 'web' : null,
                 device: isClaimed
                     ? { platform: 'ios', clientName: 'Lightdash iOS' }
                     : null,
@@ -225,4 +246,56 @@ describe('MobileSignInMenu', () => {
         ).toBeInTheDocument();
         expect(server.deletes()).toEqual([]);
     });
+
+    it.each([
+        ['Confirm', 'Type this number on your phone'],
+        ['Decline', 'Sign-in declined'],
+    ])(
+        'moves focus back into the popover after %s, so Escape closes it',
+        async (action, nextText) => {
+            const user = userEvent.setup();
+            const server = mockServer({
+                isClaimed: true,
+                appliesDecisions: true,
+            });
+            renderWithProviders(<MobileSignInMenu />);
+
+            await user.click(openButton());
+            const confirm = await screen.findByRole('dialog', {
+                name: 'A phone wants to sign in as you',
+            });
+            await user.click(
+                within(confirm).getByRole('button', { name: action }),
+            );
+
+            const popover = screen.getByRole('dialog', {
+                name: 'Sign in on your phone',
+            });
+            await within(popover).findByText(nextText);
+            await waitFor(() =>
+                expect(
+                    screen.queryByRole('dialog', {
+                        name: 'A phone wants to sign in as you',
+                    }),
+                ).not.toBeInTheDocument(),
+            );
+            await waitFor(() =>
+                expect(popover.contains(document.activeElement)).toBe(true),
+            );
+
+            await user.keyboard('{Escape}');
+
+            await waitFor(() =>
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+            );
+            expect(openButton()).toHaveFocus();
+            if (action === 'Confirm') {
+                await waitFor(() =>
+                    expect(server.deletes()).toEqual([
+                        '/user/mobile/sign-in-codes/code-1',
+                    ]),
+                );
+            }
+        },
+    );
 });
