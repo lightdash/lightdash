@@ -171,7 +171,7 @@ describe('BuiltInSkills', () => {
             'MCP clients must generate standard UUID v4 values locally',
         );
         expect(periodReference?.body).toContain('`generate_hashes` (MCP)');
-        expect(dashboardReference?.body).toContain('`sectionSlug`');
+        expect(dashboardReference?.body).toContain('### Control sections');
         expect(dashboardReference?.body).not.toMatch(
             /date zoom can't be ordered/i,
         );

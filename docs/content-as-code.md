@@ -793,7 +793,8 @@ controls and sections on the bar, as `{ kind, slug }` refs (`kind` is
 A `dateZoom` ref names a control's `slug` in `config.dateZoomConfig.controls`,
 derived from its name and written under the same condition as filter slugs. With
 `dashboard-controls` enabled, a dashboard with a saved order downloads its full
-reconciled order and a `slug` on every dimension and metric filter; a
+reconciled order and a `slug` on every dimension and metric filter and date
+zoom control; a
 never-reordered dashboard downloads without either. Filter slugs come from the
 field id on every download, suffixed `-1`, `-2` when several filters share a
 field, and are never saved.

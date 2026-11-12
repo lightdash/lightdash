@@ -651,7 +651,7 @@ When dashboard controls are enabled, `config.controlSections` groups controls in
 - A section's `slug` is derived from its name on every read and never saved; repeated names are all numbered (`-1`, `-2`). A section written without a `slug` takes the slug of its name. Files hold no section IDs.
 - A slug only links references inside the same edit. To rename a section, change its `name` and keep its `slug`: its members and its `controlOrder` entry stay attached, and the next read shows the slug of the new name. If you change a section's `slug`, change every `sectionSlug` and `section` entry in `controlOrder` that used it in the same edit.
 - An unknown `sectionSlug` is rejected, and the error lists the valid section slugs.
-- `collapsed: true` starts the section folded and `false` open. Without it, a section starts folded only when it has more than 6 members.
+- `collapsed: true` starts the section folded and `false` open. Without it, a section starts folded only when it has more than 6 filters.
 - Removing a section: remove its entry, every `sectionSlug` that points at it, and its `controlOrder` entry. Its controls stay on the bar outside any section.
 
 ### Date zoom controls
@@ -668,8 +668,7 @@ Besides the dashboard-wide date zoom (`isDateZoomDisabled`, `dateZoomGranulariti
                     "uuid": "3f0f7c52-6a0e-4a8e-9d55-1f2b7c3e9a10",
                     "slug": "weekly",
                     "name": "Weekly",
-                    "granularity": "Week",
-                    "sectionSlug": "calendar"
+                    "granularity": "Week"
                 }
             ],
             "tileTargets": {
