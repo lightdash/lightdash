@@ -48,6 +48,7 @@ const app: ApiGetAppResponse['results'] = {
     latestReadyVersion: 3,
     latestReadyVersionUsesAiAnalysis: null,
     latestReadyVersionHasAnalyzableData: null,
+    latestReadyVersionConsumerAccess: null,
     addAnalysisDismissed: false,
     icon: null,
     verification: null,
