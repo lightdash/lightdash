@@ -84,7 +84,11 @@ export const useMobileAppLink = ({
             }),
         {
             enabled:
-                enabled && link !== null && isVisible && !hasFailed && !isPaused,
+                enabled &&
+                link !== null &&
+                isVisible &&
+                !hasFailed &&
+                !isPaused,
             refetchInterval: (data) =>
                 data?.scannedAt ? false : MOBILE_APP_LINK_POLL_INTERVAL_MS,
             refetchIntervalInBackground: false,

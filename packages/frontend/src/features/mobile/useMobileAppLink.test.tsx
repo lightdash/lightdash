@@ -105,7 +105,8 @@ describe('useMobileAppLink', () => {
     it('mints no code while disabled and mints one when enabled', async () => {
         const server = mockServer({ scannedAfterPolls: Infinity });
         const { result, rerender } = renderHookWithProviders(
-            ({ enabled }: { enabled: boolean }) => useMobileAppLink({ enabled }),
+            ({ enabled }: { enabled: boolean }) =>
+                useMobileAppLink({ enabled }),
             undefined,
             { initialProps: { enabled: false } },
         );

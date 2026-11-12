@@ -50,7 +50,9 @@ describe('MobileSettingsPage flag query', () => {
                 screen.queryByRole('heading', { name: 'Get the app' }),
             ).not.toBeInTheDocument();
             expect(
-                screen.queryByRole('heading', { name: 'Sign in on your phone' }),
+                screen.queryByRole('heading', {
+                    name: 'Sign in on your phone',
+                }),
             ).not.toBeInTheDocument();
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         },
