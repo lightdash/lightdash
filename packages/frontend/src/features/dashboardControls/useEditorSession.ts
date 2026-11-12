@@ -251,7 +251,7 @@ export const useEditorSession = <S extends EditSession<M>, M>({
     };
 
     // A mode change ends the edit it started in, as the filter editor's:
-    // an editor's is applied, a viewer's (only picks) dropped.
+    // an editor's is applied, a viewer's dropped.
     // The one effect that writes the store
     const unsettled = useRef(state);
     unsettled.current = state;

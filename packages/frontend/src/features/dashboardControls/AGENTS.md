@@ -217,7 +217,6 @@ Each one has broken before or would break silently.
   `applyDimensionOverrides` / `applyMetricOverrides`, `adoptPlaceholder` and
   the emptied placeholder. See `docs/sections.md`.
 - **`data-tour-*` anchors** on the bar are the shipped bar's; keep them.
-  The shipped Default zoom button's are copied to `DefaultZoomButton`.
 - **One editor at a time, three providers.** Filter, parameter and date
   zoom editors each capture a click on another kind's pill or "Add"
   (`[data-controls-pill]`, `[data-parameter-pill]`, `[data-date-zoom-pill]`,

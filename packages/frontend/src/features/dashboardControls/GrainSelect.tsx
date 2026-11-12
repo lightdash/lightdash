@@ -10,8 +10,8 @@ export const GrainSelect: FC<{
     customLabels: Record<string, string>;
     value: string | null;
     /** Shown while cleared: what the tiles fall back to. */
-    placeholder: string;
-    isClearable: boolean;
+    placeholder?: string;
+    isClearable?: boolean;
     onChange: (granularity: string | null) => void;
 }> = ({
     label,
@@ -19,7 +19,7 @@ export const GrainSelect: FC<{
     customLabels,
     value,
     placeholder,
-    isClearable,
+    isClearable = false,
     onChange,
 }) => {
     const getUiString = useUiStrings();

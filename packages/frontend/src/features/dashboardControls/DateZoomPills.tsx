@@ -468,17 +468,6 @@ export const DefaultZoomButton: FC = () => {
                     variant="subtle"
                     color="gray"
                     data-default-date-zoom
-                    // The shipped Default zoom button's walkthrough
-                    // marker (view:Dashboard), kept on its equivalent
-                    data-tour-scope="view:Dashboard"
-                    data-tour-step="2"
-                    data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
-                    data-tour-label="Open the date zoom"
-                    data-tour-title="Open and read a dashboard"
-                    data-tour-interactive="true"
-                    data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"]'
-                    data-tour-then='[data-tour-anchor="zoom-option"][data-tour-value="Month"]'
-                    data-tour-docs="explore/dashboards/date-zoom.mdx#intro:1"
                     data-in-effect={isInEffect || undefined}
                     data-open={isOpen || undefined}
                     data-hidden={isHidden || undefined}

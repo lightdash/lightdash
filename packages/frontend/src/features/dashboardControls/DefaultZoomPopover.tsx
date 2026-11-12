@@ -42,11 +42,10 @@ export const DefaultZoomPopover: FC<Props> = ({
     const getUiString = useUiStrings();
     const title = getUiString('dateZoom.defaultZoom');
     // As the shipped menu's "None": a cleared pick leaves tiles on their own grain
-    const getCaption = (): string | null =>
+    const caption =
         value === null
             ? null
             : getUiString('controls.dateZoom.clearedKeepsOwnGrain');
-    const caption = getCaption();
 
     return (
         <EditorFrame
