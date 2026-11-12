@@ -13,6 +13,7 @@ import {
 
 const HOME = '/projects/p1/home';
 const CHART = '/projects/p1/saved/c1';
+const SIGN_IN = '/m/sign-in';
 const PICK_2 = '?mobileUpsell=2';
 const INVALID = '?mobileUpsell=invalid';
 
@@ -20,6 +21,26 @@ let keys = 0;
 const at = (pathname: string, search = '') => {
     keys += 1;
     return { key: `k${keys}`, pathname, search };
+};
+
+const routedApp = (initialSearch: string) => {
+    const lifecycle = createMobileUpsellLifecycle(initialSearch);
+    const Probe = () => (
+        <output>{useMobileUpsell(lifecycle) ?? 'default'}</output>
+    );
+    const routes: RouteObject[] = [
+        { path: '/', element: <Navigate to="/projects" replace /> },
+        { path: '/projects', element: <Navigate to={HOME} /> },
+        { path: HOME, element: <Probe /> },
+        { path: SIGN_IN, element: <p>Sign in</p> },
+    ];
+    const router = createMemoryRouter(routes, {
+        initialEntries: [`/${initialSearch}`],
+    });
+    lifecycle.observe(router.state.location);
+    router.subscribe(({ location }) => lifecycle.observe(location));
+    const view = render(<RouterProvider router={router} />);
+    return { router, view };
 };
 
 const visit = (initialSearch: string, places: ReturnType<typeof at>[]) => {
@@ -91,5 +112,37 @@ describe('mobile upsell selector lifecycle', () => {
 
         await act(() => router.navigate(`${HOME}?mobileUpsell=5`));
         expect(screen.getByText('5')).toBeInTheDocument();
+    });
+
+    it('returns the default after Back from a route without the menu', async () => {
+        const { router } = routedApp(PICK_2);
+        expect(await screen.findByText('2')).toBeInTheDocument();
+
+        await act(() => router.navigate(SIGN_IN));
+        expect(screen.getByText('Sign in')).toBeInTheDocument();
+
+        await act(() => router.navigate(-1));
+        expect(router.state.location.pathname).toBe(HOME);
+        expect(screen.getByText('default')).toBeInTheDocument();
+    });
+
+    it('keeps the choice on the same Home entry across renders', async () => {
+        const { router, view } = routedApp(PICK_2);
+        expect(await screen.findByText('2')).toBeInTheDocument();
+
+        view.rerender(<RouterProvider router={router} />);
+        expect(screen.getByText('2')).toBeInTheDocument();
+    });
+
+    it('stays default after an invalid value and a route without the menu', async () => {
+        const { router } = routedApp(INVALID);
+        expect(await screen.findByText('default')).toBeInTheDocument();
+
+        await act(() => router.navigate(SIGN_IN));
+        await act(() => router.navigate(-1));
+        expect(screen.getByText('default')).toBeInTheDocument();
+
+        await act(() => router.navigate(HOME));
+        expect(screen.getByText('default')).toBeInTheDocument();
     });
 });

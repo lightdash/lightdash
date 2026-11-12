@@ -46,6 +46,7 @@ export const createMobileUpsellLifecycle = (initialSearch: string) => {
     };
 
     return {
+        observe,
         resolve: (place: Place): MobileUpsellChoice | null => {
             observe(place);
             const params = new URLSearchParams(place.search);
@@ -58,6 +59,8 @@ export const createMobileUpsellLifecycle = (initialSearch: string) => {
 };
 
 const pageLoad = createMobileUpsellLifecycle(window.location.search);
+
+export const observeMobileUpsellNavigation = pageLoad.observe;
 
 export const useMobileUpsell = (lifecycle = pageLoad) =>
     lifecycle.resolve(useLocation());

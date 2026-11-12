@@ -28,12 +28,10 @@ export const MobileUpsellFrame = ({
 }: {
     variation: MobileUpsellChoice | null;
     children: ReactNode;
-}) =>
-    variation ? (
-        <Pitch variation={variation}>{children}</Pitch>
-    ) : (
-        children
-    );
+}) => {
+    if (!variation) return children;
+    return <Pitch variation={variation}>{children}</Pitch>;
+};
 
 const GRAPHICS = {
     1: AskUpsell,
