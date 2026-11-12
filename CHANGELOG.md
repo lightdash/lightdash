@@ -1,3 +1,17 @@
+# [3.238.0](https://github.com/lightdash/lightdash/compare/3.237.0...3.238.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** seed the Learn Deep Research sample report as a Document ([#32509](https://github.com/lightdash/lightdash/issues/32509)) ([cc5576a](https://github.com/lightdash/lightdash/commit/cc5576af33571c5d78e9c65faf4d8d5616fdb119))
+* **dashboard:** place new tiles below the bottom edge of the lowest tile ([#32410](https://github.com/lightdash/lightdash/issues/32410)) ([4a0943f](https://github.com/lightdash/lightdash/commit/4a0943f0e665f01f2f4e97ec35eba80972ce9528))
+* **dashboards:** stop edits pushing untouched tiles down ([#32361](https://github.com/lightdash/lightdash/issues/32361)) ([99c4937](https://github.com/lightdash/lightdash/commit/99c49371027acc1e5311894dafac7d7e7d0464e9)), closes [#32160](https://github.com/lightdash/lightdash/issues/32160)
+
+
+### Features
+
+* **ai:** teach agents dashboard controls and apply date zoom ([#32492](https://github.com/lightdash/lightdash/issues/32492)) ([906cdc1](https://github.com/lightdash/lightdash/commit/906cdc166c3135baff474188bcb0ea12af696c63))
+
 # [3.237.0](https://github.com/lightdash/lightdash/compare/3.236.1...3.237.0) (2026-11-12)
 
 
