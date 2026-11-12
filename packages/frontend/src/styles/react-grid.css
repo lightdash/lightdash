@@ -114,8 +114,10 @@
 /* Grips shown on every edge and corner while the tile is hovered or resized */
 .react-grid-item {
     --grip-length: 32px;
-    --grip-corner: 20px;
-    --grip-thickness: 4px;
+    --grip-thickness: 6px;
+    --grip-square: 8px;
+    /* How far a 12px rounded corner sits inside the tile's box */
+    --grip-corner-inset: 3.5px;
     --grip-color: var(--mantine-color-ldGray-5);
 }
 [data-mantine-color-scheme='dark'] .react-grid-item {
@@ -125,7 +127,9 @@
 .react-grid-item > .react-resizable-handle::after {
     content: '';
     position: absolute;
-    background: var(--grip-color);
+    box-sizing: border-box;
+    background: var(--mantine-color-body);
+    border: 1.5px solid var(--grip-color);
     opacity: 0;
     transition: opacity 100ms ease;
 }
@@ -156,47 +160,46 @@
     border-radius: var(--grip-thickness);
 }
 
-/* A round-ended arc tracing the tile's 12px corner, drawn for the top left
-   and turned for the others */
 .react-grid-item > .react-resizable-handle-ne::after,
 .react-grid-item > .react-resizable-handle-se::after,
 .react-grid-item > .react-resizable-handle-sw::after,
 .react-grid-item > .react-resizable-handle-nw::after {
-    width: var(--grip-corner);
-    height: var(--grip-corner);
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M2 18V14A12 12 0 0 1 14 2H18' fill='none' stroke='%23000' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E")
-        center / contain no-repeat;
-}
-.react-grid-item > .react-resizable-handle-ne::after {
-    rotate: 90deg;
-}
-.react-grid-item > .react-resizable-handle-se::after {
-    rotate: 180deg;
-}
-.react-grid-item > .react-resizable-handle-sw::after {
-    rotate: 270deg;
+    --grip-corner-offset: calc(
+        var(--grip-corner-inset) - var(--grip-square) / 2
+    );
+    width: var(--grip-square);
+    height: var(--grip-square);
+    border-radius: 2px;
 }
 
-/* Centred on the tile's border */
-.react-grid-item > .react-resizable-handle-n::after,
-.react-grid-item > .react-resizable-handle-ne::after,
-.react-grid-item > .react-resizable-handle-nw::after {
+/* Edge grips straddle the tile's border, corner squares its rounded corner */
+.react-grid-item > .react-resizable-handle-n::after {
     top: calc(var(--grip-thickness) / -2);
 }
-.react-grid-item > .react-resizable-handle-s::after,
-.react-grid-item > .react-resizable-handle-se::after,
-.react-grid-item > .react-resizable-handle-sw::after {
+.react-grid-item > .react-resizable-handle-s::after {
     bottom: calc(var(--grip-thickness) / -2);
 }
-.react-grid-item > .react-resizable-handle-e::after,
-.react-grid-item > .react-resizable-handle-ne::after,
-.react-grid-item > .react-resizable-handle-se::after {
+.react-grid-item > .react-resizable-handle-e::after {
     right: calc(var(--grip-thickness) / -2);
 }
-.react-grid-item > .react-resizable-handle-w::after,
+.react-grid-item > .react-resizable-handle-w::after {
+    left: calc(var(--grip-thickness) / -2);
+}
+.react-grid-item > .react-resizable-handle-ne::after,
+.react-grid-item > .react-resizable-handle-nw::after {
+    top: var(--grip-corner-offset);
+}
+.react-grid-item > .react-resizable-handle-se::after,
+.react-grid-item > .react-resizable-handle-sw::after {
+    bottom: var(--grip-corner-offset);
+}
+.react-grid-item > .react-resizable-handle-ne::after,
+.react-grid-item > .react-resizable-handle-se::after {
+    right: var(--grip-corner-offset);
+}
 .react-grid-item > .react-resizable-handle-nw::after,
 .react-grid-item > .react-resizable-handle-sw::after {
-    left: calc(var(--grip-thickness) / -2);
+    left: var(--grip-corner-offset);
 }
 
 /* A lone bottom-right handle keeps its icon instead of a grip */
