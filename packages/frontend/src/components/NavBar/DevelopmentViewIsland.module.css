@@ -68,6 +68,25 @@
     }
 }
 
+.link {
+    padding: 4px 10px;
+    border-radius: var(--mantine-radius-xl);
+    color: var(--mantine-color-white);
+    font-size: inherit;
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.link:hover {
+    background: rgb(255 255 255 / 0.1);
+}
+
+.link:focus-visible {
+    outline: 2px solid var(--mantine-color-orange-5);
+    outline-offset: 2px;
+}
+
 .exit {
     padding: 4px 12px;
     border-radius: var(--mantine-radius-xl);

@@ -69,6 +69,7 @@ import {
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
+import { useTryInExplore } from './useTryInExplore';
 
 const KIND_NOUNS: [ChangeKind, string][] = [
     ['new', 'new model'],
@@ -471,6 +472,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
+    const tryInExplore = useTryInExplore(projectUuid);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
@@ -485,6 +487,10 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const reviewing = searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW;
     const blocked = cannotApply(draft, null);
     const conflicts = countConflicts(draft, null);
+    // A removed model has nothing to open.
+    const tryModel =
+        draft.models.find((entry) => getChangeKind(entry) !== 'removed')
+            ?.model ?? null;
     return (
         <DevelopmentBar
             status={
@@ -504,6 +510,17 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                 isOnMyChanges={isPreviewing}
                 onChange={setIsPreviewing}
             />
+            {tryModel ? (
+                <Tooltip label="Switches to My changes and opens the changed model in Explore.">
+                    <Button
+                        size="xs"
+                        variant="default"
+                        onClick={() => tryInExplore(tryModel, null)}
+                    >
+                        Try in Explore
+                    </Button>
+                </Tooltip>
+            ) : null}
             {reviewing ? null : (
                 <Button
                     size="xs"
