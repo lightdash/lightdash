@@ -19,6 +19,12 @@ export const BrowseUpsell = () => (
                 <IconChevronRight />
             </div>
         </div>
+        <div className={`${classes.link} ${classes.firstLink}`}>
+            <i />
+        </div>
+        <div className={`${classes.link} ${classes.secondLink}`}>
+            <i />
+        </div>
         <div className={`${classes.sheet} ${classes.chartsSheet}`}>
             <div className={classes.screenTitle}>{S.space}</div>
             <div className={`${classes.row} ${classes.picked}`}>

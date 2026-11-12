@@ -25,21 +25,6 @@ export const UPSELL_STRINGS = {
     },
 } as const;
 
-export const UPSELL_INSTALL_STRINGS = {
-    label: 'Get the app',
-    download: 'Download',
-    ios: {
-        platform: 'iOS',
-        store: 'App Store',
-        label: 'Download the iOS app from the App Store (opens in a new tab)',
-    },
-    android: {
-        platform: 'Android',
-        store: 'Google Play',
-        label: 'Download the Android app from Google Play (opens in a new tab)',
-    },
-} as const;
-
 export const UPSELL_GRAPHIC_STRINGS = {
     ask: 'Ask',
     question: 'How many orders did we get each month?',

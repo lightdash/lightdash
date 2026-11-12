@@ -1,5 +1,5 @@
 import classes from './MobileUpsell.module.css';
-import { LineChart, Phone } from './UpsellParts';
+import { Phone, PixelBars } from './UpsellParts';
 import { UPSELL_GRAPHIC_STRINGS as S } from './upsellStrings';
 
 export const AskUpsell = () => (
@@ -15,13 +15,13 @@ export const AskUpsell = () => (
                 </div>
                 <div className={classes.answer}>
                     <span>{S.ordersByMonth}</span>
-                    <LineChart />
+                    <PixelBars />
                 </div>
             </div>
         </Phone>
         <div className={classes.liftCard}>
             <span>{S.ordersByMonth}</span>
-            <LineChart />
+            <PixelBars />
         </div>
     </div>
 );
