@@ -21663,17 +21663,19 @@ describe('fresh stored result read boundary', () => {
                 projectUuid,
                 queryUuid: f.history.queryUuid,
             });
-        await expect(read()).rejects.toThrow();
-        await expect(
+        await expect(read()).rejects.toThrow(NotFoundError);
+        const inView = (explore: Explore | null) =>
             developmentView.run(
                 {
                     findExplores: async () =>
-                        new Map([[metricQueryMock.exploreName, validExplore]]),
+                        new Map([[metricQueryMock.exploreName, explore]]),
                     hasChanges: async () => true,
                 },
                 read,
-            ),
-        ).resolves.toBeDefined();
+            );
+        await expect(inView(validExplore)).resolves.toBeDefined();
+        // A model the person's changes remove is refused, like a missing one.
+        await expect(inView(null)).rejects.toThrow(ForbiddenError);
     });
     test.each(
         [
