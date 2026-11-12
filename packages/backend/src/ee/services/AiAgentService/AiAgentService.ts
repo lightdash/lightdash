@@ -542,6 +542,7 @@ import {
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
+import { canOfferAskUser } from '../ai/tools/askUser';
 import { executeEditContent } from '../ai/tools/editContent';
 import { formatSkillResult } from '../ai/tools/loadSkill';
 import {
@@ -17178,13 +17179,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         user,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
-                // Only the web app thread view renders askUser questions; Battle
-                // panes and other surfaces would show the text without options.
                 const enableAskUser =
-                    prompt.threadCreatedFrom === 'web_app' &&
-                    !isSlackPrompt(prompt) &&
-                    prompt.battleProfile === null &&
-                    responseExecution.mode === 'standard' &&
+                    canOfferAskUser(prompt, responseExecution.mode) &&
                     (
                         await this.featureFlagService.get({
                             user,

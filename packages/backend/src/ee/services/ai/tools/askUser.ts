@@ -1,14 +1,30 @@
 import {
     askUserToolDefinition,
     formatAskUserQuestions,
+    isSlackPrompt,
     parseAskUserCall,
+    type AiPrompt,
     type ToolAskUserStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import type { AiAgentExecutionConfig } from '../types/aiAgent';
 import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 
 type ToolCall = { toolName: string; input: unknown };
+
+/**
+ * Only the web app thread view renders the questions; Slack, Battle panes and
+ * unattended runs would show the text without options.
+ */
+export const canOfferAskUser = (
+    prompt: AiPrompt,
+    executionMode: AiAgentExecutionConfig['mode'],
+): boolean =>
+    prompt.threadCreatedFrom === 'web_app' &&
+    !isSlackPrompt(prompt) &&
+    prompt.battleProfile === null &&
+    executionMode === 'standard';
 
 /** The text of the turn's last valid askUser call, or null. */
 export const getAskUserResponse = (
