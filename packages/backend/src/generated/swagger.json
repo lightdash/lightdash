@@ -37832,6 +37832,13 @@
                                                                 "type": "boolean",
                                                                 "nullable": true
                                                             },
+                                                            "changedModels": {
+                                                                "items": {
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "array",
+                                                                "nullable": true
+                                                            },
                                                             "steps": {
                                                                 "items": {
                                                                     "properties": {
@@ -46591,22 +46598,6 @@
                         "nullable": true,
                         "description": "Null until the report is published as a Document."
                     },
-                    "isReportExpired": {
-                        "type": "boolean"
-                    },
-                    "reportExpiredAt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "reportExpiresAt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "resultMarkdown": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "The report narrative with compact <chart> references."
-                    },
                     "terminalReason": {
                         "allOf": [
                             {
@@ -46655,10 +46646,6 @@
                     "executionContextSnapshot",
                     "budget",
                     "document",
-                    "isReportExpired",
-                    "reportExpiredAt",
-                    "reportExpiresAt",
-                    "resultMarkdown",
                     "terminalReason",
                     "status",
                     "prompt",
@@ -46743,141 +46730,6 @@
             },
             "ApiAiDeepResearchRunListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun-Array_"
-            },
-            "AiDeepResearchChartConfig": {
-                "properties": {
-                    "secondaryYAxisLabel": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "secondaryYAxisMetric": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "yAxisLabel": {
-                        "type": "string"
-                    },
-                    "xAxisLabel": {
-                        "type": "string"
-                    },
-                    "funnelDataInput": {
-                        "type": "string",
-                        "enum": ["row", "column", null],
-                        "nullable": true
-                    },
-                    "lineType": {
-                        "type": "string",
-                        "enum": ["line", "area", null],
-                        "nullable": true
-                    },
-                    "stackBars": {
-                        "type": "boolean",
-                        "nullable": true
-                    },
-                    "xAxisType": {
-                        "type": "string",
-                        "enum": ["category", "time", null],
-                        "nullable": true
-                    },
-                    "groupBy": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "yAxisMetrics": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "xAxisDimension": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "defaultVizType": {
-                        "type": "string",
-                        "enum": [
-                            "table",
-                            "bar",
-                            "horizontal",
-                            "line",
-                            "scatter",
-                            "pie",
-                            "funnel"
-                        ]
-                    }
-                },
-                "required": [
-                    "secondaryYAxisLabel",
-                    "secondaryYAxisMetric",
-                    "yAxisLabel",
-                    "xAxisLabel",
-                    "funnelDataInput",
-                    "lineType",
-                    "stackBars",
-                    "xAxisType",
-                    "groupBy",
-                    "yAxisMetrics",
-                    "xAxisDimension",
-                    "defaultVizType"
-                ],
-                "type": "object"
-            },
-            "AiDeepResearchChartData": {
-                "properties": {
-                    "fields": {
-                        "$ref": "#/components/schemas/ItemsMap",
-                        "description": "Selected + filter fields; drives labels and value formatting."
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
-                    },
-                    "queryUuid": {
-                        "type": "string",
-                        "description": "The verified execution this chart is evidence of."
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/AiDeepResearchChartConfig"
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "type": "string",
-                        "enum": ["warehouse"],
-                        "nullable": false
-                    }
-                },
-                "required": [
-                    "fields",
-                    "metricQuery",
-                    "queryUuid",
-                    "chartConfig",
-                    "title",
-                    "source"
-                ],
-                "type": "object",
-                "description": "Everything the UI needs to render one report chart. Derived on demand from\nthe execution the chart references; the markdown only carries compact\n<chart> references."
-            },
-            "ApiSuccess_AiDeepResearchChartData_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AiDeepResearchChartData"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiDeepResearchChartResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchChartData_"
             },
             "Record_string.never_": {
                 "properties": {},
@@ -59624,7 +59476,6 @@
                     "cleanRateCounters",
                     "rebuildOutdatedApiSourceExplores",
                     "cleanDataAppAnalyses",
-                    "cleanAiDeepResearchReports",
                     "cleanAiAgentThreads",
                     "cleanScimRequestLogs",
                     "cleanAppStateHistory",
@@ -78356,7 +78207,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.235.0",
+        "version": "3.236.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -96339,190 +96190,6 @@
                     {
                         "in": "path",
                         "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{chartKey}/refresh": {
-            "post": {
-                "operationId": "refreshAiDeepResearchChart",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentThreadMessageVizQueryResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Re-execute the metric query behind a warehouse-backed report chart to\nload its live results.",
-                "summary": "Refresh Deep Research chart",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "chartKey",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/queries/{queryUuid}/results": {
-            "get": {
-                "operationId": "getDeepResearchChartQueryResults",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiGetAsyncQueryResultsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "queryUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "page",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "pageSize",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{queryUuid}": {
-            "get": {
-                "operationId": "getAiDeepResearchChart",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiDeepResearchChartResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Load the retained query metadata behind a report chart.",
-                "summary": "Get Deep Research chart",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "queryUuid",
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
