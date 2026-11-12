@@ -1,3 +1,10 @@
+## [3.234.4](https://github.com/lightdash/lightdash/compare/3.234.3...3.234.4) (2026-11-12)
+
+
+### Bug Fixes
+
+* **visualization:** draw no stack totals on charts that are not stacked ([#32438](https://github.com/lightdash/lightdash/issues/32438)) ([8392996](https://github.com/lightdash/lightdash/commit/8392996f15b70609ae58868bd8a3fe3d3b7e83ec))
+
 ## [3.234.3](https://github.com/lightdash/lightdash/compare/3.234.2...3.234.3) (2026-11-12)
 
 
