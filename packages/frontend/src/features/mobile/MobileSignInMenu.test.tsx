@@ -107,11 +107,39 @@ const openButton = () =>
     screen.getByRole('button', { name: 'Sign in on your phone' });
 
 beforeEach(() => {
+    window.history.replaceState({}, '', '/');
     api.mockReset();
     qrSignIn.enabled = true;
 });
 
 describe('MobileSignInMenu', () => {
+    it.each(['', '?mobileUpsell=invalid'])(
+        'keeps the default DOM for %s',
+        async (search) => {
+            window.history.replaceState({}, '', `/${search}`);
+            mockServer();
+            renderWithProviders(<MobileSignInMenu />);
+            await userEvent.click(openButton());
+            await screen.findByRole('img', { name: 'Sign-in QR code' });
+            expect(document.querySelector('[data-mobile-upsell]')).toBeNull();
+            expect(screen.getByText('Waiting for scan')).toBeVisible();
+        },
+    );
+
+    it('shows the pitch with the existing QR and status', async () => {
+        window.history.replaceState({}, '', '/?mobileUpsell=1');
+        mockServer();
+        renderWithProviders(<MobileSignInMenu />);
+        await userEvent.click(openButton());
+        expect(
+            screen.getByRole('heading', {
+                name: 'Ask AI. Take the answer with you.',
+            }),
+        ).toBeVisible();
+        await screen.findByRole('img', { name: 'Sign-in QR code' });
+        expect(screen.getByText('Waiting for scan')).toBeVisible();
+    });
+
     it('renders nothing and mints nothing with mobile-qr-sign-in off', () => {
         qrSignIn.enabled = false;
         const server = mockServer();
@@ -160,27 +188,31 @@ describe('MobileSignInMenu', () => {
         expect(server.mints()).toHaveLength(1);
     });
 
-    it('closes on Escape and cancels the unused code', async () => {
-        const user = userEvent.setup();
-        const server = mockServer();
-        renderWithProviders(<MobileSignInMenu />);
+    it.each(['', '?mobileUpsell=1'])(
+        'closes on Escape and cancels the unused code %s',
+        async (search) => {
+            window.history.replaceState({}, '', `/${search}`);
+            const user = userEvent.setup();
+            const server = mockServer();
+            renderWithProviders(<MobileSignInMenu />);
 
-        await user.click(openButton());
-        await screen.findByRole('img', { name: 'Sign-in QR code' });
-        expect(server.deletes()).toEqual([]);
+            await user.click(openButton());
+            await screen.findByRole('img', { name: 'Sign-in QR code' });
+            expect(server.deletes()).toEqual([]);
 
-        await user.keyboard('{Escape}');
+            await user.keyboard('{Escape}');
 
-        await waitFor(() =>
-            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
-        );
-        await waitFor(() =>
-            expect(server.deletes()).toEqual([
-                '/user/mobile/sign-in-codes/code-1',
-            ]),
-        );
-        expect(openButton()).toHaveFocus();
-    });
+            await waitFor(() =>
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+            );
+            await waitFor(() =>
+                expect(server.deletes()).toEqual([
+                    '/user/mobile/sign-in-codes/code-1',
+                ]),
+            );
+            expect(openButton()).toHaveFocus();
+        },
+    );
 
     it('cancels the code when the icon is clicked again', async () => {
         const user = userEvent.setup();
@@ -238,27 +270,31 @@ describe('MobileSignInMenu', () => {
         expect(server.deletes()).toEqual([]);
     });
 
-    it('stays open while the user confirms a phone in the dialog', async () => {
-        const user = userEvent.setup();
-        const server = mockServer({ isClaimed: true });
-        renderWithProviders(<MobileSignInMenu />);
+    it.each(['', '?mobileUpsell=1'])(
+        'stays open while the user confirms a phone in the dialog %s',
+        async (search) => {
+            window.history.replaceState({}, '', `/${search}`);
+            const user = userEvent.setup();
+            const server = mockServer({ isClaimed: true });
+            renderWithProviders(<MobileSignInMenu />);
 
-        await user.click(openButton());
-        const confirm = await screen.findByRole('dialog', {
-            name: 'A phone wants to sign in as you',
-        });
-        await user.click(
-            within(confirm).getByRole('button', { name: 'Confirm' }),
-        );
+            await user.click(openButton());
+            const confirm = await screen.findByRole('dialog', {
+                name: 'A phone wants to sign in as you',
+            });
+            await user.click(
+                within(confirm).getByRole('button', { name: 'Confirm' }),
+            );
 
-        await waitFor(() => expect(server.approvals()).toHaveLength(1));
-        fireEvent.mouseDown(document.body);
-        fireEvent.keyDown(confirm, { key: 'Escape' });
-        expect(
-            screen.getByRole('dialog', { name: 'Sign in on your phone' }),
-        ).toBeInTheDocument();
-        expect(server.deletes()).toEqual([]);
-    });
+            await waitFor(() => expect(server.approvals()).toHaveLength(1));
+            fireEvent.mouseDown(document.body);
+            fireEvent.keyDown(confirm, { key: 'Escape' });
+            expect(
+                screen.getByRole('dialog', { name: 'Sign in on your phone' }),
+            ).toBeInTheDocument();
+            expect(server.deletes()).toEqual([]);
+        },
+    );
 
     it.each([
         ['Confirm', 'Type this number on your phone'],

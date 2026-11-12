@@ -25,6 +25,7 @@ import { getHost } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
+import { MobileUpsellFrame } from './upsell/MobileUpsellFrame';
 import {
     useMobileSignInCode,
     type MobileSignInPhase,
@@ -111,14 +112,16 @@ const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown ref={dropdown}>
-                <Stack gap="sm">
-                    <Title order={6}>{MOBILE_STRINGS.signInTitle}</Title>
-                    <MobileSignInStep
-                        signIn={signIn}
-                        host={getHost(health?.siteUrl)}
-                        email={user.data?.email}
-                    />
-                </Stack>
+                <MobileUpsellFrame>
+                    <Stack gap="sm">
+                        <Title order={6}>{MOBILE_STRINGS.signInTitle}</Title>
+                        <MobileSignInStep
+                            signIn={signIn}
+                            host={getHost(health?.siteUrl)}
+                            email={user.data?.email}
+                        />
+                    </Stack>
+                </MobileUpsellFrame>
             </Popover.Dropdown>
         </Popover>
     );
