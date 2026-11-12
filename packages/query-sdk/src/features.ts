@@ -339,6 +339,13 @@ export const SDK_FIXES: SdkFix[] = [
             'Queries on explores defined under meta.explores use the right field names instead of failing with an unknown field id error.',
         appliesTo: ['data_app'],
     },
+    {
+        key: 'shared-state-unavailable',
+        label: 'Shared values for viewers without access',
+        description:
+            'Tells the app up front when a viewer cannot use shared values, so comment and commentary controls can be turned off instead of failing when used.',
+        appliesTo: ['data_app'],
+    },
 ];
 
 export const SDK_FIX_KEYS: string[] = SDK_FIXES.map((fix) => fix.key);
