@@ -3,6 +3,8 @@ import {
     type ApiError,
     type ApiResponse,
     type SemanticLayerDraft,
+    type SemanticLayerDraftedModels,
+    type SemanticLayerDraftState,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftImpact,
     type SemanticLayerDraftMoveDirection,
@@ -11,7 +13,7 @@ import {
     type SemanticLayerStatus,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -39,7 +41,10 @@ const useGet = <T extends ApiResponse['results']>(
     idlePollMs: number | false = false,
 ) => {
     const lightdashApi = useLightdashApi();
-    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
+    // Not asked for at all while this read is off: some callers sit on pages everyone opens.
+    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing, {
+        enabled,
+    });
     return useQuery<T, ApiError>({
         queryKey,
         queryFn: () =>
@@ -95,9 +100,47 @@ export const useSemanticLayerDraft = (
         projectUuid,
         '/draft',
         enabled,
+    );
+
+/**
+ * Keeps the draft on a page current without reading it on a timer: a cheap
+ * value is asked for instead, and the draft is read again only when it changes.
+ * Mounted once, on the page that shows the draft.
+ */
+export const useDraftFreshness = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { data } = useGet<SemanticLayerDraftState>(
+        ['semantic-layer-draft-state', projectUuid],
+        projectUuid,
+        '/draft/state',
+        true,
         undefined,
-        // A draft is replayed on what is live at each read, so reading again is how a person learns that live moved.
         DRAFT_POLL_MS,
+    );
+    const seen = useRef<string | null>(null);
+    const fingerprint = data?.fingerprint ?? null;
+    useEffect(() => {
+        if (fingerprint === null) return;
+        const previous = seen.current;
+        seen.current = fingerprint;
+        // The first value is what the draft on screen was already read against.
+        if (previous === null || previous === fingerprint) return;
+        void queryClient.invalidateQueries({
+            queryKey: [DRAFT_KEY, projectUuid],
+        });
+    }, [fingerprint, projectUuid, queryClient]);
+};
+
+/** The names of the models this person has in development, for pages that only mark them. */
+export const useSemanticLayerDraftedModels = (
+    projectUuid: string,
+    enabled: boolean,
+) =>
+    useGet<SemanticLayerDraftedModels>(
+        [DRAFT_KEY, projectUuid, 'models'],
+        projectUuid,
+        '/draft/models',
+        enabled,
     );
 
 /** What the background check found the draft, or one model of it, would break in saved charts and dashboards. */
@@ -165,15 +208,19 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
             Promise.all(
                 [
                     [DRAFT_KEY, projectUuid],
-                    ...(changesLive
-                        ? [[MODEL_KEY, projectUuid], ['tables']]
-                        : []),
+                    // Explores read the draft while the development view is on.
+                    ['tables'],
+                    ...(changesLive ? [[MODEL_KEY, projectUuid]] : []),
                 ].map((queryKey) =>
                     queryClient.invalidateQueries({ queryKey }),
                 ),
             ),
         onError: ({ error }) => {
             showToastApiError({ title: errorTitle, apiError: error });
+            // A refusal often means the draft on screen is out of date.
+            void queryClient.invalidateQueries({
+                queryKey: [DRAFT_KEY, projectUuid],
+            });
         },
     });
 };
@@ -231,14 +278,27 @@ export const useDiscardDraftChange = (projectUuid: string) =>
 
 /** Keeps the draft of a model over what was published to it since. */
 export const useKeepDraftModel = (projectUuid: string) =>
-    useWrite<undefined, string>({
+    useWrite<undefined, { model: string; liveVersion: number | null }>({
         projectUuid,
-        request: (model) => ({
+        request: ({ model, liveVersion }) => ({
             path: `${toDraftPath(model)}/keep`,
             method: 'POST',
-            body: undefined,
+            body: JSON.stringify({ liveVersion }),
         }),
         errorTitle: 'Could not keep your version',
+        changesLive: false,
+    });
+
+/** Leaves one part of a drafted model as it is live. */
+export const useTakeLiveDraftPart = (projectUuid: string) =>
+    useWrite<undefined, { model: string; path: string }>({
+        projectUuid,
+        request: ({ model, path }) => ({
+            path: `${toDraftPath(model)}/take-live`,
+            method: 'POST',
+            body: JSON.stringify({ path }),
+        }),
+        errorTitle: 'Could not take the live version',
         changesLive: false,
     });
 

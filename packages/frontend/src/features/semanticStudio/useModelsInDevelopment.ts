@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useDevelopmentView } from './developmentView';
-import { useSemanticLayerDraft } from './useSemanticLayerModel';
+import { useSemanticLayerDraftedModels } from './useSemanticLayerModel';
 
 const NONE: ReadonlySet<string> = new Set();
 
@@ -9,15 +9,12 @@ export const useModelsInDevelopment = (
     projectUuid: string | undefined,
 ): ReadonlySet<string> => {
     const [isOn] = useDevelopmentView();
-    const { data } = useSemanticLayerDraft(
+    const { data } = useSemanticLayerDraftedModels(
         projectUuid ?? '',
         isOn && !!projectUuid,
     );
     return useMemo(
-        () =>
-            isOn && data
-                ? new Set(data.models.map(({ model }) => model))
-                : NONE,
+        () => (isOn && data ? new Set(data.models) : NONE),
         [isOn, data],
     );
 };

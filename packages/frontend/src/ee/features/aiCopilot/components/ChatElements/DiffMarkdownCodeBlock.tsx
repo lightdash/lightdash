@@ -63,8 +63,10 @@ export const DiffMarkdownCodeBlock: FC<CustomRendererProps> = ({
     const [isExpanded, setIsExpanded] = useState(false);
     // With git's a/ and b/ prefixes the header reads as a rename of the file onto itself.
     const patch = code
-        .replace(/^--- a\//m, '--- ')
-        .replace(/^\+\+\+ b\//m, '+++ ');
+        .replace(/^--- a\//gm, '--- ')
+        .replace(/^\+\+\+ b\//gm, '+++ ');
+    // Anything fenced as a diff comes here from every agent; only a real patch is drawn as one.
+    const isPatch = /^@@ /m.test(patch) && /^\+\+\+ /m.test(patch);
     const path = /^\+\+\+ (.+)$/m.exec(patch)?.[1].trim() ?? null;
     const body = patch
         .split('\n')
@@ -99,7 +101,7 @@ export const DiffMarkdownCodeBlock: FC<CustomRendererProps> = ({
                                 −{removed}
                             </Text>
                         ) : null}
-                        {isIncomplete ? null : (
+                        {isIncomplete || !isPatch ? null : (
                             <Tooltip label="Expand">
                                 <ActionIcon
                                     size="xs"
@@ -113,7 +115,7 @@ export const DiffMarkdownCodeBlock: FC<CustomRendererProps> = ({
                     </Group>
                 </Group>
             ) : null}
-            {isIncomplete ? (
+            {isIncomplete || !isPatch ? (
                 <PlainDiff code={code} />
             ) : (
                 <Diff code={code} patch={patch} overflow="scroll" />

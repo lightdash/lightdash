@@ -18,7 +18,9 @@ import {
     IconExternalLink,
     IconEye,
     IconEyeOff,
+    IconGitPullRequest,
     IconTable,
+    IconWorldUpload,
 } from '@tabler/icons-react';
 import { countBy, uniqBy } from 'es-toolkit/compat';
 import { useEffect, useRef, useState, type FC } from 'react';
@@ -39,7 +41,10 @@ import {
     DraftUsage,
     MetricComparison,
     ModelNotices,
+    DraftExplainer,
     PublishChecklist,
+    PublishEffect,
+    PublishSummary,
 } from './DraftInsights';
 import {
     CHANGE_KIND_LABELS,
@@ -59,7 +64,6 @@ import {
     useDiscardSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
-    useSemanticLayerDraftUsage,
 } from './useSemanticLayerModel';
 
 const KIND_NOUNS: [ChangeKind, string][] = [
@@ -190,11 +194,12 @@ const ApplyModal: FC<{
     onClose: () => void;
 }> = ({ projectUuid, draft, model, onClose }) => {
     const impact = useSemanticLayerDraftImpact(projectUuid, model);
-    const usage = useSemanticLayerDraftUsage(projectUuid);
     const apply = useApplySemanticLayerDraft(projectUuid);
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const { showToastSuccess } = useToaster();
-    const models = model ?? draft.models.map((m) => m.model).join(', ');
+    const scoped = draft.models.filter(
+        (entry) => model === null || entry.model === model,
+    );
     const confirmLabel = asPullRequest ? 'Open pull request' : 'Publish';
     // Applying never waits for the check: an unchecked draft is applied knowingly, like one that breaks something.
     const isRisky =
@@ -203,13 +208,19 @@ const ApplyModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title={model === null ? 'Publish your changes' : `Publish ${model}`}
+            icon={asPullRequest ? IconGitPullRequest : IconWorldUpload}
+            title={
+                asPullRequest ? 'Open a pull request' : 'Publish to everyone'
+            }
+            subtitle={
+                asPullRequest
+                    ? `${scoped.length} ${scoped.length === 1 ? 'model goes' : 'models go'} to your repository. Nothing is live until it merges.`
+                    : `${scoped.length} ${scoped.length === 1 ? 'model goes' : 'models go'} live for everyone on this project.`
+            }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
-            confirmDisabled={draft.models.some(
-                (entry) =>
-                    (model === null || entry.model === model) &&
-                    entry.reconciliation?.state === 'conflict',
+            confirmDisabled={scoped.some(
+                (entry) => entry.reconciliation?.state === 'conflict',
             )}
             onConfirm={() =>
                 apply.mutate(model, {
@@ -235,36 +246,31 @@ const ApplyModal: FC<{
                 })
             }
         >
-            <Stack gap="sm">
-                <Text fz="sm">
-                    {asPullRequest
-                        ? `Your changes to ${models} go to the project's repository as a pull request. They go live once it merges and the project refreshes.`
-                        : `Your changes to ${models} go live for everyone on this project. Undo is on each model's History tab.`}
-                </Text>
-                <PublishChecklist
+            <Stack gap="md">
+                <PublishSummary
+                    projectUuid={projectUuid}
                     draft={draft}
                     model={model}
-                    breaks={
-                        impact.data?.status === 'done'
-                            ? impact.data.breaks.length
-                            : null
-                    }
-                    chartsThatChange={
-                        usage.data
-                            ? new Set(
-                                  usage.data.fields
-                                      .filter(
-                                          (field) =>
-                                              model === null ||
-                                              field.model === model,
-                                      )
-                                      .flatMap(({ charts }) =>
-                                          charts.map(({ uuid }) => uuid),
-                                      ),
-                              ).size
-                            : null
-                    }
                 />
+                <Stack gap={6}>
+                    <Text fz="xs" fw={500} c="dimmed">
+                        Checks
+                    </Text>
+                    <PublishChecklist
+                        draft={draft}
+                        model={model}
+                        breaks={
+                            impact.data?.status === 'done'
+                                ? impact.data.breaks.length
+                                : null
+                        }
+                    />
+                </Stack>
+                {asPullRequest ? null : (
+                    <Text fz="xs" c="dimmed">
+                        You can undo this from each model's History tab.
+                    </Text>
+                )}
                 <DraftImpact projectUuid={projectUuid} model={model} />
                 <MessageList
                     variant="danger"
@@ -374,35 +380,52 @@ const PreviewToggle: FC<{
 
 /** Says so once when someone publishes to a model this person has in development, since the page does not reload for it. */
 const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
-    const { showToastInfo } = useToaster();
+    const { showToastInfo, showToastWarning } = useToaster();
+    const [, setSearchParams] = useSearchParams();
     // Null until the first read, which is not news: it was already so when the page opened.
     const seen = useRef<Set<string> | null>(null);
     useEffect(() => {
         if (!draft) return;
-        const current = draft.models.flatMap(({ model, publishedSince }) =>
-            publishedSince
-                ? [
-                      {
-                          key: `${model}@${new Date(publishedSince.at).getTime()}`,
-                          model,
-                          by: publishedSince.by,
-                      },
-                  ]
-                : [],
+        const current = draft.models.flatMap(
+            ({ model, publishedSince, reconciliation }) =>
+                publishedSince
+                    ? [
+                          {
+                              key: `${model}@${new Date(publishedSince.at).getTime()}`,
+                              model,
+                              by: publishedSince.by,
+                              isConflict: reconciliation?.state === 'conflict',
+                          },
+                      ]
+                    : [],
         );
         const known = seen.current;
         seen.current = new Set(current.map(({ key }) => key));
         if (known === null) return;
         current
             .filter(({ key }) => !known.has(key))
-            .forEach(({ model, by }) =>
-                showToastInfo({
-                    title: `${by ?? 'Someone'} published a change to ${model}`,
-                    subtitle:
-                        'Your changes in development are now shown on top of it.',
-                }),
+            .forEach(({ model, by, isConflict }) =>
+                isConflict
+                    ? showToastWarning({
+                          title: `${by ?? 'Someone'} changed a part of ${model} that you changed too`,
+                          subtitle:
+                              'Choose which version to keep before you publish.',
+                          action: {
+                              children: 'See both',
+                              icon: IconEye,
+                              onClick: () =>
+                                  setSearchParams({
+                                      [DRAFT_PARAM]: DRAFT_REVIEW,
+                                  }),
+                          },
+                      })
+                    : showToastInfo({
+                          title: `${by ?? 'Someone'} published a change to ${model}`,
+                          subtitle:
+                              'It is outside what you changed, and your changes sit on top of it.',
+                      }),
             );
-    }, [draft, showToastInfo]);
+    }, [draft, showToastInfo, showToastWarning, setSearchParams]);
 };
 
 /** A draft in the toolbar: what it changes, the way to its review and back, and publishing it. */
@@ -548,12 +571,18 @@ export const DraftReview: FC<DraftReviewProps> = ({
     draft,
     onAskAgent,
 }) => {
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
     // Applying or discarding the last change leaves nothing to review.
     if (draft.changes.length === 0) {
         return <Navigate to={{ search: '' }} replace />;
     }
     return (
         <Stack gap="md" className={classes.review}>
+            <DraftExplainer />
+            <PublishEffect
+                projectUuid={projectUuid}
+                asPullRequest={asPullRequest}
+            />
             <MessageList
                 variant="danger"
                 title="This cannot be applied yet"

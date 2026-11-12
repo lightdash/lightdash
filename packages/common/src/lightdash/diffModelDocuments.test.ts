@@ -3,6 +3,7 @@ import {
     diffModelDocuments,
     doModelPathsOverlap,
     readModelPart,
+    restoreModelParts,
 } from './diffModelDocuments';
 
 const base = `type: model
@@ -133,5 +134,120 @@ describe('readModelPart', () => {
         expect(readModelPart(base, 'metrics.missing')).toBeNull();
         expect(readModelPart(base, 'dimensions.missing.sql')).toBeNull();
         expect(readModelPart(null, 'label')).toBeNull();
+    });
+});
+
+describe('restoreModelParts', () => {
+    const restore = (mine: string, live: string, path: string) =>
+        restoreModelParts({ contents: mine, live, paths: [path] });
+
+    it.each([
+        [
+            'a key of a nested metric',
+            'dimensions.amount.metrics.revenue.type',
+            base.replace('type: sum', 'type: max'),
+        ],
+        [
+            'a top-level key',
+            'label',
+            base.replace('label: Orders', 'label: Sales'),
+        ],
+        [
+            'a key of a join',
+            'joins.customers.sql_on',
+            base.replace('x = y', 'a = b'),
+        ],
+        [
+            'a whole metric the draft redefined',
+            'metrics.ratio',
+            base.replace('sql: a / b', 'sql: b / a\n    label: Ratio'),
+        ],
+        [
+            'a whole dimension the draft removed',
+            'dimensions.status',
+            base.replace(
+                '  - name: status\n    type: string\n    sql: status\n',
+                '',
+            ),
+        ],
+        [
+            'a whole metric the draft removed',
+            'metrics.ratio',
+            base.replace(
+                'metrics:\n  ratio:\n    type: number\n    sql: a / b\n',
+                '',
+            ),
+        ],
+    ])('puts back %s', (_case, path, mine) => {
+        expect(mine).not.toBe(base);
+        const { contents, restored } = restore(mine, base, path);
+        expect(restored).toEqual([{ path, removed: false }]);
+        expect(readModelPart(contents, path)).toBe(readModelPart(base, path));
+        expect(diffModelDocuments(base, contents)).toEqual([]);
+    });
+
+    it('removes what live does not have', () => {
+        const live = base.replace(
+            'metrics:\n  ratio:\n    type: number\n    sql: a / b\n',
+            '',
+        );
+        const { contents, restored } = restore(base, live, 'metrics.ratio');
+        expect(restored).toEqual([{ path: 'metrics.ratio', removed: true }]);
+        expect(readModelPart(contents, 'metrics.ratio')).toBeNull();
+        expect(contents).toBe(live);
+    });
+
+    it('leaves no empty map behind when it removes the last nested definition', () => {
+        const live = base.replace(
+            '    metrics:\n      revenue:\n        type: sum\n',
+            '',
+        );
+        const { contents } = restore(
+            base,
+            live,
+            'dimensions.amount.metrics.revenue',
+        );
+        expect(contents).toBe(live);
+    });
+
+    it('puts a join back as a list entry when the draft has no joins left', () => {
+        const mine = base.replace(
+            'joins:\n  - join: customers\n    sql_on: x = y\n',
+            '',
+        );
+        const { contents } = restore(mine, base, 'joins.customers');
+        expect(contents).toContain('joins:\n  - join: customers');
+        expect(diffModelDocuments(base, contents)).toEqual([]);
+        expect(restore(mine, base, 'joins.customers.sql_on').restored).toEqual(
+            [],
+        );
+    });
+
+    it('copies what an alias points at, not the alias', () => {
+        const live = base.replace(
+            'metrics:\n  ratio:\n    type: number\n    sql: a / b\n',
+            'metrics:\n  ratio: &shared\n    type: number\n    sql: a / b\n  other: *shared\n',
+        );
+        const { contents } = restore(base, live, 'metrics.other');
+        expect(contents).not.toContain('*shared');
+        expect(readModelPart(contents, 'metrics.other')).toBe(
+            'type: number\nsql: a / b',
+        );
+    });
+
+    it('keeps the rest of the draft', () => {
+        const mine = base
+            .replace('label: Orders', 'label: Sales')
+            .replace('type: sum', 'type: max');
+        const { contents } = restore(mine, base, 'label');
+        expect(contents).toContain('label: Orders');
+        expect(contents).toContain('type: max');
+    });
+
+    it('does nothing where the draft already matches', () => {
+        expect(restore(base, base, 'label')).toEqual({
+            contents: base,
+            restored: [],
+        });
     });
 });

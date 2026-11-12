@@ -9282,7 +9282,7 @@ describe('ProjectService', () => {
             expect(findExplores).not.toHaveBeenCalled();
 
             const inDevelopment = await developmentView.run(
-                { findExplores },
+                { findExplores, hasChanges: async () => true },
                 () =>
                     service.getExplore(account, projectUuid, validExplore.name),
             );
@@ -9299,6 +9299,7 @@ describe('ProjectService', () => {
                     {
                         findExplores: async () =>
                             new Map([[validExplore.name, null]]),
+                        hasChanges: async () => true,
                     },
                     () =>
                         service.getExplore(

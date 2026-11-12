@@ -1,6 +1,8 @@
 /** What a person needs around a draft before publishing it: what happened under it, who else is in it, each change in order, and what it does to the numbers. */
 import {
+    diffModelDocuments,
     getItemId,
+    readModelPart,
     type ApiError,
     type ApiQueryResults,
     type Metric,
@@ -11,6 +13,7 @@ import {
 import {
     ActionIcon,
     Anchor,
+    Badge,
     Box,
     Button,
     Group,
@@ -27,11 +30,12 @@ import {
     IconArrowDown,
     IconArrowUp,
     IconGitMerge,
+    IconTable,
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { useState, type FC } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -44,9 +48,16 @@ import {
 import classes from './DraftInsights.module.css';
 import { describeShift, pickComparedMetrics } from './metricComparison';
 import {
+    CHANGE_KIND_LABELS,
+    describeModelChange,
+    getChangeKind,
+    summarizeModelChanges,
+} from './modelCode';
+import {
     useDiscardDraftChange,
     useKeepDraftModel,
     useMoveDraftChange,
+    useTakeLiveDraftPart,
     useSemanticLayerDraftUsage,
 } from './useSemanticLayerModel';
 
@@ -69,27 +80,53 @@ const SIDES: {
 ];
 
 /** One part that changed live and in the draft, with each version of it side by side. */
-const ConflictSides: FC<{ conflict: SemanticLayerDraftConflict }> = ({
-    conflict,
-}) => (
-    <Stack gap={4} className={classes.conflict}>
-        <Text fz="xs" fw={500} ff="monospace">
-            {describePath(conflict.path)}
-        </Text>
-        <Box className={classes.sides}>
-            {SIDES.map(({ key, label, absent }) => (
-                <Stack key={key} gap={2} miw={0}>
-                    <Text fz="xs" c="dimmed">
-                        {label}
-                    </Text>
-                    <Box component="pre" className={classes.side}>
-                        {conflict[key] ?? absent}
-                    </Box>
-                </Stack>
-            ))}
-        </Box>
-    </Stack>
-);
+const ConflictSides: FC<{
+    projectUuid: string;
+    model: string;
+    conflict: SemanticLayerDraftConflict;
+}> = ({ projectUuid, model, conflict }) => {
+    const takeLive = useTakeLiveDraftPart(projectUuid);
+    return (
+        <Stack gap={4} className={classes.conflict}>
+            <Group gap="xs" justify="space-between" wrap="nowrap">
+                <Text fz="xs" fw={500} ff="monospace" truncate>
+                    {describePath(conflict.path)}
+                </Text>
+                <Tooltip
+                    label={
+                        conflict.path === ''
+                            ? 'Drops everything you changed on this model and keeps what is live.'
+                            : 'Drops your change to this part and keeps what is live. The rest of your changes stay.'
+                    }
+                >
+                    <Button
+                        size="compact-xs"
+                        variant="subtle"
+                        flex="none"
+                        loading={takeLive.isLoading}
+                        onClick={() =>
+                            takeLive.mutate({ model, path: conflict.path })
+                        }
+                    >
+                        {conflict.path === '' ? 'Discard mine' : 'Take theirs'}
+                    </Button>
+                </Tooltip>
+            </Group>
+            <Box className={classes.sides}>
+                {SIDES.map(({ key, label, absent }) => (
+                    <Stack key={key} gap={2} miw={0}>
+                        <Text fz="xs" c="dimmed">
+                            {label}
+                        </Text>
+                        <Box component="pre" className={classes.side}>
+                            {conflict[key] ?? absent}
+                        </Box>
+                    </Stack>
+                ))}
+            </Box>
+        </Stack>
+    );
+};
 
 /** What happened to a model outside this draft: a publish under it, or someone else's work in it. */
 export const ModelNotices: FC<{
@@ -150,12 +187,19 @@ export const ModelNotices: FC<{
                                 Combine
                             </Button>
                         </Tooltip>
-                        <Tooltip label="Your version goes live when you publish, and this stops being flagged.">
+                        <Tooltip label="Keeps your version of every part still listed. It goes live when you publish.">
                             <Button
                                 size="compact-xs"
                                 variant="default"
                                 loading={keep.isLoading}
-                                onClick={() => keep.mutate(model.model)}
+                                onClick={() =>
+                                    keep.mutate({
+                                        model: model.model,
+                                        liveVersion:
+                                            model.reconciliation?.liveVersion ??
+                                            null,
+                                    })
+                                }
                             >
                                 Keep mine
                             </Button>
@@ -164,6 +208,8 @@ export const ModelNotices: FC<{
                     {conflicts.map((conflict) => (
                         <ConflictSides
                             key={conflict.path}
+                            projectUuid={projectUuid}
+                            model={model.model}
                             conflict={conflict}
                         />
                     ))}
@@ -182,16 +228,18 @@ export const ModelNotices: FC<{
                     </Text>
                 </Group>
             ) : null}
-            {model.alsoChanging.length > 0 ? (
-                <Group gap={6} wrap="nowrap">
+            {model.alsoChanging.map(({ name, paths }) => (
+                <Group key={name} gap={6} wrap="nowrap">
                     <MantineIcon icon={IconUsers} size={14} color="dimmed" />
                     <Text fz="xs" c="dimmed">
-                        {listNames(model.alsoChanging)} also{' '}
-                        {model.alsoChanging.length === 1 ? 'has' : 'have'}{' '}
-                        changes in development on this model.
+                        {name} is also changing{' '}
+                        {paths.length > 0
+                            ? listNames(paths.map(describePath))
+                            : 'this model'}
+                        , in development.
                     </Text>
                 </Group>
-            ) : null}
+            ))}
         </Stack>
     );
 };
@@ -215,7 +263,7 @@ const ChangeRow: FC<{
             </Text>
             <Box miw={0} flex={1}>
                 <Text fz="sm" truncate>
-                    {change.question ?? 'A change with no question'}
+                    {change.question ?? 'A change made in the review'}
                 </Text>
                 <Text fz="xs" c={failed.length > 0 ? 'red' : 'dimmed'} truncate>
                     {failed.length > 0
@@ -231,8 +279,9 @@ const ChangeRow: FC<{
                         loading={discard.isLoading}
                         onClick={() =>
                             // The agent adds changes and cannot repair a stored one, so the stale one goes first.
-                            discard.mutate(change.draftChangeUuid, {
-                                onSuccess: () =>
+                            void discard
+                                .mutateAsync(change.draftChangeUuid)
+                                .then(() =>
                                     onAskAgent(
                                         [
                                             'A change in development stopped applying, so I discarded it.',
@@ -250,7 +299,9 @@ const ChangeRow: FC<{
                                             .filter(Boolean)
                                             .join(' '),
                                     ),
-                            })
+                                )
+                                // The failure is already shown as a toast.
+                                .catch(() => undefined)
                         }
                     >
                         Fix it
@@ -413,6 +464,8 @@ const useTotals = (
     metricIds: string[],
     side: 'live' | 'development',
     enabled: boolean,
+    /** What the draft holds, so totals are read again when it changes. */
+    draftKey: string,
 ) => {
     const lightdashApi = useLightdashApi();
     return useQuery<Totals, ApiError>({
@@ -422,6 +475,7 @@ const useTotals = (
             exploreName,
             side,
             metricIds,
+            draftKey,
         ],
         queryFn: async () => {
             const results = await lightdashApi<ApiQueryResults>({
@@ -469,20 +523,41 @@ export const MetricComparison: FC<{
     const metrics = findComparedMetrics(draft, model);
     const ids = metrics.map((metric) => getItemId(metric));
     const isNewModel = model.contentBefore === null;
+    const draftKey = draft.changes
+        .map(({ draftChangeUuid }) => draftChangeUuid)
+        .join();
     const development = useTotals(
         projectUuid,
         model.model,
         ids,
         'development',
         isAsked && ids.length > 0,
+        draftKey,
     );
-    // A metric the draft adds does not exist live, so the live side is read one metric at a time and may be missing.
+    // A metric the draft adds does not exist live, and asking for it there fails the whole query.
+    const added = diffModelDocuments(model.contentBefore, model.contentAfter)
+        .filter(({ kind }) => kind === 'added')
+        .map(({ path }) => path);
+    const liveIds = metrics
+        .filter(
+            ({ name }) =>
+                !added.some(
+                    (path) =>
+                        path.endsWith(`metrics.${name}`) ||
+                        readModelPart(
+                            model.contentAfter,
+                            `${path}.metrics.${name}`,
+                        ) !== null,
+                ),
+        )
+        .map((metric) => getItemId(metric));
     const live = useTotals(
         projectUuid,
         model.model,
-        ids,
+        liveIds,
         'live',
-        isAsked && ids.length > 0 && !isNewModel,
+        isAsked && liveIds.length > 0 && !isNewModel,
+        draftKey,
     );
     if (metrics.length === 0) return null;
     if (!isAsked) {
@@ -567,14 +642,23 @@ export const MetricComparison: FC<{
     );
 };
 
-type CheckState = 'ok' | 'attention' | 'unknown';
+type CheckState = 'ok' | 'attention' | 'unknown' | 'note';
 
 const CHECK_ICONS = {
     ok: IconCircleCheck,
     attention: IconAlertTriangle,
     unknown: IconCircleDashed,
+    note: IconUsers,
 };
-const CHECK_COLORS = { ok: 'green', attention: 'orange', unknown: 'dimmed' };
+const CHECK_COLORS = {
+    ok: 'green',
+    attention: 'orange',
+    unknown: 'dimmed',
+    note: 'dimmed',
+};
+
+const labelOf = (entry: SemanticLayerDraftModel): string =>
+    describeModelChange(entry.model, entry).title;
 
 /** What is worth knowing at the moment of publishing, each as one line. */
 export const PublishChecklist: FC<{
@@ -582,9 +666,7 @@ export const PublishChecklist: FC<{
     model: string | null;
     /** Saved content the draft breaks; null while that is not known. */
     breaks: number | null;
-    /** Saved charts that read a field the draft defines differently; null while that is not known. */
-    chartsThatChange: number | null;
-}> = ({ draft, model, breaks, chartsThatChange }) => {
+}> = ({ draft, model, breaks }) => {
     const models = draft.models.filter(
         (entry) => model === null || entry.model === model,
     );
@@ -605,7 +687,11 @@ export const PublishChecklist: FC<{
             !conflicted.includes(entry),
     );
     const others = [
-        ...new Set(models.flatMap(({ alsoChanging }) => alsoChanging)),
+        ...new Set(
+            models.flatMap(({ alsoChanging }) =>
+                alsoChanging.map(({ name }) => name),
+            ),
+        ),
     ];
     const checks: { state: CheckState; text: string }[] = [
         failing > 0
@@ -617,27 +703,19 @@ export const PublishChecklist: FC<{
         breaks === null
             ? {
                   state: 'unknown',
-                  text: 'Saved charts and dashboards are not checked yet',
+                  text: 'Saved charts and dashboards have not been checked for breaks yet',
               }
             : breaks > 0
               ? {
                     state: 'attention',
-                    text: `${breaks} saved ${breaks === 1 ? 'item' : 'items'} would break`,
+                    text: `${breaks} saved ${breaks === 1 ? 'chart or dashboard stops' : 'charts or dashboards stop'} working`,
                 }
               : { state: 'ok', text: 'No saved chart or dashboard breaks' },
-        ...(chartsThatChange !== null && chartsThatChange > 0
-            ? [
-                  {
-                      state: 'attention' as const,
-                      text: `${chartsThatChange} saved ${chartsThatChange === 1 ? 'chart reads' : 'charts read'} a field you defined differently`,
-                  },
-              ]
-            : []),
         ...(conflicted.length > 0
             ? [
                   {
                       state: 'attention' as const,
-                      text: `${listNames(conflicted.map((entry) => entry.model))} changed live in parts you changed too. Keep yours or combine them to publish`,
+                      text: `${listNames(conflicted.map(labelOf))} changed live in parts you changed too. Choose which to keep in the review`,
                   },
               ]
             : []),
@@ -650,7 +728,11 @@ export const PublishChecklist: FC<{
                       )
                           ? ('ok' as const)
                           : ('attention' as const),
-                      text: `${listNames(movedUnder.map((entry) => entry.model))} changed live after you started, outside what you changed`,
+                      text: movedUnder.every(
+                          (entry) => entry.reconciliation?.state === 'merged',
+                      )
+                          ? `${listNames(movedUnder.map(labelOf))} changed live after you started, outside what you changed. Yours goes on top`
+                          : `${listNames(movedUnder.map(labelOf))} changed live after you started, and it could not be set against yours. Look at it in the review first`,
                   },
               ]
             : []),
@@ -665,34 +747,217 @@ export const PublishChecklist: FC<{
         ...(others.length > 0
             ? [
                   {
-                      state: 'attention' as const,
-                      text: `${listNames(others)} ${others.length === 1 ? 'has' : 'have'} changes in development on the same models`,
+                      state: 'note' as const,
+                      text: `${listNames(others)} ${others.length === 1 ? 'has' : 'have'} unpublished changes to the same models. Publishing leaves theirs as they are`,
                   },
               ]
             : []),
     ];
+    const passed = checks.filter(({ state }) => state === 'ok');
+    const shown = checks.filter(({ state }) => state !== 'ok');
     return (
         <Stack gap={6}>
-            {checks.map(({ state, text }) => (
-                <Group key={text} gap={8} wrap="nowrap">
-                    <Tooltip
-                        label={
-                            state === 'ok'
-                                ? 'Fine'
-                                : state === 'attention'
-                                  ? 'Worth a look before publishing'
-                                  : 'Not known yet'
-                        }
-                    >
+            {shown.map(({ state, text }) => (
+                <Group key={text} gap={8} wrap="nowrap" align="flex-start">
+                    <Box flex="none" display="flex" mt={2}>
                         <MantineIcon
                             icon={CHECK_ICONS[state]}
                             size={16}
                             color={CHECK_COLORS[state]}
                         />
-                    </Tooltip>
+                    </Box>
                     <Text fz="sm">{text}</Text>
                 </Group>
             ))}
+            {passed.length > 0 ? (
+                <Group gap={8} wrap="nowrap" align="flex-start">
+                    <Box flex="none" display="flex" mt={2}>
+                        <MantineIcon
+                            icon={CHECK_ICONS.ok}
+                            size={16}
+                            color={CHECK_COLORS.ok}
+                        />
+                    </Box>
+                    <Text fz="sm" c="dimmed">
+                        {passed.map(({ text }) => text).join('. ')}.
+                    </Text>
+                </Group>
+            ) : null}
         </Stack>
+    );
+};
+
+const Section: FC<{ title: string; children: ReactNode }> = ({
+    title,
+    children,
+}) => (
+    <Stack gap={6}>
+        <Text fz="xs" fw={500} c="dimmed">
+            {title}
+        </Text>
+        {children}
+    </Stack>
+);
+
+/** What a publish carries, in the words of the models and charts it touches. */
+export const PublishSummary: FC<{
+    projectUuid: string;
+    draft: SemanticLayerDraft;
+    model: string | null;
+}> = ({ projectUuid, draft, model }) => {
+    const { data: usage } = useSemanticLayerDraftUsage(projectUuid);
+    const inScope = (name: string) => model === null || name === model;
+    const models = draft.models.filter((entry) => inScope(entry.model));
+    const read = (usage?.fields ?? []).filter((field) => inScope(field.model));
+    return (
+        <>
+            <Section title="Going live">
+                {models.map((entry) => (
+                    <Group
+                        key={entry.model}
+                        gap="sm"
+                        wrap="nowrap"
+                        align="flex-start"
+                    >
+                        <MantineIcon
+                            icon={IconTable}
+                            size={16}
+                            color="dimmed"
+                        />
+                        <Box miw={0} flex={1}>
+                            <Group gap={6} wrap="nowrap">
+                                <Text fz="sm" fw={500} truncate>
+                                    {labelOf(entry)}
+                                </Text>
+                                <Badge size="xs">
+                                    {CHANGE_KIND_LABELS[getChangeKind(entry)]}
+                                </Badge>
+                            </Group>
+                            <Text fz="xs" c="dimmed">
+                                {summarizeModelChanges(entry.model, [
+                                    // A part changed twice reads once, as its last change.
+                                    ...new Map(
+                                        draft.changes
+                                            .flatMap((change) => change.models)
+                                            .filter(
+                                                (item) =>
+                                                    item.model === entry.model,
+                                            )
+                                            .flatMap(({ changes }) => changes)
+                                            .map((change) => [
+                                                change.path,
+                                                change,
+                                            ]),
+                                    ).values(),
+                                ]).join('. ')}
+                            </Text>
+                        </Box>
+                    </Group>
+                ))}
+            </Section>
+            <Section title="What people will notice">
+                {read.length === 0 ? (
+                    <Text fz="sm" c="dimmed">
+                        {usage
+                            ? 'No saved chart reads what you changed.'
+                            : 'Looking for saved charts that read what you changed.'}
+                    </Text>
+                ) : (
+                    read.map((field) => (
+                        <Box key={field.fieldId}>
+                            <Text fz="sm">
+                                <Text span fw={500}>
+                                    {field.label}
+                                </Text>{' '}
+                                {field.kind === 'removed'
+                                    ? 'is removed'
+                                    : 'is defined differently'}
+                            </Text>
+                            <Text fz="xs" c="dimmed">
+                                {[
+                                    field.charts.length > 0
+                                        ? `${listNames(field.charts.map(({ name }) => name))} ${field.kind === 'removed' ? (field.charts.length === 1 ? 'stops working' : 'stop working') : field.charts.length === 1 ? 'shows a different number' : 'show different numbers'}`
+                                        : null,
+                                    field.dashboards > 0
+                                        ? `on ${field.dashboards} ${field.dashboards === 1 ? 'dashboard' : 'dashboards'}`
+                                        : null,
+                                    field.scheduledDeliveries > 0
+                                        ? `in ${field.scheduledDeliveries} scheduled ${field.scheduledDeliveries === 1 ? 'delivery' : 'deliveries'}`
+                                        : null,
+                                ]
+                                    .filter(Boolean)
+                                    .join(', ')}
+                            </Text>
+                        </Box>
+                    ))
+                )}
+            </Section>
+        </>
+    );
+};
+
+/** What pressing Publish does, said before the dialog: who sees it, what moves, and the way back. */
+export const PublishEffect: FC<{
+    projectUuid: string;
+    asPullRequest: boolean;
+}> = ({ projectUuid, asPullRequest }) => {
+    const { data } = useSemanticLayerDraftUsage(projectUuid);
+    const charts = new Set(
+        (data?.fields ?? []).flatMap(({ charts: read }) =>
+            read.map(({ uuid }) => uuid),
+        ),
+    ).size;
+    return (
+        <Text fz="xs" c="dimmed">
+            {asPullRequest
+                ? 'Publishing opens a pull request. Nothing is live until it merges.'
+                : 'Publishing goes live for everyone on this project.'}
+            {charts > 0
+                ? ` ${charts} saved ${charts === 1 ? 'chart' : 'charts'} will show different numbers.`
+                : ''}
+            {asPullRequest ? '' : " Undo is on each model's History tab."}
+        </Text>
+    );
+};
+
+const EXPLAINER_KEY = 'semantic-studio-draft-explainer-seen';
+
+const hasSeenExplainer = (): boolean => {
+    try {
+        return localStorage.getItem(EXPLAINER_KEY) !== null;
+    } catch {
+        return true;
+    }
+};
+
+/** Shown until dismissed, the first time someone has changes in development. */
+export const DraftExplainer: FC = () => {
+    const [isSeen, setIsSeen] = useState(hasSeenExplainer);
+    if (isSeen) return null;
+    return (
+        <Paper variant="dotted" p="sm">
+            <Group gap="sm" justify="space-between" wrap="nowrap">
+                <Text fz="sm">
+                    These changes are in development: only you see them, and
+                    nothing is live until you publish. Try them on real charts
+                    first with Try my changes.
+                </Text>
+                <Button
+                    size="compact-xs"
+                    variant="default"
+                    flex="none"
+                    onClick={() => {
+                        try {
+                            localStorage.setItem(EXPLAINER_KEY, '1');
+                        } catch {
+                            // Without storage it shows again next time.
+                        }
+                        setIsSeen(true);
+                    }}
+                >
+                    Got it
+                </Button>
+            </Group>
+        </Paper>
     );
 };

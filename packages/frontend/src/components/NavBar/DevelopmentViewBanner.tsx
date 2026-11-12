@@ -21,7 +21,7 @@ export const DevelopmentViewBanner = () => {
                 <MantineIcon icon={IconEye} color="white" size="sm" />
                 <Text c="white" fw={500} fz="xs">
                     You are trying your changes in development. Only you see
-                    them.
+                    them, and saving is off until you go back to live.
                 </Text>
                 <Button
                     size="compact-xs"

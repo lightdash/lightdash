@@ -331,7 +331,11 @@ describe('Project model documents on PostgreSQL', () => {
             ]),
         });
         expect(await model.findOtherDrafters(projectUuid, userUuid)).toEqual([
-            { name: 'Ada Lovelace', models: ['orders'] },
+            {
+                name: 'Ada Lovelace',
+                models: ['orders'],
+                changes: [[expect.objectContaining({ name: 'orders' })]],
+            },
         ]);
         expect(
             await model.findOtherDrafters(projectUuid, other.user_uuid),
@@ -414,7 +418,22 @@ describe('Project model documents on PostgreSQL', () => {
                 ]),
             ),
         ).toEqual(new Map([['orders', 'v1']]));
-        await model.rebaseDraftChanges({ projectUuid, userUuid }, 'orders', 2);
+        // Live is at version 2: an older version is refused and nothing is written.
+        expect(
+            await model.rebaseDraftChanges(
+                { projectUuid, userUuid },
+                'orders',
+                1,
+            ),
+        ).toBe(false);
+        expect((await bases())[0]).toEqual({ orders: 1, customers: null });
+        expect(
+            await model.rebaseDraftChanges(
+                { projectUuid, userUuid },
+                'orders',
+                2,
+            ),
+        ).toBe(true);
         await model.rebaseDraftChanges(
             { projectUuid, userUuid },
             'customers',

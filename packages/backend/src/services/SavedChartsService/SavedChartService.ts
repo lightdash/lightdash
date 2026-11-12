@@ -120,6 +120,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -1053,6 +1054,7 @@ export class SavedChartService
         const { user, embedWriteActions } = getAccountWriteContext(account);
         const { preserveVerification, ...chartVersion } = data;
         const existingChart = await this.savedChartModel.get(savedChartUuid);
+        await assertCanSaveInDevelopmentView(existingChart.projectUuid);
         const {
             organizationUuid,
             projectUuid,
@@ -2304,6 +2306,7 @@ export class SavedChartService
         projectUuid: string,
         savedChart: CreateSavedChart,
     ): Promise<SavedChart> {
+        await assertCanSaveInDevelopmentView(projectUuid);
         const requestedDashboard = savedChart.dashboardUuid
             ? await this.dashboardModel.getByIdOrSlug(
                   savedChart.dashboardUuid,
@@ -2569,6 +2572,7 @@ export class SavedChartService
         chartUuid: string,
         data: { chartName: string; chartDesc: string },
     ): Promise<SavedChart> {
+        await assertCanSaveInDevelopmentView(projectUuid);
         const chart = await this.savedChartModel.get(chartUuid);
         // Duplicating a dashboard-owned chart re-creates it inside the same
         // owning dashboard, so its grants count; space charts resolve through
