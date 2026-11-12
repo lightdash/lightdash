@@ -678,7 +678,7 @@ describe('Date zoom editor', () => {
         expect(pill('Default zoom')).toHaveTextContent(/^Default zoom\s*$/);
         await pickDefault(user, 'Month');
         expect(
-            within(dialog()).getByText('Applies to the other 1 tile'),
+            within(dialog()).getByText('Applies to 1 tile'),
         ).toBeInTheDocument();
         // Grains are the "..." menu's: no checkboxes or pin here
         expect(within(dialog()).queryByRole('checkbox')).toBeNull();

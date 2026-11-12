@@ -89,6 +89,20 @@ export const useDateZoomBar = (): DateZoomBarEntry[] => {
 export const useNamedDateZoomCount = (): number =>
     useDateZoomBar().filter(({ isNew }) => !isNew).length;
 
+/** Every tile a date zoom can govern: the default zoom's "of N" */
+export const useZoomableTileCount = (): number => {
+    const chartZoomableFieldsByTileUuid = useDashboardSelector(
+        selectChartZoomableFieldsByTileUuid,
+    );
+    return useMemo(
+        () =>
+            Object.values(chartZoomableFieldsByTileUuid).filter(
+                (fields) => fields.length > 0,
+            ).length,
+        [chartZoomableFieldsByTileUuid],
+    );
+};
+
 /** Tiles the default zoom governs: zoomable tiles no named zoom has, as the shipped Default counts them */
 export const useDefaultZoomTileCount = (): number => {
     const config = useDashboardDateZoomConfig();

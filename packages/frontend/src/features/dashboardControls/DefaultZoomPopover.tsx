@@ -5,7 +5,7 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { TilesChip } from './ControlPopoverParts';
 import { focusParameterValueOnMount } from './editorFocus';
-import { formatTileCount } from './fieldLabels';
+import { formatAppliesToTiles } from './fieldLabels';
 import classes from './FilterEditor.module.css';
 import { EditorActions, EditorFrame } from './FilterPopover';
 import { GrainSelect } from './GrainSelect';
@@ -17,8 +17,10 @@ type Props = {
     value: string | null;
     /** The dashboard's custom grains, by key. */
     customLabels: Record<string, string>;
-    /** Zoomable tiles in no named zoom: the N in "Applies to the other N tiles". */
+    /** Zoomable tiles in no named zoom: the 1 in "Applies to 1 of 5 tiles". */
     tileCount: number;
+    /** Every zoomable tile on the dashboard. */
+    totalTileCount: number;
     /** Another pill was clicked over unapplied changes: "Apply changes to ... first?" */
     isAsking: boolean;
     onResolvePending: (shouldApply: boolean) => void;
@@ -33,6 +35,7 @@ export const DefaultZoomPopover: FC<Props> = ({
     value,
     customLabels,
     tileCount,
+    totalTileCount,
     isAsking,
     onResolvePending,
     onChange,
@@ -93,7 +96,11 @@ export const DefaultZoomPopover: FC<Props> = ({
             </Box>
             <Group gap="xs" align="center" px="md" pb="sm">
                 <TilesChip
-                    label={`Applies to the other ${formatTileCount(getUiString, tileCount)}`}
+                    label={formatAppliesToTiles(
+                        getUiString,
+                        tileCount,
+                        totalTileCount,
+                    )}
                     chooseTiles={getUiString('controls.chooseTiles')}
                     onChooseTiles={null}
                 />

@@ -218,7 +218,8 @@ export const Default: Story = {
         await waitFor(() =>
             expect(
                 dialog.getByText(
-                    `Applies to the other ${TOTAL_TILE_COUNT - 3} tiles`,
+                    // Five of the six tiles can zoom; Revenue zoom has two
+                    `Applies to ${TOTAL_TILE_COUNT - 3} of ${TOTAL_TILE_COUNT - 1} tiles`,
                 ),
             ).toBeVisible(),
         );

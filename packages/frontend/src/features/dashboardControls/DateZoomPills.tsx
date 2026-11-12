@@ -41,6 +41,7 @@ import { useControlsSidebarSelector } from './useControlsSidebar';
 import {
     useDateZoomBar,
     useDefaultZoomTileCount,
+    useZoomableTileCount,
     type DateZoomBarEntry,
 } from './useDateZoomBar';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
@@ -62,12 +63,14 @@ const DefaultZoomEditorContent: FC = () => {
         selectAvailableCustomGranularities,
     );
     const tileCount = useDefaultZoomTileCount();
+    const totalTileCount = useZoomableTileCount();
     return (
         <DefaultZoomPopover
             enabledGranularities={granularities}
             value={pick}
             customLabels={customLabels}
             tileCount={tileCount}
+            totalTileCount={totalTileCount}
             isAsking={isAsking}
             onResolvePending={resolvePending}
             onChange={setPick}
