@@ -14,6 +14,7 @@
         "stub:snowflake-ai": "node stub/snowflake-ai-stub.mjs",
         "test:api": "vitest run --config vitest.config.ts",
         "test:unit": "vitest run --config vitest.unit.config.ts",
+        "eval:semantic-studio": "vitest run --config vitest.evals.config.ts evals/semanticStudio.eval.ts",
         "test:api:watch": "vitest watch --config vitest.config.ts"
     },
     "dependencies": {
