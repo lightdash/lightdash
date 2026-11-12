@@ -83,12 +83,12 @@
         "tslib": "2.8.1"
     },
     "peerDependencies": {
-        "echarts": ">=5.6.0 <6"
+        "echarts": ">=6.1.0 <7"
     },
     "devDependencies": {
         "@playwright/test": "1.63.0",
         "@types/node": "24.13.2",
-        "echarts": "5.6.0",
+        "echarts": "6.1.0",
         "oxlint": "1.75.0",
         "tsrs": "0.21.0-ts7.1.0-beta",
         "typescript": "7.0.2",
