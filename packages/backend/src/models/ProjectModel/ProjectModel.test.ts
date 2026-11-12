@@ -7,6 +7,7 @@ import {
     CreateAthenaCredentials,
     CreateBigqueryCredentials,
     CreateDatabricksCredentials,
+    CreateDuckdbDucklakeCredentials,
     CreateDuckdbMotherduckCredentials,
     CreatePostgresCredentials,
     CreateSnowflakeCredentials,
@@ -17,6 +18,8 @@ import {
     DbtProjectType,
     DimensionType,
     DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
     ExploreType,
     FeatureFlags,
     FieldType,
@@ -184,6 +187,93 @@ describe('ProjectModel', () => {
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
     });
+    test.each([
+        { name: 'MotherDuck', connectionType: DuckdbConnectionType.MOTHERDUCK },
+        { name: 'legacy MotherDuck', connectionType: undefined },
+    ])('returns the $name connection settings', async ({ connectionType }) => {
+        const stored = {
+            type: WarehouseTypes.DUCKDB,
+            connectionType,
+            database: 'warehouse',
+            schema: 'reporting',
+            token: 'test-token',
+            requireUserCredentials: true,
+            catalog: { type: DucklakeCatalogType.DUCKDB, path: 'catalog.db' },
+            dataPath: { type: DucklakeDataPathType.LOCAL, path: 'data' },
+        };
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([
+                {
+                    ...projectMock,
+                    warehouse_type: WarehouseTypes.DUCKDB,
+                    encrypted_credentials: Buffer.from(JSON.stringify(stored)),
+                },
+            ]);
+
+        const { warehouseConnection } = await model.get(projectUuid);
+        expect(warehouseConnection).toEqual({
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
+            database: 'warehouse',
+            schema: 'reporting',
+            requireUserCredentials: true,
+        });
+        const project = await model.getWithSensitiveFields(projectUuid);
+        expect(project.warehouseConnection).toEqual({
+            ...stored,
+            connectionType: DuckdbConnectionType.MOTHERDUCK,
+        });
+    });
+
+    test('returns DuckLake catalog and storage settings', async () => {
+        const stored: CreateDuckdbDucklakeCredentials = {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.DUCKLAKE,
+            schema: 'reporting',
+            catalog: {
+                type: DucklakeCatalogType.POSTGRES,
+                host: 'warehouse.example.test',
+                port: 5432,
+                database: 'catalog',
+                user: 'test-user',
+                password: 'test-password',
+            },
+            dataPath: {
+                type: DucklakeDataPathType.S3,
+                url: 's3://example/data',
+                accessKeyId: 'test-key',
+                secretAccessKey: 'test-secret',
+            },
+        };
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([
+                {
+                    ...projectMock,
+                    warehouse_type: WarehouseTypes.DUCKDB,
+                    encrypted_credentials: Buffer.from(JSON.stringify(stored)),
+                },
+            ]);
+
+        const { warehouseConnection } = await model.get(projectUuid);
+        expect(warehouseConnection).toEqual({
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.DUCKLAKE,
+            schema: 'reporting',
+            catalog: {
+                type: DucklakeCatalogType.POSTGRES,
+                host: 'warehouse.example.test',
+                port: 5432,
+                database: 'catalog',
+            },
+            dataPath: {
+                type: DucklakeDataPathType.S3,
+                url: 's3://example/data',
+            },
+        });
+    });
+
     test('rejects a legacy organization link instead of using stale project credentials', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))

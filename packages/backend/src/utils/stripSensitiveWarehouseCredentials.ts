@@ -28,5 +28,9 @@ export function stripSensitiveWarehouseCredentials(
             },
         ) as WarehouseCredentials;
     }
+    if (credentials.type === WarehouseTypes.DUCKDB) {
+        delete strippedCredentials.catalog;
+        delete strippedCredentials.dataPath;
+    }
     return strippedCredentials as WarehouseCredentials;
 }
