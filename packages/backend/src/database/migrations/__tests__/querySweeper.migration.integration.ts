@@ -137,3 +137,58 @@ it('limits each update to 500 rows', async () => {
     expect(await model.failStuckQueriesBatch(86400)).toBe(1);
     expect(await model.failStuckQueriesBatch(86400)).toBe(0);
 });
+
+it.each(['Pacific/Kiritimati', 'Etc/GMT+12'])(
+    'uses UTC timestamps for liveness in session zone %s',
+    async (timeZone) => {
+        const live = [
+            await insert('executing'),
+            await insert('executing'),
+            await insert('queued'),
+        ];
+        const stale = [
+            await insert('executing'),
+            await insert('executing'),
+            await insert('queued'),
+        ];
+        await migrated.database.transaction(async (transaction) => {
+            await transaction.raw("SELECT set_config('TimeZone', ?, true)", [
+                timeZone,
+            ]);
+            const setAge = (ids: string[], ageHours: number) =>
+                transaction.raw(
+                    `UPDATE query_history
+                     SET created_at = (now() - ? * interval '1 hour') AT TIME ZONE 'UTC',
+                         processing_started_at = CASE WHEN status = 'executing'
+                             THEN (now() - ? * interval '1 hour') AT TIME ZONE 'UTC'
+                             ELSE NULL END,
+                         executing_heartbeat_at = CASE WHEN query_uuid = ?
+                             THEN now() - ? * interval '1 hour' ELSE NULL END
+                     WHERE query_uuid IN (?, ?, ?)`,
+                    [ageHours, ageHours, ids[0], ageHours, ...ids],
+                );
+            await setAge(live, 20);
+            await setAge(stale, 30);
+            const zonedModel = new QueryHistoryModel({ database: transaction });
+            expect(await zonedModel.failStuckQueriesBatch(86400)).toBe(3);
+            const liveRows = await transaction('query_history').whereIn(
+                'query_uuid',
+                live,
+            );
+            expect(liveRows.map((row) => row.status).sort()).toEqual([
+                'executing',
+                'executing',
+                'queued',
+            ]);
+            const staleRows = await transaction('query_history').whereIn(
+                'query_uuid',
+                stale,
+            );
+            expect(staleRows.map((row) => row.status)).toEqual([
+                'error',
+                'error',
+                'error',
+            ]);
+        });
+    },
+);

@@ -683,11 +683,11 @@ export class QueryHistoryModel {
             `
             WITH candidates AS MATERIALIZED (
                 SELECT query_uuid, status AS prior_status,
-                    EXTRACT(EPOCH FROM (now() - COALESCE(executing_heartbeat_at, processing_started_at, created_at)))::float8 AS age_seconds
+                    EXTRACT(EPOCH FROM (now() - COALESCE(executing_heartbeat_at::timestamptz, processing_started_at AT TIME ZONE 'UTC', created_at AT TIME ZONE 'UTC')))::float8 AS age_seconds
                 FROM query_history
                 WHERE status IN ('queued', 'executing')
-                  AND COALESCE(executing_heartbeat_at, processing_started_at, created_at) < now() - ? * interval '1 second'
-                ORDER BY COALESCE(executing_heartbeat_at, processing_started_at, created_at)
+                  AND COALESCE(executing_heartbeat_at::timestamptz, processing_started_at AT TIME ZONE 'UTC', created_at AT TIME ZONE 'UTC') < now() - ? * interval '1 second'
+                ORDER BY COALESCE(executing_heartbeat_at::timestamptz, processing_started_at AT TIME ZONE 'UTC', created_at AT TIME ZONE 'UTC')
                 LIMIT 500
                 FOR UPDATE SKIP LOCKED
             )
@@ -696,7 +696,7 @@ export class QueryHistoryModel {
             FROM candidates
             WHERE history.query_uuid = candidates.query_uuid
               AND history.status IN ('pending', 'queued', 'executing')
-              AND COALESCE(history.executing_heartbeat_at, history.processing_started_at, history.created_at) < now() - ? * interval '1 second'
+              AND COALESCE(history.executing_heartbeat_at::timestamptz, history.processing_started_at AT TIME ZONE 'UTC', history.created_at AT TIME ZONE 'UTC') < now() - ? * interval '1 second'
             RETURNING history.query_uuid, candidates.prior_status, candidates.age_seconds
         `,
             [
