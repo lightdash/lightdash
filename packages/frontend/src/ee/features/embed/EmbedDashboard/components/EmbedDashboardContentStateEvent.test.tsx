@@ -112,6 +112,7 @@ describe('EmbedDashboardContentStateEvent', () => {
                 activeTabUuid: 'tab-2',
                 dashboard: dashboardVersion,
                 exportRequest: {
+                    dashboardFilters: dashboardVersion.filters,
                     parameters: { region: 'EMEA' },
                     dateZoomGranularity: 'MONTH',
                 },

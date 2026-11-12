@@ -45,6 +45,7 @@ const EmbedDashboardContentStateEvent: FC<{
             activeTabUuid: activeTabUuid ?? null,
             dashboard: dashboardVersion,
             exportRequest: {
+                dashboardFilters: dashboardVersion.filters,
                 parameters,
                 ...(tileParameters && { tileParameters }),
                 ...(dateZoomGranularity && { dateZoomGranularity }),

@@ -116,10 +116,13 @@ export type DashboardContentState = {
     activeTabUuid: string | null;
     // The dashboard as it is now: unsaved edits, added filters and current parameters
     dashboard: DashboardVersionedFields;
-    // Runtime values for the export request; omitted keys must stay omitted
+    // Ready for the export request, add format; omitted keys must stay omitted
     exportRequest: Pick<
         ExportContentRequest,
-        'parameters' | 'tileParameters' | 'dateZoomGranularity'
+        | 'dashboardFilters'
+        | 'parameters'
+        | 'tileParameters'
+        | 'dateZoomGranularity'
     >;
 };
 
