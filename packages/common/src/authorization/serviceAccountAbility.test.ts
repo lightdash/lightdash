@@ -25,6 +25,29 @@ const buildAbility = (scopes: ServiceAccountScope[]) => {
     return builder.build();
 };
 
+describe('job status access', () => {
+    it.each([
+        ServiceAccountScope.ORG_READ,
+        ServiceAccountScope.ORG_EDIT,
+        ServiceAccountScope.ORG_ADMIN,
+    ])('uses the account organization for %s', (scope) => {
+        const ability = buildAbility([scope]);
+        expect(
+            ability.can(
+                'view',
+                subject('JobStatus', { organizationUuid: ORG }),
+            ),
+        ).toBe(true);
+        expect(
+            ability.can(
+                'view',
+                subject('JobStatus', { organizationUuid: 'other-org' }),
+            ),
+        ).toBe(false);
+        expect(ability.can('view', subject('JobStatus', {}))).toBe(false);
+    });
+});
+
 describe('roadmap management', () => {
     it('grants legacy org admins management only within their organization', () => {
         const ability = buildAbility([ServiceAccountScope.ORG_ADMIN]);
