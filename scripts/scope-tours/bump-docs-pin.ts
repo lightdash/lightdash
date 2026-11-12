@@ -10,17 +10,22 @@
  *   2. stops when the generated files have local changes in this repository;
  *   3. refuses a commit that is not on the docs origin/main, and warns when
  *      the pin moves backwards or sideways;
- *   4. checks the docs checkout (LIGHTDASH_DOCS_DIR, else ../mintlify-docs)
- *      out at that commit, detached; a checkout with local changes is left
- *      alone and the bump stops;
- *   5. writes the commit to docs-pin.txt;
- *   6. runs pnpm scope-tours:generate, pnpm scope-tours:order and
+ *   4. reads what every citation in the frontend source shows at the current
+ *      pin, then checks the docs checkout (LIGHTDASH_DOCS_DIR, else
+ *      ../mintlify-docs) out at the new commit, detached; a checkout with
+ *      local changes is left alone and the bump stops;
+ *   5. follows each cited text that only moved inside its section: the
+ *      citation is rewritten in the source file to the text's new place, and
+ *      printed as a `moved citation:` line (citation-moves.ts);
+ *   6. writes the commit to docs-pin.txt;
+ *   7. runs pnpm scope-tours:generate, pnpm scope-tours:order and
  *      pnpm scope-tours:check, then prints the diff stat, a table of every
- *      step whose title or body changed, and the full diff of the pin and the
- *      generated files.
+ *      step whose title or body changed, and the full diff of the pin, the
+ *      generated files and the re-cited source files.
  *
- * Read the diff before you commit it. A citation move (a `data-tour-docs`
- * change, for example a `:pN` paragraph index) is the Learn owners' call and
+ * Read the diff before you commit it. A followed citation shows the same
+ * words as before. Any other citation change (the docs edited the text as
+ * well as moving it, or renamed its heading) is the Learn owners' call and
  * merges in the same pull request as the bump
  * (docs/learn/maintaining-walkthroughs.md). The scheduled Scope tours docs
  * refresh workflow runs this command and opens that pull request.
@@ -33,9 +38,16 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
+    applyCitationMoves,
+    citationMoves,
+    citationSources,
+    citedTexts,
+} from './citation-moves';
+import {
     docsDir,
     docsHead,
     docsPinPath,
+    frontendSrc,
     GENERATED_FILES,
     generatedChangesError,
     outputPath,
@@ -67,6 +79,15 @@ const argValue = (name: string): string | undefined => {
         throw new Error(`${name} needs a value: ${name} <sha>`);
     }
     return value;
+};
+
+/** Makes a docs commit available in the docs checkout, fetching it if it is not there. */
+const fetchCommit = (commit: string) => {
+    try {
+        git(['cat-file', '-e', `${commit}^{commit}`], docsDir, 'ignore');
+    } catch {
+        git(['fetch', '--quiet', 'origin', commit], docsDir);
+    }
 };
 
 const isAncestor = (ancestor: string, descendant: string): boolean => {
@@ -175,11 +196,7 @@ const main = () => {
             `${docsDir} has local changes. Commit or stash them, then run this again.`,
         );
     }
-    try {
-        git(['cat-file', '-e', `${sha}^{commit}`], docsDir, 'ignore');
-    } catch {
-        git(['fetch', '--quiet', 'origin', sha], docsDir);
-    }
+    fetchCommit(sha);
     git(['fetch', '--quiet', 'origin', 'main'], docsDir);
     if (!isAncestor(sha, 'origin/main')) {
         throw new Error(
@@ -191,7 +208,49 @@ const main = () => {
             `warning: ${sha} does not come after the current pin ${current}; this moves the pin backwards or sideways (or the current pin is not in the docs history here).`,
         );
     }
+    // What every citation shows at the current pin, read before the docs
+    // checkout moves on, so a text that only moved can be followed.
+    const sources = citationSources(frontendSrc);
+    let was = new Map<string, string>();
+    if (sha !== current) {
+        try {
+            fetchCommit(current);
+            git(['checkout', '--quiet', '--detach', current], docsDir);
+            was = citedTexts([...new Set([...sources.values()].flat())]);
+        } catch {
+            console.warn(
+                `warning: the docs checkout could not be put at the current pin ${current}, so a citation whose text moved is not followed.`,
+            );
+        }
+    }
     git(['checkout', '--quiet', '--detach', sha], docsDir);
+    const moved = applyCitationMoves(sources, citationMoves(was));
+    const recited = [...new Set(moved.flatMap((move) => move.files))].map(
+        (file) => path.relative(root, file),
+    );
+    if (recited.length > 0) {
+        // A longer paragraph number can push a line past the print width.
+        execFileSync(
+            'pnpm',
+            [
+                '-F',
+                'frontend',
+                'run',
+                'formatter',
+                '--',
+                ...recited.map((file) =>
+                    path.relative('packages/frontend', file),
+                ),
+            ],
+            { cwd: root, stdio: 'inherit' },
+        );
+        moved.forEach(({ from, to, files }) => {
+            const where = files
+                .map((file) => `\`${path.relative(root, file)}\``)
+                .join(', ');
+            console.log(`moved citation: \`${from}\` to \`${to}\` in ${where}`);
+        });
+    }
 
     const before = readFileSync(outputPath, 'utf8');
     writeFileSync(docsPinPath, `${sha}\n`);
@@ -211,16 +270,17 @@ const main = () => {
         );
         throw error;
     }
-    const stat = git(['diff', '--stat', '--', ...GENERATED]);
+    const changed = [...GENERATED, ...recited];
+    const stat = git(['diff', '--stat', '--', ...changed]);
     if (stat === '') {
         console.log('No change to the pin or the generated files.');
         return;
     }
     console.log(stat);
     console.log(changedStepsTable(before, readFileSync(outputPath, 'utf8')));
-    console.log(git(['diff', '--', ...GENERATED]));
+    console.log(git(['diff', '--', ...changed]));
     console.log(
-        'scope-tours:check passed. Read the changed steps and the diff, then commit the pin and the generated files together.',
+        'scope-tours:check passed. Read the changed steps and the diff, then commit the pin, the generated files and any re-cited source file together.',
     );
 };
 
