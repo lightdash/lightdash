@@ -40,7 +40,10 @@ const createStore = (savedChart?: SavedChart) =>
                         type: ChartType.TABLE,
                         config: undefined,
                     },
-                    tableConfig: { columnOrder: [] },
+                    tableConfig: {
+                        columnOrder: ['orders_status', 'orders_total'],
+                    },
+                    pivotConfig: { columns: ['orders_status'] },
                     parameters: { region: 'EMEA' },
                 },
             },
@@ -77,15 +80,23 @@ describe('EmbedExploreContentStateEvent', () => {
                 exploreName: 'orders',
                 metricQuery: expect.objectContaining(metricQuery),
                 parameters: { region: 'EMEA' },
+                chartConfig: { type: ChartType.TABLE, config: undefined },
+                tableConfig: {
+                    columnOrder: ['orders_status', 'orders_total'],
+                },
+                pivotConfig: { columns: ['orders_status'] },
             },
         );
     });
 
-    it('emits the chart with unsaved edits', () => {
+    it('emits the chart with unsaved query and table edits', () => {
         const store = createStore({ uuid: 'chart-uuid' } as SavedChart);
         renderEmitter(store);
         act(() => {
             store.dispatch(explorerActions.setDimensions(['orders_date']));
+            store.dispatch(
+                explorerActions.setColumnOrder(['orders_total', 'orders_date']),
+            );
         });
         act(() => {
             vi.advanceTimersByTime(CONTENT_STATE_DEBOUNCE_MS);
@@ -99,6 +110,7 @@ describe('EmbedExploreContentStateEvent', () => {
                 metricQuery: expect.objectContaining({
                     dimensions: ['orders_date'],
                 }),
+                tableConfig: { columnOrder: ['orders_total', 'orders_date'] },
             }),
         );
     });

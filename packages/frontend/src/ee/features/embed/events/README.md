@@ -23,8 +23,10 @@ The event system must be enabled in the Lightdash embedding configuration. Direc
 `contentStateChanged` tells the host what the user is looking at, for example to export it. The payload's `type` says which shape it is:
 
 - `dashboard`: `{ dashboardUuid, filters, parameters, tileParameters, dateZoomGranularity, activeTabUuid }`. Filters include the ones the user added. `tileParameters` is `null` unless the dashboard uses parameter controls.
-- `chart`: `{ chartUuid, exploreName, metricQuery, parameters }` for a saved chart in `Lightdash.Chart` with `isEditMode` set, unsaved edits included.
-- `explore`: `{ exploreName, metricQuery, parameters }` for a query that isn't a saved chart, such as `Lightdash.Explore` or "Explore from here".
+- `chart`: `{ chartUuid, exploreName, metricQuery, parameters, chartConfig, tableConfig, pivotConfig }` for a saved chart in `Lightdash.Chart` with `isEditMode` set, unsaved edits included.
+- `explore`: the same without `chartUuid`, for a query that isn't a saved chart, such as `Lightdash.Explore` or "Explore from here".
+
+`chartConfig`, `tableConfig` and `pivotConfig` have the saved chart's shape, so hosts can build export options (column order, labels, hidden fields, pivots, totals, conditional formatting) the same way they do for a saved chart.
 
 The dashboard fields match `POST /api/v2/dashboards/{uuid}/exports`, so a host can export what the user sees:
 

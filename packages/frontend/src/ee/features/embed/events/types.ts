@@ -3,6 +3,7 @@ import {
     type ExportContentRequest,
     type MetricQuery,
     type ParametersValuesMap,
+    type SavedChart,
 } from '@lightdash/common';
 
 /**
@@ -122,21 +123,25 @@ export type DashboardContentState = {
     activeTabUuid: string | null;
 };
 
-/** A saved chart open in the explorer, unsaved edits included */
-export type ChartContentState = {
-    type: 'chart';
-    chartUuid: string;
+/** The explorer's query and visualization, in the saved chart's shape */
+type ExplorerContentState = {
     exploreName: string;
     metricQuery: MetricQuery;
     parameters: ParametersValuesMap;
+    chartConfig: SavedChart['chartConfig'];
+    tableConfig: SavedChart['tableConfig'];
+    pivotConfig: NonNullable<SavedChart['pivotConfig']> | null;
+};
+
+/** A saved chart open in the explorer, unsaved edits included */
+export type ChartContentState = ExplorerContentState & {
+    type: 'chart';
+    chartUuid: string;
 };
 
 /** An explore query that isn't a saved chart */
-export type ExploreContentState = {
+export type ExploreContentState = ExplorerContentState & {
     type: 'explore';
-    exploreName: string;
-    metricQuery: MetricQuery;
-    parameters: ParametersValuesMap;
 };
 
 /**

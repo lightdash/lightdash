@@ -1,3 +1,4 @@
+import { ChartType } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LightdashEventType, type ExploreContentState } from '../events/types';
@@ -25,6 +26,9 @@ const exploreState = (limit: number): ExploreContentState => ({
         tableCalculations: [],
     },
     parameters: {},
+    chartConfig: { type: ChartType.TABLE, config: undefined },
+    tableConfig: { columnOrder: [] },
+    pivotConfig: null,
 });
 
 describe('useEmbedContentStateEvent', () => {
