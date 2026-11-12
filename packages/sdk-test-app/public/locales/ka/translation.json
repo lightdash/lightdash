@@ -546,6 +546,7 @@
         "controls.dateZoom.clearedKeepsOwnGrain": "თუ გასუფთავდება, ფილები საკუთარ დეტალიზაციას ინარჩუნებს.",
         "controls.dateZoom.custom": "მორგებული",
         "controls.dateZoom.clearGrain": "დეტალიზაციის გასუფთავება",
+        "controls.summary.showControls": "კონტროლების ჩვენება",
         "controls.dateZoom.appliesToWord": "ვრცელდება",
         "controls.dateZoom.backToDateZoom": "თარიღის მასშტაბზე დაბრუნება",
         "controls.dateZoom.dateField": "თარიღის ველი",

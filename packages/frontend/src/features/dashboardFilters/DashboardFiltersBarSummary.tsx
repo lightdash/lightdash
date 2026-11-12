@@ -10,8 +10,9 @@ type Props = {
     parametersCount: number;
     /** Named date zooms on the bar (default 0). */
     dateZoomsCount?: number;
-    /** The funnel circle before the counts (default true). */
-    withGroupMarker?: boolean;
+    /** The controls bar's summary: no funnel, "Show controls", "Default zoom Week" (default false). */
+    isControlsBar?: boolean;
+    /** The picked grain or "Default"; null: no date zoom. The controls bar passes '' for no grain. */
     dateZoomLabel: string | null;
     onExpand: () => void;
 };
@@ -20,7 +21,7 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
     filtersCount,
     parametersCount,
     dateZoomsCount = 0,
-    withGroupMarker = true,
+    isControlsBar = false,
     dateZoomLabel,
     onExpand,
 }) => {
@@ -29,6 +30,11 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
     const hasParameters = parametersCount > 0;
     const hasDateZooms = dateZoomsCount > 0;
     const hasDateZoom = dateZoomLabel !== null;
+    const showLabel = getUiString(
+        isControlsBar
+            ? 'controls.summary.showControls'
+            : 'filters.summary.showFilters',
+    );
 
     return (
         <Group
@@ -39,7 +45,7 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
             py="xxs"
         >
             <Group gap="xs" align="center">
-                {withGroupMarker &&
+                {!isControlsBar &&
                     (hasFilters ||
                         hasParameters ||
                         hasDateZooms ||
@@ -92,14 +98,18 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
                     {hasDateZoom && (
                         <>
                             <Text span fw={600}>
-                                {getUiString('filters.summary.dateZoomLabel')}
+                                {getUiString(
+                                    isControlsBar
+                                        ? 'dateZoom.defaultZoom'
+                                        : 'filters.summary.dateZoomLabel',
+                                )}
                             </Text>{' '}
                             {dateZoomLabel}
                         </>
                     )}
                 </Text>
             </Group>
-            <Tooltip label={getUiString('filters.summary.showFilters')}>
+            <Tooltip label={showLabel}>
                 <Button
                     size="compact-xs"
                     variant="subtle"
@@ -107,7 +117,7 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
                     rightSection={<MantineIcon icon={IconChevronDown} />}
                     onClick={onExpand}
                 >
-                    {getUiString('filters.summary.showFilters')}
+                    {showLabel}
                 </Button>
             </Tooltip>
         </Group>

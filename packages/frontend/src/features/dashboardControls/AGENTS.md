@@ -81,7 +81,8 @@ Openings (optional props, defaults are today's behaviour):
   `isQuiet` (the controls bar's viewer button, drawn as
   `DefaultZoomButton`; default `false`: the bordered pill).
 - `DashboardFiltersBarSummary`: `dateZoomsCount` (default 0: no count) and
-  `withGroupMarker` (`false` with the controls on: no funnel).
+  `isControlsBar` (the controls bar's summary: no funnel, "Show controls",
+  "Default zoom Week").
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
   ref; the popover anchors on it).
