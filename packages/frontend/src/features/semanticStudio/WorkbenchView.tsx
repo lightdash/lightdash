@@ -1082,6 +1082,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         if (!canBuildFirstModel) return 'empty';
         return chat.hasThread || hasStarted ? 'buildFirst' : 'intro';
     })();
+    // Reviewing changes takes the full width: the tree is for browsing models.
+    const isReviewPane = pane === 'changes' || pane === 'review';
     // What the chat is told the person has open: in the code view that is the file, not the page behind it.
     const openModel = isCode
         ? { modelName: file, fieldName: searchParams.get(FIELD_PARAM) }
@@ -1274,8 +1276,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         <Box
                             className={classes.workspaceBody}
                             data-no-rail={
-                                pane === 'changes' ||
-                                (pane !== 'code' && isEmpty)
+                                isReviewPane || (pane !== 'code' && isEmpty)
                             }
                         >
                             {pane === 'code' ? (
@@ -1291,7 +1292,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         })
                                     }
                                 />
-                            ) : isEmpty || pane === 'changes' ? null : (
+                            ) : isEmpty || isReviewPane ? null : (
                                 <Rail
                                     view={view}
                                     expanded={expanded}

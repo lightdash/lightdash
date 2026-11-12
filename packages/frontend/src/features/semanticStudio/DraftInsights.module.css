@@ -18,18 +18,14 @@
 .options {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
-    gap: var(--mantine-spacing-sm);
+    gap: var(--mantine-spacing-md);
 }
 
 .option {
     display: flex;
     flex-direction: column;
-    gap: var(--mantine-spacing-xs);
+    gap: 4px;
     min-width: 0;
-    padding: var(--mantine-spacing-sm);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
-    background-color: var(--mantine-color-body);
 }
 
 /* Which state a version is in, in the colours those states already have. */
@@ -81,12 +77,6 @@
 }
 
 /* A one-time pointer, not an alert: a tinted strip with no border. */
-.hint {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    border-radius: var(--mantine-radius-md);
-    background-color: var(--mantine-color-ldGray-0);
-}
-
 .sectionTitle {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     border-bottom: 1px solid var(--mantine-color-default-border);

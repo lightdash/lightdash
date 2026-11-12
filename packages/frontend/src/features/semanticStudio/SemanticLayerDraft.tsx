@@ -44,7 +44,6 @@ import {
     DraftUsage,
     MetricComparison,
     ModelNotices,
-    DraftExplainer,
     PublishChecklist,
     PublishSummary,
 } from './DraftInsights';
@@ -493,9 +492,19 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     return (
         <DevelopmentBar
             status={
-                <Badge color="orange" flex="none">
-                    Draft
-                </Badge>
+                <Tooltip
+                    multiline
+                    w={240}
+                    label={
+                        asPullRequest
+                            ? 'Only you see these changes. Publishing opens a pull request, and nothing is live until it merges.'
+                            : 'Only you see these changes. Publishing makes them live for everyone on this project.'
+                    }
+                >
+                    <Badge color="orange" flex="none">
+                        Draft
+                    </Badge>
+                </Tooltip>
             }
             summary={
                 draft.models.length > 0 ? null : (
@@ -684,7 +693,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
     draft,
     onAskAgent,
 }) => {
-    const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     // A check that is running or found something is worth reading; one not yet run is asked for from the menu.
     const showsImpact =
@@ -700,7 +708,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
     );
     return (
         <Stack gap="md" className={classes.review}>
-            <DraftExplainer asPullRequest={asPullRequest} />
             <MessageList
                 variant="danger"
                 title="This cannot be applied yet"
@@ -777,11 +784,20 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                 projectUuid={projectUuid}
                                 model={modelChange}
                             />
-                            <ChangeDiff
-                                modelName={modelChange.model}
-                                change={modelChange}
-                                variant="full"
-                            />
+                            {/* Until the choice is made the diff would only repeat both versions. */}
+                            {modelChange.reconciliation?.state ===
+                            'conflict' ? (
+                                <Text fz="xs" c="dimmed" p="sm">
+                                    The code shows once you choose which version
+                                    to keep.
+                                </Text>
+                            ) : (
+                                <ChangeDiff
+                                    modelName={modelChange.model}
+                                    change={modelChange}
+                                    variant="full"
+                                />
+                            )}
                             <MetricComparison
                                 projectUuid={projectUuid}
                                 draft={draft}
