@@ -107,4 +107,68 @@ describe('WorkbookExportHelper', () => {
             await fs.unlink(outputPath).catch(() => undefined);
         }
     });
+
+    it('keeps embedded chart images when merging sheets', async () => {
+        const outputPath = path.join(
+            os.tmpdir(),
+            `lightdash-dashboard-workbook-images-${Date.now()}.xlsx`,
+        );
+        const pngBuffer = Buffer.alloc(64);
+        Buffer.from('89504e470d0a1a0a', 'hex').copy(pngBuffer, 0);
+        pngBuffer.writeUInt32BE(800, 16);
+        pngBuffer.writeUInt32BE(400, 20);
+
+        const imageWorkbook = new Excel.Workbook();
+        const imageSheet = imageWorkbook.addWorksheet('Chart');
+        imageSheet.addImage(
+            imageWorkbook.addImage({
+                base64: pngBuffer.toString('base64'),
+                extension: 'png',
+            }),
+            { tl: { col: 0, row: 0 }, ext: { width: 800, height: 400 } },
+        );
+        const imageBuffer = Buffer.from(await imageWorkbook.xlsx.writeBuffer());
+        const dataBuffer = await createWorkbookBuffer(1);
+
+        global.fetch = vi.fn(async (url) => ({
+            ok: true,
+            arrayBuffer: async () =>
+                toArrayBuffer(url === 'image' ? imageBuffer : dataBuffer),
+        })) as unknown as typeof fetch;
+
+        try {
+            const result = await WorkbookExportHelper.createWorkbookFile({
+                files: [
+                    { filename: 'data', sheetName: 'Table', localPath: 'data' },
+                    {
+                        filename: 'image',
+                        sheetName: 'Chart',
+                        localPath: 'image',
+                    },
+                ],
+                outputPath,
+                onFileError: () => undefined,
+            });
+            expect(result).toEqual({ worksheetCount: 2, failedFileCount: 0 });
+
+            const workbook = new Excel.Workbook();
+            await workbook.xlsx.readFile(outputPath);
+            const chartSheet = workbook.getWorksheet('Chart')!;
+            const images = chartSheet.getImages();
+            expect(images).toHaveLength(1);
+            expect(
+                (
+                    images[0] as {
+                        range: { ext?: { width: number; height: number } };
+                    }
+                ).range.ext,
+            ).toEqual({ width: 800, height: 400 });
+            const image = workbook.getImage(Number(images[0].imageId));
+            expect(image.extension).toBe('png');
+            expect(Buffer.from(image.buffer!).equals(pngBuffer)).toBe(true);
+            expect(workbook.getWorksheet('Table')!.getImages()).toHaveLength(0);
+        } finally {
+            await fs.unlink(outputPath).catch(() => undefined);
+        }
+    });
 });

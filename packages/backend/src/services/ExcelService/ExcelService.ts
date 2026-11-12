@@ -58,9 +58,16 @@ import {
     prepareFlatPivotExport,
     unpivotResultsStream,
 } from '../../utils/flatPivotExport';
+import { WorkbookExportHelper } from './WorkbookExportHelper';
+
+const PNG_SIGNATURE = '89504e470d0a1a0a';
 
 export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;
+
+    // Screenshots come from a 1400px-wide viewport; shrink so the chart fits
+    // a spreadsheet window without horizontal scrolling.
+    private static readonly CHART_IMAGE_MAX_WIDTH_PX = 1000;
 
     private static isTzActive(
         timezone: string | undefined,
@@ -855,6 +862,100 @@ export class ExcelService {
                     : undefined,
             },
         );
+    }
+
+    /** Pixel size from a PNG header; null when the buffer is not a PNG. */
+    static getPngDimensions(
+        buffer: Buffer,
+    ): { width: number; height: number } | null {
+        if (
+            buffer.length < 24 ||
+            buffer.subarray(0, 8).toString('hex') !== PNG_SIGNATURE
+        ) {
+            return null;
+        }
+        return {
+            width: buffer.readUInt32BE(16),
+            height: buffer.readUInt32BE(20),
+        };
+    }
+
+    /**
+     * Single-sheet workbook whose only content is the rendered chart image,
+     * anchored at A1 and scaled down to CHART_IMAGE_MAX_WIDTH_PX.
+     */
+    static async buildChartImageWorkbook({
+        imageBuffer,
+        sheetName,
+    }: {
+        imageBuffer: Buffer;
+        sheetName: string;
+    }): Promise<Excel.Buffer> {
+        const dimensions = ExcelService.getPngDimensions(imageBuffer);
+        if (!dimensions) {
+            throw new UnexpectedServerError(
+                'Chart image is not a PNG and cannot be embedded in XLSX',
+            );
+        }
+        const scale = Math.min(
+            1,
+            ExcelService.CHART_IMAGE_MAX_WIDTH_PX / dimensions.width,
+        );
+
+        const workbook = new Excel.Workbook();
+        const worksheet = workbook.addWorksheet(
+            WorkbookExportHelper.getWorksheetName(sheetName, new Set()),
+        );
+        const imageId = workbook.addImage({
+            base64: imageBuffer.toString('base64'),
+            extension: 'png',
+        });
+        worksheet.addImage(imageId, {
+            tl: { col: 0, row: 0 },
+            ext: {
+                width: Math.round(dimensions.width * scale),
+                height: Math.round(dimensions.height * scale),
+            },
+        });
+        return workbook.xlsx.writeBuffer();
+    }
+
+    /**
+     * Uploads a chart-image workbook to the exports bucket. Mirrors the
+     * return shape of the data exports so callers treat both the same way.
+     */
+    static async downloadChartImageXlsx({
+        imageBuffer,
+        chartName,
+        exportsStorageClient,
+        attachmentDownloadName,
+    }: {
+        imageBuffer: Buffer;
+        chartName: string;
+        exportsStorageClient: FileStorageClient;
+        attachmentDownloadName?: string;
+    }): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
+        const excelBuffer = await ExcelService.buildChartImageWorkbook({
+            imageBuffer,
+            sheetName: chartName,
+        });
+        const s3Key = ExcelService.generateFileId(
+            attachmentDownloadName || chartName,
+        );
+        const tempFilePath = ExcelService.createTempFilePath('chart-image');
+        try {
+            await fs.promises.writeFile(tempFilePath, Buffer.from(excelBuffer));
+            const fileUrl = await exportsStorageClient.uploadExcel(
+                fs.createReadStream(tempFilePath),
+                s3Key,
+                attachmentDownloadName
+                    ? `${attachmentDownloadName}.xlsx`
+                    : undefined,
+            );
+            return { fileUrl, truncated: false, s3Key };
+        } finally {
+            ExcelService.cleanupTempFile(tempFilePath);
+        }
     }
 
     // Helper method to create temporary file path

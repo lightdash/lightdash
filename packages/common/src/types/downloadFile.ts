@@ -9,6 +9,15 @@ export enum DownloadFileType {
     XLSX = 'xlsx',
 }
 
+/**
+ * What an XLSX export of a saved chart contains: the query's data rows, or a
+ * rendered image of the visualization. Only non-table charts offer the image.
+ */
+export enum XlsxExportContent {
+    DATA = 'data',
+    CHART_IMAGE = 'chart_image',
+}
+
 export type DownloadFile = {
     nanoid: string;
     path: string;
@@ -34,4 +43,7 @@ export type DownloadOptions = {
     // Table chart "Show column total" — appends a warehouse-computed totals row
     // to unpivoted exports. Pivoted exports carry it in `pivotConfig`.
     showColumnTotals?: boolean;
+    // XLSX only. Defaults to data rows; CHART_IMAGE embeds a rendered image
+    // of the saved chart the query belongs to instead.
+    xlsxContent?: XlsxExportContent;
 };

@@ -6,6 +6,7 @@ import {
     applyDimensionOverrides,
     assertUnreachable,
     BackfillDefaultUserSpacesPayload,
+    ChartType,
     CompileProjectPayload,
     convertReplaceableFieldMatchMapToReplaceCustomFields,
     CreateProject,
@@ -124,6 +125,7 @@ import {
     ValidateProjectPayload,
     VizColumn,
     WarehouseConnectionError,
+    XlsxExportContent,
     type Account as AccountType,
     type AgentConnectionTaskEffect,
     type AgentWorkMarker,
@@ -1845,6 +1847,24 @@ export default class SchedulerTask {
                                   },
                         );
 
+                        const exportChartsAsImages =
+                            format === SchedulerFormat.XLSX &&
+                            csvOptions?.xlsxContent ===
+                                XlsxExportContent.CHART_IMAGE;
+                        // Each image is a headless-browser render; run them one
+                        // at a time so a large dashboard cannot swamp the browser.
+                        let chartImageQueue: Promise<void> = Promise.resolve();
+                        const runChartImageExport = <T>(
+                            task: () => Promise<T>,
+                        ): Promise<T> => {
+                            const result = chartImageQueue.then(task);
+                            chartImageQueue = result.then(
+                                () => undefined,
+                                () => undefined,
+                            );
+                            return result;
+                        };
+
                         const downloadChartTileResults = async ({
                             chartUuid,
                             tileUuid,
@@ -1857,6 +1877,9 @@ export default class SchedulerTask {
                                 await this.schedulerService.savedChartModel.get(
                                     chartUuid,
                                 );
+                            const exportAsImage =
+                                exportChartsAsImages &&
+                                chart.chartConfig.type !== ChartType.TABLE;
                             const {
                                 pivotConfig: downloadPivotConfig,
                                 exportPivotedData: effectiveExportPivotedData,
@@ -1892,8 +1915,8 @@ export default class SchedulerTask {
                                         pivotResults: shouldPivotResults,
                                     },
                                 );
-                            const downloadResult =
-                                await this.asyncQueryService.downloadSyncQueryResults(
+                            const downloadTileResults = () =>
+                                this.asyncQueryService.downloadSyncQueryResults(
                                     {
                                         account,
                                         accessMode: downloadAccessMode,
@@ -1923,9 +1946,15 @@ export default class SchedulerTask {
                                                 chart.chartConfig.config,
                                             ),
                                         expirationSecondsOverride,
+                                        xlsxContent: exportAsImage
+                                            ? XlsxExportContent.CHART_IMAGE
+                                            : undefined,
                                     },
                                     SCHEDULER_POLLING_OPTIONS,
                                 );
+                            const downloadResult = exportAsImage
+                                ? await runChartImageExport(downloadTileResults)
+                                : await downloadTileResults();
                             return {
                                 chartName: chart.name,
                                 filename: chart.name,

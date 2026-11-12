@@ -52,7 +52,8 @@ export class WorkbookExportHelper {
         }
     }
 
-    private static getWorksheetName(name: string, usedNames: Set<string>) {
+    /** Excel-safe sheet name: reserved characters replaced, 31 chars, unique. */
+    static getWorksheetName(name: string, usedNames: Set<string>) {
         const fallbackName = 'Sheet';
         const sanitizedName =
             name.replace(/[:\\/?*[\]]/g, '_').trim() || fallbackName;
@@ -79,7 +80,8 @@ export class WorkbookExportHelper {
         sourceWorksheet: Excel.Worksheet,
         targetWorksheet: Excel.Worksheet,
     ) {
-        sourceWorksheet.columns.forEach((column, index) => {
+        // exceljs leaves `columns` null on a sheet with no cells (image-only)
+        (sourceWorksheet.columns ?? []).forEach((column, index) => {
             if (column.width) {
                 const targetColumn = targetWorksheet.getColumn(index + 1);
                 targetColumn.width = column.width;
@@ -102,6 +104,16 @@ export class WorkbookExportHelper {
             );
 
             targetRow.commit();
+        });
+
+        // Chart-image sheets carry their chart as an embedded picture
+        sourceWorksheet.getImages().forEach(({ imageId, range }) => {
+            const image = sourceWorksheet.workbook.getImage(Number(imageId));
+            const targetImageId = targetWorksheet.workbook.addImage({
+                buffer: image.buffer,
+                extension: image.extension,
+            });
+            targetWorksheet.addImage(targetImageId, range);
         });
     }
 

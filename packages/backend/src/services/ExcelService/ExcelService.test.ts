@@ -2501,3 +2501,130 @@ describe('flat export of stored pivot results', () => {
         ]);
     });
 });
+
+describe('chart image xlsx export', () => {
+    type ImageWithExt = { range: { ext?: { width: number; height: number } } };
+    const loadWorkbook = async (buffer: Buffer | ArrayBuffer) => {
+        const workbook = new (await import('exceljs')).Workbook();
+        const arrayBuffer =
+            buffer instanceof ArrayBuffer
+                ? buffer
+                : buffer.buffer.slice(
+                      buffer.byteOffset,
+                      buffer.byteOffset + buffer.byteLength,
+                  );
+        await workbook.xlsx.load(arrayBuffer as ArrayBuffer);
+        return workbook;
+    };
+
+    // Smallest valid PNG header: 8-byte signature, IHDR length/type, then
+    // width and height as big-endian uint32. Body bytes are irrelevant here.
+    const createPngBuffer = (width: number, height: number) => {
+        const buffer = Buffer.alloc(64);
+        Buffer.from('89504e470d0a1a0a', 'hex').copy(buffer, 0);
+        buffer.writeUInt32BE(13, 8);
+        buffer.write('IHDR', 12, 'ascii');
+        buffer.writeUInt32BE(width, 16);
+        buffer.writeUInt32BE(height, 20);
+        return buffer;
+    };
+
+    it('reads width and height from the PNG header', () => {
+        expect(
+            ExcelService.getPngDimensions(createPngBuffer(1400, 768)),
+        ).toEqual({ width: 1400, height: 768 });
+        expect(
+            ExcelService.getPngDimensions(Buffer.from('not a png at all')),
+        ).toBeNull();
+    });
+
+    it('embeds the chart image on a single sheet named after the chart', async () => {
+        const imageBuffer = createPngBuffer(1400, 768);
+        const excelBuffer = await ExcelService.buildChartImageWorkbook({
+            imageBuffer,
+            sheetName: 'Revenue: by / month ? really long name over thirty one',
+        });
+
+        const workbook = await loadWorkbook(excelBuffer);
+
+        expect(workbook.worksheets).toHaveLength(1);
+        const [worksheet] = workbook.worksheets;
+        expect(worksheet.name).toBe('Revenue_ by _ month _ really lo');
+        expect(worksheet.rowCount).toBe(0);
+
+        const images = worksheet.getImages();
+        expect(images).toHaveLength(1);
+        expect(images[0].range.tl.nativeCol).toBe(0);
+        expect(images[0].range.tl.nativeRow).toBe(0);
+        // 1400px wide screenshots shrink to 1000px, keeping the aspect ratio
+        expect((images[0] as ImageWithExt).range.ext).toEqual({
+            width: 1000,
+            height: 549,
+        });
+
+        const stored = workbook.getImage(Number(images[0].imageId));
+        expect(stored.extension).toBe('png');
+        expect(Buffer.from(stored.buffer!).equals(imageBuffer)).toBe(true);
+    });
+
+    it('keeps images narrower than the cap at their own size', async () => {
+        const excelBuffer = await ExcelService.buildChartImageWorkbook({
+            imageBuffer: createPngBuffer(768, 500),
+            sheetName: 'Big number',
+        });
+        const workbook = await loadWorkbook(excelBuffer);
+        expect(
+            (workbook.worksheets[0].getImages()[0] as ImageWithExt).range.ext,
+        ).toEqual({ width: 768, height: 500 });
+    });
+
+    it('rejects buffers that are not PNGs', async () => {
+        await expect(
+            ExcelService.buildChartImageWorkbook({
+                imageBuffer: Buffer.from('GIF89a'),
+                sheetName: 'chart',
+            }),
+        ).rejects.toThrow('not a PNG');
+    });
+
+    it('uploads the workbook to the exports bucket under an xlsx file id', async () => {
+        let uploaded: Buffer | undefined;
+        let uploadedName: string | undefined;
+        let uploadedDownloadName: string | undefined;
+        const result = await ExcelService.downloadChartImageXlsx({
+            imageBuffer: createPngBuffer(1400, 768),
+            chartName: 'Orders over time',
+            attachmentDownloadName: 'Orders over time_2026-11-09',
+            exportsStorageClient: {
+                uploadExcel: async (
+                    stream: Readable,
+                    name: string,
+                    downloadName?: string,
+                ) => {
+                    const chunks: Buffer[] = [];
+                    for await (const chunk of stream) {
+                        chunks.push(Buffer.from(chunk));
+                    }
+                    uploaded = Buffer.concat(chunks);
+                    uploadedName = name;
+                    uploadedDownloadName = downloadName;
+                    return 'https://exports/chart.xlsx';
+                },
+            } as unknown as import('../../clients/FileStorage/FileStorageClient').FileStorageClient,
+        });
+
+        expect(result).toEqual({
+            fileUrl: 'https://exports/chart.xlsx',
+            truncated: false,
+            s3Key: uploadedName,
+        });
+        expect(uploadedName).toMatch(
+            /^xlsx-Orders over time_2026-11-09-.*\.xlsx$/,
+        );
+        expect(uploadedDownloadName).toBe('Orders over time_2026-11-09.xlsx');
+
+        const workbook = await loadWorkbook(uploaded!);
+        expect(workbook.worksheets[0].name).toBe('Orders over time');
+        expect(workbook.worksheets[0].getImages()).toHaveLength(1);
+    });
+});

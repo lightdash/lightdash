@@ -1373,6 +1373,7 @@ export class ServiceRepository
                     refreshTokenRotation: this.models.getRefreshTokenRotation(),
                     aiAccessService: this.getAiAccessService(),
                     getDocumentService: () => this.getDocumentService(),
+                    getUnfurlService: () => this.getUnfurlService(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     contentDraftModel: this.models.getContentDraftModel(),

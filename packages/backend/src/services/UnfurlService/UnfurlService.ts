@@ -1327,11 +1327,11 @@ export class UnfurlService extends BaseService {
         return { dashboard, imageId, result };
     }
 
-    async exportChart(
+    private async getViewableChartForExport(
         chartUuidOrSlug: string,
         user: SessionUser,
         projectUuid?: string,
-    ): Promise<string> {
+    ) {
         const chart = await this.savedChartModel.get(
             chartUuidOrSlug,
             undefined,
@@ -1369,6 +1369,20 @@ export class UnfurlService extends BaseService {
             this.lightdashConfig.headlessBrowser.internalLightdashHost,
         ).href;
 
+        return { chart, minimalUrl };
+    }
+
+    async exportChart(
+        chartUuidOrSlug: string,
+        user: SessionUser,
+        projectUuid?: string,
+    ): Promise<string> {
+        const { chart, minimalUrl } = await this.getViewableChartForExport(
+            chartUuidOrSlug,
+            user,
+            projectUuid,
+        );
+
         this.logger.info(
             `Exporting chart "${chart.name}" with minimalUrl ${minimalUrl}`,
         );
@@ -1386,6 +1400,55 @@ export class UnfurlService extends BaseService {
         }
         this.logger.info(`Chart "${chart.name}" exported successfully`);
         return unfurlImage.imageUrl;
+    }
+
+    /**
+     * Renders a saved chart to a PNG buffer without hosting it, for callers
+     * that embed the image in another file (e.g. an XLSX export). Filter and
+     * parameter overrides render the chart as a dashboard tile saw it. Fails
+     * rather than returning a screenshot of an errored chart.
+     */
+    async captureChartImage({
+        chartUuid,
+        user,
+        projectUuid,
+        chartFilters,
+        parameters,
+    }: {
+        chartUuid: string;
+        user: SessionUser;
+        projectUuid: string;
+        chartFilters?: Filters;
+        parameters?: ParametersValuesMap;
+    }): Promise<Buffer> {
+        const { chart, minimalUrl } = await this.getViewableChartForExport(
+            chartUuid,
+            user,
+            projectUuid,
+        );
+        const cookie = await this.getUserCookie(user.userUuid);
+        const result = await this.saveScreenshot({
+            imageId: `chart-image_${snakeCaseName(chart.name)}_${useNanoid()}`,
+            auth: { type: 'cookie', cookie },
+            url: minimalUrl,
+            lightdashPage: LightdashPage.CHART,
+            chartType: chart.chartConfig.type,
+            organizationUuid: chart.organizationUuid,
+            authUserUuid: user.userUuid,
+            resourceUuid: chart.uuid,
+            resourceName: chart.name,
+            context: ScreenshotContext.EXPORT_CHART,
+            selectedTabs: null,
+            sendNowSchedulerChartFilters: chartFilters,
+            sendNowSchedulerParameters: parameters,
+            requireSuccessfulRender: true,
+        });
+        if (!result?.imageBuffer) {
+            throw new UnexpectedServerError(
+                `Unable to render chart "${chart.name}" to an image`,
+            );
+        }
+        return result.imageBuffer;
     }
 
     /**

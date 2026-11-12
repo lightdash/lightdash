@@ -121,6 +121,7 @@ const getDashboardTileErrorMessage = (
 
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import { AskAiAgentMenuItem } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { DashboardTileComments } from '../../features/comments';
 import {
@@ -2026,6 +2027,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     showColumnTotals={getShowColumnTotalsFromChartConfig(
                         chart.chartConfig.config,
                     )}
+                    canExportChartImage={
+                        chart.chartConfig.type !== ChartType.TABLE
+                    }
                 />
                 <ExportImageModal
                     echartRef={echartRef}
@@ -2047,6 +2051,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
 ) => {
     const authoringEnabled = useContentAuthoringEnabled();
     const getUiString = useUiStrings();
+    const isEmbedded = useIsEmbedded();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -2402,6 +2407,11 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                     showColumnTotals={getShowColumnTotalsFromChartConfig(
                         chart.chartConfig.config,
                     )}
+                    // Embedded viewers have no user the headless browser can sign in as
+                    canExportChartImage={
+                        !isEmbedded &&
+                        chart.chartConfig.type !== ChartType.TABLE
+                    }
                 />
             )}
             {canExportImages && (
