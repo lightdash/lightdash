@@ -122,11 +122,23 @@ export class NatsClient implements INatsClient {
     }
 
     async drain(): Promise<void> {
-        if (!this.connection) return;
+        const { connection } = this;
+        if (!connection) return;
+        let timer: NodeJS.Timeout | undefined;
         try {
-            await this.connection.drain();
+            await Promise.race([
+                connection.drain(),
+                new Promise<void>((resolve) => {
+                    timer = setTimeout(() => {
+                        void connection.close();
+                        resolve();
+                    }, 2000);
+                }),
+            ]);
         } catch {
-            // already closed
+            await connection.close();
+        } finally {
+            clearTimeout(timer);
         }
     }
 

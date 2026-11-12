@@ -53,3 +53,36 @@ describe('NatsClient consumer rollout', () => {
         expect(jsm.streams.delete).not.toHaveBeenCalled();
     });
 });
+
+describe('NatsClient shutdown', () => {
+    it('closes a connection whose drain exceeds two seconds', async () => {
+        vi.useFakeTimers();
+        try {
+            const close = vi.fn(async () => undefined);
+            const drain = vi.fn(() => new Promise<void>(() => {}));
+            vi.mocked(connect).mockResolvedValue({
+                close,
+                drain,
+                async *status() {
+                    yield* [];
+                },
+            } as unknown as Awaited<ReturnType<typeof connect>>);
+            const client = new NatsClient({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    natsWorker: {
+                        ...lightdashConfigMock.natsWorker,
+                        url: 'nats://localhost:14222',
+                    },
+                },
+            });
+            await client.connect();
+            const stopping = client.drain();
+            await vi.advanceTimersByTimeAsync(2000);
+            await stopping;
+            expect(close).toHaveBeenCalledOnce();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+});

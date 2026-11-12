@@ -5,7 +5,12 @@ import {
 } from '@lightdash/common';
 import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
-import { StringCodec, type Consumer, type JsMsg } from 'nats';
+import {
+    StringCodec,
+    type Consumer,
+    type ConsumerMessages,
+    type JsMsg,
+} from 'nats';
 import { z } from 'zod';
 import { type NatsClient } from '../clients/NatsClient';
 import Logger from '../logging/logger';
@@ -62,9 +67,12 @@ type NatsWorkerArgs = {
     streams: NatsWorkerStream[];
     workerConcurrency: number;
     resolveOrganizationName?: OrganizationNameResolver;
+    isDatabaseHealthy?: () => Promise<boolean>;
 };
 
-const FETCH_EXPIRES_MS = 30 * 1000;
+const FETCH_EXPIRES_MS = 1000;
+export const SHUTDOWN_GRACE_MS = 5000;
+const DATABASE_RETRY_MS = 1000;
 const ACK_PROGRESS_INTERVAL_MS = 5 * 1000;
 
 export class NatsWorker {
@@ -86,15 +94,29 @@ export class NatsWorker {
 
     private readonly runningQueries = new Map<symbol, string>();
 
+    private readonly fetches = new Set<ConsumerMessages>();
+
+    private readonly inFlight = new Map<JsMsg, AbortController>();
+
+    private readonly isDatabaseHealthy: () => Promise<boolean>;
+
+    private readonly shutdown = new AbortController();
+
+    private stopStallDetector: (() => void) | undefined;
+
+    private stopPromise: Promise<void> | undefined;
+
     public isRunning = false;
 
     public async isHealthy(): Promise<boolean> {
         if (!this.isRunning) return false;
-        return this.natsClient.isHealthy();
+        return (await this.databaseAvailable()) && this.natsClient.isHealthy();
     }
 
     constructor(args: NatsWorkerArgs) {
         this.natsClient = args.natsClient;
+        this.isDatabaseHealthy =
+            args.isDatabaseHealthy ?? (() => Promise.resolve(true));
         this.asyncQueryService = args.asyncQueryService;
         this.queryHistoryModel = args.queryHistoryModel;
         this.workerConcurrency = args.workerConcurrency;
@@ -135,25 +157,124 @@ export class NatsWorker {
             `NATS worker started. streams=${streamNames.join(',')}, concurrency=${this.workerConcurrency}`,
         );
 
-        const stopStallDetector = startEventLoopStallDetector(() => [
+        this.stopStallDetector = startEventLoopStallDetector(() => [
             ...new Set(this.runningQueries.values()),
         ]);
         this.consumePromise = Promise.allSettled(workerLoops)
             .then(() => undefined)
             .finally(() => {
-                stopStallDetector();
+                this.stopStallDetector?.();
                 this.isRunning = false;
             });
     }
 
-    public async stop(): Promise<void> {
+    public stop(): Promise<void> {
+        if (this.stopPromise) return this.stopPromise;
         this.isRunning = false;
-        await this.consumePromise;
+        this.stopStallDetector?.();
+        this.shutdown.abort();
+        this.fetches.forEach((messages) => {
+            void messages.close();
+        });
+        this.stopPromise = this.finishShutdown();
+        return this.stopPromise;
+    }
+
+    private async finishShutdown(): Promise<void> {
+        let timer: NodeJS.Timeout | undefined;
+        await Promise.race([
+            this.consumePromise,
+            new Promise<void>((resolve) => {
+                timer = setTimeout(resolve, SHUTDOWN_GRACE_MS);
+            }),
+        ]);
+        clearTimeout(timer);
+        this.inFlight.forEach((controller, message) => {
+            controller.abort();
+            NatsWorker.logMessageAction(
+                message,
+                this.parseMessage(message)?.payload.queryUuid ?? null,
+                'nak',
+                'shutdown',
+            );
+            message.nak();
+        });
+    }
+
+    private async databaseAvailable(): Promise<boolean> {
+        try {
+            return await this.isDatabaseHealthy();
+        } catch {
+            return false;
+        }
+    }
+
+    private static wait(ms: number, signal: AbortSignal): Promise<void> {
+        return new Promise((resolve) => {
+            let timer: NodeJS.Timeout | null = null;
+            const done = () => {
+                if (timer) clearTimeout(timer);
+                signal.removeEventListener('abort', done);
+                resolve();
+            };
+            timer = setTimeout(done, ms);
+            signal.addEventListener('abort', done, { once: true });
+            if (signal.aborted) done();
+        });
+    }
+
+    private async waitForDatabase(): Promise<boolean> {
+        while (!this.shutdown.signal.aborted) {
+            // eslint-disable-next-line no-await-in-loop
+            if (await this.databaseAvailable())
+                return !this.shutdown.signal.aborted;
+            // eslint-disable-next-line no-await-in-loop
+            await NatsWorker.wait(DATABASE_RETRY_MS, this.shutdown.signal);
+        }
+        return false;
     }
 
     public async handleMessage(
         message: JsMsg,
         workerId?: string,
+    ): Promise<void> {
+        const controller = new AbortController();
+        const originalMessage = message;
+        this.inFlight.set(originalMessage, controller);
+        const trackedMessage = new Proxy(message, {
+            get(target, property, receiver) {
+                if (
+                    ['ack', 'nak', 'term', 'working'].includes(String(property))
+                ) {
+                    return (...args: unknown[]) => {
+                        if (!controller.signal.aborted) {
+                            const method = Reflect.get(
+                                target,
+                                property,
+                                receiver,
+                            ) as (...values: unknown[]) => void;
+                            method.apply(target, args);
+                        }
+                    };
+                }
+                return Reflect.get(target, property, receiver);
+            },
+        });
+        try {
+            await this.processMessage(
+                trackedMessage,
+                workerId,
+                controller.signal,
+            );
+        } finally {
+            this.inFlight.delete(originalMessage);
+        }
+    }
+
+    private async processMessage(
+        message: JsMsg,
+        workerId: string | undefined,
+        signal: AbortSignal,
     ): Promise<void> {
         const workerLabel = workerId ?? 'unknown';
         const parsed = this.parseMessage(message);
@@ -197,6 +318,7 @@ export class NatsWorker {
                 workerLabel,
                 runQuery,
                 parsed,
+                signal,
             );
         } finally {
             this.runningQueries.delete(runId);
@@ -218,11 +340,16 @@ export class NatsWorker {
         message: JsMsg,
         queryUuid: string,
         reason: string,
+        signal: AbortSignal,
     ): Promise<void> {
+        if (signal.aborted) return;
         if (NatsWorker.deliveryCount(message) >= QUERY_MAX_DELIVERIES) {
-            await NatsWorker.runWithAckProgress(message, () =>
-                this.persistExhaustedDelivery(queryUuid),
+            await NatsWorker.runWithAckProgress(
+                message,
+                () => this.persistExhaustedDelivery(queryUuid, signal),
+                signal,
             );
+            if (signal.aborted) return;
             NatsWorker.logMessageAction(
                 message,
                 queryUuid,
@@ -236,7 +363,11 @@ export class NatsWorker {
         message.nak(QUERY_REDELIVERY_DELAY_MS);
     }
 
-    private async persistExhaustedDelivery(queryUuid: string): Promise<void> {
+    private async persistExhaustedDelivery(
+        queryUuid: string,
+        signal: AbortSignal,
+    ): Promise<void> {
+        if (signal.aborted) return;
         try {
             await this.queryHistoryModel.failUnfinishedQueryDelivery(
                 queryUuid,
@@ -247,10 +378,8 @@ export class NatsWorker {
                 queryUuid,
                 error,
             });
-            await new Promise<void>((resolve) => {
-                setTimeout(resolve, QUERY_REDELIVERY_DELAY_MS);
-            });
-            await this.persistExhaustedDelivery(queryUuid);
+            await NatsWorker.wait(QUERY_REDELIVERY_DELAY_MS, signal);
+            await this.persistExhaustedDelivery(queryUuid, signal);
         }
     }
 
@@ -348,6 +477,7 @@ export class NatsWorker {
             onConnectionClaimed?: () => void,
         ) => Promise<boolean>,
         parsed: ParsedMessage | null,
+        signal: AbortSignal,
     ): Promise<void> {
         if (!parsed) {
             NatsWorker.logMessageAction(
@@ -373,49 +503,55 @@ export class NatsWorker {
 
         let isConnectionQuery = false;
         try {
-            const didRun = await NatsWorker.runWithAckProgress(message, () =>
-                continueTrace(
-                    {
-                        sentryTrace: parsed.trace.traceHeader,
-                        traceparent: parsed.trace.otelTraceparent,
-                        baggage:
-                            parsed.trace.otelBaggage ??
-                            parsed.trace.baggageHeader,
-                    },
-                    () =>
-                        Sentry.withIsolationScope(() =>
-                            traceSpan(
-                                {
-                                    op: 'queue.process',
-                                    name: 'queue_consumer',
-                                    attributes: {
-                                        'messaging.message.id':
-                                            parsed.jobId ?? '',
-                                        'messaging.destination.name':
-                                            message.subject,
-                                        'lightdash.queryUuid':
-                                            parsed.payload.queryUuid,
-                                    },
-                                },
-                                async () => {
-                                    isConnectionQuery =
-                                        await this.applyQuerySentryContext(
-                                            parsed.payload.queryUuid,
-                                        );
-                                    return runQuery(
-                                        parsed.payload.queryUuid,
-                                        workerLabel,
-                                        parsed.payload.queryTags,
-                                        () => {
-                                            isConnectionQuery = true;
+            const didRun = await NatsWorker.runWithAckProgress(
+                message,
+                async () => {
+                    if (!(await this.waitForDatabase())) return false;
+                    return continueTrace(
+                        {
+                            sentryTrace: parsed.trace.traceHeader,
+                            traceparent: parsed.trace.otelTraceparent,
+                            baggage:
+                                parsed.trace.otelBaggage ??
+                                parsed.trace.baggageHeader,
+                        },
+                        () =>
+                            Sentry.withIsolationScope(() =>
+                                traceSpan(
+                                    {
+                                        op: 'queue.process',
+                                        name: 'queue_consumer',
+                                        attributes: {
+                                            'messaging.message.id':
+                                                parsed.jobId ?? '',
+                                            'messaging.destination.name':
+                                                message.subject,
+                                            'lightdash.queryUuid':
+                                                parsed.payload.queryUuid,
                                         },
-                                    );
-                                },
+                                    },
+                                    async () => {
+                                        isConnectionQuery =
+                                            await this.applyQuerySentryContext(
+                                                parsed.payload.queryUuid,
+                                            );
+                                        return runQuery(
+                                            parsed.payload.queryUuid,
+                                            workerLabel,
+                                            parsed.payload.queryTags,
+                                            () => {
+                                                isConnectionQuery = true;
+                                            },
+                                        );
+                                    },
+                                ),
                             ),
-                        ),
-                ),
+                    );
+                },
+                signal,
             );
 
+            if (signal.aborted) return;
             if (!didRun) {
                 const query = await this.queryHistoryModel.getByQueryUuid(
                     parsed.payload.queryUuid,
@@ -432,6 +568,7 @@ export class NatsWorker {
                         message,
                         parsed.payload.queryUuid,
                         'query remains unfinished; execution ownership is unknown',
+                        signal,
                     );
                 } else {
                     NatsWorker.logMessageAction(
@@ -451,6 +588,24 @@ export class NatsWorker {
                 jobMetadata,
             );
         } catch (error) {
+            if (signal.aborted) return;
+            if (!(await this.databaseAvailable())) {
+                await NatsWorker.runWithAckProgress(
+                    message,
+                    () => this.waitForDatabase(),
+                    signal,
+                );
+                if (!signal.aborted) {
+                    NatsWorker.logMessageAction(
+                        message,
+                        parsed.payload.queryUuid,
+                        'nak',
+                        'db unavailable',
+                    );
+                    message.nak();
+                }
+                return;
+            }
             Logger.error(
                 `Worker ${workerLabel} failed query job ${parsed.jobId ?? '<unknown>'} on ${message.subject}: ${getErrorMessage(error)}`,
                 { error, ...jobMetadata },
@@ -476,6 +631,7 @@ export class NatsWorker {
                     message,
                     parsed.payload.queryUuid,
                     error instanceof Error ? error.name : 'unknown error',
+                    signal,
                 );
             }
         }
@@ -490,26 +646,48 @@ export class NatsWorker {
         );
 
         while (this.isRunning) {
+            // eslint-disable-next-line no-await-in-loop
+            await this.consumeNext(consumer, workerId);
+        }
+        Logger.info(`Async query worker ${workerId} stopped`);
+    }
+
+    private async consumeNext(
+        consumer: Consumer,
+        workerId: string,
+    ): Promise<void> {
+        if (!this.isRunning) return;
+        try {
+            if (!(await this.waitForDatabase())) return;
+            const messages = await consumer.fetch({
+                max_messages: 1,
+                expires: FETCH_EXPIRES_MS,
+            });
+            this.fetches.add(messages);
+            if (!this.isRunning) await messages.close();
             try {
-                // eslint-disable-next-line no-await-in-loop -- intentionally sequential: fetch one message, process it, repeat
-                const messages = await consumer.fetch({
-                    max_messages: 1,
-                    expires: FETCH_EXPIRES_MS,
-                });
-                // eslint-disable-next-line no-await-in-loop
                 for await (const message of messages) {
+                    if (!this.isRunning) {
+                        NatsWorker.logMessageAction(
+                            message,
+                            this.parseMessage(message)?.payload.queryUuid ??
+                                null,
+                            'nak',
+                            'shutdown',
+                        );
+                        message.nak();
+                        break;
+                    }
                     await this.handleMessage(message, workerId); // eslint-disable-line no-await-in-loop
                 }
-            } catch (error) {
-                if (!this.isRunning) break;
-                Logger.error(
-                    `Async query worker ${workerId} fetch error`,
-                    error,
-                );
+            } finally {
+                this.fetches.delete(messages);
+                await messages.close();
             }
+        } catch (error) {
+            if (!this.isRunning) return;
+            Logger.error(`Async query worker ${workerId} fetch error`, error);
         }
-
-        Logger.info(`Async query worker ${workerId} stopped`);
     }
 
     private parseMessage(message: JsMsg): ParsedMessage | null {
@@ -604,15 +782,19 @@ export class NatsWorker {
     static async runWithAckProgress<T>(
         message: JsMsg,
         handler: () => Promise<T>,
+        signal?: AbortSignal,
     ): Promise<T> {
         const interval = setInterval(() => {
             message.working();
         }, ACK_PROGRESS_INTERVAL_MS);
 
+        const stopProgress = () => clearInterval(interval);
+        signal?.addEventListener('abort', stopProgress, { once: true });
         try {
             return await handler();
         } finally {
             clearInterval(interval);
+            signal?.removeEventListener('abort', stopProgress);
         }
     }
 }
