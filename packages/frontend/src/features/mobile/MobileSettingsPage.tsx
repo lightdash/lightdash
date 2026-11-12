@@ -339,7 +339,8 @@ export const MobileSettingsPage: FC = () => {
     const [hasApp, setHasApp] = useState(false);
     const isCloudMobileSetup = useCloudMobileSetup();
     const appLink = useMobileAppLink({
-        isPaused: hasApp || isCloudMobileSetup !== false,
+        isPaused: hasApp,
+        enabled: isCloudMobileSetup === false,
     });
     const { data: qrSignInFlag } = useServerFeatureFlag(
         FeatureFlags.MobileQrSignIn,

@@ -71,7 +71,10 @@ describe('MobileSettingsPage sign-in step', () => {
             screen.queryByRole('heading', { name: 'Sign in on your phone' }),
         ).not.toBeInTheDocument();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(useMobileAppLink).toHaveBeenLastCalledWith({ isPaused: true });
+        expect(useMobileAppLink).toHaveBeenLastCalledWith({
+            isPaused: false,
+            enabled: false,
+        });
         expect(useMobileSignInCode).not.toHaveBeenCalled();
     });
 
@@ -105,7 +108,10 @@ describe('MobileSettingsPage sign-in step', () => {
         expect(useMobileSignInCode).toHaveBeenLastCalledWith({
             autoShow: true,
         });
-        expect(useMobileAppLink).toHaveBeenLastCalledWith({ isPaused: true });
+        expect(useMobileAppLink).toHaveBeenLastCalledWith({
+            isPaused: false,
+            enabled: false,
+        });
     });
 
     it('keeps the install step on Cloud when QR sign-in is off', () => {
@@ -117,7 +123,10 @@ describe('MobileSettingsPage sign-in step', () => {
 
         expect(screen.getByText('Get the app')).toBeVisible();
         expect(useMobileSignInCode).not.toHaveBeenCalled();
-        expect(useMobileAppLink).toHaveBeenLastCalledWith({ isPaused: false });
+        expect(useMobileAppLink).toHaveBeenLastCalledWith({
+            isPaused: false,
+            enabled: true,
+        });
     });
 
     it('marks step 2 done once a phone is signed in', () => {

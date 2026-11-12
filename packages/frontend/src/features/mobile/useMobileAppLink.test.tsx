@@ -102,24 +102,44 @@ afterEach(() => {
 });
 
 describe('useMobileAppLink', () => {
-    it('mints no code while paused and mints one when resumed', async () => {
+    it('mints no code while disabled and mints one when enabled', async () => {
         const server = mockServer({ scannedAfterPolls: Infinity });
         const { result, rerender } = renderHookWithProviders(
-            ({ isPaused }: { isPaused: boolean }) =>
-                useMobileAppLink({ isPaused }),
+            ({ enabled }: { enabled: boolean }) => useMobileAppLink({ enabled }),
             undefined,
-            { initialProps: { isPaused: true } },
+            { initialProps: { enabled: false } },
         );
 
         await advance(MOBILE_APP_LINK_POLL_INTERVAL_MS * 3);
         expect(server.mintCount()).toBe(0);
         expect(server.statusCalls).toHaveLength(0);
 
-        rerender({ isPaused: false });
+        rerender({ enabled: true });
         await waitFor(() =>
             expect(result.current.link?.linkUuid).toBe('link-1'),
         );
         expect(server.mintCount()).toBe(1);
+    });
+
+    it('mints and refreshes links while only status polling is paused', async () => {
+        const server = mockServer({ scannedAfterPolls: Infinity });
+        const { result } = renderHookWithProviders(() =>
+            useMobileAppLink({ isPaused: true }),
+        );
+
+        await waitFor(() =>
+            expect(result.current.link?.linkUuid).toBe('link-1'),
+        );
+        expect(server.mintCount()).toBe(1);
+        expect(server.statusCalls).toHaveLength(0);
+
+        await advance(TTL_MS + 1000);
+
+        await waitFor(() =>
+            expect(result.current.link?.linkUuid).toBe('link-2'),
+        );
+        expect(server.mintCount()).toBe(2);
+        expect(server.statusCalls).toHaveLength(0);
     });
 
     it('mints a link on mount and polls until a phone opens it', async () => {
