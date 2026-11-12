@@ -2,6 +2,7 @@ import {
     FilterOperator,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardVersionedFields,
 } from '@lightdash/common';
 import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -35,10 +36,21 @@ const filters = (dimensions: DashboardFilterRule[]): DashboardFilters => ({
     tableCalculations: [],
 });
 
+const dashboardVersion: DashboardVersionedFields = {
+    tiles: [],
+    tabs: [],
+    filters: filters([]),
+    parameters: {},
+    config: { isDateZoomDisabled: false },
+};
+
 const renderEmitter = (store: ReturnType<typeof createDashboardTestStore>) =>
     render(
         <DashboardStoreTestProvider store={store}>
-            <EmbedDashboardContentStateEvent dashboardUuid="dashboard-uuid" />
+            <EmbedDashboardContentStateEvent
+                dashboardUuid="dashboard-uuid"
+                dashboardVersion={dashboardVersion}
+            />
         </DashboardStoreTestProvider>,
     );
 
@@ -105,9 +117,7 @@ describe('EmbedDashboardContentStateEvent', () => {
                 tileParameters: null,
                 dateZoomGranularity: 'MONTH',
                 activeTabUuid: 'tab-2',
-                dashboard: expect.objectContaining({
-                    filters: filters([rule('saved', ['completed'])]),
-                }),
+                dashboard: dashboardVersion,
             },
         );
     });

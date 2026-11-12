@@ -12,6 +12,7 @@ import {
     isTileInEmbedExport,
     type DashboardFilters,
     type DashboardTile,
+    type DashboardVersionedFields,
     type EmbedDashboard as EmbedDashboardType,
     type ParametersValuesMap,
     type SavedChart,
@@ -37,12 +38,14 @@ import UnmetRequirementsPlaceholder from '../../../../../components/DashboardTil
 import {
     selectActiveTab,
     selectDashboardFilters,
+    selectDashboardParameters,
     selectDashboardTabs,
     selectDashboardTiles,
     selectHaveFiltersChanged,
     selectHaveTabsChanged,
     selectHaveTilesChanged,
     selectIsAddFilterDisabled,
+    selectIsDateZoomDisabled,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
@@ -396,6 +399,8 @@ const EmbedDashboard: FC<{
         (c) => c.resetDashboardFilters,
     );
     const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
+    const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
+    const dashboardParameters = useDashboardSelector(selectDashboardParameters);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
@@ -900,50 +905,61 @@ const EmbedDashboard: FC<{
         setIsEditMode,
     ]);
 
+    // The dashboard as it is now; Save writes it with the saved parameters
+    const dashboardVersion = useMemo<DashboardVersionedFields | undefined>(
+        () =>
+            dashboard
+                ? {
+                      tiles: currentDashboardTiles,
+                      filters: restoreFilterLabelOverrides(
+                          {
+                              dimensions: [
+                                  ...dashboardFilters.dimensions,
+                                  ...dashboardTemporaryFilters.dimensions,
+                              ],
+                              metrics: [
+                                  ...dashboardFilters.metrics,
+                                  ...dashboardTemporaryFilters.metrics,
+                              ],
+                              tableCalculations: [
+                                  ...dashboardFilters.tableCalculations,
+                                  ...dashboardTemporaryFilters.tableCalculations,
+                              ],
+                          },
+                          dashboard.filters,
+                          filterLabelOverrides,
+                      ),
+                      tabs: dashboardTabs,
+                      config: {
+                          ...dashboard.config,
+                          isDateZoomDisabled,
+                          isAddFilterDisabled,
+                      },
+                      parameters: dashboardParameters,
+                  }
+                : undefined,
+        [
+            currentDashboardTiles,
+            dashboard,
+            dashboardFilters,
+            dashboardParameters,
+            dashboardTabs,
+            dashboardTemporaryFilters,
+            filterLabelOverrides,
+            isAddFilterDisabled,
+            isDateZoomDisabled,
+        ],
+    );
+
     const handleSaveDashboard = useCallback(() => {
-        if (!dashboard) return;
+        if (!dashboard || !dashboardVersion) return;
 
         updateDashboard({
-            tiles: currentDashboardTiles,
-            filters: restoreFilterLabelOverrides(
-                {
-                    dimensions: [
-                        ...dashboardFilters.dimensions,
-                        ...dashboardTemporaryFilters.dimensions,
-                    ],
-                    metrics: [
-                        ...dashboardFilters.metrics,
-                        ...dashboardTemporaryFilters.metrics,
-                    ],
-                    tableCalculations: [
-                        ...dashboardFilters.tableCalculations,
-                        ...dashboardTemporaryFilters.tableCalculations,
-                    ],
-                },
-                dashboard.filters,
-                filterLabelOverrides,
-            ),
+            ...dashboardVersion,
             name: draftDashboardName.trim() || dashboard.name,
-            tabs: dashboardTabs,
-            config: {
-                ...dashboard.config,
-                isDateZoomDisabled:
-                    dashboard.config?.isDateZoomDisabled ?? false,
-                isAddFilterDisabled,
-            },
             parameters: dashboard.parameters,
         });
-    }, [
-        dashboard,
-        dashboardFilters,
-        dashboardTabs,
-        dashboardTemporaryFilters,
-        isAddFilterDisabled,
-        draftDashboardName,
-        currentDashboardTiles,
-        filterLabelOverrides,
-        updateDashboard,
-    ]);
+    }, [dashboard, dashboardVersion, draftDashboardName, updateDashboard]);
 
     // Readiness resets when tiles or the active tab change, so render after both settle.
     const isMinimalLayoutSettled =
@@ -1203,9 +1219,12 @@ const EmbedDashboard: FC<{
         >
             <div ref={setContentElement} className={classes.content}>
                 <DocumentTitle title={dashboard.name} />
-                <EmbedDashboardContentStateEvent
-                    dashboardUuid={dashboard.uuid}
-                />
+                {dashboardVersion && (
+                    <EmbedDashboardContentStateEvent
+                        dashboardUuid={dashboard.uuid}
+                        dashboardVersion={dashboardVersion}
+                    />
+                )}
                 <ControlsSidebarProvider
                     // No route says the mode in an embed
                     isEditMode={canWriteDashboard && isEditMode}

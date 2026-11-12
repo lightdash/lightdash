@@ -121,7 +121,7 @@ export type DashboardContentState = {
     tileParameters: NonNullable<ExportContentRequest['tileParameters']> | null;
     dateZoomGranularity: string | null;
     activeTabUuid: string | null;
-    // The dashboard definition, unsaved edit-mode changes included
+    // The dashboard as it is now: unsaved edits, added filters and current parameters
     dashboard: DashboardVersionedFields;
 };
 
