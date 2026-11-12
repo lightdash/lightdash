@@ -87,6 +87,9 @@ export type SemanticLayerDraftChange = {
     }[];
 };
 
+/** Someone else with a draft of a model, and the parts of it they are changing. */
+export type SemanticLayerDrafter = { name: string; paths: string[] };
+
 /** A model as the draft leaves it, against what is live. */
 export type SemanticLayerDraftModel = {
     model: string;
@@ -96,8 +99,8 @@ export type SemanticLayerDraftModel = {
     contentAfter: string | null;
     /** The model as the draft compiles it; null when it is removed or does not compile. */
     explore: Explore | null;
-    /** Other people with unpublished changes to this model, by name; never what they changed. */
-    alsoChanging: string[];
+    /** Other people with unpublished changes to this model, and the parts each is changing; never the content. */
+    alsoChanging: SemanticLayerDrafter[];
     /** The latest change someone else published to this model since this draft first touched it; null when none. */
     publishedSince: { by: string | null; at: Date } | null;
 };

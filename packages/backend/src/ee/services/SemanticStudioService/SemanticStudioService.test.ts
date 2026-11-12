@@ -1073,7 +1073,7 @@ describe('SemanticStudioService', () => {
             expect(draft.models).toEqual([
                 expect.objectContaining({
                     model: 'orders',
-                    alsoChanging: ['Ada Lovelace'],
+                    alsoChanging: [{ name: 'Ada Lovelace', paths: [] }],
                     publishedSince: { by: 'Grace Hopper', at },
                 }),
             ]);

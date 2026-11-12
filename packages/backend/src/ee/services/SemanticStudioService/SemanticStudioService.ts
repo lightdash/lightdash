@@ -668,7 +668,7 @@ export class SemanticStudioService extends BaseService {
                         explore && !isExploreError(explore) ? explore : null,
                     alsoChanging: drafters
                         .filter(({ models }) => models.includes(model))
-                        .map(({ name }) => name),
+                        .map(({ name }) => ({ name, paths: [] })),
                     publishedSince: publishedSince.get(model) ?? null,
                 };
             }),
