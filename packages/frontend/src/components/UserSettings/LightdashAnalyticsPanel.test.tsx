@@ -1,6 +1,7 @@
 import {
     type AnalyticsHistoryBackfillStatus,
     type AnalyticsProjectStatus,
+    type ContentVerificationInfo,
 } from '@lightdash/common';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -33,6 +34,10 @@ const project: NonNullable<AnalyticsProjectStatus['project']> = {
 };
 const homepageUrl = '/projects/lightdash-analytics-1/home';
 const askAiUrl = `/projects/${project.projectUuid}/ai-agents`;
+const verification: ContentVerificationInfo = {
+    verifiedAt: new Date('2026-09-10T00:00:00Z'),
+    verifiedBy: { userUuid: 'user', firstName: 'Demo', lastName: 'User' },
+};
 
 const coveredHistory: AnalyticsHistoryBackfillStatus = {
     running: false,
@@ -89,6 +94,7 @@ describe('LightdashAnalyticsPanel', () => {
                           slug: 'lightdash-analytics-overview',
                           name: 'Lightdash usage overview',
                           updatedAt: '2026-09-10T00:00:00Z',
+                          verification,
                       },
                   ]
                 : method === 'POST'
@@ -112,7 +118,7 @@ describe('LightdashAnalyticsPanel', () => {
         );
         expect(
             await screen.findByRole('link', {
-                name: 'Lightdash usage overview',
+                name: 'Lightdash usage overview, verified',
             }),
         ).toHaveAttribute(
             'href',
@@ -181,7 +187,7 @@ describe('LightdashAnalyticsPanel', () => {
         ).toBeVisible();
     });
 
-    it('loads dashboard shortcuts without a separate Refresh action', async () => {
+    it('only shows verified dashboard shortcuts without a separate Refresh action', async () => {
         mockPanelApi(async ({ url }) =>
             url.includes('/dashboards?')
                 ? [
@@ -191,14 +197,27 @@ describe('LightdashAnalyticsPanel', () => {
                           name: 'AI usage overview',
                           description: 'Daily AI usage',
                           updatedAt: '2026-09-10T10:00:00Z',
+                          verification,
+                      },
+                      {
+                          uuid: 'draft-dashboard',
+                          slug: 'draft-dashboard',
+                          name: 'Draft dashboard',
+                          updatedAt: '2026-09-10T10:00:00Z',
+                          verification: null,
                       },
                   ]
                 : { project },
         );
         renderPanel();
         expect(
-            await screen.findByRole('link', { name: 'AI usage overview' }),
+            await screen.findByRole('link', {
+                name: 'AI usage overview, verified',
+            }),
         ).toBeVisible();
+        expect(
+            screen.queryByRole('link', { name: 'Draft dashboard' }),
+        ).not.toBeInTheDocument();
         expect(sharedLightdashApi).toHaveBeenCalledWith({
             url: '/projects/analytics-project/dashboards?includePrivate=true',
             method: 'GET',
@@ -214,7 +233,7 @@ describe('LightdashAnalyticsPanel', () => {
             screen.queryByRole('button', { name: 'Add sample dashboard' }),
         ).not.toBeInTheDocument();
         expect(
-            await screen.findByRole('link', { name: 'AI usage overview' }),
+            screen.getByRole('link', { name: 'AI usage overview, verified' }),
         ).toHaveAttribute(
             'href',
             '/projects/lightdash-analytics-1/dashboards/ai-usage-overview/view',

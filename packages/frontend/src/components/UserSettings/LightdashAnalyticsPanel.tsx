@@ -53,6 +53,8 @@ const LightdashAnalyticsPanel = ({
         { enabled: status.isSuccess, refetchOnMount: 'always' },
         true,
     );
+    const verifiedDashboards =
+        dashboards.data?.filter((dashboard) => dashboard.verification) ?? [];
 
     return (
         <SettingsPage
@@ -155,7 +157,7 @@ const LightdashAnalyticsPanel = ({
                     description={null}
                     titleAddon={
                         dashboards.isSuccess && (
-                            <Badge size="sm">{dashboards.data.length}</Badge>
+                            <Badge size="sm">{verifiedDashboards.length}</Badge>
                         )
                     }
                 >
@@ -168,9 +170,9 @@ const LightdashAnalyticsPanel = ({
                         >
                             {dashboards.error.error.message}
                         </Callout>
-                    ) : dashboards.data?.length ? (
+                    ) : verifiedDashboards.length ? (
                         <SimpleGrid cols={{ base: 1, sm: 2, xl: 3 }}>
-                            {dashboards.data.map((dashboard) => (
+                            {verifiedDashboards.map((dashboard) => (
                                 <AnalyticsDashboardCard
                                     key={dashboard.uuid}
                                     dashboard={dashboard}
@@ -181,9 +183,7 @@ const LightdashAnalyticsPanel = ({
                     ) : (
                         <Paper variant="dotted" p="lg">
                             <Text fz="sm" c="dimmed" ta="center">
-                                No dashboards yet. Save a dashboard in your
-                                analytics project, then reload this page to see
-                                it here.
+                                No verified dashboards yet.
                             </Text>
                         </Paper>
                     )}
