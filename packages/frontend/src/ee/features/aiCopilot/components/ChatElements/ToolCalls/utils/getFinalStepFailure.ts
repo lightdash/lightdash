@@ -46,7 +46,8 @@ export const getFinalStepFailure = (
     toolResults?: AiAgentToolResult[],
 ): FinalStepFailure | null => {
     const last = toolGroups[toolGroups.length - 1];
-    if (!last) return null;
+    // Its card already says what went wrong, in words meant for the person.
+    if (!last || last.toolName === 'editDbtProject') return null;
     const failures = getToolCallFailures(last.calls, toolResults);
     const lastCall = last.calls[last.calls.length - 1];
     // Grouping merges retries, so a group whose last call succeeded recovered.

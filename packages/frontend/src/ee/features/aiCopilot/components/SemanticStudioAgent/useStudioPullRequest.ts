@@ -9,6 +9,8 @@ export type StudioPullRequest = {
     commitSha: string | null;
     additions: number | null;
     deletions: number | null;
+    /** Models any turn of this pull request changed. */
+    changedModels: string[];
     /** The project built from the pull request's branch, where its models can be looked at. */
     previewProjectUuid: string | null;
     ciChecks: CiChecks | null;
@@ -29,7 +31,7 @@ export const useStudioPullRequest = (
         thread?.threadUuid,
         { enabled: !!thread },
     );
-    const metadata = (data?.messages ?? [])
+    const results = (data?.messages ?? [])
         .flatMap((message) =>
             message.role === 'assistant'
                 ? message.toolResults.filter(isToolEditDbtProjectResult)
@@ -39,8 +41,8 @@ export const useStudioPullRequest = (
             result.metadata.status === 'success' && result.metadata.prUrl
                 ? [{ ...result.metadata, prUrl: result.metadata.prUrl }]
                 : [],
-        )
-        .at(-1);
+        );
+    const metadata = results.at(-1);
     const { data: ciChecks } = usePullRequestCiChecks(
         projectUuid,
         metadata?.prUrl ?? null,
@@ -52,6 +54,13 @@ export const useStudioPullRequest = (
         commitSha: metadata.commitSha ?? null,
         additions: metadata.additions ?? null,
         deletions: metadata.deletions ?? null,
+        changedModels: [
+            ...new Set(
+                results
+                    .filter(({ prUrl }) => prUrl === metadata.prUrl)
+                    .flatMap(({ changedModels }) => changedModels ?? []),
+            ),
+        ].sort(),
         previewProjectUuid:
             PREVIEW_PROJECT.exec(metadata.previewUrl ?? '')?.[1] ?? null,
         ciChecks: ciChecks ?? null,

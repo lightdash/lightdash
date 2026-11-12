@@ -46,6 +46,27 @@ describe('getFinalStepFailure', () => {
         expect(failure?.stepLabel).toBeTruthy();
     });
 
+    it('leaves a failed dbt edit to its own card', () => {
+        expect(
+            getFinalStepFailure(
+                [
+                    {
+                        toolName: 'editDbtProject',
+                        keyId: 'a',
+                        calls: [
+                            {
+                                toolCallId: 'a',
+                                toolName: 'editDbtProject',
+                                toolArgs: {},
+                            },
+                        ],
+                    },
+                ],
+                [result('a', 'error', 'call editDbtProject again')],
+            ),
+        ).toBeNull();
+    });
+
     it('ignores failures the agent moved past', () => {
         expect(
             getFinalStepFailure(

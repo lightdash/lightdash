@@ -250,6 +250,8 @@ const ExistingThread: FC<
     );
     const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     const pullRequest = useStudioPullRequest(projectUuid);
+    // Unknown counts as open, so a slow or unavailable status check never offers a second pull request.
+    const isClosed = !!pullRequest?.ciChecks && !pullRequest.isOpen;
     const isRequestingPullRequest = useRef(false);
     if (isLoading || !thread) {
         return (
@@ -280,14 +282,16 @@ const ExistingThread: FC<
                             </span>
                             <Stack gap={0} flex={1} miw={0}>
                                 <Text fz="sm" fw={500}>
-                                    {pullRequest?.isOpen
+                                    {pullRequest && !isClosed
                                         ? 'Add this to your pull request?'
                                         : 'Happy with this change?'}
                                 </Text>
                                 <Text fz="xs" c="dimmed">
-                                    {pullRequest?.isOpen
-                                        ? 'Commits it to the same pull request.'
-                                        : 'You can try it once its preview builds.'}
+                                    {!pullRequest
+                                        ? 'You can try it once its pull request opens.'
+                                        : isClosed
+                                          ? 'Your last pull request is closed, so this opens a new one.'
+                                          : 'Commits it to the same pull request.'}
                                 </Text>
                             </Stack>
                         </Group>
@@ -299,9 +303,11 @@ const ExistingThread: FC<
                                 isRequestingPullRequest.current = true;
                                 void sendMessage({
                                     enableSqlMode: sqlMode,
-                                    prompt: pullRequest?.isOpen
-                                        ? 'Save this to the pull request.'
-                                        : 'Open the pull request.',
+                                    prompt: !pullRequest
+                                        ? 'Open the pull request.'
+                                        : isClosed
+                                          ? 'Open a new pull request.'
+                                          : 'Save this to the pull request.',
                                     // The pull request tools only join a turn that carries this hint.
                                     toolHints: ['editDbtProject'],
                                 }).finally(() => {
@@ -309,9 +315,11 @@ const ExistingThread: FC<
                                 });
                             }}
                         >
-                            {pullRequest?.isOpen
-                                ? 'Save to pull request'
-                                : 'Open pull request'}
+                            {!pullRequest
+                                ? 'Open pull request'
+                                : isClosed
+                                  ? 'Open new pull request'
+                                  : 'Save to pull request'}
                         </Button>
                     </Stack>
                 </div>
