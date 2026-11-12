@@ -25,6 +25,7 @@ export type DbQueryHistory = {
     warehouse_connection_uuid?: string | null;
     query_uuid: string;
     created_at: Date;
+    query_created_at_utc: Date;
     created_by_user_uuid: string | null;
     created_by_account: string | null;
     created_by_actor_type: AuthType | null;
@@ -77,6 +78,7 @@ export type DbQueryHistoryIn = Omit<
     DbQueryHistory,
     | 'query_uuid'
     | 'created_at'
+    | 'query_created_at_utc'
     | 'created_by_actor_type'
     | 'agent_identity'
     | 'cache_miss_reason'

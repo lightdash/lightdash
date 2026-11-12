@@ -15,7 +15,17 @@ It is far above the five delivery attempts with a 30-second retry delay.
 A live worker can run longer than this timeout: its acknowledgement progress
 path also writes `executing_heartbeat_at` at most once per minute per query.
 The database also rejects heartbeat writes less than 60 seconds apart.
-If no heartbeat exists, the task uses `processing_started_at`, then `created_at`.
+Execution starts with a heartbeat from the database clock. The task uses the
+later of `executing_heartbeat_at` and `query_created_at_utc`. Both columns store
+absolute instants. Future `created_at` defaults and `processing_started_at`
+writes use explicit UTC wall time for compatibility with their existing types.
+The sweep does not infer an instant from those legacy columns.
+
+The migration adds `query_created_at_utc` with a stable database timestamp
+default. Existing rows receive the migration instant through PostgreSQL metadata,
+without a table rewrite or a backfill. This gives legacy queued rows a full
+inactivity timeout after rollout. Later heartbeats extend that grace period.
+
 Choose a timeout above the longest legitimate period without worker progress
 on your deployment. A blocked event loop cannot send either progress signal.
 

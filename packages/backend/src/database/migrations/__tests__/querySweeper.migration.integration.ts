@@ -1,10 +1,16 @@
-import { QueryHistoryStatus } from '@lightdash/common';
+import {
+    QueryExecutionContext,
+    QueryHistoryStatus,
+    type QueryHistory,
+} from '@lightdash/common';
 import { randomUUID } from 'node:crypto';
+import { buildAccount } from '../../../auth/account/account.mock';
 import { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
+import { down, up } from '../20261112150000_add_query_creation_clock';
 
 vi.mock('../../../config/lightdashConfig', async () => ({
     lightdashConfig: (await import('../../../config/lightdashConfig.mock'))
@@ -34,8 +40,8 @@ const insert = async (status: string, heartbeat: Date | null = null) => {
     const queryUuid = randomUUID();
     await migrated.database.raw(
         `INSERT INTO query_history
-        (query_uuid, organization_uuid, context, compiled_sql, metric_query, fields, request_parameters, cache_key, status, created_at, processing_started_at, executing_heartbeat_at)
-        VALUES (?, ?, 'sqlRunner', 'select 1', '{}', '{}', '{}', ?, ?, ?, ?, ?)`,
+        (query_uuid, organization_uuid, context, compiled_sql, metric_query, fields, request_parameters, cache_key, status, created_at, processing_started_at, executing_heartbeat_at, query_created_at_utc)
+        VALUES (?, ?, 'sqlRunner', 'select 1', '{}', '{}', '{}', ?, ?, ?, ?, ?, ?)`,
         [
             queryUuid,
             organizationUuid,
@@ -44,6 +50,7 @@ const insert = async (status: string, heartbeat: Date | null = null) => {
             old,
             status === 'executing' ? old : null,
             heartbeat,
+            old,
         ],
     );
     return queryUuid;
@@ -69,11 +76,8 @@ it.each(['queued', 'executing'])(
 
 it('preserves live heartbeats and recent execution starts', async () => {
     await insert('executing', new Date());
-    const id = await insert('executing');
-    await migrated
-        .database('query_history')
-        .where('query_uuid', id)
-        .update({ processing_started_at: new Date() });
+    const id = await insert('queued');
+    expect(await model.updateStatusToExecuting(id)).toBe(1);
     expect(await model.failStuckQueriesBatch(86400)).toBe(0);
 });
 
@@ -128,67 +132,165 @@ it('throttles heartbeat writes and only updates executing rows', async () => {
 it('limits each update to 500 rows', async () => {
     await migrated.database.raw(
         `INSERT INTO query_history
-        (organization_uuid, context, compiled_sql, metric_query, fields, request_parameters, cache_key, status, created_at)
-        SELECT ?, 'sqlRunner', 'select 1', '{}', '{}', '{}', n::text, 'queued', ?::timestamp
+        (organization_uuid, context, compiled_sql, metric_query, fields, request_parameters, cache_key, status, created_at, query_created_at_utc)
+        SELECT ?, 'sqlRunner', 'select 1', '{}', '{}', '{}', n::text, 'queued', ?::timestamp, ?::timestamptz
         FROM generate_series(1, 501) n`,
-        [organizationUuid, old],
+        [organizationUuid, old, old],
     );
     expect(await model.failStuckQueriesBatch(86400)).toBe(500);
     expect(await model.failStuckQueriesBatch(86400)).toBe(1);
     expect(await model.failStuckQueriesBatch(86400)).toBe(0);
 });
 
-it.each(['Pacific/Kiritimati', 'Etc/GMT+12'])(
-    'uses UTC timestamps for liveness in session zone %s',
+const createFromApi = async (queryModel: QueryHistoryModel) => {
+    const result = await queryModel.create(
+        buildAccount({ accountType: 'jwt' }),
+        {
+            organizationUuid,
+            projectUuid: null,
+            context: QueryExecutionContext.AI,
+            compiledSql: 'SELECT 1',
+            metricQuery: {} as QueryHistory['metricQuery'],
+            fields: {},
+            requestParameters: {} as QueryHistory['requestParameters'],
+            usedParameters: null,
+            cacheKey: randomUUID(),
+            pivotConfiguration: null,
+            originalColumns: null,
+        },
+    );
+    expect(await queryModel.updateStatusToQueued(result.queryUuid)).toBe(1);
+    return result.queryUuid;
+};
+
+it.each(['Europe/Berlin', 'Asia/Tokyo', 'America/Los_Angeles'])(
+    'uses the database clock for real-model inserts in %s',
     async (timeZone) => {
-        const live = [
-            await insert('executing'),
-            await insert('executing'),
-            await insert('queued'),
-        ];
-        const stale = [
-            await insert('executing'),
-            await insert('executing'),
-            await insert('queued'),
-        ];
         await migrated.database.transaction(async (transaction) => {
             await transaction.raw("SELECT set_config('TimeZone', ?, true)", [
                 timeZone,
             ]);
-            const setAge = (ids: string[], ageHours: number) =>
-                transaction.raw(
-                    `UPDATE query_history
-                     SET created_at = (now() - ? * interval '1 hour') AT TIME ZONE 'UTC',
-                         processing_started_at = CASE WHEN status = 'executing'
-                             THEN (now() - ? * interval '1 hour') AT TIME ZONE 'UTC'
-                             ELSE NULL END,
-                         executing_heartbeat_at = CASE WHEN query_uuid = ?
-                             THEN now() - ? * interval '1 hour' ELSE NULL END
-                     WHERE query_uuid IN (?, ?, ?)`,
-                    [ageHours, ageHours, ids[0], ageHours, ...ids],
-                );
-            await setAge(live, 20);
-            await setAge(stale, 30);
             const zonedModel = new QueryHistoryModel({ database: transaction });
-            expect(await zonedModel.failStuckQueriesBatch(86400)).toBe(3);
-            const liveRows = await transaction('query_history').whereIn(
-                'query_uuid',
-                live,
+            const fresh = await createFromApi(zonedModel);
+            const stale = await createFromApi(zonedModel);
+            const executing = await createFromApi(zonedModel);
+            await transaction.raw(
+                `UPDATE query_history
+                SET query_created_at_utc = now() - interval '20 minutes'
+                WHERE query_uuid IN (?, ?)`,
+                [stale, executing],
             );
-            expect(liveRows.map((row) => row.status).sort()).toEqual([
-                'executing',
-                'executing',
+            expect(await zonedModel.updateStatusToExecuting(executing)).toBe(1);
+            const clock = await transaction.raw(
+                `SELECT
+                created_at = (now() AT TIME ZONE 'UTC') AS created_is_utc,
+                query_created_at_utc = now() AS anchor_is_current
+                FROM query_history WHERE query_uuid = ?`,
+                [fresh],
+            );
+            expect(clock.rows[0]).toEqual({
+                created_is_utc: true,
+                anchor_is_current: true,
+            });
+            const executionClock = await transaction.raw(
+                `SELECT
+                processing_started_at = (now() AT TIME ZONE 'UTC') AS processing_is_utc,
+                executing_heartbeat_at = now() AS heartbeat_is_current
+                FROM query_history WHERE query_uuid = ?`,
+                [executing],
+            );
+            expect(executionClock.rows[0]).toEqual({
+                processing_is_utc: true,
+                heartbeat_is_current: true,
+            });
+            expect(await zonedModel.updateExecutingHeartbeat(executing)).toBe(
+                0,
+            );
+            expect(await zonedModel.failStuckQueriesBatch(900)).toBe(1);
+            const rows = await transaction('query_history').whereIn(
+                'query_uuid',
+                [fresh, stale, executing],
+            );
+            expect(rows.find((row) => row.query_uuid === fresh)?.status).toBe(
                 'queued',
-            ]);
-            const staleRows = await transaction('query_history').whereIn(
-                'query_uuid',
-                stale,
             );
-            expect(staleRows.map((row) => row.status)).toEqual([
+            expect(rows.find((row) => row.query_uuid === stale)?.status).toBe(
                 'error',
-                'error',
-                'error',
-            ]);
+            );
+            expect(
+                rows.find((row) => row.query_uuid === executing)?.status,
+            ).toBe('executing');
+            await transaction.raw(
+                `UPDATE query_history
+                SET executing_heartbeat_at = now() - interval '20 minutes'
+                WHERE query_uuid = ?`,
+                [executing],
+            );
+            expect(await zonedModel.failStuckQueriesBatch(900)).toBe(1);
+            expect(
+                (
+                    await transaction('query_history')
+                        .where('query_uuid', executing)
+                        .first()
+                )?.status,
+            ).toBe('error');
         });
     },
 );
+
+it('adds the rollout grace period through metadata and reverses both defaults', async () => {
+    await migrated.database.transaction(async (transaction) => {
+        await transaction.raw("SET LOCAL TIME ZONE 'America/Los_Angeles'");
+        await down(transaction);
+        const legacyModel = new QueryHistoryModel({ database: transaction });
+        const queued = await createFromApi(legacyModel);
+        const executing = await createFromApi(legacyModel);
+        expect(await legacyModel.updateStatusToExecuting(executing)).toBe(1);
+        await transaction.raw(`UPDATE query_history
+            SET created_at = created_at - interval '2 days',
+                executing_heartbeat_at = CASE WHEN status = 'executing'
+                    THEN now() - interval '2 days' ELSE NULL END`);
+        const before = await transaction.raw(
+            "SELECT relfilenode FROM pg_class WHERE oid = 'query_history'::regclass",
+        );
+        await up(transaction);
+        const after = await transaction.raw(
+            "SELECT relfilenode FROM pg_class WHERE oid = 'query_history'::regclass",
+        );
+        expect(after.rows).toEqual(before.rows);
+        const metadata =
+            await transaction.raw(`SELECT atthasmissing FROM pg_attribute
+            WHERE attrelid = 'query_history'::regclass AND attname = 'query_created_at_utc'`);
+        expect(metadata.rows[0].atthasmissing).toBe(true);
+        const anchors = await transaction.raw(
+            `SELECT query_created_at_utc = now() AS has_grace
+            FROM query_history WHERE query_uuid IN (?, ?)`,
+            [queued, executing],
+        );
+        expect(anchors.rows).toEqual([
+            { has_grace: true },
+            { has_grace: true },
+        ]);
+        expect(await legacyModel.failStuckQueriesBatch(900)).toBe(0);
+        await transaction.raw(
+            "UPDATE query_history SET query_created_at_utc = now() - interval '901 seconds'",
+        );
+        expect(await legacyModel.failStuckQueriesBatch(900)).toBe(2);
+        await down(transaction);
+        expect(
+            await transaction.schema.hasColumn(
+                'query_history',
+                'query_created_at_utc',
+            ),
+        ).toBe(false);
+        const reverted = await createFromApi(legacyModel);
+        const defaults = await transaction.raw(
+            `SELECT
+            created_at = now()::timestamp AS uses_session_clock
+            FROM query_history WHERE query_uuid = ?`,
+            [reverted],
+        );
+        expect(defaults.rows[0].uses_session_clock).toBe(true);
+        await up(transaction);
+    });
+});
