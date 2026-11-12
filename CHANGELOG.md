@@ -1,3 +1,10 @@
+# [3.223.0](https://github.com/lightdash/lightdash/compare/3.222.0...3.223.0) (2026-11-12)
+
+
+### Features
+
+* **embed:** share embedded dashboard view state with the AI agent beside it ([#32412](https://github.com/lightdash/lightdash/issues/32412)) ([cf8bb81](https://github.com/lightdash/lightdash/commit/cf8bb81bd397efddb046c2d53481d6be22be8ca9))
+
 # [3.222.0](https://github.com/lightdash/lightdash/compare/3.221.0...3.222.0) (2026-11-12)
 
 
