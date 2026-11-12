@@ -23687,6 +23687,12 @@
             },
             "AppStateSnapshot": {
                 "properties": {
+                    "sharedAccess": {
+                        "type": "string",
+                        "enum": ["none"],
+                        "nullable": false,
+                        "description": "`none` when this viewer can neither read nor write shared values.\nAbsent means full access."
+                    },
                     "shared": {
                         "$ref": "#/components/schemas/Record_string.AppStateSharedEntry_"
                     },
@@ -27506,8 +27512,85 @@
                 "required": ["tableCalculations", "metrics", "dimensions"],
                 "type": "object"
             },
+            "AiDashboardTileRef": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
+            "AiDashboardDateZoomControl": {
+                "properties": {
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardTileRef"
+                        },
+                        "type": "array"
+                    },
+                    "isViewerPick": {
+                        "type": "boolean",
+                        "description": "False: the saved grain when the context was attached, which the saved config supersedes"
+                    },
+                    "granularity": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "description": "The viewer's pick, else the control's saved grain"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "tiles",
+                    "isViewerPick",
+                    "granularity",
+                    "name",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "AiDashboardTileParameters": {
+                "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "tile": {
+                        "$ref": "#/components/schemas/AiDashboardTileRef"
+                    }
+                },
+                "required": ["parameters", "tile"],
+                "type": "object"
+            },
             "AiDashboardRuntimeOverrides": {
                 "properties": {
+                    "tileParameters": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardTileParameters"
+                        },
+                        "type": "array",
+                        "description": "The values each tile runs with; present only when the viewer's picks on parameter controls change them"
+                    },
+                    "dateZoomControls": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardDateZoomControl"
+                        },
+                        "type": "array",
+                        "description": "Every named date zoom on the dashboard; absent when it has none"
+                    },
                     "dateZoom": {
                         "allOf": [
                             {
@@ -41592,6 +41675,36 @@
             },
             "ApiSemanticLayerStatusResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerStatus_"
+            },
+            "SemanticLayerStoredModels": {
+                "properties": {
+                    "models": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["models"],
+                "type": "object",
+                "description": "The models whose YAML the project keeps, as opposed to ones deployed from elsewhere."
+            },
+            "ApiSuccess_SemanticLayerStoredModels_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerStoredModels"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerStoredModelsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerStoredModels_"
             },
             "SemanticLayerChangeSource": {
                 "type": "string",
@@ -78207,7 +78320,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.236.0",
+        "version": "3.240.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -92173,6 +92286,47 @@
                 },
                 "description": "Whether this person can change this project's models from the server.",
                 "summary": "Get Semantic Studio status",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/models": {
+            "get": {
+                "operationId": "getSemanticLayerStoredModels",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerStoredModelsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The names of the models whose YAML the project keeps.",
+                "summary": "List stored semantic layer models",
                 "tags": ["Semantic Studio"],
                 "security": [],
                 "parameters": [
