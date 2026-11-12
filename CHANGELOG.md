@@ -1,3 +1,10 @@
+# [3.230.0](https://github.com/lightdash/lightdash/compare/3.229.0...3.230.0) (2026-11-12)
+
+
+### Features
+
+* **auth:** let a trusted workload identity provision organizations ([#32406](https://github.com/lightdash/lightdash/issues/32406)) ([6830925](https://github.com/lightdash/lightdash/commit/683092529bada7115aa8b8a68dc43bd0f786714f))
+
 # [3.229.0](https://github.com/lightdash/lightdash/compare/3.228.0...3.229.0) (2026-11-12)
 
 
