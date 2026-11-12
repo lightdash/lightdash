@@ -36,6 +36,7 @@ import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import useHealth from '../../hooks/health/useHealth';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
+import { getHost } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
@@ -49,15 +50,6 @@ import {
 const MobileAppQrCode = lazy(() => import('./MobileAppQrCode'));
 
 type StepState = 'upcoming' | 'current' | 'done';
-
-const getHost = (siteUrl: string | undefined) => {
-    if (!siteUrl) return window.location.host;
-    try {
-        return new URL(siteUrl).host;
-    } catch {
-        return window.location.host;
-    }
-};
 
 const StepCard: FC<
     PropsWithChildren<{
