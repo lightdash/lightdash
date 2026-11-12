@@ -20,6 +20,31 @@
     background: var(--mantine-color-body);
 }
 
+.pullRequestPrompt {
+    max-width: 48rem;
+    margin-inline: auto;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
+        var(--mantine-spacing-xs);
+}
+
+.pullRequestCard {
+    padding: var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.pullRequestIcon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-body);
+    color: var(--mantine-color-dimmed);
+}
+
 @media (hover: hover) {
     .actions {
         opacity: 0;

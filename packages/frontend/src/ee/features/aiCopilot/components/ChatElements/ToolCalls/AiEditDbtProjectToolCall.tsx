@@ -601,7 +601,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
                     <Text size="xs" c="dimmed">
-                        Working on the change — this can take a few minutes.
+                        Working on the change. This can take a few minutes.
                     </Text>
                 </Group>
             </Paper>
