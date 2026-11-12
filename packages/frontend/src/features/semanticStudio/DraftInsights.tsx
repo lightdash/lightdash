@@ -92,13 +92,17 @@ const KeepTheirsButton: FC<{
     projectUuid: string;
     model: string;
     path: string;
-}> = ({ projectUuid, model, path }) => {
+    publisher: string | null;
+}> = ({ projectUuid, model, path, publisher }) => {
     const takeLive = useTakeLiveDraftPart(projectUuid);
     return (
         <Button
             size="compact-xs"
             variant="default"
             flex="none"
+            aria-label={
+                publisher ? `Keep ${publisher}'s version` : 'Keep their version'
+            }
             loading={takeLive.isLoading}
             onClick={() => takeLive.mutate({ model, path })}
         >
@@ -112,13 +116,15 @@ const KeepMineButton: FC<{
     projectUuid: string;
     model: SemanticLayerDraftModel;
     label: string;
-}> = ({ projectUuid, model, label }) => {
+    ariaLabel: string | null;
+}> = ({ projectUuid, model, label, ariaLabel }) => {
     const keep = useKeepDraftModel(projectUuid);
     return (
         <Button
             size="compact-xs"
             variant="default"
             flex="none"
+            aria-label={ariaLabel ?? undefined}
             loading={keep.isLoading}
             onClick={() =>
                 keep.mutate({
@@ -273,6 +279,7 @@ const ConflictSides: FC<{
                             projectUuid={projectUuid}
                             model={model.model}
                             path={conflict.path}
+                            publisher={publisher}
                         />
                     }
                 />
@@ -293,6 +300,7 @@ const ConflictSides: FC<{
                                 projectUuid={projectUuid}
                                 model={model}
                                 label="Keep"
+                                ariaLabel="Keep your version"
                             />
                         )
                     }
@@ -391,6 +399,7 @@ export const ModelNotices: FC<{
                                 projectUuid={projectUuid}
                                 model={model}
                                 label={`Keep mine for all ${conflicts.length} parts`}
+                                ariaLabel={null}
                             />
                         </Box>
                     ) : null}
@@ -835,8 +844,13 @@ export const MetricComparison: FC<{
                     })}
                 </Table.Tbody>
             </Table>
+            {live.isError ? (
+                <Text fz="xs" c="dimmed">
+                    Could not run these live: {live.error.error.message}
+                </Text>
+            ) : null}
             {development.isError ? (
-                <Text fz="xs" c="red">
+                <Text fz="xs" c="dimmed">
                     Could not run these in development:{' '}
                     {development.error.error.message}
                 </Text>
