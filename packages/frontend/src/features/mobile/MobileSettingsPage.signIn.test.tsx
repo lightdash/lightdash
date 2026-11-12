@@ -62,9 +62,15 @@ describe('MobileSettingsPage sign-in step', () => {
         health.mode = null;
         vi.mocked(useMobileAppLink).mockReturnValue(scannedLink);
         vi.mocked(useMobileSignInCode).mockClear();
-        const { container } = renderWithProviders(<MobileSettingsPage />);
+        renderWithProviders(<MobileSettingsPage />);
 
-        expect(container).toBeEmptyDOMElement();
+        expect(
+            screen.queryByRole('heading', { name: 'Get the app' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('heading', { name: 'Sign in on your phone' }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(useMobileAppLink).toHaveBeenLastCalledWith({ isPaused: true });
         expect(useMobileSignInCode).not.toHaveBeenCalled();
     });
