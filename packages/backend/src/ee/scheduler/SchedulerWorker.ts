@@ -165,7 +165,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiThreadFileService: Pick<AiThreadFileService, 'sweepExpiredUnclaimed'>;
     externalConnectionService: Pick<
         ExternalConnectionService,
-        'scanApiSourceSchema'
+        'scanApiSourceSchema' | 'rebuildOutdatedApiSourceExplores'
     >;
     mobilePushNotificationService: Pick<
         MobilePushNotificationService,
@@ -316,6 +316,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     backfillPeriod: 10 * 60 * 1000,
                     maxAttempts: 3,
                 },
+            },
+            {
+                // A cron rather than a startup job: graphile runs each tick
+                // once across workers, a failed source is retried next tick,
+                // and a rollback is repaired the same way.
+                task: EE_SCHEDULER_TASKS.REBUILD_OUTDATED_API_SOURCE_EXPLORES,
+                pattern: '*/15 * * * *',
+                options: { backfillPeriod: 0, maxAttempts: 1 },
             },
             {
                 task: EE_SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES,
@@ -1156,6 +1164,16 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             [EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: async () => {
                 await this.externalSourceService.maintain();
             },
+            [EE_SCHEDULER_TASKS.REBUILD_OUTDATED_API_SOURCE_EXPLORES]:
+                async () => {
+                    const { rebuilt, failed } =
+                        await this.externalConnectionService.rebuildOutdatedApiSourceExplores();
+                    if (rebuilt > 0 || failed > 0) {
+                        Logger.info(
+                            `Rebuilt ${rebuilt} live data sources after a code change; ${failed} failed`,
+                        );
+                    }
+                },
             [EE_SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA]: async (
                 payload,
                 helpers,

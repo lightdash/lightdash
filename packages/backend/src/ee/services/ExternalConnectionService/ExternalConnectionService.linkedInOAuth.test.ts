@@ -49,6 +49,11 @@ const buildService = ({
     clientId = 'client-1',
 }: { clientId?: string | null } = {}) => {
     const externalConnectionModel = {
+        listHeldLiveSourceNames: vi.fn(async () => new Set<string>()),
+        claimLiveSourceName: vi.fn(
+            async (_project: string, _uuid: string, names: string[]) =>
+                names[0],
+        ),
         findByUuid: vi.fn().mockResolvedValue(existingConnection),
         getProjectOrganizationUuid: vi.fn().mockResolvedValue('org-1'),
         create: vi.fn(async () => existingConnection),
@@ -69,6 +74,7 @@ const buildService = ({
         projectModel: {
             replaceApiSourceExplores: vi.fn(),
             deleteApiSourceExplores: vi.fn(),
+            findExploreNamesTakenByOthers: vi.fn(async () => []),
         },
         allowedPrivateHostCidrs: {},
         externalConnectionModel,

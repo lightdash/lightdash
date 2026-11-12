@@ -1,5 +1,6 @@
 import {
     DashboardTileTypes,
+    DateGranularity,
     DimensionType,
     FieldType,
     FilterOperator,
@@ -7,6 +8,7 @@ import {
     UnitOfTime,
     type ApiError,
     type DashboardControlSection,
+    type DateZoomControl,
     type DashboardFilterRule,
     type DashboardTab,
     type FieldValueSearchResult,
@@ -713,3 +715,60 @@ export const createParameterControl = (
     sectionId: null,
     value,
 });
+
+/** The dashboard's custom grains, as the tiles' dbt project names them. */
+export const customGranularityLabels: Record<string, string> = {
+    fiscal_quarter: 'Fiscal quarter',
+    retail_week: 'Retail week',
+};
+
+/** The grains viewers can pick: the shipped list's usual five. */
+export const enabledGranularities: string[] = [
+    DateGranularity.DAY,
+    DateGranularity.WEEK,
+    DateGranularity.MONTH,
+    DateGranularity.QUARTER,
+    DateGranularity.YEAR,
+];
+
+/** A named zoom at Week, on no section, shown to viewers. */
+export const createDateZoomControl = (
+    overrides: Partial<DateZoomControl> = {},
+): DateZoomControl => ({
+    uuid: 'zoom-revenue',
+    name: 'Revenue zoom',
+    granularity: DateGranularity.WEEK,
+    ...overrides,
+});
+
+const orderDate = {
+    fieldId: 'orders_order_date',
+    label: 'Order date',
+    tableName: 'orders',
+};
+
+/** The date fields each tile can be zoomed on: every tile but payments. */
+export const zoomableFieldsByTile = Object.fromEntries(
+    tiles
+        .filter(({ uuid }) => uuid !== 'tile-payments')
+        .map(({ uuid }) => [uuid, [orderDate]]),
+);
+
+/** Revenue zoom at Week on the revenue and weekly tiles; the default at Month. */
+export const dateZoomSettings = {
+    dateZoomGranularities: enabledGranularities,
+    defaultDateZoomGranularity: DateGranularity.MONTH,
+    dateZoomConfig: {
+        controls: [createDateZoomControl()],
+        tileTargets: Object.fromEntries(
+            ['tile-revenue', 'tile-weekly'].map((tileUuid) => [
+                tileUuid,
+                {
+                    controlUuid: 'zoom-revenue',
+                    fieldId: orderDate.fieldId,
+                    tableName: orderDate.tableName,
+                },
+            ]),
+        ),
+    },
+};

@@ -1,9 +1,11 @@
 import {
+    getItemId,
     getMergeSourceTableLabel,
     getResultColumnMetadataFromItem,
     getUnaccountedDimensions,
     isField,
     isMergeMetricSource,
+    MERGE_TABLE_NAME,
     NotSupportedError,
     QuerySourceType,
     type FieldId,
@@ -100,6 +102,26 @@ export const buildComposeMergeOriginalColumns = ({
         }),
     );
 
+/** A composer merge's calculations read as their own names, without the merged table's label. */
+export const withBareCalculationItems = (
+    itemsMap: ItemsMap,
+    mergeQuery: Pick<MergeQuery, 'tableCalculations'>,
+): ItemsMap =>
+    Object.fromEntries(
+        Object.entries(itemsMap).map(([fieldId, item]) => {
+            const isCalculation = mergeQuery.tableCalculations.some(
+                ({ name }) =>
+                    getItemId({ table: MERGE_TABLE_NAME, name }) === fieldId,
+            );
+            return [
+                fieldId,
+                isCalculation && isField(item)
+                    ? { ...item, tableLabel: '' }
+                    : item,
+            ];
+        }),
+    );
+
 export const getMergeOutputColumnCount = (mergeQuery: MergeQuery): number =>
     mergeQuery.joinKey.length +
     mergeQuery.tableCalculations.length +
@@ -171,28 +193,42 @@ export const getMergeSourceLabels = ({
     );
 
 /**
- * A leg that came back at the row cap may have had more rows behind it, and
- * the join cannot tell because the leg ran with its limit already at that
- * cap. Refuse on the leg's own row count instead, naming the source to
- * narrow. Known only once the leg has run, so it lands as the merged
- * query's error rather than a pre-execution refusal. An unknown row count
- * is not evidence, so it never refuses.
+ * A leg that filled the limit it ran with may have more rows behind it, so the
+ * join is refused naming the source. An unknown row count never refuses.
  */
 export const getMergeRowCapError = ({
     legs,
     sourceRowCap,
 }: {
-    legs: Array<{ label: string; rowCount: number | null }>;
+    legs: Array<{
+        label: string;
+        rowCount: number | null;
+        /** The limit the leg ran with; null when it ran at the cap. */
+        limit: number | null;
+    }>;
     sourceRowCap: number;
 }): string | null => {
-    const capped = legs
-        .filter(({ rowCount }) => rowCount !== null && rowCount >= sourceRowCap)
-        .map(({ label }) => label);
+    const capped = legs.flatMap(({ label, rowCount, limit }) => {
+        const ranWith = limit ?? sourceRowCap;
+        return rowCount !== null && rowCount >= ranWith
+            ? [{ label, limit: ranWith }]
+            : [];
+    });
     if (capped.length === 0) return null;
+    const atOwnLimit = capped.filter(({ limit }) => limit !== sourceRowCap);
+    if (atOwnLimit.length > 0) {
+        return atOwnLimit
+            .map(
+                ({ label, limit }) =>
+                    `${label} returned its limit of ${limit} rows, so the merged results would be missing data. Raise the limit of ${label} or narrow it, then merge again.`,
+            )
+            .join(' ');
+    }
+    const labels = capped.map(({ label }) => label);
     const consequence = `returned the maximum of ${sourceRowCap} rows, so the merged results would be missing data.`;
-    return capped.length === 1
-        ? `${capped[0]} ${consequence} Add a filter to ${capped[0]}, then merge again.`
-        : `${capped.join(' and ')} each ${consequence} Add a filter to each, then merge again.`;
+    return labels.length === 1
+        ? `${labels[0]} ${consequence} Add a filter to ${labels[0]}, then merge again.`
+        : `${labels.join(' and ')} each ${consequence} Add a filter to each, then merge again.`;
 };
 
 // A result that filled its own limit may hold more rows behind it; a missing limit or count is not evidence.
@@ -217,9 +253,11 @@ export const buildMergeRowCapGuard =
     ({
         legLabelByReferenceTable,
         sourceRowCap,
+        legLimitByReferenceTable,
     }: {
         legLabelByReferenceTable: Record<string, string>;
         sourceRowCap: number;
+        legLimitByReferenceTable?: Record<string, number>;
     }): DuckdbQueryReferenceGuard =>
     (completed) =>
         getMergeRowCapError({
@@ -227,6 +265,7 @@ export const buildMergeRowCapGuard =
                 ([tableName, label]) => ({
                     label,
                     rowCount: completed[tableName]?.totalRowCount ?? null,
+                    limit: legLimitByReferenceTable?.[tableName] ?? null,
                 }),
             ),
             sourceRowCap,

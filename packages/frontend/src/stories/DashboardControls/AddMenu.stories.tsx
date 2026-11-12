@@ -1,34 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, waitFor, within } from 'storybook/test';
+import { expect, waitFor, within } from 'storybook/test';
 import { AddControlFlow } from './AddControlFlow';
-import { AddControlMenu } from './AddControlMenu';
 import { withStoryFrame } from './decorators';
-import {
-    availableTileFilters,
-    fields,
-    manyFields,
-    manyFieldsByTile,
-    manyFieldsTiles,
-    parameterList,
-    tabs,
-    tiles,
-} from './fixtures';
+import { type DashboardStoryParameters } from './storyParameters';
 
-const meta: Meta<typeof AddControlMenu> = {
+// The real bar, in edit mode unless a story says otherwise: its "Add" and
+// "..." menus and pickers are the shipped ones, driven by the fixture dashboard
+const meta: Meta<typeof AddControlFlow> = {
     title: 'Dashboards/Controls/Add menu',
-    component: AddControlMenu,
+    component: AddControlFlow,
     parameters: { layout: 'fullscreen' },
     decorators: [withStoryFrame],
-    args: {
-        fields: Object.values(fields),
-        tabs,
-        tiles,
-        availableTileFilters,
-        parameters: parameterList,
-        isViewer: false,
-        onPickField: fn(),
-        onPickParameter: fn(),
-    },
 };
 
 export default meta;
@@ -38,18 +20,36 @@ const onPage = (canvasElement: HTMLElement) =>
     within(canvasElement.ownerDocument.body);
 
 const optionTexts = (root: HTMLElement) =>
-    [...root.querySelectorAll('[role="option"]')].map(
+    [...root.ownerDocument.querySelectorAll('[role="option"]')].map(
         (option) => option.textContent ?? '',
     );
 
-/** "Add" opens a choice first: Filter or Parameter. */
+// "Add", then a kind from its choice
+const chooseKind = async (
+    canvasElement: HTMLElement,
+    userEvent: { click: (element: Element) => Promise<void> },
+    kind: 'Filter' | 'Parameter',
+) => {
+    const page = onPage(canvasElement);
+    await userEvent.click(page.getByRole('button', { name: 'Add' }));
+    await userEvent.click(
+        await page.findByRole('menuitem', { name: new RegExp(`^${kind}`) }),
+    );
+};
+
+const noParameters: DashboardStoryParameters = { hasParameters: false };
+
+/** Tiles use parameters: "Add" opens a choice first, Filter or Parameter. */
 export const FilterOrParameter: Story = {
     name: 'Filter or parameter',
-    render: () => <AddControlFlow />,
     play: async ({ canvas, canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
         const add = canvas.getByRole('button', { name: 'Add' });
         await expect(add.querySelector('svg.tabler-icon-plus')).not.toBeNull();
+        // Joined to the "..." menu, as on the bar
+        await expect(
+            canvas.getByRole('button', { name: 'Filter bar settings' }),
+        ).toBeVisible();
         await userEvent.click(add);
         await expect(
             await page.findByRole('menuitem', { name: /^Filter/ }),
@@ -63,30 +63,25 @@ export const FilterOrParameter: Story = {
     },
 };
 
-/** The field picker: rows by table with the tiles each field filters. */
+/** The field picker: rows by table with the tiles each field filters; a pick opens the filter. */
 export const FieldPicker: Story = {
     name: 'Field picker',
-    play: async ({ canvas, canvasElement, userEvent, args }) => {
-        await userEvent.click(
-            await onPage(canvasElement).findByRole('menuitem', {
-                name: /^Filter/,
-            }),
-        );
-        const search = canvas.getByRole('textbox', { name: 'Search fields' });
-        await expect(search).toHaveFocus();
-        // Amount is on 4 tiles; one already filtered on the bar says nothing more
+    play: async ({ canvasElement, userEvent }) => {
+        const page = onPage(canvasElement);
+        await chooseKind(canvasElement, userEvent, 'Filter');
+        const search = await page.findByRole('textbox', {
+            name: 'Search fields',
+        });
+        await waitFor(() => expect(search).toHaveFocus());
         await expect(
-            await canvas.findByRole('option', { name: /^Amount/ }),
-        ).toHaveTextContent(/^Amount4 tiles$/);
+            await page.findByRole('option', { name: /^Amount,/ }),
+        ).toHaveAccessibleName('Amount, Orders, 4 tiles');
         // A field's description shows on hover, as in the shipped picker
-        const firstName = await canvas.findByRole('option', {
+        const firstName = await page.findByRole('option', {
             name: /^First name/,
         });
-        // The tooltip sits on the row's content, inside the option
         await userEvent.hover(within(firstName).getByText('First name'));
-        await expect(
-            await onPage(canvasElement).findByRole('tooltip'),
-        ).toHaveTextContent(
+        await expect(await page.findByRole('tooltip')).toHaveTextContent(
             "The customer's first name, as entered at checkout.",
         );
         await userEvent.unhover(within(firstName).getByText('First name'));
@@ -94,28 +89,29 @@ export const FieldPicker: Story = {
         await userEvent.type(search, 'status');
         await waitFor(() => expect(optionTexts(canvasElement)).toHaveLength(1));
         await userEvent.keyboard('{Enter}');
-        await expect(args.onPickField).toHaveBeenCalledWith(fields.status);
+        const editor = await page.findByRole('dialog', { name: 'Status' });
+        await waitFor(() => expect(editor).toBeVisible());
     },
 };
 
-/** 2,000 fields: only the rows in view are drawn, and a search settles once typing pauses. */
+/** 2,000 fields on one tile: only the rows in view are drawn, and a search settles once typing pauses. */
 export const FieldPickerManyFields: Story = {
     name: 'Field picker, 2,000 fields',
-    args: {
-        fields: manyFields,
-        tiles: manyFieldsTiles,
-        availableTileFilters: manyFieldsByTile,
+    parameters: {
+        dashboard: {
+            hasParameters: false,
+            isManyFields: true,
+        } satisfies DashboardStoryParameters,
     },
     play: async ({ canvas, canvasElement, userEvent }) => {
+        const page = onPage(canvasElement);
         await userEvent.click(
-            await onPage(canvasElement).findByRole('menuitem', {
-                name: /^Filter/,
-            }),
+            canvas.getByRole('button', { name: 'Add filter' }),
         );
-        await canvas.findAllByRole('option');
+        await page.findAllByRole('option');
         await expect(optionTexts(canvasElement).length).toBeLessThan(60);
         await userEvent.type(
-            canvas.getByRole('textbox', { name: 'Search fields' }),
+            page.getByRole('textbox', { name: 'Search fields' }),
             'Field 1999',
         );
         await waitFor(() =>
@@ -129,33 +125,30 @@ export const FieldPickerManyFields: Story = {
 /** Back from the field picker to the Filter or Parameter choice. */
 export const FieldPickerBack: Story = {
     name: 'Field picker, back',
-    play: async ({ canvas, canvasElement, userEvent }) => {
+    play: async ({ canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
+        await chooseKind(canvasElement, userEvent, 'Filter');
         await userEvent.click(
-            await page.findByRole('menuitem', { name: /^Filter/ }),
+            await page.findByRole('button', { name: 'Back' }),
         );
-        await userEvent.click(canvas.getByRole('button', { name: 'Back' }));
-        await expect(
-            await page.findByRole('menuitem', { name: /^Parameter/ }),
-        ).toBeVisible();
+        // The menu pops back in
+        const item = await page.findByRole('menuitem', { name: /^Parameter/ });
+        await waitFor(() => expect(item).toBeVisible());
     },
 };
 
 /** The parameter picker: rows by model, searched by label and model; one on the bar, still pickable. */
 export const ParameterPicker: Story = {
     name: 'Parameter picker',
-    play: async ({ canvas, canvasElement, userEvent, args }) => {
-        await userEvent.click(
-            await onPage(canvasElement).findByRole('menuitem', {
-                name: /^Parameter/,
-            }),
-        );
-        const search = canvas.getByRole('textbox', {
+    play: async ({ canvasElement, userEvent }) => {
+        const page = onPage(canvasElement);
+        await chooseKind(canvasElement, userEvent, 'Parameter');
+        const search = await page.findByRole('textbox', {
             name: 'Search parameters',
         });
-        await expect(search).toHaveFocus();
+        await waitFor(() => expect(search).toHaveFocus());
         // A parameter a control already sets stays pickable, with its tiles only
-        const onBar = await canvas.findByRole('option', {
+        const onBar = await page.findByRole('option', {
             name: 'Week starts on, Orders, 2 tiles',
         });
         await expect(onBar).not.toHaveAttribute('data-combobox-disabled');
@@ -168,118 +161,115 @@ export const ParameterPicker: Story = {
                 expect.stringMatching(/^Region/),
             ]),
         );
-        await expect(canvas.getByText('Orders')).toBeVisible();
-        await expect(canvas.getByText('Payments')).toBeVisible();
-        // Each Region names its model, so the two read apart
         await expect(
-            canvas
+            page
                 .getAllByRole('option')
                 .map((option) => option.getAttribute('aria-label')),
         ).toEqual(['Region, Orders, 2 tiles', 'Region, Payments, 2 tiles']);
-        await expect(
-            canvas.getByRole('option', { name: 'Region, Payments, 2 tiles' }),
-        ).toBeVisible();
 
         // The model's name matches too, in any case
         await userEvent.clear(search);
         await userEvent.type(search, 'PAY');
-        await waitFor(() => expect(canvas.queryByText('Orders')).toBeNull());
-        await expect(optionTexts(canvasElement)).toHaveLength(3);
+        await waitFor(() => expect(optionTexts(canvasElement)).toHaveLength(3));
 
         await userEvent.clear(search);
         await userEvent.type(search, 'zzz');
         await expect(
-            await canvas.findByText('No matching parameters'),
+            await page.findByText('No matching parameters'),
         ).toBeVisible();
 
         await userEvent.clear(search);
         await userEvent.type(search, 'currency');
         await waitFor(() => expect(optionTexts(canvasElement)).toHaveLength(1));
         await userEvent.keyboard('{Enter}');
-        await expect(args.onPickParameter).toHaveBeenCalledWith(
-            expect.objectContaining({ key: 'payments.currency' }),
+        // The pick adds a control and opens it
+        await waitFor(() =>
+            expect(
+                page.queryByRole('textbox', { name: 'Search parameters' }),
+            ).toBeNull(),
         );
+        await expect(await page.findByRole('dialog')).toBeVisible();
     },
 };
 
 /** Project-wide parameters sit together under "Project", before the models'. */
 export const ParameterPickerProject: Story = {
     name: 'Parameter picker, project parameters',
-    play: async ({ canvas, canvasElement, userEvent, args }) => {
-        await userEvent.click(
-            await onPage(canvasElement).findByRole('menuitem', {
-                name: /^Parameter/,
-            }),
-        );
-        await canvas.findByRole('option', {
+    play: async ({ canvasElement, userEvent }) => {
+        const page = onPage(canvasElement);
+        await chooseKind(canvasElement, userEvent, 'Parameter');
+        await page.findByRole('option', {
             name: 'Fiscal year starts, Project, 2 tiles',
         });
         // First in the list, under its own heading
         await expect(optionTexts(canvasElement)[0]).toMatch(
             /^Fiscal year starts/,
         );
-        await expect(canvas.getByText('Project')).toBeVisible();
         await userEvent.type(
-            canvas.getByRole('textbox', { name: 'Search parameters' }),
+            page.getByRole('textbox', { name: 'Search parameters' }),
             'project',
         );
         await waitFor(() => expect(optionTexts(canvasElement)).toHaveLength(1));
-        await userEvent.click(canvas.getByRole('option'));
-        await expect(args.onPickParameter).toHaveBeenCalledWith(
-            expect.objectContaining({
-                key: 'fiscal_year_start',
-                source: { type: 'project' },
-            }),
-        );
     },
 };
 
 /** Back from the parameter picker to the Filter or Parameter choice. */
 export const ParameterPickerBack: Story = {
     name: 'Parameter picker, back',
+    play: async ({ canvasElement, userEvent }) => {
+        const page = onPage(canvasElement);
+        await chooseKind(canvasElement, userEvent, 'Parameter');
+        await userEvent.click(
+            await page.findByRole('button', { name: 'Back' }),
+        );
+        // The menu pops back in
+        const item = await page.findByRole('menuitem', { name: /^Filter/ });
+        await waitFor(() => expect(item).toBeVisible());
+        await waitFor(() =>
+            expect(
+                page.queryByRole('textbox', { name: 'Search parameters' }),
+            ).toBeNull(),
+        );
+    },
+};
+
+/** No tile uses a parameter: "Add filter" opens the field picker straight away, with no way back. */
+export const AddFilterNoParameters: Story = {
+    name: 'Add filter, no parameters',
+    parameters: { dashboard: noParameters },
     play: async ({ canvas, canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
         await userEvent.click(
-            await page.findByRole('menuitem', { name: /^Parameter/ }),
+            canvas.getByRole('button', { name: 'Add filter' }),
         );
-        await userEvent.click(canvas.getByRole('button', { name: 'Back' }));
+        const search = await page.findByRole('textbox', {
+            name: 'Search fields',
+        });
+        await waitFor(() => expect(search).toHaveFocus());
+        await expect(page.queryByRole('button', { name: 'Back' })).toBeNull();
         await expect(
-            await page.findByRole('menuitem', { name: /^Filter/ }),
-        ).toBeVisible();
-        await expect(
-            canvas.queryByRole('textbox', { name: 'Search parameters' }),
+            page.queryByRole('menuitem', { name: /^Parameter/ }),
         ).toBeNull();
     },
 };
 
-/** No tile uses a parameter: no choice to make, "Add filter" opens the field picker straight away. */
-export const AddFilterNoParameters: Story = {
-    name: 'Add filter, no parameters',
-    args: { parameters: [] },
-    play: async ({ canvas, canvasElement }) => {
-        await expect(
-            canvas.getByRole('button', { name: 'Add filter' }),
-        ).toBeVisible();
-        await expect(
-            canvas.getByRole('textbox', { name: 'Search fields' }),
-        ).toHaveFocus();
-        await expect(canvas.queryByRole('button', { name: 'Back' })).toBeNull();
-        await expect(onPage(canvasElement).queryByText(/Parameter/)).toBeNull();
-    },
-};
-
-/** A viewer adds filters only: "Add filter" goes straight to the field picker, with no way back to a choice. */
+/** A viewer adds filters only: "Add filter" goes straight to the field picker, with no "..." menu. */
 export const Viewer: Story = {
     name: 'Viewer, add filter',
-    args: { isViewer: true },
-    play: async ({ canvas }) => {
-        await expect(
-            canvas.getByRole('button', { name: 'Add filter' }),
-        ).toBeVisible();
+    args: { isEditMode: false },
+    play: async ({ canvas, canvasElement, userEvent }) => {
+        const page = onPage(canvasElement);
         await expect(canvas.queryByRole('button', { name: 'Add' })).toBeNull();
         await expect(
-            canvas.getByRole('textbox', { name: 'Search fields' }),
-        ).toHaveFocus();
-        await expect(canvas.queryByRole('button', { name: 'Back' })).toBeNull();
+            canvas.queryByRole('button', { name: 'Filter bar settings' }),
+        ).toBeNull();
+        await userEvent.click(
+            canvas.getByRole('button', { name: 'Add filter' }),
+        );
+        const search = await page.findByRole('textbox', {
+            name: 'Search fields',
+        });
+        await waitFor(() => expect(search).toHaveFocus());
+        await expect(page.queryByRole('button', { name: 'Back' })).toBeNull();
     },
 };

@@ -16,6 +16,7 @@ import {
     type DashboardFilters,
     type DashboardParameterControl,
     type DashboardTile,
+    type DateZoomConfig,
 } from '@lightdash/common';
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -36,9 +37,11 @@ import {
     selectControlSections,
     selectHasControlOrderChanged,
     selectHaveControlSectionsChanged,
+    selectCurrentDateZoomConfig,
     selectOrderedControls,
 } from '../dashboard/store';
 import type * as AddControlModule from './AddControl';
+import { DateZoomEditorProvider } from './DateZoomEditorProvider';
 import type * as FilterEditorModule from './FilterEditor';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import { SectionedFilters } from './SectionedFilters';
@@ -538,8 +541,12 @@ describe('SectionedFilters', () => {
         expect(sectionsLine()).toContainElement(capsuleOf('Dates'));
     });
 
-    it('names a first section on the line its capsule lands on', async () => {
-        renderSectioned([rule('loose', undefined)], 'tab-1', []);
+    it('names and keeps a first section inline, after the pills', async () => {
+        const { store } = renderSectioned(
+            [rule('loose', undefined)],
+            'tab-1',
+            [],
+        );
         const ghost = screen.getByRole('button', { name: 'New section' });
         // No sections yet: New section stays inline after the pills
         expect(ghost.closest('[class*="sections"]')).not.toHaveAttribute(
@@ -550,7 +557,46 @@ describe('SectionedFilters', () => {
             screen
                 .getByRole('textbox', { name: 'Section name' })
                 .closest('[class*="sections"]'),
-        ).toHaveAttribute('data-own-line');
+        ).not.toHaveAttribute('data-own-line');
+        await userEvent.keyboard('Misc{Enter}');
+        // On the first and only line, with Add
+        const line = capsuleOf('Misc').closest('[class*="orderLine"]');
+        expect(line).toContainElement(
+            screen.getByRole('button', { name: 'Add' }),
+        );
+        expect(document.querySelectorAll('[class*="orderLine"]')).toHaveLength(
+            1,
+        );
+        const order = selectControlOrder(store.getState());
+        expect(order?.map(({ id }) => id)).toEqual([
+            'loose',
+            selectControlSections(store.getState())[0].id,
+        ]);
+        expect(order?.some(({ newLine }) => newLine)).toBe(false);
+    });
+
+    it('stores a later section inline after the last one, keeping the default lines', async () => {
+        const { store } = renderSectioned(
+            [rule('one', 'a'), rule('loose', undefined)],
+            'tab-1',
+            [{ id: 'a', name: 'Dates' }],
+        );
+        // Before: the sections below the filters, no order stored
+        expect(selectControlOrder(store.getState())).toBeUndefined();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'New section' }),
+        );
+        await userEvent.keyboard('Late{Enter}');
+        const added = selectControlSections(store.getState())[1];
+        expect(selectControlOrder(store.getState())).toEqual([
+            { kind: DashboardControlRefKind.FILTER, id: 'loose' },
+            { kind: DashboardControlRefKind.SECTION, id: 'a', newLine: true },
+            { kind: DashboardControlRefKind.FILTER, id: 'one' },
+            { kind: DashboardControlRefKind.SECTION, id: added.id },
+        ]);
+        expect(capsuleOf('Late').closest('[class*="orderLine"]')).toBe(
+            capsuleOf('Dates').closest('[class*="orderLine"]'),
+        );
     });
 
     it('puts each section on a line of its own without a stored order, whatever its fold', () => {
@@ -1516,7 +1562,7 @@ describe('SectionedFilters', () => {
             },
             { loose: 3, moved: 2, saved: [] },
         ])(
-            "names a section below the filters, on the last section's line ($loose loose, $moved moved)",
+            "names a section after the filters, or on the last section's line ($loose loose, $moved moved)",
             async ({ loose, moved, saved }) => {
                 const ids = Array.from({ length: loose }, (_, i) => `p${i}`);
                 const { store } = renderSectioned(
@@ -1543,11 +1589,13 @@ describe('SectionedFilters', () => {
                 const input = screen.getByRole('textbox', {
                     name: 'Section name',
                 });
-                expect(input.closest('[class*="sections"]')).toHaveAttribute(
-                    'data-own-line',
-                );
-                // A first section is named on the sections' line; a later one
-                // at the end of the last section line
+                // A first section is named inline after the pills; a later
+                // one at the end of the last section line
+                expect(
+                    input
+                        .closest('[class*="sections"]')
+                        ?.hasAttribute('data-own-line'),
+                ).toBe(saved.length > 0);
                 expect(input.closest('[class*="sectionLine"]') !== null).toBe(
                     saved.length > 0,
                 );
@@ -2309,7 +2357,7 @@ describe('SectionedFilters', () => {
             );
         });
 
-        it('adds a section after the first on the line of the one before it', async () => {
+        it('adds the first section and a later one inline, on the first line', async () => {
             const user = userEvent.setup();
             const { store } = renderSectioned(twoLoose(), 'tab-1', []);
             await user.click(ghost() as HTMLElement);
@@ -2324,7 +2372,7 @@ describe('SectionedFilters', () => {
             ).toEqual([
                 ['one', false],
                 ['two', false],
-                [first.id, true],
+                [first.id, false],
                 [second.id, false],
             ]);
             expect(capsuleOf('Second').closest('[class*="orderLine"]')).toBe(
@@ -4146,6 +4194,133 @@ describe('SectionedFilters', () => {
                 ).dimensions.map((r) => r.sectionId ?? null),
             ).toEqual([null]);
             expect(controlsOf(store)).toEqual(['region']);
+        });
+    });
+
+    describe('date zooms', () => {
+        const zooms: DateZoomConfig = {
+            controls: [
+                { uuid: 'z1', name: 'Revenue zoom', granularity: 'Week' },
+                {
+                    uuid: 'z2',
+                    name: 'Orders zoom',
+                    granularity: 'Month',
+                    sectionId: 'a',
+                },
+            ],
+            tileTargets: {
+                'tile-1': {
+                    controlUuid: 'z1',
+                    fieldId: 'orders_date',
+                    tableName: 'orders',
+                },
+                'tile-2': {
+                    controlUuid: 'z2',
+                    fieldId: 'orders_date',
+                    tableName: 'orders',
+                },
+            },
+        };
+        const renderWithZooms = (dimensions: DashboardFilterRule[]) => {
+            const config = {
+                isDateZoomDisabled: false,
+                controlSections: [
+                    { id: 'a', name: 'Dates' },
+                    { id: 'b', name: 'Regions' },
+                ],
+                dateZoomConfig: zooms,
+            };
+            const store = createDashboardTestStore({
+                dashboardFilters: {
+                    dimensions,
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                source: { embedDashboard: { config } as never },
+            });
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboard: { config },
+                setDateZoomConfig: (value: DateZoomConfig) =>
+                    store.dispatch(
+                        dashboardEditActions.setDateZoomConfig({
+                            value,
+                            changed: true,
+                            saved: zooms,
+                        }),
+                    ),
+                setControlGranularity: vi.fn(),
+                setDateZoomGranularity: vi.fn(),
+            };
+            seedDashboardEditState(store, {
+                dashboard: { config },
+                dashboardTiles: tiles,
+                dashboardTabs: [
+                    { uuid: 'tab-1', name: 'Tab 1', order: 0 },
+                    { uuid: 'tab-2', name: 'Tab 2', order: 1 },
+                ],
+            });
+            renderWithProviders(
+                <DashboardStoreTestProvider store={store}>
+                    <DateZoomEditorProvider isViewer={false}>
+                        <SectionedFilters activeTabUuid={undefined} />
+                    </DateZoomEditorProvider>
+                </DashboardStoreTestProvider>,
+            );
+            return store;
+        };
+        const zoomPill = (uuid: string) =>
+            document.querySelector<HTMLElement>(
+                `[data-date-zoom-pill="${uuid}"]`,
+            )!;
+
+        beforeEach(() => {
+            mockDroppable.current = null;
+        });
+
+        it('draws each zoom after the filters of its pass, in its section', () => {
+            renderWithZooms([rule('loose', undefined)]);
+            expect(
+                screen
+                    .getByTestId('pills-unsectioned')
+                    .compareDocumentPosition(zoomPill('z1')) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            expect(capsuleOf('Dates')).toContainElement(zoomPill('z2'));
+        });
+
+        it('stores the order with the zoom ref on a keyboard move', () => {
+            const store = renderWithZooms([rule('loose', undefined)]);
+            fireEvent.keyDown(zoomPill('z1'), {
+                key: 'ArrowLeft',
+                altKey: true,
+            });
+            expect(selectControlOrder(store.getState())?.slice(0, 2)).toEqual([
+                { kind: DashboardControlRefKind.DATE_ZOOM, id: 'z1' },
+                { kind: DashboardControlRefKind.FILTER, id: 'loose' },
+            ]);
+        });
+
+        it('moves a dropped zoom into the section, with the order', () => {
+            const store = renderWithZooms([rule('loose', undefined)]);
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: {
+                        id: 'z1',
+                        data: { current: { kind: 'dateZoom' } },
+                    },
+                    over: { id: 'b' },
+                } as unknown as DragEndEvent),
+            );
+            expect(
+                selectCurrentDateZoomConfig(store.getState()).controls[0],
+            ).toEqual({ ...zooms.controls[0], sectionId: 'b' });
+            expect(
+                selectOrderedControls(store.getState()).find(
+                    ({ id }) => id === 'z1',
+                )?.sectionId,
+            ).toBe('b');
+            expect(selectHasControlOrderChanged(store.getState())).toBe(true);
         });
     });
 });

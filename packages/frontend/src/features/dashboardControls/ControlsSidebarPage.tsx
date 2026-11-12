@@ -1,6 +1,8 @@
 import { type ComponentProps, type FC } from 'react';
 import Page from '../../components/common/Page/Page';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
+import { DateZoomTileOverlays } from './DateZoomTileOverlay';
+import { DateZoomTilesBar } from './DateZoomTilesBar';
 import { FieldTilesBar } from './FieldTilesBar';
 import { LinkPrompts } from './LinkPrompts';
 import { ParameterTileOverlays } from './ParameterTileOverlay';
@@ -21,5 +23,7 @@ export const ControlsSidebarPage: FC<Props> = (props) => (
         <FieldTilesBar />
         <ParameterTileOverlays />
         <ParameterTilesBar />
+        <DateZoomTileOverlays />
+        <DateZoomTilesBar />
     </ControlsSidebarProvider>
 );

@@ -290,3 +290,55 @@ describe('AddFilterButton in view mode', () => {
         expect(onSave).not.toHaveBeenCalled();
     });
 });
+
+describe('AddFilterButton for a viewer with adding disabled', () => {
+    beforeEach(() => {
+        mockDashboardContext.current = {
+            allFilterableFields: [],
+            isLoadingDashboardFilters: false,
+            isFetchingDashboardFilters: false,
+            setIsAddFilterDisabled: vi.fn(),
+        };
+    });
+
+    it.each([
+        [false, null],
+        [true, 'Reset all filters'],
+    ])(
+        'draws nothing until filters change, then only the reset (changed: %s)',
+        (haveFiltersChanged, shownLabel) => {
+            renderWithProviders(
+                <DashboardStoreTestProvider
+                    store={seedDashboardEditState(
+                        createDashboardTestStore({ haveFiltersChanged }),
+                        { isAddFilterDisabled: true },
+                    )}
+                >
+                    <AddFilterButton
+                        isEditMode={false}
+                        activeTabUuid={undefined}
+                        openPopoverId={undefined}
+                        onPopoverOpen={vi.fn()}
+                        onPopoverClose={vi.fn()}
+                        onSave={vi.fn()}
+                        onResetDashboardFilters={vi.fn()}
+                    />
+                </DashboardStoreTestProvider>,
+            );
+            expect(
+                screen.queryByRole('button', { name: /add filter/i }),
+            ).not.toBeInTheDocument();
+            if (shownLabel === null) {
+                expect(
+                    screen.queryByRole('button', {
+                        name: 'Reset all filters',
+                    }),
+                ).not.toBeInTheDocument();
+            } else {
+                expect(
+                    screen.getByRole('button', { name: shownLabel }),
+                ).toBeInTheDocument();
+            }
+        },
+    );
+});

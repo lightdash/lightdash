@@ -3,6 +3,7 @@ import {
     DimensionType,
     ExploreType,
     FilterOperator,
+    getDefaultExplorePrefix,
     getItemMap,
     UnexpectedServerError,
     type Explore,
@@ -11,9 +12,11 @@ import {
 import {
     buildApiSourceExplores,
     compileApiSourceMetricQuery,
+    describeApiSourceTarget,
+    getApiSourceDefinitionHashes,
     getApiSourceExploreNames,
     getLegacyLiveSourceName,
-    getLiveSourceNameBase,
+    getLostApiSourceFieldIds,
     toApiSourceResult,
     toPeriodStart,
     toScannedLiveSourceFields,
@@ -91,10 +94,10 @@ describe('live source names', () => {
 
     test('a new name comes from the source name, as a lowercase identifier', () => {
         expect(
-            getLiveSourceNameBase(ApiConnectorType.GA4, 'Google Analytics'),
+            getDefaultExplorePrefix(ApiConnectorType.GA4, 'Google Analytics'),
         ).toBe('google_analytics');
         expect(
-            getLiveSourceNameBase(
+            getDefaultExplorePrefix(
                 ApiConnectorType.POSTHOG,
                 'Product analytics',
             ),
@@ -103,7 +106,7 @@ describe('live source names', () => {
 
     test('a name that is no identifier falls back to the integration', () => {
         expect(
-            getLiveSourceNameBase(ApiConnectorType.POSTHOG, '2024 events'),
+            getDefaultExplorePrefix(ApiConnectorType.POSTHOG, '2024 events'),
         ).toBe('posthog');
     });
 
@@ -443,5 +446,206 @@ describe('toPeriodStart', () => {
         ['(other)', 'iso_week', '(other)'],
     ] as const)('reads %s as a %s starting %s', (value, format, expected) => {
         expect(toPeriodStart(value, format)).toBe(expected);
+    });
+});
+
+describe('definition hashes', () => {
+    const scan: ApiSourceScan = {};
+    const build = (sourceName: string, name: string) =>
+        buildApiSourceExplores({
+            connectionUuid: CONNECTION_UUID,
+            sourceName,
+            name,
+            apiSource: {
+                connector: ApiConnectorType.SEARCH_CONSOLE,
+                siteUrl: 'sc-domain:example.com',
+            },
+            scannedFields: toScannedLiveSourceFields(
+                ApiConnectorType.SEARCH_CONSOLE,
+                scan,
+            ),
+            edits: {},
+        });
+
+    it.each(Object.values(ApiConnectorType))(
+        'hashes %s from code alone, the same for every source',
+        (connector) => {
+            const hashes = getApiSourceDefinitionHashes(connector);
+            expect(Object.values(hashes).length).toBeGreaterThan(0);
+            Object.values(hashes).forEach((hash) =>
+                expect(hash).toMatch(/^[0-9a-f]{64}$/),
+            );
+        },
+    );
+
+    it('stores the same hash whatever the prefix or label', () => {
+        const [first] = build('marketing', 'Marketing site');
+        const [second] = build('docs', 'Docs site');
+        expect(first.apiSource?.definitionHash).toBe(
+            second.apiSource?.definitionHash,
+        );
+        expect(first.apiSource?.definitionHash).toBe(
+            Object.values(
+                getApiSourceDefinitionHashes(ApiConnectorType.SEARCH_CONSOLE),
+            )[0],
+        );
+    });
+
+    it('stores the same hash when a field edit changes the explore', () => {
+        const apiSource = {
+            connector: ApiConnectorType.SEARCH_CONSOLE,
+            siteUrl: 'sc-domain:example.com',
+        } as const;
+        const [plain] = build('site', 'Site');
+        const [edited] = buildApiSourceExplores({
+            connectionUuid: CONNECTION_UUID,
+            sourceName: 'site',
+            name: 'Site',
+            apiSource,
+            scannedFields: [],
+            edits: { query: { label: 'Search term', lastEdit: null } },
+        });
+        expect(edited.apiSource?.definitionHash).toBe(
+            plain.apiSource?.definitionHash,
+        );
+    });
+});
+
+describe('explore AI hints', () => {
+    it.each([
+        [
+            {
+                connector: ApiConnectorType.SEARCH_CONSOLE,
+                siteUrl: 'https://example.com/',
+            } as const,
+            'https://searchconsole.googleapis.com',
+            null,
+            'Search Console site https://example.com/',
+        ],
+        [
+            { connector: ApiConnectorType.GA4, propertyId: '123' } as const,
+            'https://analyticsdata.googleapis.com',
+            'Marketing site',
+            'Google Analytics property "Marketing site" (ID 123)',
+        ],
+        [
+            { connector: ApiConnectorType.GA4, propertyId: '123' } as const,
+            'https://analyticsdata.googleapis.com',
+            null,
+            'Google Analytics property 123',
+        ],
+        [
+            {
+                connector: ApiConnectorType.POSTHOG,
+                projectId: '303731',
+            } as const,
+            'https://eu.posthog.com',
+            null,
+            'PostHog project 303731, EU region',
+        ],
+        [
+            {
+                connector: ApiConnectorType.GOOGLE_ADS,
+                customerId: '123',
+                loginCustomerId: null,
+            } as const,
+            'https://googleads.googleapis.com',
+            'Brand account',
+            'Google Ads account "Brand account" (ID 123)',
+        ],
+        [
+            {
+                connector: ApiConnectorType.YOUTUBE_ANALYTICS,
+                channelId: 'UC123',
+            } as const,
+            'https://youtubeanalytics.googleapis.com',
+            null,
+            'YouTube channel UC123',
+        ],
+        [
+            {
+                connector: ApiConnectorType.LINKEDIN_ADS,
+                adAccountId: '456',
+            } as const,
+            'https://api.linkedin.com',
+            null,
+            'LinkedIn Ads account 456',
+        ],
+        [
+            {
+                connector: ApiConnectorType.META_ADS,
+                adAccountId: '789',
+            } as const,
+            'https://graph.facebook.com',
+            null,
+            'Meta Ads account 789',
+        ],
+    ])('describes the target of %j', (apiSource, origin, label, expected) => {
+        expect(describeApiSourceTarget(apiSource, origin, label)).toBe(
+            expected,
+        );
+    });
+
+    it('stores the target first, then the admin text, and keeps the hash', () => {
+        const apiSource = {
+            connector: ApiConnectorType.SEARCH_CONSOLE,
+            siteUrl: 'https://example.com/',
+        } as const;
+        const args = {
+            connectionUuid: CONNECTION_UUID,
+            sourceName: 'site',
+            name: 'Site',
+            apiSource,
+            scannedFields: [],
+            edits: {},
+        };
+        const [hinted] = buildApiSourceExplores({
+            ...args,
+            aiHint: ['Search Console site https://example.com/', 'EU store'],
+        });
+        const [plain] = buildApiSourceExplores(args);
+        expect(hinted.aiHint).toEqual([
+            'Search Console site https://example.com/',
+            'EU store',
+        ]);
+        expect(hinted.apiSource?.definitionHash).toBe(
+            plain.apiSource?.definitionHash,
+        );
+        // A source hint must not leak onto the fields
+        Object.values(hinted.tables.site_performance.dimensions).forEach(
+            (dimension) => expect(dimension.aiHint).toBeUndefined(),
+        );
+    });
+});
+
+describe('getLostApiSourceFieldIds', () => {
+    const rebuilt = [
+        {
+            name: 'site_performance',
+            apiSource: { fields: { site_performance_clicks: {} } },
+        },
+    ] as unknown as Explore[];
+
+    it('reports a stored field the rebuild no longer has', () => {
+        expect(
+            getLostApiSourceFieldIds({
+                storedFieldIds: [
+                    'site_performance_clicks',
+                    'site_performance_custom',
+                ],
+                rebuilt,
+                edits: {},
+            }),
+        ).toEqual(['site_performance_custom']);
+    });
+
+    it('allows dropping a field an admin took out of use', () => {
+        expect(
+            getLostApiSourceFieldIds({
+                storedFieldIds: ['site_performance_custom'],
+                rebuilt,
+                edits: { custom: { inUse: false, lastEdit: null } },
+            }),
+        ).toEqual([]);
     });
 });

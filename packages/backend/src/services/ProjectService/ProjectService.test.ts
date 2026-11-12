@@ -19529,6 +19529,7 @@ describe('available filter week boundaries', () => {
                 uuid: `weekly-chart-${index}`,
                 name: 'Weekly chart',
                 tableName,
+                exploreNames: [tableName],
                 projectUuid: projectSummary.projectUuid,
                 spaceUuid: 'space',
                 dashboardUuid: null,
@@ -19639,6 +19640,7 @@ describe('dashboard available filters', () => {
                 uuid: `chart-${index}`,
                 name: `Chart ${index}`,
                 tableName,
+                exploreNames: [tableName],
                 projectUuid: projectSummary.projectUuid,
                 spaceUuid: 'space',
                 dashboardUuid: null,
@@ -19700,6 +19702,106 @@ describe('dashboard available filters', () => {
             'tile-2': [0],
         });
     });
+
+    test('offers a merged tile the fields of every query it merges', async () => {
+        const filterAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'SavedChart', action: 'view' },
+                ]),
+            },
+        } as typeof account;
+        const exploreOf = (name: string) => ({
+            ...validExplore,
+            name,
+            tables: {
+                [name]: {
+                    ...validExplore.tables.a,
+                    name,
+                    dimensions: {
+                        id: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            table: name,
+                            name: 'id',
+                        },
+                    },
+                    metrics: {
+                        total: {
+                            ...validExplore.tables.a.metrics.met1,
+                            table: name,
+                            name: 'total',
+                        },
+                    },
+                },
+            },
+        });
+        const charts = [
+            { uuid: 'merged', exploreNames: ['orders', 'payments'] },
+            { uuid: 'plain', exploreNames: ['orders'] },
+        ].map(({ uuid, exploreNames }) => ({
+            uuid,
+            name: uuid,
+            tableName: exploreNames[0],
+            exploreNames,
+            projectUuid: projectSummary.projectUuid,
+            spaceUuid: 'space',
+            dashboardUuid: null,
+        }));
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce(
+            charts,
+        );
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce([
+            exploreOf('orders'),
+            exploreOf('payments'),
+        ]);
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                spacePermissionService: {
+                    resolveAccessBatch: vi.fn().mockResolvedValue(
+                        charts.map((chart) => ({
+                            target: { type: 'chart', chartUuid: chart.uuid },
+                            context: {
+                                organizationUuid:
+                                    account.organization.organizationUuid,
+                                projectUuid: projectSummary.projectUuid,
+                                inheritsFromOrgOrProject: true,
+                                access: [],
+                            },
+                        })),
+                    ),
+                } as unknown as SpacePermissionService,
+            },
+        );
+
+        const result = await service.getAvailableFiltersForSavedQueries(
+            filterAccount,
+            charts.map((chart) => ({
+                savedChartUuid: chart.uuid,
+                tileUuid: `tile-${chart.uuid}`,
+            })),
+        );
+
+        expect(result.allFilterableFields.map(getItemId)).toEqual([
+            'orders_id',
+            'payments_id',
+        ]);
+        expect(result.allFilterableMetrics.map(getItemId)).toEqual([
+            'orders_total',
+            'payments_total',
+        ]);
+        expect(result.savedQueryFilters).toEqual({
+            'tile-merged': [0, 1],
+            'tile-plain': [0],
+        });
+        expect(result.savedQueryMetricFilters).toEqual({
+            'tile-merged': [0, 1],
+            'tile-plain': [0],
+        });
+    });
 });
 
 describe('dashboard available filters hidden fields', () => {
@@ -19752,6 +19854,7 @@ describe('dashboard available filters hidden fields', () => {
             uuid,
             name: uuid,
             tableName,
+            exploreNames: [tableName],
             projectUuid: projectSummary.projectUuid,
             spaceUuid: 'space',
             dashboardUuid: null,

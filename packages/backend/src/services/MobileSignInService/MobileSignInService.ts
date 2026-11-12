@@ -15,6 +15,7 @@ import {
     type MobileSignInCode,
     type MobileSignInCodeState,
     type MobileSignInDecision,
+    type MobileSignInDeclinedBy,
     type MobileSignInMintReason,
     type MobileSignInPlatform,
     type SessionUser,
@@ -39,6 +40,7 @@ import {
     isMobileSignInCode,
     MobileSignInCodeModel,
     type MobileSignInCodeOwner,
+    type MobileSignInCodeRow,
 } from '../../models/MobileSignInCodeModel';
 import { isMobileOAuthClient, OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
@@ -61,6 +63,23 @@ type RedeemArgs = {
     isScopeAllowed: (user: SessionUser) => Promise<boolean>;
 };
 
+type VerifiedRedeemArgs = RedeemArgs & { codeVerifier: string };
+
+const DECLINED_BY_VALUES: MobileSignInDeclinedBy[] = [
+    'web',
+    'phone',
+    'failed_redeems',
+];
+
+const getDeclinedBy = (
+    row: Pick<MobileSignInCodeRow, 'effective_status' | 'declined_by'>,
+): MobileSignInDeclinedBy | null =>
+    row.effective_status === MobileSignInCodeStatus.DECLINED &&
+    row.declined_by !== null &&
+    DECLINED_BY_VALUES.includes(row.declined_by)
+        ? row.declined_by
+        : null;
+
 const SUPPORTED_MODES: LightdashMode[] = [
     LightdashMode.CLOUD_BETA,
     LightdashMode.PR,
@@ -81,6 +100,7 @@ const PHONE_REFUSAL_DESCRIPTIONS: Partial<Record<MobileSignInRefusal, string>> =
 
 const UNCOUNTED_REDEEM_ERRORS: MobileSignInOAuthError['error'][] = [
     'authorization_pending',
+    'match_number_required',
     'slow_down',
 ];
 
@@ -102,6 +122,11 @@ export const MOBILE_SIGN_IN_RATE_LIMITS = {
     },
     claimPerIp: {
         scope: 'mobile_sign_in.claim.ip',
+        limit: 20,
+        windowSeconds: 60,
+    },
+    cancelPerIp: {
+        scope: 'mobile_sign_in.cancel.ip',
         limit: 20,
         windowSeconds: 60,
     },
@@ -205,7 +230,7 @@ export class MobileSignInService extends BaseService {
         code: TrackedCode,
         extra: {
             reason?: MobileSignInMintReason;
-            declinedBy?: 'web' | 'failed_redeems';
+            declinedBy?: MobileSignInDeclinedBy;
         } = {},
     ): void {
         this.analytics.track({
@@ -442,17 +467,16 @@ export class MobileSignInService extends BaseService {
             sessionId,
         });
         if (!row) throw new NotFoundError('Sign-in code not found');
-        const showsNumber =
-            row.effective_status === MobileSignInCodeStatus.CLAIMED ||
-            row.effective_status === MobileSignInCodeStatus.APPROVED;
         return {
             codeUuid: row.mobile_sign_in_code_uuid,
             status: row.effective_status,
             expiresAt: row.expires_at.toISOString(),
             matchNumber:
-                showsNumber && row.match_number !== null
+                row.effective_status === MobileSignInCodeStatus.APPROVED &&
+                row.match_number !== null
                     ? formatMobileSignInMatchNumber(row.match_number)
                     : null,
+            declinedBy: getDeclinedBy(row),
             device:
                 row.client_id === null
                     ? null
@@ -721,6 +745,69 @@ export class MobileSignInService extends BaseService {
         };
     }
 
+    async cancelFromPhone(
+        body: Record<string, unknown>,
+        context: MobileSignInRequestContext,
+    ): Promise<void> {
+        await this.consumeIpLimit(
+            MOBILE_SIGN_IN_RATE_LIMITS.cancelPerIp,
+            context.ip,
+        );
+        const { code, client_id: clientId, code_verifier: codeVerifier } = body;
+        if (!isMobileSignInCode(code)) {
+            throw new MobileSignInOAuthError('invalid_request', {
+                description: 'code',
+            });
+        }
+        if (
+            typeof codeVerifier !== 'string' ||
+            !VERIFIER_PATTERN.test(codeVerifier)
+        ) {
+            throw new MobileSignInOAuthError('invalid_request', {
+                description: 'code_verifier',
+            });
+        }
+        const client = await this.getMobileClient(clientId);
+        await this.assertAvailableForCode(code);
+        const result = await this.mobileSignInCodeModel.cancelFromPhone({
+            code,
+            clientId: client.id,
+            codeVerifier,
+        });
+        switch (result.outcome) {
+            case 'cancelled':
+                if (!result.isRepeat) {
+                    this.track(
+                        'mobile_sign_in_code.declined',
+                        {
+                            codeUuid: result.row.mobile_sign_in_code_uuid,
+                            userUuid: result.row.user_uuid,
+                            organizationUuid: result.row.organization_uuid,
+                            platform: result.row.reported_platform,
+                        },
+                        { declinedBy: 'phone' },
+                    );
+                }
+                return;
+            case 'expired':
+                throw new MobileSignInOAuthError('expired_token');
+            case 'code_mismatch':
+                throw new MobileSignInOAuthError('invalid_grant', {
+                    description: 'code_mismatch',
+                });
+            case 'declined':
+                throw new MobileSignInOAuthError('invalid_grant', {
+                    description: 'declined',
+                });
+            case 'redeemed':
+                throw new MobileSignInOAuthError('invalid_grant', {
+                    description: 'code_already_used',
+                });
+            default:
+                throw new Error('Unknown mobile sign-in cancel outcome');
+        }
+    }
+
     async redeem(
         args: RedeemArgs,
         context: MobileSignInRequestContext,
@@ -754,6 +841,12 @@ export class MobileSignInService extends BaseService {
             throw new MobileSignInOAuthError('invalid_request', {
                 description: 'code_verifier',
             });
+        }
+        if (args.matchNumber === undefined) {
+            return this.probeCode(
+                { ...args, codeVerifier: args.codeVerifier },
+                context,
+            );
         }
         if (
             typeof args.matchNumber !== 'string' ||
@@ -827,6 +920,41 @@ export class MobileSignInService extends BaseService {
                 reportedPlatform: row.reported_platform,
             },
         };
+    }
+
+    private async probeCode(
+        args: VerifiedRedeemArgs,
+        context: MobileSignInRequestContext,
+    ): Promise<never> {
+        const owner = await this.assertAvailableForCode(args.code);
+        if (owner) await this.assertOwnerMayRedeem(owner, args, context);
+        const result = await this.mobileSignInCodeModel.probe({
+            code: args.code,
+            clientId: args.clientId,
+            codeVerifier: args.codeVerifier,
+        });
+        switch (result.outcome) {
+            case 'authorization_pending':
+                throw new MobileSignInOAuthError('authorization_pending');
+            case 'match_number_required':
+                throw new MobileSignInOAuthError('match_number_required', {
+                    description: 'approved',
+                });
+            case 'slow_down':
+                throw new MobileSignInOAuthError('slow_down');
+            case 'declined':
+                throw new MobileSignInOAuthError('access_denied', {
+                    description: 'declined',
+                });
+            case 'expired':
+                throw new MobileSignInOAuthError('expired_token');
+            case 'code_mismatch':
+                throw new MobileSignInOAuthError('invalid_grant', {
+                    description: 'code_mismatch',
+                });
+            default:
+                throw new Error('Unknown mobile sign-in probe outcome');
+        }
     }
 
     private async assertOwnerMayRedeem(

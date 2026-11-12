@@ -74,7 +74,7 @@ export const getItemLabelWithoutTableName = (item: Item) => {
 };
 
 export const getItemLabel = (item: Item) =>
-    (isField(item) ? `${item.tableLabel} ` : '') +
+    (isField(item) && item.tableLabel ? `${item.tableLabel} ` : '') +
     getItemLabelWithoutTableName(item);
 
 export function getItemType(

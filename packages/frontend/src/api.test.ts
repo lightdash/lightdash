@@ -575,6 +575,21 @@ describe('network error messages', () => {
         });
     });
 
+    it('resolves a 204 No Content response without an error', async () => {
+        globalThis.fetch = vi
+            .fn()
+            .mockResolvedValue(new Response(null, { status: 204 }));
+
+        await expect(
+            sharedLightdashApi({
+                method: 'DELETE',
+                url: '/user/mobile/sign-in-codes/code-1',
+                body: undefined,
+            }),
+        ).resolves.toBeNull();
+        expect(console.error).not.toHaveBeenCalled();
+    });
+
     it('reports the HTTP status when the response is not the API envelope', async () => {
         globalThis.fetch = vi.fn().mockResolvedValue(
             new Response('<html>blocked</html>', {

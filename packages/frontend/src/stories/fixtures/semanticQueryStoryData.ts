@@ -2,7 +2,9 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
+    friendlyName,
     getItemMap,
+    MergeJoinType,
     MetricType,
     QuerySourceType,
     SupportedDbtAdapter,
@@ -11,6 +13,7 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
+    type MergeSourceQuery,
     type ParametersValuesMap,
     type SemanticLayerSourceQuery,
 } from '@lightdash/common';
@@ -31,16 +34,17 @@ const dimension = (
     label: string,
     type: DimensionType,
     timeInterval?: TimeFrames,
+    table = 'orders',
 ): CompiledDimension => ({
     fieldType: FieldType.DIMENSION,
     type,
     name,
     label,
-    table: 'orders',
-    tableLabel: 'Orders',
+    table,
+    tableLabel: friendlyName(table),
     sql: `\${TABLE}.${name}`,
-    compiledSql: `"orders".${name}`,
-    tablesReferences: ['orders'],
+    compiledSql: `"${table}".${name}`,
+    tablesReferences: [table],
     source,
     hidden: false,
     groups: [],
@@ -51,16 +55,17 @@ const metric = (
     name: string,
     label: string,
     type: MetricType,
+    table = 'orders',
 ): CompiledMetric => ({
     fieldType: FieldType.METRIC,
     type,
     name,
     label,
-    table: 'orders',
-    tableLabel: 'Orders',
+    table,
+    tableLabel: friendlyName(table),
     sql: `\${TABLE}.${name}`,
-    compiledSql: `"orders".${name}`,
-    tablesReferences: ['orders'],
+    compiledSql: `"${table}".${name}`,
+    tablesReferences: [table],
     source,
     hidden: false,
     groups: [],
@@ -179,3 +184,144 @@ export const ordersSemanticNode: SemanticLayerSourceQuery = {
 
 export const ordersParameters: ParametersValuesMap =
     ordersSemanticNode.parameters ?? {};
+
+export const sessionsExplore: Explore = {
+    ...ordersExplore,
+    name: 'web_sessions',
+    label: 'Web sessions',
+    baseTable: 'web_sessions',
+    tables: {
+        web_sessions: {
+            ...ordersExplore.tables.orders,
+            name: 'web_sessions',
+            label: 'Web sessions',
+            sqlTable: 'jaffle.web_sessions',
+            dimensions: {
+                session_week: dimension(
+                    'session_week',
+                    'Session week',
+                    DimensionType.DATE,
+                    TimeFrames.WEEK,
+                    'web_sessions',
+                ),
+            },
+            metrics: {
+                session_count: metric(
+                    'session_count',
+                    'Sessions',
+                    MetricType.COUNT,
+                    'web_sessions',
+                ),
+            },
+        },
+    },
+};
+
+/** Weekly revenue by status, with each week's sessions repeated on every status. */
+export const mergeStoryQueries: [
+    SemanticLayerSourceQuery,
+    SemanticLayerSourceQuery,
+    MergeSourceQuery,
+] = [
+    {
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'weekly_revenue',
+        title: 'Weekly revenue by status',
+        exploreName: 'orders',
+        dimensions: ['orders_order_date_week', 'orders_status'],
+        metrics: ['orders_total_order_amount'],
+        filters: {},
+        sorts: [],
+        limit: 500,
+    },
+    {
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'weekly_sessions',
+        title: 'Weekly web sessions',
+        exploreName: 'web_sessions',
+        dimensions: ['web_sessions_session_week'],
+        metrics: ['web_sessions_session_count'],
+        filters: {},
+        sorts: [],
+        limit: 500,
+    },
+    {
+        sourceType: QuerySourceType.MERGE,
+        nodeId: 'revenue_per_session',
+        title: 'Revenue per session',
+        description: 'Weekly revenue by status beside that week’s sessions.',
+        sources: [
+            { nodeId: 'weekly_revenue' },
+            { nodeId: 'weekly_sessions', repeatValues: true },
+        ],
+        joinKey: [
+            {
+                name: 'week',
+                fieldIdBySourceId: {
+                    weekly_revenue: 'orders_order_date_week',
+                    weekly_sessions: 'web_sessions_session_week',
+                },
+            },
+        ],
+        joinType: MergeJoinType.LEFT,
+        tableCalculations: [
+            {
+                name: 'revenue_per_session',
+                displayName: 'Revenue per session',
+                sql: '',
+                formula:
+                    '=weekly_revenue_orders_total_order_amount / weekly_sessions_web_sessions_session_count',
+            },
+        ],
+        sorts: [{ fieldId: 'merge_week', descending: true }],
+        limit: 500,
+    },
+];
+
+/** Three steps on one week key; two supply a column with the same label. */
+export const mergeManyStepsStoryQueries: [
+    SemanticLayerSourceQuery,
+    SemanticLayerSourceQuery,
+    SemanticLayerSourceQuery,
+    MergeSourceQuery,
+] = [
+    mergeStoryQueries[0],
+    {
+        ...mergeStoryQueries[0],
+        nodeId: 'weekly_revenue_last_year',
+        title: 'Weekly revenue last year',
+    },
+    mergeStoryQueries[1],
+    {
+        sourceType: QuerySourceType.MERGE,
+        nodeId: 'revenue_change',
+        title: 'Revenue change by week',
+        description: 'This year’s weekly revenue against last year’s.',
+        sources: [
+            { nodeId: 'weekly_revenue' },
+            { nodeId: 'weekly_revenue_last_year' },
+            { nodeId: 'weekly_sessions' },
+        ],
+        joinKey: [
+            {
+                name: 'week',
+                fieldIdBySourceId: {
+                    weekly_revenue: 'orders_order_date_week',
+                    weekly_revenue_last_year: 'orders_order_date_week',
+                    weekly_sessions: 'web_sessions_session_week',
+                },
+            },
+        ],
+        joinType: MergeJoinType.INNER,
+        tableCalculations: [
+            {
+                name: 'revenue_change',
+                displayName: 'Revenue change',
+                sql: '',
+                formula:
+                    '=weekly_revenue_orders_total_order_amount / weekly_revenue_last_year_orders_total_order_amount - 1',
+            },
+        ],
+        sorts: [{ fieldId: 'merge_revenue_change', descending: true }],
+    },
+];

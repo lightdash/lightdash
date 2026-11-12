@@ -14,6 +14,7 @@ import {
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
     dataAppVizSchema,
+    DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
     DimensionType,
     DOCUMENT_CONVERSATION_TAGS,
     documentAsCodeSchema,
@@ -4767,10 +4768,12 @@ export class AiAgentToolsService extends BaseService {
             onNodeStatus,
             deadlineMs,
             timeoutMessage,
+            readAllTerminalRows = false,
         }: Parameters<RunComposerQueriesFn>[0] & {
             deadlineMs: number;
             /** Fails the run at the deadline instead of returning running. */
             timeoutMessage?: string;
+            readAllTerminalRows?: boolean;
         },
     ): ReturnType<RunComposerQueriesUntilDeadlineFn> {
         return wrapSentryTransaction(
@@ -4919,12 +4922,13 @@ export class AiAgentToolsService extends BaseService {
                 const terminalQuery = queries.find(
                     (query) => query.nodeId === terminalNodeId,
                 );
-                // Callers read only a preview; rowCount comes from the stored total.
-                const pageSize = Math.min(
+                const terminalLimit =
                     terminalQuery?.limit ??
-                        this.lightdashConfig.ai.copilot.maxQueryLimit,
-                    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
-                );
+                    this.lightdashConfig.ai.copilot.maxQueryLimit;
+                // Previews leave rowCount to the stored total.
+                const pageSize = readAllTerminalRows
+                    ? terminalLimit
+                    : Math.min(terminalLimit, COMPOSER_QUERY_PREVIEW_ROW_LIMIT);
 
                 const otherUnreadSubmissions = submissions.filter(
                     (submission) =>
@@ -5033,6 +5037,7 @@ export class AiAgentToolsService extends BaseService {
             page: 1,
             aiAccessOnly: true,
             pageSize,
+            maxPageSize: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
         });
     }
 

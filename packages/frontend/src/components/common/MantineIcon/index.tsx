@@ -1,9 +1,6 @@
 import type { MantineColor, MantineSpacing } from '@mantine/core';
-import {
-    type TablerIconsProps,
-    type Icon as TablerIconType,
-} from '@tabler/icons-react';
-import { forwardRef } from 'react';
+import { type IconProps } from '@tabler/icons-react';
+import { forwardRef, type FunctionComponent, type RefAttributes } from 'react';
 
 /** Theme spacing keys we use for icons (see mantineTheme spacing). Extends MantineSpacing for autocomplete. */
 export type MantineIconSize =
@@ -18,8 +15,8 @@ export type MantineIconSize =
     | '9xl'
     | number;
 
-export interface MantineIconProps extends Omit<TablerIconsProps, 'ref'> {
-    icon: TablerIconType;
+export interface MantineIconProps extends IconProps {
+    icon: FunctionComponent<IconProps & RefAttributes<SVGSVGElement>>;
     size?: MantineIconSize;
     stroke?: MantineIconSize;
     color?: MantineColor;
