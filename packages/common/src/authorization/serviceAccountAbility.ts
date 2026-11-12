@@ -33,7 +33,7 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
         can('view', 'JobStatus', {
-            // createdByUserUuid: userUuid,
+            organizationUuid,
         });
         can('view', 'PinnedItems', {
             organizationUuid,
