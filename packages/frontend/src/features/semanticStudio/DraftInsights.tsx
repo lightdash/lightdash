@@ -32,7 +32,6 @@ import {
     IconArrowUp,
     IconGitMerge,
     IconArrowsDiff,
-    IconSparkles,
     IconInfoCircle,
     IconTable,
     IconTrash,
@@ -73,22 +72,6 @@ const listNames = (names: string[]): string =>
 
 const describePath = (path: string): string =>
     path === '' ? 'the whole model' : path;
-
-const toSides = (
-    publisher: string | null,
-): {
-    key: 'base' | 'live' | 'mine';
-    label: string;
-    absent: string;
-}[] => [
-    { key: 'base', label: 'When you started', absent: 'Not there' },
-    {
-        key: 'live',
-        label: publisher ? `${publisher}'s version` : 'Live now',
-        absent: 'Removed',
-    },
-    { key: 'mine', label: 'Yours', absent: 'Removed' },
-];
 
 /** A part's name as a person would say it; a nested part keeps its path. */
 const PartName: FC<{ path: string }> = ({ path }) =>
@@ -159,7 +142,36 @@ const KeepMineButton: FC<{
     );
 };
 
-/** One part that changed live and in the draft: each version side by side, chosen where it is shown. */
+/** One of the two versions a contested part can end up as, with what choosing it does. */
+const ConflictOption: FC<{
+    who: string;
+    state: string;
+    value: string;
+    consequence: string;
+    action: ReactNode;
+}> = ({ who, state, value, consequence, action }) => (
+    <Box className={classes.option}>
+        <Group gap="xs" justify="space-between" wrap="nowrap" mih={22}>
+            <Text fz="xs" truncate>
+                <Text span fw={600}>
+                    {who}
+                </Text>{' '}
+                <Text span c="dimmed">
+                    · {state}
+                </Text>
+            </Text>
+            {action}
+        </Group>
+        <Box component="pre" className={classes.value}>
+            {value}
+        </Box>
+        <Text fz="xs" c="dimmed">
+            {consequence}
+        </Text>
+    </Box>
+);
+
+/** One part that changed live and in the draft, drawn as the fork it is: where it started, and the two versions it became. */
 const ConflictSides: FC<{
     projectUuid: string;
     model: SemanticLayerDraftModel;
@@ -167,42 +179,51 @@ const ConflictSides: FC<{
     /** Off with several contested parts, where keeping the draft settles all of them at once. */
     canKeepMineHere: boolean;
 }> = ({ projectUuid, model, conflict, canKeepMineHere }) => (
-    <Stack gap={4} className={classes.conflict}>
+    <Stack gap={6} className={classes.conflict}>
         <PartName path={conflict.path} />
-        <Box className={classes.sides}>
-            {toSides(model.publishedSince?.by ?? null).map(
-                ({ key, label, absent }) => (
-                    <Stack key={key} gap={2} miw={0}>
-                        <Group
-                            gap="xs"
-                            justify="space-between"
-                            wrap="nowrap"
-                            mih={22}
-                        >
-                            <Text fz="xs" c="dimmed" truncate>
-                                {label}
-                            </Text>
-                            {key === 'live' ? (
-                                <TakeTheirsButton
-                                    projectUuid={projectUuid}
-                                    model={model.model}
-                                    path={conflict.path}
-                                />
-                            ) : null}
-                            {key === 'mine' && canKeepMineHere ? (
-                                <KeepMineButton
-                                    projectUuid={projectUuid}
-                                    model={model}
-                                    label="Use this"
-                                />
-                            ) : null}
-                        </Group>
-                        <Box component="pre" className={classes.side}>
-                            {conflict[key] ?? absent}
-                        </Box>
-                    </Stack>
-                ),
-            )}
+        <Box className={classes.fork}>
+            <Box className={classes.base}>
+                <Text fz="xs" c="dimmed">
+                    When you started
+                </Text>
+                <Box component="pre" className={classes.side}>
+                    {conflict.base ?? 'Not there'}
+                </Box>
+            </Box>
+            <Box className={classes.branches}>
+                <ConflictOption
+                    who={model.publishedSince?.by ?? 'Someone else'}
+                    state="Live now"
+                    value={conflict.live ?? 'Removed'}
+                    consequence={
+                        conflict.path === ''
+                            ? 'Choosing this drops everything you changed on this model.'
+                            : 'Choosing this drops your change to this part.'
+                    }
+                    action={
+                        <TakeTheirsButton
+                            projectUuid={projectUuid}
+                            model={model.model}
+                            path={conflict.path}
+                        />
+                    }
+                />
+                <ConflictOption
+                    who="You"
+                    state="In development"
+                    value={conflict.mine ?? 'Removed'}
+                    consequence="Choosing this replaces theirs when you publish."
+                    action={
+                        canKeepMineHere ? (
+                            <KeepMineButton
+                                projectUuid={projectUuid}
+                                model={model}
+                                label="Use this"
+                            />
+                        ) : null
+                    }
+                />
+            </Box>
         </Box>
     </Stack>
 );
@@ -215,7 +236,7 @@ const NoticeRow: FC<{
 }> = ({ icon, color, children }) => (
     <Group gap="xs" wrap="nowrap" align="flex-start">
         <Center w={24} h={18} flex="none">
-            <MantineIcon icon={icon} size={14} color={color} />
+            <MantineIcon icon={icon} size={16} color={color} />
         </Center>
         {children}
     </Group>
@@ -225,8 +246,7 @@ const NoticeRow: FC<{
 export const ModelNotices: FC<{
     projectUuid: string;
     model: SemanticLayerDraftModel;
-    onAskAgent: (prompt: string) => void;
-}> = ({ projectUuid, model, onAskAgent }) => {
+}> = ({ projectUuid, model }) => {
     const publishedAgo = useTimeAgo(model.publishedSince?.at ?? new Date());
     const conflicts = model.reconciliation?.conflicts ?? [];
     const merged = model.reconciliation?.merged ?? [];
@@ -246,14 +266,21 @@ export const ModelNotices: FC<{
             {conflicts.length > 0 ? (
                 <Stack gap="xs" data-conflict>
                     <NoticeRow icon={IconAlertTriangle} color="yellow">
-                        <Text fz="xs" flex={1}>
-                            {publisher} published a change to{' '}
-                            {conflicts.length === 1
-                                ? 'a part'
-                                : `${conflicts.length} parts`}{' '}
-                            of this model that you changed too. Pick the version
-                            to keep before you publish.
-                        </Text>
+                        <Box flex={1}>
+                            <Text fz="xs">
+                                <Text span fw={600}>
+                                    {publisher}
+                                </Text>{' '}
+                                published a change to{' '}
+                                {conflicts.length === 1
+                                    ? 'a part'
+                                    : `${conflicts.length} parts`}{' '}
+                                of this model that you changed too.
+                            </Text>
+                            <Text fz="xs" c="dimmed">
+                                Pick the version to keep before you publish.
+                            </Text>
+                        </Box>
                     </NoticeRow>
                     {conflicts.map((conflict) => (
                         <ConflictSides
@@ -264,48 +291,25 @@ export const ModelNotices: FC<{
                             canKeepMineHere={conflicts.length === 1}
                         />
                     ))}
-                    <Group gap={4} className={classes.conflictActions}>
-                        {conflicts.length > 1 ? (
+                    {conflicts.length > 1 ? (
+                        <Box className={classes.conflictActions}>
                             <KeepMineButton
                                 projectUuid={projectUuid}
                                 model={model}
                                 label={`Keep mine for all ${conflicts.length} parts`}
                             />
-                        ) : null}
-                        <Tooltip label="Has the agent propose a version that keeps both changes where it can.">
-                            <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconSparkles}
-                                        size={12}
-                                    />
-                                }
-                                onClick={() =>
-                                    onAskAgent(
-                                        [
-                                            `Someone published changes to the model ${model.model} in parts my changes in development also change.`,
-                                            ...conflicts.map(
-                                                ({ path, live, mine }) =>
-                                                    `${describePath(path)}: live now is ${live ?? 'removed'}; mine is ${mine ?? 'removed'}.`,
-                                            ),
-                                            'Read the model as it is live and propose a change that keeps both where they can be combined. Where they cannot, say so and ask me which to keep.',
-                                        ].join(' '),
-                                    )
-                                }
-                            >
-                                Combine both
-                            </Button>
-                        </Tooltip>
-                    </Group>
+                        </Box>
+                    ) : null}
                 </Stack>
             ) : null}
             {publishedUnder && conflicts.length === 0 ? (
                 <NoticeRow icon={IconGitMerge} color="dimmed">
                     <Text fz="xs" c="dimmed">
-                        {publisher} published a change to this model{' '}
-                        {publishedAgo}, after you started
+                        <Text span fw={600}>
+                            {publisher}
+                        </Text>{' '}
+                        published a change to this model {publishedAgo}, after
+                        you started
                         {merged.length > 0
                             ? `, in ${listNames(merged.map(describePath))}, which you did not touch`
                             : ''}
@@ -316,7 +320,10 @@ export const ModelNotices: FC<{
             {model.alsoChanging.map(({ name, paths }) => (
                 <NoticeRow key={name} icon={IconUsers} color="dimmed">
                     <Text fz="xs" c="dimmed">
-                        {name} is also changing{' '}
+                        <Text span fw={600}>
+                            {name}
+                        </Text>{' '}
+                        is also changing{' '}
                         {paths.length > 0
                             ? listNames(paths.map(describePath))
                             : 'this model'}

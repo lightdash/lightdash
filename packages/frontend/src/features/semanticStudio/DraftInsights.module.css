@@ -1,5 +1,5 @@
 .notices {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm);
     border-bottom: 1px solid var(--mantine-color-default-border);
     background-color: var(--mantine-color-ldGray-0);
 }
@@ -14,10 +14,72 @@
     padding-top: var(--mantine-spacing-xs);
 }
 
-.sides {
+/* Where the part started, then a bracket down to the two versions it became. */
+.fork {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.base {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    max-width: 100%;
+}
+
+.base .side {
+    color: var(--mantine-color-dimmed);
+}
+
+.branches {
+    position: relative;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--mantine-spacing-xs);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--mantine-spacing-sm);
+    width: 100%;
+    margin-top: 18px;
+}
+
+.branches::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 25%;
+    right: 25%;
+    height: 10px;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-bottom: 0;
+    border-radius: 6px 6px 0 0;
+}
+
+.branches::after {
+    content: '';
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    height: 8px;
+    border-left: 1px solid var(--mantine-color-ldGray-3);
+}
+
+.option {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-body);
+}
+
+.value {
+    margin: 0;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .side {

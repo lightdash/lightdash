@@ -460,6 +460,8 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [discarding, setDiscarding] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
     const discard = useDiscardSemanticLayerDraft(projectUuid);
+    const impact = useSemanticLayerDraftImpact(projectUuid, null);
+    const check = useCheckSemanticLayerDraftImpact(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
     usePublishedUnderNotice(draft);
     // Once nothing is in development there is nothing to preview.
@@ -552,6 +554,19 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    <Menu.Item
+                        disabled={
+                            check.isLoading ||
+                            impact.data?.status === 'checking'
+                        }
+                        onClick={() => {
+                            check.mutate(undefined);
+                            setSearchParams({ [DRAFT_PARAM]: DRAFT_REVIEW });
+                        }}
+                    >
+                        Check saved charts and dashboards
+                    </Menu.Item>
+                    <Menu.Divider />
                     <Menu.Item color="red" onClick={() => setDiscarding(true)}>
                         Discard all changes
                     </Menu.Item>
@@ -663,9 +678,10 @@ export const DraftReview: FC<DraftReviewProps> = ({
 }) => {
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
-    // Broken charts are worth reading first; a check not yet run is not.
-    const breaksSomething =
-        impact.data?.status === 'done' && impact.data.breaks.length > 0;
+    // A check that is running or found something is worth reading; one not yet run is asked for from the menu.
+    const showsImpact =
+        impact.data?.status === 'checking' ||
+        (impact.data?.status === 'done' && impact.data.breaks.length > 0);
     // Applying or discarding the last change leaves nothing to review.
     if (draft.changes.length === 0) {
         return <Navigate to={{ search: '' }} replace />;
@@ -684,7 +700,7 @@ export const DraftReview: FC<DraftReviewProps> = ({
                     ({ model, message }) => `${model}: ${message}`,
                 )}
             />
-            {breaksSomething ? (
+            {showsImpact ? (
                 <DraftImpact projectUuid={projectUuid} model={null} />
             ) : null}
             <DraftNotes draft={draft} />
@@ -737,7 +753,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
                             <ModelNotices
                                 projectUuid={projectUuid}
                                 model={modelChange}
-                                onAskAgent={onAskAgent}
                             />
                             <ChangeDiff
                                 modelName={modelChange.model}
@@ -759,9 +774,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
                 draft={draft}
                 onAskAgent={onAskAgent}
             />
-            {breaksSomething ? null : (
-                <DraftImpact projectUuid={projectUuid} model={null} />
-            )}
         </Stack>
     );
 };
