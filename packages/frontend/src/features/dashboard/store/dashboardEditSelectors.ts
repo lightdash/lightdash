@@ -29,6 +29,8 @@ export const selectCanTidyTiles = (state: DashboardStoreState) =>
     canTidyTiles(state.edit);
 export const selectCanvasZoom = (state: DashboardStoreState) =>
     state.edit.canvasZoom;
+export const selectCanvasBackground = (state: DashboardStoreState) =>
+    state.edit.canvasBackground;
 export const selectDashboardTabs = (state: DashboardStoreState) =>
     state.edit.tabs;
 export const selectHaveTabsChanged = (state: DashboardStoreState) =>

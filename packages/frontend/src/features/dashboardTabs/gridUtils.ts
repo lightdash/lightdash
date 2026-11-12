@@ -475,6 +475,19 @@ export const getSnapTarget = (
     if (position > 1 - SNAP_ZONE_WIDTH_RATIO) return { tileId, side: 'after' };
     return null;
 };
+export type ResizeHandle = NonNullable<Layout['resizeHandles']>[number];
+
+export const DEFAULT_RESIZE_HANDLES: ResizeHandle[] = ['se'];
+
+// No top corners: they sit under the tile's drag grip and actions menu
+export const EDIT_RESIZE_HANDLES: ResizeHandle[] = [
+    'n',
+    'e',
+    's',
+    'w',
+    'se',
+    'sw',
+];
 
 export type ResponsiveGridLayoutProps = {
     compactType: null;

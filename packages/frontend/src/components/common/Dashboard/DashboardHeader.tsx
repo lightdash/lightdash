@@ -129,6 +129,7 @@ import ShareShortLinkButton from '../ShareShortLinkButton';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
+import { CanvasBackgroundControl } from './CanvasBackgroundControl';
 import { CanvasZoomControls } from './CanvasZoomControls';
 import headerClasses from './DashboardHeader.module.css';
 import { DashboardPerformanceWarning } from './DashboardPerformanceWarning';
@@ -773,6 +774,7 @@ const DashboardHeader = memo(
                                 <TidyTilesButton />
                                 <ActionBar.Divider />
                                 <CanvasZoomControls />
+                                <CanvasBackgroundControl />
                                 <EditFiltersVisibilityControl
                                     value={editFiltersVisibility}
                                     onChange={onEditFiltersVisibilityChange}

@@ -53,6 +53,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import {
+    selectCanvasBackground,
     selectCanvasZoom,
     selectDashboardFilters,
     selectDashboardTabs,
@@ -92,6 +93,9 @@ import {
     withGridItem,
     getSnapTarget,
     GRID_DESKTOP_COLS,
+    EDIT_RESIZE_HANDLES,
+    DEFAULT_RESIZE_HANDLES,
+    type ResizeHandle,
     DEFAULT_ROW_HEIGHT,
     EDIT_ACTION_BAR_CLEARANCE,
     FINE_GRID_SCALE,
@@ -119,6 +123,7 @@ const EMPTY_LAYOUTS: DashboardLayouts = {
 type DashboardGridProps = ReturnType<typeof getResponsiveGridLayoutProps> & {
     transformScale: number | undefined;
     allowOverlap: boolean;
+    resizeHandles: ResizeHandle[];
 };
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
@@ -368,7 +373,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         );
     }, []);
 
-    const showGridLines = isEditMode && isInteracting;
+    const showGridLines =
+        isEditErgonomicsEnabled || (isEditMode && isInteracting);
 
     const handleUpdateTilesWithScaling = useCallback(
         async (layout: Layout[]) => {
@@ -655,6 +661,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         (isEditActionBarShown ? EDIT_ACTION_BAR_CLEARANCE : 0);
 
     const canvasZoom = useDashboardSelector(selectCanvasZoom);
+    const canvasBackground = useDashboardSelector(selectCanvasBackground);
     const isCanvasZoomable = isEditMode && editErgonomicsFlag?.enabled === true;
     // Apart from the zoom, so a zoom step keeps the grid's own props stable
     const unzoomedGridProps = useMemo(
@@ -675,6 +682,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             transformScale: isCanvasZoomable ? canvasZoom : undefined,
             // Only mid-gesture, so the grid still pushes stored overlaps apart
             allowOverlap: isEditErgonomicsEnabled && isInteracting,
+            resizeHandles: isEditErgonomicsEnabled
+                ? EDIT_RESIZE_HANDLES
+                : DEFAULT_RESIZE_HANDLES,
         }),
         [
             unzoomedGridProps,
@@ -1391,6 +1401,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             ]
                                 .filter(Boolean)
                                 .join(' ')}
+                            data-edit-canvas={
+                                isEditErgonomicsEnabled ? true : undefined
+                            }
+                            data-canvas-background={
+                                isEditErgonomicsEnabled
+                                    ? canvasBackground
+                                    : undefined
+                            }
                             // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                             style={showGridLines ? gridLineStyles : undefined}
                         >
