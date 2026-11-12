@@ -1765,7 +1765,12 @@ export const AgentChatInput = ({
                         onMouseDown={handleInputCardMouseDown}
                         attachments={renderedAttachments}
                         toolbarLeft={
-                            <Group gap="xs" align="center" wrap="nowrap">
+                            <Group
+                                gap="xs"
+                                align="center"
+                                wrap="nowrap"
+                                miw={0}
+                            >
                                 {renderComposerActionsMenu()}
                                 {renderThemeButton()}
                                 {toolbarStart}
