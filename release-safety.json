@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.234.0",
-  "previousVersion": "3.233.0",
-  "releaseDate": "2026-11-12T14:25:43.141Z",
+  "version": "3.234.1",
+  "previousVersion": "3.234.0",
+  "releaseDate": "2026-11-12T15:07:07.227Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261111104815_add_consumer_data_references_to_app_versions.ts",
-        "edition": "core",
-        "tables": [
-          "app_versions"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

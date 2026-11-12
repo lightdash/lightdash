@@ -1,3 +1,10 @@
+## [3.234.1](https://github.com/lightdash/lightdash/compare/3.234.0...3.234.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **scheduler:** align service account job visibility ([#32478](https://github.com/lightdash/lightdash/issues/32478)) ([3976309](https://github.com/lightdash/lightdash/commit/397630962808fc180dfe72a258843b663705f2c2))
+
 # [3.234.0](https://github.com/lightdash/lightdash/compare/3.233.0...3.234.0) (2026-11-12)
 
 
