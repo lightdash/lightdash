@@ -2,7 +2,6 @@ import {
     type CreateSavedChartVersion,
     type DashboardVersionedFields,
     type ExportContentRequest,
-    type ParametersValuesMap,
 } from '@lightdash/common';
 
 /**
@@ -110,17 +109,18 @@ export type ContentHeightChangedPayload = {
     height: number;
 };
 
-/** What an embedded dashboard currently runs with, shaped like the export request */
+/** What an embedded dashboard currently runs with */
 export type DashboardContentState = {
     type: 'dashboard';
     dashboardUuid: string;
-    parameters: ParametersValuesMap;
-    // Null unless the dashboard uses parameter controls
-    tileParameters: NonNullable<ExportContentRequest['tileParameters']> | null;
-    dateZoomGranularity: string | null;
     activeTabUuid: string | null;
     // The dashboard as it is now: unsaved edits, added filters and current parameters
     dashboard: DashboardVersionedFields;
+    // Runtime values for the export request; omitted keys must stay omitted
+    exportRequest: Pick<
+        ExportContentRequest,
+        'parameters' | 'tileParameters' | 'dateZoomGranularity'
+    >;
 };
 
 /** A saved chart open in the explorer, unsaved edits included */

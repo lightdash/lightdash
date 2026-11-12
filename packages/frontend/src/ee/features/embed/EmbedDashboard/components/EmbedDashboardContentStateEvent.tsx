@@ -32,21 +32,23 @@ const EmbedDashboardContentStateEvent: FC<{
 
     const state = useMemo<DashboardContentState | null>(() => {
         if (!areFiltersApplied) return null;
+        const tileParameters = getDashboardExportTileParameters({
+            controlInputs,
+            tileUuids: dashboardVersion.tiles.flatMap(({ uuid }) =>
+                uuid ? [uuid] : [],
+            ),
+            tileParameterReferences,
+        });
         return {
             type: 'dashboard',
             dashboardUuid,
-            parameters,
-            tileParameters:
-                getDashboardExportTileParameters({
-                    controlInputs,
-                    tileUuids: dashboardVersion.tiles.flatMap(({ uuid }) =>
-                        uuid ? [uuid] : [],
-                    ),
-                    tileParameterReferences,
-                }) ?? null,
-            dateZoomGranularity: dateZoomGranularity ?? null,
             activeTabUuid: activeTabUuid ?? null,
             dashboard: dashboardVersion,
+            exportRequest: {
+                parameters,
+                ...(tileParameters && { tileParameters }),
+                ...(dateZoomGranularity && { dateZoomGranularity }),
+            },
         };
     }, [
         activeTabUuid,

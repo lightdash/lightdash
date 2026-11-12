@@ -109,11 +109,12 @@ describe('EmbedDashboardContentStateEvent', () => {
             {
                 type: 'dashboard',
                 dashboardUuid: 'dashboard-uuid',
-                parameters: { region: 'EMEA' },
-                tileParameters: null,
-                dateZoomGranularity: 'MONTH',
                 activeTabUuid: 'tab-2',
                 dashboard: dashboardVersion,
+                exportRequest: {
+                    parameters: { region: 'EMEA' },
+                    dateZoomGranularity: 'MONTH',
+                },
             },
         );
     });
@@ -137,7 +138,11 @@ describe('EmbedDashboardContentStateEvent', () => {
         expect(dispatchEmbedEvent).toHaveBeenCalledTimes(2);
         expect(dispatchEmbedEvent).toHaveBeenLastCalledWith(
             LightdashEventType.ContentStateChanged,
-            expect.objectContaining({ dateZoomGranularity: 'WEEK' }),
+            expect.objectContaining({
+                exportRequest: expect.objectContaining({
+                    dateZoomGranularity: 'WEEK',
+                }),
+            }),
         );
     });
 });
