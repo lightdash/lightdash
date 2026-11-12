@@ -112,25 +112,3 @@ export const useDeleteAnalyticsProject = () => {
         { retry: false, onSuccess: invalidate },
     );
 };
-
-export const useInstallAnalyticsSampleContent = () => {
-    const lightdashApi = useLightdashApi();
-    const queryClient = useQueryClient();
-    return useMutation<undefined, ApiError>(
-        () =>
-            lightdashApi<undefined>({
-                url: '/org/analytics-project/sample-content',
-                method: 'POST',
-                body: undefined,
-            }),
-        {
-            retry: false,
-            onSuccess: () =>
-                Promise.all([
-                    queryClient.invalidateQueries(['analytics-project']),
-                    queryClient.invalidateQueries(['dashboards']),
-                    queryClient.invalidateQueries(['tables']),
-                ]),
-        },
-    );
-};

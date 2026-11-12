@@ -16,6 +16,7 @@ describe('toPostHogCreatePayload', () => {
                 authMethod: 'apiKey',
                 projectId: ' 4321 ',
                 apiKey: ' phx_test ',
+                aiHint: '',
             }),
         ).toEqual(
             expect.objectContaining({
@@ -55,6 +56,7 @@ describe('toPostHogFormValues', () => {
             authMethod: 'apiKey',
             projectId: '4321',
             apiKey: '',
+            aiHint: '',
         });
     });
 
@@ -107,6 +109,7 @@ describe('toPostHogUpdatePayload', () => {
         authMethod: 'apiKey' as const,
         projectId: '4321',
         apiKey: '',
+        aiHint: 'EU project',
     };
 
     it('keeps the stored key when the field is blank', () => {
@@ -117,13 +120,14 @@ describe('toPostHogUpdatePayload', () => {
                 connector: ApiConnectorType.POSTHOG,
                 projectId: '4321',
             },
+            aiHint: 'EU project',
         });
     });
 
     it('only renames a signed-in source', () => {
         expect(
             toPostHogUpdatePayload({ ...values, authMethod: 'signIn' }),
-        ).toEqual({ name: 'Product analytics' });
+        ).toEqual({ name: 'Product analytics', aiHint: 'EU project' });
     });
 
     it('sends a replacement key', () => {

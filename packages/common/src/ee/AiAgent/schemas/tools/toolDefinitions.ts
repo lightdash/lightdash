@@ -54,6 +54,12 @@ import {
     toolAnalyzeFieldImpactOutputSchema,
 } from './toolAnalyzeFieldImpactArgs';
 import {
+    ASK_USER_TOOL_NAME,
+    TOOL_ASK_USER_DESCRIPTION,
+    toolAskUserArgsSchema,
+    toolAskUserOutputSchema,
+} from './toolAskUserArgs';
+import {
     TOOL_LIST_SKILLS_DESCRIPTION,
     TOOL_LOAD_SKILL_DESCRIPTION_MCP,
     TOOL_LOAD_SKILL_RESOURCE_DESCRIPTION,
@@ -1067,6 +1073,20 @@ export const updateUserNameToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolUpdateUserNameOutputSchema },
 });
 
+export const askUserToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'askUser',
+    typeof toolAskUserArgsSchema,
+    typeof toolAskUserArgsSchema,
+    typeof toolAskUserOutputSchema
+> = defineTool({
+    name: ASK_USER_TOOL_NAME,
+    title: 'Ask user',
+    description: TOOL_ASK_USER_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolAskUserArgsSchema,
+    agent: { outputSchema: toolAskUserOutputSchema },
+});
+
 export const runContentQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
     'runContentQuery',
     typeof toolRunContentQueryArgsSchema,
@@ -1993,6 +2013,7 @@ type AgentToolDefinitionsByName = {
     createContent: typeof createContentToolDefinition;
     createScheduledDelivery: typeof createScheduledDeliveryToolDefinition;
     updateUserName: typeof updateUserNameToolDefinition;
+    askUser: typeof askUserToolDefinition;
     runContentQuery: typeof runContentQueryToolDefinition;
     listContent: typeof listContentToolDefinition;
     loadSkill: typeof loadSkillToolDefinition;
@@ -2055,6 +2076,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     createContent: createContentToolDefinition,
     createScheduledDelivery: createScheduledDeliveryToolDefinition,
     updateUserName: updateUserNameToolDefinition,
+    askUser: askUserToolDefinition,
     runContentQuery: runContentQueryToolDefinition,
     listContent: listContentToolDefinition,
     loadSkill: loadSkillToolDefinition,
@@ -2124,6 +2146,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     createContentToolDefinition,
     createScheduledDeliveryToolDefinition,
     updateUserNameToolDefinition,
+    askUserToolDefinition,
     runContentQueryToolDefinition,
     listContentToolDefinition,
     loadSkillToolDefinition,

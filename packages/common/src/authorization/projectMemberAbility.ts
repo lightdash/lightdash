@@ -308,6 +308,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'CustomFields', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'MergeQuery', {
+            projectUuid: member.projectUuid,
+        });
         can('view', 'CompiledSql', {
             projectUuid: member.projectUuid,
         });

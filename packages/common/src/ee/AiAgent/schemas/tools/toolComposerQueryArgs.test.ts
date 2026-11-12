@@ -677,3 +677,202 @@ describe('semanticLayer node parameters', () => {
         ).toBe(true);
     });
 });
+
+describe('composer merge nodes', () => {
+    const mergeNode = {
+        sourceType: QuerySourceType.MERGE,
+        nodeId: 'revenue_per_session',
+        title: 'Revenue per session',
+        description: 'Joins weekly revenue and sessions on the week.',
+        sources: [
+            { nodeId: 'weekly_revenue' },
+            { nodeId: 'weekly_sessions', repeatValues: true },
+        ],
+        joinKey: [
+            {
+                name: 'week',
+                fields: [
+                    {
+                        nodeId: 'weekly_revenue',
+                        fieldId: 'orders_order_date_week',
+                    },
+                    {
+                        nodeId: 'weekly_sessions',
+                        fieldId: 'sessions_session_date_week',
+                    },
+                ],
+            },
+        ],
+        joinType: 'left',
+        tableCalculations: [
+            {
+                name: 'revenue_per_session',
+                displayName: 'Revenue per session',
+                formula:
+                    'weekly_revenue_orders_total_revenue / weekly_sessions_sessions_count',
+                format: { type: 'percent', currency: null, decimals: null },
+            },
+        ],
+        sorts: [{ fieldId: 'merge_week', descending: false }],
+    };
+    const args = {
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [mergeNode],
+    };
+
+    it('requires at least two sources', () => {
+        expect(
+            toolComposerQueriesArgsSchema.safeParse({
+                ...args,
+                queries: [{ ...mergeNode, sources: [mergeNode.sources[0]] }],
+            }).success,
+        ).toBe(false);
+    });
+
+    it('converts to a merge source query in the merge vocabulary', () => {
+        const [node] = toolComposerQueriesArgsSchema.parse(args).queries;
+        if (node.sourceType !== QuerySourceType.MERGE) {
+            throw new Error('expected a merge node');
+        }
+        expect(toolComposerQueryNodeToSourceQuery(node)).toEqual({
+            sourceType: QuerySourceType.MERGE,
+            nodeId: 'revenue_per_session',
+            title: 'Revenue per session',
+            description: 'Joins weekly revenue and sessions on the week.',
+            sources: [
+                { nodeId: 'weekly_revenue' },
+                { nodeId: 'weekly_sessions', repeatValues: true },
+            ],
+            joinKey: [
+                {
+                    name: 'week',
+                    fieldIdBySourceId: {
+                        weekly_revenue: 'orders_order_date_week',
+                        weekly_sessions: 'sessions_session_date_week',
+                    },
+                },
+            ],
+            joinType: 'left',
+            tableCalculations: [
+                {
+                    name: 'revenue_per_session',
+                    displayName: 'Revenue per session',
+                    sql: '',
+                    formula:
+                        '=weekly_revenue_orders_total_revenue / weekly_sessions_sessions_count',
+                    format: { type: 'percent', separator: 'default' },
+                },
+            ],
+            sorts: [{ fieldId: 'merge_week', descending: false }],
+            limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+        });
+    });
+
+    const convertedCalculation = (format: unknown, persisted = false) => {
+        const schema = persisted
+            ? toolComposerQueriesArgsSchemaPersisted
+            : toolComposerQueriesArgsSchema;
+        const [node] = schema.parse({
+            ...args,
+            queries: [
+                {
+                    ...mergeNode,
+                    tableCalculations: [
+                        { ...mergeNode.tableCalculations[0], format },
+                    ],
+                },
+            ],
+        }).queries;
+        if (node.sourceType !== QuerySourceType.MERGE) {
+            throw new Error('expected a merge node');
+        }
+        const query = toolComposerQueryNodeToSourceQuery(node);
+        if (query.sourceType !== QuerySourceType.MERGE) {
+            throw new Error('expected a merge node');
+        }
+        return query.tableCalculations?.[0].format;
+    };
+
+    it('formats a calculation in the currency and decimals it names', () => {
+        expect(
+            convertedCalculation({
+                type: 'currency',
+                currency: 'GBP',
+                decimals: 2,
+            }),
+        ).toEqual({
+            type: 'currency',
+            currency: 'GBP',
+            round: 2,
+            separator: 'default',
+        });
+    });
+
+    it('parses the format strings calls persisted before the format object', () => {
+        expect(convertedCalculation('percent', true)).toEqual({
+            type: 'percent',
+            separator: 'default',
+        });
+    });
+
+    it('sorts by every join key when the node sets no sort', () => {
+        const [node] = toolComposerQueriesArgsSchema.parse({
+            ...args,
+            queries: [
+                {
+                    ...mergeNode,
+                    joinKey: [
+                        mergeNode.joinKey[0],
+                        {
+                            name: 'region',
+                            fields: [
+                                {
+                                    nodeId: 'weekly_revenue',
+                                    fieldId: 'orders_region',
+                                },
+                                {
+                                    nodeId: 'weekly_sessions',
+                                    fieldId: 'sessions_region',
+                                },
+                            ],
+                        },
+                    ],
+                    sorts: null,
+                },
+            ],
+        }).queries;
+        if (node.sourceType !== QuerySourceType.MERGE) {
+            throw new Error('expected a merge node');
+        }
+        const query = toolComposerQueryNodeToSourceQuery(node);
+        if (query.sourceType !== QuerySourceType.MERGE) {
+            throw new Error('expected a merge node');
+        }
+        expect(query.sorts).toEqual([
+            { fieldId: 'merge_week', descending: false },
+            { fieldId: 'merge_region', descending: false },
+        ]);
+    });
+
+    it('renders a partially streamed merge node with its sources', () => {
+        expect(
+            parsePartialToolComposerQueriesArgs({
+                queries: [
+                    {
+                        sourceType: QuerySourceType.MERGE,
+                        nodeId: 'revenue_per_session',
+                        sources: [{ nodeId: 'weekly_revenue' }, {}],
+                    },
+                ],
+            })?.queries,
+        ).toEqual([
+            expect.objectContaining({
+                sourceType: QuerySourceType.MERGE,
+                nodeId: 'revenue_per_session',
+                sources: [{ nodeId: 'weekly_revenue', repeatValues: null }],
+            }),
+        ]);
+    });
+});

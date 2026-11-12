@@ -168,7 +168,9 @@ test.describe.skip('Table calculations', () => {
         await searchField.press('ArrowDown');
         await searchField.press('Enter');
 
-        await expect(page.locator('.tabler-icon-123').first()).toBeAttached(); // Check if the 123 icon is present, which means the table calculation is a number type
+        await expect(
+            page.locator('.tabler-icon-number-123').first(),
+        ).toBeAttached(); // Check if the 123 icon is present, which means the table calculation is a number type
         await page.locator(".mantine-Select-input[value='is']").click();
         await page.getByText('greater than').click(); // If the type is string, this option will not be available and it will fail when running the query
 

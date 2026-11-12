@@ -24,7 +24,8 @@ export type AddOnName =
     | 'projectContext'
     | 'memories'
     | 'customChartTypes'
-    | 'userIdentity';
+    | 'userIdentity'
+    | 'askUser';
 
 /** Agent tools built by `getAgentTools`; MCP server tools are dynamic and not listed. */
 export const AGENT_TOOL_NAMES = [
@@ -40,6 +41,7 @@ export const AGENT_TOOL_NAMES = [
     'readPinnedThread',
     'resolveUrl',
     'updateUserName',
+    'askUser',
     'readContent',
     'editContent',
     'listContent',
@@ -142,6 +144,7 @@ export type LoadoutInput = Pick<
     | 'enableEditProjectContext'
     | 'isSemanticStudioThread'
     | 'enableReadAttachments'
+    | 'enableAskUser'
     | 'customSkills'
     | 'projectContextEnabled'
     | 'aiAgentMemoryEnabled'

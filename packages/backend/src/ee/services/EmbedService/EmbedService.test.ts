@@ -9,6 +9,7 @@ import {
     FilterInteractivityValues,
     FilterOperator,
     ForbiddenError,
+    getItemId,
     ProjectType,
     QueryExecutionContext,
     SchedulerFormat,
@@ -459,6 +460,7 @@ describe('EmbedService', () => {
             const chart = {
                 uuid: 'chart-uuid',
                 tableName: explore.name,
+                exploreNames: [explore.name],
                 projectUuid: mockProjectUuid,
                 spaceUuid: 'space-uuid',
             };
@@ -520,6 +522,7 @@ describe('EmbedService', () => {
                 (tableName, index) => ({
                     uuid: `chart-${index}`,
                     tableName,
+                    exploreNames: [tableName],
                     projectUuid: mockProjectUuid,
                     spaceUuid: 'space-uuid',
                 }),
@@ -575,6 +578,56 @@ describe('EmbedService', () => {
                 'tile-2': [1],
             });
             expect(getFilterableDimensionsForExplore).toHaveBeenCalledTimes(2);
+        });
+
+        test('offers a merged tile the fields of every query it merges', async () => {
+            const chart = {
+                uuid: 'merged-chart',
+                tableName: 'orders',
+                exploreNames: ['orders', 'payments'],
+                projectUuid: mockProjectUuid,
+                spaceUuid: 'space-uuid',
+            };
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                savedChartModel: {
+                    getInfoForAvailableFilters: vi
+                        .fn()
+                        .mockResolvedValue([chart]),
+                },
+                projectModel: {
+                    getExploreFromCache: vi.fn(
+                        async (_projectUuid: string, name: string) => ({
+                            ...validExplore,
+                            name,
+                        }),
+                    ),
+                },
+                projectService: {
+                    getFilterableDimensionsForExplore: vi.fn(
+                        async (_projectUuid: string, explore: Explore) => [
+                            {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                table: explore.name,
+                            },
+                        ],
+                    ),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+
+            const result =
+                await scopedService.getAvailableFiltersForSavedQueries(
+                    mockProjectUuid,
+                    embedAccount(FilterInteractivityValues.all),
+                    [{ savedChartUuid: chart.uuid, tileUuid: 'tile-uuid' }],
+                    false,
+                );
+
+            expect(result.allFilterableFields.map(getItemId)).toEqual([
+                'orders_dim1',
+                'payments_dim1',
+            ]);
+            expect(result.savedQueryFilters).toEqual({ 'tile-uuid': [0, 1] });
         });
 
         test('returns no hidden ids when filter interactivity is off', async () => {

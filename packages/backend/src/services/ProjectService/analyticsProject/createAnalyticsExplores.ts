@@ -403,6 +403,16 @@ export const createAnalyticsExplores = (): Explore[] => {
         }
         if (name === 'query_events') {
             table.dimensions.semantic_field_references.hidden = true;
+            metrics.unique_users.label = 'Querying users';
+            metrics.queries_per_user = {
+                ...base,
+                name: 'queries_per_user',
+                label: 'Queries per querying user',
+                description:
+                    'Recorded query attempts with an identified user divided by distinct querying users in the period. Includes service accounts.',
+                type: MetricType.NUMBER,
+                sql: 'ROUND(1.0 * COUNT(${query_id}) FILTER (WHERE ${user_id} IS NOT NULL) / NULLIF(COUNT(DISTINCT ${user_id}), 0), 1)',
+            };
         }
         if (name === 'historical_activity') {
             table.dimensions.org_id.hidden = true;
@@ -464,6 +474,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                 'Earliest retained event for this organization; this is not proof of complete capture since that date.';
         }
         if (name === 'content_reach') {
+            metrics.distinct_viewers.label = 'Chart and dashboard viewers';
             for (const column of [
                 'org_id',
                 'schema_version',
@@ -483,7 +494,14 @@ export const createAnalyticsExplores = (): Explore[] => {
                 }
             }
         }
+        if (name === 'agent_requests') {
+            metrics.total_requests.label = 'Agent questions';
+        }
+        if (name === 'ai_usage') {
+            metrics.total_ai_calls.label = 'AI model calls';
+        }
         if (name === 'user_activity') {
+            metrics.unique_users.label = 'Users with recorded activity';
             table.dimensions.org_id.hidden = true;
             for (const column of userActivityColumns.filter(
                 ({ type }) => type === 'BIGINT',

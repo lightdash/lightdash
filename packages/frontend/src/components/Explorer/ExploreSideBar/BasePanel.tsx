@@ -1,9 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    ExploreType,
-    FeatureFlags,
-    type SummaryExplore,
-} from '@lightdash/common';
+import { ExploreType, type SummaryExplore } from '@lightdash/common';
 import { TextInput, Stack, ActionIcon } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
@@ -20,7 +16,6 @@ import { useExplores } from '../../../hooks/useExplores';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useProjectTableGroups } from '../../../hooks/useProjectTableGroups';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import { getBindingConnectionUuid } from '../../common/connectionName';
 import MantineIcon from '../../common/MantineIcon';
@@ -67,9 +62,6 @@ const BasePanel = ({ onExploreClick, shouldHideExplore }: Props) => {
         useExploreConnectionFilter(projectUuid);
     const tableGroupsResult = useProjectTableGroups(projectUuid);
     const { data: org } = useOrganization();
-    const { data: externalSourcesFlag } = useServerFeatureFlag(
-        FeatureFlags.ExternalSources,
-    );
 
     const filteredExplores = useMemo(() => {
         const validSearch = debouncedSearch
@@ -163,9 +155,7 @@ const BasePanel = ({ onExploreClick, shouldHideExplore }: Props) => {
             if (explore.type === ExploreType.PRE_AGGREGATE) {
                 preAggregateExplores.push(explore);
             } else if (explore.type === ExploreType.EXTERNAL_SOURCE) {
-                if (externalSourcesFlag?.enabled === true) {
-                    externalSourceExplores.push(explore);
-                }
+                externalSourceExplores.push(explore);
             } else if (exploreHasGroups(explore)) {
                 groupedExplores.push(explore);
             } else if (explore.type === ExploreType.VIRTUAL) {
@@ -195,7 +185,7 @@ const BasePanel = ({ onExploreClick, shouldHideExplore }: Props) => {
             preAggregateExplores,
             externalSourceExplores,
         ];
-    }, [externalSourcesFlag?.enabled, filteredExplores, tableGroupDetails]);
+    }, [filteredExplores, tableGroupDetails]);
 
     const handleExploreClick = useCallback(
         (explore: SummaryExplore) => {

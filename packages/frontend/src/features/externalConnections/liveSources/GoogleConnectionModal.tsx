@@ -3,13 +3,19 @@ import { Button, Group, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
-import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
+import { useNewSourceId } from '../hooks/useNewSourceId';
+import {
+    LIVE_SOURCE_UPDATE_MESSAGES,
+    useUpdateExternalConnection,
+} from '../hooks/useUpdateExternalConnection';
 import {
     getGoogleSignInUrl,
     getGoogleSource,
     type GoogleConnector,
 } from './googleConnection';
 import { getApiSourceTarget } from './liveSourceCatalog';
+import { LiveSourceHintField } from './LiveSourceHintField';
+import { SourceIdField } from './SourceIdField';
 
 type Props = {
     opened: boolean;
@@ -28,13 +34,24 @@ export const GoogleConnectionModal: FC<Props> = ({
 }) => {
     const source = getGoogleSource(connector);
     const form = useForm({
-        initialValues: { name: connection?.name ?? source.defaultName },
+        initialValues: {
+            name: connection?.name ?? source.defaultName,
+            aiHint: connection?.aiHint ?? '',
+        },
         validate: {
             name: (value) =>
                 value.trim().length === 0 ? 'Name is required' : null,
         },
     });
-    const updateMutation = useUpdateExternalConnection();
+    const updateMutation = useUpdateExternalConnection(
+        LIVE_SOURCE_UPDATE_MESSAGES,
+    );
+    const sourceId = useNewSourceId({
+        projectUuid,
+        connector,
+        name: form.values.name,
+        enabled: opened && !connection,
+    });
 
     const signIn = (connectionUuid: string | null) => {
         if (form.validateField('name').hasError) return;
@@ -45,19 +62,21 @@ export const GoogleConnectionModal: FC<Props> = ({
                 form.values.name,
                 connectionUuid,
                 'settings',
+                connectionUuid ? undefined : sourceId.value,
             ),
         );
     };
 
-    const handleSave = form.onSubmit(async ({ name }) => {
+    const handleSave = form.onSubmit(async ({ name, aiHint }) => {
         if (!connection) {
+            if (sourceId.isBlocked) return;
             signIn(null);
             return;
         }
         await updateMutation.mutateAsync({
             projectUuid,
             connectionUuid: connection.externalConnectionUuid,
-            data: { name: name.trim() },
+            data: { name: name.trim(), aiHint },
         });
         onClose();
     });
@@ -74,6 +93,7 @@ export const GoogleConnectionModal: FC<Props> = ({
             confirmLabel={connection ? 'Save' : 'Continue to Google'}
             onConfirm={() => handleSave()}
             confirmLoading={updateMutation.isLoading}
+            confirmDisabled={sourceId.isBlocked}
             cancelDisabled={updateMutation.isLoading}
         >
             <Stack gap="sm">
@@ -89,6 +109,10 @@ export const GoogleConnectionModal: FC<Props> = ({
                     data-autofocus
                     {...form.getInputProps('name')}
                 />
+                <SourceIdField connection={connection} sourceId={sourceId} />
+                {connection && (
+                    <LiveSourceHintField {...form.getInputProps('aiHint')} />
+                )}
                 {connection?.apiSource && (
                     <Group justify="space-between" wrap="nowrap">
                         <Text fz="sm" c="dimmed" truncate>

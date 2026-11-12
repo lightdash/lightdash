@@ -8897,7 +8897,7 @@ export class ProjectModel {
     /** Which of these explore names belong to something other than this live source. */
     async findExploreNamesTakenByOthers(
         projectUuid: string,
-        connectionUuid: string,
+        connectionUuid: string | null,
         names: string[],
     ): Promise<string[]> {
         if (names.length === 0) {
@@ -8911,6 +8911,47 @@ export class ProjectModel {
                 [ExploreType.API_SOURCE, connectionUuid],
             )
             .pluck('name');
+    }
+
+    /** The stored definition hash of every live data source explore in these projects. */
+    async listApiSourceExploreHashes(
+        projectUuids: string[],
+    ): Promise<{ connectionUuid: string; definitionHash: string | null }[]> {
+        if (projectUuids.length === 0) {
+            return [];
+        }
+        const rows = await this.database(CachedExploreTableName)
+            .whereIn('project_uuid', projectUuids)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .select<{ connection_uuid: string; hash: string | null }[]>(
+                this.database.raw(
+                    "explore->'apiSource'->>'connectionUuid' as connection_uuid",
+                ),
+                this.database.raw(
+                    "explore->'apiSource'->>'definitionHash' as hash",
+                ),
+            );
+        return rows.map(({ connection_uuid: connectionUuid, hash }) => ({
+            connectionUuid,
+            definitionHash: hash,
+        }));
+    }
+
+    /** Every field id stored on one live data source's explores. */
+    async getApiSourceFieldIds(
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<string[]> {
+        const rows = await this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereRaw("explore->>'type' = ?", [ExploreType.API_SOURCE])
+            .whereRaw("explore->'apiSource'->>'connectionUuid' = ?", [
+                connectionUuid,
+            ])
+            .select<{ fields: Record<string, unknown> | null }[]>(
+                this.database.raw("explore->'apiSource'->'fields' as fields"),
+            );
+        return rows.flatMap(({ fields }) => Object.keys(fields ?? {}));
     }
 
     async hasApiSourceExplores(

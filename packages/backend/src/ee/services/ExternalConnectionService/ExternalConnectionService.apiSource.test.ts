@@ -1,7 +1,9 @@
 import {
+    AlreadyExistsError,
     ApiConnectorType,
     FeatureFlags,
     ForbiddenError,
+    NotFoundError,
     ParameterError,
     QueryExecutionContext,
     TimeoutError,
@@ -9,6 +11,7 @@ import {
     type ExternalConnection,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
+import { getApiSourceDefinitionHashes } from '../../../services/QuerySourceService/api/apiSourceExplores';
 import {
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
@@ -72,6 +75,7 @@ const buildService = ({
     takenExploreNames = [],
     namesHeldAtClaim = [],
     hasExplores = false,
+    chartCount = 0,
 }: {
     connections?: ExternalConnection[];
     canView?: boolean;
@@ -83,8 +87,14 @@ const buildService = ({
     /** Names other sources store between the list and the claim. */
     namesHeldAtClaim?: string[];
     hasExplores?: boolean;
+    chartCount?: number;
 } = {}) => {
-    let fieldState: LiveSourceFieldState = { lastScan: null, fields: null };
+    let fieldState: LiveSourceFieldState = {
+        lastScan: null,
+        fields: null,
+        aiHint: null,
+        targetLabel: null,
+    };
     const externalConnectionModel = {
         findByUuid: vi
             .fn()
@@ -107,6 +117,35 @@ const buildService = ({
         setApiSourceSchema: vi.fn().mockResolvedValue(undefined),
         getApiSourceSchemas: vi.fn().mockResolvedValue(new Map()),
         listDeletedLiveSources: vi.fn().mockResolvedValue(deletedSources),
+        listHeldLiveSourceNames: vi
+            .fn()
+            .mockImplementation(
+                async (_project: string, exceptUuid: string | null) =>
+                    new Set([
+                        ...deletedSources.flatMap(({ sourceName }) =>
+                            sourceName ? [sourceName] : [],
+                        ),
+                        ...connections.flatMap((connection) =>
+                            connection.externalConnectionUuid !== exceptUuid &&
+                            connection.liveSourceName
+                                ? [connection.liveSourceName]
+                                : [],
+                        ),
+                    ]),
+            ),
+        reattachLiveSourceName: vi
+            .fn()
+            .mockImplementation(
+                async (
+                    _project: string,
+                    _uuid: string,
+                    _name: string,
+                    fields: LiveSourceFieldEdits,
+                ) => {
+                    fieldState = { ...fieldState, fields };
+                    return true;
+                },
+            ),
         claimLiveSourceName: vi
             .fn()
             .mockImplementation(
@@ -130,6 +169,12 @@ const buildService = ({
                     );
                 },
             ),
+        restoreLiveSourceDetails: vi.fn().mockResolvedValue(undefined),
+        saveLiveSourceTargetLabel: vi.fn().mockResolvedValue(undefined),
+        withLiveSourceBuildLock: vi.fn(
+            async (_uuid: string, rebuild: () => Promise<unknown>) => rebuild(),
+        ),
+        listLiveSourceRefs: vi.fn().mockResolvedValue([]),
         getLiveSourceFieldState: vi
             .fn()
             .mockImplementation(async () => fieldState),
@@ -164,6 +209,7 @@ const buildService = ({
     };
     const savedChartModel = {
         getChartCountPerField: vi.fn().mockResolvedValue([]),
+        getChartCountForExplores: vi.fn().mockResolvedValue(chartCount),
     };
     const analytics = { track: vi.fn() };
     const schedulerClient = {
@@ -179,6 +225,8 @@ const buildService = ({
                     names.filter((name) => takenExploreNames.includes(name)),
             ),
         hasApiSourceExplores: vi.fn().mockResolvedValue(hasExplores),
+        listApiSourceExploreHashes: vi.fn().mockResolvedValue([]),
+        getApiSourceFieldIds: vi.fn().mockResolvedValue([]),
     };
     const service = new ExternalConnectionService({
         projectModel,
@@ -696,7 +744,7 @@ describe('ExternalConnectionService live source writes', () => {
 describe('ExternalConnectionService live source explores', () => {
     const PROPERTY_DEFINITIONS = '/api/projects/303731/property_definitions/';
     const postHogSource: CreateExternalConnection = {
-        name: 'PostHog',
+        name: 'Product analytics',
         type: 'bearer_token',
         origin: 'https://eu.posthog.com',
         secret: 'phx_secret',
@@ -784,13 +832,196 @@ describe('ExternalConnectionService live source explores', () => {
         );
     });
 
-    it('keeps the current explores, and the edit, when an edited source cannot be scanned', async () => {
+    it('keeps the current explores, and the edit, when a source that was never scanned cannot be scanned', async () => {
         respondToScan('fail');
         const { service, projectModel } = buildService();
         await expect(
             service.update(account, 'proj-1', 'conn-1', { name: 'Renamed' }),
         ).resolves.toMatchObject({ externalConnectionUuid: 'conn-1' });
         expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
+    });
+
+    it('shows a rename from the last scan when the integration cannot be scanned', async () => {
+        respondToScan('ok');
+        const { service, projectModel, externalConnectionModel } =
+            buildService();
+        await service.create(account, 'proj-1', postHogSource);
+        respondToScan('fail');
+        externalConnectionModel.update.mockResolvedValue(
+            posthogConnection({
+                name: 'Renamed',
+                liveSourceName: 'product_analytics',
+            }),
+        );
+        projectModel.replaceApiSourceExplores.mockClear();
+
+        await service.update(account, 'proj-1', 'conn-1', { name: 'Renamed' });
+
+        const [explore] =
+            projectModel.replaceApiSourceExplores.mock.calls[0][2];
+        expect(explore.name).toBe('product_analytics_events');
+        expect(explore.label).toContain('Renamed');
+    });
+
+    it("doesn't build a changed target from the old target's last scan", async () => {
+        respondToScan('ok');
+        const { service, projectModel, externalConnectionModel } =
+            buildService();
+        await service.create(account, 'proj-1', postHogSource);
+        respondToScan('fail');
+        externalConnectionModel.update.mockResolvedValue(
+            posthogConnection({
+                apiSource: {
+                    connector: ApiConnectorType.POSTHOG,
+                    projectId: '999',
+                },
+            }),
+        );
+        projectModel.replaceApiSourceExplores.mockClear();
+
+        await service.update(account, 'proj-1', 'conn-1', {
+            apiSource: {
+                connector: ApiConnectorType.POSTHOG,
+                projectId: '999',
+            },
+        });
+
+        expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
+    });
+
+    describe('AI hint', () => {
+        it('rebuilds from the stored scan, without calling the integration', async () => {
+            const { service, projectModel, externalConnectionModel } =
+                buildService();
+            externalConnectionModel.getLiveSourceFieldState.mockResolvedValue({
+                lastScan: null,
+                fields: {},
+                aiHint: 'EU project',
+                targetLabel: null,
+            });
+            await service.update(account, 'proj-1', 'conn-1', {
+                aiHint: '  EU project  ',
+            });
+
+            expect(externalConnectionModel.update).toHaveBeenCalledWith(
+                'conn-1',
+                expect.anything(),
+                expect.objectContaining({ aiHint: 'EU project' }),
+            );
+            expect(mockSecureFetch).not.toHaveBeenCalled();
+            const [explore] =
+                projectModel.replaceApiSourceExplores.mock.calls[0][2];
+            expect(explore.aiHint).toEqual([
+                'PostHog project 303731, EU region',
+                'EU project',
+            ]);
+        });
+
+        it('clears an empty hint and keeps the target', async () => {
+            const { service, externalConnectionModel } = buildService();
+            await service.update(account, 'proj-1', 'conn-1', { aiHint: '  ' });
+            expect(externalConnectionModel.update).toHaveBeenCalledWith(
+                'conn-1',
+                expect.anything(),
+                expect.objectContaining({ aiHint: null }),
+            );
+        });
+
+        it('rejects a hint over the limit', async () => {
+            const { service, externalConnectionModel } = buildService();
+            await expect(
+                service.update(account, 'proj-1', 'conn-1', {
+                    aiHint: 'x'.repeat(501),
+                }),
+            ).rejects.toThrow('at most 500');
+            expect(externalConnectionModel.update).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('rebuilding after a code change', () => {
+        const refs = [
+            {
+                externalConnectionUuid: 'conn-1',
+                projectUuid: 'proj-1',
+                connector: ApiConnectorType.POSTHOG,
+            },
+        ];
+        const currentHashes = Object.values(
+            getApiSourceDefinitionHashes(ApiConnectorType.POSTHOG),
+        ).map((definitionHash) => ({
+            connectionUuid: 'conn-1',
+            definitionHash,
+        }));
+        const setUp = (
+            stored: { connectionUuid: string; definitionHash: string | null }[],
+        ) => {
+            const built = buildService();
+            built.externalConnectionModel.listLiveSourceRefs.mockResolvedValue(
+                refs,
+            );
+            built.projectModel.listApiSourceExploreHashes.mockResolvedValue(
+                stored,
+            );
+            return built;
+        };
+
+        it('rebuilds a source with no hash, without calling the integration', async () => {
+            const { service, projectModel } = setUp([
+                { connectionUuid: 'conn-1', definitionHash: null },
+            ]);
+            await expect(
+                service.rebuildOutdatedApiSourceExplores(),
+            ).resolves.toEqual({ rebuilt: 1, failed: 0 });
+            expect(projectModel.replaceApiSourceExplores).toHaveBeenCalledTimes(
+                1,
+            );
+            expect(mockSecureFetch).not.toHaveBeenCalled();
+        });
+
+        it('leaves a source whose hash matches', async () => {
+            const { service, projectModel } = setUp(currentHashes);
+            await expect(
+                service.rebuildOutdatedApiSourceExplores(),
+            ).resolves.toEqual({ rebuilt: 0, failed: 0 });
+            expect(
+                projectModel.replaceApiSourceExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('leaves a source that was never built', async () => {
+            const { service, projectModel } = setUp([]);
+            await service.rebuildOutdatedApiSourceExplores();
+            expect(
+                projectModel.replaceApiSourceExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('keeps a source whose rebuild would lose a field, and carries on', async () => {
+            const { service, projectModel } = setUp([
+                { connectionUuid: 'conn-1', definitionHash: 'old' },
+            ]);
+            projectModel.getApiSourceFieldIds.mockResolvedValue([
+                'posthog_conn1_events_property_gone',
+            ]);
+            await expect(
+                service.rebuildOutdatedApiSourceExplores(),
+            ).resolves.toEqual({ rebuilt: 0, failed: 1 });
+            expect(
+                projectModel.replaceApiSourceExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('counts a failed save for that source only', async () => {
+            const { service, projectModel } = setUp([
+                { connectionUuid: 'conn-1', definitionHash: 'old' },
+            ]);
+            projectModel.replaceApiSourceExplores.mockRejectedValueOnce(
+                new Error('clash'),
+            );
+            await expect(
+                service.rebuildOutdatedApiSourceExplores(),
+            ).resolves.toEqual({ rebuilt: 0, failed: 1 });
+        });
     });
 
     describe('field curation', () => {
@@ -930,34 +1161,352 @@ describe('ExternalConnectionService live source explores', () => {
         });
     });
 
-    it('takes the next name when another source claims the same one first', async () => {
+    const deletedSource = (
+        overrides: Partial<DeletedLiveSource> = {},
+    ): DeletedLiveSource => ({
+        externalConnectionUuid: 'old-conn',
+        name: 'Old PostHog',
+        deletedAt: new Date('2026-11-01'),
+        origin: 'https://eu.posthog.com',
+        apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
+        sourceName: 'posthog',
+        fieldEdits: null,
+        aiHint: null,
+        targetLabel: null,
+        ...overrides,
+    });
+
+    it('uses the id-based name when another source claims the same one first', async () => {
         respondToScan('ok');
         const { service, projectModel } = buildService({
             namesHeldAtClaim: ['product_analytics'],
         });
         await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
 
-        expect(savedExploreName(projectModel)).toBe(
-            'product_analytics_2_events',
+        expect(savedExploreName(projectModel)).toBe('posthog_conn1_events');
+    });
+
+    it("doesn't give an unbuilt source the prefix of a deleted one", async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService({
+            connections: [posthogConnection({ name: 'PostHog' })],
+            deletedSources: [deletedSource()],
+        });
+        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+
+        expect(savedExploreName(projectModel)).toBe('posthog_conn1_events');
+    });
+
+    it('creates a source with the explore prefix the admin typed', async () => {
+        respondToScan('ok');
+        const { service, externalConnectionModel } = buildService();
+        await service.create(account, 'proj-1', {
+            ...postHogSource,
+            explorePrefix: 'web_events',
+        });
+
+        expect(
+            externalConnectionModel.claimLiveSourceName.mock.calls[0][2],
+        ).toEqual(['web_events']);
+    });
+
+    it("refuses a deleted source's prefix and suggests a free one", async () => {
+        const { service, externalConnectionModel } = buildService({
+            deletedSources: [deletedSource()],
+        });
+        await expect(
+            service.create(account, 'proj-1', {
+                ...postHogSource,
+                explorePrefix: 'posthog',
+            }),
+        ).rejects.toThrow(
+            new AlreadyExistsError(
+                '"posthog" is already used by another source or explore in this project. Try "posthog_2".',
+            ),
+        );
+        expect(externalConnectionModel.create).not.toHaveBeenCalled();
+    });
+
+    it('takes the next free prefix when no form asked the admin for one', async () => {
+        respondToScan('ok');
+        const { service, externalConnectionModel } = buildService({
+            connections: [
+                posthogConnection({ liveSourceName: 'product_analytics' }),
+            ],
+        });
+        await service.create(account, 'proj-1', postHogSource);
+
+        expect(
+            externalConnectionModel.claimLiveSourceName.mock.calls[0][2],
+        ).toEqual(['product_analytics_2']);
+    });
+
+    it('undoes a create that loses its prefix to one started at the same time', async () => {
+        const { service, externalConnectionModel } = buildService({
+            namesHeldAtClaim: ['web_events'],
+        });
+        await expect(
+            service.create(account, 'proj-1', {
+                ...postHogSource,
+                explorePrefix: 'web_events',
+            }),
+        ).rejects.toThrow(AlreadyExistsError);
+        expect(externalConnectionModel.softDelete).toHaveBeenCalledWith(
+            'conn-1',
         );
     });
 
-    const deletedTwin = (
-        overrides: Partial<DeletedLiveSource>,
-    ): DeletedLiveSource => ({
-        externalConnectionUuid: 'old-conn',
-        origin: 'https://eu.posthog.com',
-        apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
-        sourceName: 'posthog',
-        fieldEdits: null,
-        ...overrides,
+    it('refuses a prefix whose planned model name another explore has', async () => {
+        const { service } = buildService({
+            takenExploreNames: ['web_persons'],
+        });
+        await expect(
+            service.create(account, 'proj-1', {
+                ...postHogSource,
+                explorePrefix: 'web',
+            }),
+        ).rejects.toThrow(AlreadyExistsError);
     });
 
-    it("gives a new source a deleted twin's field edits, so its property charts work again", async () => {
+    it('refuses a badly formatted prefix', async () => {
+        const { service } = buildService();
+        await expect(
+            service.create(account, 'proj-1', {
+                ...postHogSource,
+                explorePrefix: 'Web Events',
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    it('reports a taken prefix with the explore names it would give', async () => {
+        const { service } = buildService({
+            deletedSources: [deletedSource()],
+            takenExploreNames: ['posthog_2_sessions'],
+        });
+
+        await expect(
+            service.checkExplorePrefix(
+                account,
+                'proj-1',
+                ApiConnectorType.POSTHOG,
+                'posthog',
+            ),
+        ).resolves.toMatchObject({
+            error: expect.stringContaining('already used'),
+            suggestion: 'posthog_3',
+        });
+        await expect(
+            service.checkExplorePrefix(
+                account,
+                'proj-1',
+                ApiConnectorType.POSTHOG,
+                'free_name',
+            ),
+        ).resolves.toMatchObject({
+            error: null,
+            suggestion: null,
+            exploreNames: expect.arrayContaining(['free_name_events']),
+        });
+    });
+
+    it('lists deleted sources of the integration, the same target first', async () => {
+        const { service } = buildService({
+            connections: [
+                posthogConnection(),
+                posthogConnection({
+                    externalConnectionUuid: 'conn-2',
+                    liveSourceName: 'active',
+                }),
+            ],
+            deletedSources: [
+                deletedSource({
+                    externalConnectionUuid: 'other-target',
+                    sourceName: 'other',
+                    apiSource: {
+                        connector: ApiConnectorType.POSTHOG,
+                        projectId: '999',
+                    },
+                }),
+                deletedSource(),
+                deletedSource({
+                    externalConnectionUuid: 'older-copy',
+                }),
+                deletedSource({
+                    externalConnectionUuid: 'held-again',
+                    sourceName: 'active',
+                }),
+                deletedSource({
+                    externalConnectionUuid: 'google',
+                    sourceName: 'google',
+                    apiSource: {
+                        connector: ApiConnectorType.SEARCH_CONSOLE,
+                        siteUrl: 'https://example.com/',
+                    },
+                }),
+            ],
+            chartCount: 12,
+        });
+
+        const sources = await service.listReattachableLiveSources(
+            account,
+            'proj-1',
+            'conn-1',
+        );
+
+        expect(
+            sources.map(
+                ({
+                    externalConnectionUuid,
+                    isSameTarget,
+                    usedByChartCount,
+                }) => [externalConnectionUuid, isSameTarget, usedByChartCount],
+            ),
+        ).toEqual([
+            ['old-conn', true, 12],
+            ['other-target', false, 12],
+        ]);
+    });
+
+    it('hides a deleted source that was never named and has no charts', async () => {
+        const { service } = buildService({
+            deletedSources: [deletedSource({ sourceName: null })],
+        });
+
+        await expect(
+            service.listReattachableLiveSources(account, 'proj-1', 'conn-1'),
+        ).resolves.toEqual([]);
+    });
+
+    it('shortens a long prefix so a suggestion still fits', async () => {
+        const longPrefix = 'a'.repeat(40);
+        const { service } = buildService({
+            deletedSources: [deletedSource({ sourceName: longPrefix })],
+        });
+
+        await expect(
+            service.checkExplorePrefix(
+                account,
+                'proj-1',
+                ApiConnectorType.POSTHOG,
+                longPrefix,
+            ),
+        ).resolves.toMatchObject({ suggestion: `${'a'.repeat(38)}_2` });
+    });
+
+    it("reattaches a deleted source's prefix and field edits, then rebuilds", async () => {
+        respondToScan('ok');
+        const fieldEdits = {
+            property_plan: { inUse: true, label: 'Plan', lastEdit: null },
+        };
+        const { service, projectModel, externalConnectionModel } = buildService(
+            { deletedSources: [deletedSource({ fieldEdits })] },
+        );
+
+        const reattached = await service.reattachLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            'old-conn',
+        );
+
+        expect(reattached.liveSourceName).toBe('posthog');
+        expect(
+            externalConnectionModel.reattachLiveSourceName,
+        ).toHaveBeenCalledWith('proj-1', 'conn-1', 'posthog', fieldEdits);
+        expect(savedExploreName(projectModel)).toBe('posthog_events');
+    });
+
+    it("keeps a deleted source's hint and target label when reattaching", async () => {
+        respondToScan('ok');
+        const { service, projectModel, externalConnectionModel } = buildService(
+            {
+                deletedSources: [
+                    deletedSource({
+                        aiHint: 'EU project',
+                        targetLabel: 'Default project',
+                    }),
+                ],
+            },
+        );
+        externalConnectionModel.restoreLiveSourceDetails.mockImplementation(
+            async () => {
+                externalConnectionModel.getLiveSourceFieldState.mockResolvedValue(
+                    {
+                        lastScan: null,
+                        fields: {},
+                        aiHint: 'EU project',
+                        targetLabel: 'Default project',
+                    },
+                );
+            },
+        );
+
+        await service.reattachLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            'old-conn',
+        );
+
+        expect(
+            externalConnectionModel.restoreLiveSourceDetails,
+        ).toHaveBeenCalledWith(
+            'conn-1',
+            expect.objectContaining({
+                aiHint: 'EU project',
+                targetLabel: 'Default project',
+            }),
+        );
+        const [explore] =
+            projectModel.replaceApiSourceExplores.mock.calls[0][2];
+        expect(explore.aiHint).toEqual([
+            expect.stringContaining('Default project'),
+            'EU project',
+        ]);
+    });
+
+    it('reattaches the id-based prefix of a source from before prefixes were stored', async () => {
         respondToScan('ok');
         const { service, projectModel } = buildService({
             deletedSources: [
-                deletedTwin({
+                deletedSource({
+                    externalConnectionUuid:
+                        'd85fea83-0000-0000-0000-000000000000',
+                    sourceName: null,
+                }),
+            ],
+        });
+
+        await service.reattachLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            'd85fea83-0000-0000-0000-000000000000',
+        );
+
+        expect(savedExploreName(projectModel)).toBe('posthog_d85fea83_events');
+    });
+
+    it('refuses to reattach a source that already has saved charts', async () => {
+        const { service, externalConnectionModel } = buildService({
+            connections: [posthogConnection({ liveSourceName: 'current' })],
+            deletedSources: [deletedSource()],
+            chartCount: 1,
+        });
+
+        await expect(
+            service.reattachLiveSource(account, 'proj-1', 'conn-1', 'old-conn'),
+        ).rejects.toThrow(ParameterError);
+        expect(
+            externalConnectionModel.reattachLiveSourceName,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('brings field edits back when reattaching', async () => {
+        respondToScan('ok');
+        const { service, projectModel } = buildService({
+            deletedSources: [
+                deletedSource({
                     fieldEdits: {
                         property_plan: {
                             inUse: true,
@@ -968,29 +1517,118 @@ describe('ExternalConnectionService live source explores', () => {
                 }),
             ],
         });
-        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+        await service.create(account, 'proj-1', postHogSource);
+        projectModel.replaceApiSourceExplores.mockClear();
+
+        await service.reattachLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            'old-conn',
+        );
 
         expect(savedFieldIds(projectModel)).toContain(
             'posthog_events_property_plan',
         );
     });
 
-    it('keeps every scanned field in use for a twin deleted before fields were curated', async () => {
+    it('keeps every field in use when reattaching a source deleted before fields were curated', async () => {
         respondToScan('ok');
         const { service, projectModel } = buildService({
-            deletedSources: [
-                deletedTwin({
-                    externalConnectionUuid:
-                        'd85fea83-0000-0000-0000-000000000000',
-                    sourceName: null,
-                }),
-            ],
+            deletedSources: [deletedSource()],
         });
-        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
+        await service.create(account, 'proj-1', postHogSource);
+        projectModel.replaceApiSourceExplores.mockClear();
+
+        await service.reattachLiveSource(
+            account,
+            'proj-1',
+            'conn-1',
+            'old-conn',
+        );
 
         expect(savedFieldIds(projectModel)).toContain(
-            'posthog_d85fea83_events_property_plan',
+            'posthog_events_property_plan',
         );
+    });
+
+    it("counts the new source's own charts when refusing a reattach", async () => {
+        const { service, savedChartModel } = buildService({
+            connections: [posthogConnection({ liveSourceName: 'current' })],
+            deletedSources: [deletedSource()],
+            chartCount: 1,
+        });
+
+        await expect(
+            service.reattachLiveSource(account, 'proj-1', 'conn-1', 'old-conn'),
+        ).rejects.toThrow(ParameterError);
+        expect(savedChartModel.getChartCountForExplores).toHaveBeenCalledWith(
+            'proj-1',
+            expect.arrayContaining(['current_events']),
+        );
+    });
+
+    it("refuses a reattach when an explore already has the deleted source's name", async () => {
+        const { service, externalConnectionModel } = buildService({
+            deletedSources: [deletedSource()],
+            takenExploreNames: ['posthog_events'],
+        });
+
+        await expect(
+            service.reattachLiveSource(account, 'proj-1', 'conn-1', 'old-conn'),
+        ).rejects.toThrow(AlreadyExistsError);
+        expect(
+            externalConnectionModel.reattachLiveSourceName,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('refuses a reattach when another source takes the prefix first', async () => {
+        const { service, externalConnectionModel, projectModel } = buildService(
+            { deletedSources: [deletedSource()] },
+        );
+        externalConnectionModel.reattachLiveSourceName.mockResolvedValue(false);
+
+        await expect(
+            service.reattachLiveSource(account, 'proj-1', 'conn-1', 'old-conn'),
+        ).rejects.toThrow(AlreadyExistsError);
+        expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['without manage access', { canManage: false }, ForbiddenError],
+        [
+            'with live data sources off',
+            { liveSourcesEnabled: false },
+            ForbiddenError,
+        ],
+    ])('refuses reattach routes %s', async (_name, options, error) => {
+        const { service } = buildService({
+            deletedSources: [deletedSource()],
+            ...options,
+        });
+
+        await expect(
+            service.checkExplorePrefix(
+                account,
+                'proj-1',
+                ApiConnectorType.POSTHOG,
+                'free_name',
+            ),
+        ).rejects.toThrow(error);
+        await expect(
+            service.listReattachableLiveSources(account, 'proj-1', 'conn-1'),
+        ).rejects.toThrow(error);
+        await expect(
+            service.reattachLiveSource(account, 'proj-1', 'conn-1', 'old-conn'),
+        ).rejects.toThrow(error);
+    });
+
+    it('refuses to reattach something that is not a deleted source of the integration', async () => {
+        const { service } = buildService({ deletedSources: [] });
+
+        await expect(
+            service.reattachLiveSource(account, 'proj-1', 'conn-1', 'unknown'),
+        ).rejects.toThrow(NotFoundError);
     });
 
     it('keeps the stored name of a source', async () => {
@@ -1009,109 +1647,6 @@ describe('ExternalConnectionService live source explores', () => {
         await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
 
         expect(savedExploreName(projectModel)).toBe('posthog_conn1_events');
-    });
-
-    it("gives a new source for a deleted source's project that source's name, so its charts work again", async () => {
-        respondToScan('ok');
-        const { service, projectModel } = buildService({
-            deletedSources: [
-                {
-                    externalConnectionUuid: 'old-other',
-                    origin: 'https://eu.posthog.com',
-                    apiSource: {
-                        connector: ApiConnectorType.POSTHOG,
-                        projectId: '999',
-                    },
-                    sourceName: 'other_project',
-                    fieldEdits: null,
-                },
-                {
-                    externalConnectionUuid: 'old-conn',
-                    origin: 'https://eu.posthog.com',
-                    apiSource: {
-                        connector: ApiConnectorType.POSTHOG,
-                        projectId: '303731',
-                    },
-                    sourceName: 'posthog',
-                    fieldEdits: null,
-                },
-            ],
-        });
-        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
-
-        expect(savedExploreName(projectModel)).toBe('posthog_events');
-    });
-
-    it('reuses the id-based name of a deleted source from before names were stored', async () => {
-        respondToScan('ok');
-        const { service, projectModel } = buildService({
-            deletedSources: [
-                {
-                    externalConnectionUuid:
-                        'd85fea83-0000-0000-0000-000000000000',
-                    origin: 'https://eu.posthog.com',
-                    apiSource: {
-                        connector: ApiConnectorType.POSTHOG,
-                        projectId: '303731',
-                    },
-                    sourceName: null,
-                    fieldEdits: null,
-                },
-            ],
-        });
-        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
-
-        expect(savedExploreName(projectModel)).toBe('posthog_d85fea83_events');
-    });
-
-    it('numbers a new name another source or dbt explore already has', async () => {
-        respondToScan('ok');
-        const { service, projectModel } = buildService({
-            connections: [
-                posthogConnection(),
-                posthogConnection({
-                    externalConnectionUuid: 'conn-2',
-                    liveSourceName: 'product_analytics',
-                }),
-            ],
-            takenExploreNames: ['product_analytics_2_events'],
-        });
-        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
-
-        expect(savedExploreName(projectModel)).toBe(
-            'product_analytics_3_events',
-        );
-    });
-
-    it("fails clearly, without a suffix, when a dbt explore has a new source's planned model name", async () => {
-        respondToScan('ok');
-        const { service, projectModel, externalConnectionModel } = buildService(
-            { takenExploreNames: ['product_analytics_persons'] },
-        );
-        await expect(
-            service.refreshApiSourceExplores(account, 'proj-1', 'conn-1'),
-        ).rejects.toThrow(
-            new ParameterError(
-                `Can't build live data source "Product analytics": "product_analytics_persons" is kept free for a planned model of this integration, but another explore in the project already uses it. Rename that dbt model or give the source a different name.`,
-            ),
-        );
-        expect(
-            externalConnectionModel.claimLiveSourceName,
-        ).not.toHaveBeenCalled();
-        expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
-    });
-
-    it('checks planned model names on every candidate it could fall back to', async () => {
-        respondToScan('ok');
-        const { service, projectModel } = buildService({
-            namesHeldAtClaim: ['product_analytics'],
-            takenExploreNames: ['product_analytics_2_sessions'],
-        });
-        await service.refreshApiSourceExplores(account, 'proj-1', 'conn-1');
-
-        expect(savedExploreName(projectModel)).toBe(
-            'product_analytics_3_events',
-        );
     });
 
     it.each([

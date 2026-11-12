@@ -432,9 +432,6 @@ export const AgentChatInput = ({
         }
     }, [storeDispatch, threadUuid]);
     const resetCsvFileInputRef = useRef<() => void>(null);
-    const { data: externalSourcesFlag } = useServerFeatureFlag(
-        FeatureFlags.ExternalSources,
-    );
     const { data: composeSqlRunnerFlag } = useServerFeatureFlag(
         FeatureFlags.ComposeSqlRunner,
     );
@@ -919,7 +916,6 @@ export const AgentChatInput = ({
     const canSteer = canInterrupt && !disabled && !hasRequestedInterrupt;
     const canAttachExternalSource = Boolean(
         projectUuid &&
-        externalSourcesFlag?.enabled &&
         app.health.data?.externalSources.engineAvailable &&
         composeSqlRunnerFlag?.enabled &&
         // Hidden only when the agent is known to have composer queries off.
