@@ -6,19 +6,6 @@ export const analyticsHomepage = {
         version: 1,
         rows: [
             {
-                id: 'ask-ai',
-                blocks: [
-                    {
-                        id: 'analytics-composer',
-                        type: 'ask-ai-hero',
-                        config: {
-                            showGreeting: true,
-                            density: 'compact',
-                        },
-                    },
-                ],
-            },
-            {
                 id: 'metrics',
                 blocks: [
                     {
