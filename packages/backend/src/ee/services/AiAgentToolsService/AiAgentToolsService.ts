@@ -29,11 +29,13 @@ import {
     getAppDisplayName,
     getConnectionDefaults,
     getContentAsCodePathFromLtreePath,
+    getDateZoomXAxisFieldId,
     getDocumentSummaryMarkdown,
     getDocumentUrl,
     getErrorMessage,
     getItemMap,
     getLtreePathFromContentAsCodePath,
+    getTileControl,
     getValidAiQueryLimit,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
@@ -44,6 +46,7 @@ import {
     isGitProjectType,
     JobStatusType,
     mcpDocumentEditSchema,
+    normalizeDateZoomConfig,
     NotFoundError,
     ParameterError,
     parseDocumentBlocks,
@@ -52,6 +55,7 @@ import {
     QueryHistoryStatus,
     QuerySurface,
     RequestMethod,
+    resolveTileDateZoom,
     SessionUser,
     shouldUseStaticFilterAutocomplete,
     SourceQuerySubmission,
@@ -70,9 +74,11 @@ import {
     type AppExternalConnectionLink,
     type ChartAsCode,
     type CustomChartType,
+    type Dashboard,
     type DashboardAsCode,
     type DataAppCreationExperience,
     type DataAppVizSchema,
+    type DateZoom,
     type Document,
     type FieldValueSearchResult,
     type McpCustomChartType,
@@ -532,7 +538,10 @@ type AiAgentToolsServiceDependencies = {
     projectContextModel: ProjectContextModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
     aiDeepResearchRunModel: AiDeepResearchRunModel;
-    aiAgentModel: Pick<AiAgentModel, 'findToolResultsByToolCallIds'>;
+    aiAgentModel: Pick<
+        AiAgentModel,
+        'findToolResultsByToolCallIds' | 'findThreadDashboardRuntimeOverrides'
+    >;
     featureFlagService: FeatureFlagService;
     shareService: ShareService;
     userService: UserService;
@@ -4451,6 +4460,13 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
+                const dateZoom = await this.resolveDashboardTileDateZoom(
+                    context,
+                    dashboard,
+                    tile.uuid,
+                    args.chartUuid,
+                );
+
                 await context.onWarehouseQuery?.();
                 return this.asyncQueryService.executeDashboardChartQueryAndGetResults(
                     {
@@ -4461,6 +4477,7 @@ export class AiAgentToolsService extends BaseService {
                         tileUuid: tile.uuid,
                         dashboardFilters: dashboard.filters,
                         dashboardSorts: [],
+                        ...(dateZoom ? { dateZoom } : {}),
                         limit,
                         context: context.defaultQueryExecutionContext,
                         querySurface: context.querySurface,
@@ -4473,6 +4490,61 @@ export class AiAgentToolsService extends BaseService {
                 );
             },
         );
+    }
+
+    /** The date zoom the dashboard applies to the tile: the viewer's picks attached to the thread, else the saved grains. */
+    private async resolveDashboardTileDateZoom(
+        context: AiAgentToolsRuntimeContext,
+        dashboard: Pick<Dashboard, 'uuid' | 'config'>,
+        tileUuid: string,
+        chartUuid: string,
+    ): Promise<DateZoom | undefined> {
+        const overrides = context.threadUuid
+            ? await this.aiAgentModel.findThreadDashboardRuntimeOverrides(
+                  context.threadUuid,
+                  dashboard.uuid,
+              )
+            : null;
+        const config = normalizeDateZoomConfig(dashboard.config);
+        const savedGranularity = dashboard.config?.isDateZoomDisabled
+            ? undefined
+            : dashboard.config?.defaultDateZoomGranularity;
+        // Absent: as saved. Null: the viewer cleared it.
+        const globalGranularity =
+            overrides?.dateZoom === undefined
+                ? savedGranularity
+                : overrides.dateZoom?.granularity;
+
+        let defaultXAxisFieldId: string | undefined;
+        if (
+            globalGranularity !== undefined &&
+            getTileControl(config, tileUuid) === undefined
+        ) {
+            const chart = await this.savedChartModel.get(chartUuid, undefined, {
+                projectUuid: context.projectUuid,
+            });
+            defaultXAxisFieldId = getDateZoomXAxisFieldId(
+                chart.chartConfig,
+                await this.projectService.getExplore(
+                    context.account,
+                    context.projectUuid,
+                    chart.metricQuery.exploreName,
+                ),
+            );
+        }
+
+        return resolveTileDateZoom({
+            config,
+            tileUuid,
+            runtimeGranularities: Object.fromEntries(
+                (overrides?.dateZoomControls ?? []).map((control) => [
+                    control.uuid,
+                    control.granularity,
+                ]),
+            ),
+            globalGranularity,
+            defaultXAxisFieldId,
+        });
     }
 
     private runSqlJob(
