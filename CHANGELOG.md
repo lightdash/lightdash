@@ -1,3 +1,10 @@
+# [3.239.0](https://github.com/lightdash/lightdash/compare/3.238.0...3.239.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** give the Studio dbt pull request bar its context, models, publish and discard ([#32483](https://github.com/lightdash/lightdash/issues/32483)) ([1bc22eb](https://github.com/lightdash/lightdash/commit/1bc22eb7e1a3a94981da23b1fd3dd5345e55cbd6))
+
 # [3.238.0](https://github.com/lightdash/lightdash/compare/3.237.0...3.238.0) (2026-11-12)
 
 
