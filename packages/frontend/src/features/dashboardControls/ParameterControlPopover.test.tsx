@@ -62,6 +62,7 @@ const render = (
                 parameters={[region]}
                 input={region}
                 tileCount={2}
+                hasChosenTiles={false}
                 totalTileCount={3}
                 projectUuid="project-1"
                 projectTimezone={null}
@@ -206,6 +207,12 @@ describe('ParameterControlPopover', () => {
     it('allows editors to apply a control with no tiles', () => {
         render({ tileCount: 0 });
         expect(screen.getByRole('button', { name: 'Apply' })).toBeEnabled();
+    });
+
+    it('blocks an editor who chose no tiles, in the prompt too', () => {
+        render({ tileCount: 0, hasChosenTiles: true, isAsking: true });
+        for (const button of screen.getAllByRole('button', { name: 'Apply' }))
+            expect(button).toBeDisabled();
     });
 
     it('blocks a viewer from applying a control with no tiles', () => {

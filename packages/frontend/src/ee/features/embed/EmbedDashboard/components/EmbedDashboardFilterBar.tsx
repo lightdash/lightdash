@@ -21,10 +21,12 @@ import {
 } from '../../../../../features/dashboard/store';
 import { AddControl } from '../../../../../features/dashboardControls/AddControl';
 import { MappingSwap } from '../../../../../features/dashboardControls/ControlsBar';
+import { DateZoomPills } from '../../../../../features/dashboardControls/DateZoomPills';
 import { FilterPills } from '../../../../../features/dashboardControls/FilterPills';
 import { ParameterPills } from '../../../../../features/dashboardControls/ParameterPills';
 import { SectionedFilters } from '../../../../../features/dashboardControls/SectionedFilters';
 import { SettledFilterFields } from '../../../../../features/dashboardControls/SettledFilterFields';
+import { useNamedDateZoomCount } from '../../../../../features/dashboardControls/useDateZoomBar';
 import { useParameterBarControls } from '../../../../../features/dashboardControls/useParameterBarControls';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
@@ -54,7 +56,8 @@ type Props = {
 const ControlsFilterArea: FC<{
     canAddFilters: boolean;
     withParameters: boolean;
-}> = ({ canAddFilters, withParameters }) => {
+    withDateZooms: boolean;
+}> = ({ canAddFilters, withParameters, withDateZooms }) => {
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     // Sections or a stored order: the bar the app's viewers get
     const isSectioned = useDashboardSelector(
@@ -84,6 +87,8 @@ const ControlsFilterArea: FC<{
                     viewerActions={actions}
                     triggerClassName={triggerClassName}
                     withParameters={withParameters}
+                    // Date zooms are pills in the flow, as in the app
+                    withDateZooms={withDateZooms}
                 />
             ) : (
                 <>
@@ -93,6 +98,7 @@ const ControlsFilterArea: FC<{
                         triggerClassName={triggerClassName}
                     />
                     {withParameters && <ParameterPills />}
+                    {withDateZooms && <DateZoomPills />}
                 </>
             )}
         </SettledFilterFields>
@@ -112,6 +118,9 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
+    // With the controls, date zooms are pills in the flow, not on the right
+    const withDateZoomPills =
+        isControlsEnabled && dashboard.canDateZoom === true;
     const parameterControls = useDashboardSelector(selectParameterControls);
     const useParameterControls =
         isControlsEnabled && parameterControls !== null;
@@ -144,8 +153,15 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     // With the controls on, the legacy parameters never show: none until the controls are built
     const showsLegacyParameters = parametersEnabled && !isControlsEnabled;
 
-    // Collapsing only hides filters and parameters — date zoom stays visible
-    const isCollapsible = totalFiltersCount > 0 || totalParametersCount > 0;
+    const namedDateZoomCount = useNamedDateZoomCount();
+    const totalDateZoomsCount = withDateZoomPills ? namedDateZoomCount : 0;
+
+    // Collapsing hides filters, parameters and named zooms; the shipped
+    // Default zoom on the right stays visible, as in the app
+    const isCollapsible =
+        totalFiltersCount > 0 ||
+        totalParametersCount > 0 ||
+        totalDateZoomsCount > 0;
 
     // Interactivity may be enabled with nothing to show (hidden filters, or
     // none defined) — render nothing rather than an empty padded row
@@ -158,6 +174,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
             <DashboardFiltersBarSummary
                 filtersCount={totalFiltersCount}
                 parametersCount={totalParametersCount}
+                dateZoomsCount={totalDateZoomsCount}
                 dateZoomLabel={
                     dashboard.canDateZoom
                         ? getDateZoomSummaryLabel(
@@ -199,6 +216,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                             withParameters={
                                 parametersEnabled && useParameterControls
                             }
+                            withDateZooms={withDateZoomPills}
                         />
                     ) : (
                         <EmbedDashboardFilters
@@ -237,6 +255,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                         )}
                     </>
                 )}
+                {!shouldShowFilters && withDateZoomPills && <DateZoomPills />}
             </Group>
 
             <Group gap="xs" wrap="nowrap" flex="0 0 auto">
@@ -246,6 +265,8 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                     >
                         <DateZoom
                             isEditMode={false}
+                            // Named zooms are pills in the flow
+                            withControls={!isControlsEnabled}
                             dropdownClassName={embedContractClass(
                                 'ld-dashboard-date-zoom-dropdown',
                             )}

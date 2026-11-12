@@ -130,13 +130,14 @@ const storyQueryClient = createQueryClient({
     },
 });
 
-[
-    FeatureFlags.ExternalSources,
-    FeatureFlags.ComposeSqlRunner,
-    FeatureFlags.AiThreadRetention,
-].forEach((flag) => {
-    storyQueryClient.setQueryData(['feature-flag', flag], enabledFlag(flag));
-});
+[FeatureFlags.ComposeSqlRunner, FeatureFlags.AiThreadRetention].forEach(
+    (flag) => {
+        storyQueryClient.setQueryData(
+            ['feature-flag', flag],
+            enabledFlag(flag),
+        );
+    },
+);
 
 const health = mockHealthResponse();
 storyQueryClient.setQueryData(['health'], {

@@ -198,6 +198,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             }) =>
                 new AnalyticsProjectService({
                     lightdashConfig: context.lightdashConfig,
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
+                    getAiAgentService: () =>
+                        repository.getAiAgentService<AiAgentService>(),
                     schedulerClient: clients.getSchedulerClient(),
                     contentAsCodeSnapshotModel:
                         models.getContentAsCodeSnapshotModel(),
@@ -209,6 +212,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getContentVerificationModel(),
                     spaceModel: models.getSpaceModel(),
                     dashboardModel: models.getDashboardModel(),
+                    projectHomepageModel:
+                        models.getProjectHomepageModel<ProjectHomepageModel>(),
                     savedChartModel: models.getSavedChartModel(),
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),

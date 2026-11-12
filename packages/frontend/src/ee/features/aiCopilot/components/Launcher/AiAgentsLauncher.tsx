@@ -40,7 +40,9 @@ import { useIsLauncherHidden } from './useIsLauncherHidden';
 import { useLauncherDock } from './useLauncherDock';
 import { useLauncherPanelSize } from './useLauncherPanelSize';
 
-export const AiAgentsLauncher: FC = () => {
+export const AiAgentsLauncher: FC<{ isAnalyticsHomepage: boolean }> = ({
+    isAnalyticsHomepage,
+}) => {
     const isMobile = useMediaQuery('(max-width: 768px)');
     const isHidden = useIsLauncherHidden();
 
@@ -52,16 +54,20 @@ export const AiAgentsLauncher: FC = () => {
                     isMobile,
                     isModalHosted,
                 }) ? (
-                    <AiAgentsLauncherInner isModalHosted={isModalHosted} />
+                    <AiAgentsLauncherInner
+                        isModalHosted={isModalHosted}
+                        isAnalyticsHomepage={isAnalyticsHomepage}
+                    />
                 ) : null
             }
         </AiAgentsLauncherPortal>
     );
 };
 
-const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
-    isModalHosted,
-}) => {
+const AiAgentsLauncherInner: FC<{
+    isModalHosted: boolean;
+    isAnalyticsHomepage: boolean;
+}> = ({ isModalHosted, isAnalyticsHomepage }) => {
     const { activeProjectUuid } = useActiveProjectUuid();
 
     const isAiAgentEnabled = useAiAgentButtonVisibility();
@@ -234,6 +240,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
     const transitionAnalysisAdapter =
         analysisAdapter ?? lastAnalysisAdapterRef.current;
     const isContentPage =
+        isAnalyticsHomepage ||
         currentDashboard?.projectUuid === activeProjectUuid ||
         currentDataApp?.projectUuid === activeProjectUuid ||
         currentDocument?.projectUuid === activeProjectUuid;
@@ -266,6 +273,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                 agents={agents}
                 agentsUpdatedAt={agentsUpdatedAt}
                 selectedAgent={selectedAgent}
+                showAskAiLabel={isAnalyticsHomepage}
             />
             {transitionSavedChartPreview && (
                 <Transition

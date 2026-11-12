@@ -277,6 +277,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'CustomFields', {
             organizationUuid,
         });
+        can('manage', 'MergeQuery', {
+            organizationUuid,
+        });
         can('view', 'CompiledSql', {
             organizationUuid,
         });

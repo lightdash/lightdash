@@ -568,16 +568,15 @@ export const dashboardEditReducer = (
     if (dashboardEditActions.setHaveControlSectionsChanged.match(action)) {
         return set(state, 'haveControlSectionsChanged', action.payload);
     }
-    // A new section joins the line of the one before it, stored as an order;
-    // the first starts one. A stored order ends the last line with it
+    // A new section ends the bar's last line, stored as an order; a stored
+    // order ends the last line with it
     if (dashboardEditActions.addControlSection.match(action)) {
         const { section, barOrder } = action.payload;
         const withSection = withControlSections(state, [
             ...state.controlSections,
             section,
         ]);
-        return state.controlSections.length > 0 &&
-            (state.controlOrder?.length ?? 0) === 0
+        return (state.controlOrder?.length ?? 0) === 0
             ? {
                   ...withSection,
                   controlOrder: [
