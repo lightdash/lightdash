@@ -24,7 +24,6 @@ import {
     IconGitPullRequest,
     IconTable,
     IconWorldUpload,
-    IconX,
 } from '@tabler/icons-react';
 import { countBy, sortBy, uniqBy } from 'es-toolkit/compat';
 import { useEffect, useRef, useState, type FC } from 'react';
@@ -512,17 +511,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     onChange={setIsPreviewing}
                 />
             )}
-            {reviewing ? null : (
-                <Button
-                    size="xs"
-                    variant="default"
-                    onClick={() =>
-                        setSearchParams({ [DRAFT_PARAM]: DRAFT_REVIEW })
-                    }
-                >
-                    Review
-                </Button>
-            )}
             {conflicts > 0 ? (
                 <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
                     <Button
@@ -603,17 +591,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
-            {reviewing ? (
-                <Tooltip label="Close review">
-                    <ActionIcon
-                        size="md"
-                        aria-label="Close review"
-                        onClick={() => setSearchParams({})}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
-            ) : null}
             {discarding ? (
                 <MantineModal
                     opened

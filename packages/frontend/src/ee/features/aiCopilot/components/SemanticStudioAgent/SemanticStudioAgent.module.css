@@ -97,3 +97,12 @@
 .statusLink {
     cursor: pointer;
 }
+
+.changes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xl);
+    height: 100%;
+    overflow: auto;
+    padding: var(--mantine-spacing-md);
+}

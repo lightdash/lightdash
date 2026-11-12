@@ -23,11 +23,11 @@ import {
     IconChevronRight,
     IconCode,
     IconFileCode,
+    IconGitCompare,
     IconSearch,
     IconTable,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { uniqBy } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,
@@ -39,7 +39,7 @@ import {
 } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
-import { PullRequestDiffPane } from '../../ee/features/aiCopilot/components/ChatElements/ToolCalls/WritebackDiffModal';
+import { PullRequestChanges } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/PullRequestChanges';
 import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
 import {
     StudioDevelopmentBar,
@@ -88,7 +88,6 @@ import {
     type NodeRef,
     type TreeNode,
 } from './model';
-import { ModelChangeSummary } from './ModelChangeSummary';
 import {
     DRAFT_PARAM,
     DRAFT_REVIEW,
@@ -137,7 +136,7 @@ const ROW_HEIGHT = 28;
 /** What the workspace shows beside the rail. */
 type Pane =
     | 'code'
-    | 'diff'
+    | 'changes'
     | 'review'
     | 'browse'
     | 'intro'
@@ -571,20 +570,7 @@ const MainPane: FC<{
     onOpen: (ref: NodeRef | null) => void;
     onOpenNode: (node: TreeNode) => void;
     onBuildModel: (() => void) | null;
-    /** Models with changes that are not live. */
-    changed: string[];
-    previewProjectUuid: string | null;
-    /** The search params of the view that shows the changes as code. */
-    codeSearch: Record<string, string>;
-}> = ({
-    view,
-    onOpen,
-    onOpenNode,
-    onBuildModel,
-    changed,
-    previewProjectUuid,
-    codeSearch,
-}) => {
+}> = ({ view, onOpen, onOpenNode, onBuildModel }) => {
     const selected = view.selected;
     const ref = selected ? containerOf(selected) : null;
     const node = ref ? findNode(view.tree.nodes, nodeKey(ref)) : undefined;
@@ -696,15 +682,6 @@ const MainPane: FC<{
                 </Group>
             </Box>
             <Box className={classes.mainBody}>
-                {explore && changed.includes(explore.id) ? (
-                    <ModelChangeSummary
-                        key={explore.id}
-                        projectUuid={view.project.id}
-                        model={explore.id}
-                        previewProjectUuid={previewProjectUuid}
-                        codeSearch={codeSearch}
-                    />
-                ) : null}
                 {onBuildModel && !ref ? (
                     <SemanticLayerNudge onBuild={onBuildModel} />
                 ) : null}
@@ -767,22 +744,9 @@ const Rail: FC<{
     view: ViewModel;
     expanded: Set<string>;
     drafted: Set<string>;
-    /** Models with changes that are not live yet, pinned above the tree so they are easy to check. */
-    changed: string[];
     onToggle: (key: string) => void;
     onOpen: (ref: NodeRef) => void;
-}> = ({ view, expanded, drafted, changed, onToggle, onOpen }) => {
-    const changedExplores = uniqBy(
-        view.project.explores.filter(({ id }) => changed.includes(id)),
-        'id',
-    );
-    // With changes to check, the rest of the tree folds away until asked for.
-    const [showsAll, setShowsAll] = useState(false);
-    const isFolded = changedExplores.length > 0 && !showsAll;
-    const openExploreId =
-        view.selected?.type === 'explore' || view.selected?.type === 'field'
-            ? view.selected.exploreId
-            : null;
+}> = ({ view, expanded, drafted, onToggle, onOpen }) => {
     const search = useProjectSearch(view.project, view.tree);
     const [activeResult, setActiveResult] = useState(0);
     const { results } = search.results;
@@ -852,73 +816,13 @@ const Rail: FC<{
                     onOpen={openResult}
                 />
             ) : (
-                <>
-                    {changedExplores.length > 0 ? (
-                        <Box className={classes.changed}>
-                            <Box className={classes.changedLabel}>Changed</Box>
-                            {changedExplores.map(({ id, label }) => (
-                                <Box
-                                    key={id}
-                                    component="button"
-                                    type="button"
-                                    className={classes.fileRow}
-                                    data-selected={id === openExploreId}
-                                    aria-current={
-                                        id === openExploreId
-                                            ? 'true'
-                                            : undefined
-                                    }
-                                    onClick={() =>
-                                        onOpen({
-                                            type: 'explore',
-                                            exploreId: id,
-                                        })
-                                    }
-                                >
-                                    <MantineIcon
-                                        icon={IconTable}
-                                        size={14}
-                                        color="dimmed"
-                                    />
-                                    <Text
-                                        truncate
-                                        className={classes.treeLabel}
-                                        title={label}
-                                    >
-                                        {label}
-                                    </Text>
-                                    <Box className={classes.draftDot} />
-                                </Box>
-                            ))}
-                        </Box>
-                    ) : null}
-                    {changedExplores.length > 0 ? (
-                        <Box
-                            component="button"
-                            type="button"
-                            className={classes.allModels}
-                            aria-expanded={!isFolded}
-                            onClick={() => setShowsAll(isFolded)}
-                        >
-                            <MantineIcon
-                                icon={IconChevronRight}
-                                size={14}
-                                color="dimmed"
-                                className={classes.allModelsChevron}
-                            />
-                            All models
-                        </Box>
-                    ) : null}
-                    {isFolded ? null : (
-                        <Tree
-                            view={view}
-                            expanded={expanded}
-                            drafted={drafted}
-                            onToggle={onToggle}
-                            onSelect={(node) => view.select(node.ref)}
-                        />
-                    )}
-                </>
+                <Tree
+                    view={view}
+                    expanded={expanded}
+                    drafted={drafted}
+                    onToggle={onToggle}
+                    onSelect={(node) => view.select(node.ref)}
+                />
             )}
         </Box>
     );
@@ -962,26 +866,35 @@ const CodeRail: FC<{
 
 const FILE_PARAM = 'file';
 
-const VIEW_OPTIONS = [
-    {
-        value: 'preview',
-        label: (
-            <Group gap={6} wrap="nowrap">
-                <MantineIcon icon={IconTable} size={14} />
-                Models
-            </Group>
-        ),
-    },
-    {
-        value: 'code',
-        label: (
-            <Group gap={6} wrap="nowrap">
-                <MantineIcon icon={IconCode} size={14} />
-                Code
-            </Group>
-        ),
-    },
-];
+const CHANGES_OPTION = {
+    value: 'changes',
+    label: (
+        <Group gap={6} wrap="nowrap">
+            <MantineIcon icon={IconGitCompare} size={14} />
+            Changes
+        </Group>
+    ),
+};
+
+const MODELS_OPTION = {
+    value: 'models',
+    label: (
+        <Group gap={6} wrap="nowrap">
+            <MantineIcon icon={IconTable} size={14} />
+            Models
+        </Group>
+    ),
+};
+
+const CODE_OPTION = {
+    value: 'code',
+    label: (
+        <Group gap={6} wrap="nowrap">
+            <MantineIcon icon={IconCode} size={14} />
+            Code
+        </Group>
+    ),
+};
 
 const BUILD_MODEL_PROMPT =
     'Look through my warehouse and suggest the first model and metrics to add.';
@@ -1052,9 +965,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const hasDraft = (draft?.changes.length ?? 0) > 0;
     // With nothing live, what the draft adds is the page.
     const isBuildingFirstModel = isEmpty && hasDraft;
+    // With changes to check and nothing else asked for, the changes are the page.
+    const isDefaultView =
+        view.selected === null && searchParams.get(VIEW_PARAM) === null;
     const isReviewingDraft =
         isBuildingFirstModel ||
-        (hasDraft && searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW);
+        (hasDraft &&
+            (searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW || isDefaultView));
     const openExplore =
         view.selected?.type === 'explore' || view.selected?.type === 'field'
             ? view.selected.exploreId
@@ -1079,10 +996,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const pullRequest = useStudioPullRequest(view.project.id);
     const development = !keepsDraft && pullRequest?.isOpen ? pullRequest : null;
     const pendingChange = useStudioPendingChange(view.project.id);
-    const changed = useMemo(
-        () => (keepsDraft ? [...drafted] : (development?.changedModels ?? [])),
-        [keepsDraft, drafted, development],
-    );
     const saving = keepsDraft ? null : pendingChange;
     // Tints the toolbar while the project has changes that are not live, in the colour of their status chip.
     const changeStatus = saving
@@ -1107,13 +1020,23 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const wasSaving = useRef(false);
     useEffect(() => {
         if (wasSaving.current && !saving && development) {
-            setSearchParams({ [VIEW_PARAM]: 'code' });
+            setSearchParams({ [VIEW_PARAM]: 'changes' });
         }
         wasSaving.current = !!saving;
     }, [saving, development, setSearchParams]);
-    // A dbt project's code is its pull request's diff: its files live in the repository.
-    const isDiff =
-        !keepsDraft && !!development && searchParams.get(VIEW_PARAM) === 'code';
+    // A dbt project's changes are its pull request's: its files live in the repository.
+    const isChanges =
+        !keepsDraft &&
+        !!development &&
+        (searchParams.get(VIEW_PARAM) === 'changes' || isDefaultView);
+    const hasChanges = keepsDraft
+        ? hasDraft && !isBuildingFirstModel
+        : !!development;
+    const viewOptions = [
+        ...(hasChanges ? [CHANGES_OPTION] : []),
+        MODELS_OPTION,
+        ...(keepsDraft ? [CODE_OPTION] : []),
+    ];
     // Only models with YAML here have a file: a deployed model's YAML lives where it was deployed from.
     const { data: stored } = useSemanticLayerStoredModels(
         view.project.id,
@@ -1132,10 +1055,17 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const switchView = (next: string) => {
         if (next === 'code') {
             setSearchParams({ [VIEW_PARAM]: 'code' });
+        } else if (next === 'changes') {
+            setSearchParams(
+                keepsDraft
+                    ? { [DRAFT_PARAM]: DRAFT_REVIEW }
+                    : { [VIEW_PARAM]: 'changes' },
+            );
         } else if (requestedFile && modelled.includes(requestedFile)) {
             view.select({ type: 'explore', exploreId: requestedFile });
         } else {
-            setSearchParams({});
+            // Named, since with changes to check the bare page shows those.
+            setSearchParams(hasChanges ? { [VIEW_PARAM]: 'models' } : {});
         }
     };
 
@@ -1146,7 +1076,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         chat.isAvailable && keepsDraft && hasWarehouse && modelled.length === 0;
     const pane = ((): Pane => {
         if (isCode) return 'code';
-        if (isDiff) return 'diff';
+        if (isChanges) return 'changes';
         if (isReviewingDraft) return 'review';
         if (!isEmpty) return 'browse';
         if (!canBuildFirstModel) return 'empty';
@@ -1169,12 +1099,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
 
     const renderPane = () => {
         switch (pane) {
-            case 'diff':
+            case 'changes':
                 return development ? (
-                    <PullRequestDiffPane
+                    <PullRequestChanges
                         projectUuid={view.project.id}
-                        prUrl={development.prUrl}
-                        commitSha={development.commitSha}
+                        pullRequest={development}
                     />
                 ) : null;
             case 'code':
@@ -1220,15 +1149,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         view={view}
                         onOpen={(ref) => (ref ? open(ref) : view.select(null))}
                         onOpenNode={openNode}
-                        changed={changed}
-                        previewProjectUuid={
-                            development?.previewProjectUuid ?? null
-                        }
-                        codeSearch={
-                            keepsDraft
-                                ? { [DRAFT_PARAM]: DRAFT_REVIEW }
-                                : { [VIEW_PARAM]: 'code' }
-                        }
                         onBuildModel={
                             canNudge
                                 ? () => {
@@ -1308,12 +1228,15 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         size="xs"
                                         flex="none"
                                         value={
-                                            isCode || isDiff
+                                            isCode
                                                 ? 'code'
-                                                : 'preview'
+                                                : pane === 'review' ||
+                                                    pane === 'changes'
+                                                  ? 'changes'
+                                                  : 'models'
                                         }
                                         onChange={switchView}
-                                        data={VIEW_OPTIONS}
+                                        data={viewOptions}
                                     />
                                 ) : null}
                                 {saving ? (
@@ -1351,7 +1274,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         <Box
                             className={classes.workspaceBody}
                             data-no-rail={
-                                pane === 'diff' || (pane !== 'code' && isEmpty)
+                                pane === 'changes' ||
+                                (pane !== 'code' && isEmpty)
                             }
                         >
                             {pane === 'code' ? (
@@ -1367,12 +1291,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         })
                                     }
                                 />
-                            ) : isEmpty || pane === 'diff' ? null : (
+                            ) : isEmpty || pane === 'changes' ? null : (
                                 <Rail
                                     view={view}
                                     expanded={expanded}
                                     drafted={drafted}
-                                    changed={changed}
                                     onToggle={toggle}
                                     onOpen={open}
                                 />
@@ -1383,7 +1306,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 <Box
                                     className={classes.main}
                                     data-full={
-                                        pane === 'code' || pane === 'diff'
+                                        pane === 'code' || pane === 'changes'
                                     }
                                 >
                                     {renderPane()}

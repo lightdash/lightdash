@@ -37,7 +37,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useGithubUserCredential } from '../../../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
@@ -399,6 +399,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     startedAt,
 }) => {
     const quiet = useContext(QuietCardsContext);
+    const [, setSearchParams] = useSearchParams();
     // Hooks must run before the early returns below; the query is disabled until
     // there's a PR URL, so the error/no-PR branches don't fetch anything.
     const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
@@ -768,7 +769,19 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                 />
                             ) : null}
                         </PullRequestViewMenu>
-                        {!isBitbucket && (
+                        {/* In Studio the workspace holds the changes and the bar merges them; the card points there. */}
+                        {quiet && isOpen ? (
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                onClick={() =>
+                                    setSearchParams({ view: 'changes' })
+                                }
+                            >
+                                View changes
+                            </Button>
+                        ) : null}
+                        {!isBitbucket && !(quiet && isOpen) && (
                             <PullRequestActionButtons
                                 ciChecks={ciChecks ?? null}
                                 isMerging={isMerging}

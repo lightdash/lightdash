@@ -12,15 +12,6 @@
     overflow-y: auto;
 }
 
-.stack {
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-sm);
-    height: 100%;
-    overflow: auto;
-    padding: var(--mantine-spacing-sm);
-}
-
 .stackFile {
     flex: none;
     overflow: hidden;
