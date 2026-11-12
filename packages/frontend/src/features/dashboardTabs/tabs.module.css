@@ -163,6 +163,24 @@
     padding-top: 4px;
 }
 
+/* The grid reaches the bottom of the window, so the whole editing area reads
+   as canvas; the action bar clearance sits inside it to carry the pattern */
+.tabGridContainer[data-fill-window] :global(.react-grid-layout) {
+    --canvas-scale: 1;
+    box-sizing: content-box;
+    padding-bottom: calc(var(--canvas-bottom-pad, 0px) / var(--canvas-scale));
+}
+.tabGridContainer[data-fill-window]
+    :global([data-canvas-zoom][data-zoomed] .react-grid-layout) {
+    --canvas-scale: var(--canvas-zoom);
+}
+.tabGridContainer[data-fill-window] :global(.react-grid-layout) {
+    min-height: calc(
+        (100dvh - var(--canvas-top, 0px) - var(--canvas-bottom-pad, 0px)) /
+            var(--canvas-scale)
+    );
+}
+
 .gridInteracting {
     user-select: none;
 }
