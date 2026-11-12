@@ -150,9 +150,6 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'Explore', {
             organizationUuid: member.organizationUuid,
         });
-        can('manage', 'MergeQuery', {
-            organizationUuid: member.organizationUuid,
-        });
         can('create', 'ScheduledDeliveries', {
             organizationUuid: member.organizationUuid,
         });
@@ -359,6 +356,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'CustomFields', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'MergeQuery', {
             organizationUuid: member.organizationUuid,
         });
         can('view', 'CompiledSql', {

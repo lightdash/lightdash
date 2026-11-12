@@ -113,9 +113,6 @@ export const projectMemberAbilities: Record<
         can('manage', 'Explore', {
             projectUuid: member.projectUuid,
         });
-        can('manage', 'MergeQuery', {
-            projectUuid: member.projectUuid,
-        });
         can('manage', 'ChangeCsvResults', {
             projectUuid: member.projectUuid,
         });
@@ -309,6 +306,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'CustomFields', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'MergeQuery', {
             projectUuid: member.projectUuid,
         });
         can('view', 'CompiledSql', {
