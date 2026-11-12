@@ -568,3 +568,30 @@ describe('NatsWorker subject dispatch', () => {
         );
     });
 });
+
+describe('query database heartbeat', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('writes at most once per minute and stops after the handler', async () => {
+        vi.useFakeTimers();
+        const heartbeat = vi.fn(async () => 1);
+        let finish!: () => void;
+        const running = NatsWorker.runWithAckProgress(
+            jobMessage('query'),
+            () =>
+                new Promise<void>((resolve) => {
+                    finish = resolve;
+                }),
+            undefined,
+            heartbeat,
+        );
+        await vi.advanceTimersByTimeAsync(59_000);
+        expect(heartbeat).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(61_000);
+        expect(heartbeat).toHaveBeenCalledTimes(2);
+        finish();
+        await running;
+        await vi.advanceTimersByTimeAsync(60_000);
+        expect(heartbeat).toHaveBeenCalledTimes(2);
+    });
+});

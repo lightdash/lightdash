@@ -624,6 +624,10 @@ export class NatsWorker {
                     );
                 },
                 signal,
+                () =>
+                    this.queryHistoryModel.updateExecutingHeartbeat(
+                        parsed.payload.queryUuid,
+                    ),
             );
 
             if (signal.aborted) return;
@@ -882,9 +886,29 @@ export class NatsWorker {
         message: JsMsg,
         handler: () => Promise<T>,
         signal?: AbortSignal,
+        heartbeat: (() => Promise<number>) | null = null,
     ): Promise<T> {
+        let lastHeartbeatAt = Date.now();
+        let heartbeatPending = false;
         const interval = setInterval(() => {
             message.working();
+            if (
+                heartbeat &&
+                !heartbeatPending &&
+                Date.now() - lastHeartbeatAt >= 60_000
+            ) {
+                lastHeartbeatAt = Date.now();
+                heartbeatPending = true;
+                void heartbeat()
+                    .catch((error: unknown) => {
+                        Logger.warn('Failed to write query heartbeat', {
+                            error: getErrorMessage(error),
+                        });
+                    })
+                    .finally(() => {
+                        heartbeatPending = false;
+                    });
+            }
         }, ACK_PROGRESS_INTERVAL_MS);
 
         const stopProgress = () => clearInterval(interval);

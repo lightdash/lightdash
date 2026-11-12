@@ -284,6 +284,7 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
 
+    [SCHEDULER_TASKS.SWEEP_STUCK_QUERIES]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: () => ({}),
     [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: (payload) => ({
         'organization.uuid': payload.organizationUuid,

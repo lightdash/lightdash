@@ -62,6 +62,7 @@ export type DbQueryHistory = {
     pre_aggregate_compiled_sql: string | null; // DuckDB SQL for pre-aggregate execution path
     pre_aggregate_execution: PreAggregateExecutionEngine | null; // engine for pre_aggregate_compiled_sql
     pre_aggregate_fallback_reason: PreAggregateFallbackReason | null; // non-null ⇒ matched but served from source warehouse
+    executing_heartbeat_at: Date | null;
     processing_started_at: Date | null; // when the NATS worker picked up the job
     duckdb_execution: DuckdbExecutionSpec | null; // how a DuckDB source query runs, for the worker to rebuild it
     // Copied out of the JSON columns so queries can filter and join on them without detoasting.
@@ -81,6 +82,7 @@ export type DbQueryHistoryIn = Omit<
     | 'cache_miss_reason'
     | 'cache_refresh_requested'
     | 'warehouse_bytes_billed'
+    | 'executing_heartbeat_at'
 > & {
     created_by_actor_type: AuthType;
     agent_identity?: AgentIdentityClaim;
@@ -125,6 +127,7 @@ export type DbQueryHistoryUpdate = Partial<
         | 'cache_miss_reason'
         | 'cache_refresh_requested'
         | 'pre_aggregate_fallback_reason'
+        | 'executing_heartbeat_at'
         | 'processing_started_at'
         | 'duckdb_execution'
     >

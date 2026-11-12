@@ -50,6 +50,7 @@ import {
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import KnexPaginate from '../../database/pagination';
+import Logger from '../../logging/logger';
 import type {
     ResultsCacheContextStatsRow,
     ResultsCacheRecommendationRow,
@@ -659,6 +660,70 @@ export class QueryHistoryModel {
                 error,
                 processing_started_at: new Date(),
             });
+    }
+
+    async updateExecutingHeartbeat(queryUuid: string): Promise<number> {
+        const result = await this.database.raw<{ rowCount: number }>(
+            `UPDATE query_history SET executing_heartbeat_at = now()
+             WHERE query_uuid = ? AND status = 'executing'
+               AND (executing_heartbeat_at IS NULL OR executing_heartbeat_at <= now() - interval '60 seconds')`,
+            [queryUuid],
+        );
+        return result.rowCount;
+    }
+
+    async failStuckQueriesBatch(timeoutSeconds: number): Promise<number> {
+        const result = await this.database.raw<{
+            rows: {
+                query_uuid: string;
+                prior_status: string;
+                age_seconds: number;
+            }[];
+        }>(
+            `
+            WITH candidates AS MATERIALIZED (
+                SELECT query_uuid, status AS prior_status,
+                    EXTRACT(EPOCH FROM (now() - COALESCE(executing_heartbeat_at, processing_started_at, created_at)))::float8 AS age_seconds
+                FROM query_history
+                WHERE status IN ('queued', 'executing')
+                  AND COALESCE(executing_heartbeat_at, processing_started_at, created_at) < now() - ? * interval '1 second'
+                ORDER BY COALESCE(executing_heartbeat_at, processing_started_at, created_at)
+                LIMIT 500
+                FOR UPDATE SKIP LOCKED
+            )
+            UPDATE query_history AS history
+            SET status = 'error', error = ?, errored_at = now()
+            FROM candidates
+            WHERE history.query_uuid = candidates.query_uuid
+              AND history.status IN ('pending', 'queued', 'executing')
+              AND COALESCE(history.executing_heartbeat_at, history.processing_started_at, history.created_at) < now() - ? * interval '1 second'
+            RETURNING history.query_uuid, candidates.prior_status, candidates.age_seconds
+        `,
+            [
+                timeoutSeconds,
+                'This query was not picked up by a worker. Try again.',
+                timeoutSeconds,
+            ],
+        );
+        for (const row of result.rows) {
+            Logger.info('Swept stuck query', {
+                queryUuid: row.query_uuid,
+                priorStatus: row.prior_status,
+                ageSeconds: row.age_seconds,
+                timeoutSeconds,
+            });
+        }
+        return result.rows.length;
+    }
+
+    async failStuckQueries(timeoutSeconds: number): Promise<void> {
+        const sweepBatch = async (remainingBatches: number): Promise<void> => {
+            if (remainingBatches === 0) return;
+            if ((await this.failStuckQueriesBatch(timeoutSeconds)) < 500)
+                return;
+            await sweepBatch(remainingBatches - 1);
+        };
+        await sweepBatch(50);
     }
 
     async failUnfinishedQueryDelivery(
