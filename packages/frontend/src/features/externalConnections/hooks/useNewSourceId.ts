@@ -39,10 +39,6 @@ export const useNewSourceId = ({
         onChange: setTyped,
         error,
         suggestion: autoSuggestion ? null : (check?.suggestion ?? null),
-        exploreName:
-            (autoSuggestion
-                ? check?.suggestionExploreNames[0]
-                : check?.exploreNames[0]) ?? null,
         isBlocked:
             enabled && (requested.length === 0 || isChecking || error !== null),
     };

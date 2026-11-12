@@ -16,11 +16,11 @@ export const SourceIdField: FC<Props> = ({ connection, sourceId }) => {
                 label="Explore prefix"
                 value={connection.liveSourceName}
                 readOnly
-                description="Lightdash names this source's explores with it. It never changes, so saved charts keep working. To use another, delete this source and add a new one."
+                description="Used by Lightdash to name this source's explores. Can't be changed."
             />
         ) : null;
     }
-    const { value, onChange, error, suggestion, exploreName } = sourceId;
+    const { value, onChange, error, suggestion } = sourceId;
     return (
         <Stack gap={4}>
             <TextInput
@@ -29,9 +29,7 @@ export const SourceIdField: FC<Props> = ({ connection, sourceId }) => {
                 value={value}
                 onChange={(event) => onChange(event.currentTarget.value)}
                 error={error}
-                description={`Lightdash names this source's explores with it${
-                    exploreName ? `, e.g. ${exploreName}` : ''
-                }. Keep the default if it's your only source of this type. It never changes, so saved charts keep working and reattaching reuses it.`}
+                description="Used by Lightdash to name this source's explores. Can't be changed later."
             />
             {suggestion && (
                 <Text fz="xs" c="dimmed">
