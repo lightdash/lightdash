@@ -42,6 +42,9 @@ vi.mock('./ExploreMenu', () => ({ default: () => null }));
 vi.mock('./BrowseMenu', () => ({ default: () => null }));
 vi.mock('./SettingsMenu', () => ({ default: () => null }));
 vi.mock('./HelpMenu', () => ({ default: () => null }));
+vi.mock('./DevelopmentViewSwitch', () => ({
+    DevelopmentViewSwitch: () => null,
+}));
 vi.mock('./HeadwayMenuItem', () => ({ default: () => null }));
 vi.mock('./ProjectCredentialsSwitcher', () => ({ default: () => null }));
 vi.mock('./AutopilotNavButton', () => ({ AutopilotNavButton: () => null }));

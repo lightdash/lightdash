@@ -1,0 +1,7 @@
+.indicator {
+    background: var(--mantine-color-orange-6);
+}
+
+.label[data-active] {
+    color: var(--mantine-color-white);
+}
