@@ -11,8 +11,6 @@ import {
     Center,
     Group,
     Loader,
-    Stack,
-    Text,
     Tooltip,
 } from '@mantine/core';
 import {
@@ -39,6 +37,7 @@ import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import { QuietCardsContext } from '../ChatElements/ToolCalls/quietCards';
 import classes from './SemanticStudioAgent.module.css';
+import { StudioChatEmptyState } from './StudioChatEmptyState';
 import {
     useChatOpen,
     useStudioAgent,
@@ -175,12 +174,7 @@ const NewThread: FC<
     const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     return (
         <>
-            <Stack flex={1} justify="center" align="center" px="md">
-                <Text fz="xs" c="dimmed" ta="center">
-                    {keepsDraft
-                        ? 'Ask for a model, a metric or a join. Changes stay in development, and nothing goes live until you publish.'
-                        : 'Ask for a model, a metric or a join. Changes go to your repository as a pull request, and nothing goes live until it merges.'}
-                </Text>
+            <StudioChatEmptyState keepsDraft={keepsDraft}>
                 {showStarters ? (
                     <Group gap="xs" justify="center">
                         {STARTERS.map(({ label, prompt: starter }) => (
@@ -196,7 +190,7 @@ const NewThread: FC<
                         ))}
                     </Group>
                 ) : null}
-            </Stack>
+            </StudioChatEmptyState>
             <AgentChatInput
                 accessCalloutVariant="inline"
                 loading={isLoading}

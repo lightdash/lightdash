@@ -22,7 +22,7 @@ import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
-import { DevelopmentViewBanner } from './DevelopmentViewBanner';
+import { DevelopmentViewIsland } from './DevelopmentViewIsland';
 import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
@@ -133,7 +133,6 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
 
     const hasBanner =
         isImpersonating ||
-        isDevelopmentView ||
         (isCurrentProjectPreview && !isTrainingCopy) ||
         showSampleDataBanner ||
         showTrialWarning;
@@ -160,8 +159,6 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             >
                 {isImpersonating ? (
                     <ImpersonationBanner />
-                ) : isDevelopmentView ? (
-                    <DevelopmentViewBanner />
                 ) : isCurrentProjectPreview && !isTrainingCopy ? (
                     <PreviewBanner
                         expiresAt={project?.expiresAt ?? null}
@@ -191,6 +188,7 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                         navBarMode === NavBarMode.EDITING_DASHBOARD_CHART &&
                             classes.headerEditingDashboardChart,
                     )}
+                    data-development={isDevelopmentView || undefined}
                     mt={hasBanner ? BANNER_HEIGHT : 0}
                     display={isFullscreen ? 'none' : 'flex'}
                     px="md"
@@ -206,6 +204,7 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                         isLoadingActiveProject={isLoadingActiveProject}
                     />
                 </Box>
+                {isDevelopmentView ? <DevelopmentViewIsland /> : null}
                 {/* Placeholder to reserve space when navbar is fixed */}
                 {isFixed && !isFullscreen && <Box h={headerContainerHeight} />}
             </MantineBaseProvider>

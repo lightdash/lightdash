@@ -20,6 +20,7 @@ import {
     type LightdashModelFragment,
     type PossibleAbilities,
     type Project,
+    type SemanticLayerModelChange,
     type SessionUser,
 } from '@lightdash/common';
 import { stringify } from 'yaml';
@@ -144,7 +145,11 @@ const setup = ({
     validationFor = () => [],
 }: {
     stored?: { name: string; content: string; version?: number }[];
-    otherDrafters?: { name: string; models: string[] }[];
+    otherDrafters?: {
+        name: string;
+        models: string[];
+        changes: ReturnType<typeof draftModel>[][];
+    }[];
     baseContents?: [string, string | null][];
     /** Field ids a saved chart reads. */
     usedFields?: string[];
@@ -238,11 +243,14 @@ const setup = ({
             },
         }),
     );
-    const findModelHistory = vi.fn(async () => []);
+    const findModelHistory = vi.fn(
+        async (): Promise<Omit<SemanticLayerModelChange, 'replaced'>[]> => [],
+    );
     const deleteCachedExplores = vi.fn(
         async (_projectUuid: string, _names: string[]) => undefined,
     );
     const drafts: StoredDraftChange[] = [];
+    const requestedBases: [string, number][] = [];
     const settled: ('applied' | 'discarded')[] = [];
     const generateValidation = vi.fn(
         async (
@@ -330,7 +338,10 @@ const setup = ({
         projectModelDocumentModel: {
             findDocuments: async () =>
                 stored.map((doc) => ({ version: 1, ...doc })),
-            findDocumentsAt: async () => new Map(baseContents),
+            findDocumentsAt: async (_projectUuid, versions) => {
+                requestedBases.push(...versions);
+                return new Map(baseContents);
+            },
             rebaseDraftChanges: async (_owner, model, version) => {
                 // Live is always at version 1 here.
                 if (version !== 1) return false;
@@ -353,6 +364,8 @@ const setup = ({
             findModelHistory,
             findDraftChanges: async () => drafts,
             findOtherDrafters: async () => otherDrafters,
+            withPublishLock: async (_owner, publish) => publish(),
+            findDraftState: async () => ({ versions: [], changes: [] }),
             swapDraftChanges: async (_owner, [first, second]) => {
                 const a = drafts.findIndex(
                     (change) => change.draftChangeUuid === first,
@@ -465,6 +478,7 @@ const setup = ({
         deleteCachedExplores,
         findModelHistory,
         drafts,
+        requestedBases,
         settled,
         generateValidation,
         queueImpactCheck,
@@ -1071,8 +1085,22 @@ describe('SemanticStudioService', () => {
             const at = new Date('2026-01-02T00:00:00Z');
             const context = setup({
                 otherDrafters: [
-                    { name: 'Ada Lovelace', models: ['orders'] },
-                    { name: 'Alan Turing', models: ['customers'] },
+                    {
+                        name: 'Ada Lovelace',
+                        models: ['orders'],
+                        changes: [[draftModel('label: Sales\n')]],
+                    },
+                    {
+                        name: 'Alan Turing',
+                        models: ['customers'],
+                        changes: [
+                            [
+                                draftModel('label: People\n', {
+                                    name: 'customers',
+                                }),
+                            ],
+                        ],
+                    },
                 ],
                 publishedSince: new Map([
                     ['orders', { by: 'Grace Hopper', at }],
@@ -1091,7 +1119,7 @@ describe('SemanticStudioService', () => {
             expect(draft.models).toEqual([
                 expect.objectContaining({
                     model: 'orders',
-                    alsoChanging: [{ name: 'Ada Lovelace', paths: [] }],
+                    alsoChanging: [{ name: 'Ada Lovelace', paths: ['label'] }],
                     publishedSince: { by: 'Grace Hopper', at },
                 }),
             ]);
@@ -1195,6 +1223,87 @@ describe('SemanticStudioService', () => {
                 1,
             );
             expect((await reconciliationOf(context))?.state).toBe('current');
+        });
+
+        it('takes the live version of one contested part and leaves the rest of the draft', async () => {
+            const context = await drafted(
+                setup({
+                    baseContents: [
+                        [
+                            'orders',
+                            orders.replace(
+                                '    sql: ${TABLE}.amount\n',
+                                '    sql: ${TABLE}.amount\n    metrics:\n      revenue:\n        type: count\n',
+                            ),
+                        ],
+                    ],
+                }),
+            );
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('label: Sales\n')],
+                null,
+            );
+            context.drafts[0].baseVersions = { orders: 0 };
+            expect((await reconciliationOf(context))?.state).toBe('conflict');
+            await context.service.takeLiveDraftPart(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+                'dimensions.amount.metrics.revenue',
+            );
+            const draft = await context.service.getDraft(
+                deployer,
+                PROJECT_UUID,
+            );
+            expect(draft.models[0].reconciliation?.conflicts).toEqual([]);
+            // Live exactly, plus the one change the draft kept.
+            expect(draft.models[0].contentAfter).toBe(
+                `${orders}label: Sales\n`,
+            );
+            expect(context.drafts.at(-1)?.models).toEqual([
+                expect.objectContaining({
+                    restore: ['dimensions.amount.metrics.revenue'],
+                }),
+            ]);
+        });
+
+        it('still sees a conflict after the changes are reordered', async () => {
+            const context = await drafted(
+                setup({
+                    baseContents: [
+                        [
+                            'orders',
+                            orders.replace(
+                                '    sql: ${TABLE}.amount\n',
+                                '    sql: ${TABLE}.amount\n    metrics:\n      revenue:\n        type: count\n',
+                            ),
+                        ],
+                    ],
+                }),
+            );
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('label: Sales\n')],
+                null,
+            );
+            context.drafts[0].baseVersions = { orders: 0 };
+            context.drafts.reverse();
+            expect((await reconciliationOf(context))?.state).toBe('conflict');
+            // The oldest base is the one read, whichever change comes first.
+            expect(context.requestedBases.at(-1)).toEqual(['orders', 0]);
+        });
+
+        it('runs one publish for requests that arrive together', async () => {
+            const context = await drafted(setup());
+            const [first, second] = await Promise.all([
+                context.service.applyDraft(deployer, PROJECT_UUID, null),
+                context.service.applyDraft(deployer, PROJECT_UUID, null),
+            ]);
+            expect(second).toBe(first);
+            expect(context.commitCalls).toHaveLength(1);
         });
 
         it('says nothing when the base was never recorded', async () => {
@@ -1768,6 +1877,42 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 'orders',
             );
+        });
+
+        it('names whose change a later change wrote over', async () => {
+            const { service, findModelHistory } = setup();
+            const change = (by: string, before: string, after: string) => ({
+                changeSetUuid: `set-${by}`,
+                source: 'draft' as const,
+                question: null,
+                reverted: false,
+                createdAt: new Date(),
+                contentBefore: before,
+                contentAfter: after,
+                otherModels: [],
+                by,
+            });
+            const labelled = orders.replace(
+                'name: orders',
+                'name: orders\nlabel: A',
+            );
+            findModelHistory.mockResolvedValueOnce([
+                change(
+                    'Grace',
+                    labelled,
+                    labelled.replace('label: A', 'label: B'),
+                ),
+                change('Ada', orders, labelled),
+            ]);
+            const model = await service.getModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            expect(model?.history.map(({ replaced }) => replaced)).toEqual([
+                { by: 'Ada', paths: ['label'] },
+                null,
+            ]);
         });
 
         it('returns null for a model the project does not keep', async () => {

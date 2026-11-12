@@ -2,10 +2,13 @@ import {
     assertRegisteredAccount,
     type ApiErrorPayload,
     type ApiSemanticLayerDraftApplyResponse,
+    type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
     type ApiSemanticLayerDraftKeepRequest,
     type ApiSemanticLayerDraftMoveRequest,
     type ApiSemanticLayerDraftResponse,
+    type ApiSemanticLayerDraftStateResponse,
+    type ApiSemanticLayerDraftTakeLiveRequest,
     type ApiSemanticLayerDraftUsageResponse,
     type ApiSemanticLayerModelResponse,
     type ApiSemanticLayerStatusResponse,
@@ -88,6 +91,50 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 modelName,
+            ),
+        };
+    }
+
+    /**
+     * A value that changes whenever this person's draft would read differently.
+     * @summary Get the state of my semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/draft/state')
+    @OperationId('getSemanticLayerDraftState')
+    async getDraftState(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftStateResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getDraftState(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * The models this person has changes in development on, by name.
+     * @summary List the models in my semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/draft/models')
+    @OperationId('getSemanticLayerDraftedModels')
+    async getDraftedModels(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftedModelsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getDraftedModels(
+                toSessionUser(req.account),
+                projectUuid,
             ),
         };
     }
@@ -314,6 +361,30 @@ export class SemanticStudioController extends BaseController {
             projectUuid,
             model,
             body.liveVersion,
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Leaves one part of this person's drafted model as it is live.
+     * @summary Take the live version of one part of my drafted model
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/models/{model}/take-live')
+    @OperationId('takeLiveSemanticLayerDraftPart')
+    async takeLiveDraftPart(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+        @Body() body: ApiSemanticLayerDraftTakeLiveRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().takeLiveDraftPart(
+            toSessionUser(req.account),
+            projectUuid,
+            model,
+            body.path,
         );
         return { status: 'ok', results: undefined };
     }
