@@ -1,4 +1,5 @@
 import {
+    DashboardTileTypes,
     getMissingRequiredDashboardParameters,
     getDashboardTileParameterOverrides,
     omitDisallowedParameterValues,
@@ -13,10 +14,13 @@ import { createSelector } from '@reduxjs/toolkit';
 import { type DashboardStoreState } from '.';
 import { applyParameterLabelOverrides } from '../../../providers/Dashboard/parameterLabelOverrides';
 import { getEffectiveControlOrder } from '../../dashboardControls/controlOrder';
+import { getSavedDateZoomSettings } from './dashboardEditReducer';
 import {
     selectControlOrder,
     selectControlSections,
+    selectDateZoomConfig,
 } from './dashboardEditSelectors';
+import { selectDashboard } from './dashboardSourceSelectors';
 import {
     getParameterControlInputs,
     getDashboardParameterOptionValues,
@@ -154,6 +158,25 @@ export const selectDashboardParameterReferences = createSelector(
 
 const selectTileQueryParameterReferences = (state: DashboardStoreState) =>
     state.parameters.tileQueryParameterReferences;
+const selectTileListedParameterReferences = (state: DashboardStoreState) =>
+    state.parameters.tileListedParameterReferences;
+const selectTileFailedParameterSources = (state: DashboardStoreState) =>
+    state.parameters.tileFailedParameterSources;
+
+// A tile counts once it ran, or once it was listed with its saved values
+const isTileParameterStateKnown = (
+    tileUuid: string,
+    queryReferences: Record<string, string[] | null>,
+    listedReferences: Record<string, string[]>,
+    failedSources: Record<string, string>,
+    chartValues: Record<string, ParametersValuesMap>,
+    virtualValues: Record<string, ParametersValuesMap>,
+) =>
+    Object.hasOwn(queryReferences, tileUuid) ||
+    (Object.hasOwn(listedReferences, tileUuid) &&
+        !Object.hasOwn(failedSources, tileUuid) &&
+        Object.hasOwn(chartValues, tileUuid) &&
+        Object.hasOwn(virtualValues, tileUuid));
 
 export const selectParameterPicks = (state: DashboardStoreState) =>
     state.parameters.parameterPicks;
@@ -243,6 +266,8 @@ export const selectMissingRequiredParameters = createSelector(
     [
         selectTileParameterReferences,
         selectTileQueryParameterReferences,
+        selectTileListedParameterReferences,
+        selectTileFailedParameterSources,
         selectTileChartSavedParameters,
         selectTileVirtualViewSavedParameters,
         selectAppliedParameterValues,
@@ -252,6 +277,8 @@ export const selectMissingRequiredParameters = createSelector(
     (
         tileParameterReferences,
         tileQueryParameterReferences,
+        tileListedParameterReferences,
+        tileFailedParameterSources,
         tileChartSavedParameters,
         tileVirtualViewSavedParameters,
         appliedParameterValues,
@@ -259,10 +286,17 @@ export const selectMissingRequiredParameters = createSelector(
         controlInputs,
     ) =>
         getMissingRequiredDashboardParameters({
-            // A tile's saved values arrive when it runs; until then it can't count as missing
+            // Until a tile's saved values are known it can't count as missing
             tiles: Object.entries(tileParameterReferences)
-                .filter(
-                    ([tileUuid]) => tileUuid in tileQueryParameterReferences,
+                .filter(([tileUuid]) =>
+                    isTileParameterStateKnown(
+                        tileUuid,
+                        tileQueryParameterReferences,
+                        tileListedParameterReferences,
+                        tileFailedParameterSources,
+                        tileChartSavedParameters,
+                        tileVirtualViewSavedParameters,
+                    ),
                 )
                 .map(([tileUuid, parameterReferences]) => ({
                     parameterReferences,
@@ -284,6 +318,8 @@ export const selectMissingParametersByTile = createSelector(
     [
         selectTileParameterReferences,
         selectTileQueryParameterReferences,
+        selectTileListedParameterReferences,
+        selectTileFailedParameterSources,
         selectTileChartSavedParameters,
         selectTileVirtualViewSavedParameters,
         selectAppliedParameterValues,
@@ -293,6 +329,8 @@ export const selectMissingParametersByTile = createSelector(
     (
         references,
         queryReferences,
+        listedReferences,
+        failedSources,
         chartValues,
         virtualValues,
         dashboardValues,
@@ -302,7 +340,14 @@ export const selectMissingParametersByTile = createSelector(
         Object.fromEntries(
             Object.entries(references)
                 .filter(([tileUuid]) =>
-                    Object.hasOwn(queryReferences, tileUuid),
+                    isTileParameterStateKnown(
+                        tileUuid,
+                        queryReferences,
+                        listedReferences,
+                        failedSources,
+                        chartValues,
+                        virtualValues,
+                    ),
                 )
                 .map(([tileUuid, parameterReferences]) => {
                     const inputs = {
@@ -350,6 +395,27 @@ export const selectControlGranularities = (state: DashboardStoreState) =>
 export const selectChartZoomableFieldsByTileUuid = (
     state: DashboardStoreState,
 ) => state.dateZoom.chartZoomableFieldsByTileUuid;
+/**
+ * Whether every chart tile keeps its saved grain under date zoom, as live
+ * data source tiles do, so the control would change nothing. False until
+ * every chart tile has reported.
+ */
+export const selectIsDateZoomRefusedOnAllChartTiles = (
+    state: DashboardStoreState,
+) => {
+    const chartTiles =
+        state.edit.tiles?.filter(
+            ({ type }) =>
+                type === DashboardTileTypes.SAVED_CHART ||
+                type === DashboardTileTypes.SQL_CHART,
+        ) ?? [];
+    return (
+        chartTiles.length > 0 &&
+        chartTiles.every(
+            ({ uuid }) => state.dateZoom.dateZoomRefusedByTileUuid[uuid],
+        )
+    );
+};
 export const selectTilesWithDateZoomApplied = (state: DashboardStoreState) =>
     state.dateZoom.tilesWithDateZoomApplied;
 export const selectIsDateZoomAppliedToTile = (
@@ -382,6 +448,13 @@ export const selectAvailableCustomGranularities = (
 export const selectCompletedEmbedTiles = (state: DashboardStoreState) =>
     state.tileStatus.completedEmbedTiles;
 
+/** The date zoom config as edited, resolved against the loaded dashboard's, as `useDashboardDateZoomConfig` */
+export const selectCurrentDateZoomConfig = (state: DashboardStoreState) =>
+    selectDateZoomConfig(
+        state,
+        getSavedDateZoomSettings(selectDashboard(state)?.config).dateZoomConfig,
+    );
+
 /** Every control in bar order: the stored order (none when absent or empty), else the default bar */
 export const selectOrderedControls = createSelector(
     [
@@ -390,8 +463,16 @@ export const selectOrderedControls = createSelector(
         selectParameterControls,
         selectAreParameterControlsSaved,
         selectControlSections,
+        selectCurrentDateZoomConfig,
     ],
-    (controlOrder, filters, parameterControls, areSaved, sections) =>
+    (
+        controlOrder,
+        filters,
+        parameterControls,
+        areSaved,
+        sections,
+        dateZoomConfig,
+    ) =>
         reconcileDashboardControlOrder({
             controlOrder: getEffectiveControlOrder(
                 controlOrder,
@@ -401,6 +482,7 @@ export const selectOrderedControls = createSelector(
             filters,
             parameterControls: parameterControls ?? [],
             sections,
+            dateZoomControls: dateZoomConfig.controls,
         }),
 );
 

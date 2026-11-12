@@ -75,11 +75,20 @@ export { dashboardTileStatusActions } from './dashboardTileStatusReducer';
 export {
     dashboardEditActions,
     getSavedDateZoomSettings,
+    isSameTilePlacement,
 } from './dashboardEditReducer';
-export type { DashboardEditState } from './dashboardEditReducer';
+export type {
+    CanvasBackground,
+    DashboardEditState,
+} from './dashboardEditReducer';
 export {
     selectActiveTab,
     selectActiveTabUuid,
+    selectCanRedoTileLayout,
+    selectCanTidyTiles,
+    selectCanUndoTileLayout,
+    selectCanvasBackground,
+    selectCanvasZoom,
     selectControlOrder,
     selectControlSections,
     selectDashboardCustomMetrics,
@@ -115,6 +124,8 @@ export type {
 export {
     getFilterableFieldsByTileUuid,
     getTemporaryFilterLocks,
+    selectAllFilterableFieldsMap,
+    selectDashboard,
     selectEmbedDashboard,
 } from './dashboardSourceSelectors';
 export { getDashboardContextView } from './contextView';

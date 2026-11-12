@@ -80,6 +80,9 @@ const DashboardFiltersSync: FC<Props> = ({
     );
 
     const hasNotifiedLockedOverrideRef = useRef(false);
+    const appliedEmbedSavedFiltersRef = useRef<
+        { dashboardUuid: string; filters: DashboardFilters } | undefined
+    >(undefined);
     const previousFiltersRef = useRef<DashboardFilters | null>(null);
     const appliedSdkFiltersRef = useRef<
         | {
@@ -127,6 +130,17 @@ const DashboardFiltersSync: FC<Props> = ({
 
         if (!currentDashboard) return;
 
+        // An embed reload can bring new saved filters; re-merge them under
+        // the viewer's overrides instead of keeping the stale ones
+        const embedSavedFiltersChanged =
+            !dashboard &&
+            appliedEmbedSavedFiltersRef.current?.dashboardUuid ===
+                currentDashboard.uuid &&
+            !isEqual(
+                appliedEmbedSavedFiltersRef.current.filters,
+                currentDashboard.filters,
+            );
+
         const sdkFilters = embed.mode === 'sdk' ? embed.filters : undefined;
         const sdkFilterValuesChanged = haveSdkFiltersChanged(
             appliedSdkFiltersRef.current?.filters,
@@ -142,7 +156,11 @@ const DashboardFiltersSync: FC<Props> = ({
             embed.mode === 'sdk' &&
             (sdkFilterValuesChanged || sdkFilterContextChanged);
 
-        if (dashboardFilters === emptyDashboardFilters || sdkFiltersChanged) {
+        if (
+            dashboardFilters === emptyDashboardFilters ||
+            sdkFiltersChanged ||
+            embedSavedFiltersChanged
+        ) {
             let overrides = clone(overridesForSavedDashboardFilters);
 
             // Step 1: Start with restored filters when returning from the
@@ -150,6 +168,7 @@ const DashboardFiltersSync: FC<Props> = ({
             // dashboard loads, so restore the UUID-keyed state here instead
             // of during the provider's initial mount.
             const preserveUnmanagedFilters =
+                !embedSavedFiltersChanged &&
                 dashboardFilters !== emptyDashboardFilters &&
                 sdkFilters !== undefined &&
                 appliedSdkFiltersRef.current?.filters !== undefined &&
@@ -333,6 +352,37 @@ const DashboardFiltersSync: FC<Props> = ({
                 updatedDashboardFilters,
             );
 
+            if (!dashboard) {
+                appliedEmbedSavedFiltersRef.current = {
+                    dashboardUuid: currentDashboard.uuid,
+                    filters: currentDashboard.filters,
+                };
+            }
+            // A save writes the viewer's added filters into the saved ones;
+            // swap them in the same update so tiles never run without them
+            if (embedSavedFiltersChanged) {
+                const savedIds = new Set(
+                    [
+                        ...currentDashboard.filters.dimensions,
+                        ...currentDashboard.filters.metrics,
+                        ...currentDashboard.filters.tableCalculations,
+                    ].map(({ id }) => id),
+                );
+                const isUnsaved = ({ id }: { id: string }) => !savedIds.has(id);
+                const unsavedTemporaryFilters: DashboardFilters = {
+                    dimensions: temporaryFilters.dimensions.filter(isUnsaved),
+                    metrics: temporaryFilters.metrics.filter(isUnsaved),
+                    tableCalculations:
+                        temporaryFilters.tableCalculations.filter(isUnsaved),
+                };
+                if (!isEqual(unsavedTemporaryFilters, temporaryFilters)) {
+                    dispatch(
+                        dashboardFiltersActions.setTemporaryFilters(
+                            unsavedTemporaryFilters,
+                        ),
+                    );
+                }
+            }
             dispatch(
                 dashboardFiltersActions.setDashboardFilters(
                     updatedDashboardFilters,
@@ -343,6 +393,7 @@ const DashboardFiltersSync: FC<Props> = ({
         dashboard,
         embedDashboard,
         dashboardFilters,
+        temporaryFilters,
         overridesForSavedDashboardFilters,
         embed,
         applyInteractivityFiltering,

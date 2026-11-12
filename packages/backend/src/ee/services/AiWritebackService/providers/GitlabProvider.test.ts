@@ -1,5 +1,6 @@
 import { ParameterError, PullRequestProvider } from '@lightdash/common';
 import {
+    closeMergeRequest,
     createPullRequest,
     getMergeRequest,
     updateMergeRequest,
@@ -9,6 +10,7 @@ import type { GitlabConnection, GitlabInstallation } from '../types';
 import { GitlabProvider } from './GitlabProvider';
 
 vi.mock('../../../../clients/gitlab/Gitlab', () => ({
+    closeMergeRequest: vi.fn(),
     createPullRequest: vi.fn(),
     getMergeRequest: vi.fn(),
     updateMergeRequest: vi.fn(),
@@ -82,6 +84,74 @@ describe('GitlabProvider.getCloneTarget', () => {
                 installation, // instanceUrl is https://gitlab.com
             ),
         ).toThrow(/does not match the connected GitLab app instance/);
+    });
+});
+
+describe('GitlabProvider host matching', () => {
+    it.each([
+        ['GitLab.com', 'https://gitlab.com'],
+        ['gitlab.com.', 'https://gitlab.com'],
+        ['gitlab.acme.com:8443', 'https://gitlab.acme.com:8443'],
+    ])(
+        'accepts connection host %p for instance %p',
+        (hostDomain, instanceUrl) => {
+            expect(() =>
+                provider.getCloneTarget(
+                    { ...connection, hostDomain },
+                    { ...installation, instanceUrl },
+                ),
+            ).not.toThrow();
+        },
+    );
+
+    it.each([
+        ['gitlab.acme.com', 'https://gitlab.acme.com:8443'],
+        ['gitlab.acme.com:8443', 'https://gitlab.acme.com'],
+        ['https://gitlab.com', 'https://gitlab.com'],
+    ])(
+        'rejects connection host %p for instance %p',
+        (hostDomain, instanceUrl) => {
+            expect(() =>
+                provider.getCloneTarget(
+                    { ...connection, hostDomain },
+                    { ...installation, instanceUrl },
+                ),
+            ).toThrow(ParameterError);
+        },
+    );
+});
+
+describe('GitlabProvider.closePullRequest', () => {
+    const mockCloseMergeRequest = vi.mocked(closeMergeRequest);
+    const close = (prUrl: string) =>
+        provider.closePullRequest({
+            prUrl,
+            owner: 'acme',
+            repo: 'analytics',
+            pullNumber: 42,
+            installation,
+        });
+
+    beforeEach(() => {
+        mockCloseMergeRequest.mockReset();
+    });
+
+    it('closes an MR on the connected instance', async () => {
+        mockCloseMergeRequest.mockResolvedValue({ closed: true } as never);
+        await close('https://gitlab.com/acme/analytics/-/merge_requests/42');
+        expect(mockCloseMergeRequest).toHaveBeenCalledWith(
+            expect.objectContaining({
+                token: 'gl-token',
+                hostDomain: 'gitlab.com',
+            }),
+        );
+    });
+
+    it('rejects an MR on a different host without calling GitLab', async () => {
+        await expect(
+            close('https://gitlab.acme.com/acme/analytics/-/merge_requests/42'),
+        ).rejects.toThrow(ParameterError);
+        expect(mockCloseMergeRequest).not.toHaveBeenCalled();
     });
 });
 

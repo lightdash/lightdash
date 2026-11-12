@@ -1,8 +1,10 @@
 import { Ability } from '@casl/ability';
 import {
+    DBFieldTypes,
     DbtProjectType,
     DimensionType,
     ExploreType,
+    FieldImpactSeverity,
     ForbiddenError,
     isExploreError,
     MetricType,
@@ -17,6 +19,8 @@ import {
     type ExploreError,
     type LightdashModelFragment,
     type PossibleAbilities,
+    type Project,
+    type SemanticLayerModelChange,
     type SessionUser,
 } from '@lightdash/common';
 import { stringify } from 'yaml';
@@ -86,6 +90,25 @@ const deployer = withAbility([
     { subject: 'Project', action: 'view' },
 ]);
 const viewer = withAbility([]);
+const repoWriter = withAbility([
+    { subject: 'DeployProject', action: 'manage' },
+    { subject: 'Project', action: 'view' },
+    { subject: 'SourceCode', action: 'manage' },
+]);
+const PREVIEW_UUID = 'preview-project';
+const PULL_REQUEST_URL = 'https://github.example/acme/analytics/pull/1';
+const GITHUB_REPO = {
+    type: DbtProjectType.GITHUB,
+    authorization_method: 'installation_id',
+    repository: 'acme/analytics',
+    branch: 'main',
+    project_sub_path: '/',
+} as const;
+const DBT_IN_GITHUB: Project['dbtConnection'] = GITHUB_REPO;
+const MODELS_IN_GITHUB: Project['dbtConnection'] = {
+    ...GITHUB_REPO,
+    semanticLayer: 'lightdash',
+};
 const validationError = (name: string, error: string): CreateValidation => ({
     name,
     error,
@@ -104,8 +127,15 @@ const validator = withAbility([
 
 const setup = ({
     stored = [{ name: 'orders', content: orders }],
+    otherDrafters = [],
+    baseContents = [],
+    usedFields = [],
+    previewOf = PROJECT_UUID,
+    previewExplores = {},
+    publishedSince = new Map(),
     enabled = true,
-    dbtType = DbtProjectType.NONE,
+    dbtConnection = { type: DbtProjectType.NONE },
+    appInstalled = true,
     exploreTypes = [],
     rejectSql = null,
     rejectMetric = null,
@@ -115,8 +145,22 @@ const setup = ({
     validationFor = () => [],
 }: {
     stored?: { name: string; content: string; version?: number }[];
+    otherDrafters?: {
+        name: string;
+        models: string[];
+        changes: ReturnType<typeof draftModel>[][];
+    }[];
+    baseContents?: [string, string | null][];
+    /** Field ids a saved chart reads. */
+    usedFields?: string[];
+    /** The project the preview project was built from. */
+    previewOf?: string;
+    previewExplores?: Record<string, Explore | ExploreError>;
+    publishedSince?: Map<string, { by: string | null; at: Date }>;
     enabled?: boolean;
-    dbtType?: DbtProjectType;
+    /** A repository connection makes `stored` the models in that repository. */
+    dbtConnection?: Project['dbtConnection'];
+    appInstalled?: boolean;
     exploreTypes?: ExploreType[];
     rejectSql?: string | null;
     rejectMetric?: string | null;
@@ -199,11 +243,14 @@ const setup = ({
             },
         }),
     );
-    const findModelHistory = vi.fn(async () => []);
+    const findModelHistory = vi.fn(
+        async (): Promise<Omit<SemanticLayerModelChange, 'replaced'>[]> => [],
+    );
     const deleteCachedExplores = vi.fn(
         async (_projectUuid: string, _names: string[]) => undefined,
     );
     const drafts: StoredDraftChange[] = [];
+    const requestedBases: [string, number][] = [];
     const settled: ('applied' | 'discarded')[] = [];
     const generateValidation = vi.fn(
         async (
@@ -215,27 +262,100 @@ const setup = ({
         ) => validationFor(explores ?? []),
     );
     let impactCheck: DraftImpactCheck | null = null;
+    const recordedPullRequests: string[] = [];
+    const analyzeFieldImpact = vi.fn(
+        async (projectUuid: string, fieldId: string) => ({
+            projectUuid,
+            fieldId,
+            fieldType: null,
+            severity: FieldImpactSeverity.Safe,
+            summary: {
+                charts: usedFields.includes(fieldId) ? 1 : 0,
+                dashboards: 0,
+                dashboardFilterTargets: 0,
+                metricTreeDependents: 0,
+                scheduledDeliveries: 0,
+            },
+            charts: usedFields.includes(fieldId)
+                ? [
+                      {
+                          uuid: 'chart-1',
+                          name: 'Saved chart',
+                          fieldType: DBFieldTypes.METRIC,
+                          viewsCount: 0,
+                          spaceUuid: 'space',
+                          spaceName: 'Space',
+                          dashboardUuid: null,
+                          dashboardName: null,
+                      },
+                  ]
+                : [],
+            dashboards: [],
+            dashboardFilterTargets: [],
+            metricTreeDependents: [],
+            scheduledDeliveries: [],
+        }),
+    );
+    const openPullRequest = vi.fn(
+        async (_args: {
+            writes: Map<string, string | null>;
+            title: string;
+            body: string;
+        }) => ({ url: PULL_REQUEST_URL }),
+    );
     const queueImpactCheck = vi.fn(async () => undefined);
     const args: SemanticStudioServiceArguments = {
         featureFlagModel: {
             get: async () => ({ id: 'semantic-studio-editing', enabled }),
         },
         projectModel: {
-            get: async () => ({
-                projectUuid: PROJECT_UUID,
-                organizationUuid: ORGANIZATION_UUID,
-                upstreamProjectUuid: undefined,
-                type: ProjectType.DEFAULT,
-                createdByUserUuid: USER_UUID,
-                dbtConnection: { type: dbtType },
-            }),
+            get: async (projectUuid) =>
+                projectUuid === PREVIEW_UUID
+                    ? {
+                          projectUuid: PREVIEW_UUID,
+                          organizationUuid: ORGANIZATION_UUID,
+                          upstreamProjectUuid: previewOf,
+                          type: ProjectType.PREVIEW,
+                          createdByUserUuid: USER_UUID,
+                          dbtConnection,
+                      }
+                    : {
+                          projectUuid: PROJECT_UUID,
+                          organizationUuid: ORGANIZATION_UUID,
+                          upstreamProjectUuid: undefined,
+                          type: ProjectType.DEFAULT,
+                          createdByUserUuid: USER_UUID,
+                          dbtConnection,
+                      },
             getAllExploreSummaries: async () =>
-                exploreTypes.map((type) => ({ type })),
+                exploreTypes.map((type, index) => ({
+                    name: `explore_${index}`,
+                    type,
+                })),
+            findExploresFromCache: async () => previewExplores,
             deleteCachedExplores,
         },
         projectModelDocumentModel: {
             findDocuments: async () =>
                 stored.map((doc) => ({ version: 1, ...doc })),
+            findDocumentsAt: async (_projectUuid, versions) => {
+                requestedBases.push(...versions);
+                return new Map(baseContents);
+            },
+            rebaseDraftChanges: async (_owner, model, version) => {
+                // Live is always at version 1 here.
+                if (version !== 1) return false;
+                drafts.forEach((change, index) => {
+                    drafts[index] = {
+                        ...change,
+                        baseVersions: {
+                            ...change.baseVersions,
+                            [model]: version,
+                        },
+                    };
+                });
+                return true;
+            },
             createChangeSet: commit,
             findChangeSets: async (_projectUuid, uuids) =>
                 changeSets.filter(({ changeSetUuid }) =>
@@ -243,8 +363,21 @@ const setup = ({
                 ),
             findModelHistory,
             findDraftChanges: async () => drafts,
+            findOtherDrafters: async () => otherDrafters,
+            withPublishLock: async (_owner, publish) => publish(),
+            findDraftState: async () => ({ versions: [], changes: [] }),
+            swapDraftChanges: async (_owner, [first, second]) => {
+                const a = drafts.findIndex(
+                    (change) => change.draftChangeUuid === first,
+                );
+                const b = drafts.findIndex(
+                    (change) => change.draftChangeUuid === second,
+                );
+                [drafts[a], drafts[b]] = [drafts[b], drafts[a]];
+            },
+            findPublishedSince: async () => publishedSince,
             findSettledDraftChanges: async () => [],
-            createDraftChange: async ({ promptUuid, models }) => {
+            createDraftChange: async ({ promptUuid, models, baseVersions }) => {
                 const draftChangeUuid = `draft-${drafts.length + 1}`;
                 drafts.push({
                     draftChangeUuid,
@@ -252,10 +385,16 @@ const setup = ({
                     question: null,
                     createdAt: new Date(),
                     models,
+                    baseVersions,
                 });
                 return draftChangeUuid;
             },
-            updateDraftChangeStatus: async ({ drafts: selection, status }) => {
+            updateDraftChangeStatus: async ({
+                drafts: selection,
+                status,
+                pullRequestUrl,
+            }) => {
+                if (pullRequestUrl) recordedPullRequests.push(pullRequestUrl);
                 const holds = (change: StoredDraftChange) =>
                     selection.changeUuids.includes(change.draftChangeUuid) &&
                     (selection.model === null ||
@@ -296,6 +435,20 @@ const setup = ({
         },
         schedulerClient: { checkSemanticLayerDraftImpact: queueImpactCheck },
         validationService: { generateValidation },
+        savedChartModel: { analyzeFieldImpact },
+        repoModels: {
+            isInstalled: async () => appInstalled,
+            load: async (_organizationUuid, connection) => ({
+                connection,
+                baseSha: 'base-sha',
+                documents: stored,
+                paths: new Map(
+                    stored.map(({ name }) => [name, `models/${name}.yml`]),
+                ),
+                modelsDirectory: 'models',
+            }),
+            openPullRequest,
+        },
         projectService: {
             getWarehouseSqlBuilderSettings: async () => ({
                 type: WarehouseTypes.POSTGRES,
@@ -316,6 +469,8 @@ const setup = ({
     return {
         service,
         upsert,
+        openPullRequest,
+        recordedPullRequests,
         commitCalls,
         setExplores,
         runSqlQuery,
@@ -323,6 +478,7 @@ const setup = ({
         deleteCachedExplores,
         findModelHistory,
         drafts,
+        requestedBases,
         settled,
         generateValidation,
         queueImpactCheck,
@@ -726,6 +882,465 @@ describe('SemanticStudioService', () => {
         });
     });
 
+    describe('the development view of a draft', () => {
+        it('compiles the drafted models for the person who drafted them', async () => {
+            const context = setup();
+            expect(
+                await context.service.findDevelopmentExplores(
+                    deployer,
+                    PROJECT_UUID,
+                ),
+            ).toBeNull();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            const explores = await context.service.findDevelopmentExplores(
+                deployer,
+                PROJECT_UUID,
+            );
+            const drafted = explores?.get('orders');
+            expect(
+                drafted && !isExploreError(drafted)
+                    ? Object.keys(drafted.tables.orders.metrics)
+                    : [],
+            ).toContain('revenue');
+            expect(context.setExplores).not.toHaveBeenCalled();
+        });
+
+        it('marks a model the draft removes, and is nothing to someone who cannot change the project', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(null, { removeModel: true })],
+                null,
+            );
+            expect(
+                (
+                    await context.service.findDevelopmentExplores(
+                        deployer,
+                        PROJECT_UUID,
+                    )
+                )?.get('orders'),
+            ).toBeNull();
+            expect(
+                await context.service.findDevelopmentExplores(
+                    viewer,
+                    PROJECT_UUID,
+                ),
+            ).toBeNull();
+        });
+    });
+
+    describe('the development view of a dbt project', () => {
+        const branch: ExploreError = {
+            name: 'payments',
+            label: 'Payments',
+            errors: [],
+        };
+        const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
+            setup({
+                dbtConnection: DBT_IN_GITHUB,
+                exploreTypes: [ExploreType.DEFAULT, ExploreType.VIRTUAL],
+                previewExplores: { payments: branch },
+                ...overrides,
+            });
+
+        it("reads the explores of the pull request's preview, and hides what the branch removes", async () => {
+            const explores = await dbt().service.findPreviewExplores(
+                repoWriter,
+                PROJECT_UUID,
+                PREVIEW_UUID,
+            );
+            expect(explores?.get('payments')).toBe(branch);
+            expect(explores?.get('explore_0')).toBeNull();
+            expect(explores?.has('explore_1')).toBe(false);
+        });
+
+        it('is nothing for a preview of another project, a person who cannot write, or a project that keeps a draft', async () => {
+            expect(
+                await dbt({
+                    previewOf: 'another-project',
+                }).service.findPreviewExplores(
+                    repoWriter,
+                    PROJECT_UUID,
+                    PREVIEW_UUID,
+                ),
+            ).toBeNull();
+            expect(
+                await dbt().service.findPreviewExplores(
+                    deployer,
+                    PROJECT_UUID,
+                    PREVIEW_UUID,
+                ),
+            ).toBeNull();
+            expect(
+                await setup().service.findPreviewExplores(
+                    deployer,
+                    PROJECT_UUID,
+                    PREVIEW_UUID,
+                ),
+            ).toBeNull();
+        });
+    });
+
+    describe('the order of a draft', () => {
+        it('moves a change one place, and stays put at either end', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('label: Orders\n')],
+                null,
+            );
+            const order = () =>
+                context.drafts.map((change) => change.draftChangeUuid);
+            expect(order()).toEqual(['draft-1', 'draft-2']);
+            await context.service.moveDraftChange(
+                deployer,
+                PROJECT_UUID,
+                'draft-2',
+                'earlier',
+            );
+            expect(order()).toEqual(['draft-2', 'draft-1']);
+            await context.service.moveDraftChange(
+                deployer,
+                PROJECT_UUID,
+                'draft-2',
+                'earlier',
+            );
+            expect(order()).toEqual(['draft-2', 'draft-1']);
+            await expect(
+                context.service.moveDraftChange(
+                    deployer,
+                    PROJECT_UUID,
+                    'missing',
+                    'later',
+                ),
+            ).rejects.toThrow(NotFoundError);
+            await expect(
+                context.service.moveDraftChange(
+                    viewer,
+                    PROJECT_UUID,
+                    'draft-1',
+                    'later',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
+    describe('what is happening around a draft', () => {
+        it('lists the saved content that reads a field the draft redefines, and nothing for a field it only adds', async () => {
+            const context = setup({ usedFields: ['orders_amount'] });
+            expect(
+                await context.service.getDraftUsage(deployer, PROJECT_UUID),
+            ).toEqual({ fields: [], checkedFields: 0 });
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [
+                    draftModel(
+                        `dimensions:
+  - name: amount
+    type: number
+    sql: \${TABLE}.amount * 100
+    metrics:
+      revenue:
+        type: sum
+`,
+                    ),
+                ],
+                null,
+            );
+            const usage = await context.service.getDraftUsage(
+                deployer,
+                PROJECT_UUID,
+            );
+            expect(usage.fields).toEqual([
+                {
+                    model: 'orders',
+                    fieldId: 'orders_amount',
+                    label: expect.any(String),
+                    kind: 'changed',
+                    charts: [{ uuid: 'chart-1', name: 'Saved chart' }],
+                    dashboards: 0,
+                    scheduledDeliveries: 0,
+                },
+            ]);
+            expect(usage.checkedFields).toBe(1);
+            expect(
+                await context.service.getDraftUsage(viewer, PROJECT_UUID),
+            ).toEqual({ fields: [], checkedFields: 0 });
+        });
+
+        it('says who else is changing a drafted model and what was published under it', async () => {
+            const at = new Date('2026-01-02T00:00:00Z');
+            const context = setup({
+                otherDrafters: [
+                    {
+                        name: 'Ada Lovelace',
+                        models: ['orders'],
+                        changes: [[draftModel('label: Sales\n')]],
+                    },
+                    {
+                        name: 'Alan Turing',
+                        models: ['customers'],
+                        changes: [
+                            [
+                                draftModel('label: People\n', {
+                                    name: 'customers',
+                                }),
+                            ],
+                        ],
+                    },
+                ],
+                publishedSince: new Map([
+                    ['orders', { by: 'Grace Hopper', at }],
+                ]),
+            });
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            const draft = await context.service.getDraft(
+                deployer,
+                PROJECT_UUID,
+            );
+            expect(draft.models).toEqual([
+                expect.objectContaining({
+                    model: 'orders',
+                    alsoChanging: [{ name: 'Ada Lovelace', paths: ['label'] }],
+                    publishedSince: { by: 'Grace Hopper', at },
+                }),
+            ]);
+        });
+    });
+
+    describe('reconciling the draft with live', () => {
+        const drafted = async (context: ReturnType<typeof setup>) => {
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            return context;
+        };
+        const reconciliationOf = async (context: ReturnType<typeof setup>) =>
+            (await context.service.getDraft(deployer, PROJECT_UUID)).models[0]
+                .reconciliation;
+
+        it('records the version a change was made on and is current while live stays there', async () => {
+            const context = await drafted(setup());
+            expect(context.drafts[0].baseVersions).toEqual({ orders: 1 });
+            expect(await reconciliationOf(context)).toEqual({
+                state: 'current',
+                liveVersion: 1,
+                merged: [],
+                conflicts: [],
+            });
+        });
+
+        it('merges what was published to other parts of the model', async () => {
+            const context = await drafted(
+                setup({
+                    baseContents: [
+                        [
+                            'orders',
+                            orders.replace(
+                                'type: model',
+                                'type: model\nlabel: Old',
+                            ),
+                        ],
+                    ],
+                }),
+            );
+            context.drafts[0].baseVersions = { orders: 0 };
+            expect(await reconciliationOf(context)).toEqual({
+                state: 'merged',
+                liveVersion: 1,
+                merged: ['label'],
+                conflicts: [],
+            });
+        });
+
+        it('reports a part both sides changed, until the person keeps theirs', async () => {
+            const context = await drafted(
+                setup({
+                    baseContents: [
+                        [
+                            'orders',
+                            orders.replace(
+                                '    sql: ${TABLE}.amount\n',
+                                '    sql: ${TABLE}.amount\n    metrics:\n      revenue:\n        type: count\n',
+                            ),
+                        ],
+                    ],
+                }),
+            );
+            context.drafts[0].baseVersions = { orders: 0 };
+            const reconciliation = await reconciliationOf(context);
+            expect(reconciliation?.state).toBe('conflict');
+            expect(reconciliation?.conflicts).toEqual([
+                {
+                    path: 'dimensions.amount.metrics.revenue',
+                    base: 'type: count',
+                    live: null,
+                    mine: 'type: sum',
+                },
+            ]);
+            const refused = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(refused.failures.map(({ model }) => model)).toEqual([
+                'orders',
+            ]);
+            expect(context.commitCalls).toEqual([]);
+            await expect(
+                context.service.keepDraftModel(
+                    deployer,
+                    PROJECT_UUID,
+                    'orders',
+                    7,
+                ),
+            ).rejects.toThrow('published again');
+            await context.service.keepDraftModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+                1,
+            );
+            expect((await reconciliationOf(context))?.state).toBe('current');
+        });
+
+        it('takes the live version of one contested part and leaves the rest of the draft', async () => {
+            const context = await drafted(
+                setup({
+                    baseContents: [
+                        [
+                            'orders',
+                            orders.replace(
+                                '    sql: ${TABLE}.amount\n',
+                                '    sql: ${TABLE}.amount\n    metrics:\n      revenue:\n        type: count\n',
+                            ),
+                        ],
+                    ],
+                }),
+            );
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('label: Sales\n')],
+                null,
+            );
+            context.drafts[0].baseVersions = { orders: 0 };
+            expect((await reconciliationOf(context))?.state).toBe('conflict');
+            await context.service.takeLiveDraftPart(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+                'dimensions.amount.metrics.revenue',
+            );
+            const draft = await context.service.getDraft(
+                deployer,
+                PROJECT_UUID,
+            );
+            expect(draft.models[0].reconciliation?.conflicts).toEqual([]);
+            // Live exactly, plus the one change the draft kept.
+            expect(draft.models[0].contentAfter).toBe(
+                `${orders}label: Sales\n`,
+            );
+            expect(context.drafts.at(-1)?.models).toEqual([
+                expect.objectContaining({
+                    restore: ['dimensions.amount.metrics.revenue'],
+                }),
+            ]);
+        });
+
+        it('still sees a conflict after the changes are reordered', async () => {
+            const context = await drafted(
+                setup({
+                    baseContents: [
+                        [
+                            'orders',
+                            orders.replace(
+                                '    sql: ${TABLE}.amount\n',
+                                '    sql: ${TABLE}.amount\n    metrics:\n      revenue:\n        type: count\n',
+                            ),
+                        ],
+                    ],
+                }),
+            );
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('label: Sales\n')],
+                null,
+            );
+            context.drafts[0].baseVersions = { orders: 0 };
+            context.drafts.reverse();
+            expect((await reconciliationOf(context))?.state).toBe('conflict');
+            // The oldest base is the one read, whichever change comes first.
+            expect(context.requestedBases.at(-1)).toEqual(['orders', 0]);
+        });
+
+        it('runs one publish for requests that arrive together', async () => {
+            const context = await drafted(setup());
+            const [first, second] = await Promise.all([
+                context.service.applyDraft(deployer, PROJECT_UUID, null),
+                context.service.applyDraft(deployer, PROJECT_UUID, null),
+            ]);
+            expect(second).toBe(first);
+            expect(context.commitCalls).toHaveLength(1);
+        });
+
+        it('blocks publishing a change to a model that was removed live', async () => {
+            const stored = [{ name: 'orders', content: orders }];
+            const context = await drafted(
+                setup({ stored, baseContents: [['orders', orders]] }),
+            );
+            stored.splice(0);
+            const draft = await context.service.getDraft(
+                deployer,
+                PROJECT_UUID,
+            );
+            expect(draft.models.map(({ model }) => model)).toEqual(['orders']);
+            expect(
+                draft.models[0].reconciliation?.conflicts.map(
+                    ({ path, live }) => [path, live],
+                ),
+            ).toEqual([['', null]]);
+            const refused = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(refused.failures.map(({ model }) => model)).toEqual([
+                'orders',
+            ]);
+            expect(context.commitCalls).toEqual([]);
+        });
+
+        it('says nothing when the base was never recorded', async () => {
+            const context = await drafted(setup());
+            context.drafts[0].baseVersions = null;
+            expect(await reconciliationOf(context)).toBeNull();
+        });
+    });
+
     describe('settling the draft', () => {
         it('applies every change as one change set that names the latest question', async () => {
             const context = setup();
@@ -769,6 +1384,7 @@ describe('SemanticStudioService', () => {
             );
             context.drafts.push({
                 draftChangeUuid: 'draft-2',
+                baseVersions: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -789,6 +1405,7 @@ describe('SemanticStudioService', () => {
             const context = setup();
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
+                baseVersions: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -818,6 +1435,7 @@ describe('SemanticStudioService', () => {
             const context = setup();
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
+                baseVersions: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -847,6 +1465,7 @@ describe('SemanticStudioService', () => {
             const context = setup();
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
+                baseVersions: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -857,7 +1476,11 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 null,
             );
-            expect(outcome).toEqual({ exploreCount: null, failures: [] });
+            expect(outcome).toEqual({
+                exploreCount: null,
+                failures: [],
+                pullRequestUrl: null,
+            });
             expect(context.commitCalls).toEqual([]);
             expect(context.settled).toEqual(['applied']);
         });
@@ -1212,7 +1835,7 @@ describe('SemanticStudioService', () => {
             propose(setup({ enabled: false }), deployer),
         ).rejects.toThrow(ForbiddenError);
         await expect(
-            propose(setup({ dbtType: DbtProjectType.GITHUB }), deployer),
+            propose(setup({ dbtConnection: DBT_IN_GITHUB }), deployer),
         ).rejects.toThrow(ParameterError);
         expect(await setup().service.canEditModels(viewer, PROJECT_UUID)).toBe(
             false,
@@ -1284,6 +1907,67 @@ describe('SemanticStudioService', () => {
             );
         });
 
+        it('names whose change a later change wrote over', async () => {
+            const { service, findModelHistory } = setup();
+            const change = (
+                by: string,
+                before: string,
+                after: string,
+                byUserUuid: string | null = `user-${by}`,
+            ) => ({
+                changeSetUuid: `set-${by}`,
+                source: 'draft' as const,
+                question: null,
+                reverted: false,
+                createdAt: new Date(),
+                contentBefore: before,
+                contentAfter: after,
+                otherModels: [],
+                by,
+                byUserUuid,
+            });
+            const labelled = orders.replace(
+                'name: orders',
+                'name: orders\nlabel: A',
+            );
+            findModelHistory.mockResolvedValueOnce([
+                change(
+                    'Grace',
+                    labelled,
+                    labelled.replace('label: A', 'label: B'),
+                ),
+                change('Ada', orders, labelled),
+            ]);
+            const model = await service.getModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            expect(model?.history.map(({ replaced }) => replaced)).toEqual([
+                { by: 'Ada', paths: ['label'] },
+                null,
+            ]);
+            findModelHistory.mockResolvedValueOnce([
+                change(
+                    'Sam',
+                    labelled,
+                    labelled.replace('label: A', 'label: B'),
+                    'user-sam-2',
+                ),
+                change('Sam', orders, labelled, 'user-sam-1'),
+            ]);
+            const sameName = await service.getModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            // Two people who share a name are still two people.
+            expect(sameName?.history[0].replaced).toEqual({
+                by: 'Sam',
+                paths: ['label'],
+            });
+        });
+
         it('returns null for a model the project does not keep', async () => {
             expect(
                 await setup().service.getModel(
@@ -1303,9 +1987,149 @@ describe('SemanticStudioService', () => {
         it('shows nothing on a project with a dbt connection', async () => {
             expect(
                 await setup({
-                    dbtType: DbtProjectType.GITHUB,
+                    dbtConnection: DBT_IN_GITHUB,
                 }).service.getModel(deployer, PROJECT_UUID, 'orders'),
             ).toBeNull();
+        });
+    });
+
+    describe('a project whose models live in a repository', () => {
+        const repo = (overrides: Parameters<typeof setup>[0] = {}) =>
+            setup({ dbtConnection: MODELS_IN_GITHUB, ...overrides });
+
+        it('applies a draft as a pull request and takes nothing live', async () => {
+            const context = repo();
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            const outcome = await context.service.applyDraft(
+                repoWriter,
+                PROJECT_UUID,
+                null,
+            );
+            expect(outcome).toEqual({
+                exploreCount: null,
+                failures: [],
+                pullRequestUrl: PULL_REQUEST_URL,
+            });
+            const [{ writes, title }] = context.openPullRequest.mock.calls[0];
+            expect(writes.get('orders')).toContain('revenue');
+            expect(title).toBe('Update semantic layer: orders');
+            expect(context.recordedPullRequests).toEqual([PULL_REQUEST_URL]);
+            expect(context.commitCalls).toHaveLength(0);
+            expect(context.setExplores).not.toHaveBeenCalled();
+            expect(context.drafts).toHaveLength(0);
+        });
+
+        it('opens one pull request when the same draft is applied twice', async () => {
+            const context = repo();
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            await context.service.applyDraft(repoWriter, PROJECT_UUID, null);
+            const second = await context.service.applyDraft(
+                repoWriter,
+                PROJECT_UUID,
+                null,
+            );
+            expect(second.pullRequestUrl).toBeNull();
+            expect(context.openPullRequest).toHaveBeenCalledTimes(1);
+        });
+
+        it('is off for a repository the GitHub App cannot reach', async () => {
+            expect(
+                await setup({
+                    dbtConnection: {
+                        ...GITHUB_REPO,
+                        semanticLayer: 'lightdash',
+                        authorization_method: 'personal_access_token',
+                    },
+                }).service.getStatus(repoWriter, PROJECT_UUID),
+            ).toEqual({ enabled: false, appliesAs: 'pull_request' });
+        });
+
+        it('opens no pull request for a draft that stopped passing', async () => {
+            const context = repo();
+            context.drafts.push({
+                draftChangeUuid: 'draft-1',
+                baseVersions: null,
+                promptUuid: null,
+                question: null,
+                createdAt: new Date(),
+                models: [draftModel('- not a mapping')],
+            });
+            const outcome = await context.service.applyDraft(
+                repoWriter,
+                PROJECT_UUID,
+                null,
+            );
+            expect(outcome.failures).not.toEqual([]);
+            expect(context.openPullRequest).not.toHaveBeenCalled();
+        });
+
+        it('says how a draft applies', async () => {
+            expect(
+                await repo().service.getStatus(repoWriter, PROJECT_UUID),
+            ).toEqual({ enabled: true, appliesAs: 'pull_request' });
+            expect(
+                await setup().service.getStatus(deployer, PROJECT_UUID),
+            ).toEqual({ enabled: true, appliesAs: 'live' });
+        });
+
+        it('keeps no draft on a dbt project, where the agent edits the repository', async () => {
+            const dbt = () => setup({ dbtConnection: DBT_IN_GITHUB });
+            expect(
+                await dbt().service.getStatus(repoWriter, PROJECT_UUID),
+            ).toEqual({ enabled: true, appliesAs: 'dbt_pull_request' });
+            expect(
+                await dbt().service.getStatus(deployer, PROJECT_UUID),
+            ).toEqual({ enabled: false, appliesAs: 'dbt_pull_request' });
+            expect(
+                await setup({
+                    dbtConnection: DBT_IN_GITHUB,
+                    enabled: false,
+                }).service.getStatus(repoWriter, PROJECT_UUID),
+            ).toEqual({ enabled: false, appliesAs: 'dbt_pull_request' });
+            expect(
+                await dbt().service.canEditModels(repoWriter, PROJECT_UUID),
+            ).toBe(false);
+            expect(
+                await dbt().service.getDraft(repoWriter, PROJECT_UUID),
+            ).toEqual(expect.objectContaining({ changes: [] }));
+        });
+
+        it('needs permission to write to the repository, and the GitHub App', async () => {
+            expect(
+                await repo().service.canEditModels(deployer, PROJECT_UUID),
+            ).toBe(false);
+            expect(
+                await repo({ appInstalled: false }).service.canEditModels(
+                    repoWriter,
+                    PROJECT_UUID,
+                ),
+            ).toBe(false);
+        });
+
+        it('keeps no history of its own and undoes nothing', async () => {
+            const context = repo();
+            expect(
+                await context.service.getModel(
+                    repoWriter,
+                    PROJECT_UUID,
+                    'orders',
+                ),
+            ).toEqual(expect.objectContaining({ history: [] }));
+            expect(context.findModelHistory).not.toHaveBeenCalled();
+            await expect(
+                context.service.undo(repoWriter, PROJECT_UUID, ['change-set']),
+            ).rejects.toThrow();
+            expect(context.commitCalls).toHaveLength(0);
         });
     });
 

@@ -1267,6 +1267,14 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:MergeQuery',
+        description: 'Merge queries and save merged charts',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }, { name: 'manage:Explore' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:Explore@self',
         description:
             'Explore and query data in preview projects created by the user',
@@ -1445,7 +1453,7 @@ const scopes: Scope[] = [
     {
         name: 'view:EmbedCsvExport',
         description:
-            'Export results from embedded chart tiles and AI agent answers',
+            'Export results from embedded chart tiles, Explore and AI agent answers',
         isEnterprise: true,
         group: ScopeGroup.EMBED,
         dependencies: [],
@@ -1461,7 +1469,7 @@ const scopes: Scope[] = [
     },
     {
         name: 'view:EmbedImageExport',
-        description: 'Export embedded chart tiles as images',
+        description: 'Export embedded chart tiles and Explore charts as images',
         isEnterprise: true,
         group: ScopeGroup.EMBED,
         dependencies: [],

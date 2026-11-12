@@ -2,8 +2,14 @@ import {
     assertRegisteredAccount,
     type ApiErrorPayload,
     type ApiSemanticLayerDraftApplyResponse,
+    type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
+    type ApiSemanticLayerDraftKeepRequest,
+    type ApiSemanticLayerDraftMoveRequest,
     type ApiSemanticLayerDraftResponse,
+    type ApiSemanticLayerDraftStateResponse,
+    type ApiSemanticLayerDraftTakeLiveRequest,
+    type ApiSemanticLayerDraftUsageResponse,
     type ApiSemanticLayerModelResponse,
     type ApiSemanticLayerStatusResponse,
     type ApiSemanticLayerUndoResponse,
@@ -58,12 +64,10 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: {
-                enabled: await this.getService().canEditModels(
-                    toSessionUser(req.account),
-                    projectUuid,
-                ),
-            },
+            results: await this.getService().getStatus(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
         };
     }
 
@@ -87,6 +91,50 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 modelName,
+            ),
+        };
+    }
+
+    /**
+     * A value that changes whenever this person's draft would read differently.
+     * @summary Get the state of my semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/draft/state')
+    @OperationId('getSemanticLayerDraftState')
+    async getDraftState(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftStateResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getDraftState(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * The models this person has changes in development on, by name.
+     * @summary List the models in my semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/draft/models')
+    @OperationId('getSemanticLayerDraftedModels')
+    async getDraftedModels(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftedModelsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getDraftedModels(
+                toSessionUser(req.account),
+                projectUuid,
             ),
         };
     }
@@ -133,6 +181,28 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 model ?? null,
+            ),
+        };
+    }
+
+    /**
+     * Saved charts and dashboards that read a field this person's draft defines differently or removes.
+     * @summary Get the saved content my semantic layer draft changes
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/draft/usage')
+    @OperationId('getSemanticLayerDraftUsage')
+    async getDraftUsage(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftUsageResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getDraftUsage(
+                toSessionUser(req.account),
+                projectUuid,
             ),
         };
     }
@@ -243,6 +313,78 @@ export class SemanticStudioController extends BaseController {
             toSessionUser(req.account),
             projectUuid,
             { kind: 'all' },
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Moves one change one place earlier or later in this person's draft.
+     * @summary Reorder a change in my semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/changes/{draftChangeUuid}/move')
+    @OperationId('moveSemanticLayerDraftChange')
+    async moveDraftChange(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() draftChangeUuid: UUID,
+        @Body() body: ApiSemanticLayerDraftMoveRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().moveDraftChange(
+            toSessionUser(req.account),
+            projectUuid,
+            draftChangeUuid,
+            body.direction,
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Keeps this person's draft of a model over what was published to it since they started.
+     * @summary Keep my draft of a model over what was published since
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/models/{model}/keep')
+    @OperationId('keepSemanticLayerDraftModel')
+    async keepDraftModel(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+        @Body() body: ApiSemanticLayerDraftKeepRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().keepDraftModel(
+            toSessionUser(req.account),
+            projectUuid,
+            model,
+            body.liveVersion,
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Leaves one part of this person's drafted model as it is live.
+     * @summary Take the live version of one part of my drafted model
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/models/{model}/take-live')
+    @OperationId('takeLiveSemanticLayerDraftPart')
+    async takeLiveDraftPart(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+        @Body() body: ApiSemanticLayerDraftTakeLiveRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().takeLiveDraftPart(
+            toSessionUser(req.account),
+            projectUuid,
+            model,
+            body.path,
         );
         return { status: 'ok', results: undefined };
     }

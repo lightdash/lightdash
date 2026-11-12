@@ -17,6 +17,7 @@ import {
     IconArrowsDiagonal,
     IconArrowsDiagonalMinimize2,
     IconArrowUpRight,
+    IconGitPullRequest,
     IconInfoCircle,
     IconMinus,
     IconTable,
@@ -180,7 +181,7 @@ const IssueRow: FC<{ issue: Issue }> = ({ issue: { kind, model, detail } }) => {
 };
 
 const STATUS_LABELS = {
-    applied: 'Applied',
+    applied: 'Published',
     undone: 'Undone',
     discarded: 'Discarded',
 };
@@ -197,9 +198,11 @@ export const SemanticLayerProposalCard: FC<{
     const inDraft = draft?.changes.some(
         (change) => change.draftChangeUuid === draftChangeUuid,
     );
-    const settled = draft?.settled.find(
+    const settledChange = draft?.settled.find(
         (change) => change.draftChangeUuid === draftChangeUuid,
-    )?.status;
+    );
+    const settled = settledChange?.status;
+    const pullRequestUrl = settledChange?.pullRequestUrl ?? null;
     // The agent adds to the draft on the server, so a new card means it moved.
     const isUnknown = !!draftChangeUuid && !!draft && !inDraft && !settled;
     useEffect(() => {
@@ -224,10 +227,12 @@ export const SemanticLayerProposalCard: FC<{
             })),
         ],
     );
-    const status = settled
-        ? STATUS_LABELS[settled]
+    const settledLabel =
+        settled && (pullRequestUrl ? 'Pull request' : STATUS_LABELS[settled]);
+    const status = settledLabel
+        ? settledLabel
         : inDraft
-          ? 'In draft'
+          ? 'In development'
           : null;
     const getActions = (model: string) => {
         if (inDraft && draftChangeUuid) {
@@ -244,6 +249,22 @@ export const SemanticLayerProposalCard: FC<{
             );
         }
         if (settled !== 'applied') return null;
+        if (pullRequestUrl) {
+            return (
+                <Tooltip label="View pull request">
+                    <ActionIcon
+                        size="sm"
+                        aria-label="View pull request"
+                        component="a"
+                        href={pullRequestUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <MantineIcon icon={IconGitPullRequest} />
+                    </ActionIcon>
+                </Tooltip>
+            );
+        }
         return (
             <Tooltip label="Open model">
                 <ActionIcon

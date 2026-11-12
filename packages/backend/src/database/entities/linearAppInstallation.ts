@@ -9,6 +9,7 @@ export type DbLinearAppInstallation = {
     encrypted_access_token: Buffer;
     encrypted_refresh_token: Buffer | null;
     oauth_client_id: string | null;
+    encrypted_linear_client_secret: Buffer | null;
     linear_organization_name: string;
     linear_organization_url_key: string;
     created_at: Date;
@@ -24,6 +25,7 @@ type DbLinearAppInstallationIn = Pick<
     | 'encrypted_access_token'
     | 'encrypted_refresh_token'
     | 'oauth_client_id'
+    | 'encrypted_linear_client_secret'
     | 'linear_organization_name'
     | 'linear_organization_url_key'
     | 'created_by_user_uuid'
@@ -37,6 +39,7 @@ type DbLinearAppInstallationUpdate = Partial<
         | 'encrypted_access_token'
         | 'encrypted_refresh_token'
         | 'oauth_client_id'
+        | 'encrypted_linear_client_secret'
         | 'linear_organization_name'
         | 'linear_organization_url_key'
         | 'updated_by_user_uuid'

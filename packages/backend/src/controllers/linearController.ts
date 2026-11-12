@@ -1,16 +1,19 @@
 import {
     ApiSuccessEmpty,
     assertRegisteredAccount,
-    ParameterError,
+    type ApiLinearInstallUrlResponse,
     type LinearInstallation,
+    type LinearOAuthCredentials,
     type LinearProject,
     type LinearTeam,
 } from '@lightdash/common'; // pragma: allowlist secret
 import {
+    Body,
     Delete,
     Get,
     Middlewares,
     OperationId,
+    Post,
     Query,
     Request,
     Route,
@@ -26,8 +29,35 @@ import { BaseController } from './baseController';
 @Tags('Integrations')
 export class LinearController extends BaseController {
     /**
-     * Start Linear OAuth with PKCE
+     * Start Linear OAuth with the organization's own Linear OAuth app
      * @summary Connect Linear
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200')
+    @Post('/install')
+    @OperationId('connectLinearIntegration')
+    async connectLinearIntegration(
+        @Request() req: express.Request,
+        @Body() body: LinearOAuthCredentials,
+    ): Promise<ApiLinearInstallUrlResponse> {
+        assertRegisteredAccount(req.account);
+        const context = await this.services
+            .getLinearAppService()
+            .installRedirect(toSessionUser(req.account), body);
+        req.session.oauth = {
+            returnTo: context.returnToUrl,
+            state: context.state,
+            linear: context.linear,
+        };
+        return {
+            status: 'ok',
+            results: { installUrl: context.installUrl },
+        };
+    }
+
+    /**
+     * Restart Linear OAuth with the credentials already saved for the organization
+     * @summary Reconnect Linear
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('302', 'Redirect to Linear OAuth')
@@ -35,19 +65,16 @@ export class LinearController extends BaseController {
     @OperationId('installLinearIntegration')
     async installLinearIntegration(
         @Request() req: express.Request,
-        @Query() clientId?: string,
     ): Promise<void> {
         assertRegisteredAccount(req.account);
         const context = await this.services
             .getLinearAppService()
-            .installRedirect(toSessionUser(req.account), clientId);
-
+            .installRedirect(toSessionUser(req.account), null);
         req.session.oauth = {
             returnTo: context.returnToUrl,
             state: context.state,
             linear: context.linear,
         };
-
         this.setStatus(302);
         this.setHeader('Location', context.installUrl);
     }
@@ -62,21 +89,20 @@ export class LinearController extends BaseController {
         @Request() req: express.Request,
         @Query() code?: string,
         @Query() state?: string,
+        @Query() error?: string,
     ): Promise<void> {
         assertRegisteredAccount(req.account);
-        if (!state || state !== req.session.oauth?.state) {
-            this.setStatus(400);
-            throw new ParameterError('State does not match');
-        }
-
+        const stateMatches = !!state && state === req.session.oauth?.state;
         const redirectUrl = await this.services
             .getLinearAppService()
-            .installCallback(
-                toSessionUser(req.account),
-                req.session.oauth,
+            .installCallback(toSessionUser(req.account), req.session.oauth, {
                 code,
                 state,
-            );
+                error,
+            });
+        if (stateMatches) {
+            req.session.oauth = {};
+        }
 
         this.setStatus(302);
         this.setHeader('Location', redirectUrl);

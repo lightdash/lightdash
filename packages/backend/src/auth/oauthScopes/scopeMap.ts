@@ -74,6 +74,7 @@ export const OAUTH_OPERATIONS: Partial<
     Job: OAUTH_ACTIONS,
     JobStatus: ['view'],
     Learn: ['view'],
+    MergeQuery: OAUTH_ACTIONS,
     MetricsTree: OAUTH_ACTIONS,
     Organization: OAUTH_ACTIONS,
     OrganizationAiAgent: OAUTH_ACTIONS,

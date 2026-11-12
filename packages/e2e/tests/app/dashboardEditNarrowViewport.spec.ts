@@ -66,7 +66,8 @@ const dragTileRight = async (page: Page, title: string, pixels: number) => {
         .first();
     const box = await tile.boundingBox();
     if (!box) throw new Error(`Tile "${title}" has no bounds`);
-    const start = { x: box.x + box.width / 2, y: box.y + 12 };
+    // Clear of the top edge, which resizes the tile
+    const start = { x: box.x + box.width / 2, y: box.y + 30 };
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
     await page.mouse.move(start.x + 5, start.y);

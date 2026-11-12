@@ -4,6 +4,11 @@
     font-size: var(--mantine-font-size-md) !important;
 }
 
+/* The starter prompt truncates instead of pushing the send button out. */
+.composer {
+    --composer-toolbar-right-shrink: 0;
+}
+
 /* The composer's own footprint, reserved while agents and preferences land, so
    the hint and chip row under it never get shoved. AgentChatInput drops to its
    minimal chrome (no agent selector) when there is no project to ask about,

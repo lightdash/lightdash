@@ -700,26 +700,28 @@ describe('AddControl with parameters', () => {
         expect(openNew).toHaveBeenCalledTimes(1);
     });
 
-    it.each([
-        ['a viewer', { isViewer: true }],
-        [
-            'an editor whose tiles use no parameter',
-            { tileParameterReferences: {} },
-        ],
-    ])(
-        'is "Add filter" for %s, opening the field search directly',
-        async (_, options) => {
-            const { user } = setup(options);
-            expect(
-                screen.queryByRole('button', { name: 'Add' }),
-            ).not.toBeInTheDocument();
-            await user.click(
-                screen.getByRole('button', { name: 'Add filter' }),
-            );
-            expect(openNew).toHaveBeenCalledTimes(1);
-            expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
-        },
-    );
+    it('is "Add filter" for a viewer, opening the field search directly', async () => {
+        const { user } = setup({ isViewer: true });
+        expect(
+            screen.queryByRole('button', { name: 'Add' }),
+        ).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Add filter' }));
+        expect(openNew).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+    });
+
+    it('offers an editor whose tiles use no parameter a filter or a date zoom', async () => {
+        const { user } = setup({ tileParameterReferences: {} });
+        await user.click(screen.getByRole('button', { name: 'Add' }));
+        expect(
+            await screen.findByRole('menuitem', { name: /^Date zoom/ }),
+        ).toHaveTextContent('Change the date grain of some tiles');
+        expect(
+            screen.queryByRole('menuitem', { name: /^Parameter/ }),
+        ).not.toBeInTheDocument();
+        await user.click(screen.getByRole('menuitem', { name: /^Filter/ }));
+        expect(openNew).toHaveBeenCalledTimes(1);
+    });
 
     it('keeps parameter creation unavailable while controls are not loaded', async () => {
         const { user, store } = setup({ controls: null });
@@ -732,10 +734,15 @@ describe('AddControl with parameters', () => {
     });
 
     it('allows adding filters until every tile has been discovered, even with saved controls', async () => {
-        const { store } = setup({ discoveryPending: true });
-        const button = screen.getByRole('button', { name: 'Add filter' });
+        const { store, user } = setup({ discoveryPending: true });
+        const button = screen.getByRole('button', { name: 'Add' });
         expect(button).toBeEnabled();
-        fireEvent.click(button);
+        await user.click(button);
+        // Parameters wait for discovery; filters and date zooms do not
+        expect(
+            screen.queryByRole('menuitem', { name: /^Parameter/ }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('menuitem', { name: /^Filter/ }));
         expect(openNew).toHaveBeenCalledTimes(1);
         expect(store.getState().parameters.parameterControls).toEqual([]);
         const sources = ['tile-1', 'tile-2'].map((tileUuid) => ({
@@ -746,18 +753,20 @@ describe('AddControl with parameters', () => {
         act(() => {
             store.dispatch(
                 dashboardParametersActions.addDiscoveredParameterReferences({
+                    chartSavedValues: {},
+                    virtualViewSavedValues: {},
                     references: { 'tile-1': references['tile-1'] },
                     definitions,
                     sources: { 'tile-1': JSON.stringify(sources[0]) },
                 }),
             );
         });
-        expect(
-            screen.getByRole('button', { name: 'Add filter' }),
-        ).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled();
         act(() => {
             store.dispatch(
                 dashboardParametersActions.addDiscoveredParameterReferences({
+                    chartSavedValues: {},
+                    virtualViewSavedValues: {},
                     references,
                     definitions,
                     sources: Object.fromEntries(

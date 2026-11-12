@@ -87,7 +87,7 @@ import {
     type SavedChartDAO,
     type SessionUser,
 } from '@lightdash/common';
-import { isArray } from 'es-toolkit/compat';
+import { isArray, uniqBy } from 'es-toolkit/compat';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromJwt, getEmbedActorChartSpaceUuids } from '../../../auth/account';
@@ -909,17 +909,17 @@ export class EmbedService extends BaseService {
         const exploreCache: Record<string, Explore | ExploreError | undefined> =
             {};
 
-        const explorePromises = savedCharts.reduce<
-            Promise<{
-                key: string;
-                explore: Explore | ExploreError | undefined;
-            }>[]
-        >((acc, chart) => {
-            const key = chart.tableName;
-            if (!exploreCacheKeys[key]) {
-                const exploreId = chart.tableName;
+        const explorePromises = savedCharts
+            .flatMap((chart) => chart.exploreNames)
+            .reduce<
+                Promise<{
+                    key: string;
+                    explore: Explore | ExploreError | undefined;
+                }>[]
+            >((acc, key) => {
+                if (exploreCacheKeys[key]) return acc;
                 const cachedExplore = this.projectModel
-                    .getExploreFromCache(projectUuid, exploreId)
+                    .getExploreFromCache(projectUuid, key)
                     // A chart pointing at a deleted/renamed explore must not
                     // fail the whole request; it contributes no filters, same
                     // as the direct-app path (ProjectService.findExplores).
@@ -929,9 +929,8 @@ export class EmbedService extends BaseService {
                     });
                 acc.push(cachedExplore.then((explore) => ({ key, explore })));
                 exploreCacheKeys[key] = true;
-            }
-            return acc;
-        }, []);
+                return acc;
+            }, []);
 
         const [resolvedExplores] = await Promise.all([
             Promise.all(explorePromises),
@@ -945,21 +944,27 @@ export class EmbedService extends BaseService {
             string,
             Promise<FilterableDimension[]>
         >();
+        // A merged chart filters on the fields of every query it merges
         const filterPromises = savedCharts.map(async (savedChart) => {
-            const explore = exploreCache[savedChart.tableName];
-            if (!explore || isExploreError(explore)) {
-                return { uuid: savedChart.uuid, filters: [] };
-            }
-            const filtersPromise =
-                filtersByExplore.get(savedChart.tableName) ??
-                this.projectService.getFilterableDimensionsForExplore(
-                    projectUuid,
-                    explore,
-                );
-            filtersByExplore.set(savedChart.tableName, filtersPromise);
-            const filters = await filtersPromise;
+            const filters = await Promise.all(
+                savedChart.exploreNames.map((exploreName) => {
+                    const explore = exploreCache[exploreName];
+                    if (!explore || isExploreError(explore)) return [];
+                    const filtersPromise =
+                        filtersByExplore.get(exploreName) ??
+                        this.projectService.getFilterableDimensionsForExplore(
+                            projectUuid,
+                            explore,
+                        );
+                    filtersByExplore.set(exploreName, filtersPromise);
+                    return filtersPromise;
+                }),
+            );
 
-            return { uuid: savedChart.uuid, filters };
+            return {
+                uuid: savedChart.uuid,
+                filters: uniqBy(filters.flat(), getDashboardFilterableFieldKey),
+            };
         });
 
         allFilters = await Promise.all(filterPromises);
@@ -997,12 +1002,14 @@ export class EmbedService extends BaseService {
         }, {});
 
         const hiddenFieldIds = new Set(
-            savedCharts.flatMap((savedChart) => {
-                const explore = exploreCache[savedChart.tableName];
-                return explore && !isExploreError(explore)
-                    ? getHiddenFilterableFieldIds(explore)
-                    : [];
-            }),
+            savedCharts.flatMap((savedChart) =>
+                savedChart.exploreNames.flatMap((exploreName) => {
+                    const explore = exploreCache[exploreName];
+                    return explore && !isExploreError(explore)
+                        ? getHiddenFilterableFieldIds(explore)
+                        : [];
+                }),
+            ),
         );
         let hiddenFilterableFieldIds: string[] = [];
         if (hiddenFieldIds.size > 0) {
@@ -2920,11 +2927,13 @@ export class EmbedService extends BaseService {
                     );
                 const explores = await Promise.all(
                     [
-                        ...new Set(savedCharts.map((chart) => chart.tableName)),
-                    ].map((tableName) =>
+                        ...new Set(
+                            savedCharts.flatMap((chart) => chart.exploreNames),
+                        ),
+                    ].map((exploreName) =>
                         this.projectModel.getExploreFromCache(
                             projectUuid,
-                            tableName,
+                            exploreName,
                         ),
                     ),
                 );

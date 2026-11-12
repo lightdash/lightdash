@@ -183,9 +183,12 @@ function buildService(opts: {
             deleteApiSourceExplores: vi.fn(),
             findExploreNamesTakenByOthers: vi.fn().mockResolvedValue([]),
             hasApiSourceExplores: vi.fn().mockResolvedValue(false),
+            listApiSourceExploreHashes: vi.fn().mockResolvedValue([]),
+            getApiSourceFieldIds: vi.fn().mockResolvedValue([]),
         },
         savedChartModel: {
             getChartCountPerField: vi.fn().mockResolvedValue([]),
+            getChartCountForExplores: vi.fn().mockResolvedValue(0),
         },
         allowedPrivateHostCidrs: {},
         externalConnectionModel: model as never,

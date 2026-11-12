@@ -17,6 +17,7 @@ import { addBreadcrumb, spanToTraceHeader, startSpan } from '@sentry/react';
 // resolves at call time instead.
 import { EMBED_KEY, type InMemoryEmbed } from './ee/providers/Embed/types';
 import { recordServerBuildHash } from './features/buildHashHandshake/buildHashHandshake';
+import { getDevelopmentViewHeaders } from './features/semanticStudio/developmentView';
 import { getFromInMemoryStorage } from './utils/inMemoryStorage';
 import {
     diagnoseTransportFailure,
@@ -52,8 +53,7 @@ const getDefaultHeaders = (): Record<string, string> => {
     if (sdkVersion) {
         headers[LightdashSdkVersionHeader] = sdkVersion;
     }
-
-    return headers;
+    return { ...headers, ...getDevelopmentViewHeaders() };
 };
 
 const isSafeToAddEmbedHeader = (
@@ -280,7 +280,10 @@ const requestResponse = async <T extends ApiResponse>(
             return r;
         })
         .then(async (r) => {
-            const js = await parseJsonBody(r);
+            const js =
+                r.status === 204
+                    ? { status: 'ok', results: undefined }
+                    : await parseJsonBody(r);
             networkHistory.push(
                 sensitive
                     ? {

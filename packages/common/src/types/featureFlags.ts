@@ -83,6 +83,14 @@ export enum FeatureFlags {
     EnableDataAppState = 'enable-data-app-state',
 
     /**
+     * Per-organization gate for Viewer access to data apps. Viewers open
+     * apps shared with them and run only the queries each app version's
+     * saved data references cover. Disabled by default on Cloud and
+     * self-hosted.
+     */
+    DataAppConsumerAccess = 'data-app-consumer-access',
+
+    /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
      * Gates the option in the Map Type segmented control. Existing charts
      * already saved with the hexbin layer continue to render either way.
@@ -151,6 +159,12 @@ export enum FeatureFlags {
     AiFilterExpressions = 'ai-filter-expressions',
 
     /**
+     * Offer AI agents the askUser tool in web app threads: the agent ends its
+     * turn with clickable clarifying questions. Off by default; enable per org.
+     */
+    AiAgentAskUser = 'ai-agent-ask-user',
+
+    /**
      * Enable the async compose SQL endpoint
      * (POST /api/v2/projects/{projectUuid}/query/compose-sql), which runs
      * DuckDB SQL over other queries' results, exposed as named tables via
@@ -182,21 +196,6 @@ export enum FeatureFlags {
     AiThreadRetention = 'ai-thread-retention',
 
     /**
-     * Per-organization gate for experimental surfaces in Lightdash Desktop.
-     * Desktop reads it once per sign-in. Off by default; enable per org.
-     */
-    DesktopExperiments = 'desktop-experiments',
-
-    /**
-     * External data sources: upload CSV files or connect Google Sheets as
-     * project tables. Tables are ingested to typed parquet in object storage,
-     * generated as explores (ExploreType.EXTERNAL_SOURCE), and queried on the
-     * DuckDB compose engine — so this requires the enterprise pre-aggregates
-     * engine and its S3 configuration. Off by default.
-     */
-    ExternalSources = 'external-sources',
-
-    /**
      * Prevent users from deleting their own AI agent threads. Admins can
      * still delete threads from the agent admin threads view. Off by default.
      */
@@ -220,6 +219,11 @@ export enum FeatureFlags {
      * experiment, off by default.
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
+    /**
+     * Slack agent answers send eligible bar/line charts as native charts. Off by default; standard
+     * resolver for the prompt author: ENV enable/disable lists, then user → org override → default.
+     */
+    AiAgentSlackNativeCharts = 'ai-agent-slack-native-charts',
     /**
      * Organization-scoped: keep dbt's partial_parse.msgpack from a compile on
      * the worker and seed the next compile of the same project and dbt source

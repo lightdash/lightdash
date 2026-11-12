@@ -7,15 +7,14 @@ import {
     IconLayoutDashboard,
     IconRoute,
     IconSearch,
-    type TablerIconsProps,
+    type TablerIcon,
 } from '@tabler/icons-react';
-import type { JSX } from 'react';
 import { type LiveActivityToolGroup } from '../LiveActivityCard';
 import { getToolCallFailure } from './toolCallFailure';
 
 type ActivityTitle = {
     title: string;
-    icon: (props: TablerIconsProps) => JSX.Element;
+    icon: TablerIcon;
 };
 
 const SEARCH_TOOLS = new Set([

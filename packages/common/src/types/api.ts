@@ -78,6 +78,7 @@ import type {
     ApiDataAppVizPreviewTokenResponse,
     ApiDataAppVizRenderMetadataResponse,
     ApiDataAppVizUpgradeImpactResponse,
+    ApiExplorePrefixCheckResponse,
     ApiExternalConnectionAsCodeListResponse,
     ApiExternalConnectionAsCodeUpsertResponse,
     ApiGenerateAppResponse,
@@ -109,6 +110,7 @@ import type {
     ApiPromoteAiAgentMemoryResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
+    ApiReattachableLiveSourcesResponse,
     ApiReplaceProjectContextResults,
     ApiResolvedHomepageResponse,
     ApiSkillsAsCodeListResponse,
@@ -317,7 +319,12 @@ import {
     type ApiLearnWorkspaceFileResponse,
     type ApiLearnWorkspaceFilesResponse,
 } from './learnSandbox';
-import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
+import type {
+    LinearInstallation,
+    LinearInstallUrl,
+    LinearProject,
+    LinearTeam,
+} from './linear';
 import {
     type ApiCompiledMergeQueryResults,
     type MergeFieldOrigins,
@@ -469,8 +476,11 @@ import { type SchedulerWithLogs } from './schedulerLog';
 import { type SearchResults } from './search';
 import {
     type ApiSemanticLayerDraftApplyResponse,
+    type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
     type ApiSemanticLayerDraftResponse,
+    type ApiSemanticLayerDraftStateResponse,
+    type ApiSemanticLayerDraftUsageResponse,
 } from './semanticStudio';
 import { type ShareUrl } from './share';
 import { type SharedSignInStatus } from './sharedSignIn';
@@ -1590,6 +1600,7 @@ type ApiResults =
     | Array<JiraProject>
     | Array<JiraIssueType>
     | LinearInstallation
+    | LinearInstallUrl
     | Array<LinearTeam>
     | Array<LinearProject>
     | CiChecks
@@ -1692,6 +1703,8 @@ type ApiResults =
     | ApiExternalConnectionAsCodeListResponse['results']
     | ApiExternalConnectionAsCodeUpsertResponse['results']
     | ApiLiveSourceFieldsResponse['results']
+    | ApiExplorePrefixCheckResponse['results']
+    | ApiReattachableLiveSourcesResponse['results']
     | ApiSpaceAsCodeListResponse['results']
     | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
@@ -1880,8 +1893,11 @@ type ApiResults =
     | ApiAiProviderCredentialCreatedResponse['results']
     | ApiProjectAiCredentialResponse['results']
     | ApiSemanticLayerDraftResponse['results']
+    | ApiSemanticLayerDraftedModelsResponse['results']
+    | ApiSemanticLayerDraftStateResponse['results']
     | ApiSemanticLayerDraftApplyResponse['results']
-    | ApiSemanticLayerDraftImpactResponse['results'];
+    | ApiSemanticLayerDraftImpactResponse['results']
+    | ApiSemanticLayerDraftUsageResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

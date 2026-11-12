@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { chunk } from 'es-toolkit/compat';
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useSyncExternalStore } from 'react';
 import {
     dashboardParametersActions,
     selectTileQuerySources,
@@ -19,18 +19,16 @@ import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 const TILES_PER_REQUEST = 200;
 
 /**
- * While editing, registers the parameters every tile uses, on every tab,
- * before any tile runs. In view mode tiles report them from their own query.
+ * Registers the parameters and saved values of every tile, on every tab,
+ * before any tile runs, so controls don't depend on which tiles have run.
  * In embeds the API client sends the embed token.
  */
 export const useDashboardTileParameterReferences = ({
     store,
     projectUuid,
-    isEditMode,
 }: {
     store: DashboardStore;
     projectUuid: string | undefined;
-    isEditMode: boolean;
 }) => {
     const lightdashApi = useLightdashApi();
     const { data: dashboardControlsFlag } = useServerFeatureFlag(
@@ -40,10 +38,25 @@ export const useDashboardTileParameterReferences = ({
         selectTileQuerySourcesKey(store.getState()),
     );
     const isEnabled =
-        isEditMode &&
         dashboardControlsFlag?.enabled === true &&
         !!projectUuid &&
         tilesKey !== '';
+
+    // A tile pointed at another chart drops what it had, before its new query reports:
+    // a layout effect runs before every tile's effects, which report a cached chart at once
+    useLayoutEffect(() => {
+        if (dashboardControlsFlag?.enabled !== true) return;
+        store.dispatch(
+            dashboardParametersActions.resetChangedTileParameterSources(
+                Object.fromEntries(
+                    selectTileQuerySources(store.getState()).map((source) => [
+                        source.tileUuid,
+                        JSON.stringify(source),
+                    ]),
+                ),
+            ),
+        );
+    }, [dashboardControlsFlag?.enabled, store, tilesKey]);
 
     const { data } = useQuery<DashboardTileParameterReferences[], ApiError>({
         queryKey: [
@@ -95,28 +108,56 @@ export const useDashboardTileParameterReferences = ({
         const complete = data.flatMap((result) =>
             result.error === null &&
             result.parameterDefinitions !== undefined &&
+            // older servers omit saved values; leave those tiles unlisted
+            'chartSavedValues' in result &&
             sourceByTile[result.tileUuid] !== undefined
-                ? [
-                      {
-                          tileUuid: result.tileUuid,
-                          references: result.parameterReferences,
-                          definitions: result.parameterDefinitions,
-                      },
-                  ]
+                ? [result]
                 : [],
         );
+        const completeTiles = new Set(complete.map(({ tileUuid }) => tileUuid));
+        const { tileListedParameterSources } = store.getState().parameters;
+        // A failed refetch keeps a good listing of the same source
+        const failed = data.filter(
+            ({ tileUuid }) =>
+                sourceByTile[tileUuid] !== undefined &&
+                !completeTiles.has(tileUuid) &&
+                tileListedParameterSources[tileUuid] !== sourceByTile[tileUuid],
+        );
+        if (failed.length > 0)
+            store.dispatch(
+                dashboardParametersActions.markParameterReferencesFailed(
+                    Object.fromEntries(
+                        failed.map(({ tileUuid }) => [
+                            tileUuid,
+                            sourceByTile[tileUuid],
+                        ]),
+                    ),
+                ),
+            );
         if (complete.length === 0) return;
         store.dispatch(
             dashboardParametersActions.addDiscoveredParameterReferences({
                 references: Object.fromEntries(
                     complete.map((result) => [
                         result.tileUuid,
-                        result.references,
+                        result.parameterReferences,
                     ]),
                 ),
                 definitions: Object.assign(
                     {},
-                    ...complete.map((result) => result.definitions),
+                    ...complete.map((result) => result.parameterDefinitions),
+                ),
+                chartSavedValues: Object.fromEntries(
+                    complete.map((result) => [
+                        result.tileUuid,
+                        result.chartSavedValues,
+                    ]),
+                ),
+                virtualViewSavedValues: Object.fromEntries(
+                    complete.map((result) => [
+                        result.tileUuid,
+                        result.virtualViewSavedValues,
+                    ]),
                 ),
                 sources: Object.fromEntries(
                     complete.map((result) => [

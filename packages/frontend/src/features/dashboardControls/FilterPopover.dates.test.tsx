@@ -171,6 +171,7 @@ const renderEditor = (savedRule: DashboardFilterRule) => {
     );
     mockDashboardContext.current = {
         ...setters(store),
+        setDateZoomGranularity: vi.fn(),
         dashboard: {
             uuid: 'dash-1',
             tiles: [{ uuid: 't1' }],

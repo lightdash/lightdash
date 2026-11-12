@@ -138,6 +138,8 @@ import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/Re
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
+import { developmentViewMiddleware } from './services/SemanticStudioService/developmentViewMiddleware';
+import { RepoModelSource } from './services/SemanticStudioService/repoModels';
 import { SemanticStudioService } from './services/SemanticStudioService/SemanticStudioService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { CommercialSlackService } from './services/SlackService/SlackService';
@@ -197,6 +199,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             }) =>
                 new AnalyticsProjectService({
                     lightdashConfig: context.lightdashConfig,
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
+                    getAiAgentService: () =>
+                        repository.getAiAgentService<AiAgentService>(),
                     schedulerClient: clients.getSchedulerClient(),
                     contentAsCodeSnapshotModel:
                         models.getContentAsCodeSnapshotModel(),
@@ -208,6 +213,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getContentVerificationModel(),
                     spaceModel: models.getSpaceModel(),
                     dashboardModel: models.getDashboardModel(),
+                    projectHomepageModel:
+                        models.getProjectHomepageModel<ProjectHomepageModel>(),
                     savedChartModel: models.getSavedChartModel(),
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
@@ -268,12 +275,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 clientId,
                             }),
                 }),
-            linearAppService: ({ models, context }) => {
+            linearAppService: ({ models, context, utils }) => {
                 const aiAgentReviewNotificationModel =
                     models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>();
                 return new LinearAppService({
                     linearAppInstallationsModel:
                         models.getLinearAppInstallationsModel(),
+                    encryptionUtil: utils.getEncryptionUtil(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     onWorkspaceChanged: (organizationUuid, trx) =>
@@ -421,6 +429,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getProjectModelDocumentModel<ProjectModelDocumentModel>(),
                     projectService: repository.getProjectService(),
                     validationService: repository.getValidationService(),
+                    repoModels: new RepoModelSource({
+                        githubAppInstallationsModel:
+                            models.getGithubAppInstallationsModel(),
+                    }),
+                    savedChartModel: models.getSavedChartModel(),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
                 new HomepageRecommendedActionSkipsService({
@@ -1615,6 +1628,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     directAccessService: repository.getDirectAccessService(),
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
+                    getAppGenerateService: () =>
+                        repository.getAppGenerateService<AppGenerateService>(),
                     getDataAppCustomSqlProvenance: (args) =>
                         repository
                             .getAppGenerateService<AppGenerateService>()
@@ -1841,6 +1856,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             },
             (expressApp: Express) => {
                 expressApp.use('/api/v1/scim/v2', scimRequestLoggingMiddleware);
+            },
+            (expressApp: Express) => {
+                expressApp.use(developmentViewMiddleware);
             },
         ],
         schedulerWorkerFactory: (context) =>

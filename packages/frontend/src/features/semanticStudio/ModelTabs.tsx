@@ -30,6 +30,8 @@ import { getLightdashMonacoTheme } from '../sqlRunner/utils/monaco';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_VERBS,
+    DRAFT_PARAM,
+    DRAFT_REVIEW,
     getChangeKind,
     changeTitle,
     findFieldLine,
@@ -39,6 +41,7 @@ import classes from './ModelTabs.module.css';
 import {
     useSemanticLayerDraft,
     useSemanticLayerModel,
+    useAppliesAsPullRequest,
     useUndoSemanticLayerChanges,
 } from './useSemanticLayerModel';
 
@@ -158,10 +161,13 @@ const HistoryPane: FC<{
     history: SemanticLayerModelChange[];
 }> = ({ projectUuid, modelName, history }) => {
     const undo = useUndoSemanticLayerChanges(projectUuid);
+    const { data: draft } = useSemanticLayerDraft(projectUuid);
+    const [, setSearchParams] = useSearchParams();
+    const unpublished = draft?.models.find(({ model }) => model === modelName);
     const [open, setOpen] = useState<string | null>(
         history[0]?.changeSetUuid ?? null,
     );
-    if (history.length === 0) {
+    if (history.length === 0 && !unpublished) {
         return (
             <Paper variant="dotted" p="md">
                 <Text fz="sm" c="dimmed">
@@ -176,6 +182,29 @@ const HistoryPane: FC<{
             poolOptions={PIERRE_POOL_OPTIONS}
             highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
         >
+            {unpublished ? (
+                <Paper variant="dotted" p="sm" mb="sm">
+                    <Group gap="sm" justify="space-between" wrap="nowrap">
+                        <Box miw={0}>
+                            <Text fz="sm">Your changes in development</Text>
+                            <Text fz="xs" c="dimmed">
+                                Not live. Only you see them until you publish;
+                                everything below is live.
+                            </Text>
+                        </Box>
+                        <Button
+                            size="compact-xs"
+                            variant="default"
+                            flex="none"
+                            onClick={() =>
+                                setSearchParams({ [DRAFT_PARAM]: DRAFT_REVIEW })
+                            }
+                        >
+                            Review
+                        </Button>
+                    </Group>
+                </Paper>
+            ) : null}
             <Accordion variant="contained" value={open} onChange={setOpen}>
                 {history.map((change) => (
                     <Accordion.Item
@@ -203,6 +232,10 @@ const HistoryPane: FC<{
                                 >
                                     {CHANGE_KIND_VERBS[getChangeKind(change)]}{' '}
                                     {dayjs(change.createdAt).fromNow()}
+                                    {change.by ? ` by ${change.by}` : ''}
+                                    {change.replaced
+                                        ? `, replacing ${change.replaced.by ?? 'someone'}'s ${change.replaced.paths.join(', ')}`
+                                        : ''}
                                     {change.otherModels.length > 0
                                         ? `, along with ${change.otherModels.join(', ')}`
                                         : ''}
@@ -247,9 +280,11 @@ export const ModelTabs: FC<{
     fields: ReactNode;
 }> = ({ projectUuid, modelName, fields }) => {
     const { data: model } = useSemanticLayerModel(projectUuid, modelName);
+    // A repository keeps its own history.
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const [searchParams, setSearchParams] = useSearchParams();
     const view =
-        model && searchParams.get(VIEW_PARAM) === 'history'
+        model && !asPullRequest && searchParams.get(VIEW_PARAM) === 'history'
             ? 'history'
             : 'fields';
     return (
@@ -263,7 +298,7 @@ export const ModelTabs: FC<{
                 )
             }
         >
-            {model ? (
+            {model && !asPullRequest ? (
                 <Tabs.List mb="md">
                     <Tabs.Tab value="fields">Fields</Tabs.Tab>
                     <Tabs.Tab value="history">History</Tabs.Tab>

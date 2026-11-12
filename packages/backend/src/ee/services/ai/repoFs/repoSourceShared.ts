@@ -40,6 +40,7 @@ export type RepoFsTimingEvent =
           durationMs: number;
           outcome: 'found' | 'missing' | 'error';
       }
-    | { kind: 'search'; durationMs: number };
+    | { kind: 'search'; durationMs: number }
+    | { kind: 'archive'; durationMs: number };
 
 export type RepoFsTimingCallback = (event: RepoFsTimingEvent) => void;

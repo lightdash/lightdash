@@ -4,6 +4,7 @@ export type MobileSignInOAuthErrorName =
     | 'invalid_grant'
     | 'expired_token'
     | 'authorization_pending'
+    | 'match_number_required'
     | 'slow_down'
     | 'access_denied'
     | 'invalid_scope'

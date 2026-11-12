@@ -15,6 +15,7 @@ import {
     defaultProject,
 } from '../../../services/ProjectService/ProjectService.mock';
 import { getAnalyticsContentHash } from './analyticsContentHash';
+import { analyticsHomepage } from './analyticsHomepage';
 import { AnalyticsProjectService } from './AnalyticsProjectService';
 
 describe('AnalyticsProjectService', () => {
@@ -55,6 +56,10 @@ describe('AnalyticsProjectService', () => {
     const lock = vi.fn();
     const upsertChart = vi.fn();
     const upsertDashboard = vi.fn();
+    const findAllAgents = vi.fn();
+    const getIsCopilotEnabled = vi.fn();
+    const createAgent = vi.fn();
+    const createPublishedDefaultIfAbsent = vi.fn();
     const findDashboard = vi.fn();
     const getDashboard = vi.fn();
     const findCharts = vi.fn();
@@ -77,6 +82,8 @@ describe('AnalyticsProjectService', () => {
     );
     const findProcessingStatus = vi.fn();
     const service = new AnalyticsProjectService({
+        aiAgentModel: { findAllAgents },
+        getAiAgentService: () => ({ getIsCopilotEnabled, createAgent }),
         lightdashConfig: {
             usageEvents: {
                 enabled: false,
@@ -97,6 +104,7 @@ describe('AnalyticsProjectService', () => {
         coderService: { upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
         dashboardModel: { find: findDashboard, getByIdOrSlug: getDashboard },
+        projectHomepageModel: { createPublishedDefaultIfAbsent },
         savedChartModel: { get: getChart, find: findCharts },
         spaceModel: { get: getSpace, find: findSpaces },
         projectModel: {
@@ -124,6 +132,8 @@ describe('AnalyticsProjectService', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         vi.resetAllMocks();
+        getIsCopilotEnabled.mockResolvedValue(false);
+        findAllAgents.mockResolvedValue([]);
         getSnapshot.mockResolvedValue({ snapshotHash: hash });
         isAnalyticsProjectEnabled.mockReturnValue(true);
         getOrganizationAdmins.mockResolvedValue([
@@ -251,6 +261,34 @@ describe('AnalyticsProjectService', () => {
             expect(saveSnapshot).not.toHaveBeenCalled();
             await configured().syncContent({ organizationUuid: 'org' });
             expect(saveSnapshot).toHaveBeenCalledOnce();
+        });
+
+        it('provisions an Analytics agent when AI becomes available after the content was synced', async () => {
+            findDashboard.mockResolvedValue(
+                analyticsContentAsCode.map(({ dashboard }) => ({
+                    uuid: dashboard.slug,
+                })),
+            );
+            getIsCopilotEnabled.mockResolvedValue(true);
+            createAgent.mockImplementation(async () => {
+                findAllAgents.mockResolvedValue([{ name: 'Analytics agent' }]);
+            });
+
+            await configured().syncContent({ organizationUuid: 'org' });
+            await configured().syncContent({ organizationUuid: 'org' });
+
+            expect(createAgent).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({ userUuid: user.userUuid }),
+                expect.objectContaining({
+                    name: 'Analytics agent',
+                    projectUuid: analyticsProject.projectUuid,
+                    enableDataAccess: true,
+                    enableContentTools: false,
+                    enableSqlMode: false,
+                    enableComposerQueries: false,
+                }),
+                { autoProvisioned: true },
+            );
         });
 
         it.each([
@@ -721,6 +759,15 @@ describe('AnalyticsProjectService', () => {
     it('installs sample content only in the current organization analytics project', async () => {
         await service.installSampleContent(user);
         expect(lock).toHaveBeenCalledWith(user.organizationUuid);
+        expect(createAgent).not.toHaveBeenCalled();
+        expect(createPublishedDefaultIfAbsent).toHaveBeenCalledExactlyOnceWith({
+            projectUuid: analyticsProject.projectUuid,
+            ...analyticsHomepage,
+            userUuid: user.userUuid,
+        });
+        expect(
+            createPublishedDefaultIfAbsent.mock.invocationCallOrder[0],
+        ).toBeLessThan(saveSnapshot.mock.invocationCallOrder[0]);
         for (const { dashboard, charts } of analyticsContentAsCode) {
             const options = {
                 spaceNames: {

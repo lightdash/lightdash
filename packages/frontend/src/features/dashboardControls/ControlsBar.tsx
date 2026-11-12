@@ -3,12 +3,15 @@ import { type ComponentProps, type FC, type ReactNode } from 'react';
 import {
     selectControlSections,
     selectHasStoredControlOrder,
-    selectParameterControls,
     useDashboardSelector,
 } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
+import { DateZoom } from '../dateZoom';
+import { DateZoomCrossTabFieldsLoader } from '../dateZoom/components/DateZoomCrossTabFieldsLoader';
 import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
+import { DateZoomMappingRow } from './DateZoomMappingRow';
+import { DateZoomPills, DefaultZoomButton } from './DateZoomPills';
 import { FilterPills } from './FilterPills';
 import { MappingRow } from './MappingRow';
 import { ParameterMappingRow } from './ParameterMappingRow';
@@ -16,6 +19,7 @@ import { ParameterPills } from './ParameterPills';
 import { SectionedFilters } from './SectionedFilters';
 import { SettledFilterFields } from './SettledFilterFields';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { useParameterEditorSelector } from './useParameterEditor';
 
 const NO_PARAMETERS = {};
@@ -27,7 +31,6 @@ type Props = Omit<
 
 // The shipped bar with its filter area swapped, in edit and view mode alike
 export const ControlsBar: FC<Props> = (props) => {
-    const controls = useDashboardSelector(selectParameterControls);
     const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
     // Sections or a stored order need the sectioned bar; else a viewer's is flat
     const hasSections = useDashboardSelector(
@@ -38,8 +41,12 @@ export const ControlsBar: FC<Props> = (props) => {
     const filterRow = (
         <DashboardFiltersBar
             {...props}
-            // Parameters are controls on this bar, after the filters
-            parameters={controls === null ? props.parameters : NO_PARAMETERS}
+            // Date zoom shows on any dashboard with tiles, as the shipped right side
+            hasTilesThatSupportFilters={
+                props.hasTilesThatSupportFilters || props.hasDashboardTiles
+            }
+            // Parameters are controls on this bar, after the filters; none until they are built
+            parameters={NO_PARAMETERS}
             // The rail is on the page: a drawer over it would hide it
             isCompactDrawerSuppressed={isSidebarOpen}
             // The flat bar's items share each line's centre with the
@@ -49,16 +56,39 @@ export const ControlsBar: FC<Props> = (props) => {
             }
             // The sectioned flow spans several lines: parameters wrap beside it
             isParametersColumn={hasSections || props.isEditMode}
+            // Every pill carries its kind's icon; date zooms are pills too
+            withGroupMarkers={false}
+            // Default zoom stays on the right; named zooms are pills
+            withDateZoomControls={false}
+            // One quiet button in both modes: an editor's opens its popover
+            // (grains stay in "..."), a viewer's the shipped menu
+            defaultZoom={
+                props.isEditMode ? (
+                    <>
+                        <DefaultZoomButton />
+                        <DateZoomCrossTabFieldsLoader />
+                    </>
+                ) : (
+                    <DateZoom isEditMode={false} withControls={false} isQuiet />
+                )
+            }
             filterArea={
                 <SettledFilterFields>
                     {/* An editor's bar is always sectioned: its selection starts the first section */}
-                    {hasSections || props.isEditMode ? (
+                    {!props.hasTilesThatSupportFilters ? (
+                        // No tile takes filters or parameters: only date zoom
+                        <>
+                            {props.isEditMode && <AddControl />}
+                            <DateZoomPills />
+                        </>
+                    ) : hasSections || props.isEditMode ? (
                         <SectionedFilters activeTabUuid={props.activeTabUuid} />
                     ) : (
                         <>
                             <AddControl />
                             <FilterPills activeTabUuid={props.activeTabUuid} />
                             <ParameterPills />
+                            <DateZoomPills />
                         </>
                     )}
                 </SettledFilterFields>
@@ -74,7 +104,9 @@ export const ControlsBar: FC<Props> = (props) => {
 export const MappingSwap: FC<{ children: ReactNode }> = ({ children }) => {
     const isFilterMapping = useControlsSidebarSelector((c) => c.isMapping);
     const isParameterMapping = useParameterEditorSelector((c) => c.isMapping);
-    const isMapping = isFilterMapping || isParameterMapping;
+    const isDateZoomMapping = useDateZoomEditorSelector((c) => c.isMapping);
+    const isMapping =
+        isFilterMapping || isParameterMapping || isDateZoomMapping;
     return (
         <Box className={classes.swap}>
             <Box
@@ -86,6 +118,7 @@ export const MappingSwap: FC<{ children: ReactNode }> = ({ children }) => {
             </Box>
             {isFilterMapping && <MappingRow />}
             {isParameterMapping && <ParameterMappingRow />}
+            {isDateZoomMapping && <DateZoomMappingRow />}
         </Box>
     );
 };

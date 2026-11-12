@@ -332,17 +332,15 @@ describe('TabCounts', () => {
         expect(badge('tab-1')).toHaveAttribute('data-reserve', '3/3');
     });
 
-    // Edit mode keeps every count's space, so opening a filter reflows no tab
-    it('keeps an empty, reserved slot on every tab in edit mode while no filter is open', async () => {
+    it('holds no width on any tab in edit mode while no filter is open', async () => {
         setSidebar({ editingRule: null });
         renderWithProviders(<TabCounts />);
 
         TAB_UUIDS.forEach((tabUuid) => {
             expect(badgeText(tabUuid)).toBe('');
             expect(mockContainers.current[tabUuid].textContent).toBe('');
+            expect(badge(tabUuid)).not.toHaveAttribute('data-reserve');
         });
-        expect(badge('tab-1')).toHaveAttribute('data-reserve', '3/3');
-        expect(badge('tab-empty')).toHaveAttribute('data-reserve', '0/0');
 
         await userEvent.hover(badge('tab-1'));
         await waitForTooltip();

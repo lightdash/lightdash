@@ -80,13 +80,18 @@ import { useEmbedDashboardTabChange } from '../../hooks/useEmbedDashboardTabChan
 import { embedContractClass } from '../../styles/embedClassContract';
 import { applyFilterLabelOverrides } from '../filterLabelOverrides';
 import { getEmbedDashboardVersion } from '../getEmbedDashboardVersion';
-import { useEmbedDashboard, useEmbedSavedParameters } from '../hooks';
+import {
+    useEmbedDashboard,
+    useEmbedDashboardRefreshKey,
+    useEmbedSavedParameters,
+} from '../hooks';
 import {
     type ChartSaveDestination,
     type EmbedChartSaveDashboard,
 } from '../types';
 import { canUseEmbeddedChartBuilder } from '../utils';
 import classes from './EmbedDashboard.module.css';
+import { EmbedDashboardAiAgentContextPublisher } from './EmbedDashboardAiAgentContextPublisher';
 import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardContentStateEvent from './EmbedDashboardContentStateEvent';
@@ -103,6 +108,8 @@ const RAIL_CONTRACT_CLASSES: RailContractClassNames = {
     filterDropdown: embedContractClass('ld-dashboard-filter-dropdown'),
     parameter: embedContractClass('ld-dashboard-parameter'),
     parameterDropdown: embedContractClass('ld-dashboard-parameter-dropdown'),
+    dateZoom: embedContractClass('ld-dashboard-date-zoom'),
+    dateZoomDropdown: embedContractClass('ld-dashboard-date-zoom-dropdown'),
 };
 
 const EMBED_EDIT_TILE_TYPES = [
@@ -370,12 +377,16 @@ const EmbedDashboard: FC<{
     isEditMode?: boolean;
     onEditModeChange?: (isEditMode: boolean) => void;
     chartSaveDestinations?: ChartSaveDestination[];
+    sharesViewWithAiAgent?: boolean;
+    refreshKey?: number;
 }> = ({
     containerStyles,
     initialDashboard,
     isEditMode: controlledIsEditMode,
     onEditModeChange,
     chartSaveDestinations,
+    sharesViewWithAiAgent = true,
+    refreshKey,
 }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const activeTab = useDashboardSelector(selectActiveTab);
@@ -477,6 +488,7 @@ const EmbedDashboard: FC<{
         !initialDashboard,
         embedDashboardUuid,
     );
+    useEmbedDashboardRefreshKey(refreshKey, isEditMode);
     useEffect(() => {
         if (initialDashboard) {
             setLocalDashboard(initialDashboard);
@@ -1204,6 +1216,9 @@ const EmbedDashboard: FC<{
                         dashboardUuid={dashboard.uuid}
                         dashboardVersion={dashboardVersion}
                     />
+                )}
+                {sharesViewWithAiAgent && (
+                    <EmbedDashboardAiAgentContextPublisher />
                 )}
                 <ControlsSidebarProvider
                     // No route says the mode in an embed

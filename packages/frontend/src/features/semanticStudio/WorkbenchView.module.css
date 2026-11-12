@@ -151,6 +151,12 @@
     background: var(--mantine-color-yellow-6);
 }
 
+/* Someone else's work in development: an outline, so it never reads as yours. */
+.draftDot[data-others] {
+    background: transparent;
+    border: 1px solid var(--mantine-color-yellow-6);
+}
+
 .fileRow:first-child {
     margin-top: var(--mantine-spacing-xs);
 }

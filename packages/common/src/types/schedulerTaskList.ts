@@ -237,6 +237,7 @@ export const EE_SCHEDULER_TASKS = {
     CONSOLIDATE_AI_AGENT_MEMORY_PARTITION: 'consolidateAiAgentMemoryPartition',
     CLEAN_MCP_TOOL_CALLS: 'cleanMcpToolCalls',
     CLEAN_RATE_COUNTERS: 'cleanRateCounters',
+    REBUILD_OUTDATED_API_SOURCE_EXPLORES: 'rebuildOutdatedApiSourceExplores',
     CLEAN_DATA_APP_ANALYSES: 'cleanDataAppAnalyses',
     CLEAN_AI_DEEP_RESEARCH_REPORTS: 'cleanAiDeepResearchReports',
     CLEAN_AI_AGENT_THREADS: 'cleanAiAgentThreads',
@@ -407,6 +408,10 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: Record<string, never>;
+    [SCHEDULER_TASKS.REBUILD_OUTDATED_API_SOURCE_EXPLORES]: Record<
+        string,
+        never
+    >;
     [SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA]: ScanApiSourceSchemaJobPayload;
     [SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: Record<string, never>;
     [SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START]: MobilePushLiveActivityStartJobPayload;
@@ -465,6 +470,10 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: IngestExternalSourceJobPayload;
     [EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: Record<string, never>;
+    [EE_SCHEDULER_TASKS.REBUILD_OUTDATED_API_SOURCE_EXPLORES]: Record<
+        string,
+        never
+    >;
     [EE_SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA]: ScanApiSourceSchemaJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: Record<string, never>;
     [EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START]: MobilePushLiveActivityStartJobPayload;

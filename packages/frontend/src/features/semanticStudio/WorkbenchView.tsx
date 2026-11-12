@@ -39,12 +39,15 @@ import {
 import { useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
+import { StudioDevelopmentBar } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioDevelopmentBar';
 import {
     useChatOpen,
     useSemanticStudioChat,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
+import { useStudioPullRequest } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
 import { useProject } from '../../hooks/useProject';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
+import { useDevelopmentView } from './developmentView';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import { ExternalSourceManager } from './externalSources/ExternalSourceManager';
 import {
@@ -86,7 +89,7 @@ import {
 } from './modelCode';
 import { ModelCodeView, ModelTabs } from './ModelTabs';
 import {
-    DraftBar,
+    DraftDevelopmentBar,
     DraftReview,
     DraftReviewHeading,
 } from './SemanticLayerDraft';
@@ -105,6 +108,8 @@ import {
 import { getSemanticStudioUrl } from './urls';
 import { useExploreFields } from './useExploreFields';
 import {
+    useKeepsSemanticLayerDraft,
+    useDraftFreshness,
     useSemanticLayerDraft,
     useSemanticLayerModel,
 } from './useSemanticLayerModel';
@@ -121,6 +126,42 @@ const ROW_HEIGHT = 28;
 
 /** What the workspace shows beside the rail. */
 type Pane = 'code' | 'review' | 'browse' | 'intro' | 'buildFirst' | 'empty';
+
+/** Says whose unpublished work a model has: this person's, someone else's, or both. */
+const DraftMarker: FC<{
+    projectUuid: string;
+    model: string;
+    isMine: boolean;
+}> = ({ projectUuid, model, isMine }) => {
+    const { data: draft } = useSemanticLayerDraft(projectUuid);
+    const others =
+        draft?.othersDrafting
+            .find((entry) => entry.model === model)
+            ?.drafters.map(({ name }) => name) ?? [];
+    if (!isMine && others.length === 0) return null;
+    const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
+    return (
+        <Tooltip label={`In development by ${whose}. Not live yet.`}>
+            <Box
+                className={classes.draftDot}
+                data-others={!isMine || undefined}
+            />
+        </Tooltip>
+    );
+};
+
+/** A model's name as this person's draft leaves it, so the list and the review say the same thing. */
+const ModelLabel: FC<{ projectUuid: string; model: string; label: string }> = ({
+    projectUuid,
+    model,
+    label,
+}) => {
+    const { data: draft } = useSemanticLayerDraft(projectUuid);
+    return (
+        draft?.models.find((entry) => entry.model === model)?.explore?.label ??
+        label
+    );
+};
 
 const Tree: FC<{
     view: ViewModel;
@@ -215,13 +256,22 @@ const Tree: FC<{
                                 />
                             </Box>
                             <Text truncate className={classes.treeLabel}>
-                                {node.label}
+                                {node.ref.type === 'explore' ? (
+                                    <ModelLabel
+                                        projectUuid={view.project.id}
+                                        model={node.ref.exploreId}
+                                        label={node.label}
+                                    />
+                                ) : (
+                                    node.label
+                                )}
                             </Text>
-                            {node.ref.type === 'explore' &&
-                            drafted.has(node.ref.exploreId) ? (
-                                <Tooltip label="In your draft">
-                                    <Box className={classes.draftDot} />
-                                </Tooltip>
+                            {node.ref.type === 'explore' ? (
+                                <DraftMarker
+                                    projectUuid={view.project.id}
+                                    model={node.ref.exploreId}
+                                    isMine={drafted.has(node.ref.exploreId)}
+                                />
                             ) : null}
                         </Box>
                     );
@@ -334,6 +384,12 @@ const ExploreBody: FC<{
     const explore = getExplore(view.project, exploreId);
     const source = getSource(view.project, explore.sourceId);
     const { data: draft } = useSemanticLayerDraft(view.project.id);
+    const modelDraft =
+        draft?.models.find(({ model }) => model === exploreId) ?? null;
+    const othersHere =
+        draft?.othersDrafting.find(({ model }) => model === exploreId)
+            ?.drafters ?? [];
+    const [isShowingLive, setIsShowingLive] = useState(false);
     const {
         fields: loaded,
         isLoading,
@@ -343,7 +399,7 @@ const ExploreBody: FC<{
         explore,
         source,
         canManageLive: view.permissions.live,
-        draft: draft?.models.find(({ model }) => model === exploreId) ?? null,
+        draft: isShowingLive ? null : modelDraft,
     });
     const allFields = useMemo(() => loaded ?? [], [loaded]);
     const groups = useMemo(() => fieldGroups(allFields), [allFields]);
@@ -393,6 +449,42 @@ const ExploreBody: FC<{
     }
     return (
         <>
+            {modelDraft || othersHere.length > 0 ? (
+                <Group gap="sm" mb="sm" wrap="nowrap">
+                    {modelDraft ? (
+                        <SegmentedControl
+                            size="xs"
+                            flex="none"
+                            value={isShowingLive ? 'live' : 'development'}
+                            onChange={(next) =>
+                                setIsShowingLive(next === 'live')
+                            }
+                            data={[
+                                {
+                                    value: 'development',
+                                    label: 'With my changes',
+                                },
+                                { value: 'live', label: 'Live' },
+                            ]}
+                        />
+                    ) : null}
+                    <Text fz="xs" c="dimmed">
+                        {[
+                            modelDraft
+                                ? isShowingLive
+                                    ? 'What everyone sees now.'
+                                    : 'Only you see this until you publish.'
+                                : null,
+                            ...othersHere.map(
+                                ({ name, paths }) =>
+                                    `${name} is changing ${paths.length > 0 ? paths.join(', ') : 'this model'}, in development.`,
+                            ),
+                        ]
+                            .filter(Boolean)
+                            .join(' ')}
+                    </Text>
+                </Group>
+            ) : null}
             <FieldList
                 view={view}
                 explore={explore}
@@ -607,6 +699,8 @@ const MainPane: FC<{
                         modelName={explore.id}
                         fields={
                             <ExploreBody
+                                // Its live or in-development switch belongs to one model.
+                                key={explore.id}
                                 view={view}
                                 exploreId={explore.id}
                                 openFieldId={openFieldId}
@@ -723,11 +817,12 @@ const Rail: FC<{
  * ponytail: not virtualised; only native YAML projects get here, so add it if one reaches thousands of models.
  */
 const CodeRail: FC<{
+    projectUuid: string;
     files: string[];
     selected: string | null;
     drafted: Set<string>;
     onOpen: (file: string) => void;
-}> = ({ files, selected, drafted, onOpen }) => (
+}> = ({ projectUuid, files, selected, drafted, onOpen }) => (
     <Box className={classes.rail}>
         <Box className={classes.treeScroll}>
             {files.map((file) => (
@@ -742,11 +837,11 @@ const CodeRail: FC<{
                     <Text truncate className={classes.treeLabel} title={file}>
                         {file}.yml
                     </Text>
-                    {drafted.has(file) ? (
-                        <Tooltip label="In your draft">
-                            <Box className={classes.draftDot} />
-                        </Tooltip>
-                    ) : null}
+                    <DraftMarker
+                        projectUuid={projectUuid}
+                        model={file}
+                        isMine={drafted.has(file)}
+                    />
                 </Box>
             ))}
         </Box>
@@ -836,6 +931,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const isEmpty = view.project.explores.length === 0;
     const [searchParams, setSearchParams] = useSearchParams();
     const { data: draft } = useSemanticLayerDraft(view.project.id);
+    useDraftFreshness(view.project.id);
     const { data: project } = useProject(view.project.id);
     const chat = useSemanticStudioChat(view.project.id);
     const [isChatOpen, setIsChatOpen] = useChatOpen();
@@ -870,7 +966,21 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         () => [...new Set([...drafted, ...modelled])].sort(),
         [drafted, modelled],
     );
-    const isCode = chat.isAvailable && searchParams.get(VIEW_PARAM) === 'code';
+    // A dbt project has no draft and no model code here: its files are in its repository.
+    const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
+    const pullRequest = useStudioPullRequest(view.project.id);
+    const development = !keepsDraft && pullRequest?.isOpen ? pullRequest : null;
+    const [isTryingChanges, setIsTryingChanges] = useDevelopmentView();
+    // A dbt project's changes are tried through its pull request's preview, so there is nothing to try once that closes.
+    const hasClosedPullRequest =
+        !keepsDraft && !!pullRequest?.ciChecks && !pullRequest.isOpen;
+    useEffect(() => {
+        if (hasClosedPullRequest && isTryingChanges) setIsTryingChanges(false);
+    }, [hasClosedPullRequest, isTryingChanges, setIsTryingChanges]);
+    const isCode =
+        chat.isAvailable &&
+        keepsDraft &&
+        searchParams.get(VIEW_PARAM) === 'code';
     const requestedFile = searchParams.get(FILE_PARAM);
     const file =
         files.find((name) => name === requestedFile) ??
@@ -888,8 +998,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     };
 
     const hasWarehouse = !!project?.warehouseConnection;
-    const canBuildFirstModel = isEmpty && hasWarehouse && chat.isAvailable;
-    const canNudge = chat.isAvailable && hasWarehouse && modelled.length === 0;
+    const canBuildFirstModel =
+        isEmpty && hasWarehouse && chat.isAvailable && keepsDraft;
+    const canNudge =
+        chat.isAvailable && keepsDraft && hasWarehouse && modelled.length === 0;
     const pane = ((): Pane => {
         if (isCode) return 'code';
         if (isReviewingDraft) return 'review';
@@ -931,14 +1043,21 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             case 'review':
                 return draft ? (
                     <>
-                        <DraftReviewHeading
-                            projectUuid={view.project.id}
-                            draft={draft}
-                        />
+                        {/* The toolbar's bar carries this except while a first model is being built, when it is hidden. */}
+                        {isBuildingFirstModel ? (
+                            <DraftReviewHeading
+                                projectUuid={view.project.id}
+                                draft={draft}
+                            />
+                        ) : null}
                         <Box className={classes.mainBody}>
                             <DraftReview
                                 projectUuid={view.project.id}
                                 draft={draft}
+                                onAskAgent={(prompt) => {
+                                    setIsChatOpen(true);
+                                    setAskedPrompt(prompt);
+                                }}
                             />
                         </Box>
                     </>
@@ -1009,26 +1128,37 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         />
                     )}
                     <Box className={classes.workspace}>
-                        {pane === 'intro' || !chat.isAvailable ? null : (
+                        {pane === 'intro' ||
+                        !chat.isAvailable ||
+                        // A dbt project has nothing to put here until its conversation has a pull request.
+                        (!keepsDraft && !development && isChatOpen) ? null : (
                             <Group
                                 className={classes.toolbar}
                                 justify="space-between"
                                 wrap="nowrap"
                                 gap="sm"
                             >
-                                <SegmentedControl
-                                    size="xs"
-                                    flex="none"
-                                    value={isCode ? 'code' : 'preview'}
-                                    onChange={switchView}
-                                    data={VIEW_OPTIONS}
-                                />
+                                {keepsDraft ? (
+                                    <SegmentedControl
+                                        size="xs"
+                                        flex="none"
+                                        value={isCode ? 'code' : 'preview'}
+                                        onChange={switchView}
+                                        data={VIEW_OPTIONS}
+                                    />
+                                ) : null}
+                                {development ? (
+                                    <StudioDevelopmentBar
+                                        projectUuid={view.project.id}
+                                        pullRequest={development}
+                                    />
+                                ) : null}
+                                {keepsDraft && !isBuildingFirstModel ? (
+                                    <DraftDevelopmentBar
+                                        projectUuid={view.project.id}
+                                    />
+                                ) : null}
                                 <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
-                                    {isBuildingFirstModel ? null : (
-                                        <DraftBar
-                                            projectUuid={view.project.id}
-                                        />
-                                    )}
                                     {chat.isAvailable && !isChatOpen ? (
                                         <Button
                                             size="xs"
@@ -1049,6 +1179,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         >
                             {pane === 'code' ? (
                                 <CodeRail
+                                    projectUuid={view.project.id}
                                     files={files}
                                     selected={file}
                                     drafted={drafted}

@@ -2067,6 +2067,10 @@ export type LightdashConfig = {
         maxOrganizationBytes: number;
         maxConcurrentIngestsPerOrganization: number;
         maxConcurrentDuckdbQueriesPerOrganization: number;
+        /** How long a DuckDB query waits for a free per-organization slot before it fails. */
+        duckdbQuerySlotWaitTimeoutMs: number;
+        /** Per-process cap on concurrent external source DuckDB queries, across organizations. */
+        maxConcurrentDuckdbQueries: number;
         googleSheetsBatchRows: number;
         stagedUploadTtlHours: number;
         ingestLeaseMs: number;
@@ -2554,6 +2558,39 @@ type AuthMicrosoftManagedSignInConfig = {
     androidClientId: string | undefined;
 };
 
+export type AuthTrustedProvisionerConfig = {
+    issuer: string;
+    audience: string;
+    subjects: string[];
+    ownerEmailDomain: string;
+};
+
+const parseTrustedProvisionerConfig =
+    (): AuthTrustedProvisionerConfig | null => {
+        const issuer = process.env.TRUSTED_PROVISIONER_ISSUER?.trim();
+        const audience = process.env.TRUSTED_PROVISIONER_AUDIENCE?.trim();
+        const ownerEmailDomain =
+            process.env.TRUSTED_PROVISIONER_OWNER_EMAIL_DOMAIN?.trim().toLowerCase();
+        const subjects = (process.env.TRUSTED_PROVISIONER_SUBJECTS ?? '')
+            .split(',')
+            .map((subject) => subject.trim())
+            .filter((subject) => subject.length > 0);
+        if (
+            !issuer ||
+            !audience ||
+            !ownerEmailDomain ||
+            subjects.length === 0
+        ) {
+            return null;
+        }
+        return {
+            issuer,
+            audience,
+            subjects,
+            ownerEmailDomain,
+        };
+    };
+
 type AuthOidcConfig = {
     callbackPath: string;
     loginPath: string;
@@ -2619,6 +2656,7 @@ export type AuthConfig = {
     oneLogin: AuthOneLoginConfig;
     azuread: AuthAzureADConfig;
     microsoftManagedSignIn: AuthMicrosoftManagedSignInConfig;
+    trustedProvisioner: AuthTrustedProvisionerConfig | null;
     oidc: AuthOidcConfig;
     snowflake: AuthSnowflakeConfig;
     snowflakeAi: AuthSnowflakeAiConfig;
@@ -3600,6 +3638,7 @@ export const parseConfig = (): LightdashConfig => {
                 androidClientId:
                     process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_ANDROID_CLIENT_ID,
             },
+            trustedProvisioner: parseTrustedProvisionerConfig(),
             oidc: {
                 callbackPath: '/oauth/redirect/oidc',
                 loginPath: '/login/oidc',
@@ -4244,6 +4283,14 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'EXTERNAL_SOURCES_MAX_CONCURRENT_DUCKDB_QUERIES_PER_ORGANIZATION',
                 ) ?? 2,
+            duckdbQuerySlotWaitTimeoutMs:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_DUCKDB_QUERY_SLOT_WAIT_TIMEOUT_MS',
+                ) ?? 15_000,
+            maxConcurrentDuckdbQueries:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_CONCURRENT_DUCKDB_QUERIES',
+                ) ?? 4,
             googleSheetsBatchRows:
                 getIntegerFromEnvironmentVariable(
                     'EXTERNAL_SOURCES_GOOGLE_SHEETS_BATCH_ROWS',

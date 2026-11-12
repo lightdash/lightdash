@@ -209,16 +209,14 @@
     user-select: none;
 }
 
-/* The open hand on the parts that drag the capsule (the head's gaps and the
-   count; the chevron folds and the name renames), closed while it moves */
-.capsule[data-can-drag] .head,
-.capsule[data-can-drag] .summary {
+/* The open hand wherever a press drags the capsule (not its pills, which drag
+   themselves, nor its controls), closed while it moves */
+.capsule[data-can-drag] {
     cursor: grab;
     touch-action: none;
 }
 
-.capsule[data-dragging] .head,
-.capsule[data-dragging] .summary {
+.capsule[data-dragging] {
     cursor: grabbing;
 }
 

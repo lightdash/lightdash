@@ -85,6 +85,10 @@
     min-width: 0;
 }
 
+.titleBlock > svg {
+    flex: none;
+}
+
 .actions {
     display: flex;
     flex-direction: row;
@@ -134,4 +138,66 @@
         flex-direction: column;
         align-items: stretch;
     }
+}
+
+/* A narrow side panel marks itself with data-quiet-cards: there the card recedes
+   into the conversation as one line, and everything but Merge lives in its menu. */
+:global([data-quiet-cards]) .card,
+:global([data-quiet-cards]) .card.cardMerged,
+:global([data-quiet-cards]) .card.cardClosed {
+    border-color: transparent;
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+:global([data-quiet-cards]) .commit,
+:global([data-quiet-cards]) .wordy {
+    display: none;
+}
+
+:global([data-quiet-cards]) .card .header {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+}
+
+:global([data-quiet-cards]) .card .titleBlock {
+    flex: 1;
+}
+
+/* The card sits in the conversation, so it reads at the conversation's size. */
+:global([data-quiet-cards]) .card .titleBlock :is(p, a),
+:global([data-quiet-cards]) .card .merge {
+    font-size: var(--mantine-font-size-sm);
+}
+
+:global([data-quiet-cards]) .card .actions {
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: calc(var(--mantine-spacing-xs) / 2);
+}
+
+/* The one action that moves things forward reads as text, not as a coloured button. */
+:global([data-quiet-cards]) .card .merge {
+    border-color: transparent;
+    font-weight: 500;
+}
+
+:global([data-quiet-cards]) .card .merge:not([data-disabled]) {
+    background-color: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+}
+
+:global([data-quiet-cards]) .card .merge:hover:not([data-disabled]) {
+    background-color: var(--mantine-color-ldGray-2);
+}
+
+:global([data-quiet-cards]) .card .merge [data-position='left'] {
+    display: none;
+}
+
+/* Merged and closed are facts by now, so they read as a dimmed word, not a tinted card. */
+:global([data-quiet-cards]) .card .mergedStatus[data-disabled],
+:global([data-quiet-cards]) .card .closedStatus[data-disabled] {
+    color: var(--mantine-color-dimmed);
+    background-color: transparent;
 }

@@ -46,7 +46,9 @@ Gated on the flag:
   `isInitialLoading` ends, so `Page` is never swapped for
   `ControlsSidebarPage` (that remounts the grid).
 - `features/dashboardTabs/index.tsx`: `ControlsBar` instead of
-  `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`.
+  `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`. The
+  shipped Hide is unchanged; the collapsed `DashboardFiltersBarSummary`
+  also counts the named zooms the user sees (`dateZoomsCount`).
 - `components/common/Dashboard/DashboardHeader.tsx`: the indigo "Editing"
   badge before the name in edit mode, for users who can manage the dashboard;
   the `save` class, outlined by `DashboardHeader.module.css` under the guard's
@@ -67,7 +69,20 @@ Openings (optional props, defaults are today's behaviour):
 - `dashboardTabs/Tab.tsx`: `hasQuietActions`; the tab `maw` reads
   `--dashboard-tab-max-width` first (also in the embed's tabs).
 - `DashboardFiltersBar`: `filterArea`, `isCompactDrawerSuppressed`,
-  `filtersAlign`, `isParametersColumn`.
+  `filtersAlign`, `isParametersColumn`, `withGroupMarkers` and
+  `withDateZoomControls` (the controls bar passes `false` for both: no
+  funnel, sliders or calendar circles; on the right, Default zoom alone,
+  without the named zooms, "Add date zoom" or the eye, which are pills and
+  "..." items on the bar), and `defaultZoom` (replaces the shipped Default
+  zoom on the right and drops the rule before it: the controls bar passes
+  `DefaultZoomButton` in edit mode and a quiet `DateZoom` in view mode).
+- `dateZoom/DateZoom`: `withControls` (`false`: Default zoom alone, no
+  named zoom pills or "Add date zoom"; the embed's bar passes it too) and
+  `isQuiet` (the controls bar's viewer button, drawn as
+  `DefaultZoomButton`; default `false`: the bordered pill).
+- `DashboardFiltersBarSummary`: `dateZoomsCount` (default 0: no count) and
+  `isControlsBar` (the controls bar's summary: no funnel, "Show controls",
+  "Default zoom Week").
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
   ref; the popover anchors on it).
@@ -90,9 +105,15 @@ Openings (optional props, defaults are today's behaviour):
 - `FilterConfiguration/utils`: `getFilterRuleWithRequired` takes
   `savedDefaultRule` (only the editor passes it).
 - Embed: `EmbedDashboardFilterBar` and `EmbedDashboardHeader` take
-  `isControlsEnabled`; with it the filter bar sits in `MappingSwap`.
+  `isControlsEnabled`; with it the filter bar sits in `MappingSwap`, and
+  named zooms the viewer sees count towards Hide and the summary, as
+  filters and parameters do (Default zoom stays out, on the right).
 
 Pure moves out of shipped files, now shared by both sides:
+`features/dateZoom/hooks.ts` (`useGranularityData`,
+`useEligibleDateZoomTiles`, out of `DateZoomControlConfig`),
+`DateZoomControlMenuItems` (a named zoom's grains and "Reset to default",
+out of `DateZoomControlPills`),
 `ActiveFilters/` (`FilterRuleLabel`, `FilterPillSkeletons`,
 `TemporaryFilters`, `UnresolvedFilter`, `FilterPillButton`,
 `useFilterTabPlacement`, `filterLabels`, `filterLock`, `filterOrder`),
@@ -112,21 +133,29 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `ControlsSidebarProvider.tsx`, `useControlsSidebar.ts`, `sidebarState.ts` | The edit state, every write to filters, focus return; pure state helpers |
 | `ControlsSidebarPage.tsx` | Drop-in for `Page`: the provider plus tile overlays, tab counts, link prompts, field bar |
 | `ControlsBar.tsx` | The shipped bar with its openings; picks flat or `SectionedFilters`; `MappingSwap` cross-fades to `MappingRow` (the embed's bar uses it too) |
+| `ControlMappingRow.tsx` | Every mapping row's frame; the parameter and date zoom rows (back, open pill, count, Clear all tiles, Cancel, Apply) |
 | `MappingRow.tsx` | Mapping: the open pill, title and counts, field chips, "Add a field", Cancel and Apply |
 | `AddControl.tsx`, `FilterBarMenu.tsx` | "Add filter" and the editor's "..." menu ("Hide for viewers" / "Show for viewers", named for the action as the shipped pin item; "Filter rules"); `InertWhileEditing` |
+| `useBarPill.ts`, `ControlEditorPopover.tsx` | Every kind's pill behaviour (modified-click pick, Alt+arrow move, tile hover, the select hint) and its editor popover's frame |
 | `FilterPills.tsx`, `FilterPill.tsx`, `TemporaryFilterPills.tsx` | Bar pills: an editor's, a viewer's saved and own pills (each anchors the editor), an editor's temporary pills (shipped) |
 | `SettledFilterFields.tsx` | Keeps the last fields while tiles reload, so the bar does not flash a first load |
 | `FilterEditor.tsx` | `EditorPopover`, under a pill or "Add filter"; wires `FilterPopover` to the provider, a placeholder's field search |
 | `FilterPopover.tsx`, `FilterValueSettings.tsx`, `useRuleEdits.ts`, `NameInput.tsx`, `SectionSetting.tsx`, `ViewerControls.tsx`, `settingsSummary.ts`, `editorFocus.ts`, `useSettingsChipFocus.ts` | The popover, by props: header (icon, name, operator menu), value, chips (tiles, Settings), the prompt, Cancel and Apply, the Settings view (section, required, lock) |
 | `FieldsAndTiles.tsx`, `fieldCandidates.ts` | A new filter's field search; field candidates for "Add a field" and the cards |
 | `peers.ts` | Multi-field model on the saved shape, scopes, counts |
+| `ControlTilesBar.tsx` | The parameter key's and date zoom's floating bar: host, tab scopes, slide guard |
 | `FieldTilesBar.tsx`, `useFieldTileActions.ts`, `useBarHost.ts` | Floating field bar; the one place a field's counts and actions are computed |
-| `TileOverlay.tsx`, `LazySelect.tsx`, `tileProps.ts`, `tileSelector.ts` | Per-tile veil and card |
+| `TileOverlay.tsx`, `LazySelect.tsx`, `tileProps.ts`, `tileSelector.ts`, `TileCard.tsx`, `useTabTileTargets.ts` | Per-tile veil and card; every kind's veil, card frame, Move question, tab tiles and ring highlight |
 | `TabCounts.tsx`, `usePortalTargets.ts`, `useTileHover.ts`, `useScrollToHighlightedTile.ts` | Tab counts, portal targets and sibling locking, pill hover marks, scroll to tile |
 | `LinkPrompts.tsx`, `linkCandidates.ts` | Link prompts on tiles added while editing |
 | `SectionedFilters.tsx`, `SectionMenu.tsx`, `SectionNameInput.tsx`, `sections.ts`, `nameFocus.ts` | Sections bar, drag and drop, naming (focus after naming, shared with the editor's name); pure section helpers |
 | `controlOrder.ts` | Pure bar order and section line helpers, free of dnd-kit: the store and `utils/dashboardConfig.ts` import them |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
+| `useEditorSession.ts`, `EditorFocusReturn.tsx`, `controlKinds.ts` | The parameter and date zoom editors' shared session: the pending question, open, Apply, Cancel, Escape, a press outside, another kind's pill, mode change, mapping steps, focus return; each kind's pill selectors |
+| `DateZoomEditorProvider.tsx`, `useDateZoomEditor.ts`, `dateZoomControls.ts` | The date zoom editor: named zooms and the default zoom, their draft, Apply, switching, mapping; every write to the date zoom config from the bar; pure config helpers |
+| `DateZoomPills.tsx`, `useDateZoomBar.ts` | Named zoom pills (in the order, sections, drag and selection); an editor's anchors its popover, a viewer's opens the shipped menu. `DefaultZoomButton`: an editor's Default zoom on the bar's right, anchoring its popover; viewers get the shipped one with `isQuiet` |
+| `DateZoomControlPopover.tsx`, `DefaultZoomPopover.tsx`, `GrainSelect.tsx`, `ControlPopoverParts.tsx`, `dateZoomGrains.ts`, `DateZoomGrainsMenu.tsx` | The date zoom popovers by props (draft held by the editor), the grain select, the "..." menu's grains |
+| `DateZoomMappingRow.tsx`, `DateZoomTileOverlay.tsx`, `DateZoomTilesBar.tsx`, `useDateZoomMapping.ts` | Choosing a zoom's tiles: the row, a card per tile, the floating bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
 | `DashboardHeaderGuard.tsx` | Wraps the shipped header; inert while an editor's filter is edited |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
@@ -192,6 +221,20 @@ Each one has broken before or would break silently.
   `applyDimensionOverrides` / `applyMetricOverrides`, `adoptPlaceholder` and
   the emptied placeholder. See `docs/sections.md`.
 - **`data-tour-*` anchors** on the bar are the shipped bar's; keep them.
+- **One editor at a time, three providers.** Filter, parameter and date
+  zoom editors each capture a click on another kind's pill or "Add"
+  (`[data-controls-pill]`, `[data-parameter-pill]`, `[data-date-zoom-pill]`,
+  `[data-default-date-zoom]`)
+  and each lists the others' pills in its `useEditorDismiss` selector, so a
+  switch asks on unapplied changes instead of discarding them. The lists
+  come from `getOtherPillsSelector` (`controlKinds.ts`): a new kind joins
+  `PILL_SELECTORS` there.
+- **The date zoom config has one writer on the bar**, the date zoom editor:
+  Apply, a section move, an Alt+arrow move without sections and the X
+  write the dashboard draft
+  (`setDateZoomConfig`); Save is the only save. Writes read the config from
+  the store at call time (`selectCurrentDateZoomConfig`), so several in one
+  tick (a selection's section move) all land.
 
 ## Dashboard files (as code)
 
@@ -207,6 +250,9 @@ New control kinds (date zoom next) follow these rules:
    per-section line flags.
 4. Tiles are referenced by tile slug.
 
+Date zoom files keep `uuid`/`controlUuid` required both ways; `slug` and
+`controlSlug` are optional extras that only resolve `controlOrder` refs.
+
 ## Strings
 
 Viewers and embeds see the editor, tile cards, field bar and tab counts, so
@@ -217,7 +263,8 @@ read with `useUiStrings`; counts go through `formatTileCount` /
 bundles in `packages/sdk-test-app/public/locales/`. Copy only an editor sees
 (Settings, the name input, link prompts, section controls, the "..." menu,
 tips) stays literal; "Applies to", "Choose tiles" and the mapping row are
-viewers' too.
+viewers' too. Date zoom copy is under `controls.dateZoom.*`; the pill's
+"is" is `parameters.is`, "Default zoom" and "None" the shipped `dateZoom.*`.
 See `src/components/common/Filters/AGENTS.md`.
 
 ## Styling and motion
@@ -261,6 +308,16 @@ Every flag-on pill is the default white pill; only these change it, all in
   yet" is the first line of the tooltip the pill already has: the select
   hint, else the tables tooltip (`tablesTooltipNote`).
 - Picked (edit mode): blue fill and a check, the only blue.
+- A date zoom pill reads "Revenue zoom is Week" (`IconCalendarSearch`, the
+  kind's icon, grey): dashed until saved, the ink ring while open, eye-off
+  when hidden from viewers (by itself or with every date zoom), an X in
+  edit mode; a viewer's opens the shipped menu. The default zoom is no
+  pill: it stays on the bar's right, with no rule before it, one quiet
+  button in both modes reading "Default zoom Month", or "Default zoom"
+  alone with no grain (the grain bold while in effect). An editor's is
+  eye-off when hidden from viewers and opens a popover with the grain only
+  (grains and their lock stay in "..."); a viewer's is the shipped
+  `DateZoom` with `isQuiet`, opening the shipped menu.
 - Required with no value: a muted asterisk on the left, before the field
   icon, with the requirement's tooltip (the pill is described by it); none
   once it has a value, nor on a locked pill (no viewer can set it). A

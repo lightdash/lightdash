@@ -85,20 +85,31 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
         accepts: ADD_ON_NAMES,
     }),
     // Reads the layer and warehouse, and proposes; a person applies. No charts or content.
+    // On a dbt project there is no draft: it reads the repository and edits it in a pull request.
     semantic_studio: (input) => ({
         tools: [
             'grepFields',
             'getMetadata',
             'searchSemanticLayer',
             'analyzeFieldImpact',
-            'readSemanticModel',
-            'proposeSemanticLayerChange',
+            ...onlyIf(input.semanticStudioDrafts, [
+                'readSemanticModel',
+                'proposeSemanticLayerChange',
+            ]),
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
             ...onlyIf(input.canRunSql, ['runSql']),
         ],
         sections: ['semanticStudio'],
         skills: [],
-        accepts: ['sqlCatalog', 'projectContext'],
+        accepts: input.semanticStudioDrafts
+            ? ['sqlCatalog', 'projectContext']
+            : [
+                  'sqlCatalog',
+                  'projectContext',
+                  'repoDiscovery',
+                  'writeback',
+                  'pullRequests',
+              ],
     }),
     deep_research_worker: (input) => ({
         tools: [
