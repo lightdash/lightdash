@@ -153,6 +153,8 @@
         "filters.summary.filterPlural": "ფილტრი",
         "filters.summary.parameterSingular": "პარამეტრი",
         "filters.summary.parameterPlural": "პარამეტრი",
+        "filters.summary.dateZoomSingular": "თარიღის ზუმი",
+        "filters.summary.dateZoomPlural": "თარიღის ზუმი",
         "filters.summary.dateZoomLabel": "თარიღის მასშტაბი:",
         "filters.summary.default": "ნაგულისხმევი",
         "filters.summary.showFilters": "ფილტრების ჩვენება",

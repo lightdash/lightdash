@@ -8,6 +8,8 @@ import FilterGroupSeparator from './FilterGroupSeparator';
 type Props = {
     filtersCount: number;
     parametersCount: number;
+    /** Named date zooms on the bar (default 0). */
+    dateZoomsCount?: number;
     dateZoomLabel: string | null;
     onExpand: () => void;
 };
@@ -15,12 +17,14 @@ type Props = {
 export const DashboardFiltersBarSummary: FC<Props> = ({
     filtersCount,
     parametersCount,
+    dateZoomsCount = 0,
     dateZoomLabel,
     onExpand,
 }) => {
     const getUiString = useUiStrings();
     const hasFilters = filtersCount > 0;
     const hasParameters = parametersCount > 0;
+    const hasDateZooms = dateZoomsCount > 0;
     const hasDateZoom = dateZoomLabel !== null;
 
     return (
@@ -32,9 +36,10 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
             py="xxs"
         >
             <Group gap="xs" align="center">
-                {(hasFilters || hasParameters || hasDateZoom) && (
-                    <FilterGroupSeparator icon={IconFilter} />
-                )}
+                {(hasFilters ||
+                    hasParameters ||
+                    hasDateZooms ||
+                    hasDateZoom) && <FilterGroupSeparator icon={IconFilter} />}
 
                 <Text fz="12" c="dimmed">
                     {hasFilters && (
@@ -62,7 +67,22 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
                             )}
                         </>
                     )}
-                    {(hasFilters || hasParameters) && hasDateZoom && ' · '}
+                    {(hasFilters || hasParameters) && hasDateZooms && ' · '}
+                    {hasDateZooms && (
+                        <>
+                            <Text span fw={600}>
+                                {dateZoomsCount}{' '}
+                            </Text>
+                            {getUiString(
+                                dateZoomsCount === 1
+                                    ? 'filters.summary.dateZoomSingular'
+                                    : 'filters.summary.dateZoomPlural',
+                            )}
+                        </>
+                    )}
+                    {(hasFilters || hasParameters || hasDateZooms) &&
+                        hasDateZoom &&
+                        ' · '}
                     {hasDateZoom && (
                         <>
                             <Text span fw={600}>

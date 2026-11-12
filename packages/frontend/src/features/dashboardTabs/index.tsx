@@ -64,6 +64,7 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
+import { useDateZoomBar } from '../dashboardControls/useDateZoomBar';
 import { useParameterBarControls } from '../dashboardControls/useParameterBarControls';
 import { useParameterEditorSelector } from '../dashboardControls/useParameterEditor';
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
@@ -685,6 +686,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
               ({ control }) => !(isParameterViewer && control.hidden),
           ).length
         : Object.keys(activeTabParameters).length;
+    // Named date zooms collapse with the controls; Default zoom is the label
+    const dateZoomBar = useDateZoomBar();
+    const totalDateZoomsCount = isDashboardControlsEnabled
+        ? dateZoomBar.filter(({ isNew }) => !isNew).length
+        : 0;
 
     const currentTabHasTiles = !!dashboardTiles?.some((tile) =>
         isActiveTile(tile),
@@ -1138,6 +1144,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                             parametersCount={
                                                 totalParametersCount
                                             }
+                                            dateZoomsCount={totalDateZoomsCount}
                                             dateZoomLabel={
                                                 isDateZoomDisabled
                                                     ? null

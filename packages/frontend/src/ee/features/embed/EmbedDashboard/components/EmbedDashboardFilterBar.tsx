@@ -26,6 +26,7 @@ import { FilterPills } from '../../../../../features/dashboardControls/FilterPil
 import { ParameterPills } from '../../../../../features/dashboardControls/ParameterPills';
 import { SectionedFilters } from '../../../../../features/dashboardControls/SectionedFilters';
 import { SettledFilterFields } from '../../../../../features/dashboardControls/SettledFilterFields';
+import { useDateZoomBar } from '../../../../../features/dashboardControls/useDateZoomBar';
 import { useParameterBarControls } from '../../../../../features/dashboardControls/useParameterBarControls';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
@@ -152,9 +153,17 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     // With the controls on, the legacy parameters never show: none until the controls are built
     const showsLegacyParameters = parametersEnabled && !isControlsEnabled;
 
-    // Collapsing hides filters and parameters; the shipped date zoom on the
-    // right stays visible, pills in the flow collapse with them as in the app
-    const isCollapsible = totalFiltersCount > 0 || totalParametersCount > 0;
+    const dateZoomBar = useDateZoomBar();
+    const totalDateZoomsCount = withDateZoomPills
+        ? dateZoomBar.filter(({ isNew }) => !isNew).length
+        : 0;
+
+    // Collapsing hides filters, parameters and named zooms; the shipped
+    // Default zoom on the right stays visible, as in the app
+    const isCollapsible =
+        totalFiltersCount > 0 ||
+        totalParametersCount > 0 ||
+        totalDateZoomsCount > 0;
 
     // Interactivity may be enabled with nothing to show (hidden filters, or
     // none defined) — render nothing rather than an empty padded row
@@ -167,6 +176,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
             <DashboardFiltersBarSummary
                 filtersCount={totalFiltersCount}
                 parametersCount={totalParametersCount}
+                dateZoomsCount={totalDateZoomsCount}
                 dateZoomLabel={
                     dashboard.canDateZoom
                         ? getDateZoomSummaryLabel(

@@ -402,7 +402,7 @@ describe('EmbedDashboardFilterBar', () => {
     });
 
     describe('date zoom', () => {
-        const zoomStore = () => {
+        const zoomStore = (hidden = false) => {
             // The saved config, as the page's context has it
             mockDashboardContext.current = {
                 dashboard: {
@@ -414,6 +414,7 @@ describe('EmbedDashboardFilterBar', () => {
                                     uuid: 'z1',
                                     name: 'Revenue zoom',
                                     granularity: DateGranularity.WEEK,
+                                    hidden,
                                 },
                             ],
                             tileTargets: {
@@ -461,13 +462,15 @@ describe('EmbedDashboardFilterBar', () => {
             isControlsEnabled,
             shouldShowFilters = true,
             isEditMode = false,
+            hidden = false,
         }: {
             isControlsEnabled: boolean;
             shouldShowFilters?: boolean;
             isEditMode?: boolean;
+            hidden?: boolean;
         }) =>
             renderWithProviders(
-                <DashboardStoreTestProvider store={zoomStore()}>
+                <DashboardStoreTestProvider store={zoomStore(hidden)}>
                     {/* As the embed page provides them */}
                     <RailContractClasses.Provider
                         value={{
@@ -523,6 +526,35 @@ describe('EmbedDashboardFilterBar', () => {
                 screen.getByRole('button', { name: 'Show filters' }),
             );
             expect(screen.getByTestId('rail-pills')).toBeInTheDocument();
+        });
+
+        it('collapses named zooms alone behind Hide, counted in the summary', async () => {
+            const user = userEvent.setup();
+            renderZoom({ isControlsEnabled: true });
+            await user.click(screen.getByRole('button', { name: 'Hide' }));
+            expect(
+                screen.queryByRole('button', { name: /^Revenue zoom is/ }),
+            ).not.toBeInTheDocument();
+            expect(screen.getByText(/date zoom/)).toHaveTextContent(
+                /^1 date zoom · Date Zoom:/,
+            );
+            await user.click(
+                screen.getByRole('button', { name: 'Show filters' }),
+            );
+            expect(zoomPill('Revenue zoom')).toBeInTheDocument();
+        });
+
+        it.each([
+            [
+                'a zoom hidden from viewers',
+                { isControlsEnabled: true, hidden: true },
+            ],
+            ['the controls are off', { isControlsEnabled: false }],
+        ])('offers no Hide for a named zoom alone when %s', (_, props) => {
+            renderZoom(props);
+            expect(
+                screen.queryByRole('button', { name: 'Hide' }),
+            ).not.toBeInTheDocument();
         });
 
         it.each([

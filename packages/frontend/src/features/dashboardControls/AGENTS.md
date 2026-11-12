@@ -47,7 +47,8 @@ Gated on the flag:
   `ControlsSidebarPage` (that remounts the grid).
 - `features/dashboardTabs/index.tsx`: `ControlsBar` instead of
   `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`. The
-  shipped Hide and collapsed `DashboardFiltersBarSummary` are unchanged.
+  shipped Hide is unchanged; the collapsed `DashboardFiltersBarSummary`
+  also counts the named zooms the user sees (`dateZoomsCount`).
 - `components/common/Dashboard/DashboardHeader.tsx`: the indigo "Editing"
   badge before the name in edit mode, for users who can manage the dashboard;
   the `save` class, outlined by `DashboardHeader.module.css` under the guard's
@@ -77,6 +78,7 @@ Openings (optional props, defaults are today's behaviour):
   `DefaultZoomButton`).
 - `dateZoom/DateZoom`: `withControls` (`false`: Default zoom alone, no
   named zoom pills or "Add date zoom"; the embed's bar passes it too).
+- `DashboardFiltersBarSummary`: `dateZoomsCount` (default 0: no count).
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
   ref; the popover anchors on it).
@@ -99,7 +101,9 @@ Openings (optional props, defaults are today's behaviour):
 - `FilterConfiguration/utils`: `getFilterRuleWithRequired` takes
   `savedDefaultRule` (only the editor passes it).
 - Embed: `EmbedDashboardFilterBar` and `EmbedDashboardHeader` take
-  `isControlsEnabled`; with it the filter bar sits in `MappingSwap`.
+  `isControlsEnabled`; with it the filter bar sits in `MappingSwap`, and
+  named zooms the viewer sees count towards Hide and the summary, as
+  filters and parameters do (Default zoom stays out, on the right).
 
 Pure moves out of shipped files, now shared by both sides:
 `features/dateZoom/hooks.ts` (`useGranularityData`,

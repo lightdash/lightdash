@@ -153,6 +153,8 @@ export const DEFAULT_UI_STRINGS = {
     'filters.summary.filterPlural': 'filters',
     'filters.summary.parameterSingular': 'parameter',
     'filters.summary.parameterPlural': 'parameters',
+    'filters.summary.dateZoomSingular': 'date zoom',
+    'filters.summary.dateZoomPlural': 'date zooms',
     'parameters.is': 'is',
     'parameters.clear': 'Clear parameter',
     'parameters.source.chart': 'from chart',

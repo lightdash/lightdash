@@ -153,6 +153,8 @@
         "filters.summary.filterPlural": "filtros",
         "filters.summary.parameterSingular": "parámetro",
         "filters.summary.parameterPlural": "parámetros",
+        "filters.summary.dateZoomSingular": "zoom de fecha",
+        "filters.summary.dateZoomPlural": "zooms de fecha",
         "filters.summary.dateZoomLabel": "Zoom de fecha:",
         "filters.summary.default": "Predeterminado",
         "filters.summary.showFilters": "Mostrar filtros",
