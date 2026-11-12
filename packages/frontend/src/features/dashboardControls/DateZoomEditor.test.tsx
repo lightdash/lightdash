@@ -196,6 +196,7 @@ const dialog = () => screen.getByRole('dialog');
 describe('Date zoom editor', () => {
     beforeEach(() => {
         requestSwitch.mockReset();
+        track.mockClear();
         requestSwitch.mockImplementation((proceed: () => void) => proceed());
         removeParameter.mockClear();
         openFilter.mockClear();
@@ -475,37 +476,55 @@ describe('Date zoom editor', () => {
         },
     );
 
-    it("applies a viewer's pick at once, and clearing goes back to the saved grain", async () => {
+    it("picks a viewer's grain from the shipped menu at once, and resets it", async () => {
         const { user, store } = setup({ isViewer: true });
         // A hidden zoom is an editor's to see
         expect(
             screen.queryByRole('button', { name: /^Orders zoom/ }),
         ).not.toBeInTheDocument();
         await user.click(pill('Revenue zoom'));
-        await user.click(
-            within(dialog()).getByRole('combobox', { name: 'Revenue zoom' }),
-        );
-        await user.click(await screen.findByRole('option', { name: 'Month' }));
-        await user.click(
-            within(dialog()).getByRole('button', { name: 'Apply' }),
-        );
+        expect(screen.getByText('Granularity')).toBeInTheDocument();
+        // The current grain is there but can't be picked again
+        expect(screen.getByRole('menuitem', { name: 'Week' })).toBeDisabled();
+        await user.click(screen.getByRole('menuitem', { name: 'Month' }));
         expect(store.getState().dateZoom.controlGranularities).toEqual({
             z1: DateGranularity.MONTH,
         });
         expect(pill('Revenue zoom')).toHaveTextContent('Revenue zoom is Month');
+        // No popover, no draft: nothing to apply or cancel
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Apply' }),
+        ).not.toBeInTheDocument();
+        // A viewer's menu never asks about unapplied changes
+        expect(requestSwitch).not.toHaveBeenCalled();
+        // As the shipped pill's menu: untracked
+        expect(track).not.toHaveBeenCalled();
 
         await user.click(pill('Revenue zoom'));
-        expect(
-            within(dialog()).getByText(
-                'If cleared, tiles use the saved grain, Week.',
-            ),
-        ).toBeInTheDocument();
         await user.click(
-            within(dialog()).getByRole('button', { name: 'Clear grain' }),
+            screen.getByRole('menuitem', { name: 'Reset to default' }),
         );
-        await user.click(
-            within(dialog()).getByRole('button', { name: 'Apply' }),
+        expect(store.getState().dateZoom.controlGranularities).toEqual({});
+        expect(pill('Revenue zoom')).toHaveTextContent('Revenue zoom is Week');
+    });
+
+    it('opens from the keyboard and returns focus to the pill on Escape', async () => {
+        const { user, store } = setup({ isViewer: true });
+        pill('Revenue zoom').focus();
+        await user.keyboard('{Enter}');
+        await waitFor(() =>
+            expect(
+                screen.getByRole('menuitem', { name: 'Day' }),
+            ).toBeInTheDocument(),
         );
+        await user.keyboard('{Escape}');
+        await waitFor(() =>
+            expect(
+                screen.queryByRole('menuitem', { name: 'Day' }),
+            ).not.toBeInTheDocument(),
+        );
+        expect(pill('Revenue zoom')).toHaveFocus();
         expect(store.getState().dateZoom.controlGranularities).toEqual({});
     });
 
@@ -536,7 +555,8 @@ describe('Date zoom editor', () => {
 
         it("takes a viewer's pick for its own tiles, not the default's", async () => {
             const { user, store } = setup({ isViewer: true, config: named });
-            await pickGrain(user, 'Revenue zoom', 'Day');
+            await user.click(pill('Revenue zoom'));
+            await user.click(screen.getByRole('menuitem', { name: 'Day' }));
             expect(store.getState().dateZoom.controlGranularities).toEqual({
                 'default-zoom': DateGranularity.DAY,
             });
@@ -613,33 +633,26 @@ describe('Date zoom editor', () => {
         expect(pill('Default zoom')).toHaveTextContent('Default zoom None');
     });
 
-    it("applies a viewer's default zoom pick as the shipped menu did, tracked", async () => {
+    it("picks a viewer's default zoom from the shipped menu, tracked", async () => {
         const { user, store } = setup({ isViewer: true });
-        await user.click(pill('Default zoom'));
-        await user.click(
-            within(dialog()).getByRole('combobox', { name: 'Default zoom' }),
-        );
-        await user.click(await screen.findByRole('option', { name: 'Week' }));
-        await user.click(
-            within(dialog()).getByRole('button', { name: 'Apply' }),
-        );
+        await user.click(screen.getByRole('button', { name: 'Default zoom' }));
+        await user.click(screen.getByRole('menuitem', { name: 'Week' }));
         expect(store.getState().dateZoom.granularity).toBe(
             DateGranularity.WEEK,
         );
-        expect(track).toHaveBeenCalledWith(
+        expect(track).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 properties: { granularity: DateGranularity.WEEK },
             }),
         );
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(requestSwitch).not.toHaveBeenCalled();
 
-        // Cleared is the shipped "Reset to default": no runtime grain
-        await user.click(pill('Default zoom'));
+        // "None" is the shipped clear: no runtime grain
         await user.click(
-            within(dialog()).getByRole('button', { name: 'Clear grain' }),
+            screen.getByRole('button', { name: 'Default zoom · Week' }),
         );
-        await user.click(
-            within(dialog()).getByRole('button', { name: 'Apply' }),
-        );
+        await user.click(screen.getByRole('menuitem', { name: 'None' }));
         expect(store.getState().dateZoom.granularity).toBeUndefined();
         expect(track).toHaveBeenLastCalledWith(
             expect.objectContaining({
@@ -648,7 +661,7 @@ describe('Date zoom editor', () => {
         );
     });
 
-    it("puts an embed's date zoom contract classes on the pills and popovers", async () => {
+    it("puts an embed's date zoom contract classes on the pills and menus", async () => {
         const { user } = setup({
             isViewer: true,
             contractClasses: {
@@ -661,16 +674,19 @@ describe('Date zoom editor', () => {
                 dateZoomDropdown: 'ld-dashboard-date-zoom-dropdown',
             },
         });
-        for (const name of ['Revenue zoom', 'Default zoom']) {
-            expect(pill(name)).toHaveClass('ld-dashboard-date-zoom');
-            expect(pill(name)).not.toHaveClass('ld-dashboard-parameter');
-            await user.click(pill(name));
-            const dropdown = document.querySelector('[data-controls-editor]');
-            expect(dropdown).toHaveClass('ld-dashboard-date-zoom-dropdown');
-            expect(dropdown).not.toHaveClass('ld-dashboard-parameter-dropdown');
-            await user.click(
-                within(dialog()).getByRole('button', { name: 'Cancel' }),
-            );
+        const triggers = [
+            pill('Revenue zoom'),
+            screen.getByRole('button', { name: 'Default zoom' }),
+        ];
+        for (const trigger of triggers) {
+            expect(trigger.closest('.ld-dashboard-date-zoom')).not.toBeNull();
+            await user.click(trigger);
+            const item = screen.getByRole('menuitem', { name: 'Day' });
+            expect(
+                item.closest('.ld-dashboard-date-zoom-dropdown'),
+            ).not.toBeNull();
+            expect(item.closest('.ld-dashboard-parameter-dropdown')).toBeNull();
+            await user.keyboard('{Escape}');
         }
     });
 

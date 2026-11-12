@@ -76,6 +76,8 @@ Openings (optional props, defaults are today's behaviour):
   sliders or calendar circles, no date zoom group on the right), and
   `withHideButton` (`false`: the strip's toggle collapses it).
 - `EditFiltersVisibilityControl`: `isControls`.
+- `dateZoom/DateZoom`: `withControls` (`false`: Default zoom alone, no
+  named zoom pills or "Add date zoom").
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
   ref; the popover anchors on it).
@@ -105,6 +107,8 @@ Openings (optional props, defaults are today's behaviour):
 Pure moves out of shipped files, now shared by both sides:
 `features/dateZoom/hooks.ts` (`useGranularityData`,
 `useEligibleDateZoomTiles`, out of `DateZoomControlConfig`),
+`DateZoomControlMenuItems` (a named zoom's grains and "Reset to default",
+out of `DateZoomControlPills`),
 `ActiveFilters/` (`FilterRuleLabel`, `FilterPillSkeletons`,
 `TemporaryFilters`, `UnresolvedFilter`, `FilterPillButton`,
 `useFilterTabPlacement`, `filterLabels`, `filterLock`, `filterOrder`),
@@ -302,9 +306,11 @@ Every flag-on pill is the default white pill; only these change it, all in
 - A date zoom pill reads "Revenue zoom is Week" (`IconCalendarSearch`, the
   kind's icon, grey): dashed until saved, the ink ring while open, eye-off
   when hidden from viewers (by itself or with every date zoom), an X in
-  edit mode. The default zoom is no pill: a quiet button at the strip's start
-  reading "Default zoom Month" or "None" (the grain bold while in effect),
-  eye-off when hidden from viewers, never dragged or picked.
+  edit mode; a viewer's opens the shipped menu. The default zoom is no
+  pill: an editor's is a quiet button at the strip's start reading "Default
+  zoom Month" or "None" (the grain bold while in effect), eye-off when
+  hidden from viewers, never dragged or picked; a viewer's is the shipped
+  Default zoom and its menu.
 - Required with no value: a muted asterisk on the left, before the field
   icon, with the requirement's tooltip (the pill is described by it); none
   once it has a value, nor on a locked pill (no viewer can set it). A

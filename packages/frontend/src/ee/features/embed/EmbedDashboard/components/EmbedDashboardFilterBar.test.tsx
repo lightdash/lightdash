@@ -122,8 +122,22 @@ vi.mock('./EmbedDashboardFilters', () => ({
     EmbedResetFiltersButton: () => <button type="button">Reset</button>,
 }));
 vi.mock('../../../../../features/dateZoom', () => ({
-    DateZoom: ({ dropdownClassName }: { dropdownClassName?: string }) => (
-        <div data-testid="shipped-date-zoom" className={dropdownClassName} />
+    DateZoom: ({
+        dropdownClassName,
+        withControls = true,
+    }: {
+        dropdownClassName?: string;
+        withControls?: boolean;
+    }) => (
+        // Without its controls: a viewer's Default zoom on the strip
+        <div
+            data-testid={
+                withControls ? 'shipped-date-zoom' : 'shipped-default-zoom'
+            }
+            className={dropdownClassName}
+        >
+            <button type="button">Default zoom</button>
+        </div>
     ),
 }));
 
@@ -522,10 +536,12 @@ describe('EmbedDashboardFilterBar', () => {
             expect(zoomPill('Revenue zoom')).toHaveClass(
                 'ld-dashboard-date-zoom',
             );
-            // The strip's start, with its own contract class
-            expect(
-                screen.getByRole('button', { name: /^Default zoom/ }),
-            ).toHaveClass('ld-dashboard-date-zoom');
+            // The strip's start: the shipped Default zoom, its contract classes
+            const defaultZoom = screen.getByTestId('shipped-default-zoom');
+            expect(defaultZoom).toHaveClass('ld-dashboard-date-zoom-dropdown');
+            expect(defaultZoom.parentElement).toHaveClass(
+                'ld-dashboard-date-zoom',
+            );
             expect(
                 screen.queryByTestId('shipped-date-zoom'),
             ).not.toBeInTheDocument();

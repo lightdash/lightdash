@@ -166,20 +166,24 @@ export const ChooseTiles: Story = {
     },
 };
 
-/** A viewer picks a grain only: no rename, tiles or settings. */
+/** A viewer picks a grain from the shipped menu: one click, no popover. */
 export const NamedViewer: Story = {
     name: 'Named zoom, viewer',
     args: { isEditMode: false },
     play: async ({ canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
         await waitForApiIdle();
-        await userEvent.click(await pill(page, 'Revenue zoom'));
-        const dialog = within(await popover(page));
-        await expect(
-            dialog.getByRole('combobox', { name: 'Revenue zoom' }),
-        ).toHaveValue('Week');
-        for (const name of [/Choose tiles/, /^Settings/, /^Rename$/])
-            await expect(dialog.queryByRole('button', { name })).toBeNull();
+        const revenue = await waitFor(
+            () => page.getByRole('button', { name: /^Revenue zoom / }),
+            { timeout: 10000 },
+        );
+        await expect(revenue).toHaveTextContent('Revenue zoom is Week');
+        await userEvent.click(revenue);
+        await userEvent.click(
+            await page.findByRole('menuitem', { name: 'Month' }),
+        );
+        await expect(revenue).toHaveTextContent('Revenue zoom is Month');
+        await expect(page.queryByRole('dialog')).toBeNull();
     },
 };
 
@@ -216,25 +220,25 @@ export const Default: Story = {
     },
 };
 
-/** A viewer's default zoom: a pick reaches the pill, as the shipped menu's did. */
+/** A viewer's default zoom: the shipped menu, one click picks. */
 export const DefaultViewer: Story = {
     name: 'Default zoom, viewer',
     args: { isEditMode: false },
     play: async ({ canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
         await waitForApiIdle();
-        await userEvent.click(await pill(page, 'Default zoom'));
-        const dialog = within(await popover(page));
         await userEvent.click(
-            dialog.getByRole('combobox', { name: 'Default zoom' }),
+            await waitFor(
+                () => page.getByRole('button', { name: /^Default zoom/ }),
+                { timeout: 10000 },
+            ),
         );
         await userEvent.click(
-            await page.findByRole('option', { name: 'Week' }),
+            await page.findByRole('menuitem', { name: 'Week' }),
         );
-        await userEvent.click(dialog.getByRole('button', { name: 'Apply' }));
-        await expect(await pill(page, 'Default zoom')).toHaveTextContent(
-            'Default zoom Week',
-        );
+        await expect(
+            page.getByRole('button', { name: /^Default zoom/ }),
+        ).toHaveTextContent('Default zoom · Week');
     },
 };
 

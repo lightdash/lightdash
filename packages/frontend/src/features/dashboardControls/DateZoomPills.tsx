@@ -4,6 +4,7 @@ import {
     Button,
     Divider,
     Group,
+    Menu,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -23,7 +24,6 @@ import {
     selectAvailableCustomGranularities,
     selectControlSections,
     selectDashboardTiles,
-    selectDateZoomGranularity,
     selectIsDateZoomDisabled,
     useDashboardDateZoomConfig,
     useDashboardDateZoomGranularities,
@@ -31,6 +31,8 @@ import {
     useDefaultDateZoomGranularity,
 } from '../dashboard/store';
 import filterClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
+import { DateZoom } from '../dateZoom';
+import { DateZoomControlMenuItems } from '../dateZoom/components/DateZoomControlPills';
 import { useEligibleDateZoomTiles } from '../dateZoom/hooks';
 import { getGranularityLabel } from '../dateZoom/utils';
 import { ControlEditorPopover } from './ControlEditorPopover';
@@ -273,6 +275,62 @@ const DateZoomPill: FC<{
         isSelectable ? selectHint : null,
     ].filter((line) => line !== null);
 
+    const button = (
+        <Button
+            {...tileHover}
+            size="xs"
+            variant="default"
+            pos="relative"
+            // A viewer's menu is no editor's pill: an open editor sees a press outside
+            data-date-zoom-pill={isViewer ? undefined : control.uuid}
+            data-date-zoom-name={name}
+            data-in-effect={isInEffect || undefined}
+            data-temporary={isUnsaved || undefined}
+            data-open={isOpen || undefined}
+            data-hidden={entry.isHidden || undefined}
+            aria-pressed={isViewer ? undefined : isOpen || isPicked}
+            classNames={{
+                label: filterClasses.label,
+                root: contractClasses?.dateZoom,
+            }}
+            className={`${filterClasses.button} ${filterClasses.plain}${
+                isPicked ? ` ${pillClasses.pickedPill}` : ''
+            }`}
+            leftSection={
+                <MantineIcon
+                    icon={
+                        isPicked
+                            ? IconCheck
+                            : !isViewer && entry.isHidden
+                              ? IconEyeOff
+                              : IconCalendarSearch
+                    }
+                    size="sm"
+                    className={filterClasses.statusIcon}
+                />
+            }
+            rightSection={
+                canEdit && (
+                    <Box className={classes.actions}>
+                        <span
+                            aria-hidden="true"
+                            className={classes.removeSpace}
+                        />
+                    </Box>
+                )
+            }
+            // A viewer's click opens the menu
+            onClick={isViewer ? undefined : handleClick}
+            onKeyDown={handleKeyDown}
+        >
+            <DateZoomPillLabel
+                name={name}
+                grain={grain}
+                isInEffect={isInEffect}
+            />
+        </Button>
+    );
+
     return (
         <DateZoomEditorPopover isOpen={isOpen}>
             <Tooltip
@@ -292,57 +350,25 @@ const DateZoomPill: FC<{
                     onPointerOver={trackAction}
                     onPointerLeave={trackAction}
                 >
-                    <Button
-                        {...tileHover}
-                        size="xs"
-                        variant="default"
-                        pos="relative"
-                        data-date-zoom-pill={control.uuid}
-                        data-date-zoom-name={name}
-                        data-in-effect={isInEffect || undefined}
-                        data-temporary={isUnsaved || undefined}
-                        data-open={isOpen || undefined}
-                        data-hidden={entry.isHidden || undefined}
-                        aria-pressed={isOpen || isPicked}
-                        classNames={{
-                            label: filterClasses.label,
-                            root: contractClasses?.dateZoom,
-                        }}
-                        className={`${filterClasses.button} ${filterClasses.plain}${
-                            isPicked ? ` ${pillClasses.pickedPill}` : ''
-                        }`}
-                        leftSection={
-                            <MantineIcon
-                                icon={
-                                    isPicked
-                                        ? IconCheck
-                                        : !isViewer && entry.isHidden
-                                          ? IconEyeOff
-                                          : IconCalendarSearch
-                                }
-                                size="sm"
-                                className={filterClasses.statusIcon}
-                            />
-                        }
-                        rightSection={
-                            canEdit && (
-                                <Box className={classes.actions}>
-                                    <span
-                                        aria-hidden="true"
-                                        className={classes.removeSpace}
-                                    />
-                                </Box>
-                            )
-                        }
-                        onClick={handleClick}
-                        onKeyDown={handleKeyDown}
-                    >
-                        <DateZoomPillLabel
-                            name={name}
-                            grain={grain}
-                            isInEffect={isInEffect}
-                        />
-                    </Button>
+                    {isViewer ? (
+                        // As the shipped pill's menu: one click picks
+                        <Menu
+                            withArrow
+                            position="bottom-start"
+                            offset={1}
+                            arrowOffset={14}
+                            classNames={{
+                                dropdown: contractClasses?.dateZoomDropdown,
+                            }}
+                        >
+                            <Menu.Target>{button}</Menu.Target>
+                            <Menu.Dropdown>
+                                <DateZoomControlMenuItems control={control} />
+                            </Menu.Dropdown>
+                        </Menu>
+                    ) : (
+                        button
+                    )}
                     {canEdit && (
                         <Tooltip fz="xs" label={REMOVE_LABEL}>
                             <ActionIcon
@@ -456,7 +482,6 @@ export const DefaultZoomButton: FC<{ withDivider: boolean }> = ({
     const hasTiles = useDashboardSelector(
         (state) => (selectDashboardTiles(state)?.length ?? 0) > 0,
     );
-    const runtime = useDashboardSelector(selectDateZoomGranularity);
     const defaultGranularity = useDefaultDateZoomGranularity();
     const customLabels = useDashboardSelector(
         selectAvailableCustomGranularities,
@@ -464,13 +489,23 @@ export const DefaultZoomButton: FC<{ withDivider: boolean }> = ({
     const tileCount = useDefaultZoomTileCount();
     if (!hasTiles || (isViewer && (isDateZoomDisabled || tileCount === 0)))
         return null;
+    if (isViewer)
+        return (
+            <Group gap="xs" wrap="nowrap" mih={30}>
+                {/* The shipped Default zoom and its menu, as the embed's */}
+                <Box className={contractClasses?.dateZoom}>
+                    <DateZoom
+                        isEditMode={false}
+                        withControls={false}
+                        dropdownClassName={contractClasses?.dateZoomDropdown}
+                    />
+                </Box>
+                {withDivider && <Divider orientation="vertical" />}
+            </Group>
+        );
     const granularity =
-        pick !== undefined
-            ? pick
-            : isViewer
-              ? (runtime ?? null)
-              : (defaultGranularity ?? null);
-    const isHidden = !isViewer && isDateZoomDisabled;
+        pick !== undefined ? pick : (defaultGranularity ?? null);
+    const isHidden = isDateZoomDisabled;
     const isInEffect = granularity !== null && tileCount > 0;
     return (
         <Group gap="xs" wrap="nowrap" mih={30}>

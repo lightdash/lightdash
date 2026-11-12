@@ -128,7 +128,11 @@ vi.mock('./SectionedFilters', async () => {
 });
 
 vi.mock('../dateZoom', () => ({
-    DateZoom: () => <div data-testid="date-zoom" />,
+    DateZoom: ({ withControls = true }: { withControls?: boolean }) => (
+        <div data-testid={withControls ? 'date-zoom' : 'default-zoom'}>
+            <button type="button">Default zoom</button>
+        </div>
+    ),
 }));
 vi.mock('../dateZoom/components/DateZoomCrossTabFieldsLoader', () => ({
     DateZoomCrossTabFieldsLoader: () => <div data-testid="cross-tab-loader" />,

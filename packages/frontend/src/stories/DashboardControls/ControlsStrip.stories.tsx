@@ -33,8 +33,11 @@ const toggle = (canvasElement: HTMLElement) =>
         return found;
     });
 
+// An editor's quiet button, or a viewer's shipped Default zoom
 const defaultZoom = (canvasElement: HTMLElement) =>
-    canvasElement.querySelector<HTMLElement>('[data-default-date-zoom]');
+    [...canvasElement.querySelectorAll<HTMLElement>('button')].find((element) =>
+        element.textContent?.startsWith('Default zoom'),
+    );
 
 /** A viewer's strip, open: the toggle and the default zoom lead the pills. */
 export const ViewOpen: Story = {

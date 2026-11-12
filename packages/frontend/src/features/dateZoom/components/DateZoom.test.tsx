@@ -36,7 +36,7 @@ const config = {
     },
 };
 
-const renderDateZoom = (isEditMode: boolean) => {
+const renderDateZoom = (isEditMode: boolean, withControls?: boolean) => {
     const store = createDashboardTestStore({
         isEditMode,
         source: { embedDashboard: { config } as unknown as Dashboard },
@@ -44,7 +44,7 @@ const renderDateZoom = (isEditMode: boolean) => {
     seedDashboardEditState(store, { dashboard: { config } });
     renderWithProviders(
         <DashboardStoreTestProvider store={store}>
-            <DateZoom isEditMode={isEditMode} />
+            <DateZoom isEditMode={isEditMode} withControls={withControls} />
         </DashboardStoreTestProvider>,
     );
 };
@@ -79,6 +79,19 @@ describe('DateZoom with the flag off', () => {
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: /^Orders zoom/ }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add date zoom' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('leaves out the named zooms and Add date zoom without controls', () => {
+        renderDateZoom(true, false);
+        expect(
+            screen.getByRole('button', { name: 'Default zoom' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /^Revenue zoom/ }),
         ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Add date zoom' }),
