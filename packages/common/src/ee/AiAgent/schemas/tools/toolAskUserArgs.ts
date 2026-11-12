@@ -48,7 +48,6 @@ export type AskUserQuestion = ToolAskUserArgs['questions'][number];
 
 export const ASK_USER_TOOL_NAME = 'askUser';
 
-/** The questions of an askUser call; null for other tools or invalid args. */
 export const parseAskUserCall = (
     toolName: string,
     input: unknown,

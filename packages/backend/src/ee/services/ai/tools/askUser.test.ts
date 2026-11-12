@@ -1,4 +1,7 @@
-import { toolAskUserOutputSchema, type AiPrompt } from '@lightdash/common';
+import {
+    toolAskUserOutputSchema,
+    type AiWebAppPrompt,
+} from '@lightdash/common';
 import { canOfferAskUser, getAskUser, withAskUserQuestions } from './askUser';
 
 const questions = [
@@ -72,8 +75,10 @@ describe('askUser', () => {
 describe('canOfferAskUser', () => {
     const webPrompt = {
         threadCreatedFrom: 'web_app',
+        threadEmbedSpaceUuid: null,
+        externalUserId: null,
         battleProfile: null,
-    } as AiPrompt;
+    } as AiWebAppPrompt;
 
     it('offers the tool on a standard web app turn', () => {
         expect(canOfferAskUser(webPrompt, 'standard')).toBe(true);
@@ -83,8 +88,12 @@ describe('canOfferAskUser', () => {
         ['an api thread', { ...webPrompt, threadCreatedFrom: 'api' }],
         ['a Slack prompt', { ...webPrompt, slackUserId: 'U1' }],
         ['a Battle thread', { ...webPrompt, battleProfile: 'fast' }],
+        ['an embed', { ...webPrompt, threadEmbedSpaceUuid: 'space-1' }],
+        ['a read-only embed', { ...webPrompt, externalUserId: 'viewer-1' }],
     ])('withholds it from %s', (_, prompt) => {
-        expect(canOfferAskUser(prompt as AiPrompt, 'standard')).toBe(false);
+        expect(canOfferAskUser(prompt as AiWebAppPrompt, 'standard')).toBe(
+            false,
+        );
     });
 
     it('withholds it from deep research', () => {

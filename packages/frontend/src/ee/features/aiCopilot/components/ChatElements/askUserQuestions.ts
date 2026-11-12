@@ -1,5 +1,4 @@
 import {
-    ASK_USER_TOOL_NAME,
     parseAskUserCall,
     type AiAgentMessage,
     type AskUserQuestion,
@@ -17,11 +16,11 @@ export const getPendingAskUser = (
     if (message?.role !== 'assistant' || message.status !== 'idle') {
         return null;
     }
-    const call = message.toolCalls.findLast(
-        ({ toolName }) => toolName === ASK_USER_TOOL_NAME,
-    );
-    const args = call ? parseAskUserCall(call.toolName, call.toolArgs) : null;
-    return call && args
-        ? { toolCallId: call.toolCallId, questions: args.questions }
-        : null;
+    for (const call of [...message.toolCalls].reverse()) {
+        const args = parseAskUserCall(call.toolName, call.toolArgs);
+        if (args) {
+            return { toolCallId: call.toolCallId, questions: args.questions };
+        }
+    }
+    return null;
 };

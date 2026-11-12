@@ -3,7 +3,8 @@ import {
     formatAskUserQuestions,
     isSlackPrompt,
     parseAskUserCall,
-    type AiPrompt,
+    type AiWebAppPrompt,
+    type SlackPrompt,
     type ToolAskUserStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -21,15 +22,17 @@ type Step = {
 };
 
 /**
- * Only the web app thread view renders the questions; Slack, Battle panes and
- * unattended runs would show the text without options.
+ * Only the web app thread view renders the questions; Slack, embeds, Battle
+ * panes and unattended runs would show the text without options.
  */
 export const canOfferAskUser = (
-    prompt: AiPrompt,
+    prompt: AiWebAppPrompt | SlackPrompt,
     executionMode: AiAgentExecutionConfig['mode'],
 ): boolean =>
-    prompt.threadCreatedFrom === 'web_app' &&
     !isSlackPrompt(prompt) &&
+    prompt.threadCreatedFrom === 'web_app' &&
+    prompt.threadEmbedSpaceUuid === null &&
+    prompt.externalUserId === null &&
     prompt.battleProfile === null &&
     executionMode === 'standard';
 

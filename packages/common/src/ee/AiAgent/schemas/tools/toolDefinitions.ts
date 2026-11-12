@@ -54,6 +54,7 @@ import {
     toolAnalyzeFieldImpactOutputSchema,
 } from './toolAnalyzeFieldImpactArgs';
 import {
+    ASK_USER_TOOL_NAME,
     TOOL_ASK_USER_DESCRIPTION,
     toolAskUserArgsSchema,
     toolAskUserOutputSchema,
@@ -1078,7 +1079,7 @@ export const askUserToolDefinition: ToolDefinitionWithoutMcpOutput<
     typeof toolAskUserArgsSchema,
     typeof toolAskUserOutputSchema
 > = defineTool({
-    name: 'askUser',
+    name: ASK_USER_TOOL_NAME,
     title: 'Ask user',
     description: TOOL_ASK_USER_DESCRIPTION,
     availability: ['agent'],
