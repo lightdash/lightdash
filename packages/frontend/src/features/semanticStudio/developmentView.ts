@@ -1,6 +1,7 @@
 import { useLocalStorage } from '@mantine/hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 
 const STORAGE_KEY = 'lightdash-development-view-project';
 const PREVIEW_STORAGE_KEY = 'lightdash-development-preview';
@@ -15,9 +16,23 @@ const PROJECT_IN_PATH = /\/projects\/([^/]+)/;
 const findProjectInPath = (pathname: string): string | null =>
     PROJECT_IN_PATH.exec(pathname)?.[1] ?? null;
 
-/** The view belongs to the project it was switched on in, and is off on every other page. */
-const isOnFor = (project: string | null, pathname: string): boolean =>
-    project !== null && findProjectInPath(pathname) === project;
+/** The view belongs to the project it was switched on in, by slug or uuid, and is off on every other page. */
+const isOnFor = (project: string | null, pathname: string): boolean => {
+    const here = findProjectInPath(pathname);
+    return (
+        project !== null && here !== null && project.split(' ').includes(here)
+    );
+};
+
+/** Switches the view off; for when the signed-in person changes. */
+export const clearDevelopmentView = () => {
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(PREVIEW_STORAGE_KEY);
+    } catch {
+        // Nothing stored without storage.
+    }
+};
 
 /** The headers that put a request in the development view; none when it is off. Read outside React by the API client. */
 export const getDevelopmentViewHeaders = (): Record<string, string> => {
@@ -54,6 +69,7 @@ export const useDevelopmentView = (): [
         deserialize: (value) => value || null,
     });
     const queryClient = useQueryClient();
+    const projectRoute = useOptionalProjectRoute();
     const set = useCallback(
         (next: boolean, previewProjectUuid: string | null = null) => {
             const here = findProjectInPath(pathname);
@@ -69,10 +85,18 @@ export const useDevelopmentView = (): [
             } catch {
                 // Without storage the view cannot be switched on at all.
             }
-            setProject(next ? here : null);
+            setProject(
+                next && here
+                    ? [
+                          here,
+                          projectRoute?.projectUuid,
+                          projectRoute?.projectUrlIdentifier,
+                      ].join(' ')
+                    : null,
+            );
             void queryClient.invalidateQueries();
         },
-        [pathname, queryClient, setProject],
+        [pathname, queryClient, setProject, projectRoute],
     );
     return [isOnFor(project, pathname), set];
 };

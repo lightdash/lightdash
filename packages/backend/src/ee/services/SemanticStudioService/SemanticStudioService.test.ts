@@ -944,7 +944,7 @@ describe('SemanticStudioService', () => {
         const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
             setup({
                 dbtConnection: DBT_IN_GITHUB,
-                exploreTypes: [ExploreType.DEFAULT],
+                exploreTypes: [ExploreType.DEFAULT, ExploreType.VIRTUAL],
                 previewExplores: { payments: branch },
                 ...overrides,
             });
@@ -957,6 +957,7 @@ describe('SemanticStudioService', () => {
             );
             expect(explores?.get('payments')).toBe(branch);
             expect(explores?.get('explore_0')).toBeNull();
+            expect(explores?.has('explore_1')).toBe(false);
         });
 
         it('is nothing for a preview of another project, a person who cannot write, or a project that keeps a draft', async () => {
@@ -1304,6 +1305,33 @@ describe('SemanticStudioService', () => {
             ]);
             expect(second).toBe(first);
             expect(context.commitCalls).toHaveLength(1);
+        });
+
+        it('blocks publishing a change to a model that was removed live', async () => {
+            const stored = [{ name: 'orders', content: orders }];
+            const context = await drafted(
+                setup({ stored, baseContents: [['orders', orders]] }),
+            );
+            stored.splice(0);
+            const draft = await context.service.getDraft(
+                deployer,
+                PROJECT_UUID,
+            );
+            expect(draft.models.map(({ model }) => model)).toEqual(['orders']);
+            expect(
+                draft.models[0].reconciliation?.conflicts.map(
+                    ({ path, live }) => [path, live],
+                ),
+            ).toEqual([['', null]]);
+            const refused = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(refused.failures.map(({ model }) => model)).toEqual([
+                'orders',
+            ]);
+            expect(context.commitCalls).toEqual([]);
         });
 
         it('says nothing when the base was never recorded', async () => {
@@ -1881,7 +1909,12 @@ describe('SemanticStudioService', () => {
 
         it('names whose change a later change wrote over', async () => {
             const { service, findModelHistory } = setup();
-            const change = (by: string, before: string, after: string) => ({
+            const change = (
+                by: string,
+                before: string,
+                after: string,
+                byUserUuid: string | null = `user-${by}`,
+            ) => ({
                 changeSetUuid: `set-${by}`,
                 source: 'draft' as const,
                 question: null,
@@ -1891,6 +1924,7 @@ describe('SemanticStudioService', () => {
                 contentAfter: after,
                 otherModels: [],
                 by,
+                byUserUuid,
             });
             const labelled = orders.replace(
                 'name: orders',
@@ -1913,6 +1947,25 @@ describe('SemanticStudioService', () => {
                 { by: 'Ada', paths: ['label'] },
                 null,
             ]);
+            findModelHistory.mockResolvedValueOnce([
+                change(
+                    'Sam',
+                    labelled,
+                    labelled.replace('label: A', 'label: B'),
+                    'user-sam-2',
+                ),
+                change('Sam', orders, labelled, 'user-sam-1'),
+            ]);
+            const sameName = await service.getModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            // Two people who share a name are still two people.
+            expect(sameName?.history[0].replaced).toEqual({
+                by: 'Sam',
+                paths: ['label'],
+            });
         });
 
         it('returns null for a model the project does not keep', async () => {
@@ -1969,6 +2022,36 @@ describe('SemanticStudioService', () => {
             expect(context.commitCalls).toHaveLength(0);
             expect(context.setExplores).not.toHaveBeenCalled();
             expect(context.drafts).toHaveLength(0);
+        });
+
+        it('opens one pull request when the same draft is applied twice', async () => {
+            const context = repo();
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            await context.service.applyDraft(repoWriter, PROJECT_UUID, null);
+            const second = await context.service.applyDraft(
+                repoWriter,
+                PROJECT_UUID,
+                null,
+            );
+            expect(second.pullRequestUrl).toBeNull();
+            expect(context.openPullRequest).toHaveBeenCalledTimes(1);
+        });
+
+        it('is off for a repository the GitHub App cannot reach', async () => {
+            expect(
+                await setup({
+                    dbtConnection: {
+                        ...GITHUB_REPO,
+                        semanticLayer: 'lightdash',
+                        authorization_method: 'personal_access_token',
+                    },
+                }).service.getStatus(repoWriter, PROJECT_UUID),
+            ).toEqual({ enabled: false, appliesAs: 'pull_request' });
         });
 
         it('opens no pull request for a draft that stopped passing', async () => {

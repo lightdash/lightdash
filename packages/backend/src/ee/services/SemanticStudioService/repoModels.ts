@@ -13,11 +13,15 @@ import {
     createPullRequest,
     createSignedCommitOnBranch,
     getFileContent,
-    getInstallationToken,
+    getInstallationAccessToken,
     getLastCommit,
     getRepoTree,
 } from '../../../clients/github/Github';
 import { type GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
+import {
+    DEFAULT_GITHUB_HOST_DOMAIN,
+    normalizeCredentialHost,
+} from '../../../utils/credentialDestination';
 
 /** The repository a project's native models live in. */
 export type RepoConnection = {
@@ -50,16 +54,28 @@ const YAML_FILE = /\.ya?ml$/;
 const MAX_MODEL_FILES = 500;
 const READ_CONCURRENCY = 10;
 const MAX_KEPT_COMMITS = 4;
+const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
 
 const joinPath = (...parts: string[]) => parts.filter(Boolean).join('/');
 
-/** The repository connection of a project that keeps native models in GitHub, or null for any other project. */
+/** Whether a project keeps native models in GitHub, whether or not they can be changed from here. */
+export const keepsModelsInGithub = (
+    dbtConnection: Project['dbtConnection'],
+): boolean =>
+    dbtConnection.type === DbtProjectType.GITHUB &&
+    dbtConnection.semanticLayer === 'lightdash';
+
+/** The repository connection of a project that keeps native models on github.com behind the GitHub App, or null for any other project. */
 export const resolveRepoConnection = (
     dbtConnection: Project['dbtConnection'],
 ): RepoConnection | null => {
     if (
         dbtConnection.type !== DbtProjectType.GITHUB ||
-        dbtConnection.semanticLayer !== 'lightdash'
+        dbtConnection.semanticLayer !== 'lightdash' ||
+        dbtConnection.authorization_method !== 'installation_id' ||
+        normalizeCredentialHost(
+            dbtConnection.host_domain || DEFAULT_GITHUB_HOST_DOMAIN,
+        ) !== DEFAULT_GITHUB_HOST_DOMAIN
     ) {
         return null;
     }
@@ -129,6 +145,12 @@ export class RepoModelSource {
 
     private readonly commits = new Map<string, Promise<RepoModels>>();
 
+    // ponytail: per-process token cache keyed by installation, never pruned; fine for one installation per organization.
+    private readonly tokens = new Map<
+        string,
+        { token: string; expiresAt: number }
+    >();
+
     constructor(args: {
         githubAppInstallationsModel: Pick<
             GithubAppInstallationsModel,
@@ -155,10 +177,17 @@ export class RepoModelSource {
         if (!installationId) {
             throw new NotFoundError('The GitHub App is not installed');
         }
-        return {
-            installationId,
-            token: await getInstallationToken(installationId),
-        };
+        const kept = this.tokens.get(installationId);
+        if (kept && kept.expiresAt - TOKEN_REFRESH_MARGIN_MS > Date.now()) {
+            return { installationId, token: kept.token };
+        }
+        const { token, expiresAt } =
+            await getInstallationAccessToken(installationId);
+        this.tokens.set(installationId, {
+            token,
+            expiresAt: Date.parse(expiresAt),
+        });
+        return { installationId, token };
     }
 
     /** The repository's models at the head of the project's branch; one commit is read once. */

@@ -17135,14 +17135,16 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
                 // A dbt project keeps no draft in Semantic Studio; its thread edits the repository instead.
+                const semanticStudioStatus = isSemanticStudioThread
+                    ? await this.semanticStudioService.getStatus(
+                          user,
+                          promptProject.projectUuid,
+                      )
+                    : null;
                 const semanticStudioDrafts =
-                    isSemanticStudioThread &&
-                    (
-                        await this.semanticStudioService.getStatus(
-                            user,
-                            promptProject.projectUuid,
-                        )
-                    ).appliesAs !== 'dbt_pull_request';
+                    semanticStudioStatus !== null &&
+                    semanticStudioStatus.enabled &&
+                    semanticStudioStatus.appliesAs !== 'dbt_pull_request';
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17160,9 +17162,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
 
                 // On a dbt project Semantic Studio proposes first: the pull request tools join only the turn the person asks for one.
                 if (
-                    isSemanticStudioThread &&
-                    !semanticStudioDrafts &&
-                    !options.toolHints?.includes('editDbtProject')
+                    semanticStudioStatus !== null &&
+                    (!semanticStudioStatus.enabled ||
+                        (!semanticStudioDrafts &&
+                            !options.toolHints?.includes('editDbtProject')))
                 ) {
                     aiWritebackEnabled = false;
                 }

@@ -1,25 +1,65 @@
 .notices {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm);
     border-bottom: 1px solid var(--mantine-color-default-border);
     background-color: var(--mantine-color-ldGray-0);
+}
+
+/* Under a notice, everything starts where its words do, past the icon column. */
+.conflict,
+.conflictActions {
+    padding-left: calc(rem(24px) + var(--mantine-spacing-xs));
 }
 
 .conflict {
     padding-top: var(--mantine-spacing-xs);
 }
 
-.sides {
+/* Side by side while each has room to be read, stacked once they do not. */
+.options {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--mantine-spacing-xs);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: var(--mantine-spacing-sm);
 }
 
-.side {
-    margin: 0;
-    padding: var(--mantine-spacing-xs);
+.option {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+    padding: var(--mantine-spacing-sm);
     border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-sm);
+    border-radius: var(--mantine-radius-md);
     background-color: var(--mantine-color-body);
+}
+
+/* Which state a version is in, in the colours those states already have. */
+.tone {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 6px;
+    border-radius: 50%;
+    vertical-align: middle;
+    background-color: var(--mantine-color-green-6);
+}
+
+.tone[data-tone='draft'] {
+    background-color: var(--mantine-color-orange-6);
+}
+
+.changed {
+    padding: 0 2px;
+    border-radius: 2px;
+    background-color: light-dark(
+        var(--mantine-color-green-1),
+        rgb(64 192 87 / 0.2)
+    );
+    color: inherit;
+}
+
+/* YAML keeps the code face; it is the only thing here that does. */
+.code {
+    margin: 0;
     font-family: var(--mantine-font-family-monospace);
     font-size: var(--mantine-font-size-xs);
     white-space: pre-wrap;
@@ -28,8 +68,23 @@
     overflow: auto;
 }
 
+.code[data-before] {
+    color: var(--mantine-color-dimmed);
+}
+
+.prose {
+    overflow-wrap: anywhere;
+}
+
 .section {
     overflow: hidden;
+}
+
+/* A one-time pointer, not an alert: a tinted strip with no border. */
+.hint {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-ldGray-0);
 }
 
 .sectionTitle {

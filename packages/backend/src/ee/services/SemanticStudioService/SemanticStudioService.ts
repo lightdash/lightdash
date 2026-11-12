@@ -10,6 +10,7 @@ import {
     isChartValidationError,
     isDashboardValidationError,
     isExploreError,
+    isUserManagedExplore,
     NotFoundError,
     ParameterError,
     ProjectType,
@@ -41,6 +42,7 @@ import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { BaseService } from '../../../services/BaseService';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { type ValidationService } from '../../../services/ValidationService/ValidationService';
+import { runWithConcurrency } from '../../../utils/runWithConcurrency';
 import {
     ModelDocumentsChangedError,
     type ChangeSetSource,
@@ -55,9 +57,14 @@ import {
     type DraftCheckerProjectService,
 } from './DraftChecker';
 import { foldDraft, withWrites } from './draftFold';
-import { findDraftedPaths, reconcileModel } from './reconcileDraft';
+import {
+    findDraftedPaths,
+    findRefusedPaths,
+    reconcileModel,
+} from './reconcileDraft';
 import {
     describePullRequest,
+    keepsModelsInGithub,
     resolveRepoConnection,
     type RepoModels,
     type RepoModelSource,
@@ -299,6 +306,14 @@ export class SemanticStudioService extends BaseService {
         const blocker = await this.findAccessBlocker(user, project);
         if (blocker) return blocker;
         if (project.dbtConnection.type === DbtProjectType.NONE) return null;
+        if (
+            keepsModelsInGithub(project.dbtConnection) &&
+            !resolveRepoConnection(project.dbtConnection)
+        ) {
+            return new ParameterError(
+                'Models in a repository can only be changed here when the connection uses the GitHub App on github.com',
+            );
+        }
         if (!resolveRepoConnection(project.dbtConnection)) {
             return new ParameterError(
                 'A draft is kept for a project without a dbt connection, or one that keeps its models in GitHub',
@@ -322,7 +337,7 @@ export class SemanticStudioService extends BaseService {
         const { dbtConnection } = project;
         if (
             dbtConnection.type !== DbtProjectType.NONE &&
-            !resolveRepoConnection(dbtConnection)
+            !keepsModelsInGithub(dbtConnection)
         ) {
             // A dbt project keeps no draft: the agent edits the repository in a pull request.
             return {
@@ -338,7 +353,7 @@ export class SemanticStudioService extends BaseService {
         }
         return {
             enabled: (await this.findBlocker(user, project)) === null,
-            appliesAs: resolveRepoConnection(dbtConnection)
+            appliesAs: keepsModelsInGithub(dbtConnection)
                 ? 'pull_request'
                 : 'live',
         };
@@ -481,7 +496,11 @@ export class SemanticStudioService extends BaseService {
                 // Newest first, so the change before this one comes after it.
                 const previous = history.at(index + 1);
                 const overwritten =
-                    previous && previous.by !== change.by && !previous.reverted
+                    previous &&
+                    // Someone gone cannot be told apart from anyone else.
+                    (previous.byUserUuid === null ||
+                        previous.byUserUuid !== change.byUserUuid) &&
+                    !previous.reverted
                         ? pathsOf(previous).filter(
                               (path) =>
                                   // Building on a model someone made is not writing over them.
@@ -677,7 +696,9 @@ export class SemanticStudioService extends BaseService {
         ]);
         return new Map<string, Explore | ExploreError | null>([
             // A model the branch removes is in the live project and not in its preview.
-            ...live.map(({ name }): [string, null] => [name, null]),
+            ...live.flatMap((explore): [string, null][] =>
+                isUserManagedExplore(explore) ? [] : [[explore.name, null]],
+            ),
             ...Object.values(explores).map(
                 (explore): [string, Explore | ExploreError] => [
                     explore.name,
@@ -792,7 +813,16 @@ export class SemanticStudioService extends BaseService {
                     }),
                 ),
             })),
-            models: [...draft.writes].map(([model, contentAfter]) => {
+            models: [
+                ...draft.writes,
+                // A conflict on a model the draft writes nothing to still needs settling.
+                ...[...reconciliations].flatMap(
+                    ([model, { state }]): [string, string | null][] =>
+                        state === 'conflict' && !draft.writes.has(model)
+                            ? [[model, draft.live.get(model) ?? null]]
+                            : [],
+                ),
+            ].map(([model, contentAfter]) => {
                 const explore = explores.find(({ name }) => name === model);
                 return {
                     model,
@@ -887,7 +917,14 @@ export class SemanticStudioService extends BaseService {
         const liveVersions = new Map(
             draft.stored.map(({ name, version }) => [name, version]),
         );
-        const drafted = [...bases].filter(([model]) => draft.writes.has(model));
+        const results = draft.results.flat();
+        // A model whose edits all hit parts live no longer has writes nothing, yet still conflicts.
+        const drafted = [...bases].filter(
+            ([model, version]) =>
+                draft.writes.has(model) ||
+                (version !== (liveVersions.get(model) ?? null) &&
+                    findRefusedPaths(model, results).length > 0),
+        );
         const baseContents =
             await this.projectModelDocumentModel.findDocumentsAt(
                 projectUuid,
@@ -899,7 +936,6 @@ export class SemanticStudioService extends BaseService {
                     ),
                 ),
             );
-        const results = draft.results.flat();
         const reconciled = new Map<string, SemanticLayerDraftReconciliation>();
         drafted.forEach(([model, version]) => {
             const liveVersion = liveVersions.get(model) ?? null;
@@ -914,15 +950,26 @@ export class SemanticStudioService extends BaseService {
             }
             // A base whose revision is gone cannot be set against anything.
             if (version !== null && !baseContents.has(model)) return;
+            const base =
+                version === null ? null : (baseContents.get(model) ?? null);
+            const onBase = foldDraft(
+                new Map(base === null ? [] : [[model, base]]),
+                draft.changes.map(({ models }) =>
+                    models.filter(({ name }) => name === model),
+                ),
+            ).writes;
             reconciled.set(model, {
                 ...reconcileModel({
-                    base:
-                        version === null
-                            ? null
-                            : (baseContents.get(model) ?? null),
+                    base,
                     live: draft.live.get(model) ?? null,
-                    mine: draft.writes.get(model) ?? null,
+                    mine: draft.writes.has(model)
+                        ? (draft.writes.get(model) ?? null)
+                        : (draft.live.get(model) ?? null),
                     draftedPaths: findDraftedPaths(model, results),
+                    refusedPaths: findRefusedPaths(model, results),
+                    wanted: onBase.has(model)
+                        ? (onBase.get(model) ?? null)
+                        : base,
                 }),
                 liveVersion,
             });
@@ -1010,10 +1057,8 @@ export class SemanticStudioService extends BaseService {
             });
         });
         const checked = touched.slice(0, MAX_USAGE_FIELDS);
-        const reports = await Promise.all(
-            checked.map(({ fieldId }) =>
-                this.savedChartModel.analyzeFieldImpact(projectUuid, fieldId),
-            ),
+        const reports = await runWithConcurrency(checked, 4, ({ fieldId }) =>
+            this.savedChartModel.analyzeFieldImpact(projectUuid, fieldId),
         );
         return {
             checkedFields: checked.length,
@@ -1440,13 +1485,25 @@ export class SemanticStudioService extends BaseService {
                     writes: check.writes,
                     ...describePullRequest(draft.results.flat()),
                 });
-                await this.projectModelDocumentModel.updateDraftChangeStatus({
-                    projectUuid,
-                    userUuid: user.userUuid,
-                    drafts,
-                    status: 'applied',
-                    pullRequestUrl: url,
-                });
+                let settled = 0;
+                try {
+                    settled =
+                        await this.projectModelDocumentModel.updateDraftChangeStatus(
+                            {
+                                projectUuid,
+                                userUuid: user.userUuid,
+                                drafts,
+                                status: 'applied',
+                                pullRequestUrl: url,
+                            },
+                        );
+                } finally {
+                    if (settled === 0) {
+                        this.logger.error(
+                            `Opened ${url} for project ${projectUuid} but could not mark the draft as sent`,
+                        );
+                    }
+                }
                 return {
                     exploreCount: null,
                     failures: [],

@@ -19,6 +19,7 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 const DRAFT_KEY = 'semantic-layer-draft';
+const DRAFT_STATE_KEY = 'semantic-layer-draft-state';
 const MODEL_KEY = 'semantic-layer-model';
 const PENDING_POLL_MS = 2000;
 const DRAFT_POLL_MS = 60_000;
@@ -110,7 +111,7 @@ export const useSemanticLayerDraft = (
 export const useDraftFreshness = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { data } = useGet<SemanticLayerDraftState>(
-        ['semantic-layer-draft-state', projectUuid],
+        [DRAFT_STATE_KEY, projectUuid],
         projectUuid,
         '/draft/state',
         true,
@@ -125,6 +126,9 @@ export const useDraftFreshness = (projectUuid: string) => {
         seen.current = fingerprint;
         // The first value is what the draft on screen was already read against.
         if (previous === null || previous === fingerprint) return;
+        // A read already under way, as after a write here, sees the change.
+        if (queryClient.isFetching({ queryKey: [DRAFT_KEY, projectUuid] }))
+            return;
         void queryClient.invalidateQueries({
             queryKey: [DRAFT_KEY, projectUuid],
         });
@@ -208,6 +212,7 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
             Promise.all(
                 [
                     [DRAFT_KEY, projectUuid],
+                    [DRAFT_STATE_KEY, projectUuid],
                     // Explores read the draft while the development view is on.
                     ['tables'],
                     ...(changesLive ? [[MODEL_KEY, projectUuid]] : []),

@@ -16,6 +16,7 @@ import {
     Badge,
     Box,
     Button,
+    Center,
     Group,
     Paper,
     Stack,
@@ -30,11 +31,14 @@ import {
     IconArrowDown,
     IconArrowUp,
     IconGitMerge,
+    IconArrowsDiff,
+    IconInfoCircle,
     IconTable,
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
+import { upperFirst } from 'es-toolkit/compat';
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
@@ -69,73 +73,279 @@ const listNames = (names: string[]): string =>
 const describePath = (path: string): string =>
     path === '' ? 'the whole model' : path;
 
-const SIDES: {
-    key: 'base' | 'live' | 'mine';
-    label: string;
-    absent: string;
-}[] = [
-    { key: 'base', label: 'When you started', absent: 'Not there' },
-    { key: 'live', label: 'Live now', absent: 'Removed' },
-    { key: 'mine', label: 'Yours', absent: 'Removed' },
-];
+/** A part's name as a person would say it; a nested part keeps its path. */
+const PartName: FC<{ path: string }> = ({ path }) =>
+    path.includes('.') ? (
+        <Text fz="xs" fw={500} ff="monospace" truncate>
+            {path}
+        </Text>
+    ) : (
+        <Text fz="xs" fw={500} truncate>
+            {path === ''
+                ? 'The whole model'
+                : upperFirst(path.replaceAll('_', ' '))}
+        </Text>
+    );
 
-/** One part that changed live and in the draft, with each version of it side by side. */
-const ConflictSides: FC<{
+/** Drops the draft's change to one part, so what is live stands. */
+const KeepTheirsButton: FC<{
     projectUuid: string;
     model: string;
-    conflict: SemanticLayerDraftConflict;
-}> = ({ projectUuid, model, conflict }) => {
+    path: string;
+    publisher: string | null;
+}> = ({ projectUuid, model, path, publisher }) => {
     const takeLive = useTakeLiveDraftPart(projectUuid);
     return (
-        <Stack gap={4} className={classes.conflict}>
-            <Group gap="xs" justify="space-between" wrap="nowrap">
-                <Text fz="xs" fw={500} ff="monospace" truncate>
-                    {describePath(conflict.path)}
+        <Button
+            size="compact-xs"
+            variant="default"
+            flex="none"
+            aria-label={
+                publisher ? `Keep ${publisher}'s version` : 'Keep their version'
+            }
+            loading={takeLive.isLoading}
+            onClick={() => takeLive.mutate({ model, path })}
+        >
+            Keep
+        </Button>
+    );
+};
+
+/** Keeps the draft over what was published, for every part of the model still contested. */
+const KeepMineButton: FC<{
+    projectUuid: string;
+    model: SemanticLayerDraftModel;
+    label: string;
+    ariaLabel: string | null;
+}> = ({ projectUuid, model, label, ariaLabel }) => {
+    const keep = useKeepDraftModel(projectUuid);
+    return (
+        <Button
+            size="compact-xs"
+            variant="default"
+            flex="none"
+            aria-label={ariaLabel ?? undefined}
+            loading={keep.isLoading}
+            onClick={() =>
+                keep.mutate({
+                    model: model.model,
+                    liveVersion: model.reconciliation?.liveVersion ?? null,
+                })
+            }
+        >
+            {label}
+        </Button>
+    );
+};
+
+/** A word without the punctuation around it, so a comma added after it does not count as a change. */
+const toBareWord = (word: string): string =>
+    word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+
+/** A version of a part with the words its start did not have marked, so the difference is the first thing read. */
+const ChangedWords: FC<{ value: string; base: string | null }> = ({
+    value,
+    base,
+}) => {
+    if (base === null) return value;
+    // ponytail: words compared as a set, so a moved or repeated word is not marked; use a real diff if that misleads.
+    const known = new Set(base.split(/\s+/).map(toBareWord));
+    return value.split(/(\s+)/).map((word, index) =>
+        toBareWord(word) === '' || known.has(toBareWord(word)) ? (
+            word
+        ) : (
+            <mark key={index} className={classes.changed}>
+                {word}
+            </mark>
+        ),
+    );
+};
+
+/** Whether a part's value is YAML to read as code, and not a sentence or a name to read as words. */
+const isYaml = (value: string): boolean =>
+    value.includes('\n') || /^[\w-]+:(\s|$)/.test(value);
+
+/** A part's value in the face it is read in: code for YAML, the body face for words. */
+const PartValue: FC<{ value: string; children: ReactNode }> = ({
+    value,
+    children,
+}) =>
+    isYaml(value) ? (
+        <Box component="pre" className={classes.code}>
+            {children}
+        </Box>
+    ) : (
+        <Text fz="sm" className={classes.prose}>
+            {children}
+        </Text>
+    );
+
+/** One of the two versions a contested part can end up as: whose it is, with a Keep button whose tooltip says what keeping it does. */
+const ConflictOption: FC<{
+    title: string;
+    state: string;
+    tone: 'live' | 'draft';
+    /** Null when this side removed the part. */
+    value: string | null;
+    base: string | null;
+    outcome: string;
+    action: ReactNode;
+}> = ({ title, state, tone, value, base, outcome, action }) => (
+    <Box className={classes.option}>
+        <Group gap="xs" wrap="nowrap" justify="space-between">
+            <Text fz="xs" truncate>
+                <Box
+                    component="span"
+                    className={classes.tone}
+                    data-tone={tone}
+                />
+                <Text span fz="xs" fw={500}>
+                    {title}
                 </Text>
-                <Tooltip
-                    label={
-                        conflict.path === ''
-                            ? 'Drops everything you changed on this model and keeps what is live.'
-                            : 'Drops your change to this part and keeps what is live. The rest of your changes stay.'
-                    }
-                >
-                    <Button
-                        size="compact-xs"
-                        variant="subtle"
-                        flex="none"
-                        loading={takeLive.isLoading}
-                        onClick={() =>
-                            takeLive.mutate({ model, path: conflict.path })
-                        }
-                    >
-                        {conflict.path === '' ? 'Discard mine' : 'Take theirs'}
-                    </Button>
+                <Text span fz="xs" c="dimmed">
+                    {' · '}
+                    {state}
+                </Text>
+            </Text>
+            {action ? (
+                <Tooltip label={outcome} withinPortal maw={240} multiline>
+                    <Box flex="none">{action}</Box>
                 </Tooltip>
-            </Group>
-            <Box className={classes.sides}>
-                {SIDES.map(({ key, label, absent }) => (
-                    <Stack key={key} gap={2} miw={0}>
+            ) : null}
+        </Group>
+        {value === null ? (
+            <Text fz="sm" c="dimmed">
+                Removed
+            </Text>
+        ) : (
+            <PartValue value={value}>
+                <ChangedWords value={value} base={base} />
+            </PartValue>
+        )}
+    </Box>
+);
+
+/** One part two people changed: what it said before, then each person's version with the button that keeps it. */
+const ConflictSides: FC<{
+    projectUuid: string;
+    model: SemanticLayerDraftModel;
+    conflict: SemanticLayerDraftConflict;
+    /** When theirs went live, in words. */
+    publishedAgo: string;
+    /** False when it is the only contested part: the notice names it, and keeping the draft is offered right here. */
+    isOneOfSeveral: boolean;
+}> = ({ projectUuid, model, conflict, publishedAgo, isOneOfSeveral }) => {
+    const publisher = model.publishedSince?.by ?? null;
+    return (
+        <Stack gap="xs" className={classes.conflict}>
+            <Box>
+                {isOneOfSeveral ? <PartName path={conflict.path} /> : null}
+                {conflict.base !== null && isYaml(conflict.base) ? (
+                    <>
                         <Text fz="xs" c="dimmed">
-                            {label}
+                            Originally
                         </Text>
-                        <Box component="pre" className={classes.side}>
-                            {conflict[key] ?? absent}
+                        <Box
+                            component="pre"
+                            className={classes.code}
+                            data-before
+                        >
+                            {conflict.base}
                         </Box>
-                    </Stack>
-                ))}
+                    </>
+                ) : (
+                    <Text fz="xs" c="dimmed">
+                        Originally:{' '}
+                        {conflict.base === null
+                            ? 'not set'
+                            : `“${conflict.base}”`}
+                    </Text>
+                )}
+            </Box>
+            <Box className={classes.options}>
+                <ConflictOption
+                    title={publisher ?? 'Someone else'}
+                    state={`live ${publishedAgo}`}
+                    tone="live"
+                    value={conflict.live}
+                    base={conflict.base}
+                    outcome={
+                        conflict.path === ''
+                            ? 'Everything you changed on this model leaves your draft.'
+                            : 'Your edit to this part leaves your draft.'
+                    }
+                    action={
+                        <KeepTheirsButton
+                            projectUuid={projectUuid}
+                            model={model.model}
+                            path={conflict.path}
+                            publisher={publisher}
+                        />
+                    }
+                />
+                <ConflictOption
+                    title="You"
+                    state="your draft"
+                    tone="draft"
+                    value={conflict.mine}
+                    base={conflict.base}
+                    outcome={
+                        isOneOfSeveral
+                            ? 'Kept with the button under this list.'
+                            : 'Yours replaces theirs when you publish.'
+                    }
+                    action={
+                        isOneOfSeveral ? null : (
+                            <KeepMineButton
+                                projectUuid={projectUuid}
+                                model={model}
+                                label="Keep"
+                                ariaLabel="Keep your version"
+                            />
+                        )
+                    }
+                />
             </Box>
         </Stack>
     );
 };
 
+/** The one contested part, named inside a sentence. */
+const ContestedPart: FC<{ path: string }> = ({ path }) => {
+    if (path === '') return 'this model';
+    if (!path.includes('.')) {
+        return `this model's ${path.replaceAll('_', ' ')}`;
+    }
+    return (
+        <>
+            <Text span ff="monospace">
+                {path}
+            </Text>{' '}
+            on this model
+        </>
+    );
+};
+
+/** One notice on a model's card: its icon sits in the column the card's own icon uses, so the words line up with the title. */
+const NoticeRow: FC<{
+    icon: typeof IconUsers;
+    color: 'yellow' | 'dimmed';
+    children: ReactNode;
+}> = ({ icon, color, children }) => (
+    <Group gap="xs" wrap="nowrap" align="flex-start">
+        <Center w={24} h={18} flex="none">
+            <MantineIcon icon={icon} size={16} color={color} />
+        </Center>
+        {children}
+    </Group>
+);
+
 /** What happened to a model outside this draft: a publish under it, or someone else's work in it. */
 export const ModelNotices: FC<{
     projectUuid: string;
     model: SemanticLayerDraftModel;
-    onAskAgent: (prompt: string) => void;
-}> = ({ projectUuid, model, onAskAgent }) => {
+}> = ({ projectUuid, model }) => {
     const publishedAgo = useTimeAgo(model.publishedSince?.at ?? new Date());
-    const keep = useKeepDraftModel(projectUuid);
     const conflicts = model.reconciliation?.conflicts ?? [];
     const merged = model.reconciliation?.merged ?? [];
     const publisher = model.publishedSince?.by ?? 'Someone';
@@ -152,93 +362,77 @@ export const ModelNotices: FC<{
     return (
         <Stack gap={4} className={classes.notices}>
             {conflicts.length > 0 ? (
-                <Stack gap="xs">
-                    <Group gap={6} wrap="nowrap">
-                        <MantineIcon
-                            icon={IconAlertTriangle}
-                            size={14}
-                            color="yellow"
-                        />
-                        <Text fz="xs" flex={1}>
-                            {publisher} published a change to{' '}
-                            {conflicts.length === 1
-                                ? 'a part'
-                                : `${conflicts.length} parts`}{' '}
-                            of this model that you changed too. Choose before
-                            publishing: yours would replace theirs.
-                        </Text>
-                        <Tooltip label="Has the agent propose a version that keeps both changes where it can.">
-                            <Button
-                                size="compact-xs"
-                                variant="default"
-                                onClick={() =>
-                                    onAskAgent(
-                                        [
-                                            `Someone published changes to the model ${model.model} in parts my changes in development also change.`,
-                                            ...conflicts.map(
-                                                ({ path, live, mine }) =>
-                                                    `${describePath(path)}: live now is ${live ?? 'removed'}; mine is ${mine ?? 'removed'}.`,
-                                            ),
-                                            'Read the model as it is live and propose a change that keeps both where they can be combined. Where they cannot, say so and ask me which to keep.',
-                                        ].join(' '),
-                                    )
-                                }
-                            >
-                                Combine
-                            </Button>
+                <Stack gap="xs" data-conflict>
+                    <NoticeRow icon={IconAlertTriangle} color="yellow">
+                        <Tooltip
+                            label="Choose which to keep. You can publish once you have."
+                            position="top-start"
+                            withinPortal
+                        >
+                            <Text fz="xs" w="fit-content">
+                                <Text span fw={600}>
+                                    {publisher}
+                                </Text>{' '}
+                                published a change to{' '}
+                                {conflicts.length === 1 ? (
+                                    <ContestedPart path={conflicts[0].path} />
+                                ) : (
+                                    `${conflicts.length} parts of this model`
+                                )}{' '}
+                                that your draft also edits.
+                            </Text>
                         </Tooltip>
-                        <Tooltip label="Keeps your version of every part still listed. It goes live when you publish.">
-                            <Button
-                                size="compact-xs"
-                                variant="default"
-                                loading={keep.isLoading}
-                                onClick={() =>
-                                    keep.mutate({
-                                        model: model.model,
-                                        liveVersion:
-                                            model.reconciliation?.liveVersion ??
-                                            null,
-                                    })
-                                }
-                            >
-                                Keep mine
-                            </Button>
-                        </Tooltip>
-                    </Group>
+                    </NoticeRow>
                     {conflicts.map((conflict) => (
                         <ConflictSides
                             key={conflict.path}
                             projectUuid={projectUuid}
-                            model={model.model}
+                            model={model}
                             conflict={conflict}
+                            publishedAgo={publishedAgo}
+                            isOneOfSeveral={conflicts.length > 1}
                         />
                     ))}
+                    {conflicts.length > 1 ? (
+                        <Box className={classes.conflictActions}>
+                            <KeepMineButton
+                                projectUuid={projectUuid}
+                                model={model}
+                                label={`Keep mine for all ${conflicts.length} parts`}
+                                ariaLabel={null}
+                            />
+                        </Box>
+                    ) : null}
                 </Stack>
             ) : null}
             {publishedUnder && conflicts.length === 0 ? (
-                <Group gap={6} wrap="nowrap">
-                    <MantineIcon icon={IconGitMerge} size={14} color="dimmed" />
+                <NoticeRow icon={IconGitMerge} color="dimmed">
                     <Text fz="xs" c="dimmed">
-                        {publisher} published a change to this model{' '}
-                        {publishedAgo}, after you started
+                        <Text span fw={600}>
+                            {publisher}
+                        </Text>{' '}
+                        published a change to this model {publishedAgo}, after
+                        you started
                         {merged.length > 0
                             ? `, in ${listNames(merged.map(describePath))}, which you did not touch`
                             : ''}
                         . Your changes are shown on top of it.
                     </Text>
-                </Group>
+                </NoticeRow>
             ) : null}
             {model.alsoChanging.map(({ name, paths }) => (
-                <Group key={name} gap={6} wrap="nowrap">
-                    <MantineIcon icon={IconUsers} size={14} color="dimmed" />
+                <NoticeRow key={name} icon={IconUsers} color="dimmed">
                     <Text fz="xs" c="dimmed">
-                        {name} is also changing{' '}
+                        <Text span fw={600}>
+                            {name}
+                        </Text>{' '}
+                        is also changing{' '}
                         {paths.length > 0
                             ? listNames(paths.map(describePath))
                             : 'this model'}
                         , in development.
                     </Text>
-                </Group>
+                </NoticeRow>
             ))}
         </Stack>
     );
@@ -250,12 +444,16 @@ const ChangeRow: FC<{
     /** How many changes the draft has, to know which way this one can move. */
     count: number;
     change: SemanticLayerDraft['changes'][number];
+    /** What each model is called, by its name. */
+    labels: Map<string, string>;
     onAskAgent: (prompt: string) => void;
-}> = ({ projectUuid, index, count, change, onAskAgent }) => {
+}> = ({ projectUuid, index, count, change, labels, onAskAgent }) => {
     const discard = useDiscardDraftChange(projectUuid);
     const move = useMoveDraftChange(projectUuid);
     const ago = useTimeAgo(change.createdAt);
     const failed = change.models.filter(({ error }) => error !== null);
+    const named = (models: { model: string }[]) =>
+        listNames(models.map(({ model }) => labels.get(model) ?? model));
     return (
         <Group gap="sm" wrap="nowrap" className={classes.change}>
             <Text fz="xs" c="dimmed" className={classes.changeIndex}>
@@ -263,12 +461,12 @@ const ChangeRow: FC<{
             </Text>
             <Box miw={0} flex={1}>
                 <Text fz="sm" truncate>
-                    {change.question ?? 'A change made in the review'}
+                    {change.question ?? 'Changed during review'}
                 </Text>
                 <Text fz="xs" c={failed.length > 0 ? 'red' : 'dimmed'} truncate>
                     {failed.length > 0
-                        ? `No longer applies to ${listNames(failed.map(({ model }) => model))}`
-                        : `${listNames(change.models.map(({ model }) => model))} · ${ago}`}
+                        ? `No longer applies to ${named(failed)}`
+                        : `${named(change.models)} · ${ago}`}
                 </Text>
             </Box>
             {failed.length > 0 ? (
@@ -355,28 +553,41 @@ const ChangeRow: FC<{
     );
 };
 
-/** The draft as the ordered list it is: each change builds on the ones before it. */
+/** The draft as the ordered list it is, shown once the order matters: with several changes, or one that stopped applying. */
 export const ChangeQueue: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
     onAskAgent: (prompt: string) => void;
-}> = ({ projectUuid, draft, onAskAgent }) => (
-    <Paper className={classes.section}>
-        <Text fz="sm" fw={500} className={classes.sectionTitle}>
-            Changes in order
-        </Text>
-        {draft.changes.map((change, index) => (
-            <ChangeRow
-                key={change.draftChangeUuid}
-                projectUuid={projectUuid}
-                index={index}
-                count={draft.changes.length}
-                change={change}
-                onAskAgent={onAskAgent}
-            />
-        ))}
-    </Paper>
-);
+}> = ({ projectUuid, draft, onAskAgent }) => {
+    const hasFailure = draft.changes.some(({ models }) =>
+        models.some(({ error }) => error !== null),
+    );
+    if (draft.changes.length < 2 && !hasFailure) return null;
+    const labels = new Map(
+        draft.models.map((entry) => [
+            entry.model,
+            describeModelChange(entry.model, entry).title,
+        ]),
+    );
+    return (
+        <Paper className={classes.section}>
+            <Text fz="sm" fw={500} className={classes.sectionTitle}>
+                Changes in order
+            </Text>
+            {draft.changes.map((change, index) => (
+                <ChangeRow
+                    key={change.draftChangeUuid}
+                    projectUuid={projectUuid}
+                    index={index}
+                    count={draft.changes.length}
+                    change={change}
+                    labels={labels}
+                    onAskAgent={onAskAgent}
+                />
+            ))}
+        </Paper>
+    );
+};
 
 const MAX_LISTED_CHARTS = 5;
 
@@ -563,21 +774,22 @@ export const MetricComparison: FC<{
     if (!isAsked) {
         return (
             <Group className={classes.compare} gap="xs">
-                <Button
-                    size="compact-xs"
-                    variant="default"
-                    onClick={() => setIsAsked(true)}
+                <Tooltip
+                    label={`${metrics.length === 1 ? '1 metric' : `${metrics.length} metrics`}, ${isNewModel ? 'one warehouse query' : 'one warehouse query each side'}.`}
                 >
-                    {isNewModel ? 'Run the numbers' : 'Compare with live'}
-                </Button>
-                <Text fz="xs" c="dimmed">
-                    {metrics.length === 1
-                        ? '1 metric'
-                        : `${metrics.length} metrics`}
-                    {isNewModel
-                        ? ', one warehouse query'
-                        : ', one warehouse query each side'}
-                </Text>
+                    <Button
+                        size="compact-xs"
+                        variant="subtle"
+                        leftSection={
+                            <MantineIcon icon={IconArrowsDiff} size={14} />
+                        }
+                        onClick={() => setIsAsked(true)}
+                    >
+                        {isNewModel
+                            ? 'Run the totals'
+                            : 'Compare totals with live'}
+                    </Button>
+                </Tooltip>
             </Group>
         );
     }
@@ -632,8 +844,13 @@ export const MetricComparison: FC<{
                     })}
                 </Table.Tbody>
             </Table>
+            {live.isError ? (
+                <Text fz="xs" c="dimmed">
+                    Could not run these live: {live.error.error.message}
+                </Text>
+            ) : null}
             {development.isError ? (
-                <Text fz="xs" c="red">
+                <Text fz="xs" c="dimmed">
                     Could not run these in development:{' '}
                     {development.error.error.message}
                 </Text>
@@ -896,30 +1113,6 @@ export const PublishSummary: FC<{
     );
 };
 
-/** What pressing Publish does, said before the dialog: who sees it, what moves, and the way back. */
-export const PublishEffect: FC<{
-    projectUuid: string;
-    asPullRequest: boolean;
-}> = ({ projectUuid, asPullRequest }) => {
-    const { data } = useSemanticLayerDraftUsage(projectUuid);
-    const charts = new Set(
-        (data?.fields ?? []).flatMap(({ charts: read }) =>
-            read.map(({ uuid }) => uuid),
-        ),
-    ).size;
-    return (
-        <Text fz="xs" c="dimmed">
-            {asPullRequest
-                ? 'Publishing opens a pull request. Nothing is live until it merges.'
-                : 'Publishing goes live for everyone on this project.'}
-            {charts > 0
-                ? ` ${charts} saved ${charts === 1 ? 'chart' : 'charts'} will show different numbers.`
-                : ''}
-            {asPullRequest ? '' : " Undo is on each model's History tab."}
-        </Text>
-    );
-};
-
 const EXPLAINER_KEY = 'semantic-studio-draft-explainer-seen';
 
 const hasSeenExplainer = (): boolean => {
@@ -931,33 +1124,36 @@ const hasSeenExplainer = (): boolean => {
 };
 
 /** Shown until dismissed, the first time someone has changes in development. */
-export const DraftExplainer: FC = () => {
+export const DraftExplainer: FC<{ asPullRequest: boolean }> = ({
+    asPullRequest,
+}) => {
     const [isSeen, setIsSeen] = useState(hasSeenExplainer);
     if (isSeen) return null;
     return (
-        <Paper variant="dotted" p="sm">
-            <Group gap="sm" justify="space-between" wrap="nowrap">
-                <Text fz="sm">
-                    These changes are in development: only you see them, and
-                    nothing is live until you publish. Try them on real charts
-                    first with Try my changes.
-                </Text>
-                <Button
-                    size="compact-xs"
-                    variant="default"
-                    flex="none"
-                    onClick={() => {
-                        try {
-                            localStorage.setItem(EXPLAINER_KEY, '1');
-                        } catch {
-                            // Without storage it shows again next time.
-                        }
-                        setIsSeen(true);
-                    }}
-                >
-                    Got it
-                </Button>
-            </Group>
-        </Paper>
+        <Group className={classes.hint} gap="sm" wrap="nowrap">
+            <MantineIcon icon={IconInfoCircle} size={16} color="dimmed" />
+            <Text fz="xs" flex={1}>
+                Only you see these changes.{' '}
+                {asPullRequest
+                    ? 'Publishing opens a pull request, and nothing is live until it merges.'
+                    : 'Publishing makes them live for everyone on this project.'}{' '}
+                Try them on your charts first with the eye button above.
+            </Text>
+            <Button
+                size="compact-xs"
+                variant="subtle"
+                flex="none"
+                onClick={() => {
+                    try {
+                        localStorage.setItem(EXPLAINER_KEY, '1');
+                    } catch {
+                        // Without storage it shows again next time.
+                    }
+                    setIsSeen(true);
+                }}
+            >
+                Got it
+            </Button>
+        </Group>
     );
 };
