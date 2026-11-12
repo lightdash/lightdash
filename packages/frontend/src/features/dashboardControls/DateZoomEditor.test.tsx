@@ -110,7 +110,9 @@ const setup = ({
     controlGranularities = {},
     dateZoomGranularity,
     contractClasses = null,
+    config: savedConfig = saved,
 }: {
+    config?: DateZoomConfig;
     isViewer?: boolean;
     controlGranularities?: Record<string, string>;
     dateZoomGranularity?: DateGranularity;
@@ -132,7 +134,10 @@ const setup = ({
         },
         source: {
             embedDashboard: {
-                config: { isDateZoomDisabled: false, dateZoomConfig: saved },
+                config: {
+                    isDateZoomDisabled: false,
+                    dateZoomConfig: savedConfig,
+                },
             } as Dashboard,
         },
     });
@@ -502,6 +507,84 @@ describe('Date zoom editor', () => {
             within(dialog()).getByRole('button', { name: 'Apply' }),
         );
         expect(store.getState().dateZoom.controlGranularities).toEqual({});
+    });
+
+    describe('a named zoom whose uuid is "default-zoom"', () => {
+        const named: DateZoomConfig = {
+            controls: [{ ...saved.controls[0], uuid: 'default-zoom' }],
+            tileTargets: {
+                'tile-1': {
+                    ...saved.tileTargets['tile-1'],
+                    controlUuid: 'default-zoom',
+                },
+            },
+        };
+        const pickGrain = async (
+            user: ReturnType<typeof userEvent.setup>,
+            name: string,
+            grain: string,
+        ) => {
+            await user.click(pill(name));
+            await user.click(within(dialog()).getByRole('combobox', { name }));
+            await user.click(
+                await screen.findByRole('option', { name: grain }),
+            );
+            await user.click(
+                within(dialog()).getByRole('button', { name: 'Apply' }),
+            );
+        };
+
+        it("takes a viewer's pick for its own tiles, not the default's", async () => {
+            const { user, store } = setup({ isViewer: true, config: named });
+            await pickGrain(user, 'Revenue zoom', 'Day');
+            expect(store.getState().dateZoom.controlGranularities).toEqual({
+                'default-zoom': DateGranularity.DAY,
+            });
+            expect(store.getState().dateZoom.granularity).toBeUndefined();
+        });
+
+        it("applies an editor's rename and grain", async () => {
+            const { user, config } = setup({ config: named });
+            await user.click(pill('Revenue zoom'));
+            await user.click(
+                within(dialog()).getByRole('combobox', {
+                    name: 'Revenue zoom',
+                }),
+            );
+            await user.click(
+                await screen.findByRole('option', { name: 'Day' }),
+            );
+            await user.click(
+                within(dialog()).getByRole('button', { name: 'Rename' }),
+            );
+            await user.clear(
+                within(dialog()).getByRole('textbox', { name: 'Name' }),
+            );
+            await user.keyboard('Sales zoom{Enter}');
+            await user.click(
+                within(dialog()).getByRole('button', { name: 'Apply' }),
+            );
+            expect(config().controls).toEqual([
+                {
+                    uuid: 'default-zoom',
+                    name: 'Sales zoom',
+                    granularity: DateGranularity.DAY,
+                },
+            ]);
+        });
+
+        it('leaves the Default zoom button editing the default, switching from the named zoom', async () => {
+            const { user, config } = setup({ config: named });
+            await user.click(pill('Revenue zoom'));
+            await pickGrain(user, 'Default zoom', 'Month');
+            expect(pill('Default zoom')).toHaveTextContent(
+                'Default zoom Month',
+            );
+            expect(pill('Revenue zoom')).toHaveTextContent(
+                'Revenue zoom is Week',
+            );
+            expect(config()).toEqual(named);
+        });
     });
 
     it('sets and clears the default zoom in the dashboard draft', async () => {

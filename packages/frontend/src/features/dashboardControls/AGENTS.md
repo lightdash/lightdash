@@ -217,7 +217,8 @@ Each one has broken before or would break silently.
   `zoom-option` on `GrainSelect`'s options.
 - **One editor at a time, three providers.** Filter, parameter and date
   zoom editors each capture a click on another kind's pill or "Add"
-  (`[data-controls-pill]`, `[data-parameter-pill]`, `[data-date-zoom-pill]`)
+  (`[data-controls-pill]`, `[data-parameter-pill]`, `[data-date-zoom-pill]`,
+  `[data-default-date-zoom]`)
   and each lists the others' pills in its `useEditorDismiss` selector, so a
   switch asks on unapplied changes instead of discarding them. The lists
   come from `getOtherPillsSelector` (`controlKinds.ts`): a new kind joins

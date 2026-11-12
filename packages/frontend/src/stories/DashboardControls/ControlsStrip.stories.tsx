@@ -34,9 +34,7 @@ const toggle = (canvasElement: HTMLElement) =>
     });
 
 const defaultZoom = (canvasElement: HTMLElement) =>
-    canvasElement.querySelector<HTMLElement>(
-        '[data-date-zoom-pill="default-zoom"]',
-    );
+    canvasElement.querySelector<HTMLElement>('[data-default-date-zoom]');
 
 /** A viewer's strip, open: the toggle and the default zoom lead the pills. */
 export const ViewOpen: Story = {

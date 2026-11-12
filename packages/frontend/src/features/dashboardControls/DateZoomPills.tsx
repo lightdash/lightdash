@@ -38,7 +38,6 @@ import { DateZoomControlPopover } from './DateZoomControlPopover';
 import {
     DATE_ZOOM_DRAG,
     DATE_ZOOM_PILL_SELECTOR,
-    DEFAULT_ZOOM_ID,
     getZoomTileUuids,
 } from './dateZoomControls';
 import { DefaultZoomPopover } from './DefaultZoomPopover';
@@ -209,7 +208,7 @@ const DateZoomPill: FC<{
     const contractClasses = useRailContractClasses();
     const { control, isNew } = entry;
     const isOpen = useDateZoomEditorSelector(
-        (c) => c.editingId === control.uuid,
+        (c) => !c.isEditingDefault && c.editingId === control.uuid,
     );
     const isViewer = useDateZoomEditorSelector((c) => c.isViewer);
     const open = useDateZoomEditorSelector((c) => c.open);
@@ -217,7 +216,9 @@ const DateZoomPill: FC<{
     const remove = useDateZoomEditorSelector((c) => c.remove);
     // The open popover's grain and name, as the draft has them
     const draft = useDateZoomEditorSelector((c) =>
-        c.editingId === control.uuid && !c.isViewer ? c.draft : null,
+        !c.isEditingDefault && c.editingId === control.uuid && !c.isViewer
+            ? c.draft
+            : null,
     );
     // A filter being edited closes first, or asks on unapplied changes
     const requestSwitch = useControlsSidebarSelector((c) => c.requestSwitch);
@@ -443,14 +444,12 @@ export const DefaultZoomButton: FC<{ withDivider: boolean }> = ({
 }) => {
     const getUiString = useUiStrings();
     const contractClasses = useRailContractClasses();
-    const isOpen = useDateZoomEditorSelector(
-        (c) => c.editingId === DEFAULT_ZOOM_ID,
-    );
+    const isOpen = useDateZoomEditorSelector((c) => c.isEditingDefault);
     const isViewer = useDateZoomEditorSelector((c) => c.isViewer);
-    const open = useDateZoomEditorSelector((c) => c.open);
+    const openDefault = useDateZoomEditorSelector((c) => c.openDefault);
     // The open popover's draft (an editor's), else what applies
     const pick = useDateZoomEditorSelector((c) =>
-        c.editingId === DEFAULT_ZOOM_ID && !c.isViewer ? c.pick : undefined,
+        c.isEditingDefault && !c.isViewer ? c.pick : undefined,
     );
     const requestSwitch = useControlsSidebarSelector((c) => c.requestSwitch);
     const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
@@ -486,7 +485,7 @@ export const DefaultZoomButton: FC<{ withDivider: boolean }> = ({
                         size="xs"
                         variant="subtle"
                         color="gray"
-                        data-date-zoom-pill={DEFAULT_ZOOM_ID}
+                        data-default-date-zoom
                         // The shipped Default zoom button's walkthrough
                         // marker (view:Dashboard), kept on its equivalent
                         data-tour-scope="view:Dashboard"
@@ -517,15 +516,7 @@ export const DefaultZoomButton: FC<{ withDivider: boolean }> = ({
                                 color="dimmed"
                             />
                         }
-                        onClick={() =>
-                            requestSwitch(() =>
-                                open({
-                                    uuid: DEFAULT_ZOOM_ID,
-                                    name: getUiString('dateZoom.defaultZoom'),
-                                    granularity: granularity ?? '',
-                                }),
-                            )
-                        }
+                        onClick={() => requestSwitch(openDefault)}
                     >
                         {/* One text run: the label's flex would drop the space */}
                         <Text span fz="xs">

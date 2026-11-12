@@ -28,7 +28,7 @@ import {
 import {
     applyZoomDraft,
     DEFAULT_DATE_ZOOM_NAME,
-    DEFAULT_ZOOM_ID,
+    DEFAULT_ZOOM_SELECTOR,
     dateZoomPillSelector,
     moveZoom,
     removeZoom,
@@ -50,6 +50,8 @@ import { useDateZoomMappingModel } from './useDateZoomMapping';
 import { useEditorSession, type EditSession } from './useEditorSession';
 
 type EditState = EditSession<DateZoomTileTargets> & {
+    /** The default zoom, whose `id` is only a session key: a saved zoom's uuid can be any string. */
+    isDefault: boolean;
     snapshot: DateZoomControl;
     draft: DateZoomControl;
     /** Every tile target as it opened, and as the draft leaves them. */
@@ -65,7 +67,7 @@ const withoutSection = (control: DateZoomControl) =>
     withZoomSection(control, null);
 
 const isDirty = (edit: EditState) =>
-    edit.isViewer || edit.id === DEFAULT_ZOOM_ID
+    edit.isViewer || edit.isDefault
         ? edit.pick !== edit.snapshotPick
         : !isEqual(withoutSection(edit.snapshot), withoutSection(edit.draft)) ||
           !isEqual(edit.snapshotTargets, edit.draftTargets);
@@ -76,9 +78,10 @@ const findPill = (id: string) =>
     document.querySelector<HTMLElement>(dateZoomPillSelector(id));
 
 // A reader of the context, so it runs once the pills have updated
-const DateZoomFocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
-    target,
-}) => {
+const DateZoomFocusReturn: FC<{
+    target: RefObject<FocusTarget | null>;
+    findPill: (id: string) => HTMLElement | null;
+}> = ({ target, findPill }) => {
     const isOpen = useDateZoomEditorSelector((c) => c.editingId !== null);
     return (
         <EditorFocusReturn
@@ -123,17 +126,27 @@ export const DateZoomEditorProvider: FC<{
         if (!isViewer && !isEmbedded) setDateZoomGranularity(undefined);
     }, [isViewer, isEmbedded, setDateZoomGranularity]);
     const [state, setState] = useState<EditState | null>(null);
+    // The default's session key: unlike any saved zoom's uuid, so a toggle never confuses them
+    const [defaultKey] = useState(() => `default-${uuidv4()}`);
+    const findEditedPill = useStableCallback((id: string) =>
+        id === defaultKey
+            ? document.querySelector<HTMLElement>(DEFAULT_ZOOM_SELECTOR)
+            : findPill(id),
+    );
     // Derived: a mode change, or the zoom leaving the dashboard, ends the edit
     const edit =
         state !== null &&
         state.isViewer === isViewer &&
         (state.isNew ||
-            state.id === DEFAULT_ZOOM_ID ||
+            state.isDefault ||
             config.controls.some(({ uuid }) => uuid === state.id))
             ? state
             : null;
-    const start = (control: DateZoomControl, isNew: boolean) => {
-        const isDefault = control.uuid === DEFAULT_ZOOM_ID;
+    const start = (
+        control: DateZoomControl,
+        isNew: boolean,
+        isDefault: boolean,
+    ) => {
         // The default's runtime grain was cleared as edit mode began
         const override = isDefault
             ? (dateZoomGranularity ?? null)
@@ -148,6 +161,7 @@ export const DateZoomEditorProvider: FC<{
             : (override ?? control.granularity);
         session.begin({
             id: control.uuid,
+            isDefault,
             isNew,
             isViewer,
             snapshot: control,
@@ -161,7 +175,7 @@ export const DateZoomEditorProvider: FC<{
     };
 
     const applyEdit = (current: EditState) => {
-        if (current.id === DEFAULT_ZOOM_ID) {
+        if (current.isDefault) {
             if (isDirty(current) && current.isViewer) {
                 // As the shipped menu's pick; cleared is its "Reset to default"
                 track({
@@ -208,7 +222,12 @@ export const DateZoomEditorProvider: FC<{
     const { endMapping, cancelMapping, undoMapping } = session;
 
     const open = useStableCallback((control: DateZoomControl) =>
-        session.open(control.uuid, () => start(control, false)),
+        session.open(control.uuid, () => start(control, false, false)),
+    );
+    const openDefault = useStableCallback(() =>
+        session.open(defaultKey, () =>
+            start({ uuid: defaultKey, name: '', granularity: '' }, false, true),
+        ),
     );
 
     const add = useStableCallback((sectionId: string | null) =>
@@ -220,6 +239,7 @@ export const DateZoomEditorProvider: FC<{
                 ...(sectionId !== null && { sectionId }),
             },
             true,
+            false,
         ),
     );
 
@@ -338,6 +358,7 @@ export const DateZoomEditorProvider: FC<{
     const value = useMemo<DateZoomEditorValue>(
         () => ({
             editingId: edit?.id ?? null,
+            isEditingDefault: edit?.isDefault ?? false,
             draft: edit?.draft ?? null,
             newZoom: edit?.isNew ? edit.snapshot : null,
             draftTargets: edit?.draftTargets ?? null,
@@ -345,6 +366,7 @@ export const DateZoomEditorProvider: FC<{
             pick: edit?.pick ?? null,
             isAsking,
             open,
+            openDefault,
             add,
             update,
             setPick,
@@ -374,6 +396,7 @@ export const DateZoomEditorProvider: FC<{
             isViewer,
             isAsking,
             open,
+            openDefault,
             add,
             update,
             setPick,
@@ -389,7 +412,10 @@ export const DateZoomEditorProvider: FC<{
     return (
         <DateZoomEditorContext.Provider value={value}>
             {children}
-            <DateZoomFocusReturn target={session.focusReturn} />
+            <DateZoomFocusReturn
+                target={session.focusReturn}
+                findPill={findEditedPill}
+            />
             {/* Moves are an editor's. Not a second `status` role: the filter moves own that one */}
             {!isViewer && (
                 <VisuallyHidden aria-live="polite">

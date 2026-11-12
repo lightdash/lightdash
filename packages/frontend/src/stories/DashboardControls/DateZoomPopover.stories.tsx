@@ -39,7 +39,7 @@ const pill = (_page: Page, name: string) =>
         () => {
             const found = [
                 ...document.querySelectorAll<HTMLElement>(
-                    '[data-date-zoom-pill]',
+                    '[data-default-date-zoom], [data-date-zoom-pill]',
                 ),
             ].find((element) => element.textContent?.startsWith(`${name} `));
             if (found === undefined) throw new Error(`No ${name} pill`);
@@ -192,7 +192,9 @@ export const Default: Story = {
         const defaultPill = await pill(page, 'Default zoom');
         await expect(defaultPill).toHaveTextContent('Default zoom Month');
         const pills = [
-            ...canvasElement.querySelectorAll('[data-date-zoom-pill]'),
+            ...canvasElement.querySelectorAll(
+                '[data-default-date-zoom], [data-date-zoom-pill]',
+            ),
         ];
         await expect(pills.at(0)).toBe(defaultPill);
         await userEvent.click(defaultPill);

@@ -148,7 +148,8 @@ until Apply, which needs at least one tile. Opening a zoom in edit mode
 clears a viewer's override for it, so tiles show the edited grain; edit mode
 also clears the default zoom's runtime grain, as the shipped bar did.
 
-The default zoom is edited by the same provider (`DEFAULT_ZOOM_ID`): its
+The default zoom is edited by the same provider (`isDefault` in its edit
+state, `[data-default-date-zoom]` on its button, never a uuid): its
 draft is the default grain (an editor's, `setDefaultDateZoomGranularity`) or
 a viewer's pick (`setDateZoomGranularity`, tracked `DATE_ZOOM_CLICKED` as the
 shipped menu; cleared is the saved default). A named zoom's viewer pick goes

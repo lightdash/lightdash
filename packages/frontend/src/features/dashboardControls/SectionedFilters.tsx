@@ -745,7 +745,9 @@ export const SectionedFilters: FC<Props> = ({
         dateZoomEntries.filter((entry) => entry.sectionId === sectionId).length;
     const setZoomSection = useDateZoomEditorSelector((c) => c.setSection);
     const removeZoom = useDateZoomEditorSelector((c) => c.remove);
-    const editedZoomId = useDateZoomEditorSelector((c) => c.editingId);
+    const editedZoomId = useDateZoomEditorSelector((c) =>
+        c.isEditingDefault ? null : c.editingId,
+    );
     const editedZoomSectionId =
         dateZoomEntries.find(({ control }) => control.uuid === editedZoomId)
             ?.sectionId ?? null;
