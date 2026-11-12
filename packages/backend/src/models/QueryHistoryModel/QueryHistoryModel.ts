@@ -430,29 +430,6 @@ export class QueryHistoryModel {
             );
     }
 
-    async recordResultResearchRun(
-        queryUuid: string,
-        projectUuid: string,
-        accountId: string,
-        runUuid: string,
-    ): Promise<void> {
-        await this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid)
-            .andWhere((query) => {
-                void query
-                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
-                    .orWhere('created_by_account', accountId);
-            })
-            .update(
-                'request_parameters',
-                this.database.raw(
-                    "jsonb_set(request_parameters, '{resultResearchRunUuid}', ?::jsonb, true)",
-                    [JSON.stringify(runUuid)],
-                ),
-            );
-    }
-
     async recordAiSignInCredential(
         queryUuid: string,
         projectUuid: string,

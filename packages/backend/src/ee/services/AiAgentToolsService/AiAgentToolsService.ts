@@ -5619,26 +5619,14 @@ export class AiAgentToolsService extends BaseService {
                 if (!context.agentUuid) {
                     return [];
                 }
-                const [documents, deepResearchRuns, researchDocuments] =
-                    await Promise.all([
-                        this.aiAgentDocumentModel.findAllForAgent({
-                            organizationUuid: context.organizationUuid,
-                            agentUuid: context.agentUuid,
-                            projectUuid: context.projectUuid,
-                        }),
-                        context.threadUuid
-                            ? this.aiDeepResearchRunModel.findReportSummariesByThreadScoped(
-                                  {
-                                      aiThreadUuid: context.threadUuid,
-                                      organizationUuid:
-                                          context.organizationUuid,
-                                      projectUuid: context.projectUuid,
-                                      createdByUserUuid: context.user.userUuid,
-                                  },
-                              )
-                            : [],
-                        this.findThreadResearchDocuments(context),
-                    ]);
+                const [documents, researchDocuments] = await Promise.all([
+                    this.aiAgentDocumentModel.findAllForAgent({
+                        organizationUuid: context.organizationUuid,
+                        agentUuid: context.agentUuid,
+                        projectUuid: context.projectUuid,
+                    }),
+                    this.findThreadResearchDocuments(context),
+                ]);
                 const publishedResearchDocuments: AiAgentDocumentSummary[] =
                     researchDocuments.map(({ run, document }) => ({
                         uuid: run.ai_deep_research_run_uuid,
@@ -5667,38 +5655,7 @@ export class AiAgentToolsService extends BaseService {
                         createdAt: run.created_at,
                         updatedAt: document.updatedAt,
                     }));
-                const deepResearchDocuments: AiAgentDocumentSummary[] =
-                    deepResearchRuns.map((run) => ({
-                        uuid: run.ai_deep_research_run_uuid,
-                        organizationUuid: run.organization_uuid,
-                        projectUuid: run.project_uuid,
-                        name: run.prompt,
-                        originalFilename: `${run.ai_deep_research_run_uuid}.md`,
-                        mimeType: 'text/markdown',
-                        contentSizeBytes: run.content_size_bytes,
-                        alwaysIncludeInContext: false,
-                        summary: {
-                            description:
-                                'Deep Research report from this conversation.',
-                            definedTerms: [],
-                            relatedExploreNames: [],
-                            useWhen: `Answering follow-up questions about: ${run.prompt}`,
-                            relevance: 'high',
-                            warning:
-                                'Read-only and available only in this conversation.',
-                        },
-                        agentAccess: [],
-                        createdByUserUuid: run.created_by_user_uuid,
-                        updatedByUserUuid: null,
-                        createdAt: run.created_at,
-                        updatedAt: run.updated_at,
-                    }));
-
-                return [
-                    ...documents,
-                    ...deepResearchDocuments,
-                    ...publishedResearchDocuments,
-                ];
+                return [...documents, ...publishedResearchDocuments];
             },
         );
     }
@@ -5729,24 +5686,6 @@ export class AiAgentToolsService extends BaseService {
                     return content;
                 }
                 if (context.threadUuid) {
-                    const run =
-                        await this.aiDeepResearchRunModel.findReportByUuidThreadScoped(
-                            {
-                                aiDeepResearchRunUuid: args.documentUuid,
-                                aiThreadUuid: context.threadUuid,
-                                organizationUuid: context.organizationUuid,
-                                projectUuid: context.projectUuid,
-                                createdByUserUuid: context.user.userUuid,
-                            },
-                        );
-                    if (run?.result_markdown) {
-                        return {
-                            uuid: run.ai_deep_research_run_uuid,
-                            name: run.prompt,
-                            mimeType: 'text/markdown',
-                            content: run.result_markdown,
-                        };
-                    }
                     const published = (
                         await this.findThreadResearchDocuments(context)
                     ).find(

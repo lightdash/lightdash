@@ -89,8 +89,6 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'AiController.generateTooltip',
     'AiController.suggestChartTypeExplore',
     'AiController.suggestChartTypeFields',
-    'AiDeepResearchController.getChart',
-    'AiDeepResearchController.getChartQueryResults',
     'AiDeepResearchController.getRun',
     'AiDeepResearchController.listEvents',
     'AiDeepResearchController.listRuns',

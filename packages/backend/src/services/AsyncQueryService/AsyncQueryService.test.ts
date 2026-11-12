@@ -140,7 +140,6 @@ import { setupGrantAuthentication } from '../../controllers/authentication/agent
 import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import { AiAccessController } from '../../controllers/v2/AiAccessController';
 import { QueryController } from '../../controllers/v2/QueryController';
-import { AiDeepResearchController } from '../../ee/controllers/AiDeepResearchController';
 import type { DbAiDeepResearchRun } from '../../ee/database/entities/aiDeepResearch';
 import type { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { buildPreAggregateExplore } from '../../ee/preAggregates/buildPreAggregateExplore';
@@ -24267,17 +24266,6 @@ describe('fresh execution producer to result reader', () => {
             },
         );
         Object.assign(service.queryHistoryModel, {
-            recordResultResearchRun: vi.fn(
-                async (
-                    uuid: string,
-                    _project: string,
-                    _user: string,
-                    runUuid: string,
-                ) => {
-                    rows.get(uuid)!.requestParameters.resultResearchRunUuid =
-                        runUuid;
-                },
-            ),
             create: vi.fn(
                 async (
                     _account: Account,
@@ -28752,135 +28740,6 @@ describe('fresh execution producer to result reader', () => {
                 r.deep.buildEvidencePack(r.run as never, 0, resumed as never),
             ).rejects.toThrow();
             expect(storage).not.toHaveBeenCalled();
-        },
-    );
-
-    test.each([false, true])(
-        'round 18 real research refresh flag=%s and the results controller use trusted run ownership',
-        async (enabled) => {
-            const account = authenticated('session');
-            const f = setup(false, false, false, false, account);
-            const resolve = useRealCredentialSelection(f);
-            if (!enabled)
-                vi.mocked(f.service.featureFlagModel.get).mockResolvedValue({
-                    enabled: false,
-                } as never);
-            const run = {
-                ai_deep_research_run_uuid: 'run',
-                prompt_uuid: 'prompt',
-                agent_uuid: 'agent',
-                ai_thread_uuid: 'thread',
-                created_by_user_uuid: account.user.id,
-                project_uuid: projectUuid,
-                organization_uuid: projectSummary.organizationUuid,
-            };
-            const deep = new AiDeepResearchService({
-                asyncQueryService: f.service,
-                queryHistoryModel: f.service.queryHistoryModel,
-                featureFlagService: { get: f.service.featureFlagModel.get },
-                aiDeepResearchRunModel: {
-                    findByUuidScoped: vi.fn(async () => run),
-                },
-                aiAgentService: {
-                    assertDeepResearchAccess: vi.fn(async () => undefined),
-                },
-                aiAgentModel: {
-                    findWebAppPrompt: vi.fn(async () => ({
-                        promptUuid: 'prompt',
-                        threadUuid: 'thread',
-                        agentUuid: 'agent',
-                        createdByUserUuid: account.user.id,
-                        organizationUuid: projectSummary.organizationUuid,
-                        projectUuid,
-                    })),
-                },
-            } as never);
-            vi.spyOn(
-                deep as unknown as { getRunChart: () => Promise<unknown> },
-                'getRunChart',
-            ).mockResolvedValue({
-                metricQuery: metricQueryMock,
-                title: 'Chart',
-                vizConfig: {},
-            } as never);
-            const result = await deep.refreshChart({
-                account,
-                user: surfaceUser(account),
-                projectUuid,
-                aiDeepResearchRunUuid: 'run',
-                chartKey: 'chart',
-            });
-            const controller = new AiDeepResearchController({
-                getAiDeepResearchService: () => deep,
-            } as never);
-            if (!enabled) {
-                await vi.waitFor(() =>
-                    expect(f.rows.get(result.query.queryUuid)!.status).toBe(
-                        QueryHistoryStatus.READY,
-                    ),
-                );
-                expect(
-                    f.rows.get(result.query.queryUuid)!.agentIdentity,
-                ).toBeNull();
-                expect(
-                    f.rows.get(result.query.queryUuid)!.requestParameters
-                        .resultResearchRunUuid,
-                ).toBeUndefined();
-                expect(
-                    (
-                        await controller.getChartQueryResults(
-                            { account } as express.Request,
-                            projectUuid,
-                            'run',
-                            result.query.queryUuid,
-                        )
-                    ).results.status,
-                ).toBe(QueryHistoryStatus.READY);
-                return;
-            }
-            await assertSurfaceResult(
-                f,
-                resolve,
-                AgentActorSurface.IN_APP_AGENT,
-                'lightdash-chat',
-                'agent',
-                () =>
-                    controller.getChartQueryResults(
-                        { account } as express.Request,
-                        projectUuid,
-                        'run',
-                        result.query.queryUuid,
-                    ),
-            );
-            await expect(
-                controller.getChartQueryResults(
-                    { account } as express.Request,
-                    projectUuid,
-                    'unbound-run',
-                    result.query.queryUuid,
-                ),
-            ).rejects.toBeInstanceOf(NotFoundError);
-            const other = authenticated('session');
-            other.user.id = 'other';
-            await expect(
-                controller.getChartQueryResults(
-                    { account: other } as express.Request,
-                    projectUuid,
-                    'run',
-                    result.query.queryUuid,
-                ),
-            ).rejects.toBeInstanceOf(AiAccessRefusedError);
-            vi.mocked(deep['aiAgentModel'].findWebAppPrompt).mockResolvedValue({
-                createdByUserUuid: 'other',
-            } as never);
-            await expect(
-                controller.getChartQueryResults(
-                    { account } as express.Request,
-                    projectUuid,
-                    'run',
-                    result.query.queryUuid,
-                ),
-            ).rejects.toBeInstanceOf(ForbiddenError);
         },
     );
 

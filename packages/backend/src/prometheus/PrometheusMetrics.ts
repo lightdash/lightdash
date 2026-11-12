@@ -170,9 +170,6 @@ export default class PrometheusMetrics {
     public aiAgentMemoryUnresolvedRetiredCounter: prometheus.Counter | null =
         null;
 
-    public aiDeepResearchReportCleanupCounter: prometheus.Counter<'outcome'> | null =
-        null;
-
     public schedulerDailyJobGenerationLastCompletedTimestamp: prometheus.Gauge | null =
         null;
 
@@ -712,14 +709,6 @@ export default class PrometheusMetrics {
                         ...rest,
                     });
 
-                this.aiDeepResearchReportCleanupCounter =
-                    new prometheus.Counter({
-                        name: 'ai_deep_research_report_cleanup_total',
-                        help: 'Deep Research reports processed by cleanup outcome',
-                        labelNames: ['outcome'],
-                        ...rest,
-                    });
-
                 this.schedulerDailyJobGenerationLastCompletedTimestamp =
                     new prometheus.Gauge({
                         name: 'lightdash_scheduler_daily_job_generation_last_completed_timestamp_seconds',
@@ -1044,14 +1033,6 @@ export default class PrometheusMetrics {
                 this.aiAgentMemoryUnknownToolPolicyCounter?.inc(0);
                 this.aiAgentMemoryCitedCounter?.inc(0);
                 this.aiAgentMemoryUnresolvedRetiredCounter?.inc(0);
-                (['scanned', 'expired', 'failed'] as const).forEach(
-                    (outcome) => {
-                        this.aiDeepResearchReportCleanupCounter?.inc(
-                            { outcome },
-                            0,
-                        );
-                    },
-                );
                 AI_AGENT_MEMORY_CONSOLIDATE_METRIC_OUTCOMES.forEach(
                     (outcome) => {
                         this.aiAgentMemoryConsolidateCounter?.inc(
@@ -2111,13 +2092,6 @@ export default class PrometheusMetrics {
 
     public incrementAiAgentMemoryUnresolvedRetired(count: number) {
         this.aiAgentMemoryUnresolvedRetiredCounter?.inc(count);
-    }
-
-    public incrementAiDeepResearchReportCleanup(
-        outcome: 'scanned' | 'expired' | 'failed',
-        count: number,
-    ) {
-        this.aiDeepResearchReportCleanupCounter?.inc({ outcome }, count);
     }
 
     public trackAiAgentMemoryConsolidate(

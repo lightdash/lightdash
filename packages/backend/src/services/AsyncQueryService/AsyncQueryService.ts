@@ -2559,20 +2559,6 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    async bindQueryToResearchRun(
-        account: Account,
-        projectUuid: string,
-        queryUuid: string,
-        runUuid: string,
-    ): Promise<void> {
-        await this.queryHistoryModel.recordResultResearchRun(
-            queryUuid,
-            projectUuid,
-            account.user.id,
-            runUuid,
-        );
-    }
-
     async bindQueryToArtifact(
         account: Account,
         projectUuid: string,
