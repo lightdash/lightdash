@@ -2,16 +2,7 @@ import {
     getControlTileUuids,
     resolveParameterDefault,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Button,
-    Group,
-    Popover,
-    Text,
-    Tooltip,
-} from '@mantine/core';
-import { useOs } from '@mantine/hooks';
+import { ActionIcon, Box, Button, Group, Text, Tooltip } from '@mantine/core';
 import {
     IconAdjustmentsHorizontal,
     IconAsterisk,
@@ -20,15 +11,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { isEqual } from 'es-toolkit/compat';
-import {
-    Fragment,
-    useId,
-    useMemo,
-    type FC,
-    type KeyboardEvent,
-    type MouseEvent,
-    type ReactNode,
-} from 'react';
+import { Fragment, useId, useMemo, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -44,8 +27,7 @@ import filterClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
 import { useFilterTabPlacement } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { ShadowedReservedNameWarning } from '../parameters/components/ShadowedReservedNameWarning';
 import { getParameterDisplayValue } from '../parameters/utils/parameterDisplayValue';
-import { MOVE_KEYS, useBarMove, useBarSelection } from './barSelection';
-import editorClasses from './FilterEditor.module.css';
+import { ControlEditorPopover } from './ControlEditorPopover';
 import pillClasses from './FilterPills.module.css';
 import { ParameterControlPopover } from './ParameterControlPopover';
 import {
@@ -55,6 +37,7 @@ import {
 import classes from './ParameterPills.module.css';
 import { BarDroppable, PillDraggable } from './PillDraggable';
 import { useRailContractClasses } from './railContractClasses';
+import { useBarPill } from './useBarPill';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useIsControlEdited } from './useIsControlEdited';
 import {
@@ -64,15 +47,12 @@ import {
     type ParameterBarEntry,
 } from './useParameterBarControls';
 import { useParameterEditorSelector } from './useParameterEditor';
-import { usePillActionHover } from './usePillActionHover';
-import { useTileHover } from './useTileHover';
 
 const PARAMETER_ORPHANED_STRINGS = {
     noTabs: 'controls.parameter.notAppliedToAnyTabs',
     noTiles: 'controls.parameter.notAppliedToAnyTiles',
 } as const;
 
-const NO_TRANSITION = { duration: 0 };
 const DRAG_DATA = { kind: PARAMETER_DRAG };
 
 // The open control's popover, wired to the provider, the only writer
@@ -133,6 +113,7 @@ const ParameterEditorContent: FC<{
             parameters={entry.parameters}
             input={entry.input}
             tileCount={tileUuids.length}
+            hasChosenTiles={mappedControl !== undefined}
             totalTileCount={bar.totalTileCount}
             projectUuid={projectUuid}
             projectTimezone={null}
@@ -155,47 +136,22 @@ const ParameterEditorContent: FC<{
     );
 };
 
-// As the filter editor's popover: focus kept inside, Escape and a press
-// outside owned by the provider, mounted only while open
 const ParameterEditorPopover: FC<{
     isOpen: boolean;
     entry: ParameterBarEntry;
     bar: ParameterBar;
     children: ReactNode;
 }> = ({ isOpen, entry, bar, children }) => {
-    const contractClasses = useRailContractClasses();
     const filterMapping = useControlsSidebarSelector((c) => c.isMapping);
     const parameterMapping = useParameterEditorSelector((c) => c.isMapping);
-    const isMapping = filterMapping || parameterMapping;
     return (
-        <Popover
-            opened={isOpen && !isMapping}
-            position="bottom-start"
-            withArrow
-            offset={1}
-            arrowOffset={14}
-            transitionProps={NO_TRANSITION}
-            trapFocus
-            closeOnEscape={false}
-            closeOnClickOutside={false}
-            withRoles={false}
+        <ControlEditorPopover
+            isShown={isOpen && !filterMapping && !parameterMapping}
+            dropdownClass="parameterDropdown"
+            content={<ParameterEditorContent entry={entry} bar={bar} />}
         >
-            <Popover.Target>{children}</Popover.Target>
-            {isOpen && !isMapping && (
-                <Popover.Dropdown
-                    p={0}
-                    tabIndex={-1}
-                    data-controls-editor
-                    className={
-                        contractClasses === null
-                            ? editorClasses.dropdown
-                            : `${editorClasses.dropdown} ${contractClasses.rail} ${contractClasses.parameterDropdown}`
-                    }
-                >
-                    <ParameterEditorContent entry={entry} bar={bar} />
-                </Popover.Dropdown>
-            )}
-        </Popover>
+            {children}
+        </ControlEditorPopover>
     );
 };
 
@@ -218,32 +174,34 @@ const ParameterPill: FC<{
     const move = useParameterEditorSelector((c) => c.move);
     const remove = useParameterEditorSelector((c) => c.remove);
     const isEditing = useIsControlEdited();
-    const selection = useBarSelection();
-    const barMove = useBarMove();
-    // On an editor's sectioned bar a modified click picks the pill, with the
-    // filter pills in one selection
-    const isSelectable =
-        selection !== null && !isViewer && !isNeedsValue && !isEditing;
-    const isPicked = isSelectable && selection.selectedIds.includes(control.id);
-    const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
-        if (isSelectable) {
-            if (event.metaKey || event.ctrlKey || event.shiftKey) {
-                selection.pick(control.id, event.shiftKey);
-                return;
-            }
-            selection.clear();
-        }
-        requestSwitch(() => open(entry));
-    };
-    // As a filter pill: in edit mode the tiles it sets are marked on hover
-    const tileHover = useTileHover(
-        control.id,
-        !isViewer && !isEditing,
-        () => entry.tileUuids,
-    );
-    const { isOnAction, trackAction } = usePillActionHover(
-        PARAMETER_PILL_SELECTOR,
-    );
+    const canEdit = !isViewer && !isNeedsValue;
+    const {
+        isSelectable,
+        isPicked,
+        selectHint,
+        handleClick,
+        handleKeyDown,
+        tileHover,
+        isOnAction,
+        trackAction,
+    } = useBarPill({
+        id: control.id,
+        pillSelector: PARAMETER_PILL_SELECTOR,
+        // With the filter pills in one selection
+        canSelect: canEdit && !isEditing,
+        open: () => requestSwitch(() => open(entry)),
+        canMove: canEdit,
+        moveAlong: (direction) => {
+            const index = neighbourIds.indexOf(control.id);
+            const overId =
+                neighbourIds[index + (direction === 'left' ? -1 : 1)];
+            if (index !== -1 && overId !== undefined)
+                move(control.id, { controlId: overId });
+        },
+        // As a filter pill: in edit mode the tiles it sets are marked
+        isTileHoverEnabled: !isViewer && !isEditing,
+        getTileUuids: () => entry.tileUuids,
+    });
     const name = getParameterEntryName(entry);
     // Hidden from viewers: its value still applies; editors see the eye-off icon
     const isHidden = control.hidden === true;
@@ -271,7 +229,6 @@ const ParameterPill: FC<{
     const description = input.definition.description;
     const { getOrphanedTooltip } = useFilterTabPlacement();
     const { isOrphaned } = entry;
-    const os = useOs();
     // As a filter pill's: why it looks so first, then the description, then
     // the select hint
     const unsavedNote = isUnsaved ? 'Not saved yet' : null;
@@ -280,9 +237,7 @@ const ParameterPill: FC<{
         isHidden ? 'Hidden from viewers' : null,
         isNotSet ? getUiString('controls.parameter.notSetTooltip') : null,
         description ?? null,
-        isSelectable
-            ? `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`
-            : null,
+        isSelectable ? selectHint : null,
     ].filter((line) => line !== null && line !== '');
     const tooltipLabel = isOrphaned ? (
         unsavedNote === null ? (
@@ -307,25 +262,6 @@ const ParameterPill: FC<{
     const shadowedKey =
         parameters.find(({ key }) => bar.shadowedReservedNames.includes(key))
             ?.key ?? null;
-    const canEdit = !isViewer && !isNeedsValue;
-
-    const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-        const direction = MOVE_KEYS[event.key];
-        if (!canEdit || !event.altKey || direction === undefined) return;
-        // On an editor's sectioned bar: along the bar or between lines
-        if (barMove !== null) {
-            event.preventDefault();
-            barMove(control.id, direction);
-            return;
-        }
-        if (direction !== 'left' && direction !== 'right') return;
-        event.preventDefault();
-        const index = neighbourIds.indexOf(control.id);
-        const overId =
-            neighbourIds[index + (event.key === 'ArrowLeft' ? -1 : 1)];
-        if (index !== -1 && overId !== undefined)
-            move(control.id, { controlId: overId });
-    };
 
     return (
         <ParameterEditorPopover isOpen={isOpen} entry={entry} bar={bar}>

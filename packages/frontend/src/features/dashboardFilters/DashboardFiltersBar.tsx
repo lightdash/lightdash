@@ -71,6 +71,12 @@ type Props = {
      * spans several lines (default false: inline with the filters).
      */
     isParametersColumn?: boolean;
+    /** The funnel, sliders and calendar circles before each group (default true). */
+    withGroupMarkers?: boolean;
+    /** The named zooms' pills, "Add date zoom" and the editor's eye beside Default zoom (default true). */
+    withDateZoomControls?: boolean;
+    /** Replaces the shipped Default zoom on the right. Defaults to `DateZoom`. */
+    defaultZoom?: ReactNode;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -95,6 +101,9 @@ export const DashboardFiltersBar: FC<Props> = ({
     isCompactDrawerSuppressed = false,
     filtersAlign = 'flex-start',
     isParametersColumn = false,
+    withGroupMarkers = true,
+    withDateZoomControls = true,
+    defaultZoom,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
@@ -178,7 +187,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                             gap="xs"
                             wrap="wrap"
                         >
-                            {renderFilters && (
+                            {renderFilters && withGroupMarkers && (
                                 <FilterGroupSeparator
                                     icon={IconFilter}
                                     tooltipLabel={
@@ -234,7 +243,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                                 onParameterReorder
                                             }
                                             separator={
-                                                compact
+                                                compact || !withGroupMarkers
                                                     ? undefined
                                                     : parametersSeparator
                                             }
@@ -253,21 +262,23 @@ export const DashboardFiltersBar: FC<Props> = ({
                             <>
                                 <Divider orientation="vertical" />
 
-                                <FilterGroupSeparator
-                                    icon={IconCalendar}
-                                    tooltipLabel={
-                                        <Box>
-                                            <Text fw={500} fz="xs">
-                                                Date Zoom
-                                            </Text>
-                                            <Text fz="xs">
-                                                Quickly change the date
-                                                granularity of charts.
-                                            </Text>
-                                        </Box>
-                                    }
-                                />
-                                {isEditMode && (
+                                {withGroupMarkers && (
+                                    <FilterGroupSeparator
+                                        icon={IconCalendar}
+                                        tooltipLabel={
+                                            <Box>
+                                                <Text fw={500} fz="xs">
+                                                    Date Zoom
+                                                </Text>
+                                                <Text fz="xs">
+                                                    Quickly change the date
+                                                    granularity of charts.
+                                                </Text>
+                                            </Box>
+                                        }
+                                    />
+                                )}
+                                {isEditMode && withDateZoomControls && (
                                     <Tooltip
                                         label={
                                             isDateZoomDisabled
@@ -294,7 +305,12 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         </ActionIcon>
                                     </Tooltip>
                                 )}
-                                <DateZoom isEditMode={isEditMode} />
+                                {defaultZoom ?? (
+                                    <DateZoom
+                                        isEditMode={isEditMode}
+                                        withControls={withDateZoomControls}
+                                    />
+                                )}
                             </>
                         )}
 

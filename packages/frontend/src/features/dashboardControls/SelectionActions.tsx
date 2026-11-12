@@ -11,6 +11,8 @@ export type SelectionActionsProps = {
     filterCount: number;
     /** Picked parameter pills */
     parameterCount: number;
+    /** Picked date zoom pills */
+    dateZoomCount: number;
     /** Each section with how many pills it holds. */
     sections: (DashboardControlSection & { count: number })[];
     /** The section every selected pill is in, else null: "Move to" leaves it out. */
@@ -29,6 +31,7 @@ export type SelectionActionsProps = {
 export const SelectionActions: FC<SelectionActionsProps> = ({
     filterCount,
     parameterCount,
+    dateZoomCount,
     sections,
     sharedSectionId,
     isAnyInSection,
@@ -37,7 +40,7 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
     onRemove,
 }) => {
     const getUiString = useUiStrings();
-    const count = filterCount + parameterCount;
+    const count = filterCount + parameterCount + dateZoomCount;
     // The first click arms "Remove", the second removes; Escape or leaving disarms
     const [isRemoveArmed, setIsRemoveArmed] = useState(false);
     const targets = sections.filter(
@@ -119,7 +122,7 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                 }}
             >
                 {isRemoveArmed
-                    ? `Remove ${formatPickedCount(filterCount, parameterCount)}`
+                    ? `Remove ${formatPickedCount(filterCount, parameterCount, dateZoomCount)}`
                     : 'Remove'}
             </Button>
         </>
