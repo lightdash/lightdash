@@ -353,7 +353,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                         bottom={0}
                         w="100%"
                     >
-                        {askUser && onChoiceSelect ? (
+                        {askUser && onChoiceSelect && (
                             <Box className={askUserStyles.container}>
                                 <AskUserQuestionCard
                                     key={askUser.toolCallId}
@@ -364,9 +364,11 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                     }
                                 />
                             </Box>
-                        ) : (
-                            children
                         )}
+                        {/* Hidden, not unmounted, so a draft survives the question. */}
+                        <Box display={askUser ? 'none' : undefined}>
+                            {children}
+                        </Box>
                     </Box>
                 ) : null}
             </Flex>

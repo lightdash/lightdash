@@ -3,7 +3,7 @@ import {
     type AiAgentMessageUser,
     type AiAgentThread,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AgentChatDisplay } from './AgentChatDisplay';
@@ -255,5 +255,64 @@ describe('AgentChatDisplay', () => {
             undefined,
             'Restore version 1 of Revenue app',
         ]);
+    });
+
+    it('swaps the composer for a pending question and keeps its draft', () => {
+        deepResearchRegistrationsMock.mockReturnValue([]);
+        const asking: AiAgentMessageAssistant = {
+            ...getAssistantMessage(
+                'follow-up-prompt',
+                'Which month?',
+                '2026-07-29T09:01:01.000Z',
+            ),
+            toolCalls: [
+                {
+                    uuid: 'call-row',
+                    promptUuid: 'follow-up-prompt',
+                    toolCallId: 'ask-1',
+                    parentToolCallId: null,
+                    createdAt: new Date('2026-07-29T09:01:01.000Z'),
+                    toolType: 'built-in',
+                    toolName: 'askUser',
+                    toolArgs: {
+                        questions: [
+                            {
+                                header: 'Period',
+                                question: 'Which month?',
+                                options: [
+                                    { label: 'November', description: '' },
+                                    { label: 'October', description: '' },
+                                ],
+                                multiSelect: false,
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+        renderWithProviders(
+            <AgentChatDisplay
+                thread={{ ...thread, messages: [followUpUserMessage, asking] }}
+                projectUuid="project-1"
+                agentUuid="agent-1"
+                onChoiceSelect={vi.fn()}
+            >
+                <textarea aria-label="Composer" />
+            </AgentChatDisplay>,
+        );
+
+        fireEvent.change(screen.getByLabelText('Composer'), {
+            target: { value: 'typed while the agent ran' },
+        });
+        expect(screen.getByLabelText('November')).toBeVisible();
+        expect(screen.getByLabelText('Composer')).not.toBeVisible();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+
+        expect(screen.queryByLabelText('November')).toBeNull();
+        expect(screen.getByLabelText('Composer')).toBeVisible();
+        expect(screen.getByLabelText('Composer')).toHaveValue(
+            'typed while the agent ran',
+        );
     });
 });
