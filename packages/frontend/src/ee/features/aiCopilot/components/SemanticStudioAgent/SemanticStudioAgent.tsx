@@ -11,6 +11,7 @@ import {
     Center,
     Group,
     Loader,
+    Stack,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -268,44 +269,51 @@ const ExistingThread: FC<
             renderArtifactsInline
         >
             {!keepsDraft && !isBusy && hasOpenProposal(thread.messages) ? (
-                <Group
-                    className={classes.pullRequestPrompt}
-                    justify="space-between"
-                    gap="md"
-                    wrap="nowrap"
-                >
-                    <Text fz="sm" c="dimmed" truncate="end">
-                        {pullRequest?.isOpen
-                            ? 'Add this to your pull request?'
-                            : 'Happy with this change?'}
-                    </Text>
-                    <Button
-                        size="xs"
-                        variant="default"
-                        flex="none"
-                        leftSection={
-                            <MantineIcon icon={IconGitPullRequest} size={14} />
-                        }
-                        onClick={() => {
-                            if (isRequestingPullRequest.current) return;
-                            isRequestingPullRequest.current = true;
-                            void sendMessage({
-                                enableSqlMode: sqlMode,
-                                prompt: pullRequest?.isOpen
-                                    ? 'Save this to the pull request.'
-                                    : 'Open the pull request.',
-                                // The pull request tools only join a turn that carries this hint.
-                                toolHints: ['editDbtProject'],
-                            }).finally(() => {
-                                isRequestingPullRequest.current = false;
-                            });
-                        }}
+                <div className={classes.pullRequestPrompt}>
+                    <Group
+                        className={classes.pullRequestCard}
+                        gap="sm"
+                        wrap="nowrap"
                     >
-                        {pullRequest?.isOpen
-                            ? 'Save to pull request'
-                            : 'Open pull request'}
-                    </Button>
-                </Group>
+                        <span className={classes.pullRequestIcon}>
+                            <MantineIcon icon={IconGitPullRequest} size={16} />
+                        </span>
+                        <Stack gap={0} flex={1} miw={0}>
+                            <Text fz="sm" fw={500} truncate="end">
+                                {pullRequest?.isOpen
+                                    ? 'Add this to your pull request?'
+                                    : 'Happy with this change?'}
+                            </Text>
+                            <Text fz="xs" c="dimmed" truncate="end">
+                                {pullRequest?.isOpen
+                                    ? 'Commits it to the same pull request.'
+                                    : 'You can try it once its preview builds.'}
+                            </Text>
+                        </Stack>
+                        <Button
+                            size="xs"
+                            flex="none"
+                            onClick={() => {
+                                if (isRequestingPullRequest.current) return;
+                                isRequestingPullRequest.current = true;
+                                void sendMessage({
+                                    enableSqlMode: sqlMode,
+                                    prompt: pullRequest?.isOpen
+                                        ? 'Save this to the pull request.'
+                                        : 'Open the pull request.',
+                                    // The pull request tools only join a turn that carries this hint.
+                                    toolHints: ['editDbtProject'],
+                                }).finally(() => {
+                                    isRequestingPullRequest.current = false;
+                                });
+                            }}
+                        >
+                            {pullRequest?.isOpen
+                                ? 'Save to pull request'
+                                : 'Open pull request'}
+                        </Button>
+                    </Group>
+                </div>
             ) : null}
             <AgentChatInput
                 accessCalloutVariant="inline"
