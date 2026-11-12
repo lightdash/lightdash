@@ -2052,6 +2052,9 @@ export type LightdashConfig = {
     dashboardComments: {
         enabled: boolean;
     };
+    mergeQueryAuthoring: {
+        enabled: boolean;
+    };
     preAggregates: {
         enabled: boolean;
         parquetEnabled: boolean;
@@ -4270,6 +4273,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         dashboardComments: {
             enabled: process.env.DISABLE_DASHBOARD_COMMENTS !== 'true',
+        },
+        mergeQueryAuthoring: {
+            enabled: process.env.DISABLE_MERGE_QUERY_AUTHORING !== 'true',
         },
         softDelete: {
             enabled: process.env.SOFT_DELETE_ENABLED === 'true',
