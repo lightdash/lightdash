@@ -1,5 +1,5 @@
 import {
-    DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
+    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     DimensionType,
     FieldType,
     mcpQueryStructuredOutputSchema,
@@ -214,21 +214,28 @@ const makeService = ({
     composeSqlRunnerEnabled = true,
     canManageSqlRunner = true,
     terminalOutcome = 'success',
+    terminalRows = [
+        { orders_status: 'completed', total: 3 },
+        { orders_status: 'placed', total: 1 },
+    ],
 }: {
     agent?: Agent | null;
     composeSqlRunnerEnabled?: boolean;
     canManageSqlRunner?: boolean;
     terminalOutcome?: 'success' | 'running' | 'failure';
+    terminalRows?: Record<string, unknown>[];
 } = {}) => {
     const runComposerQueriesUntilDeadline = vi.fn(
         async ({
             queries,
             terminalNodeId,
             sampleNodeIds,
+            readAllTerminalRows = false,
         }: {
             queries: SourceQuery[];
             terminalNodeId: string;
             sampleNodeIds: string[];
+            readAllTerminalRows?: boolean;
         }) => {
             const submissions = queries.map((query) => ({
                 nodeId: query.nodeId!,
@@ -279,11 +286,14 @@ const makeService = ({
                 terminal: {
                     queryUuid: queryUuidFor(terminalNodeId),
                     columns: nodeColumns[terminalNodeId] ?? nodeColumns.totals,
-                    rows: [
-                        { orders_status: 'completed', total: 3 },
-                        { orders_status: 'placed', total: 1 },
-                    ],
-                    rowCount: 2,
+                    // Like the runtime, a preview unless every row is asked for.
+                    rows: readAllTerminalRows
+                        ? terminalRows
+                        : terminalRows.slice(
+                              0,
+                              COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+                          ),
+                    rowCount: terminalRows.length,
                 },
                 nodeStatuses,
             };
@@ -501,8 +511,7 @@ describe('McpService query tool', () => {
     });
 
     it("returns every terminal row and every node's query uuid", async () => {
-        const { service, call, runComposerQueriesUntilDeadline } =
-            makeService();
+        const { service, call } = makeService();
         await createServer(service);
 
         const result = await call(
@@ -582,9 +591,24 @@ describe('McpService query tool', () => {
         expect(textOf(result)).toContain(
             'orders_status,total\ncompleted,3\nplaced,1',
         );
-        expect(runComposerQueriesUntilDeadline).toHaveBeenCalledWith(
-            expect.objectContaining({ readAllTerminalRows: true }),
+    });
+
+    it("returns terminal rows past the agent's preview", async () => {
+        const terminalRows = Array.from(
+            { length: COMPOSER_QUERY_PREVIEW_ROW_LIMIT + 10 },
+            (_, index) => ({ orders_status: `status-${index}`, total: index }),
         );
+        const { service, call } = makeService({ terminalRows });
+        await createServer(service);
+
+        const result = await call(
+            McpToolName.QUERY,
+            pipelineArgs([ordersNode, totalsNode]),
+        );
+
+        expect(
+            mcpQueryStructuredOutputSchema.parse(result.structuredContent).rows,
+        ).toEqual(terminalRows);
     });
 
     it('returns the rows of every unread node, with the last as terminal', async () => {
@@ -795,17 +819,24 @@ describe('McpService query tool', () => {
             metricQuery: null,
             requestParameters: null,
         });
-        asyncQueryService.getAsyncQueryResults.mockResolvedValue({
-            status: QueryHistoryStatus.READY,
-            rows: [
-                {
-                    total: { value: { raw: 4, formatted: '4' } },
+        const totals = Array.from(
+            { length: COMPOSER_QUERY_PREVIEW_ROW_LIMIT + 10 },
+            (_, index) => index,
+        );
+        // An unset page size reads the preview size the first read stored.
+        asyncQueryService.getAsyncQueryResults.mockImplementation(
+            async ({ pageSize }: { pageSize?: number }) => ({
+                status: QueryHistoryStatus.READY,
+                rows: totals
+                    .slice(0, pageSize ?? COMPOSER_QUERY_PREVIEW_ROW_LIMIT)
+                    .map((total) => ({
+                        total: { value: { raw: total, formatted: `${total}` } },
+                    })),
+                columns: {
+                    total: { reference: 'total', type: DimensionType.NUMBER },
                 },
-            ],
-            columns: {
-                total: { reference: 'total', type: DimensionType.NUMBER },
-            },
-        });
+            }),
+        );
 
         const result = await call(McpToolName.GET_QUERY_RESULT, {
             queryUuid: queryUuidFor('totals'),
@@ -816,16 +847,9 @@ describe('McpService query tool', () => {
             result: {
                 status: 'done',
                 queryUuid: queryUuidFor('totals'),
-                rows: [{ total: 4 }],
+                rows: totals.map((total) => ({ total })),
             },
         });
-        // Every row, not the page size stored on the query by its first read.
-        expect(asyncQueryService.getAsyncQueryResults).toHaveBeenLastCalledWith(
-            expect.objectContaining({
-                pageSize: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
-                maxPageSize: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
-            }),
-        );
     });
 
     it('lists the failed node with its error first, then the nodes it reads with their columns and samples', async () => {

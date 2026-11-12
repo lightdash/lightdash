@@ -218,6 +218,7 @@ import type {
     BuiltInSkillToolResource,
 } from '../ai/skills/builtInSkills';
 import {
+    buildComposerPreview,
     buildComposerQueryPipeline,
     getFailedRunNodes,
     hasReachedLimit,
@@ -1710,11 +1711,10 @@ export class McpService extends BaseService {
         const queryUuids = new Map(
             run.submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
         );
-        // The terminal returns every row, so the other unread nodes share the whole preview.
         const { nodeStatuses } = shareComposerPreview(
             run.nodeStatuses,
             otherUnreadNodeIds,
-            0,
+            run.status === 'success' ? run.terminal.rowCount : 0,
         );
         const nodes = queries.map((node) => {
             const nodeStatus = nodeStatuses.find(
@@ -1780,18 +1780,16 @@ export class McpService extends BaseService {
             );
         }
 
-        const references = Object.values(run.terminal.columns).map(
-            ({ reference }) => reference,
-        );
-        const rows = run.terminal.rows.map((row) =>
-            Object.fromEntries(references.map((col) => [col, row[col]])),
+        const preview = buildComposerPreview(
+            run.terminal,
+            run.terminal.rowCount,
         );
         const structuredContent: McpQueryStructuredContent = {
             sessionId,
             status: 'done',
             terminalNodeId,
             rowCount: run.terminal.rowCount,
-            rows,
+            rows: preview.rows,
             nodes,
         };
         const text = [
@@ -1804,16 +1802,8 @@ export class McpService extends BaseService {
                 ({ nodeId, ...applied }) =>
                     `Node "${nodeId}":${renderAppliedParameters(applied)}`,
             ),
-            ...(rows.length > 0
-                ? [
-                      serializeData(
-                          stringify(rows, {
-                              header: true,
-                              columns: references,
-                          }),
-                          'csv',
-                      ),
-                  ]
+            ...(run.terminal.rowCount > 0
+                ? [serializeData(preview.csv, 'csv')]
                 : []),
         ].join('\n');
         return mcpQueryTool.result.structured(text, structuredContent);
