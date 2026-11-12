@@ -3483,6 +3483,30 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         },
     );
 
+    it('hands over the manifest a dbt change parses to only when asked', async () => {
+        const sandbox = fakeSandbox(0, true);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+        const onDbtManifest = vi.fn().mockResolvedValue(undefined);
+
+        await runService(sandbox, { onDbtManifest });
+
+        expect(onDbtManifest).toHaveBeenCalledWith('model contents');
+        const parse = (sandbox.commands.run as import('vitest').Mock).mock.calls
+            .map(([command]: [string]) => command)
+            .find((command: string) => command.includes('dbt parse'));
+        expect(parse).toContain('-u ANTHROPIC_API_KEY');
+        expect(parse).toContain('--target-path /tmp/ld-try-out-target');
+
+        const quiet = fakeSandbox(0, true);
+        fakeSandboxProvider.create.mockResolvedValue(quiet);
+        await runService(quiet);
+        expect(
+            (quiet.commands.run as import('vitest').Mock).mock.calls.some(
+                ([command]: [string]) => command.includes('dbt parse'),
+            ),
+        ).toBe(false);
+    });
+
     it('opens a PR and kills the sandbox for a one-shot run with changes', async () => {
         const sandbox = fakeSandbox(0, true);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);

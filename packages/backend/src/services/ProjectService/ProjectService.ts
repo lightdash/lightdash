@@ -446,6 +446,7 @@ import {
     type CompilableDbtSource,
 } from '../../projectAdapters/CompileGroup';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import {
@@ -8365,6 +8366,56 @@ export class ProjectService
                         adapter,
                         manifestFetchAdapters,
                     );
+                }
+            },
+        );
+    }
+
+    /**
+     * Compiles explores from a dbt manifest made elsewhere against this project's
+     * warehouse, without saving them: the live project is left as it is.
+     */
+    async compileExploresFromManifest(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        projectUuid: string,
+        manifest: DbtManifest,
+    ): Promise<(Explore | ExploreError)[]> {
+        const {
+            project,
+            warehouseCredentials,
+            cachedWarehouse,
+            dbtVersionOption,
+        } = await this.prepareCompileAdapter(projectUuid, user);
+        return this.warehouseClientFactory.withWarehouseClient(
+            { kind: 'compile', projectUuid, credentials: warehouseCredentials },
+            connectionContextFromUser(
+                { userUuid: user.userUuid },
+                {
+                    organizationUuid: project.organizationUuid,
+                    queryContext: null,
+                    purpose: 'compile',
+                },
+            ),
+            async (connection) => {
+                const adapter = new DbtManifestProjectAdapter({
+                    parsedManifest: manifest,
+                    warehouseClient: connection.warehouseClient,
+                    // Columns new to the catalog stay out of the live project's cache.
+                    cachedWarehouse: {
+                        ...cachedWarehouse,
+                        onWarehouseCatalogChange: async () => {},
+                    },
+                    dbtVersion: resolveDbtVersion(dbtVersionOption),
+                    analytics: this.analytics,
+                });
+                try {
+                    return await adapter.compileAllExplores(
+                        undefined,
+                        false,
+                        true,
+                    );
+                } finally {
+                    await adapter.destroy();
                 }
             },
         );

@@ -16,6 +16,7 @@ import {
     ProjectType,
     readModelPart,
     ValidationTarget,
+    type DbtManifest,
     type Explore,
     type ExploreError,
     type LightdashError,
@@ -36,6 +37,8 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
+import { text } from 'node:stream/consumers';
+import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import { type DraftImpactBreaks } from '../../../database/entities/projectModelDraftImpacts';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
@@ -51,6 +54,12 @@ import {
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
+import {
+    dbtTryOutFileId,
+    findLiveTableLocations,
+    markNewModels,
+    pointManifestAtLiveTables,
+} from './dbtTryOut';
 import {
     DraftChecker,
     usesAnyModel,
@@ -125,8 +134,15 @@ export type SemanticStudioServiceArguments = {
         }) => Promise<unknown>;
     };
     validationService: Pick<ValidationService, 'generateValidation'>;
-    projectService: Pick<ProjectService, 'setExplores'> &
+    projectService: Pick<
+        ProjectService,
+        'setExplores' | 'compileExploresFromManifest'
+    > &
         DraftCheckerProjectService;
+    fileStorageClient: Pick<
+        FileStorageClient,
+        'isEnabled' | 'uploadTxt' | 'getFileStream'
+    >;
     repoModels: Pick<
         RepoModelSource,
         'isInstalled' | 'load' | 'openPullRequest'
@@ -221,6 +237,8 @@ export class SemanticStudioService extends BaseService {
 
     private readonly savedChartModel: SemanticStudioServiceArguments['savedChartModel'];
 
+    private readonly fileStorageClient: SemanticStudioServiceArguments['fileStorageClient'];
+
     private readonly checker: DraftChecker;
 
     /** Publishes under way, so a repeated request joins the one already running. */
@@ -239,6 +257,7 @@ export class SemanticStudioService extends BaseService {
         this.schedulerClient = args.schedulerClient;
         this.repoModels = args.repoModels;
         this.savedChartModel = args.savedChartModel;
+        this.fileStorageClient = args.fileStorageClient;
         this.checker = new DraftChecker(args.projectService);
     }
 
@@ -636,6 +655,12 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<Map<string, Explore | ExploreError | null> | null> {
+        const status = await this.getStatus(user, projectUuid);
+        if (status.appliesAs === 'dbt_pull_request') {
+            return status.enabled
+                ? this.findDbtTryOutExplores(user, projectUuid)
+                : null;
+        }
         if (!(await this.canEditModels(user, projectUuid))) return null;
         // Asked first: with nothing drafted there is no reason to read the live models, which for a repository is a network call.
         const changes = await this.projectModelDocumentModel.findDraftChanges(
@@ -659,6 +684,69 @@ export class SemanticStudioService extends BaseService {
                 explore,
             ]),
         ]);
+    }
+
+    /**
+     * Compiles what a dbt project's latest change leaves, from the manifest its edit
+     * parsed, so the person who asked for it can try it before a preview is built.
+     */
+    async saveDbtTryOut(
+        user: SessionUser,
+        projectUuid: string,
+        manifestJson: string,
+    ): Promise<void> {
+        if (!this.fileStorageClient.isEnabled()) return;
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled || status.appliesAs !== 'dbt_pull_request') return;
+        let manifest: DbtManifest;
+        try {
+            manifest = JSON.parse(manifestJson);
+        } catch {
+            this.logger.warn(
+                `Skipped trying a dbt change on project ${projectUuid}: its manifest is not valid JSON`,
+            );
+            return;
+        }
+        const live = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'name',
+        );
+        const pointed = pointManifestAtLiveTables(
+            manifest,
+            findLiveTableLocations(Object.values(live)),
+        );
+        const explores = markNewModels(
+            await this.projectService.compileExploresFromManifest(
+                user,
+                projectUuid,
+                pointed.manifest,
+            ),
+            pointed.newModels,
+        );
+        await this.fileStorageClient.uploadTxt(
+            Buffer.from(JSON.stringify(explores)),
+            dbtTryOutFileId(projectUuid, user.userUuid),
+        );
+    }
+
+    /** The explores this person's latest dbt change leaves, by name; null when they have none to try. */
+    private async findDbtTryOutExplores(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<Map<string, Explore | ExploreError> | null> {
+        if (!this.fileStorageClient.isEnabled()) return null;
+        let explores: (Explore | ExploreError)[];
+        try {
+            const { stream } = await this.fileStorageClient.getFileStream(
+                `${dbtTryOutFileId(projectUuid, user.userUuid)}.txt`,
+            );
+            explores = JSON.parse(await text(stream));
+        } catch (error) {
+            if (error instanceof NotFoundError) return null;
+            throw error;
+        }
+        // ponytail: models the change removes still show; the preview shows removals.
+        return new Map(explores.map((explore) => [explore.name, explore]));
     }
 
     /**

@@ -92,6 +92,10 @@ export const GIT_TIMEOUT_MS = 5 * 60 * 1000;
 // leak into the PR.
 export const TMP_PROFILES_DIR = '/tmp/ld-profiles';
 
+// Where the host parses a finished turn's project, off the repo tree.
+export const TRY_OUT_TARGET_DIR = '/tmp/ld-try-out-target';
+export const TRY_OUT_PARSE_TIMEOUT_MS = 3 * 60 * 1000;
+
 // Wrapper the agent runs instead of `lightdash compile` directly. It strips
 // secrets from the environment before exec'ing the real compile, so a
 // malicious dbt model cannot read them via Jinja `env_var(...)` during the

@@ -23,6 +23,7 @@ import {
     type SemanticLayerModelChange,
     type SessionUser,
 } from '@lightdash/common';
+import { Readable } from 'node:stream';
 import { stringify } from 'yaml';
 import { user } from '../../../services/ProjectService/ProjectService.mock';
 import {
@@ -304,6 +305,11 @@ const setup = ({
         }) => ({ url: PULL_REQUEST_URL }),
     );
     const queueImpactCheck = vi.fn(async () => undefined);
+    const compileExploresFromManifest = vi.fn(
+        async (): Promise<(Explore | ExploreError)[]> =>
+            Object.values(previewExplores),
+    );
+    const files = new Map<string, string>();
     const args: SemanticStudioServiceArguments = {
         featureFlagModel: {
             get: async () => ({ id: 'semantic-studio-editing', enabled }),
@@ -463,11 +469,28 @@ const setup = ({
             compileQuery,
             runSqlQuery,
             setExplores,
+            compileExploresFromManifest,
+        },
+        fileStorageClient: {
+            isEnabled: () => true,
+            uploadTxt: async (txt, id) => {
+                files.set(`${id}.txt`, txt.toString());
+                return `${id}.txt`;
+            },
+            getFileStream: async (fileId) => {
+                const file = files.get(fileId);
+                if (file === undefined) throw new NotFoundError('No file');
+                return {
+                    stream: Readable.from([file]),
+                    contentDisposition: null,
+                };
+            },
         },
     };
     const service = new SemanticStudioService(args);
     return {
         service,
+        compileExploresFromManifest,
         upsert,
         openPullRequest,
         recordedPullRequests,
@@ -984,6 +1007,70 @@ describe('SemanticStudioService', () => {
                     PREVIEW_UUID,
                 ),
             ).toBeNull();
+        });
+    });
+
+    describe('trying a dbt change before its preview', () => {
+        const manifest = JSON.stringify({
+            nodes: {},
+            metadata: { adapter_type: 'postgres' },
+            metrics: {},
+            docs: {},
+        });
+        const dbt = () =>
+            setup({
+                dbtConnection: DBT_IN_GITHUB,
+                previewExplores: {
+                    payments: {
+                        name: 'payments',
+                        label: 'Payments',
+                        errors: [],
+                    },
+                },
+            });
+
+        it('shows the person who made the change what it compiles to, and no one else', async () => {
+            const context = dbt();
+            expect(
+                await context.service.findDevelopmentExplores(
+                    repoWriter,
+                    PROJECT_UUID,
+                ),
+            ).toBeNull();
+            await context.service.saveDbtTryOut(
+                repoWriter,
+                PROJECT_UUID,
+                manifest,
+            );
+            expect(
+                (
+                    await context.service.findDevelopmentExplores(
+                        repoWriter,
+                        PROJECT_UUID,
+                    )
+                )?.get('payments'),
+            ).toEqual({ name: 'payments', label: 'Payments', errors: [] });
+            expect(
+                await context.service.findDevelopmentExplores(
+                    deployer,
+                    PROJECT_UUID,
+                ),
+            ).toBeNull();
+        });
+
+        it('compiles nothing for someone who cannot change the project, or a manifest that is not JSON', async () => {
+            const context = dbt();
+            await context.service.saveDbtTryOut(
+                deployer,
+                PROJECT_UUID,
+                manifest,
+            );
+            await context.service.saveDbtTryOut(
+                repoWriter,
+                PROJECT_UUID,
+                '{not json',
+            );
+            expect(context.compileExploresFromManifest).not.toHaveBeenCalled();
         });
     });
 

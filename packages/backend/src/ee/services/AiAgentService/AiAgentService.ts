@@ -13845,6 +13845,16 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             let result: AiWritebackRunResult;
             try {
                 const runArgs = {
+                    ...(prompt.threadCreatedFrom === 'semantic_studio'
+                        ? {
+                              onDbtManifest: (manifestJson: string) =>
+                                  this.semanticStudioService.saveDbtTryOut(
+                                      user,
+                                      projectUuid,
+                                      manifestJson,
+                                  ),
+                          }
+                        : {}),
                     agentPermissionsApply: true,
                     user,
                     projectUuid,

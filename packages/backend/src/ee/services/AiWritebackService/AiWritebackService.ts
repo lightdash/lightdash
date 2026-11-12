@@ -120,6 +120,8 @@ import {
     STDERR_TAIL_BYTES,
     SYSTEM_PROMPT_PATH,
     TMP_PROFILES_DIR,
+    TRY_OUT_PARSE_TIMEOUT_MS,
+    TRY_OUT_TARGET_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
 import {
@@ -2665,6 +2667,25 @@ export class AiWritebackService extends BaseService {
             });
             pauseOnExit = applied.pauseOnExit;
 
+            if (
+                args.onDbtManifest &&
+                hasChanges &&
+                config.mode === 'dbt-writeback' &&
+                !(
+                    (turn.gitConnection.provider ===
+                        PullRequestProvider.GITHUB ||
+                        turn.gitConnection.provider ===
+                            PullRequestProvider.BITBUCKET) &&
+                    turn.gitConnection.semanticLayer === 'lightdash'
+                )
+            ) {
+                await this.handOverDbtManifest(
+                    sandbox,
+                    turn,
+                    args.onDbtManifest,
+                );
+            }
+
             tracker.completed({
                 exitCode: agent.exitCode,
                 hasChanges,
@@ -4147,6 +4168,39 @@ export class AiWritebackService extends BaseService {
         }
 
         await this.prepareWarehouseSkills(sandbox, turn);
+    }
+
+    /**
+     * Parses the edited project into a manifest and hands it over. Best-effort: a
+     * change that cannot be tried here still has its pull request and preview.
+     */
+    private async handOverDbtManifest(
+        sandbox: SandboxHandle,
+        turn: TurnContext,
+        onDbtManifest: (manifestJson: string) => Promise<void>,
+    ): Promise<void> {
+        const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
+            (name) => `-u ${name}`,
+        ).join(' ');
+        const dbtBin = dbtSandboxVenvBin(turn.dbtVersion);
+        try {
+            // Same secret-stripped env as the compile wrapper: dbt renders the repo's Jinja.
+            await sandbox.commands.run(
+                `env ${unsetFlags} PATH="${dbtBin}:$PATH" dbt parse --project-dir ${quoteShellArgument(
+                    `${CWD}/${turn.gitConnection.projectSubPath}`,
+                )} --profiles-dir ${TMP_PROFILES_DIR} --target-path ${TRY_OUT_TARGET_DIR}`,
+                { cwd: CWD, timeoutMs: TRY_OUT_PARSE_TIMEOUT_MS },
+            );
+            await onDbtManifest(
+                await sandbox.files.read(`${TRY_OUT_TARGET_DIR}/manifest.json`),
+            );
+        } catch (error) {
+            this.logger.warn(
+                `AiWriteback: could not prepare the change to be tried before its preview: ${getErrorMessage(
+                    error,
+                )} (sandboxId=${sandbox.sandboxId})`,
+            );
+        }
     }
 
     private async prepareWarehouseSkills(

@@ -354,4 +354,6 @@ export type AiWritebackRunArgs = {
      */
     onProgress?: (message: string) => void;
     aiWritebackRunUuid?: string;
+    /** Handed the dbt manifest a turn's changes parse to, so they can be tried before a preview is built. */
+    onDbtManifest?: (manifestJson: string) => Promise<void>;
 };
