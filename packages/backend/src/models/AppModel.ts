@@ -562,6 +562,22 @@ export class AppModel {
             });
     }
 
+    /** Sets the snapshot once; later calls keep the first one. */
+    async freezeVersionConsumerDataReferences(
+        appId: string,
+        version: number,
+        dataReferences: PersistedDataAppDataReferences,
+    ): Promise<void> {
+        await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .whereNull('consumer_data_references')
+            .update({
+                consumer_data_references: JSON.stringify(
+                    dataReferences,
+                ) as unknown as PersistedDataAppDataReferences,
+            });
+    }
+
     async updateVersionStatus(
         appId: string,
         version: number,
