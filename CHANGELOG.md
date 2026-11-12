@@ -1,3 +1,10 @@
+# [3.229.0](https://github.com/lightdash/lightdash/compare/3.228.0...3.229.0) (2026-11-12)
+
+
+### Features
+
+* **dashboard-controls:** edit date zoom in the controls bar ([#32419](https://github.com/lightdash/lightdash/issues/32419)) ([5d4b535](https://github.com/lightdash/lightdash/commit/5d4b53566afd8f0c7c955f7f789beb99e9aa3484))
+
 # [3.228.0](https://github.com/lightdash/lightdash/compare/3.227.0...3.228.0) (2026-11-12)
 
 
