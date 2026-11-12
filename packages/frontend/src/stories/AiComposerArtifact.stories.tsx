@@ -19,6 +19,7 @@ import { AiComposerLineage } from '../ee/features/aiCopilot/components/ChatEleme
 import { ComposerQueriesToolCallDescription } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/descriptions/ComposerQueriesToolCallDescription';
 import { type ComposerRunNodeStatus } from '../ee/features/aiCopilot/components/ChatElements/useComposerRunNodeStatuses';
 import {
+    mergeManyStepsStoryQueries,
     mergeStoryQueries,
     ordersSemanticNode,
     STORY_PROJECT_UUID,
@@ -402,7 +403,7 @@ export const SemanticNodeDetails: Story = {
     },
 };
 
-/** A merge of two semantic steps: keys, rows kept, repeat, calculation, sort and limit. */
+/** A left join of two steps: a key named differently per step, repeats, calculation, sort and limit. */
 export const MergeNode: Story = {
     args: {
         queries: mergeStoryQueries,
@@ -417,6 +418,24 @@ export const MergeNode: Story = {
                 ['2026-10-19', 'completed', 2480, 912, '2.72'],
                 ['2026-10-19', 'shipped', 610, 912, '0.67'],
                 ['2026-10-12', 'completed', 2215, 874, '2.53'],
+            ],
+        },
+    },
+};
+
+/** An inner join of three steps where two supply a column with the same label. */
+export const MergeNodeManySteps: Story = {
+    args: {
+        queries: mergeManyStepsStoryQueries,
+        terminalNodeId: 'revenue_change',
+        lineage: true,
+        result: {
+            title: 'Revenue change by week',
+            description: 'This year’s weekly revenue against last year’s.',
+            columns: ['week', 'revenue', 'revenue_last_year', 'change'],
+            rows: [
+                ['2026-10-19', 3090, 2410, '0.28'],
+                ['2026-10-12', 2215, 2050, '0.08'],
             ],
         },
     },

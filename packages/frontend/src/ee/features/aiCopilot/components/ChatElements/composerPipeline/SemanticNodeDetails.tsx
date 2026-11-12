@@ -60,7 +60,7 @@ export const DetailsRow: FC<{
     </Group>
 );
 
-export const FieldChip: FC<{ fieldId: string; fieldsMap: ItemsMap }> = ({
+const FieldChip: FC<{ fieldId: string; fieldsMap: ItemsMap }> = ({
     fieldId,
     fieldsMap,
 }) => {
