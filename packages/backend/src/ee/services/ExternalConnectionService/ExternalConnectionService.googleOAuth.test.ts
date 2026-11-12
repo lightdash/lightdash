@@ -304,7 +304,7 @@ describe('Google sign-in for live sources', () => {
         });
     });
 
-    it('keeps the Source ID the admin typed when one site is readable', async () => {
+    it('keeps the explore prefix the admin typed when one site is readable', async () => {
         const { service, externalConnectionModel } = buildService();
         mockSecureFetch.mockResolvedValueOnce(
             sitesResponse(['sc-domain:lightdash.com', 'siteOwner']),
@@ -321,7 +321,7 @@ describe('Google sign-in for live sources', () => {
         ).toEqual(['web_events']);
     });
 
-    it('keeps the Source ID the admin typed through the site picker', async () => {
+    it('keeps the explore prefix the admin typed through the site picker', async () => {
         const { service, externalConnectionModel } = buildService();
         mockSecureFetch.mockResolvedValueOnce(
             sitesResponse(
