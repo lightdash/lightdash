@@ -1500,6 +1500,7 @@ describe('ProjectService', () => {
                     expect(enterprise).toHaveBeenCalledExactlyOnceWith({
                         organizationUuid: 'organization-uuid',
                         projectUuid: 'copy',
+                        spaceUuid: 'training-space',
                         createdByUserUuid: 'creator',
                     });
                     expect(reported).not.toHaveBeenCalled();
@@ -1512,7 +1513,9 @@ describe('ProjectService', () => {
                     await expect(
                         seedAll(createLearnService(enterprise)),
                     ).resolves.toBeUndefined();
-                    expect(enterprise).toHaveBeenCalledTimes(1);
+                    expect(enterprise).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({ spaceUuid: null }),
+                    );
                     expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
                 });
 

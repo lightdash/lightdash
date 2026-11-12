@@ -133,6 +133,7 @@ import { createPlaygroundAppFileStore } from './services/ProjectService/playgrou
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
 import { seedTrainingCopyAgentDocuments } from './services/ProjectService/seedPlaygroundAgentDocuments';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
+import { seedTrainingCopyDeepResearchDocument } from './services/ProjectService/seedPlaygroundDeepResearchDocument';
 import { seedPlaygroundMetricsTrees } from './services/ProjectService/seedPlaygroundMetricsTrees';
 import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/ReleaseHighlightsService';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
@@ -1409,13 +1410,34 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 }),
                             analytics: context.lightdashAnalytics,
                         }),
-                    seedTrainingCopyEnterpriseContent: (args) =>
-                        seedTrainingCopyAgentDocuments({
-                            ...args,
-                            aiAgentModel: models.getAiAgentModel(),
-                            aiAgentDocumentModel:
-                                models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
-                        }),
+                    seedTrainingCopyEnterpriseContent: async (args) => {
+                        // Each sample seeds on its own, so one failing still
+                        // leaves the other in the copy.
+                        const results = await Promise.allSettled([
+                            seedTrainingCopyAgentDocuments({
+                                ...args,
+                                aiAgentModel: models.getAiAgentModel(),
+                                aiAgentDocumentModel:
+                                    models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
+                            }),
+                            args.spaceUuid &&
+                                seedTrainingCopyDeepResearchDocument({
+                                    projectUuid: args.projectUuid,
+                                    spaceUuid: args.spaceUuid,
+                                    createdByUserUuid: args.createdByUserUuid,
+                                    documentModel: models.getDocumentModel(),
+                                    aiDeepResearchRunModel:
+                                        models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
+                                    aiAgentModel:
+                                        models.getAiAgentModel<AiAgentModel>(),
+                                }),
+                        ]);
+                        const failure = results.find(
+                            (result): result is PromiseRejectedResult =>
+                                result.status === 'rejected',
+                        );
+                        if (failure) throw failure.reason;
+                    },
                     provisionTrainingProject: ({ user, projectService }) =>
                         provisionTrainingProject({
                             user,
