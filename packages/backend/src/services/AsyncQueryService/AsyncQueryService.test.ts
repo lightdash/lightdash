@@ -1660,20 +1660,10 @@ describe('AsyncQueryService', () => {
             });
         };
 
-        test('requires the external sources flag', async () => {
-            await expect(
-                execute({
-                    [FeatureFlags.ComposeSqlRunner]: true,
-                }),
-            ).rejects.toThrow('External sources are not enabled');
-        });
-
         test('requires the compose SQL runner flag', async () => {
-            await expect(
-                execute({
-                    [FeatureFlags.ExternalSources]: true,
-                }),
-            ).rejects.toThrow('Compose SQL queries are not enabled');
+            await expect(execute({})).rejects.toThrow(
+                'Compose SQL queries are not enabled',
+            );
         });
 
         test('rejects attachments created by another user', async () => {
@@ -7106,6 +7096,7 @@ describe('AsyncQueryService', () => {
                               userAttributeOverrides: {},
                               invalidateCache: false,
                               resolvedReferences: {},
+                              submission: [],
                               pivotConfiguration: null,
                               plan: null,
                           });
@@ -19537,6 +19528,7 @@ describe('query sources carry the execution context', () => {
         projectUuid,
         context: QueryExecutionContext.MULTI_SOURCE_QUERY,
         resolvedReferences: {},
+        submission: [],
         parameters: {},
         userAttributeOverrides: {},
         invalidateCache: false,
@@ -22265,9 +22257,7 @@ describe('fresh stored result read boundary', () => {
         vi.mocked(f.service.featureFlagModel.get).mockImplementation(
             async ({ featureFlagId }) => ({
                 id: featureFlagId,
-                enabled:
-                    featureFlagId === FeatureFlags.AgentIdentity ||
-                    featureFlagId === FeatureFlags.ExternalSources,
+                enabled: featureFlagId === FeatureFlags.AgentIdentity,
             }),
         );
         vi.mocked(f.service.projectModel.getExploreFromCache).mockResolvedValue(
@@ -22347,7 +22337,7 @@ describe('fresh stored result read boundary', () => {
         vi.mocked(f.service.featureFlagModel.get).mockImplementation(
             async ({ featureFlagId }) => ({
                 id: featureFlagId,
-                enabled: featureFlagId === FeatureFlags.ExternalSources,
+                enabled: false,
             }),
         );
         await expect(submit()).resolves.toHaveProperty('queryUuid');
@@ -24477,7 +24467,6 @@ describe('fresh execution producer to result reader', () => {
                 enabled: [
                     FeatureFlags.AgentIdentity,
                     FeatureFlags.ComposeSqlRunner,
-                    FeatureFlags.ExternalSources,
                 ].some((flag) => flag === featureFlagId),
             }),
         );
@@ -29342,6 +29331,7 @@ describe('fresh execution producer to result reader', () => {
                 }
                 registerPreAggregateStream();
                 const message = {
+                    info: { deliveryCount: 1 },
                     subject: STREAM_CONFIGS[kind].subjects.query,
                     data: StringCodec().encode(
                         JSON.stringify({
@@ -31436,7 +31426,7 @@ describe('external source explore queries on the worker', () => {
         vi.mocked(f.service.featureFlagModel.get).mockImplementation(
             async ({ featureFlagId }) => ({
                 id: featureFlagId,
-                enabled: featureFlagId === FeatureFlags.ExternalSources,
+                enabled: false,
             }),
         );
         vi.mocked(f.service.projectModel.getExploreFromCache).mockResolvedValue(

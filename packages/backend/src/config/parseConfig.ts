@@ -2558,6 +2558,39 @@ type AuthMicrosoftManagedSignInConfig = {
     androidClientId: string | undefined;
 };
 
+export type AuthTrustedProvisionerConfig = {
+    issuer: string;
+    audience: string;
+    subjects: string[];
+    ownerEmailDomain: string;
+};
+
+const parseTrustedProvisionerConfig =
+    (): AuthTrustedProvisionerConfig | null => {
+        const issuer = process.env.TRUSTED_PROVISIONER_ISSUER?.trim();
+        const audience = process.env.TRUSTED_PROVISIONER_AUDIENCE?.trim();
+        const ownerEmailDomain =
+            process.env.TRUSTED_PROVISIONER_OWNER_EMAIL_DOMAIN?.trim().toLowerCase();
+        const subjects = (process.env.TRUSTED_PROVISIONER_SUBJECTS ?? '')
+            .split(',')
+            .map((subject) => subject.trim())
+            .filter((subject) => subject.length > 0);
+        if (
+            !issuer ||
+            !audience ||
+            !ownerEmailDomain ||
+            subjects.length === 0
+        ) {
+            return null;
+        }
+        return {
+            issuer,
+            audience,
+            subjects,
+            ownerEmailDomain,
+        };
+    };
+
 type AuthOidcConfig = {
     callbackPath: string;
     loginPath: string;
@@ -2623,6 +2656,7 @@ export type AuthConfig = {
     oneLogin: AuthOneLoginConfig;
     azuread: AuthAzureADConfig;
     microsoftManagedSignIn: AuthMicrosoftManagedSignInConfig;
+    trustedProvisioner: AuthTrustedProvisionerConfig | null;
     oidc: AuthOidcConfig;
     snowflake: AuthSnowflakeConfig;
     snowflakeAi: AuthSnowflakeAiConfig;
@@ -3604,6 +3638,7 @@ export const parseConfig = (): LightdashConfig => {
                 androidClientId:
                     process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_ANDROID_CLIENT_ID,
             },
+            trustedProvisioner: parseTrustedProvisionerConfig(),
             oidc: {
                 callbackPath: '/oauth/redirect/oidc',
                 loginPath: '/login/oidc',

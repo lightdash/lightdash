@@ -387,7 +387,7 @@ type MobileSignInCodeEvent = BaseTrack & {
         codeUuid: string;
         reason: 'show' | 'auto_refresh' | null;
         platform: string | null;
-        declinedBy: 'web' | 'failed_redeems' | null;
+        declinedBy: 'web' | 'phone' | 'failed_redeems' | null;
     };
 };
 
@@ -862,6 +862,7 @@ export type QuerySourcesSubmittedEvent = BaseTrack & {
         externalNodeCount: number;
         pythonNodeCount: number;
         apiNodeCount: number;
+        mergeNodeCount: number;
     };
 };
 
@@ -1730,6 +1731,7 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         dateZoomGranularitiesCount: number;
         defaultDateZoomGranularity: string | null;
         dateZoomControlsCount: number;
+        hiddenDateZoomControlsCount: number;
         dateZoomTileTargetsCount: number;
         sectionsCount: number;
         sectionedFiltersCount: number;

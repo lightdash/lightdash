@@ -1353,8 +1353,8 @@ importers:
         specifier: 5.0.13
         version: 5.0.13(@babel/core@7.28.4(supports-color@9.1.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(webpack-virtual-modules@0.5.0)
       '@tabler/icons-react':
-        specifier: 2.47.0
-        version: 2.47.0(react@19.3.0)
+        specifier: 3.50.0
+        version: 3.50.0(react@19.3.0)
       '@tanstack/react-query':
         specifier: 4.36.1
         version: 4.36.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -6906,13 +6906,13 @@ packages:
   '@swc/types@0.1.25':
     resolution: {integrity: sha512-iAoY/qRhNH8a/hBvm3zKj9qQ4oc2+3w1unPJa2XvTK3XjeLXtzcCingVPw/9e5mn1+0yPqxcBGp9Jf0pkfMb1g==}
 
-  '@tabler/icons-react@2.47.0':
-    resolution: {integrity: sha512-iqly2FvCF/qUbgmvS8E40rVeYY7laltc5GUjRxQj59DuX0x/6CpKHTXt86YlI2whg4czvd/c8Ce8YR08uEku0g==}
+  '@tabler/icons-react@3.50.0':
+    resolution: {integrity: sha512-X9XhFbxAmSNimQ71VAd7opfd4z84x1pLrEbBT33VCIEsFs8zWVqdhh5r/Jyi/3iJjQ861kE5Wm9ixiJfS2nwBA==}
     peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0
+      react: '>= 16'
 
-  '@tabler/icons@2.47.0':
-    resolution: {integrity: sha512-4w5evLh+7FUUiA1GucvGj2ReX2TvOjEr4ejXdwL/bsjoSkof6r1gQmzqI+VHrE2CpJpB3al7bCTulOkFa/RcyA==}
+  '@tabler/icons@3.50.0':
+    resolution: {integrity: sha512-HflLxyrH1cqC7s7jzQGSjpsTAVIoaf7+/yHjbdM59rJQBMjliibp+LYhDPFxOMcwa1M8DNpOk6ENzQiWn9a1Dg==}
 
   '@tanstack/match-sorter-utils@8.11.3':
     resolution: {integrity: sha512-2XVYTN6fLFyeIPywDL/HGKIQce3V6oUch1FHweGwxruPKEXip6Z9qg+zWZwNE26WG6CktqJh6NqTq90a42jeEw==}
@@ -22092,13 +22092,12 @@ snapshots:
       '@swc/counter': 0.1.3
     optional: true
 
-  '@tabler/icons-react@2.47.0(react@19.3.0)':
+  '@tabler/icons-react@3.50.0(react@19.3.0)':
     dependencies:
-      '@tabler/icons': 2.47.0
-      prop-types: 15.8.1
+      '@tabler/icons': 3.50.0
       react: 19.3.0
 
-  '@tabler/icons@2.47.0': {}
+  '@tabler/icons@3.50.0': {}
 
   '@tanstack/match-sorter-utils@8.11.3':
     dependencies:

@@ -798,6 +798,21 @@ describe('dashboardParametersReducer', () => {
                 ]),
             );
             expect(arranged.haveParameterControlsChanged).toBe(true);
+            // A new section stores the bar's order too
+            expect(
+                reducer(
+                    filled,
+                    dashboardEditActions.addControlSection({
+                        section: { id: 's', name: 'New' },
+                        barOrder: [
+                            {
+                                kind: DashboardControlRefKind.PARAMETER,
+                                id: 'a',
+                            },
+                        ],
+                    }),
+                ).haveParameterControlsChanged,
+            ).toBe(true);
             // A refill from the tiles no longer replaces the listed ids
             expect(
                 reducer(
@@ -819,6 +834,23 @@ describe('dashboardParametersReducer', () => {
             expect(
                 reducer(saved, dashboardEditActions.arrangeControls([])),
             ).toBe(saved);
+            // No controls: nothing to keep, so tiles still fill the list
+            const empty = reducer(
+                stateWith(),
+                actions.syncParameterControls({ controls: [], isSaved: false }),
+            );
+            expect(
+                reducer(
+                    empty,
+                    dashboardEditActions.addControlSection({
+                        section: { id: 's', name: 'New' },
+                        barOrder: [],
+                    }),
+                ),
+            ).toBe(empty);
+            expect(
+                reducer(empty, dashboardEditActions.arrangeControls([])),
+            ).toBe(empty);
         });
 
         it('marks updates and removals as changed, and stops seeding until reset', () => {

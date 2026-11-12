@@ -6,12 +6,12 @@ import {
     type OpenIdUser,
     type SessionUser,
 } from '@lightdash/common';
-import { createHash } from 'crypto';
 import { decodeJwt } from 'jose';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
 import { ManagedSignInModel } from '../../../models/ManagedSignInModel';
 import { OrganizationSsoModel } from '../../../models/OrganizationSsoModel';
+import { hashSignedJwtContent } from '../../../utils/jwtContentHash';
 import type { UserService } from '../../UserService';
 import { ManagedSignInRejection } from './ManagedSignInRejection';
 import {
@@ -39,9 +39,6 @@ type RejectionContext = {
     aud: string | undefined;
     organizationUuid: string | undefined;
 };
-
-const hashToken = (token: string): string =>
-    createHash('sha256').update(token).digest('hex');
 
 const readLogClaims = (
     token: string,
@@ -134,7 +131,7 @@ export class ManagedSignInService {
         claims: MicrosoftIdTokenClaims,
     ): Promise<void> {
         const claimed = await this.managedSignInModel.claimTokenUse(
-            hashToken(subjectToken),
+            hashSignedJwtContent(subjectToken),
             new Date(claims.exp! * 1000),
         );
         if (!claimed) {

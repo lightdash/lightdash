@@ -48,6 +48,8 @@ export const searchConsoleIntegration: ApiSourceIntegration<ApiConnectorType.SEA
             timeoutMs: SEARCH_CONSOLE_TIMEOUT_MS,
             responseMaxBytes: API_SOURCE_RESPONSE_MAX_BYTES,
         }),
+        describeTarget: ({ apiSource: { siteUrl } }) =>
+            `Search Console site ${siteUrl}`,
         validateConnection: ({ apiSource, type, origin, oauthTokenUrl }) => {
             if (!SEARCH_CONSOLE_SITE.test(apiSource.siteUrl)) {
                 throw new ParameterError(

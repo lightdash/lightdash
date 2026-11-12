@@ -16,6 +16,13 @@ import {
     getGridTotalRows,
     getViewModeActiveTabTiles,
     hasGridItemMoved,
+    resolveDropOverlaps,
+    getRowInsertion,
+    getGapFill,
+    getPointerCell,
+    getPointerPosition,
+    hasLayoutChanged,
+    countResizedItems,
     getDashboardLayouts,
     getMobileGridLayout,
     getResponsiveGridLayoutProps,
@@ -305,6 +312,354 @@ describe('a drag or resize that ends', () => {
             expect(hasGridItemMoved(item, { ...item, ...change })).toBe(true);
         },
     );
+});
+
+describe('dropping a tile that was dragged over others', () => {
+    const item = (i: string, x: number, y: number, w = 12, h = 4) => ({
+        i,
+        x,
+        y,
+        w,
+        h,
+    });
+    const position = (layout: ReturnType<typeof item>[], i: string) => {
+        const { x, y } = layout.find((l) => l.i === i)!;
+        return { x, y };
+    };
+
+    it('leaves every tile alone when the drop lands on free space', () => {
+        const layout = [item('a', 0, 0), item('b', 12, 0), item('c', 0, 4)];
+        expect(resolveDropOverlaps(layout, ['c'])).toEqual(layout);
+    });
+
+    it('keeps the dropped tile in place and moves the covered tile below it', () => {
+        const layout = [item('a', 0, 0), item('dropped', 0, 2)];
+        const result = resolveDropOverlaps(layout, ['dropped']);
+        expect(position(result, 'dropped')).toEqual({ x: 0, y: 2 });
+        expect(position(result, 'a')).toEqual({ x: 0, y: 6 });
+    });
+
+    it('puts a same-sized tile below when dropped exactly on top of it', () => {
+        const layout = [item('a', 0, 0), item('dropped', 0, 0)];
+        const result = resolveDropOverlaps(layout, ['dropped']);
+        expect(position(result, 'dropped')).toEqual({ x: 0, y: 0 });
+        expect(position(result, 'a')).toEqual({ x: 0, y: 4 });
+    });
+
+    it('moves tiles further down the column out of the way of a pushed tile', () => {
+        const layout = [
+            item('dropped', 0, 0),
+            item('a', 0, 2),
+            item('b', 0, 6),
+            item('beside', 12, 0),
+        ];
+        const result = resolveDropOverlaps(layout, ['dropped']);
+        expect(position(result, 'a')).toEqual({ x: 0, y: 4 });
+        expect(position(result, 'b')).toEqual({ x: 0, y: 8 });
+        expect(position(result, 'beside')).toEqual({ x: 12, y: 0 });
+    });
+
+    it('leaves no two tiles overlapping', () => {
+        const layout = [
+            item('a', 0, 0, 12, 6),
+            item('b', 12, 0, 12, 6),
+            item('c', 6, 6, 12, 4),
+            item('dropped', 6, 3, 12, 4),
+        ];
+        const result = resolveDropOverlaps(layout, ['dropped']);
+        const overlaps = result.flatMap((a, index) =>
+            result
+                .slice(index + 1)
+                .filter(
+                    (b) =>
+                        a.x < b.x + b.w &&
+                        a.x + a.w > b.x &&
+                        a.y < b.y + b.h &&
+                        a.y + a.h > b.y,
+                ),
+        );
+        expect(overlaps).toEqual([]);
+    });
+});
+
+describe('dropping a tile beside another one', () => {
+    const item = (i: string, x: number, y: number, w = 12, h = 4) => ({
+        i,
+        x,
+        y,
+        w,
+        h,
+        minW: 4,
+    });
+    const shape = (layout: { i: string }[], i: string) => {
+        const { x, y, w, h } = layout.find((l) => l.i === i) as ReturnType<
+            typeof item
+        >;
+        return { x, y, w, h };
+    };
+    const insert = (
+        layout: ReturnType<typeof item>[],
+        tileId: string,
+        side: 'before' | 'after',
+    ) =>
+        getRowInsertion({
+            layout,
+            draggedId: 'dragged',
+            target: { tileId, side },
+            cols: 36,
+        });
+
+    it('splits a single-tile row in half', () => {
+        const layout = [item('a', 0, 0, 36), item('dragged', 0, 10)];
+        const result = insert(layout, 'a', 'after')!;
+        expect(shape(result.layout, 'a')).toEqual({ x: 0, y: 0, w: 18, h: 4 });
+        expect(result.slot).toMatchObject({ x: 18, y: 0, w: 18, h: 4 });
+    });
+
+    it('makes three equal tiles when dropped between two', () => {
+        const layout = [
+            item('a', 0, 0, 18),
+            item('b', 18, 0, 18),
+            item('dragged', 0, 10),
+        ];
+        const result = insert(layout, 'a', 'after')!;
+        expect(shape(result.layout, 'a')).toMatchObject({ x: 0, w: 12 });
+        expect(shape(result.layout, 'dragged')).toMatchObject({
+            x: 12,
+            y: 0,
+            w: 12,
+        });
+        expect(shape(result.layout, 'b')).toMatchObject({ x: 24, w: 12 });
+    });
+
+    it('puts the tile first when dropped before the first tile', () => {
+        const layout = [item('a', 0, 0, 36), item('dragged', 0, 10)];
+        const result = insert(layout, 'a', 'before')!;
+        expect(result.slot).toMatchObject({ x: 0, w: 18 });
+        expect(shape(result.layout, 'a')).toMatchObject({ x: 18, w: 18 });
+    });
+
+    it('takes the height of the row it joins', () => {
+        const layout = [item('a', 0, 0, 36, 7), item('dragged', 0, 10, 12, 3)];
+        expect(insert(layout, 'a', 'after')!.slot.h).toBe(7);
+    });
+
+    it('reorders within a row without changing the shares', () => {
+        const layout = [
+            item('a', 0, 0),
+            item('dragged', 12, 0),
+            item('b', 24, 0),
+        ];
+        const result = insert(layout, 'b', 'after')!;
+        expect(shape(result.layout, 'a')).toMatchObject({ x: 0, w: 12 });
+        expect(shape(result.layout, 'b')).toMatchObject({ x: 12, w: 12 });
+        expect(shape(result.layout, 'dragged')).toMatchObject({ x: 24, w: 12 });
+    });
+
+    it('gives leftover columns to the leftmost tiles', () => {
+        const layout = [
+            ...[0, 1, 2, 3].map((n) => item(`t${n}`, n * 9, 0, 9)),
+            item('dragged', 0, 10),
+        ];
+        const result = insert(layout, 't3', 'after')!;
+        const widths = ['t0', 't1', 't2', 't3', 'dragged'].map(
+            (i) => shape(result.layout, i).w,
+        );
+        expect(widths).toEqual([8, 7, 7, 7, 7]);
+    });
+
+    it('leaves tiles on other lines alone', () => {
+        const layout = [
+            item('a', 0, 0, 36),
+            item('below', 0, 4, 36),
+            item('dragged', 0, 10),
+        ];
+        const result = insert(layout, 'a', 'after')!;
+        expect(shape(result.layout, 'below')).toEqual({
+            x: 0,
+            y: 4,
+            w: 36,
+            h: 4,
+        });
+    });
+
+    it('offers no slot when a tile from the row above reaches into the row', () => {
+        const layout = [
+            item('tall', 24, 0, 12, 8),
+            item('a', 0, 4, 24),
+            item('dragged', 0, 20),
+        ];
+        expect(insert(layout, 'a', 'after')).toBeNull();
+    });
+
+    it('offers no slot when the row is already as full as tiles allow', () => {
+        const layout = [
+            ...Array.from({ length: 9 }, (_, n) => item(`t${n}`, n * 4, 0, 4)),
+            item('dragged', 0, 10),
+        ];
+        expect(insert(layout, 't0', 'before')).toBeNull();
+    });
+});
+
+describe('dropping a tile on empty space', () => {
+    const item = (i: string, x: number, y: number, w = 12, h = 4) => ({
+        i,
+        x,
+        y,
+        w,
+        h,
+        minW: 4,
+        minH: 1,
+    });
+    const fill = (layout: ReturnType<typeof item>[], x: number, y: number) =>
+        getGapFill({ layout, draggedId: 'dragged', cell: { x, y }, cols: 36 });
+
+    it('fills a hole between two tiles in a row', () => {
+        const layout = [
+            item('a', 0, 0),
+            item('b', 24, 0),
+            item('below', 0, 4, 36),
+            item('dragged', 0, 20, 30, 9),
+        ];
+        expect(fill(layout, 15, 2)!.slot).toMatchObject({
+            x: 12,
+            y: 0,
+            w: 12,
+            h: 4,
+        });
+    });
+
+    it('fills the rest of the last row, as tall as the tiles beside it', () => {
+        const layout = [item('a', 0, 0, 12, 6), item('dragged', 0, 20)];
+        expect(fill(layout, 30, 3)!.slot).toMatchObject({
+            x: 12,
+            y: 0,
+            w: 24,
+            h: 6,
+        });
+    });
+
+    it('stops at the tiles above and below the space', () => {
+        const layout = [
+            item('above', 0, 0, 36),
+            item('below', 0, 10, 36),
+            item('dragged', 0, 20),
+        ];
+        expect(fill(layout, 5, 7)!.slot).toMatchObject({
+            x: 0,
+            y: 4,
+            w: 36,
+            h: 6,
+        });
+    });
+
+    it('offers nothing over the place the tile is leaving', () => {
+        const layout = [item('a', 0, 0), item('dragged', 12, 0)];
+        expect(fill(layout, 13, 1)).toBeNull();
+    });
+
+    it('counts the place the tile is leaving as part of a wider space', () => {
+        const layout = [item('a', 0, 0), item('dragged', 12, 0)];
+        expect(fill(layout, 30, 1)!.slot).toMatchObject({ x: 12, w: 24 });
+    });
+
+    it('moves no other tile', () => {
+        const layout = [
+            item('a', 0, 0),
+            item('b', 24, 0),
+            item('dragged', 0, 20),
+        ];
+        const result = fill(layout, 15, 2)!;
+        expect(result.layout.filter((l) => l.i !== 'dragged')).toEqual(
+            layout.filter((l) => l.i !== 'dragged'),
+        );
+    });
+
+    it('offers nothing over another tile', () => {
+        const layout = [item('a', 0, 0), item('dragged', 0, 20)];
+        expect(fill(layout, 3, 2)).toBeNull();
+    });
+
+    it('offers nothing in open space with no tile beside or below it', () => {
+        const layout = [item('a', 0, 0), item('dragged', 0, 20)];
+        expect(fill(layout, 20, 9)).toBeNull();
+    });
+
+    it('offers nothing when the space is narrower than a tile can be', () => {
+        const layout = [
+            item('a', 0, 0, 17),
+            item('b', 19, 0, 17),
+            item('dragged', 0, 20),
+        ];
+        expect(fill(layout, 17, 1)).toBeNull();
+    });
+});
+
+describe('reading where the pointer is', () => {
+    it('reads a mouse event', () => {
+        const event = new MouseEvent('mousemove', { clientX: 40, clientY: 70 });
+        expect(getPointerPosition(event)).toMatchObject({
+            clientX: 40,
+            clientY: 70,
+        });
+    });
+
+    it('reads the finger of a touch event, also once it has lifted', () => {
+        const finger = { clientX: 40, clientY: 70 };
+        const lifted = { changedTouches: [finger], touches: [] };
+        expect(
+            getPointerPosition(lifted as unknown as TouchEvent),
+        ).toMatchObject(finger);
+    });
+
+    it('has no position for a touch event without a finger', () => {
+        const empty = { changedTouches: [], touches: [] };
+        expect(getPointerPosition(empty as unknown as TouchEvent)).toBeNull();
+    });
+});
+
+describe('telling what a drop changed', () => {
+    const item = (i: string, x: number, w = 12) => ({ i, x, y: 0, w, h: 4 });
+    const before = [item('a', 0), item('b', 12), item('c', 24)];
+
+    it('sees no change when every tile is where it was', () => {
+        expect(
+            hasLayoutChanged(
+                before,
+                before.map((l) => ({ ...l })),
+            ),
+        ).toBe(false);
+    });
+
+    it('sees a change when one tile moved', () => {
+        const after = [item('a', 0), item('b', 24), item('c', 12)];
+        expect(hasLayoutChanged(before, after)).toBe(true);
+    });
+
+    it('counts only the tiles whose size changed', () => {
+        const after = [item('a', 0, 18), item('b', 18, 6), item('c', 24)];
+        expect(countResizedItems(before, after)).toBe(2);
+    });
+});
+
+describe('finding the grid cell under the pointer', () => {
+    const tile = { i: 't', x: 12, y: 4, w: 12, h: 6 };
+    const tileRect = { left: 300, top: 200, width: 240, height: 180 };
+    const cellAt = (clientX: number, clientY: number) =>
+        getPointerCell({ pointer: { clientX, clientY }, tile, tileRect });
+
+    it('reads the cell inside the measuring tile', () => {
+        expect(cellAt(300, 200)).toEqual({ x: 12, y: 4 });
+        expect(cellAt(539, 379)).toEqual({ x: 23, y: 9 });
+    });
+
+    it('reads cells left of and above the measuring tile', () => {
+        expect(cellAt(70, 50)).toEqual({ x: 0, y: -1 });
+    });
+
+    it('reads cells right of and below the measuring tile', () => {
+        expect(cellAt(560, 410)).toEqual({ x: 25, y: 11 });
+    });
 });
 
 describe('same grid at every window width', () => {

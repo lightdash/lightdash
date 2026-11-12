@@ -6,6 +6,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
+import { invalidateSavedConnection } from './invalidateSavedConnection';
 
 const pendingUrl = (projectUuid: string) =>
     `/ee/projects/${projectUuid}/live-sources/google/oauth/pending`;
@@ -40,10 +41,12 @@ export const useFinishGoogleLiveSource = (projectUuid: string) => {
                 method: 'POST',
                 body: JSON.stringify({ choice }),
             }),
-        onSuccess: async () => {
-            await queryClient.invalidateQueries({
-                queryKey: ['external-connections', projectUuid],
-            });
+        onSuccess: async (connection) => {
+            await invalidateSavedConnection(
+                queryClient,
+                projectUuid,
+                connection,
+            );
             showToastSuccess({ title: 'Source connected' });
         },
         onError: ({ error }) => {

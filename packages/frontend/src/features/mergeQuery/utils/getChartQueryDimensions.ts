@@ -1,13 +1,28 @@
-import { type MetricQuery } from '@lightdash/common';
+import {
+    buildMergeQueryFromMergeDefinition,
+    getMergedDimensionIds,
+    isMetricSourcedMergeQuery,
+    type MetricQuery,
+    type SavedMergeDefinition,
+} from '@lightdash/common';
 import { type MergeResults } from '../context/context';
 
-/**
- * The dimensions a chart layout can reference. A merged chart names merged
- * fields, so checking its layout against the primary query's own dimensions
- * reports every one of them unused; the merged result's are the ones to use.
- */
+/** The dimensions a chart layout can reference: a merged chart names merged fields, from its run or its saved merge. */
 export const getChartQueryDimensions = (
-    metricQuery: Pick<MetricQuery, 'dimensions'> | undefined,
+    metricQuery: MetricQuery | undefined,
     mergeResults: Pick<MergeResults, 'metricQuery'> | null,
-): string[] =>
-    mergeResults?.metricQuery.dimensions ?? metricQuery?.dimensions ?? [];
+    merge: SavedMergeDefinition | null,
+): string[] => {
+    if (mergeResults) return mergeResults.metricQuery.dimensions;
+    if (!metricQuery) return [];
+    if (merge) {
+        const mergeQuery = buildMergeQueryFromMergeDefinition(
+            metricQuery,
+            merge,
+        );
+        if (isMetricSourcedMergeQuery(mergeQuery)) {
+            return getMergedDimensionIds(mergeQuery);
+        }
+    }
+    return metricQuery.dimensions;
+};

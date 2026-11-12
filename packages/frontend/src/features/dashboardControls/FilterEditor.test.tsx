@@ -811,6 +811,8 @@ describe('EditorPopover', () => {
                         filterDropdown: 'ld-dashboard-filter-dropdown',
                         parameter: 'ld-dashboard-parameter',
                         parameterDropdown: 'ld-dashboard-parameter-dropdown',
+                        dateZoom: 'ld-dashboard-date-zoom',
+                        dateZoomDropdown: 'ld-dashboard-date-zoom-dropdown',
                     }}
                 >
                     <Editor />
@@ -834,6 +836,8 @@ describe('EditorPopover', () => {
                         filterDropdown: 'ld-dashboard-filter-dropdown',
                         parameter: 'ld-dashboard-parameter',
                         parameterDropdown: 'ld-dashboard-parameter-dropdown',
+                        dateZoom: 'ld-dashboard-date-zoom',
+                        dateZoomDropdown: 'ld-dashboard-date-zoom-dropdown',
                     }}
                 >
                     <Editor />

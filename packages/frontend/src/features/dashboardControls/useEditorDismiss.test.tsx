@@ -169,6 +169,7 @@ const Wrapper: FC = () => {
     store.current = dashboardStore;
     const [setters] = useState(() => storeSetters(dashboardStore));
     mockDashboardContext.current = {
+        setDateZoomGranularity: vi.fn(),
         ...setters,
         filterableFieldsByTileUuid: {},
         dashboard: { tiles: [] },

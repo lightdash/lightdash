@@ -9,6 +9,8 @@ export type DbMobileSignInCodeStatus =
     | 'declined'
     | 'redeemed';
 
+export type DbMobileSignInDeclinedBy = 'web' | 'phone' | 'failed_redeems';
+
 export type DbMobileSignInCode = {
     mobile_sign_in_code_uuid: string;
     code_hash: string;
@@ -28,6 +30,7 @@ export type DbMobileSignInCode = {
     claimed_at: Date | null;
     decided_at: Date | null;
     redeemed_at: Date | null;
+    declined_by: DbMobileSignInDeclinedBy | null;
 };
 
 type DbMobileSignInCodeInsert = Pick<

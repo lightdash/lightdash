@@ -4,6 +4,7 @@ import type {
     ParametersValuesMap,
     PivotConfiguration,
     QueryExecutionContext,
+    QueryNodeId,
     QuerySourceDefinition,
     QuerySourceSchema,
     QuerySurface,
@@ -41,12 +42,26 @@ export type SourceQueryAiAttribution = {
     promptUuid: string | null;
 };
 
+/** A submission's queries, each under its own or its generated node id. */
+export type SubmittedSourceQueries = Array<
+    SourceQuery & { nodeId: QueryNodeId }
+>;
+
+export type ValidateSourceQueryArgs = SourceQueryExecutionContext & {
+    account: Account;
+    projectUuid: string;
+    query: SourceQuery;
+    submission: SubmittedSourceQueries;
+};
+
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
     documentQueryContext?: DocumentQueryContext;
     account: Account;
     projectUuid: string;
     context: QueryExecutionContext;
     query: SourceQuery;
+    /** Every query of the submission, so a node can read what it references. */
+    submission: SubmittedSourceQueries;
     /**
      * Reference value -> queryUuid, for reference values that named upstream
      * DAG nodes. Reference values not in this map already are queryUuids of
@@ -89,6 +104,8 @@ export interface QuerySourceClient {
     requiredFeatureFlags: FeatureFlags[];
     scanSchema(args: ScanSchemaArgs): Promise<QuerySourceSchema>;
     getQueryReferences(query: SourceQuery): string[];
+    /** Refuses a query before any node of its submission runs. */
+    validateQuery?(args: ValidateSourceQueryArgs): Promise<void>;
     submitQuery(
         args: SubmitSourceQueryArgs,
     ): Promise<SourceQuerySubmissionResult>;

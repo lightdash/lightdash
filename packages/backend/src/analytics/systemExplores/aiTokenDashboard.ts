@@ -702,7 +702,7 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
         spaceSlug,
         name: 'AI usage · Tokens & billing coverage',
         description:
-            'Daily token usage by feature, channel, user, project and agent, plus all-usage composition and reporting coverage. Duplicate this dashboard to keep a customized copy separate from future Sync content updates.',
+            'Daily token usage by feature, channel, user, project and agent, plus all-usage composition and reporting coverage. Duplicate this dashboard to keep your edits when built-in content updates.',
         config: { isDateZoomDisabled: true, isAddFilterDisabled: false },
         tabs: [],
         tiles: [],

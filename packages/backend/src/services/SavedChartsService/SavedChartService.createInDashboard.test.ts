@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    MergeJoinType,
     type Account,
     type CreateSavedChart,
     type DashboardDAO,
@@ -145,5 +146,20 @@ describe('SavedChartService.create into a dashboard', () => {
             writeActor.userUuid,
             expect.objectContaining({ dashboardUuid: DASHBOARD_UUID }),
         );
+    });
+
+    test('refuses a merged chart from an actor without the merge scope', async () => {
+        await expect(
+            service.create(embedAccount, 'project-uuid', {
+                ...chartSavedBySlug,
+                merge: {
+                    queries: {},
+                    join: MergeJoinType.FULL,
+                    keys: {},
+                    limit: 500,
+                },
+            }),
+        ).rejects.toThrow('User cannot save merged charts');
+        expect(savedChartModel.create).not.toHaveBeenCalled();
     });
 });

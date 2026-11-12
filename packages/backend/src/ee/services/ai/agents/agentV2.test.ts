@@ -196,7 +196,13 @@ describe('flags-off agent turns', () => {
                         options = captured;
                         return {
                             text: 'Answer',
-                            steps: [{ usage: { totalTokens: 1 } }],
+                            steps: [
+                                {
+                                    toolCalls: [],
+                                    toolResults: [],
+                                    usage: { totalTokens: 1 },
+                                },
+                            ],
                             finalStep: { usage: { totalTokens: 1 } },
                             usage: { totalTokens: 1 },
                             finishReason: 'stop',
@@ -310,7 +316,13 @@ describe('MCP context preparation at the agent boundary', () => {
                     options = captured;
                     return {
                         text: 'Answer',
-                        steps: [{ usage: { totalTokens: 1 } }],
+                        steps: [
+                            {
+                                toolCalls: [],
+                                toolResults: [],
+                                usage: { totalTokens: 1 },
+                            },
+                        ],
                         finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
@@ -448,7 +460,13 @@ describe('MCP context preparation at the agent boundary', () => {
                     options = captured;
                     return {
                         text: 'Answer',
-                        steps: [{ usage: { totalTokens: 1 } }],
+                        steps: [
+                            {
+                                toolCalls: [],
+                                toolResults: [],
+                                usage: { totalTokens: 1 },
+                            },
+                        ],
                         finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
@@ -630,7 +648,7 @@ describe('unknown error copy at the agent boundary', () => {
 describe('empty finishes and interrupts', () => {
     const emptyGenerateResult = {
         text: '',
-        steps: [{ usage: { totalTokens: 10 } }],
+        steps: [{ toolCalls: [], toolResults: [], usage: { totalTokens: 10 } }],
         finalStep: { usage: { totalTokens: 10 } },
         usage: { totalTokens: 10 },
         finishReason: 'tool-calls',
@@ -1182,7 +1200,14 @@ describe('empty finishes and interrupts', () => {
         await capturedOptions.onEnd({
             usage: { totalTokens: 100 },
             totalUsage: { totalTokens: 100 },
-            steps: [{ text: '', usage: { totalTokens: 10 } }],
+            steps: [
+                {
+                    text: '',
+                    toolCalls: [],
+                    toolResults: [],
+                    usage: { totalTokens: 10 },
+                },
+            ],
             finalStep: { reasoning: [], usage: { totalTokens: 10 } },
             finishReason: 'tool-calls',
         });
@@ -1334,6 +1359,123 @@ describe('empty finishes and interrupts', () => {
     });
 });
 
+describe('askUser', () => {
+    const usage = {
+        inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
+        outputTokens: { total: 1, text: 1, reasoning: 0 },
+    };
+    const questions = [
+        {
+            header: 'Period',
+            question: 'Which month should I use?',
+            options: [
+                { label: 'November 2022', description: 'Latest full month' },
+                { label: 'October 2022', description: 'Previous month' },
+            ],
+            multiSelect: false,
+        },
+    ];
+
+    it('is offered only when enabled', () => {
+        const args = buildAgentArgs();
+        expect(loadoutFor(args).toolNames.has('askUser')).toBe(false);
+        args.enableAskUser = true;
+        expect(loadoutFor(args).toolNames.has('askUser')).toBe(true);
+    });
+
+    it('generate: ends the turn and replies with the question', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const updatePrompt = vi.fn().mockResolvedValue(undefined);
+        const dependencies = buildAgentDependencies(updatePrompt);
+        Object.assign(dependencies, {
+            isPromptInterrupted: async () => false,
+            consumePromptSteers: async () => [],
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+        });
+        const args = buildAgentArgs();
+        args.enableAskUser = true;
+        const doGenerate = vi.fn(async () => ({
+            content: [
+                {
+                    type: 'tool-call' as const,
+                    toolCallId: 'ask-call',
+                    toolName: 'askUser',
+                    input: JSON.stringify({ questions }),
+                },
+            ],
+            finishReason: { unified: 'tool-calls' as const, raw: undefined },
+            usage,
+            warnings: [],
+        }));
+        args.model = new MockLanguageModelV4({ doGenerate });
+
+        await expect(
+            generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).resolves.toBe('Which month should I use?');
+        expect(doGenerate).toHaveBeenCalledTimes(1);
+        expect(updatePrompt).not.toHaveBeenCalledWith(
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
+    });
+
+    it('generate: keeps going when the model calls askUser while it is off', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const dependencies = buildAgentDependencies(
+            vi.fn().mockResolvedValue(undefined),
+        );
+        Object.assign(dependencies, {
+            isPromptInterrupted: async () => false,
+            consumePromptSteers: async () => [],
+        });
+        const args = buildAgentArgs();
+        let calls = 0;
+        args.model = new MockLanguageModelV4({
+            doGenerate: async () => {
+                calls += 1;
+                return {
+                    content:
+                        calls === 1
+                            ? [
+                                  {
+                                      type: 'tool-call' as const,
+                                      toolCallId: 'ask-call',
+                                      toolName: 'askUser',
+                                      input: JSON.stringify({ questions }),
+                                  },
+                              ]
+                            : [{ type: 'text' as const, text: 'Answer' }],
+                    finishReason: {
+                        unified:
+                            calls === 1
+                                ? ('tool-calls' as const)
+                                : ('stop' as const),
+                        raw: undefined,
+                    },
+                    usage,
+                    warnings: [],
+                };
+            },
+        });
+
+        await expect(
+            generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).resolves.toBe('Answer');
+        expect(calls).toBe(2);
+    });
+});
+
 describe('generateAgentResponse token usage persistence', () => {
     const runWithSteps = async (
         execution: Record<string, unknown>,
@@ -1359,6 +1501,8 @@ describe('generateAgentResponse token usage persistence', () => {
             return {
                 text: 'Answer',
                 steps: stepTotals.map((totalTokens) => ({
+                    toolCalls: [],
+                    toolResults: [],
                     usage: { totalTokens },
                 })),
                 finalStep: { usage: { totalTokens: stepTotals.at(-1) ?? 0 } },
@@ -3755,7 +3899,13 @@ describe('external MCP tool call activity', () => {
                     options = captured;
                     return {
                         text: 'Answer',
-                        steps: [{ usage: { totalTokens: 1 } }],
+                        steps: [
+                            {
+                                toolCalls: [],
+                                toolResults: [],
+                                usage: { totalTokens: 1 },
+                            },
+                        ],
                         finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
@@ -4093,7 +4243,13 @@ describe.each(['generate', 'stream'] as const)(
                     options = captured;
                     return {
                         text: 'Answer',
-                        steps: [{ usage: { totalTokens: 1 } }],
+                        steps: [
+                            {
+                                toolCalls: [],
+                                toolResults: [],
+                                usage: { totalTokens: 1 },
+                            },
+                        ],
                         finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
