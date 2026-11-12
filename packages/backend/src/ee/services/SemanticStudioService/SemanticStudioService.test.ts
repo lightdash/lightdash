@@ -1972,6 +1972,36 @@ describe('SemanticStudioService', () => {
             expect(context.drafts).toHaveLength(0);
         });
 
+        it('opens one pull request when the same draft is applied twice', async () => {
+            const context = repo();
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            await context.service.applyDraft(repoWriter, PROJECT_UUID, null);
+            const second = await context.service.applyDraft(
+                repoWriter,
+                PROJECT_UUID,
+                null,
+            );
+            expect(second.pullRequestUrl).toBeNull();
+            expect(context.openPullRequest).toHaveBeenCalledTimes(1);
+        });
+
+        it('is off for a repository the GitHub App cannot reach', async () => {
+            expect(
+                await setup({
+                    dbtConnection: {
+                        ...GITHUB_REPO,
+                        semanticLayer: 'lightdash',
+                        authorization_method: 'personal_access_token',
+                    },
+                }).service.getStatus(repoWriter, PROJECT_UUID),
+            ).toEqual({ enabled: false, appliesAs: 'pull_request' });
+        });
+
         it('opens no pull request for a draft that stopped passing', async () => {
             const context = repo();
             context.drafts.push({

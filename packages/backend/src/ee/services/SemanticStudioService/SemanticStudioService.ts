@@ -60,6 +60,7 @@ import { foldDraft, withWrites } from './draftFold';
 import { findDraftedPaths, reconcileModel } from './reconcileDraft';
 import {
     describePullRequest,
+    keepsModelsInGithub,
     resolveRepoConnection,
     type RepoModels,
     type RepoModelSource,
@@ -301,6 +302,14 @@ export class SemanticStudioService extends BaseService {
         const blocker = await this.findAccessBlocker(user, project);
         if (blocker) return blocker;
         if (project.dbtConnection.type === DbtProjectType.NONE) return null;
+        if (
+            keepsModelsInGithub(project.dbtConnection) &&
+            !resolveRepoConnection(project.dbtConnection)
+        ) {
+            return new ParameterError(
+                'Models in a repository can only be changed here when the connection uses the GitHub App on github.com',
+            );
+        }
         if (!resolveRepoConnection(project.dbtConnection)) {
             return new ParameterError(
                 'A draft is kept for a project without a dbt connection, or one that keeps its models in GitHub',
@@ -324,7 +333,7 @@ export class SemanticStudioService extends BaseService {
         const { dbtConnection } = project;
         if (
             dbtConnection.type !== DbtProjectType.NONE &&
-            !resolveRepoConnection(dbtConnection)
+            !keepsModelsInGithub(dbtConnection)
         ) {
             // A dbt project keeps no draft: the agent edits the repository in a pull request.
             return {
@@ -340,7 +349,7 @@ export class SemanticStudioService extends BaseService {
         }
         return {
             enabled: (await this.findBlocker(user, project)) === null,
-            appliesAs: resolveRepoConnection(dbtConnection)
+            appliesAs: keepsModelsInGithub(dbtConnection)
                 ? 'pull_request'
                 : 'live',
         };
@@ -1442,13 +1451,25 @@ export class SemanticStudioService extends BaseService {
                     writes: check.writes,
                     ...describePullRequest(draft.results.flat()),
                 });
-                await this.projectModelDocumentModel.updateDraftChangeStatus({
-                    projectUuid,
-                    userUuid: user.userUuid,
-                    drafts,
-                    status: 'applied',
-                    pullRequestUrl: url,
-                });
+                let settled = 0;
+                try {
+                    settled =
+                        await this.projectModelDocumentModel.updateDraftChangeStatus(
+                            {
+                                projectUuid,
+                                userUuid: user.userUuid,
+                                drafts,
+                                status: 'applied',
+                                pullRequestUrl: url,
+                            },
+                        );
+                } finally {
+                    if (settled === 0) {
+                        this.logger.error(
+                            `Opened ${url} for project ${projectUuid} but could not mark the draft as sent`,
+                        );
+                    }
+                }
                 return {
                     exploreCount: null,
                     failures: [],
