@@ -586,8 +586,8 @@ describe('edit lifecycle: tiles', () => {
             'tile-new',
         ]);
         expect(payload.tiles[0].properties.title).toBe('Renamed');
-        // New tiles go one row below the lowest tile origin
-        expect(payload.tiles[1].y).toBe(1);
+        // New tiles go below the bottom edge of the lowest tile
+        expect(payload.tiles[1].y).toBe(3);
         // Deleting the only targeted tile drops its date zoom target and the
         // now-empty control
         expect(payload.config.dateZoomConfig).toBeUndefined();

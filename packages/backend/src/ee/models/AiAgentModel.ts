@@ -8067,6 +8067,28 @@ export class AiAgentModel {
         return row?.slug ?? null;
     }
 
+    /** The on-screen state most recently attached for the dashboard in the thread; null when none, or as saved. */
+    async findThreadDashboardRuntimeOverrides(
+        threadUuid: string,
+        dashboardUuid: string,
+    ): Promise<AiDashboardRuntimeOverrides | null> {
+        const row = await this.database(AiPromptContextTableName)
+            .join(
+                AiPromptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiPromptContextTableName}.ai_prompt_uuid`,
+            )
+            .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
+            .andWhere(`${AiPromptContextTableName}.entity_type`, 'dashboard')
+            .andWhere(`${AiPromptContextTableName}.entity_uuid`, dashboardUuid)
+            .orderBy(`${AiPromptContextTableName}.created_at`, 'desc')
+            .first<
+                | { runtime_overrides: AiDashboardRuntimeOverrides | null }
+                | undefined
+            >(`${AiPromptContextTableName}.runtime_overrides`);
+        return row?.runtime_overrides ?? null;
+    }
+
     async getContextForPromptUuids(
         promptUuids: string[],
     ): Promise<Map<string, AiPromptContext>> {

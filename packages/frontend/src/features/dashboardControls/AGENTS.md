@@ -144,7 +144,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `FieldsAndTiles.tsx`, `fieldCandidates.ts` | A new filter's field search; field candidates for "Add a field" and the cards |
 | `peers.ts` | Multi-field model on the saved shape, scopes, counts |
 | `ControlTilesBar.tsx` | The parameter key's and date zoom's floating bar: host, tab scopes, slide guard |
-| `FieldTilesBar.tsx`, `useFieldTileActions.ts`, `useBarHost.ts` | Floating field bar; the one place a field's counts and actions are computed |
+| `FieldTilesBar.tsx`, `useFieldTileActions.ts`, `FloatingBar.tsx`, `useBarHost.ts` | Floating field bar; the one place a field's counts and actions are computed; `FloatingBar` is the edit toolbar's `ActionBar`, shared by every floating bar here |
 | `TileOverlay.tsx`, `LazySelect.tsx`, `tileProps.ts`, `tileSelector.ts`, `TileCard.tsx`, `useTabTileTargets.ts` | Per-tile veil and card; every kind's veil, card frame, Move question, tab tiles and ring highlight |
 | `TabCounts.tsx`, `usePortalTargets.ts`, `useTileHover.ts`, `useScrollToHighlightedTile.ts` | Tab counts, portal targets and sibling locking, pill hover marks, scroll to tile |
 | `LinkPrompts.tsx`, `linkCandidates.ts` | Link prompts on tiles added while editing |

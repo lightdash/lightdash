@@ -11,6 +11,7 @@ import {
     type SemanticLayerDraftUsage,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
+    type SemanticLayerStoredModels,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
@@ -81,6 +82,18 @@ export const useKeepsSemanticLayerDraft = (projectUuid: string): boolean =>
 /** Whether applying a draft opens a pull request on the project's repository instead of going live. */
 export const useAppliesAsPullRequest = (projectUuid: string): boolean =>
     useStatus(projectUuid)?.appliesAs === 'pull_request';
+
+/** The models whose YAML the project keeps; empty for someone who cannot change the project. */
+export const useSemanticLayerStoredModels = (
+    projectUuid: string,
+    enabled: boolean,
+) =>
+    useGet<SemanticLayerStoredModels>(
+        [MODEL_KEY, projectUuid],
+        projectUuid,
+        '/models',
+        enabled,
+    );
 
 /** A model's YAML and history; null when the project keeps no such model or this person cannot change it. */
 export const useSemanticLayerModel = (projectUuid: string, modelName: string) =>

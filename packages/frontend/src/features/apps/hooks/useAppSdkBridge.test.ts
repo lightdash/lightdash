@@ -129,6 +129,7 @@ function renderBridge(
     onQueryEvent: (event: QueryEvent) => void,
     previewToken = PREVIEW_TOKEN,
     dataAppVizMode = false,
+    onNewerVersion?: () => void,
 ) {
     const iframeRef = {
         current: { contentWindow: window } as unknown as HTMLIFrameElement,
@@ -143,6 +144,7 @@ function renderBridge(
             previewToken,
             onQueryEvent,
             dataAppVizMode,
+            onNewerVersion,
         }),
     );
 }
@@ -671,6 +673,53 @@ describe('useAppSdkBridge', () => {
             queryUuid: null,
             error: 'Internal server error',
         });
+    });
+
+    it('tells the host when a query is refused because a newer app version is ready', async () => {
+        const events: QueryEvent[] = [];
+        const onNewerVersion = vi.fn();
+        renderBridge(
+            (e) => events.push(e),
+            PREVIEW_TOKEN,
+            false,
+            onNewerVersion,
+        );
+
+        mockFetchNonOk(
+            {
+                status: 'error',
+                error: {
+                    message: 'This data app has a newer version.',
+                    data: { code: 'data_app_newer_version' },
+                },
+            },
+            403,
+        );
+        postMetricQuery();
+
+        await vi.waitFor(() => expect(events).toHaveLength(2));
+        expect(onNewerVersion).toHaveBeenCalledTimes(1);
+        expect(events[1]).toMatchObject({ id: POST_ID, status: 'error' });
+    });
+
+    it('does not report a newer version for other refused queries', async () => {
+        const events: QueryEvent[] = [];
+        const onNewerVersion = vi.fn();
+        renderBridge(
+            (e) => events.push(e),
+            PREVIEW_TOKEN,
+            false,
+            onNewerVersion,
+        );
+
+        mockFetchNonOk(
+            { status: 'error', error: { message: 'Forbidden', data: {} } },
+            403,
+        );
+        postMetricQuery();
+
+        await vi.waitFor(() => expect(events).toHaveLength(2));
+        expect(onNewerVersion).not.toHaveBeenCalled();
     });
 
     it('emits a terminal error event when the metric-query POST fetch throws', async () => {

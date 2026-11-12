@@ -16,7 +16,6 @@ import {
     FeatureFlags,
     findDeepResearchChartRefs,
     ForbiddenError,
-    getDocumentUrl,
     getErrorMessage,
     getGroupByDimensions,
     getWebAiChartConfig,
@@ -99,7 +98,7 @@ import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from './constants';
 import { resolveDeepResearchWarehouseChart } from './resolveDeepResearchWarehouseChart';
 import {
     findAiDeepResearchRunDocuments,
-    getAiDeepResearchDocumentToolCallId,
+    recordAiDeepResearchRunDocument,
 } from './runDocument';
 import { toDeepResearchDocument } from './toDeepResearchDocument';
 import {
@@ -1529,51 +1528,25 @@ export class AiDeepResearchService extends BaseService {
                 aiThreadUuid: run.ai_thread_uuid,
             },
         );
-        const href = getDocumentUrl(
-            run.project_uuid,
-            document.documentUuid,
-            document.slug,
-        );
-        const toolCallId = getAiDeepResearchDocumentToolCallId(
-            run.ai_deep_research_run_uuid,
-        );
+        const published = {
+            documentUuid: document.documentUuid,
+            name: document.name,
+            slug: document.slug,
+        };
         await retryReportFinalization(
-            async () => {
-                await this.aiAgentModel.createToolCall({
-                    promptUuid: run.prompt_uuid,
-                    toolCallId,
-                    toolName: 'createContent',
-                    toolArgs: { type: 'document', uuid: document.documentUuid },
-                    parentToolCallId: null,
-                });
-                await this.aiAgentModel.createToolResults([
-                    {
-                        promptUuid: run.prompt_uuid,
-                        toolCallId,
-                        toolName: 'createContent',
-                        result: `<document href="${href}" />`,
-                        metadata: {
-                            status: 'success',
-                            uuid: document.documentUuid,
-                            name: document.name,
-                            slug: document.slug,
-                            href,
-                            warnings: [],
-                        },
-                    },
-                ]);
-            },
+            () =>
+                recordAiDeepResearchRunDocument(
+                    this.aiAgentModel,
+                    run,
+                    published,
+                ),
             (error, attempt) => {
                 this.logger.warn(
                     `Deep Research run ${run.ai_deep_research_run_uuid} could not record its Document (retry ${attempt}): ${getErrorMessage(error)}`,
                 );
             },
         );
-        return {
-            documentUuid: document.documentUuid,
-            name: document.name,
-            slug: document.slug,
-        };
+        return published;
     }
 
     private async prepareReport(

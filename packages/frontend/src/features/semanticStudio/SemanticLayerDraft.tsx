@@ -10,6 +10,7 @@ import {
     Loader,
     Menu,
     Paper,
+    SegmentedControl,
     Stack,
     Text,
     ThemeIcon,
@@ -327,6 +328,7 @@ const DraftActions: FC<{
     model: string | null;
 }> = ({ projectUuid, draft, model }) => {
     const discard = useDiscardSemanticLayerDraft(projectUuid);
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const [applying, setApplying] = useState(false);
     const isAll = model === null && draft.models.length > 1;
     const hasConflict = countConflicts(draft, model) > 0;
@@ -357,7 +359,11 @@ const DraftActions: FC<{
                             if (!blocked) setApplying(true);
                         }}
                     >
-                        {isAll ? 'Publish all' : 'Publish'}
+                        {asPullRequest
+                            ? 'Open pull request'
+                            : isAll
+                              ? 'Publish all'
+                              : 'Publish'}
                     </Button>
                 </Tooltip>
             ) : null}
@@ -373,30 +379,32 @@ const DraftActions: FC<{
     );
 };
 
-/** Switches the person's own queries between the live models and their changes in development. */
-const PreviewToggle: FC<{
-    isPreviewing: boolean;
+/** Switches what the person's own queries read: the live models, or those with their changes on top. */
+export const ChangesSwitch: FC<{
+    isOnMyChanges: boolean;
     onChange: (next: boolean) => void;
-}> = ({ isPreviewing, onChange }) => (
+}> = ({ isOnMyChanges, onChange }) => (
     <Tooltip
         multiline
         w={240}
         label={
-            isPreviewing
-                ? 'Back to live. Explore and your charts are reading your changes.'
-                : 'Try my changes. Explore and your charts read them, and only you see it.'
+            isOnMyChanges
+                ? 'Explore, charts and dashboards are reading your changes. Only you see this.'
+                : 'Switch to My changes to try them in Explore, charts and dashboards. Only you see it.'
         }
     >
-        <ActionIcon
-            size="md"
-            variant={isPreviewing ? 'light' : 'default'}
-            color={isPreviewing ? 'orange' : undefined}
-            aria-label={isPreviewing ? 'Back to live' : 'Try my changes'}
-            aria-pressed={isPreviewing}
-            onClick={() => onChange(!isPreviewing)}
-        >
-            <MantineIcon icon={IconEye} />
-        </ActionIcon>
+        <SegmentedControl
+            size="xs"
+            flex="none"
+            aria-label="What your queries read"
+            color={isOnMyChanges ? 'orange' : undefined}
+            value={isOnMyChanges ? 'mine' : 'live'}
+            onChange={(next) => onChange(next === 'mine')}
+            data={[
+                { value: 'live', label: 'Live' },
+                { value: 'mine', label: 'My changes' },
+            ]}
+        />
     </Tooltip>
 );
 
@@ -460,6 +468,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [discarding, setDiscarding] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
     const discard = useDiscardSemanticLayerDraft(projectUuid);
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
@@ -474,6 +483,11 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const conflicts = countConflicts(draft, null);
     return (
         <DevelopmentBar
+            status={
+                <Badge color="orange" flex="none">
+                    Draft
+                </Badge>
+            }
             summary={
                 <Text fz="xs" c="dimmed" truncate>
                     {draft.models.length > 0
@@ -482,8 +496,8 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                 </Text>
             }
         >
-            <PreviewToggle
-                isPreviewing={isPreviewing}
+            <ChangesSwitch
+                isOnMyChanges={isPreviewing}
                 onChange={setIsPreviewing}
             />
             {reviewing ? null : (
@@ -539,7 +553,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                             if (!blocked) setPublishing(true);
                         }}
                     >
-                        Publish
+                        {asPullRequest ? 'Open pull request' : 'Publish'}
                     </Button>
                 </Tooltip>
             ) : null}
@@ -568,7 +582,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     </Menu.Item>
                     <Menu.Divider />
                     <Menu.Item color="red" onClick={() => setDiscarding(true)}>
-                        Discard all changes
+                        Discard draft
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
@@ -587,7 +601,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                 <MantineModal
                     opened
                     variant="delete"
-                    title="Discard all changes"
+                    title="Discard draft"
                     description={`${count(draft.changes.length, 'change')} in development will be removed. Nothing live changes, and this cannot be undone.`}
                     confirmLabel="Discard"
                     confirmLoading={discard.isLoading}
@@ -649,7 +663,7 @@ export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
     return (
         <Group className={classes.heading} gap="xs" wrap="nowrap">
             <Badge color="orange" flex="none">
-                In development
+                Draft
             </Badge>
             <Text fz="sm" fw={500} truncate flex={1}>
                 {draft.models.length > 0
@@ -657,8 +671,8 @@ export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
                     : 'Already live, nothing to publish'}
             </Text>
             {draft.models.length > 0 ? (
-                <PreviewToggle
-                    isPreviewing={isPreviewing}
+                <ChangesSwitch
+                    isOnMyChanges={isPreviewing}
                     onChange={setIsPreviewing}
                 />
             ) : null}

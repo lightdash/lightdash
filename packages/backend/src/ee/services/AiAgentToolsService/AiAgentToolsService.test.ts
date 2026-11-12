@@ -11,6 +11,7 @@ import {
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     ContentType,
     CustomDimensionType,
+    DashboardTileTypes,
     DATA_APP_VIZ_TEMPLATE,
     DimensionType,
     Explore,
@@ -2539,6 +2540,263 @@ describe('AiAgentToolsService', () => {
             }),
         ).rejects.toThrow(NotFoundError);
         expect(executeDashboardChartQueryAndGetResults).not.toHaveBeenCalled();
+    });
+
+    describe('date zoom on a dashboard chart query', () => {
+        const zoomControls = {
+            controls: [
+                { uuid: 'zoom-1', name: 'Revenue zoom', granularity: 'Day' },
+            ],
+            tileTargets: {
+                'tile-1': {
+                    controlUuid: 'zoom-1',
+                    fieldId: 'orders_date',
+                    tableName: 'orders',
+                },
+            },
+        };
+        const zoomConfig = {
+            isDateZoomDisabled: false,
+            defaultDateZoomGranularity: 'Month',
+            dateZoomConfig: zoomControls,
+        };
+        const tableChart = {
+            chartConfig: { type: 'table' },
+            metricQuery: { exploreName: 'orders' },
+        };
+        const runDashboardChart = async ({
+            chartUuid,
+            config = zoomConfig,
+            threadOverrides,
+            savedChart = tableChart,
+        }: {
+            chartUuid: string;
+            config?: Record<string, unknown>;
+            // Undefined: the runtime has no thread
+            threadOverrides?: Record<string, unknown> | null;
+            savedChart?: Record<string, unknown>;
+        }) => {
+            const executeDashboardChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+            const getSavedChart = vi.fn().mockResolvedValue(savedChart);
+            const findThreadDashboardRuntimeOverrides = vi
+                .fn()
+                .mockResolvedValue(threadOverrides ?? null);
+            const service = makeService({
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'dashboard-uuid',
+                        spaceUuid: 'allowed-space-uuid',
+                        filters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        config,
+                        tiles: ['chart-1', 'chart-2'].map((uuid, index) => ({
+                            uuid: `tile-${index + 1}`,
+                            type: DashboardTileTypes.SAVED_CHART,
+                            properties: { savedChartUuid: uuid },
+                        })),
+                    }),
+                },
+                savedChartModel: { get: getSavedChart },
+                projectService: {
+                    getExplore: vi.fn().mockResolvedValue(
+                        makeExplore({
+                            name: 'orders',
+                            dimensions: {
+                                date: {
+                                    name: 'date',
+                                    table: 'orders',
+                                    type: DimensionType.DATE,
+                                },
+                            },
+                        }),
+                    ),
+                },
+                aiAgentModel: { findThreadDashboardRuntimeOverrides },
+                asyncQueryService: { executeDashboardChartQueryAndGetResults },
+            });
+            await service
+                .createRuntime(
+                    makeRuntimeContext(
+                        threadOverrides === undefined
+                            ? {}
+                            : { threadUuid: 'thread-uuid' },
+                    ),
+                )
+                .runSavedChartQuery({
+                    chartUuid,
+                    dashboardSlug: 'dashboard',
+                    limit: 100,
+                });
+            const [queryArgs] =
+                executeDashboardChartQueryAndGetResults.mock.calls[0];
+            return {
+                dateZoom: queryArgs.dateZoom,
+                queryArgs,
+                getSavedChart,
+                findThreadDashboardRuntimeOverrides,
+            };
+        };
+        const zoomPick = (isViewerPick?: boolean) => ({
+            uuid: 'zoom-1',
+            name: 'Revenue zoom',
+            granularity: 'Year',
+            tiles: [],
+            ...(isViewerPick === undefined ? {} : { isViewerPick }),
+        });
+        const picks = {
+            dateZoom: { granularity: 'Week' },
+            dateZoomControls: [zoomPick(true)],
+        };
+
+        it.each([
+            {
+                name: "the viewer's dashboard-wide pick on a tile following no control",
+                chartUuid: 'chart-2',
+                threadOverrides: picks,
+                expected: { granularity: 'Week' },
+            },
+            {
+                name: "the viewer's pick on the named zoom the tile follows",
+                chartUuid: 'chart-1',
+                threadOverrides: picks,
+                expected: { granularity: 'Year', xAxisFieldId: 'orders_date' },
+            },
+            {
+                name: 'the saved grain of a named zoom whose stored grain was not a pick, as the saved one may have changed since',
+                chartUuid: 'chart-1',
+                threadOverrides: { dateZoomControls: [zoomPick(false)] },
+                expected: { granularity: 'Day', xAxisFieldId: 'orders_date' },
+            },
+            {
+                name: 'the saved grain of a named zoom stored before picks were marked',
+                chartUuid: 'chart-1',
+                threadOverrides: { dateZoomControls: [zoomPick()] },
+                expected: { granularity: 'Day', xAxisFieldId: 'orders_date' },
+            },
+            {
+                name: 'no zoom once the viewer cleared the dashboard-wide one',
+                chartUuid: 'chart-2',
+                threadOverrides: { dateZoom: null },
+                expected: undefined,
+            },
+            {
+                name: 'the saved default when the thread state says nothing about date zoom',
+                chartUuid: 'chart-2',
+                threadOverrides: { activeTab: { uuid: 'tab', name: 'Tab' } },
+                expected: { granularity: 'Month' },
+            },
+            {
+                name: 'the saved grain of the named zoom when the thread has no view state',
+                chartUuid: 'chart-1',
+                threadOverrides: null,
+                expected: { granularity: 'Day', xAxisFieldId: 'orders_date' },
+            },
+            {
+                name: 'the saved default grain without a thread',
+                chartUuid: 'chart-2',
+                threadOverrides: undefined,
+                expected: { granularity: 'Month' },
+            },
+            {
+                name: 'no zoom for a saved default on a dashboard with date zoom disabled',
+                chartUuid: 'chart-2',
+                config: { ...zoomConfig, isDateZoomDisabled: true },
+                threadOverrides: undefined,
+                expected: undefined,
+            },
+            {
+                name: "the viewer's pick on a dashboard that saves no zoom",
+                chartUuid: 'chart-2',
+                config: { isDateZoomDisabled: false },
+                threadOverrides: { dateZoom: { granularity: 'Week' } },
+                expected: { granularity: 'Week' },
+            },
+            {
+                name: 'the dashboard-wide grain to a tile whose named zoom no longer exists',
+                chartUuid: 'chart-1',
+                config: {
+                    ...zoomConfig,
+                    dateZoomConfig: { ...zoomControls, controls: [] },
+                },
+                threadOverrides: undefined,
+                expected: { granularity: 'Month' },
+            },
+        ])(
+            'applies $name',
+            async ({ chartUuid, config, threadOverrides, expected }) => {
+                const { dateZoom } = await runDashboardChart({
+                    chartUuid,
+                    config,
+                    threadOverrides,
+                });
+                expect(dateZoom).toEqual(expected);
+            },
+        );
+
+        it('applies the grain alone, with no chart load, to a tile whose named zoom targets no field', async () => {
+            const { dateZoom, queryArgs, getSavedChart } =
+                await runDashboardChart({
+                    chartUuid: 'chart-1',
+                    config: {
+                        ...zoomConfig,
+                        dateZoomConfig: {
+                            ...zoomControls,
+                            tileTargets: {
+                                'tile-1': {
+                                    controlUuid: 'zoom-1',
+                                    fieldId: null,
+                                    tableName: null,
+                                },
+                            },
+                        },
+                    },
+                });
+            expect(dateZoom).toEqual({ granularity: 'Day' });
+            expect(getSavedChart).not.toHaveBeenCalled();
+            expect(queryArgs).not.toHaveProperty('preloadedSavedChart');
+        });
+
+        it('targets the time x-axis of a cartesian chart and hands the loaded chart to the query', async () => {
+            const savedChart = {
+                chartConfig: {
+                    type: 'cartesian',
+                    config: {
+                        layout: { xField: 'orders_date' },
+                        eChartsConfig: {},
+                    },
+                },
+                metricQuery: { exploreName: 'orders' },
+            };
+            const { dateZoom, queryArgs, getSavedChart } =
+                await runDashboardChart({ chartUuid: 'chart-2', savedChart });
+            expect(dateZoom).toEqual({
+                granularity: 'Month',
+                xAxisFieldId: 'orders_date',
+            });
+            expect(getSavedChart).toHaveBeenCalledOnce();
+            expect(queryArgs.preloadedSavedChart).toBe(savedChart);
+        });
+
+        it('reads nothing extra for a dashboard with no zoom and no thread', async () => {
+            const {
+                dateZoom,
+                queryArgs,
+                getSavedChart,
+                findThreadDashboardRuntimeOverrides,
+            } = await runDashboardChart({
+                chartUuid: 'chart-2',
+                config: { isDateZoomDisabled: false },
+            });
+            expect(dateZoom).toBeUndefined();
+            expect(queryArgs).not.toHaveProperty('dateZoom');
+            expect(findThreadDashboardRuntimeOverrides).not.toHaveBeenCalled();
+            expect(getSavedChart).not.toHaveBeenCalled();
+        });
     });
 
     it('does not create content outside the scoped agent spaces', async () => {

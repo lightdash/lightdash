@@ -22,9 +22,9 @@ import {
 import {
     IconChevronRight,
     IconCode,
-    IconEye,
     IconFileCode,
     IconSearch,
+    IconTable,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -112,6 +112,7 @@ import {
     useDraftFreshness,
     useSemanticLayerDraft,
     useSemanticLayerModel,
+    useSemanticLayerStoredModels,
 } from './useSemanticLayerModel';
 import {
     useFieldListState,
@@ -141,7 +142,7 @@ const DraftMarker: FC<{
     if (!isMine && others.length === 0) return null;
     const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
     return (
-        <Tooltip label={`In development by ${whose}. Not live yet.`}>
+        <Tooltip label={`Draft by ${whose}. Not live yet.`}>
             <Box
                 className={classes.draftDot}
                 data-others={!isMine || undefined}
@@ -855,8 +856,8 @@ const VIEW_OPTIONS = [
         value: 'preview',
         label: (
             <Group gap={6} wrap="nowrap">
-                <MantineIcon icon={IconEye} size={14} />
-                Preview
+                <MantineIcon icon={IconTable} size={14} />
+                Models
             </Group>
         ),
     },
@@ -962,10 +963,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         () => new Set(draft?.models.map(({ model }) => model)),
         [draft],
     );
-    const files = useMemo(
-        () => [...new Set([...drafted, ...modelled])].sort(),
-        [drafted, modelled],
-    );
     // A dbt project has no draft and no model code here: its files are in its repository.
     const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
     const pullRequest = useStudioPullRequest(view.project.id);
@@ -981,6 +978,15 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         chat.isAvailable &&
         keepsDraft &&
         searchParams.get(VIEW_PARAM) === 'code';
+    // Only models with YAML here have a file: a deployed model's YAML lives where it was deployed from.
+    const { data: stored } = useSemanticLayerStoredModels(
+        view.project.id,
+        isCode,
+    );
+    const files = useMemo(
+        () => [...new Set([...drafted, ...(stored?.models ?? [])])].sort(),
+        [drafted, stored],
+    );
     const requestedFile = searchParams.get(FILE_PARAM);
     const file =
         files.find((name) => name === requestedFile) ??
@@ -1034,10 +1040,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         modelName={file}
                         fieldName={searchParams.get(FIELD_PARAM)}
                     />
-                ) : (
+                ) : !stored ? null : (
                     <Text fz="sm" c="dimmed" ta="center" py="xl">
-                        No models yet. Ask the agent to build one and its YAML
-                        shows up here.
+                        {modelled.length > 0
+                            ? 'These models were deployed from elsewhere, so their YAML is not here. Ask the agent for a new model and its YAML shows up here.'
+                            : 'No models yet. Ask the agent to build one and its YAML shows up here.'}
                     </Text>
                 );
             case 'review':
@@ -1134,6 +1141,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         (!keepsDraft && !development && isChatOpen) ? null : (
                             <Group
                                 className={classes.toolbar}
+                                data-my-changes={isTryingChanges || undefined}
                                 justify="space-between"
                                 wrap="nowrap"
                                 gap="sm"

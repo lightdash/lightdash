@@ -1,3 +1,59 @@
+## [3.240.1](https://github.com/lightdash/lightdash/compare/3.240.0...3.240.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** list only models with YAML in the Studio code view ([#32506](https://github.com/lightdash/lightdash/issues/32506)) ([346d366](https://github.com/lightdash/lightdash/commit/346d366f879079af67740629fdd6984adc822965))
+
+# [3.240.0](https://github.com/lightdash/lightdash/compare/3.239.0...3.240.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** name where a Studio change stands and what your queries read ([#32510](https://github.com/lightdash/lightdash/issues/32510)) ([cdaef6d](https://github.com/lightdash/lightdash/commit/cdaef6d891892198dc8683fbf779cf1dfe35f3ac))
+
+# [3.239.0](https://github.com/lightdash/lightdash/compare/3.238.0...3.239.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** give the Studio dbt pull request bar its context, models, publish and discard ([#32483](https://github.com/lightdash/lightdash/issues/32483)) ([1bc22eb](https://github.com/lightdash/lightdash/commit/1bc22eb7e1a3a94981da23b1fd3dd5345e55cbd6))
+
+# [3.238.0](https://github.com/lightdash/lightdash/compare/3.237.0...3.238.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** seed the Learn Deep Research sample report as a Document ([#32509](https://github.com/lightdash/lightdash/issues/32509)) ([cc5576a](https://github.com/lightdash/lightdash/commit/cc5576af33571c5d78e9c65faf4d8d5616fdb119))
+* **dashboard:** place new tiles below the bottom edge of the lowest tile ([#32410](https://github.com/lightdash/lightdash/issues/32410)) ([4a0943f](https://github.com/lightdash/lightdash/commit/4a0943f0e665f01f2f4e97ec35eba80972ce9528))
+* **dashboards:** stop edits pushing untouched tiles down ([#32361](https://github.com/lightdash/lightdash/issues/32361)) ([99c4937](https://github.com/lightdash/lightdash/commit/99c49371027acc1e5311894dafac7d7e7d0464e9)), closes [#32160](https://github.com/lightdash/lightdash/issues/32160)
+
+
+### Features
+
+* **ai:** teach agents dashboard controls and apply date zoom ([#32492](https://github.com/lightdash/lightdash/issues/32492)) ([906cdc1](https://github.com/lightdash/lightdash/commit/906cdc166c3135baff474188bcb0ea12af696c63))
+
+# [3.237.0](https://github.com/lightdash/lightdash/compare/3.236.1...3.237.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **data-apps:** tell apps up front when a viewer has no shared app state ([#32499](https://github.com/lightdash/lightdash/issues/32499)) ([3653827](https://github.com/lightdash/lightdash/commit/3653827c15a45129487c6067771a80bdd6228f55))
+
+
+### Features
+
+* **live-sources:** rename Source ID to explore prefix and explain it ([#32503](https://github.com/lightdash/lightdash/issues/32503)) ([d93e320](https://github.com/lightdash/lightdash/commit/d93e3200c238841e564f3984ea1e295dac80084e))
+* **merge:** let an instance turn off merge authoring with DISABLE_MERGE_QUERY_AUTHORING ([#32508](https://github.com/lightdash/lightdash/issues/32508)) ([be88656](https://github.com/lightdash/lightdash/commit/be8865683c8531ab03bef5ab5052bf3529d74c3a))
+
+## [3.236.1](https://github.com/lightdash/lightdash/compare/3.236.0...3.236.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** draw floating bars with the edit toolbar bar ([#32487](https://github.com/lightdash/lightdash/issues/32487)) ([484d5c9](https://github.com/lightdash/lightdash/commit/484d5c93e047911accb14be2f3a781b2d3c236cd))
+* **data-apps:** move an open app to the latest version when a newer one is ready ([#32486](https://github.com/lightdash/lightdash/issues/32486)) ([129dca8](https://github.com/lightdash/lightdash/commit/129dca89bbdba88375917ac4b51498fff0c227ff))
+
 # [3.236.0](https://github.com/lightdash/lightdash/compare/3.235.0...3.236.0) (2026-11-12)
 
 

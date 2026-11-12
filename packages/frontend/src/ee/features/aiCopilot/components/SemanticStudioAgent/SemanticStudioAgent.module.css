@@ -93,3 +93,7 @@
 .resizeHandle[data-resizing='true'] {
     background-color: var(--mantine-color-default-border);
 }
+
+.statusLink {
+    cursor: pointer;
+}

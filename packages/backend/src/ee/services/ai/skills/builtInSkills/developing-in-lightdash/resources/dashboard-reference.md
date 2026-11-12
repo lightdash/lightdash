@@ -623,9 +623,81 @@ config:
 
 A key accepts `all`, `except`, or `only`; tile references are tile slugs. At most one default (`all` or `except`) may own a key, and `only` assignments must not overlap each other or the default. `only: []` assigns no tiles; `except: []` means `all`. A present empty control list saves no controls and an empty parameter mirror; an absent list uses legacy dashboard parameters. Hiding a control keeps its assignments and value. An upload with controls derives the top-level parameter mirror from their values.
 
+### Control sections
+
+When dashboard controls are enabled, `config.controlSections` groups controls into named sections on the filter bar. Each section is `{ slug, name, collapsed? }`. A control joins a section through its own `sectionSlug`, set to a section's `slug`: on a dimension or metric filter, a parameter control in `config.parameterControls`, or a date zoom control in `config.dateZoomConfig.controls`. A control without `sectionSlug` sits on the bar outside any section.
+
+```json
+{
+    "config": {
+        "isDateZoomDisabled": false,
+        "controlSections": [
+            { "slug": "calendar", "name": "Calendar", "collapsed": false }
+        ]
+    },
+    "filters": {
+        "dimensions": [
+            {
+                "slug": "orders-created-at-month",
+                "sectionSlug": "calendar",
+                "operator": "inThePast",
+                "settings": { "completed": false, "unitOfTime": "months" },
+                "target": {
+                    "fieldId": "orders_created_at_month",
+                    "tableName": "orders"
+                },
+                "values": [12]
+            }
+        ]
+    }
+}
+```
+
+- A section's `slug` is derived from its name on every read and never saved; repeated names are all numbered (`-1`, `-2`). A section written without a `slug` takes the slug of its name. Files hold no section IDs.
+- A slug only links references inside the same edit. To rename a section, change its `name` and keep its `slug`: its members and its `controlOrder` entry stay attached, and the next read shows the slug of the new name. If you change a section's `slug`, change every `sectionSlug` and `section` entry in `controlOrder` that used it in the same edit.
+- An unknown `sectionSlug` is rejected, and the error lists the valid section slugs.
+- `collapsed: true` starts the section folded and `false` open. Without it, a section starts folded only when it has more than 6 filters.
+- Removing a section: remove its entry, every `sectionSlug` that points at it, and its `controlOrder` entry. Its controls stay on the bar outside any section.
+
+### Date zoom controls
+
+Besides the dashboard-wide date zoom (`isDateZoomDisabled`, `dateZoomGranularities`, `defaultDateZoomGranularity`), a dashboard can have named date zoom controls under `config.dateZoomConfig`. Each control sets one grain for the tiles that follow it; `tileTargets` maps a tile slug to the control that tile follows and the tile's date field to re-grain.
+
+```json
+{
+    "config": {
+        "isDateZoomDisabled": false,
+        "dateZoomConfig": {
+            "controls": [
+                {
+                    "uuid": "3f0f7c52-6a0e-4a8e-9d55-1f2b7c3e9a10",
+                    "slug": "weekly",
+                    "name": "Weekly",
+                    "granularity": "Week"
+                }
+            ],
+            "tileTargets": {
+                "orders-over-time": {
+                    "controlUuid": "3f0f7c52-6a0e-4a8e-9d55-1f2b7c3e9a10",
+                    "controlSlug": "weekly",
+                    "fieldId": "orders_created_at_day",
+                    "tableName": "orders"
+                }
+            }
+        }
+    }
+}
+```
+
+- `uuid` and `controlUuid` identify the control: keep them exactly as read. A new control needs a new UUID v4, and its tile targets point at it with `controlUuid`. Renaming a control keeps its UUID.
+- `slug` is derived from the name on every read when dashboard controls are enabled, and only resolves `controlOrder` refs in the same edit. `controlSlug` is written on reads and ignored on save.
+- `granularity` is `Day`, `Week`, `Month`, `Quarter`, `Year` (or `Second`, `Minute`, `Hour`), or a custom granularity name.
+- `fieldId` and `tableName` are `null` for a tile with no date field to re-grain that only uses the control's grain through a parameter. A `tileTargets` key that matches no tile slug is dropped on save.
+- `hidden: true` hides the control from viewers; its grain still applies to its tiles. `sectionSlug` puts it in a section.
+
 ### Control order
 
-When dashboard controls are enabled, `config.controlOrder` sets the order of controls on the filter bar: the bar follows it entry by entry, mixing kinds. Each entry is `{ kind, slug, newLine? }`, where `kind` is `filter`, `parameter` or `section`, and `slug` is the control's `slug` in the same file: a dimension or metric filter's `slug`, a parameter control's `slug`, or a section's `slug` in `config.controlSections`. Slugs are derived on every download: a filter's from its field id, a parameter control's from its label, a section's from its name; repeated ones are all numbered (`-1`, `-2`). They are never saved: they only link entries to controls in the same file, and renaming a section or parameter control gives it a new slug and ID.
+When dashboard controls are enabled, `config.controlOrder` sets the order of controls on the filter bar: the bar follows it entry by entry, mixing kinds. Each entry is `{ kind, slug, newLine? }`, where `kind` is `filter`, `parameter`, `dateZoom` or `section`, and `slug` is the control's `slug` in the same file: a dimension or metric filter's `slug`, a parameter control's `slug`, a date zoom control's `slug` in `config.dateZoomConfig.controls`, or a section's `slug` in `config.controlSections`. Slugs are derived on every download: a filter's from its field id, a parameter control's from its label, a date zoom control's and a section's from its name; repeated ones are all numbered (`-1`, `-2`). They are never saved: they only link entries to controls in the same file. Renaming a section or parameter control gives it a new slug and ID; renaming a date zoom control gives it a new slug only.
 
 ```json
 {
@@ -634,20 +706,20 @@ When dashboard controls are enabled, `config.controlOrder` sets the order of con
             { "kind": "parameter", "slug": "region" },
             { "kind": "filter", "slug": "orders-status" },
             { "kind": "section", "slug": "calendar", "newLine": true },
-            { "kind": "filter", "slug": "orders-created-at-month" }
+            { "kind": "filter", "slug": "orders-created-at-month" },
+            { "kind": "dateZoom", "slug": "weekly" }
         ]
     }
 }
 ```
 
-- With dashboard controls enabled, reads include `controlOrder` only once the dashboard has a stored order, and always include a `slug` on every filter. To reorder a dashboard without one, write the list. An edit stores the list as given; CLI uploads follow the same rule.
+- With dashboard controls enabled, reads include `controlOrder` only once the dashboard has a stored order, and always include a `slug` on every filter and date zoom control. To reorder a dashboard without one, write the list. An edit stores the list as given; CLI uploads follow the same rule.
 - Reorder by moving entries. Unknown or repeated slugs are rejected, and the error lists the valid ones.
 - A section's members come from each control's `sectionSlug`, not from the list. Members follow their entries inside the section.
 - The list wins over each kind's own array: to swap two filters, swap their entries; `filters.dimensions`, `parameterControls` and `controlSections` order doesn't change the bar.
 - `newLine: true` starts a new bar line; without it, an entry shares the line of the entry before it. Section members never start a line: on a section member it passes to the next entry in the list outside a section, and is dropped if there is none. Line placement comes only from `newLine`.
 - Controls missing from the list go to the end of their section, or of the bar, inline. To place a new control, add its entry; when you remove a control, remove its entry too.
-- A file without `controlOrder`, or with an empty one, resets the bar to the default order: filters, then parameter controls, then sections.
-- Date zoom can't be ordered yet.
+- A file without `controlOrder`, or with an empty one, resets the bar to the default order: filters, then parameter controls, then date zoom controls, then sections.
 
 ## Complete Dashboard Example
 

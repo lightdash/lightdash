@@ -34,6 +34,7 @@ import {
     type SemanticLayerDraftUsage,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
+    type SemanticLayerStoredModels,
     type SessionUser,
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
@@ -492,6 +493,17 @@ export class SemanticStudioService extends BaseService {
     }
 
     /** A model's YAML and history; null when the project keeps no such model or this person cannot change it. */
+    async getStoredModels(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticLayerStoredModels> {
+        if (!(await this.canEditModels(user, projectUuid))) {
+            return { models: [] };
+        }
+        const { stored } = await this.loadStored(projectUuid);
+        return { models: stored.map(({ name }) => name).sort() };
+    }
+
     async getModel(
         user: SessionUser,
         projectUuid: string,

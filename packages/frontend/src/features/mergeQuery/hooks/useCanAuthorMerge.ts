@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
+import useHealth from '../../../hooks/health/useHealth';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
@@ -10,6 +11,8 @@ export const useCanAuthorMerge = (): boolean => {
     const ability = useAbilityContext();
     const projectUuid = useProjectUuid();
     const { user } = useApp();
+    const health = useHealth();
+    if (health.data?.mergeQueryAuthoring.enabled === false) return false;
     return (
         isEmbedded ||
         ability.can(
