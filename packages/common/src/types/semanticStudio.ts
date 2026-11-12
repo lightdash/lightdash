@@ -107,10 +107,15 @@ export type SemanticLayerDraftConflict = {
  */
 export type SemanticLayerDraftReconciliation = {
     state: 'current' | 'merged' | 'conflict';
+    /** The live version this was worked out against; null when the model is not live. Sent back when keeping the draft over it. */
+    liveVersion: number | null;
     /** Paths published since the draft was based that it does not touch. */
     merged: string[];
     conflicts: SemanticLayerDraftConflict[];
 };
+
+/** Someone else with a draft of a model, and the parts of it they are changing. */
+export type SemanticLayerDrafter = { name: string; paths: string[] };
 
 /** A model as the draft leaves it, against what is live. */
 export type SemanticLayerDraftModel = {
@@ -123,8 +128,8 @@ export type SemanticLayerDraftModel = {
     explore: Explore | null;
     /** How this model's draft stands against what was published since it was based; null when the base was not recorded. */
     reconciliation: SemanticLayerDraftReconciliation | null;
-    /** Other people with unpublished changes to this model, by name; never what they changed. */
-    alsoChanging: string[];
+    /** Other people with unpublished changes to this model, and the parts each is changing; never the content. */
+    alsoChanging: SemanticLayerDrafter[];
     /** The latest change someone else published to this model since this draft first touched it; null when none. */
     publishedSince: { by: string | null; at: Date } | null;
 };
@@ -210,6 +215,11 @@ export type ApiSemanticLayerDraftUsageResponse =
 
 /** Which way a change moves in a draft's order. */
 export type SemanticLayerDraftMoveDirection = 'earlier' | 'later';
+
+export type ApiSemanticLayerDraftKeepRequest = {
+    /** The live version the person was shown, from the model's reconciliation. */
+    liveVersion: number | null;
+};
 
 export type ApiSemanticLayerDraftMoveRequest = {
     direction: SemanticLayerDraftMoveDirection;

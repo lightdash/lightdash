@@ -332,6 +332,8 @@ const setup = ({
                 stored.map((doc) => ({ version: 1, ...doc })),
             findDocumentsAt: async () => new Map(baseContents),
             rebaseDraftChanges: async (_owner, model, version) => {
+                // Live is always at version 1 here.
+                if (version !== 1) return false;
                 drafts.forEach((change, index) => {
                     drafts[index] = {
                         ...change,
@@ -341,6 +343,7 @@ const setup = ({
                         },
                     };
                 });
+                return true;
             },
             createChangeSet: commit,
             findChangeSets: async (_projectUuid, uuids) =>
@@ -1088,7 +1091,7 @@ describe('SemanticStudioService', () => {
             expect(draft.models).toEqual([
                 expect.objectContaining({
                     model: 'orders',
-                    alsoChanging: ['Ada Lovelace'],
+                    alsoChanging: [{ name: 'Ada Lovelace', paths: [] }],
                     publishedSince: { by: 'Grace Hopper', at },
                 }),
             ]);
@@ -1114,6 +1117,7 @@ describe('SemanticStudioService', () => {
             expect(context.drafts[0].baseVersions).toEqual({ orders: 1 });
             expect(await reconciliationOf(context)).toEqual({
                 state: 'current',
+                liveVersion: 1,
                 merged: [],
                 conflicts: [],
             });
@@ -1136,6 +1140,7 @@ describe('SemanticStudioService', () => {
             context.drafts[0].baseVersions = { orders: 0 };
             expect(await reconciliationOf(context)).toEqual({
                 state: 'merged',
+                liveVersion: 1,
                 merged: ['label'],
                 conflicts: [],
             });
@@ -1175,10 +1180,19 @@ describe('SemanticStudioService', () => {
                 'orders',
             ]);
             expect(context.commitCalls).toEqual([]);
+            await expect(
+                context.service.keepDraftModel(
+                    deployer,
+                    PROJECT_UUID,
+                    'orders',
+                    7,
+                ),
+            ).rejects.toThrow('published again');
             await context.service.keepDraftModel(
                 deployer,
                 PROJECT_UUID,
                 'orders',
+                1,
             );
             expect((await reconciliationOf(context))?.state).toBe('current');
         });

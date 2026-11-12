@@ -155,7 +155,14 @@ export const ModelNotices: FC<{
                                 size="compact-xs"
                                 variant="default"
                                 loading={keep.isLoading}
-                                onClick={() => keep.mutate(model.model)}
+                                onClick={() =>
+                                    keep.mutate({
+                                        model: model.model,
+                                        liveVersion:
+                                            model.reconciliation?.liveVersion ??
+                                            null,
+                                    })
+                                }
                             >
                                 Keep mine
                             </Button>
@@ -186,8 +193,8 @@ export const ModelNotices: FC<{
                 <Group gap={6} wrap="nowrap">
                     <MantineIcon icon={IconUsers} size={14} color="dimmed" />
                     <Text fz="xs" c="dimmed">
-                        {listNames(model.alsoChanging)} also{' '}
-                        {model.alsoChanging.length === 1 ? 'has' : 'have'}{' '}
+                        {listNames(model.alsoChanging.map(({ name }) => name))}{' '}
+                        also {model.alsoChanging.length === 1 ? 'has' : 'have'}{' '}
                         changes in development on this model.
                     </Text>
                 </Group>
@@ -605,7 +612,11 @@ export const PublishChecklist: FC<{
             !conflicted.includes(entry),
     );
     const others = [
-        ...new Set(models.flatMap(({ alsoChanging }) => alsoChanging)),
+        ...new Set(
+            models.flatMap(({ alsoChanging }) =>
+                alsoChanging.map(({ name }) => name),
+            ),
+        ),
     ];
     const checks: { state: CheckState; text: string }[] = [
         failing > 0

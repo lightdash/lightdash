@@ -684,7 +684,7 @@ export class SemanticStudioService extends BaseService {
                     reconciliation: reconciliations.get(model) ?? null,
                     alsoChanging: drafters
                         .filter(({ models }) => models.includes(model))
-                        .map(({ name }) => name),
+                        .map(({ name }) => ({ name, paths: [] })),
                     publishedSince: publishedSince.get(model) ?? null,
                 };
             }),
@@ -727,9 +727,11 @@ export class SemanticStudioService extends BaseService {
         const results = draft.results.flat();
         const reconciled = new Map<string, SemanticLayerDraftReconciliation>();
         drafted.forEach(([model, version]) => {
-            if (version === (liveVersions.get(model) ?? null)) {
+            const liveVersion = liveVersions.get(model) ?? null;
+            if (version === liveVersion) {
                 reconciled.set(model, {
                     state: 'current',
+                    liveVersion,
                     merged: [],
                     conflicts: [],
                 });
@@ -737,9 +739,8 @@ export class SemanticStudioService extends BaseService {
             }
             // A base whose revision is gone cannot be set against anything.
             if (version !== null && !baseContents.has(model)) return;
-            reconciled.set(
-                model,
-                reconcileModel({
+            reconciled.set(model, {
+                ...reconcileModel({
                     base:
                         version === null
                             ? null
@@ -748,7 +749,8 @@ export class SemanticStudioService extends BaseService {
                     mine: draft.writes.get(model) ?? null,
                     draftedPaths: findDraftedPaths(model, results),
                 }),
-            );
+                liveVersion,
+            });
         });
         return reconciled;
     }
@@ -758,15 +760,22 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         model: string,
+        /** The live version the person was shown; keeping over a later one would approve a change they never saw. */
+        seenLiveVersion: number | null,
     ): Promise<void> {
         await this.assertCanEditModels(user, projectUuid);
-        const { stored, repo } = await this.loadStored(projectUuid);
+        const { repo } = await this.loadStored(projectUuid);
         if (repo) return;
-        await this.projectModelDocumentModel.rebaseDraftChanges(
+        const kept = await this.projectModelDocumentModel.rebaseDraftChanges(
             { projectUuid, userUuid: user.userUuid },
             model,
-            stored.find(({ name }) => name === model)?.version ?? null,
+            seenLiveVersion,
         );
+        if (!kept) {
+            throw new ParameterError(
+                'This model was published again since you looked. Check what changed, then choose.',
+            );
+        }
     }
 
     /**

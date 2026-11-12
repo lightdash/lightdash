@@ -40,7 +40,7 @@ export const reconcileModel = ({
     live: string | null;
     mine: string | null;
     draftedPaths: string[];
-}): SemanticLayerDraftReconciliation => {
+}): Omit<SemanticLayerDraftReconciliation, 'liveVersion'> => {
     const published = diffModelDocuments(base, live).map(({ path }) => path);
     const outer = (a: string, b: string) => (a.length <= b.length ? a : b);
     const contested = [

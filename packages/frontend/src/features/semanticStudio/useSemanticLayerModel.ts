@@ -231,12 +231,12 @@ export const useDiscardDraftChange = (projectUuid: string) =>
 
 /** Keeps the draft of a model over what was published to it since. */
 export const useKeepDraftModel = (projectUuid: string) =>
-    useWrite<undefined, string>({
+    useWrite<undefined, { model: string; liveVersion: number | null }>({
         projectUuid,
-        request: (model) => ({
+        request: ({ model, liveVersion }) => ({
             path: `${toDraftPath(model)}/keep`,
             method: 'POST',
-            body: undefined,
+            body: JSON.stringify({ liveVersion }),
         }),
         errorTitle: 'Could not keep your version',
         changesLive: false,
