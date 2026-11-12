@@ -1,0 +1,57 @@
+/* A sentence of words and pills that wraps like prose. */
+.sentence {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    font-size: var(--mantine-font-size-xs);
+    line-height: 20px;
+    color: var(--mantine-color-dimmed);
+}
+
+/* Words that wrap as text inside the sentence, not one flex item each. */
+.phrase {
+    min-width: 0;
+}
+
+.strong {
+    font-weight: 500;
+    color: var(--mantine-color-text);
+}
+
+/* A term whose meaning is one hover or focus away. */
+.term {
+    font-size: inherit;
+    line-height: inherit;
+    font-weight: 500;
+    color: var(--mantine-color-text);
+    text-decoration: underline dotted var(--mantine-color-ldGray-5);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    cursor: help;
+    border-radius: 2px;
+}
+
+.term:focus-visible {
+    outline: 2px solid var(--mantine-color-ldGray-6);
+    outline-offset: 1px;
+}
+
+.columnChip {
+    cursor: default;
+}
+
+.columnChip:focus-visible {
+    outline: 2px solid var(--mantine-color-ldGray-6);
+    outline-offset: 1px;
+}
+
+.columnChip[data-active='true'] {
+    border-color: var(--mantine-color-ldGray-4);
+}
+
+.formulaText {
+    font-family: var(--mantine-font-family-monospace);
+    white-space: pre;
+}

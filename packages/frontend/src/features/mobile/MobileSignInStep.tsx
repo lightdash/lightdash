@@ -1,6 +1,7 @@
 import {
     MobileSignInRefusal,
     type MobileSignInCodeState,
+    type MobileSignInDeclinedBy,
 } from '@lightdash/common';
 import {
     Box,
@@ -57,13 +58,18 @@ const MatchNumber: FC<{ value: string }> = ({ value }) => (
     </Group>
 );
 
-const HiddenCode: FC<StepContext> = ({ signIn }) => (
-    <Group>
-        <Button size="xs" onClick={signIn.show} loading={signIn.isMinting}>
-            {S.showCode}
-        </Button>
-    </Group>
-);
+const HiddenCode: FC<StepContext> = ({ signIn }) =>
+    signIn.isMinting ? (
+        <Box className={classes.qrFrame}>
+            <Loader size="sm" aria-label={MOBILE_STRINGS.creatingCode} />
+        </Box>
+    ) : (
+        <Group>
+            <Button size="xs" onClick={signIn.show}>
+                {S.showCode}
+            </Button>
+        </Group>
+    );
 
 const RefusedNotice: FC<StepContext> = ({ signIn }) => {
     if (signIn.refusal === MobileSignInRefusal.MANAGED_SIGN_IN_REQUIRED) {
@@ -104,16 +110,6 @@ const ShownCode: FC<StepContext> = ({ signIn }) =>
             </Box>
             <Stack gap="sm" className={classes.details}>
                 <Text size="sm">{MOBILE_STRINGS.waitingForScan}</Text>
-                <Group>
-                    <Button
-                        size="xs"
-                        variant="default"
-                        onClick={signIn.hide}
-                        autoFocus
-                    >
-                        {S.hideCode}
-                    </Button>
-                </Group>
             </Stack>
         </Group>
     ) : null;
@@ -122,13 +118,18 @@ const ClaimedNote: FC<StepContext> = () => null;
 
 const ApprovedNumber: FC<StepContext> = ({ signIn }) =>
     signIn.state?.matchNumber ? (
-        <Stack gap="xs" align="flex-start">
+        <Stack gap="sm" align="flex-start">
             <Text size="sm" fw={600}>
                 {S.typeOnPhone}
             </Text>
             <MatchNumber value={signIn.state.matchNumber} />
-            <Button size="xs" variant="default" onClick={signIn.hide} autoFocus>
-                {S.hideCode}
+            <Button
+                size="xs"
+                variant="default"
+                onClick={signIn.decline}
+                loading={signIn.isDeciding}
+            >
+                {S.cancel}
             </Button>
         </Stack>
     ) : null;
@@ -142,9 +143,23 @@ const ExpiredCode: FC<StepContext> = ({ signIn }) => (
     </Stack>
 );
 
+const DECLINED_TITLES: Record<MobileSignInDeclinedBy, string> = {
+    web: S.declined,
+    phone: S.cancelledOnPhone,
+    failed_redeems: S.tooManyWrongNumbers,
+};
+
 const DeclinedCode: FC<StepContext> = ({ signIn }) => (
     <Stack gap="sm" align="flex-start">
-        <Callout variant="neutral" title={S.declined} w="100%" />
+        <Callout
+            variant="neutral"
+            title={
+                signIn.state?.declinedBy
+                    ? DECLINED_TITLES[signIn.state.declinedBy]
+                    : S.declined
+            }
+            w="100%"
+        />
         <Button size="xs" variant="default" onClick={signIn.show}>
             {S.newCode}
         </Button>
@@ -196,32 +211,22 @@ const ConfirmModal: FC<StepContext> = ({ signIn, site, account, platform }) => (
         onConfirm={signIn.approve}
         confirmLoading={signIn.isDeciding}
     >
-        <Stack gap="md">
-            <Box component="dl" className={classes.confirmRows}>
-                {[
-                    [S.confirm.account, account],
-                    [S.confirm.site, site],
-                    ...(platform ? [[S.confirm.device, platform]] : []),
-                ].map(([label, value]) => (
-                    <Box key={label} className={classes.confirmRow}>
-                        <Text component="dt" size="sm" c="dimmed">
-                            {label}
-                        </Text>
-                        <Text component="dd" size="sm">
-                            {value}
-                        </Text>
-                    </Box>
-                ))}
-            </Box>
-            {signIn.state?.matchNumber && (
-                <Stack gap="xs" align="center">
-                    <Text size="sm" fw={600}>
-                        {S.typeOnPhone}
+        <Box component="dl" className={classes.confirmRows}>
+            {[
+                [S.confirm.account, account],
+                [S.confirm.site, site],
+                ...(platform ? [[S.confirm.device, platform]] : []),
+            ].map(([label, value]) => (
+                <Box key={label} className={classes.confirmRow}>
+                    <Text component="dt" size="sm" c="dimmed">
+                        {label}
                     </Text>
-                    <MatchNumber value={signIn.state.matchNumber} />
-                </Stack>
-            )}
-        </Stack>
+                    <Text component="dd" size="sm">
+                        {value}
+                    </Text>
+                </Box>
+            ))}
+        </Box>
     </MantineModal>
 );
 

@@ -287,7 +287,10 @@ const requestResponse = async <T extends ApiResponse>(
             return r;
         })
         .then(async (r) => {
-            const js = await parseJsonBody(r);
+            const js =
+                r.status === 204
+                    ? { status: 'ok', results: undefined }
+                    : await parseJsonBody(r);
             networkHistory.push(
                 sensitive
                     ? {

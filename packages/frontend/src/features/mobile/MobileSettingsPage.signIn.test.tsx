@@ -52,6 +52,9 @@ describe('MobileSettingsPage sign-in step', () => {
         const { container } = renderWithProviders(<MobileSettingsPage />);
 
         expect(screen.getByText('Signed in on a phone')).toBeVisible();
+        expect(useMobileSignInCode).toHaveBeenLastCalledWith({
+            autoShow: true,
+        });
         expect(container.querySelectorAll('[data-state="done"]')).toHaveLength(
             2,
         );

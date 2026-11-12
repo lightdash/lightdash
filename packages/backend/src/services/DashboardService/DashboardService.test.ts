@@ -1254,6 +1254,12 @@ describe('DashboardService', () => {
                                 name: 'Order date',
                                 granularity: 'Week',
                             },
+                            {
+                                uuid: 'hidden-control-uuid',
+                                name: 'Ship date',
+                                granularity: 'Month',
+                                hidden: true,
+                            },
                         ],
                         tileTargets: {
                             'tile-1': {
@@ -1274,7 +1280,8 @@ describe('DashboardService', () => {
             isDateZoomDisabled: true,
             dateZoomGranularitiesCount: 3,
             defaultDateZoomGranularity: 'Week',
-            dateZoomControlsCount: 1,
+            dateZoomControlsCount: 2,
+            hiddenDateZoomControlsCount: 1,
             dateZoomTileTargetsCount: 2,
         });
     });
@@ -1289,6 +1296,7 @@ describe('DashboardService', () => {
             dateZoomGranularitiesCount: 0,
             defaultDateZoomGranularity: null,
             dateZoomControlsCount: 0,
+            hiddenDateZoomControlsCount: 0,
             dateZoomTileTargetsCount: 0,
             sectionsCount: 0,
             sectionedFiltersCount: 0,

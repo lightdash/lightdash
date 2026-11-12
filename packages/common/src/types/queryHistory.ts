@@ -205,6 +205,8 @@ export type DuckdbExecutionSpec = {
     guard: {
         legLabelByReferenceTable: Record<string, string>;
         sourceRowCap: number;
+        /** The limit each leg ran with; absent (as on rows persisted before it) means the cap. */
+        legLimitByReferenceTable?: Record<string, number>;
     } | null;
     /** Persisted instead of the executed SQL when that carries private URIs. */
     storedCompiledSql: string | null;

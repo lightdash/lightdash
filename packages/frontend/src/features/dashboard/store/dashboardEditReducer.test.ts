@@ -319,15 +319,22 @@ describe('tile selectors', () => {
                     actions.syncControlSections(sections),
                 );
 
-            it('stores no order for the first section', () => {
+            it('stores the first section inline at the end of the bar order', () => {
+                const loose = [{ kind: FILTER, id: 'f' }];
                 const state = reducer(
                     initialDashboardEditState,
-                    actions.addControlSection({ section: added, barOrder: [] }),
+                    actions.addControlSection({
+                        section: added,
+                        barOrder: loose,
+                    }),
                 );
                 expect(state.controlSections).toEqual([added]);
                 expect(state.haveControlSectionsChanged).toBe(true);
-                expect(state.controlOrder).toBeUndefined();
-                expect(state.hasControlOrderChanged).toBe(false);
+                expect(state.controlOrder).toEqual([
+                    ...loose,
+                    { kind: SECTION, id: 'c' },
+                ]);
+                expect(state.hasControlOrderChanged).toBe(true);
             });
 
             it('stores the bar order with it on the line of the section before, without a stored order', () => {

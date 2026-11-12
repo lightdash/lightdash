@@ -111,7 +111,7 @@ schema and bucket, supports a million-row fixture, and checks overwrite behavior
 renames, missing lookups, tenant isolation and preservation of the previous file
 after an interrupted export.
 
-For manual testing, click **Sync content** or re-run
+For manual testing, call `POST /api/v1/org/analytics-project/sample-content` or re-run
 `POST /api/v1/org/analytics-project` to compile the lookup fields, then select
 **Users → User name** and **Total queries** in Query Events. Sync updates models
 and managed sample dashboards but does not refresh snapshots. Names update after
@@ -122,7 +122,7 @@ instance and a dedicated bucket:
 
 1. Back up the organization's `dim=users/users.parquet` object, including its
    metadata, then remove that exact object while keeping event files available.
-2. Click **Sync content** and re-run the provisioning endpoint for an existing
+2. Call the sample-content endpoint and re-run the provisioning endpoint for an existing
    project. Both should succeed. Run the joined query in Explore and verify
    `Unknown user` with unchanged event counts.
 3. For an organization without an analytics project, keep a supported event file

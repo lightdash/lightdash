@@ -79,9 +79,6 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: apiQuerySourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ApiQuerySources,
     );
-    const { data: externalSourcesFlag } = useServerFeatureFlag(
-        FeatureFlags.ExternalSources,
-    );
     const {
         data: mobileSettingsFlag,
         isInitialLoading: isMobileSettingsFlagLoading,
@@ -224,7 +221,6 @@ export const useSettingsContext = (): SettingsContext => {
         isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
         isChartStudioAvailable,
         isApiQuerySourcesEnabled: apiQuerySourcesFlag?.enabled ?? false,
-        externalSourcesFlag,
         isMobileSettingsEnabled: mobileSettingsFlag?.enabled ?? false,
         isMobileSettingsFlagLoading,
         isResultsCacheAvailable,

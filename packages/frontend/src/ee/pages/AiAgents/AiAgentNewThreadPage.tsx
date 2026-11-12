@@ -62,6 +62,7 @@ import {
 import { useAiAgentQueryPathBattleAvailable } from '../../features/aiCopilot/hooks/useAiAgentQueryPathBattleAvailable';
 import { useAiAgentSpeedBattleAvailable } from '../../features/aiCopilot/hooks/useAiAgentSpeedBattleAvailable';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
+import { useDashboardPageContextCuration } from '../../features/aiCopilot/hooks/useDashboardPageContextCuration';
 import { useStartDeepResearchForThreadMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
 import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
@@ -149,6 +150,26 @@ const AiAgentNewThreadPage: FC = () => {
         dataAppUuidOrSlug: dataAppUuid,
         documentUuid,
     });
+    const boundDashboardUuid =
+        aiAgentThreadSetup?.binding?.type === 'dashboard'
+            ? aiAgentThreadSetup.binding.dashboardUuid
+            : null;
+    // A bound thread starts with the view state of its dashboard when it is on the same page.
+    const { curateContext } = useDashboardPageContextCuration({
+        previousContext: contextInput,
+        projectUuid: projectUuid!,
+        boundDashboardUuid,
+    });
+    const promptContext = useMemo(
+        () =>
+            boundDashboardUuid
+                ? curateContext({
+                      context: contextInput,
+                      optimisticContext: previewItems,
+                  })
+                : { context: contextInput, optimisticContext: previewItems },
+        [boundDashboardUuid, contextInput, curateContext, previewItems],
+    );
 
     const { agent, agents, navigateFromAgentChat } =
         useOutletContext<AgentContext>();
@@ -292,11 +313,11 @@ const AiAgentNewThreadPage: FC = () => {
             if (!isPinnedContextReady) return;
             setPendingPrompt('');
             const mergedContext = mergeAiPromptContextInput(
-                contextInput,
+                promptContext.context,
                 context,
             );
             const mergedOptimisticContext = mergeAiPromptContextItems(
-                previewItems,
+                promptContext.optimisticContext,
                 optimisticContext,
             );
             if (isBattle && projectUuid) {
@@ -365,8 +386,7 @@ const AiAgentNewThreadPage: FC = () => {
             setPendingPrompt,
             createAgentThread,
             createBattleThread,
-            contextInput,
-            previewItems,
+            promptContext,
             sqlModeAvailable,
             sqlMode,
             explicitModelConfig,
@@ -418,8 +438,7 @@ const AiAgentNewThreadPage: FC = () => {
             const thread = await createAgentThread({
                 agentUuid,
                 prompt: question,
-                context: contextInput,
-                optimisticContext: previewItems,
+                ...promptContext,
                 modelConfig: explicitModelConfig,
                 skipAgentResponse: true,
                 ...getThreadSetupRequestFields(aiAgentThreadSetup),
@@ -434,11 +453,10 @@ const AiAgentNewThreadPage: FC = () => {
         [
             agentUuid,
             canStartDeepResearch,
-            contextInput,
+            promptContext,
             createAgentThread,
             isPinnedContextReady,
             explicitModelConfig,
-            previewItems,
             setPendingPrompt,
             startDeepResearch,
             aiAgentThreadSetup,

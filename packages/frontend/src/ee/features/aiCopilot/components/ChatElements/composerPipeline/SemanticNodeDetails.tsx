@@ -38,11 +38,11 @@ const semanticItemLabel = (fieldsMap: ItemsMap, fieldId: string) => {
     return item ? getItemLabelWithoutTableName(item) : friendlyName(fieldId);
 };
 
-const DetailsRow: FC<{ icon: Icon; label: string; children: ReactNode }> = ({
-    icon,
-    label,
-    children,
-}) => (
+export const DetailsRow: FC<{
+    icon: Icon;
+    label: string;
+    children: ReactNode;
+}> = ({ icon, label, children }) => (
     <Group gap="xs" wrap="nowrap" align="flex-start">
         <Tooltip label={label} position="left">
             <Box className={styles.rowIcon}>
