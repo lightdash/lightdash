@@ -2035,7 +2035,7 @@ export default class PrometheusMetrics {
     }
 
     public incrementRepoFsGithubRequest(
-        kind: 'tree' | 'file' | 'search' | 'list',
+        kind: 'tree' | 'file' | 'search' | 'list' | 'archive',
     ) {
         this.repoFsGithubRequestCounter?.inc({ kind });
     }
@@ -2055,7 +2055,7 @@ export default class PrometheusMetrics {
     }
 
     public incrementRepoFsGitlabRequest(
-        kind: 'tree' | 'file' | 'search' | 'list',
+        kind: 'tree' | 'file' | 'search' | 'list' | 'archive',
     ) {
         this.repoFsGitlabRequestCounter?.inc({ kind });
     }

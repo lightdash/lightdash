@@ -15238,7 +15238,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             return runAttachmentShellCommand(files, command);
         };
 
-        const exploreRepo: ExploreRepoFn = async ({ command, target }) => {
+        const exploreRepo: ExploreRepoFn = async ({
+            command,
+            target,
+            rankMatches,
+        }) => {
             const mountFs = await getMountFs();
             const trimmedTarget = target?.trim();
             // `target` selects the starting directory in the unified tree: an
@@ -15260,7 +15264,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 cwd,
                 isTruncated: () => Promise.resolve(mountFs.isTruncated()),
                 budgetHit: () => Promise.resolve(mountFs.wasBudgetHit()),
-                search: (absPath, query) => mountFs.search(absPath, query),
+                search: async (absPath, query) => {
+                    const found = await mountFs.search(absPath, query);
+                    return rankMatches
+                        ? {
+                              ...found,
+                              matches: await rankMatches(found.matches),
+                          }
+                        : found;
+                },
             });
         };
 

@@ -1,4 +1,4 @@
-import { RepoFs, RepoSource } from './RepoFs';
+import { RepoFs, RepoSource, searchFiles } from './RepoFs';
 
 /**
  * A fake source that records how many times each path is fetched and tracks
@@ -145,5 +145,89 @@ describe('RepoFs file cache LRU eviction', () => {
         expect(source.reads['a.sql']).toBe(1);
         await repo.readFile('b.sql'); // was evicted
         expect(source.reads['b.sql']).toBe(2);
+    });
+});
+
+describe('RepoFs with a source that hands over the whole repo', () => {
+    const files = { 'models/a.sql': 'select 1', 'models/b.sql': 'select 2' };
+
+    it('reads every file from one fetch and never per file', async () => {
+        const source = instrumentedSource(files);
+        const all = new Map(Object.entries(files));
+        const repo = new RepoFs({ ...source, readAll: async () => all });
+        const out = await repo.readFiles(['models/a.sql', 'models/b.sql']);
+        expect(out.get('models/b.sql')).toBe('select 2');
+        expect(await repo.readFile('models/a.sql')).toBe('select 1');
+        expect(source.reads).toEqual({});
+        expect(await repo.readsFromMemory()).toBe(true);
+    });
+
+    it('reads file by file once the source drops the repo', async () => {
+        const source = instrumentedSource(files);
+        let held: Map<string, string> | null = new Map(Object.entries(files));
+        const repo = new RepoFs({ ...source, readAll: async () => held });
+        expect(await repo.readFile('models/a.sql')).toBe('select 1');
+        held = null;
+        expect(await repo.readFile('models/b.sql')).toBe('select 2');
+        expect(source.reads).toEqual({ 'models/b.sql': 1 });
+    });
+
+    it('reads a file the fetch left out as absent', async () => {
+        const source = instrumentedSource({ ...files, 'logo.png': 'binary' });
+        const repo = new RepoFs({
+            ...source,
+            readAll: async () => new Map(Object.entries(files)),
+        });
+        expect(await repo.readFile('logo.png')).toBeNull();
+        expect(source.reads).toEqual({});
+    });
+
+    it('reads file by file when the repo is too large to hold', async () => {
+        const source = instrumentedSource(files);
+        const repo = new RepoFs({ ...source, readAll: async () => null });
+        expect(await repo.readFile('models/a.sql')).toBe('select 1');
+        expect(source.reads).toEqual({ 'models/a.sql': 1 });
+        expect(await repo.readsFromMemory()).toBe(false);
+    });
+});
+
+describe('searchFiles', () => {
+    const files = new Map([
+        ['models/a.sql', 'select 1 as Total\nfrom x'],
+        ['models/b.sql', 'select total\nfrom y\nwhere total > 0'],
+        ['docs/total.md', 'nothing here'],
+        ['models/c.sql', 'select 2'],
+    ]);
+
+    it('finds every file holding the words, whatever the case, most matching lines first', () => {
+        expect(searchFiles(files, 'TOTAL')).toEqual([
+            {
+                path: 'models/b.sql',
+                fragments: ['select total', 'where total > 0'],
+            },
+            { path: 'models/a.sql', fragments: ['select 1 as Total'] },
+            { path: 'docs/total.md', fragments: [] },
+        ]);
+    });
+
+    it('needs every word', () => {
+        expect(
+            searchFiles(files, 'total where').map(({ path }) => path),
+        ).toEqual(['models/b.sql']);
+    });
+});
+
+describe('RepoFs.search', () => {
+    it('searches in memory when the repo is held, with no request', async () => {
+        const searchCode = vi.fn(async () => []);
+        const repo = new RepoFs({
+            ...instrumentedSource({ 'a.sql': 'select total' }),
+            searchCode,
+            readAll: async () => new Map([['a.sql', 'select total']]),
+        });
+        expect(await repo.search('total')).toEqual([
+            { path: 'a.sql', fragments: ['select total'] },
+        ]);
+        expect(searchCode).not.toHaveBeenCalled();
     });
 });

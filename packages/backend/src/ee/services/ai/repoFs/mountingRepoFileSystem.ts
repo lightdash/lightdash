@@ -422,6 +422,9 @@ export class MountingRepoFileSystem implements IFileSystem {
     async readFile(path: string): Promise<string> {
         const r = this.resolve(resolveAbsolute('/', path));
         if (r.type !== 'mount') throw enoent(path); // dirs / missing aren't files
+        const fs = await this.getMount(r.key);
+        // A repo held in memory costs nothing to read, so only per-file fetches count.
+        if (await fs.readsFromMemory()) return fs.readFile(r.subPath);
         // Per-command file budget: every read is a GitHub round-trip, so stop a
         // crawl before it drains the rate limit and steer it to `search`.
         this.filesReadThisCommand += 1;
@@ -429,7 +432,6 @@ export class MountingRepoFileSystem implements IFileSystem {
             this.budgetHitThisCommand = true;
             efilebudget(this.maxFilesPerCommand);
         }
-        const fs = await this.getMount(r.key);
         return fs.readFile(r.subPath);
     }
 

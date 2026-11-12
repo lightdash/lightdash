@@ -2189,7 +2189,11 @@ export const getAgentTools = (
                 updateProgress: dependencies.updateProgress,
             }),
         exploreRepo: () =>
-            getExploreRepo({ exploreRepo: dependencies.exploreRepo }),
+            getExploreRepo({
+                exploreRepo: dependencies.exploreRepo,
+                decisions: args.decisions,
+                question: getAgentQuestion(args),
+            }),
         readAttachments: () =>
             getReadAttachments({
                 readAttachments: dependencies.readAttachments,
