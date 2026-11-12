@@ -48,17 +48,9 @@ const FlowScene: FC = () => (
     </Box>
 );
 
-const STOPS: Record<'server' | 'repo', { title: string; detail: string }[]> = {
-    server: [
-        { title: 'Ask', detail: 'In your own words' },
-        { title: 'Check the draft', detail: 'Only you see it' },
-        { title: 'Publish', detail: 'Live for everyone' },
-    ],
-    repo: [
-        { title: 'Ask', detail: 'In your own words' },
-        { title: 'Check the diff', detail: 'Before it is saved' },
-        { title: 'Pull request', detail: 'Live once it merges' },
-    ],
+const STOPS = {
+    server: ['Ask', 'Review', 'Publish'],
+    repo: ['Ask', 'Review', 'Merge'],
 };
 
 /** What the chat shows before a conversation starts. */
@@ -67,20 +59,27 @@ export const StudioChatEmptyState: FC<{
     children?: ReactNode;
 }> = ({ keepsDraft, children }) => (
     <Stack flex={1} justify="center" align="center" gap="md" px="md">
+        <Stack gap={2} align="center" maw={280}>
+            <Text fz="sm" fw={600}>
+                Draft changes by asking
+            </Text>
+            <Text fz="xs" c="dimmed" ta="center">
+                {keepsDraft
+                    ? 'Only you see a draft until you publish it.'
+                    : 'Nothing goes live until the pull request merges.'}
+            </Text>
+        </Stack>
         <Box className={classes.flow}>
             <FlowScene />
             <Box className={classes.captions}>
-                {STOPS[keepsDraft ? 'server' : 'repo'].map(
-                    ({ title, detail }, index) => (
-                        <Box key={title} className={classes.stop}>
-                            <Box className={classes.node}>{index + 1}</Box>
-                            <Text fz="xs" fw={500}>
-                                {title}
-                            </Text>
-                            <Text className={classes.detail}>{detail}</Text>
-                        </Box>
-                    ),
-                )}
+                {STOPS[keepsDraft ? 'server' : 'repo'].map((title, index) => (
+                    <Box key={title} className={classes.stop}>
+                        <Box className={classes.node}>{index + 1}</Box>
+                        <Text fz="xs" c="dimmed">
+                            {title}
+                        </Text>
+                    </Box>
+                ))}
             </Box>
         </Box>
         {children}

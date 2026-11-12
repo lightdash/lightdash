@@ -35,6 +35,7 @@ import {
     IconUsers,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
+import { upperFirst } from 'es-toolkit/compat';
 import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
@@ -69,64 +70,97 @@ const listNames = (names: string[]): string =>
 const describePath = (path: string): string =>
     path === '' ? 'the whole model' : path;
 
-const SIDES: {
+const toSides = (
+    publisher: string | null,
+): {
     key: 'base' | 'live' | 'mine';
     label: string;
     absent: string;
-}[] = [
+}[] => [
     { key: 'base', label: 'When you started', absent: 'Not there' },
-    { key: 'live', label: 'Live now', absent: 'Removed' },
+    {
+        key: 'live',
+        label: publisher ? `${publisher}'s version` : 'Live now',
+        absent: 'Removed',
+    },
     { key: 'mine', label: 'Yours', absent: 'Removed' },
 ];
+
+/** A part's name as a person would say it; a nested part keeps its path. */
+const PartName: FC<{ path: string }> = ({ path }) =>
+    path.includes('.') ? (
+        <Text fz="xs" fw={500} ff="monospace" truncate>
+            {path}
+        </Text>
+    ) : (
+        <Text fz="xs" fw={500} truncate>
+            {path === ''
+                ? 'The whole model'
+                : upperFirst(path.replaceAll('_', ' '))}
+        </Text>
+    );
+
+const TakeTheirsButton: FC<{
+    projectUuid: string;
+    model: string;
+    path: string;
+}> = ({ projectUuid, model, path }) => {
+    const takeLive = useTakeLiveDraftPart(projectUuid);
+    return (
+        <Tooltip
+            label={
+                path === ''
+                    ? 'Drops everything you changed on this model and keeps what is live.'
+                    : 'Drops your change to this part and keeps what is live. The rest of your changes stay.'
+            }
+        >
+            <Button
+                size="compact-xs"
+                variant="default"
+                flex="none"
+                loading={takeLive.isLoading}
+                onClick={() => takeLive.mutate({ model, path })}
+            >
+                {path === '' ? 'Discard mine' : 'Take theirs'}
+            </Button>
+        </Tooltip>
+    );
+};
 
 /** One part that changed live and in the draft, with each version of it side by side. */
 const ConflictSides: FC<{
     projectUuid: string;
     model: string;
     conflict: SemanticLayerDraftConflict;
-}> = ({ projectUuid, model, conflict }) => {
-    const takeLive = useTakeLiveDraftPart(projectUuid);
-    return (
-        <Stack gap={4} className={classes.conflict}>
-            <Group gap="xs" justify="space-between" wrap="nowrap">
-                <Text fz="xs" fw={500} ff="monospace" truncate>
-                    {describePath(conflict.path)}
-                </Text>
-                <Tooltip
-                    label={
-                        conflict.path === ''
-                            ? 'Drops everything you changed on this model and keeps what is live.'
-                            : 'Drops your change to this part and keeps what is live. The rest of your changes stay.'
-                    }
-                >
-                    <Button
-                        size="compact-xs"
-                        variant="subtle"
-                        flex="none"
-                        loading={takeLive.isLoading}
-                        onClick={() =>
-                            takeLive.mutate({ model, path: conflict.path })
-                        }
-                    >
-                        {conflict.path === '' ? 'Discard mine' : 'Take theirs'}
-                    </Button>
-                </Tooltip>
-            </Group>
-            <Box className={classes.sides}>
-                {SIDES.map(({ key, label, absent }) => (
-                    <Stack key={key} gap={2} miw={0}>
-                        <Text fz="xs" c="dimmed">
-                            {label}
-                        </Text>
-                        <Box component="pre" className={classes.side}>
-                            {conflict[key] ?? absent}
-                        </Box>
-                    </Stack>
-                ))}
-            </Box>
-        </Stack>
-    );
-};
+    publisher: string | null;
+    /** Off when the choice for this part sits with the others above it. */
+    withTakeTheirs: boolean;
+}> = ({ projectUuid, model, conflict, publisher, withTakeTheirs }) => (
+    <Stack gap={4} className={classes.conflict}>
+        <Group gap="xs" justify="space-between" wrap="nowrap">
+            <PartName path={conflict.path} />
+            {withTakeTheirs ? (
+                <TakeTheirsButton
+                    projectUuid={projectUuid}
+                    model={model}
+                    path={conflict.path}
+                />
+            ) : null}
+        </Group>
+        <Box className={classes.sides}>
+            {toSides(publisher).map(({ key, label, absent }) => (
+                <Stack key={key} gap={2} miw={0}>
+                    <Text fz="xs" c="dimmed">
+                        {label}
+                    </Text>
+                    <Box component="pre" className={classes.side}>
+                        {conflict[key] ?? absent}
+                    </Box>
+                </Stack>
+            ))}
+        </Box>
+    </Stack>
+);
 
 /** What happened to a model outside this draft: a publish under it, or someone else's work in it. */
 export const ModelNotices: FC<{
@@ -152,8 +186,8 @@ export const ModelNotices: FC<{
     return (
         <Stack gap={4} className={classes.notices}>
             {conflicts.length > 0 ? (
-                <Stack gap="xs">
-                    <Group gap={6} wrap="nowrap">
+                <Stack gap="xs" data-conflict>
+                    <Group gap={6} wrap="nowrap" align="flex-start">
                         <MantineIcon
                             icon={IconAlertTriangle}
                             size={14}
@@ -164,9 +198,37 @@ export const ModelNotices: FC<{
                             {conflicts.length === 1
                                 ? 'a part'
                                 : `${conflicts.length} parts`}{' '}
-                            of this model that you changed too. Choose before
-                            publishing: yours would replace theirs.
+                            of this model that you changed too. Choose which to
+                            keep before you publish.
                         </Text>
+                    </Group>
+                    <Group gap="xs">
+                        <Tooltip label="Keeps your version of every part listed here. It replaces theirs when you publish.">
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                loading={keep.isLoading}
+                                onClick={() =>
+                                    keep.mutate({
+                                        model: model.model,
+                                        liveVersion:
+                                            model.reconciliation?.liveVersion ??
+                                            null,
+                                    })
+                                }
+                            >
+                                {conflicts.length === 1
+                                    ? 'Keep mine'
+                                    : 'Keep all mine'}
+                            </Button>
+                        </Tooltip>
+                        {conflicts.length === 1 ? (
+                            <TakeTheirsButton
+                                projectUuid={projectUuid}
+                                model={model.model}
+                                path={conflicts[0].path}
+                            />
+                        ) : null}
                         <Tooltip label="Has the agent propose a version that keeps both changes where it can.">
                             <Button
                                 size="compact-xs"
@@ -187,23 +249,6 @@ export const ModelNotices: FC<{
                                 Combine
                             </Button>
                         </Tooltip>
-                        <Tooltip label="Keeps your version of every part still listed. It goes live when you publish.">
-                            <Button
-                                size="compact-xs"
-                                variant="default"
-                                loading={keep.isLoading}
-                                onClick={() =>
-                                    keep.mutate({
-                                        model: model.model,
-                                        liveVersion:
-                                            model.reconciliation?.liveVersion ??
-                                            null,
-                                    })
-                                }
-                            >
-                                Keep mine
-                            </Button>
-                        </Tooltip>
                     </Group>
                     {conflicts.map((conflict) => (
                         <ConflictSides
@@ -211,6 +256,8 @@ export const ModelNotices: FC<{
                             projectUuid={projectUuid}
                             model={model.model}
                             conflict={conflict}
+                            publisher={model.publishedSince?.by ?? null}
+                            withTakeTheirs={conflicts.length > 1}
                         />
                     ))}
                 </Stack>
@@ -250,12 +297,16 @@ const ChangeRow: FC<{
     /** How many changes the draft has, to know which way this one can move. */
     count: number;
     change: SemanticLayerDraft['changes'][number];
+    /** What each model is called, by its name. */
+    labels: Map<string, string>;
     onAskAgent: (prompt: string) => void;
-}> = ({ projectUuid, index, count, change, onAskAgent }) => {
+}> = ({ projectUuid, index, count, change, labels, onAskAgent }) => {
     const discard = useDiscardDraftChange(projectUuid);
     const move = useMoveDraftChange(projectUuid);
     const ago = useTimeAgo(change.createdAt);
     const failed = change.models.filter(({ error }) => error !== null);
+    const named = (models: { model: string }[]) =>
+        listNames(models.map(({ model }) => labels.get(model) ?? model));
     return (
         <Group gap="sm" wrap="nowrap" className={classes.change}>
             <Text fz="xs" c="dimmed" className={classes.changeIndex}>
@@ -263,12 +314,12 @@ const ChangeRow: FC<{
             </Text>
             <Box miw={0} flex={1}>
                 <Text fz="sm" truncate>
-                    {change.question ?? 'A change made in the review'}
+                    {change.question ?? 'Changed during review'}
                 </Text>
                 <Text fz="xs" c={failed.length > 0 ? 'red' : 'dimmed'} truncate>
                     {failed.length > 0
-                        ? `No longer applies to ${listNames(failed.map(({ model }) => model))}`
-                        : `${listNames(change.models.map(({ model }) => model))} · ${ago}`}
+                        ? `No longer applies to ${named(failed)}`
+                        : `${named(change.models)} · ${ago}`}
                 </Text>
             </Box>
             {failed.length > 0 ? (
@@ -355,28 +406,41 @@ const ChangeRow: FC<{
     );
 };
 
-/** The draft as the ordered list it is: each change builds on the ones before it. */
+/** The draft as the ordered list it is, shown once the order matters: with several changes, or one that stopped applying. */
 export const ChangeQueue: FC<{
     projectUuid: string;
     draft: SemanticLayerDraft;
     onAskAgent: (prompt: string) => void;
-}> = ({ projectUuid, draft, onAskAgent }) => (
-    <Paper className={classes.section}>
-        <Text fz="sm" fw={500} className={classes.sectionTitle}>
-            Changes in order
-        </Text>
-        {draft.changes.map((change, index) => (
-            <ChangeRow
-                key={change.draftChangeUuid}
-                projectUuid={projectUuid}
-                index={index}
-                count={draft.changes.length}
-                change={change}
-                onAskAgent={onAskAgent}
-            />
-        ))}
-    </Paper>
-);
+}> = ({ projectUuid, draft, onAskAgent }) => {
+    const hasFailure = draft.changes.some(({ models }) =>
+        models.some(({ error }) => error !== null),
+    );
+    if (draft.changes.length < 2 && !hasFailure) return null;
+    const labels = new Map(
+        draft.models.map((entry) => [
+            entry.model,
+            describeModelChange(entry.model, entry).title,
+        ]),
+    );
+    return (
+        <Paper className={classes.section}>
+            <Text fz="sm" fw={500} className={classes.sectionTitle}>
+                Changes in order
+            </Text>
+            {draft.changes.map((change, index) => (
+                <ChangeRow
+                    key={change.draftChangeUuid}
+                    projectUuid={projectUuid}
+                    index={index}
+                    count={draft.changes.length}
+                    change={change}
+                    labels={labels}
+                    onAskAgent={onAskAgent}
+                />
+            ))}
+        </Paper>
+    );
+};
 
 const MAX_LISTED_CHARTS = 5;
 
@@ -563,21 +627,19 @@ export const MetricComparison: FC<{
     if (!isAsked) {
         return (
             <Group className={classes.compare} gap="xs">
-                <Button
-                    size="compact-xs"
-                    variant="default"
-                    onClick={() => setIsAsked(true)}
+                <Tooltip
+                    label={`${metrics.length === 1 ? '1 metric' : `${metrics.length} metrics`}, ${isNewModel ? 'one warehouse query' : 'one warehouse query each side'}.`}
                 >
-                    {isNewModel ? 'Run the numbers' : 'Compare with live'}
-                </Button>
-                <Text fz="xs" c="dimmed">
-                    {metrics.length === 1
-                        ? '1 metric'
-                        : `${metrics.length} metrics`}
-                    {isNewModel
-                        ? ', one warehouse query'
-                        : ', one warehouse query each side'}
-                </Text>
+                    <Button
+                        size="compact-xs"
+                        variant="default"
+                        onClick={() => setIsAsked(true)}
+                    >
+                        {isNewModel
+                            ? 'Run the totals'
+                            : 'Compare totals with live'}
+                    </Button>
+                </Tooltip>
             </Group>
         );
     }
@@ -896,30 +958,6 @@ export const PublishSummary: FC<{
     );
 };
 
-/** What pressing Publish does, said before the dialog: who sees it, what moves, and the way back. */
-export const PublishEffect: FC<{
-    projectUuid: string;
-    asPullRequest: boolean;
-}> = ({ projectUuid, asPullRequest }) => {
-    const { data } = useSemanticLayerDraftUsage(projectUuid);
-    const charts = new Set(
-        (data?.fields ?? []).flatMap(({ charts: read }) =>
-            read.map(({ uuid }) => uuid),
-        ),
-    ).size;
-    return (
-        <Text fz="xs" c="dimmed">
-            {asPullRequest
-                ? 'Publishing opens a pull request. Nothing is live until it merges.'
-                : 'Publishing goes live for everyone on this project.'}
-            {charts > 0
-                ? ` ${charts} saved ${charts === 1 ? 'chart' : 'charts'} will show different numbers.`
-                : ''}
-            {asPullRequest ? '' : " Undo is on each model's History tab."}
-        </Text>
-    );
-};
-
 const EXPLAINER_KEY = 'semantic-studio-draft-explainer-seen';
 
 const hasSeenExplainer = (): boolean => {
@@ -931,16 +969,20 @@ const hasSeenExplainer = (): boolean => {
 };
 
 /** Shown until dismissed, the first time someone has changes in development. */
-export const DraftExplainer: FC = () => {
+export const DraftExplainer: FC<{ asPullRequest: boolean }> = ({
+    asPullRequest,
+}) => {
     const [isSeen, setIsSeen] = useState(hasSeenExplainer);
     if (isSeen) return null;
     return (
         <Paper variant="dotted" p="sm">
             <Group gap="sm" justify="space-between" wrap="nowrap">
                 <Text fz="sm">
-                    These changes are in development: only you see them, and
-                    nothing is live until you publish. Try them on real charts
-                    first with Try my changes.
+                    These changes are in development: only you see them. Try
+                    them on your charts with Try my changes.{' '}
+                    {asPullRequest
+                        ? 'Publishing opens a pull request, and nothing is live until it merges.'
+                        : 'Publishing makes them live for everyone on this project.'}
                 </Text>
                 <Button
                     size="compact-xs"

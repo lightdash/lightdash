@@ -10,7 +10,6 @@ import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import useApp from '../../providers/App/useApp';
 import { AutopilotNavButton } from './AutopilotNavButton';
 import BrowseMenu from './BrowseMenu';
-import { DevelopmentViewSwitch } from './DevelopmentViewSwitch';
 import ExploreMenu from './ExploreMenu';
 import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
@@ -149,7 +148,6 @@ export const MainNavBarContent: FC<Props> = ({
 
             <Group className={classes.rightGroup}>
                 {compact && <Text className={classes.sectionLabel}>More</Text>}
-                <DevelopmentViewSwitch />
                 <NavGroup className={classes.buttonGroup}>
                     <SettingsMenu withLabel={compact} />
 

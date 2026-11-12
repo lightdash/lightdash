@@ -150,6 +150,19 @@ const DraftMarker: FC<{
     );
 };
 
+/** A model's name as this person's draft leaves it, so the list and the review say the same thing. */
+const ModelLabel: FC<{ projectUuid: string; model: string; label: string }> = ({
+    projectUuid,
+    model,
+    label,
+}) => {
+    const { data: draft } = useSemanticLayerDraft(projectUuid);
+    return (
+        draft?.models.find((entry) => entry.model === model)?.explore?.label ??
+        label
+    );
+};
+
 const Tree: FC<{
     view: ViewModel;
     expanded: Set<string>;
@@ -243,7 +256,15 @@ const Tree: FC<{
                                 />
                             </Box>
                             <Text truncate className={classes.treeLabel}>
-                                {node.label}
+                                {node.ref.type === 'explore' ? (
+                                    <ModelLabel
+                                        projectUuid={view.project.id}
+                                        model={node.ref.exploreId}
+                                        label={node.label}
+                                    />
+                                ) : (
+                                    node.label
+                                )}
                             </Text>
                             {node.ref.type === 'explore' ? (
                                 <DraftMarker

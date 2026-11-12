@@ -22,6 +22,7 @@ import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
+import { DevelopmentViewIsland } from './DevelopmentViewIsland';
 import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
@@ -203,6 +204,7 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                         isLoadingActiveProject={isLoadingActiveProject}
                     />
                 </Box>
+                {isDevelopmentView ? <DevelopmentViewIsland /> : null}
                 {/* Placeholder to reserve space when navbar is fixed */}
                 {isFixed && !isFullscreen && <Box h={headerContainerHeight} />}
             </MantineBaseProvider>

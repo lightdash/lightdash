@@ -200,12 +200,6 @@
     line-height: 13px;
 }
 
-.detail {
-    color: var(--mantine-color-dimmed);
-    font-size: 11px;
-    line-height: 15px;
-}
-
 .field {
     align-self: flex-start;
     padding: 0 6px;
