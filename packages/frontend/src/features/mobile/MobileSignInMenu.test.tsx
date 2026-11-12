@@ -6,6 +6,8 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -109,6 +111,15 @@ const mockServer = ({
     };
 };
 
+const renderMenu = (ui: ReactElement) =>
+    renderWithProviders(
+        <MemoryRouter
+            initialEntries={[`/projects/p1/saved/c1${window.location.search}`]}
+        >
+            {ui}
+        </MemoryRouter>,
+    );
+
 const openButton = () =>
     screen.getByRole('button', { name: 'Sign in on your phone' });
 
@@ -129,7 +140,7 @@ describe('MobileSignInMenu', () => {
     ])('keeps the default DOM for %s', async (search) => {
         window.history.replaceState({}, '', `/${search}`);
         mockServer();
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
         await userEvent.click(openButton());
         await screen.findByRole('img', { name: 'Sign-in QR code' });
         expect(document.querySelector('[data-mobile-upsell]')).toBeNull();
@@ -142,7 +153,7 @@ describe('MobileSignInMenu', () => {
         async (variation) => {
             window.history.replaceState({}, '', `/?mobileUpsell=${variation}`);
             mockServer();
-            renderWithProviders(<MobileSignInMenu />);
+            renderMenu(<MobileSignInMenu />);
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
             await userEvent.click(openButton());
             expect(
@@ -195,7 +206,7 @@ describe('MobileSignInMenu', () => {
         window.history.replaceState({}, '', '/?mobileUpsell=1');
         const user = userEvent.setup();
         const server = mockServer();
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         await user.click(openButton());
         await screen.findByRole('img', { name: 'Sign-in QR code' });
@@ -222,7 +233,7 @@ describe('MobileSignInMenu', () => {
     it('pauses the pitch when the tab is hidden', async () => {
         window.history.replaceState({}, '', '/?mobileUpsell=1');
         mockServer();
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
         await userEvent.click(openButton());
         await screen.findByRole('img', { name: 'Sign-in QR code' });
         Object.defineProperty(document, 'visibilityState', {
@@ -248,7 +259,7 @@ describe('MobileSignInMenu', () => {
     it('renders nothing and mints nothing with mobile-qr-sign-in off', () => {
         qrSignIn.enabled = false;
         const server = mockServer();
-        const { container } = renderWithProviders(
+        const { container } = renderMenu(
             <div data-testid="header-group">
                 <MobileSignInMenu />
             </div>,
@@ -268,7 +279,7 @@ describe('MobileSignInMenu', () => {
     it('mints no code until the popover opens, then shows the sign-in step', async () => {
         const user = userEvent.setup();
         const server = mockServer();
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         expect(openButton()).toBeVisible();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -305,7 +316,7 @@ describe('MobileSignInMenu', () => {
         window.history.replaceState({}, '', `/${search}`);
         const user = userEvent.setup();
         const server = mockServer();
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         await user.click(openButton());
         await screen.findByRole('img', { name: 'Sign-in QR code' });
@@ -327,7 +338,7 @@ describe('MobileSignInMenu', () => {
     it('cancels the code when the icon is clicked again', async () => {
         const user = userEvent.setup();
         const server = mockServer();
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         await user.click(openButton());
         await screen.findByRole('img', { name: 'Sign-in QR code' });
@@ -343,7 +354,7 @@ describe('MobileSignInMenu', () => {
     it('closes on a click outside and cancels the unused code', async () => {
         const user = userEvent.setup();
         const server = mockServer();
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         await user.click(openButton());
         await screen.findByRole('img', { name: 'Sign-in QR code' });
@@ -367,7 +378,7 @@ describe('MobileSignInMenu', () => {
                 error: { name: 'Error', statusCode: 500, message: 'boom' },
             } as ApiError,
         });
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         await user.click(openButton());
         await screen.findByText("Couldn't create the code");
@@ -394,7 +405,7 @@ describe('MobileSignInMenu', () => {
             window.history.replaceState({}, '', `/${search}`);
             const user = userEvent.setup();
             const server = mockServer({ isClaimed: true });
-            renderWithProviders(<MobileSignInMenu />);
+            renderMenu(<MobileSignInMenu />);
 
             await user.click(openButton());
             const confirm = await screen.findByRole('dialog', {
@@ -425,7 +436,7 @@ describe('MobileSignInMenu', () => {
                 isClaimed: true,
                 appliesDecisions: true,
             });
-            renderWithProviders(<MobileSignInMenu />);
+            renderMenu(<MobileSignInMenu />);
 
             await user.click(openButton());
             const confirm = await screen.findByRole('dialog', {
@@ -489,7 +500,7 @@ describe('MobileSignInMenu', () => {
     it('moves focus back into the popover after the web Cancel, so Escape closes it', async () => {
         const user = userEvent.setup();
         mockServer({ isClaimed: true, appliesDecisions: true });
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         await user.click(openButton());
         const confirm = await screen.findByRole('dialog', {
@@ -521,7 +532,7 @@ describe('MobileSignInMenu', () => {
     it('moves focus back into the popover after Show a new code by keyboard, so Escape closes it', async () => {
         const user = userEvent.setup();
         const server = mockServer({ isClaimed: true, appliesDecisions: true });
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         const popover = await openDeclinedCode(user);
         await user.tab();

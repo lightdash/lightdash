@@ -25,6 +25,10 @@ import { getHost } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
+import {
+    useMobileUpsell,
+    type MobileUpsellChoice,
+} from './upsell/getMobileUpsell';
 import { MobileUpsellFrame } from './upsell/MobileUpsellFrame';
 import {
     useMobileSignInCode,
@@ -55,7 +59,10 @@ const useKeepFocusInPopover = (
     }, [phase, dropdown]);
 };
 
-const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
+const MobileSignInPopover: FC<{
+    withLabel: boolean;
+    upsell: MobileUpsellChoice | null;
+}> = ({ withLabel, upsell }) => {
     const menuProps = useNavBarMenuProps();
     const { user } = useApp();
     const { data: health } = useHealth();
@@ -112,7 +119,7 @@ const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown ref={dropdown}>
-                <MobileUpsellFrame>
+                <MobileUpsellFrame variation={upsell}>
                     <Stack gap="sm">
                         <Title order={6}>{MOBILE_STRINGS.signInTitle}</Title>
                         <MobileSignInStep
@@ -130,9 +137,10 @@ const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
 export const MobileSignInMenu: FC<{ withLabel?: boolean }> = ({
     withLabel = false,
 }) => {
+    const upsell = useMobileUpsell();
     const { data: qrSignInFlag } = useServerFeatureFlag(
         FeatureFlags.MobileQrSignIn,
     );
     if (!qrSignInFlag?.enabled) return null;
-    return <MobileSignInPopover withLabel={withLabel} />;
+    return <MobileSignInPopover withLabel={withLabel} upsell={upsell} />;
 };

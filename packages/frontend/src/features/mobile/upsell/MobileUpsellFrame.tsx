@@ -16,20 +16,24 @@ import { AskUpsell } from './AskUpsell';
 import { BrowseUpsell } from './BrowseUpsell';
 import { ChartFitUpsell } from './ChartFitUpsell';
 import { DashboardUpsell } from './DashboardUpsell';
-import { getMobileUpsell } from './getMobileUpsell';
+import { type MobileUpsellChoice } from './getMobileUpsell';
 import classes from './MobileUpsell.module.css';
 import { PinnedUpsell } from './PinnedUpsell';
 import { PlatformsUpsell } from './PlatformsUpsell';
 import { UPSELL_INSTALL_STRINGS as I, UPSELL_STRINGS } from './upsellStrings';
 
-export const MobileUpsellFrame = ({ children }: { children: ReactNode }) => {
-    const variation = getMobileUpsell();
-    return variation ? (
+export const MobileUpsellFrame = ({
+    variation,
+    children,
+}: {
+    variation: MobileUpsellChoice | null;
+    children: ReactNode;
+}) =>
+    variation ? (
         <Pitch variation={variation}>{children}</Pitch>
     ) : (
         children
     );
-};
 
 const GRAPHICS = {
     1: AskUpsell,
@@ -85,7 +89,7 @@ const Pitch = ({
     variation,
     children,
 }: {
-    variation: keyof typeof UPSELL_STRINGS;
+    variation: MobileUpsellChoice;
     children: ReactNode;
 }) => {
     const visibility = useDocumentVisibility();
