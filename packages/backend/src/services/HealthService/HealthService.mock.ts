@@ -166,6 +166,9 @@ export const BaseResponse: HealthState = {
     dashboardComments: {
         enabled: true,
     },
+    mergeQueryAuthoring: {
+        enabled: true,
+    },
     preAggregates: {
         enabled: false,
     },

@@ -10,6 +10,9 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import DashboardChartEditorModal from '../../DashboardTiles/DashboardChartEditorModal';
 
 vi.mock('../../MonacoEditor', () => ({ default: () => null }));
+vi.mock('../../../hooks/health/useHealth', () => ({
+    default: () => ({ data: undefined }),
+}));
 vi.mock('../../../hooks/useContentAuthoringEnabled', () => ({
     useContentAuthoringEnabled: () => true,
 }));

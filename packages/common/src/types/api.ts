@@ -924,6 +924,9 @@ export type HealthState = {
     dashboardComments: {
         enabled: boolean;
     };
+    mergeQueryAuthoring: {
+        enabled: boolean;
+    };
     preAggregates: {
         enabled: boolean;
     };

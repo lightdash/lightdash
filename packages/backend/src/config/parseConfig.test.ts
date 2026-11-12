@@ -3070,6 +3070,13 @@ describe('feature flag env-var allowlists', () => {
         const config = parseConfig();
         expect(config.dashboardComments.enabled).toBe(false);
     });
+
+    test('DISABLE_MERGE_QUERY_AUTHORING=true disables mergeQueryAuthoring', () => {
+        delete process.env.DISABLE_MERGE_QUERY_AUTHORING;
+        expect(parseConfig().mergeQueryAuthoring.enabled).toBe(true);
+        process.env.DISABLE_MERGE_QUERY_AUTHORING = 'true';
+        expect(parseConfig().mergeQueryAuthoring.enabled).toBe(false);
+    });
 });
 
 describe('persistentDownloadUrls.enabled', () => {
