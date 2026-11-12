@@ -69,6 +69,9 @@ export class ForbiddenError extends LightdashError {
 
 export const FEATURE_NOT_ENABLED_CODE = 'feature_not_enabled';
 
+/** On a 403: the data app version in use is no longer the latest ready one. */
+export const DATA_APP_NEWER_VERSION_CODE = 'data_app_newer_version';
+
 export class FeatureNotEnabledError extends ForbiddenError {
     constructor(featureFlagId: string) {
         super('This feature is not enabled for your organisation.', {
