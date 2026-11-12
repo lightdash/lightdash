@@ -22,9 +22,9 @@ import {
 import {
     IconChevronRight,
     IconCode,
-    IconEye,
     IconFileCode,
     IconSearch,
+    IconTable,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -141,7 +141,7 @@ const DraftMarker: FC<{
     if (!isMine && others.length === 0) return null;
     const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
     return (
-        <Tooltip label={`In development by ${whose}. Not live yet.`}>
+        <Tooltip label={`Draft by ${whose}. Not live yet.`}>
             <Box
                 className={classes.draftDot}
                 data-others={!isMine || undefined}
@@ -855,8 +855,8 @@ const VIEW_OPTIONS = [
         value: 'preview',
         label: (
             <Group gap={6} wrap="nowrap">
-                <MantineIcon icon={IconEye} size={14} />
-                Preview
+                <MantineIcon icon={IconTable} size={14} />
+                Models
             </Group>
         ),
     },
@@ -1134,6 +1134,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         (!keepsDraft && !development && isChatOpen) ? null : (
                             <Group
                                 className={classes.toolbar}
+                                data-my-changes={isTryingChanges || undefined}
                                 justify="space-between"
                                 wrap="nowrap"
                                 gap="sm"

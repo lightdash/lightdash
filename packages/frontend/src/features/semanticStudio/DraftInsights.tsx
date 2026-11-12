@@ -802,7 +802,7 @@ export const MetricComparison: FC<{
                         {isNewModel ? null : (
                             <Table.Th ta="right">Live</Table.Th>
                         )}
-                        <Table.Th ta="right">In development</Table.Th>
+                        <Table.Th ta="right">My changes</Table.Th>
                         {isNewModel ? null : <Table.Th ta="right" />}
                     </Table.Tr>
                 </Table.Thead>
@@ -1137,7 +1137,7 @@ export const DraftExplainer: FC<{ asPullRequest: boolean }> = ({
                 {asPullRequest
                     ? 'Publishing opens a pull request, and nothing is live until it merges.'
                     : 'Publishing makes them live for everyone on this project.'}{' '}
-                Try them on your charts first with the eye button above.
+                Switch to My changes above to try them on your charts first.
             </Text>
             <Button
                 size="compact-xs"

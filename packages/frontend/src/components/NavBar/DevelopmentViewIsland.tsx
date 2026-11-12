@@ -21,7 +21,7 @@ export const DevelopmentViewIsland = () => {
                     className={classes.exit}
                     onClick={() => setIsOn(false)}
                 >
-                    Back to live
+                    Switch to live
                 </UnstyledButton>
             </Tooltip>
         </Box>

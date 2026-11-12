@@ -3,22 +3,26 @@ import {
     CiMergeState,
     type CiChecks,
 } from '@lightdash/common';
-import { ActionIcon, Anchor, Button, Menu, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Badge, Button, Menu, Text, Tooltip } from '@mantine/core';
 import { IconDots, IconExternalLink } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { DevelopmentBar } from '../../../../../features/semanticStudio/DevelopmentBar';
-import { useDevelopmentView } from '../../../../../features/semanticStudio/developmentView';
-import { PreviewToggle } from '../../../../../features/semanticStudio/SemanticLayerDraft';
+import {
+    getDevelopmentPreview,
+    useDevelopmentView,
+} from '../../../../../features/semanticStudio/developmentView';
+import { ChangesSwitch } from '../../../../../features/semanticStudio/SemanticLayerDraft';
 import { useProject } from '../../../../../hooks/useProject';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../hooks/useMergePullRequest';
 import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
+import classes from './SemanticStudioAgent.module.css';
 import { type StudioPullRequest } from './useStudioPullRequest';
 
-/** Why an open pull request cannot be published yet. */
+/** Why an open pull request cannot be merged yet. */
 const getBlockedReason = (ciChecks: CiChecks | null): string => {
     const mergeState = ciChecks?.mergeState;
     switch (mergeState) {
@@ -45,7 +49,7 @@ const summarizeModels = (models: string[]) =>
         ? models.join(', ')
         : `${models.slice(0, 2).join(', ')} and ${models.length - 2} more`;
 
-/** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and publishing it. */
+/** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and merging it. */
 export const StudioDevelopmentBar: FC<{
     projectUuid: string;
     pullRequest: StudioPullRequest;
@@ -57,58 +61,72 @@ export const StudioDevelopmentBar: FC<{
         useMergePullRequest(projectUuid);
     const { mutate: close, isLoading: isClosing } =
         useClosePullRequest(projectUuid);
-    const [publishing, setPublishing] = useState(false);
+    const [merging, setMerging] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isTrying, setIsTrying] = useDevelopmentView();
     const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
     const name = number ? `pull request #${number}` : 'the pull request';
+    // The preview is the truer source once it is built, so a view switched on before then moves to it.
+    useEffect(() => {
+        if (
+            isTrying &&
+            previewProjectUuid &&
+            getDevelopmentPreview() !== previewProjectUuid
+        ) {
+            setIsTrying(true, previewProjectUuid);
+        }
+    }, [isTrying, previewProjectUuid, setIsTrying]);
     const branch =
         project?.dbtConnection && 'branch' in project.dbtConnection
             ? project.dbtConnection.branch
             : null;
-    const canPublish = isMergeable(ciChecks);
+    const canMerge = isMergeable(ciChecks);
     const destination = `${name}${branch ? ` into ${branch}` : ''}`;
     return (
         <DevelopmentBar
+            status={
+                <Badge
+                    component="a"
+                    href={prUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    color="blue"
+                    flex="none"
+                    className={classes.statusLink}
+                >
+                    {number ? `Pull request #${number}` : 'Pull request'}
+                </Badge>
+            }
             summary={
                 <Text fz="xs" c="dimmed" truncate>
                     {changedModels.length > 0
-                        ? `${summarizeModels(changedModels)} in `
-                        : null}
-                    <Anchor
-                        href={prUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        c="dimmed"
-                        underline="always"
-                    >
-                        {name}
-                    </Anchor>
+                        ? summarizeModels(changedModels)
+                        : 'Not live until it merges'}
                 </Text>
             }
         >
-            <PreviewToggle
-                isPreviewing={isTrying}
+            <ChangesSwitch
+                isOnMyChanges={isTrying}
                 onChange={(next) => setIsTrying(next, previewProjectUuid)}
             />
             <Tooltip
                 multiline
                 w={240}
                 label={
-                    canPublish
+                    canMerge
                         ? `Merges ${destination}.`
                         : getBlockedReason(ciChecks)
                 }
             >
                 <Button
                     size="xs"
-                    data-disabled={!canPublish || undefined}
-                    aria-disabled={!canPublish}
+                    data-disabled={!canMerge || undefined}
+                    aria-disabled={!canMerge}
                     onClick={() => {
-                        if (canPublish) setPublishing(true);
+                        if (canMerge) setMerging(true);
                     }}
                 >
-                    Publish
+                    Merge
                 </Button>
             </Tooltip>
             <Menu position="bottom-end">
@@ -145,22 +163,22 @@ export const StudioDevelopmentBar: FC<{
                     </Menu.Item>
                     <Menu.Divider />
                     <Menu.Item color="red" onClick={() => setDiscarding(true)}>
-                        Discard all changes
+                        Close pull request
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
-            {publishing ? (
+            {merging ? (
                 <MantineModal
                     opened
-                    title="Publish changes"
+                    title="Merge pull request"
                     description={`This merges ${destination}, and everyone sees the changes once the project compiles.`}
-                    confirmLabel="Publish"
+                    confirmLabel="Merge"
                     confirmLoading={isMerging}
-                    onClose={() => setPublishing(false)}
+                    onClose={() => setMerging(false)}
                     onConfirm={() =>
                         merge(
                             { prUrl, sha: commitSha },
-                            { onSettled: () => setPublishing(false) },
+                            { onSettled: () => setMerging(false) },
                         )
                     }
                 />
@@ -169,9 +187,9 @@ export const StudioDevelopmentBar: FC<{
                 <MantineModal
                     opened
                     variant="delete"
-                    title="Discard all changes"
-                    description={`This closes ${name} without merging it. Nothing live changes.`}
-                    confirmLabel="Discard"
+                    title="Close pull request"
+                    description={`This closes ${name} without merging it. Nothing live changes, and it can be reopened from the repository.`}
+                    confirmLabel="Close pull request"
                     confirmLoading={isClosing}
                     onClose={() => setDiscarding(false)}
                     onConfirm={() =>
