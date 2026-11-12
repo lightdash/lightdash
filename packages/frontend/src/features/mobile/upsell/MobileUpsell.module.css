@@ -41,6 +41,19 @@
     width: 100%;
     height: 78px;
 }
+.answer .line {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+    animation: draw 2s 1s ease-out both;
+}
+@keyframes draw {
+    from {
+        stroke-dashoffset: 1;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
 .axis {
     stroke: var(--mantine-color-default-border);
 }
@@ -127,15 +140,19 @@
     background: var(--mantine-color-dimmed);
 }
 .viewport {
+    height: 94px;
     overflow: hidden;
 }
 .swipe {
     display: flex;
-    width: 200%;
-    animation: swipe 7s ease-in-out 2;
+    flex-direction: column;
+    height: 188px;
+    transform: translateY(-50%);
+    animation: swipe 4s ease-in-out both;
 }
 .swipe > div {
-    width: 50%;
+    height: 94px;
+    width: 100%;
     flex: none;
 }
 .swipe svg {
@@ -143,14 +160,12 @@
 }
 @keyframes swipe {
     0%,
-    22%,
-    90%,
-    100% {
-        transform: translateX(0);
+    20% {
+        transform: translateY(0);
     }
-    45%,
-    67% {
-        transform: translateX(-50%);
+    65%,
+    100% {
+        transform: translateY(-50%);
     }
 }
 .browse {
@@ -325,13 +340,13 @@
     height: 76px;
 }
 .storyAsk {
-    animation: story 4s ease-out both;
+    animation: story 2s ease-out both;
 }
 .storySee {
-    animation: story 4s 1s ease-out both;
+    animation: story 2s 1s ease-out both;
 }
 .storyTake {
-    animation: story 4s 2s ease-out both;
+    animation: story 2s 2s ease-out both;
 }
 @keyframes story {
     from {

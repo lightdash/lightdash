@@ -1,7 +1,7 @@
 export const UPSELL_STRINGS = {
     1: {
         headline: 'Ask AI. Take the answer with you.',
-        support: 'Ask about your data and get charts on your phone.',
+        support: 'Get answers with charts on your phone.',
     },
     2: {
         headline: 'Dashboards, made for your phone.',
@@ -20,8 +20,8 @@ export const UPSELL_STRINGS = {
         support: 'Read saved charts at phone size.',
     },
     6: {
-        headline: 'A question. A chart. Your next move.',
-        support: 'Ask AI and explore the answer on your phone.',
+        headline: 'From question to chart.',
+        support: 'Take your AI agent with you.',
     },
 } as const;
 

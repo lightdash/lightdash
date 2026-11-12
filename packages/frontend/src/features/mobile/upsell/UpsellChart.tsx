@@ -28,6 +28,7 @@ export const UpsellChart = ({ bars = false }: { bars?: boolean }) => (
         ) : (
             <path
                 d="M10 76L58 56L104 65L150 32L196 43L244 18L290 10"
+                pathLength="1"
                 className={classes.line}
             />
         )}
