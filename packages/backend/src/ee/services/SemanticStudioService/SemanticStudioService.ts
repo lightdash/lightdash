@@ -10,6 +10,7 @@ import {
     isChartValidationError,
     isDashboardValidationError,
     isExploreError,
+    isUserManagedExplore,
     NotFoundError,
     ParameterError,
     ProjectType,
@@ -677,7 +678,9 @@ export class SemanticStudioService extends BaseService {
         ]);
         return new Map<string, Explore | ExploreError | null>([
             // A model the branch removes is in the live project and not in its preview.
-            ...live.map(({ name }): [string, null] => [name, null]),
+            ...live.flatMap((explore): [string, null][] =>
+                isUserManagedExplore(explore) ? [] : [[explore.name, null]],
+            ),
             ...Object.values(explores).map(
                 (explore): [string, Explore | ExploreError] => [
                     explore.name,

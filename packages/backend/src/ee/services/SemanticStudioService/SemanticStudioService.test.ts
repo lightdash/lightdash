@@ -944,7 +944,7 @@ describe('SemanticStudioService', () => {
         const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
             setup({
                 dbtConnection: DBT_IN_GITHUB,
-                exploreTypes: [ExploreType.DEFAULT],
+                exploreTypes: [ExploreType.DEFAULT, ExploreType.VIRTUAL],
                 previewExplores: { payments: branch },
                 ...overrides,
             });
@@ -957,6 +957,7 @@ describe('SemanticStudioService', () => {
             );
             expect(explores?.get('payments')).toBe(branch);
             expect(explores?.get('explore_0')).toBeNull();
+            expect(explores?.has('explore_1')).toBe(false);
         });
 
         it('is nothing for a preview of another project, a person who cannot write, or a project that keeps a draft', async () => {
