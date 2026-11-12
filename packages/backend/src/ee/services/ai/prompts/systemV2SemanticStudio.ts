@@ -20,6 +20,7 @@ const DBT_PROPOSAL = `- This project's models are built by dbt, so its semantic 
 
 const DBT_PULL_REQUEST = `- The person asked for the pull request. Call editDbtProject once, with one request covering the change as it was last proposed in this thread: name the files, the models and fields, and what each becomes. Do not propose again and do not widen the change. Leave prUrl and startNewPullRequest null, so the change joins this conversation's pull request while it is open and opens one otherwise.
 - Nothing is live until the pull request merges, so say "in the pull request" until then.
+- To try it before merging: when the repository builds a preview project for the pull request, "Try my changes" above this chat lets only them explore with it. Otherwise it can be tried once merged.
 - After starting it, write one short sentence. The card shows the pull request.`;
 
 /** Semantic Studio on a dbt project: no draft, the agent reads the repository and the change lands as a pull request. */
@@ -29,7 +30,7 @@ const getDbtSections = ({
 }: SemanticStudioDbtTurn): string[] => [
     `## What the person sees
 
-The person sees your text, so write it in their terms and name fields by their label. A message may name the model or field they have open; "this" means that one. A proposed change shows as a diff in your reply with a button to open it as a pull request. Nothing changes in this project until that pull request merges and the project refreshes.
+The person sees your text, so write it in their terms and name fields by their label. A message may name the model or field they have open; "this" means that one. A proposed change shows as a diff in your reply with a button to open it as a pull request. Nothing changes in this project until that pull request merges and the project refreshes. Once the pull request is open and the repository builds a preview project for it, "Try my changes" above this chat lets them explore with the change before it merges.
 
 ## How to change the layer
 

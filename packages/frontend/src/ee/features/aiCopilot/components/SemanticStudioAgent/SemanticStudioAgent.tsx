@@ -11,9 +11,11 @@ import {
     Center,
     Group,
     Loader,
+    Text,
     Tooltip,
 } from '@mantine/core';
 import {
+    IconArrowBackUp,
     IconGitPullRequest,
     IconLayoutSidebarRightCollapse,
     IconPlus,
@@ -266,32 +268,43 @@ const ExistingThread: FC<
             renderArtifactsInline
         >
             {!keepsDraft && !isBusy && hasOpenProposal(thread.messages) ? (
-                <Button
-                    size="xs"
-                    variant="default"
-                    mb="xs"
-                    leftSection={
-                        <MantineIcon icon={IconGitPullRequest} size={14} />
-                    }
-                    onClick={() => {
-                        if (isRequestingPullRequest.current) return;
-                        isRequestingPullRequest.current = true;
-                        void sendMessage({
-                            enableSqlMode: sqlMode,
-                            prompt: pullRequest?.isOpen
-                                ? 'Save this to the pull request.'
-                                : 'Open the pull request.',
-                            // The pull request tools only join a turn that carries this hint.
-                            toolHints: ['editDbtProject'],
-                        }).finally(() => {
-                            isRequestingPullRequest.current = false;
-                        });
-                    }}
+                <Group
+                    className={classes.pullRequestPrompt}
+                    justify="space-between"
+                    wrap="nowrap"
                 >
-                    {pullRequest?.isOpen
-                        ? 'Save to pull request'
-                        : 'Open pull request'}
-                </Button>
+                    <Text fz="sm" c="dimmed">
+                        {pullRequest?.isOpen
+                            ? 'Add this to your pull request?'
+                            : 'Happy with this change?'}
+                    </Text>
+                    <Button
+                        size="xs"
+                        variant="default"
+                        flex="none"
+                        leftSection={
+                            <MantineIcon icon={IconGitPullRequest} size={14} />
+                        }
+                        onClick={() => {
+                            if (isRequestingPullRequest.current) return;
+                            isRequestingPullRequest.current = true;
+                            void sendMessage({
+                                enableSqlMode: sqlMode,
+                                prompt: pullRequest?.isOpen
+                                    ? 'Save this to the pull request.'
+                                    : 'Open the pull request.',
+                                // The pull request tools only join a turn that carries this hint.
+                                toolHints: ['editDbtProject'],
+                            }).finally(() => {
+                                isRequestingPullRequest.current = false;
+                            });
+                        }}
+                    >
+                        {pullRequest?.isOpen
+                            ? 'Save to pull request'
+                            : 'Open pull request'}
+                    </Button>
+                </Group>
             ) : null}
             <AgentChatInput
                 accessCalloutVariant="inline"
@@ -324,7 +337,15 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
     onPromptTaken,
     showStarters,
 }) => {
-    const { isEnabled, agent, thread, setStored } = useStudioAgent(projectUuid);
+    const {
+        isEnabled,
+        agent,
+        thread,
+        setStored,
+        startNewThread,
+        previousThread,
+        returnToPreviousThread,
+    } = useStudioAgent(projectUuid);
     const [isOpen, setIsOpen] = useChatOpen();
 
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
@@ -354,11 +375,21 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                     }}
                 />
                 <Group className={classes.actions} gap={4} wrap="nowrap">
+                    {previousThread ? (
+                        <Tooltip label="Previous conversation">
+                            <ActionIcon
+                                aria-label="Previous conversation"
+                                onClick={returnToPreviousThread}
+                            >
+                                <MantineIcon icon={IconArrowBackUp} />
+                            </ActionIcon>
+                        </Tooltip>
+                    ) : null}
                     {thread ? (
                         <Tooltip label="New conversation">
                             <ActionIcon
                                 aria-label="New conversation"
-                                onClick={() => setStored(null)}
+                                onClick={startNewThread}
                             >
                                 <MantineIcon icon={IconPlus} />
                             </ActionIcon>

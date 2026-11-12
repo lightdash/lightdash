@@ -20,6 +20,12 @@
     background: var(--mantine-color-body);
 }
 
+.pullRequestPrompt {
+    max-width: 48rem;
+    margin-inline: auto;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md) 0;
+}
+
 @media (hover: hover) {
     .actions {
         opacity: 0;
