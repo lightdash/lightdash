@@ -57,14 +57,16 @@ Gated on the flag:
   flag turns on `isControlsEnabled` for the header and filter bar, viewers
   and an editor in edit mode alike, and renders the tile overlays, tab
   counts and tile bars of all three kinds (they act only in mapping; no
-  `LinkPrompts`). A dashboard with no tiles has no grid, so its header gets
-  `isControlsEnabled={false}`. For an editor in edit mode it also: wraps
-  the toolbar in `EmbedToolbarGuard` (inert while a control is edited, as
-  `DashboardHeaderGuard`), sets the parameters store's edit mode and clears
-  the runtime zoom pick (restored to the saved default on the way out),
-  builds Save with `buildEmbedDashboardUpdate`, counts control drafts in
-  "changed", and resets them on Cancel and after a save
-  (`useControlDraftResets`).
+  `LinkPrompts`). A dashboard with no tiles has no grid, so a viewer's
+  header gets `isControlsEnabled={false}`; an editor in edit mode keeps the
+  bar, so an open edit outlives the last tile. For an editor in edit mode
+  it also: wraps the toolbar in `EmbedToolbarGuard` (inert while a control
+  is edited; it carries `data-dashboard-header-guard` and Save the header's
+  `save` class, so the header's rule draws Save as an outline), sets the
+  store's edit mode and clears the runtime zoom pick, builds Save with
+  `buildEmbedDashboardUpdate`, counts control drafts in "changed", and
+  resets them on Cancel, on leaving edit mode with drafts (a host's switch)
+  and settles them after a save (`useControlDraftResets`).
 - `pages/Dashboard.tsx` Save: `getDimensionFiltersToSave` keeps a required
   filter's value as its default with the flag on; off, it strips it as before.
 - `pages/DashboardVersionComparison.tsx`: a "Filter sections" block after
@@ -123,10 +125,12 @@ Openings (optional props, defaults are today's behaviour):
   so an editor cannot add a control the bar hides). `FilterBarMenu`:
   `withDateZoomVisibility` (default `true`; `AddControl` passes its
   `withDateZooms`).
-- `DashboardProvider`: `isParametersEditModeExternal` (default `false`: the
-  route sets the parameters store's edit mode). The embed page passes it
-  and `EmbedDashboard` dispatches the mode; without it the provider's
-  effect, which runs after its children's, would undo that on mount.
+- `DashboardProvider`: `isEditModeExternal` (default `false`: the route
+  sets the parameters store's edit mode). The embed page passes it and
+  `EmbedDashboard` dispatches the mode; without it the provider's effect,
+  which runs after its children's, would undo that on mount. With it the
+  date zoom sync reads the mode from the store too: no saved default over
+  an editor's edit mode, and it applies again on the way out.
 
 Pure moves out of shipped files, now shared by both sides:
 `features/dateZoom/hooks.ts` (`useGranularityData`,
@@ -188,13 +192,16 @@ Each one has broken before or would break silently.
 
 - **One filled button.** While a filter is edited the editor's Apply (the
   mapping row's in mapping) is the only filled button on screen: the inert
-  header draws Save changes as an outline, and the selection bar never uses
-  `filled`. The one exception is the field bar's Undo right after "Add a
+  header (the embed's inert toolbar too) draws Save as an outline, and the
+  selection bar never uses `filled`. The one exception is the field bar's Undo right after "Add a
   field", or its Filter right after a tile card's pick (a design decision).
 - **No state reset in an effect.** Open/closed, mapping, highlighted field,
-  pending switch, undo and selection are all derived on render. The one
-  exception is the mode-change effect in the provider (browser Back, a typed
-  URL, an embed's `isEditMode`), which closes the edit as Apply does.
+  pending switch, undo and selection are all derived on render. The
+  exceptions are mode-change effects: the provider's (browser Back, a typed
+  URL, an embed's `isEditMode`), which closes the edit as Apply does, and
+  `EmbedDashboard`'s, which have no route to follow: the store's edit mode
+  and zoom pick, the seeded date zoom visibility, and the control drafts
+  dropped on leaving edit mode.
 - **The provider is the only writer.** The editor writes the edited rule with
   `updateFilter` and any other rule with `updateOtherFilters`, never the
   dashboard's `setDashboardFilters` directly. Those land in the provider's
@@ -239,9 +246,9 @@ Each one has broken before or would break silently.
   spread over the loaded config. Keys the embed's store is never seeded
   with are sent as loaded, never from a store default: `pinnedParameters`,
   `parameterOrder`, and `isDateZoomDisabled` unless the token allows date
-  zoom, where an editor's edit mode seeds it from the saved config (and
-  puts it back to `false` on the way out: an embed viewer's date zoom
-  follows the token). The embed resolves the flag for the JWT's
+  zoom, where an editor's edit mode seeds it from the saved config, tiles
+  or none (and puts it back to `false` on the way out: an embed viewer's
+  date zoom follows the token). The embed resolves the flag for the JWT's
   organisation (`FeatureFlagService.getForAccount`).
 - **Saved section keys survive every rewrite**: `sectionId` is carried in
   `applyDimensionOverrides` / `applyMetricOverrides`, `adoptPlaceholder` and

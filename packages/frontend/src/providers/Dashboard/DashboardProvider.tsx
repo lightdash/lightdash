@@ -88,9 +88,9 @@ type DashboardProviderProps = React.PropsWithChildren<{
     // and scheduled deliveries must leave this off so a viewer's unpublished
     // draft never reaches a delivered image, PDF or spreadsheet.
     includeUnpublishedDraft?: boolean;
-    // The parameters' edit mode is set by a child, not the route (default
-    // false); an embed has no route for it
-    isParametersEditModeExternal?: boolean;
+    // A child sets the store's edit mode, not the route (default false): an
+    // embed has no route for it. The parameters and the date zoom follow it
+    isEditModeExternal?: boolean;
 }>;
 
 const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
@@ -104,7 +104,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     dashboardCommentsCheck,
     defaultInvalidateCache,
     includeUnpublishedDraft = false,
-    isParametersEditModeExternal = false,
+    isEditModeExternal = false,
     parameterLabelOverrides,
     children,
 }) => {
@@ -232,9 +232,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     useEffect(() => {
         // Runs after a child's effects: it would undo the child's value
-        if (isParametersEditModeExternal) return;
+        if (isEditModeExternal) return;
         store.dispatch(dashboardParametersActions.setIsEditMode(isEditMode));
-    }, [store, isEditMode, isParametersEditModeExternal]);
+    }, [store, isEditMode, isEditModeExternal]);
+    const isStoreEditMode = useStoreValue(
+        store,
+        (state) => state.parameters.isEditMode,
+    );
 
     useEffect(() => {
         if (urlRestoreErrors.parameters) {
@@ -505,7 +509,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 dashboardConfig={currentDashboardConfig}
                 dashboardUuid={dashboard?.uuid}
                 isDashboardLoaded={isDashboardLoaded}
-                isEditMode={isEditMode}
+                // No saved default over an embed editor's edit mode
+                isEditMode={isEditModeExternal ? isStoreEditMode : isEditMode}
                 configDefaultDateZoomGranularity={
                     currentDashboardConfig?.defaultDateZoomGranularity
                 }

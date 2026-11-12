@@ -137,17 +137,26 @@ describe('buildEmbedDashboardUpdate', () => {
             ...base,
             controlDrafts: unchangedDrafts,
         });
-        expect(update).toMatchObject({
+        // The whole payload: nothing beyond the loaded config is written,
+        // and no order until the editor reorders
+        expect(update).toEqual({
+            tiles: [],
+            filters: {
+                dimensions: [
+                    rule('status', { label: 'Status', required: true }),
+                    rule('city'),
+                ],
+                metrics: [],
+                tableCalculations: [],
+            },
+            name: 'Sales',
+            tabs: [],
             config: {
                 ...dashboard.config,
                 isAddFilterDisabled: true,
             },
             parameters: dashboard.parameters,
         });
-        // No order is written until the editor reorders
-        expect(
-            'config' in update ? update.config?.controlOrder : null,
-        ).toBeUndefined();
     });
 
     it('keeps the keys the embed store never holds as loaded', () => {

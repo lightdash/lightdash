@@ -1,14 +1,16 @@
 import { type Dashboard } from '@lightdash/common';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect, type FC } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+    dashboardDateZoomActions,
     dashboardEditActions,
     dashboardParametersActions,
     selectControlSections,
     selectDashboardFilters,
+    selectDateZoomGranularity,
     selectIsDateZoomDisabled,
     selectParameterPicks,
     selectRawTemporaryFilters,
@@ -189,8 +191,10 @@ const ParametersState: FC = () => {
     );
     const picks = useDashboardSelector(selectParameterPicks);
     const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
+    const zoom = useDashboardSelector(selectDateZoomGranularity);
     return (
         <>
+            <output data-testid="zoom">{zoom ?? 'none'}</output>
             <output data-testid="parameters-state">
                 {isEditMode ? 'edit' : 'view'}:{Object.keys(picks).join(',')}
             </output>
@@ -201,29 +205,31 @@ const ParametersState: FC = () => {
     );
 };
 
+const embedElement = (isEditMode: boolean, loaded = dashboard) => (
+    <MemoryRouter>
+        {/* As the embed page mounts it */}
+        <DashboardProvider
+            embedToken="token"
+            projectUuid="project-1"
+            isEditModeExternal
+        >
+            <SectionNames />
+            <FilterIds />
+            <ParametersState />
+            <EmbedDashboard
+                initialDashboard={
+                    loaded as unknown as Parameters<
+                        typeof EmbedDashboard
+                    >[0]['initialDashboard']
+                }
+                isEditMode={isEditMode}
+            />
+        </DashboardProvider>
+    </MemoryRouter>
+);
+
 const renderEmbed = (isEditMode: boolean, loaded = dashboard) =>
-    renderWithProviders(
-        <MemoryRouter>
-            {/* As the embed page mounts it */}
-            <DashboardProvider
-                embedToken="token"
-                projectUuid="project-1"
-                isParametersEditModeExternal
-            >
-                <SectionNames />
-                <FilterIds />
-                <ParametersState />
-                <EmbedDashboard
-                    initialDashboard={
-                        loaded as unknown as Parameters<
-                            typeof EmbedDashboard
-                        >[0]['initialDashboard']
-                    }
-                    isEditMode={isEditMode}
-                />
-            </DashboardProvider>
-        </MemoryRouter>,
-    );
+    renderWithProviders(embedElement(isEditMode, loaded));
 
 describe('EmbedDashboard sections', () => {
     beforeEach(() => {
@@ -360,11 +366,10 @@ describe('EmbedDashboard editor controls', () => {
         expect(
             await screen.findByRole('button', { name: 'Filter bar settings' }),
         ).toBeInTheDocument();
-        expect(
-            document.querySelector(
-                '.ld-dashboard-add-filter, [data-filter-actions] .ld-dashboard-add-filter',
-            ),
-        ).not.toBeNull();
+        // The real "Add filter", with the class contract
+        expect(screen.getByRole('button', { name: 'Add filter' })).toHaveClass(
+            'ld-dashboard-add-filter',
+        );
         expect(
             screen.getByRole('group', { name: 'Dates' }),
         ).toBeInTheDocument();
@@ -404,7 +409,7 @@ describe('EmbedDashboard editor controls', () => {
                 <DashboardProvider
                     embedToken="token"
                     projectUuid="project-1"
-                    isParametersEditModeExternal
+                    isEditModeExternal
                 >
                     <SectionNames />
                     <FilterIds />
@@ -456,6 +461,168 @@ describe('EmbedDashboard editor controls', () => {
         );
         await waitFor(() => expect(toolbarGuard()).toHaveAttribute('inert'));
         expect(toolbarGuard()).toContainElement(save());
+        // The app header's locked look: its rule draws Save as an outline
+        expect(toolbarGuard()).toHaveAttribute('data-dashboard-header-guard');
+        expect(save().className).toMatch(/save/);
+    });
+
+    it('locks the toolbar while the default zoom is edited', async () => {
+        renderEmbed(true, {
+            ...dashboard,
+            canDateZoom: true,
+        } as unknown as Dashboard);
+        await userEvent.click(
+            await screen.findByRole('button', { name: /^Default zoom/ }),
+        );
+        await waitFor(() => expect(toolbarGuard()).toHaveAttribute('inert'));
+    });
+
+    describe('date zoom on the way in and out of edit mode', () => {
+        const withDefaultZoom = {
+            ...dashboard,
+            canDateZoom: true,
+            config: { ...dashboard.config, defaultDateZoomGranularity: 'Week' },
+        } as unknown as Dashboard;
+        const zoom = () => screen.getByTestId('zoom').textContent;
+
+        it('never applies the saved default to an embed mounted in edit mode', async () => {
+            renderEmbed(true, withDefaultZoom);
+            await waitFor(() =>
+                expect(
+                    screen.getByTestId('parameters-state'),
+                ).toHaveTextContent('edit:'),
+            );
+            await screen.findByRole('group', { name: 'Dates' });
+            await act(async () => {});
+            expect(zoom()).toBe('none');
+        });
+
+        it("clears a viewer's pick on entering edit mode and restores the saved default on leaving", async () => {
+            const { rerender } = renderEmbed(false, withDefaultZoom);
+            await waitFor(() => expect(zoom()).toBe('Week'));
+            act(() => {
+                mocks.dispatch?.(
+                    dashboardDateZoomActions.setGranularity('Month'),
+                );
+            });
+            expect(zoom()).toBe('Month');
+
+            rerender(embedElement(true, withDefaultZoom));
+            await waitFor(() => expect(zoom()).toBe('none'));
+            await act(async () => {});
+            expect(zoom()).toBe('none');
+
+            rerender(embedElement(false, withDefaultZoom));
+            await waitFor(() => expect(zoom()).toBe('Week'));
+        });
+    });
+
+    describe('a host leaving edit mode without Cancel', () => {
+        const renameSection = () =>
+            act(() => {
+                mocks.dispatch?.(
+                    dashboardEditActions.renameControlSection({
+                        id: 'a',
+                        name: 'Periods',
+                    }),
+                );
+            });
+        const sectionNames = () => screen.getByTestId('section-names');
+
+        it('drops the control drafts, as Cancel does', async () => {
+            const { rerender } = renderEmbed(true);
+            await waitFor(() =>
+                expect(sectionNames()).toHaveTextContent('Dates'),
+            );
+            renameSection();
+            expect(sectionNames()).toHaveTextContent('Periods');
+
+            rerender(embedElement(false));
+            await waitFor(() =>
+                expect(sectionNames()).toHaveTextContent('Dates'),
+            );
+        });
+
+        it('keeps what a save just wrote', async () => {
+            const { rerender } = renderEmbed(true);
+            await waitFor(() =>
+                expect(sectionNames()).toHaveTextContent('Dates'),
+            );
+            renameSection();
+            const saved = {
+                ...dashboard,
+                config: {
+                    ...dashboard.config,
+                    controlSections: [{ id: 'a', name: 'Periods' }],
+                },
+            } as unknown as Dashboard;
+            act(() => mocks.onUpdateSuccess?.(saved));
+
+            rerender(embedElement(false, saved));
+            await screen.findByRole('group', { name: 'Periods' });
+            await act(async () => {});
+            expect(sectionNames()).toHaveTextContent('Periods');
+        });
+    });
+
+    describe('a dashboard with no tiles', () => {
+        const empty = { ...dashboard, tiles: [] } as unknown as Dashboard;
+
+        it("keeps the editor's bar, and the shipped filters for a viewer", async () => {
+            const { rerender } = renderEmbed(true, empty);
+            expect(
+                await screen.findByRole('button', {
+                    name: 'Filter bar settings',
+                }),
+            ).toBeInTheDocument();
+            rerender(embedElement(false, empty));
+            await waitFor(() =>
+                expect(
+                    screen.queryByRole('button', {
+                        name: 'Filter bar settings',
+                    }),
+                ).not.toBeInTheDocument(),
+            );
+        });
+
+        it('keeps an open edit and its bar when the last tile is deleted', async () => {
+            mocks.availableFilters = {
+                savedQueryFilters: {},
+                allFilterableFields: [
+                    {
+                        name: 'date',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        label: 'Order date',
+                        fieldType: 'dimension',
+                        type: 'date',
+                    },
+                ],
+            };
+            renderEmbed(true);
+            await userEvent.click(
+                await screen.findByRole('button', { name: 'Add filter' }),
+            );
+            await waitFor(() =>
+                expect(toolbarGuard()).toHaveAttribute('inert'),
+            );
+            act(() => {
+                mocks.dispatch?.(dashboardEditActions.setTiles([]));
+            });
+            await screen.findByText('Empty dashboard');
+            // The editor is still open on its bar, so the edit can be ended
+            expect(
+                screen.getByRole('button', { name: 'Filter bar settings' }),
+            ).toBeInTheDocument();
+            expect(
+                document.querySelector('.ld-dashboard-control-editor'),
+            ).not.toBeNull();
+            // A press outside cancels the edit, as on any dashboard
+            fireEvent.pointerDown(document.body);
+            await waitFor(() =>
+                expect(toolbarGuard()).not.toHaveAttribute('inert'),
+            );
+        });
     });
 
     it('enables Save on a control change, saves it, and Cancel puts it back', async () => {
@@ -577,6 +744,28 @@ describe('EmbedDashboard editor controls', () => {
             ).toBe(false);
         });
 
+        it("keeps the editor's toggle when the last tile is deleted", async () => {
+            renderEmbed(true, zoomDashboard(true));
+            await openMenu();
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Show date zoom for viewers',
+                }),
+            );
+            act(() => {
+                mocks.dispatch?.(dashboardEditActions.setTiles([]));
+            });
+            await screen.findByText('Empty dashboard');
+            expect(screen.getByTestId('zoom-hidden')).toHaveTextContent(
+                'false',
+            );
+            await userEvent.click(save());
+            expect(
+                mocks.updateDashboard.mock.calls[0][0].config
+                    .isDateZoomDisabled,
+            ).toBe(false);
+        });
+
         it("leaves an embed viewer's date zoom to the token, whatever is saved", async () => {
             renderEmbed(false, zoomDashboard(true));
             await waitFor(() =>
@@ -626,6 +815,7 @@ describe('EmbedDashboard editor controls', () => {
                 screen.queryByRole('button', { name: 'Filter bar settings' }),
             ).not.toBeInTheDocument();
             expect(toolbarGuard()).toBeNull();
+            expect(save().className).not.toMatch(/save/);
             OVERLAYS.forEach((testId) =>
                 expect(screen.queryByTestId(testId)).not.toBeInTheDocument(),
             );

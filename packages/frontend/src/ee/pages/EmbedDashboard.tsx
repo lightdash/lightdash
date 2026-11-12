@@ -63,7 +63,7 @@ const EmbedDashboardPage: FC<{
             projectUuid={projectUuid}
             parameterLabelOverrides={languageMap?.parameters}
             // EmbedDashboard holds the edit mode
-            isParametersEditModeExternal
+            isEditModeExternal
         >
             <TileQueryQueueProvider>
                 <EmbedDashboard

@@ -32,6 +32,7 @@ import {
 import { type Layout } from 'react-grid-layout';
 import { useLocation } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import headerClasses from '../../../../../components/common/Dashboard/DashboardHeader.module.css';
 import { DocumentTitle } from '../../../../../components/common/DocumentTitle';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ScreenshotReadyIndicator from '../../../../../components/common/ScreenshotReadyIndicator';
@@ -138,7 +139,8 @@ const EMBED_EDIT_TILE_TYPES = [
 ];
 
 // While a control is edited the toolbar is inert, Save and Cancel included:
-// Apply or Cancel in the editor ends the control first, as the app's header
+// Apply or Cancel in the editor ends the control first, as the app's header,
+// whose guard attribute it shares so Save draws as an outline meanwhile
 const EmbedToolbarGuard: FC<{ children: ReactNode }> = ({ children }) => {
     const isLocked = useIsControlEdited(true);
     return (
@@ -146,6 +148,7 @@ const EmbedToolbarGuard: FC<{ children: ReactNode }> = ({ children }) => {
             display="contents"
             className={pillClasses.inert}
             data-embed-toolbar-guard
+            data-dashboard-header-guard
             inert={isLocked || undefined}
         >
             {children}
@@ -759,28 +762,21 @@ const EmbedDashboard: FC<{
     // With the controls, the stores know an editor is editing, as in the app:
     // a viewer's parameter picks and zoom pick are dropped, never saved
     const isControlsEditor = isControlsEnabled && isEditorInEditMode;
-    const savedDefaultZoom = dashboard?.config?.isDateZoomDisabled
-        ? undefined
-        : dashboard?.config?.defaultDateZoomGranularity;
-    const savedDefaultZoomRef = useRef(savedDefaultZoom);
-    savedDefaultZoomRef.current = savedDefaultZoom;
+    // The provider's date zoom sync follows the store's mode: no saved
+    // default while editing, and it applies again on the way out
     useEffect(() => {
         dashboardDispatch(
             dashboardParametersActions.setIsEditMode(isControlsEditor),
         );
-        if (!isControlsEditor) return undefined;
-        setDateZoomGranularity(undefined);
-        // Viewers start from the saved default again
-        return () => setDateZoomGranularity(savedDefaultZoomRef.current);
+        if (isControlsEditor) setDateZoomGranularity(undefined);
     }, [dashboardDispatch, isControlsEditor, setDateZoomGranularity]);
     // "Hide date zoom for viewers" starts from the saved value, only while an
-    // editor's bar offers it: an embed viewer's date zoom follows the token
+    // editor edits where the token allows date zoom: an embed viewer's date
+    // zoom follows the token
     const savedIsDateZoomDisabled =
         dashboard?.config?.isDateZoomDisabled ?? false;
     const ownsDateZoomVisibility =
-        isControlsEditor &&
-        dashboard?.canDateZoom === true &&
-        (dashboardTiles ?? dashboard?.tiles ?? []).length > 0;
+        isControlsEditor && dashboard?.canDateZoom === true;
     useEffect(() => {
         if (!ownsDateZoomVisibility) return undefined;
         setIsDateZoomDisabled(savedIsDateZoomDisabled);
@@ -991,6 +987,17 @@ const EmbedDashboard: FC<{
             resetDashboardDraft();
         }
     }, [isEditMode, resetDashboardDraft]);
+
+    // Leaving edit mode with control drafts drops them too: a host's switch
+    // without Cancel. A save has settled them by then, so it is left alone
+    const wasEditModeRef = useRef(isEditMode);
+    useEffect(() => {
+        const wasEditMode = wasEditModeRef.current;
+        wasEditModeRef.current = isEditMode;
+        if (wasEditMode && !isEditMode && haveControlsChanged) {
+            resetControlDrafts(dashboard?.config);
+        }
+    }, [dashboard, haveControlsChanged, isEditMode, resetControlDrafts]);
 
     // Filters are not part of resetDashboardDraft: it also runs on mount, where
     // it would clobber the SDK/URL filter overrides the provider applies.
@@ -1206,6 +1213,9 @@ const EmbedDashboard: FC<{
                     onClick={handleSaveDashboard}
                     loading={isSaving}
                     disabled={!hasDashboardChanged}
+                    className={
+                        isControlsEnabled ? headerClasses.save : undefined
+                    }
                 >
                     Save
                 </Button>
@@ -1353,8 +1363,10 @@ const EmbedDashboard: FC<{
                                 projectUuid={projectUuid}
                                 activeTiles={filteredTiles}
                                 isEditMode={canWriteDashboard && isEditMode}
-                                // No grid, so no controls bar: the shipped filters
-                                isControlsEnabled={false}
+                                // No grid, so no controls bar for viewers: the
+                                // shipped filters. An editor keeps the bar, as
+                                // in the app, so an open edit outlives the last tile
+                                isControlsEnabled={isControlsEditor}
                             />
                             {renderDashboardEditToolbar()}
                             <Box mt="lg">
