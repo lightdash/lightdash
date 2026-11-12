@@ -1,11 +1,19 @@
-import { MobileSignInCodeStatus, type ApiError } from '@lightdash/common';
+import {
+    MOBILE_APP_STORE_URL,
+    MOBILE_GOOGLE_PLAY_URL,
+    MobileSignInCodeStatus,
+    type ApiError,
+} from '@lightdash/common';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { MobileSignInMenu } from './MobileSignInMenu';
-import { UPSELL_STRINGS } from './upsell/upsellStrings';
+import {
+    UPSELL_INSTALL_STRINGS,
+    UPSELL_STRINGS,
+} from './upsell/upsellStrings';
 
 vi.mock('../../api');
 vi.mock('../../hooks/health/useHealth', () => ({
@@ -128,6 +136,7 @@ describe('MobileSignInMenu', () => {
         await userEvent.click(openButton());
         await screen.findByRole('img', { name: 'Sign-in QR code' });
         expect(document.querySelector('[data-mobile-upsell]')).toBeNull();
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
         expect(screen.getByText('Waiting for scan')).toBeVisible();
     });
 
@@ -154,8 +163,64 @@ describe('MobileSignInMenu', () => {
             expect(
                 frame?.querySelector('[aria-hidden="true"] svg'),
             ).toBeInTheDocument();
+            const install = screen.getByRole('list', {
+                name: UPSELL_INSTALL_STRINGS.label,
+            });
+            expect(
+                within(install)
+                    .getAllByRole('link')
+                    .map((link) => [
+                        link.getAttribute('aria-label'),
+                        link.getAttribute('href'),
+                        link.getAttribute('target'),
+                    ]),
+            ).toEqual([
+                [
+                    UPSELL_INSTALL_STRINGS.ios.label,
+                    MOBILE_APP_STORE_URL,
+                    '_blank',
+                ],
+                [
+                    UPSELL_INSTALL_STRINGS.android.label,
+                    MOBILE_GOOGLE_PLAY_URL,
+                    '_blank',
+                ],
+            ]);
+            expect(
+                within(install).queryByRole('img', {
+                    name: 'Sign-in QR code',
+                }),
+            ).not.toBeInTheDocument();
         },
     );
+
+    it('moves between the install links by keyboard and still closes on Escape', async () => {
+        window.history.replaceState({}, '', '/?mobileUpsell=1');
+        const user = userEvent.setup();
+        const server = mockServer();
+        renderWithProviders(<MobileSignInMenu />);
+
+        await user.click(openButton());
+        await screen.findByRole('img', { name: 'Sign-in QR code' });
+        const [ios, android] = screen.getAllByRole('link');
+        ios.focus();
+        await user.tab();
+        expect(android).toHaveFocus();
+        await user.tab({ shift: true });
+        expect(ios).toHaveFocus();
+
+        await user.keyboard('{Escape}');
+
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(openButton()).toHaveFocus();
+        await waitFor(() =>
+            expect(server.deletes()).toEqual([
+                '/user/mobile/sign-in-codes/code-1',
+            ]),
+        );
+    });
 
     it('pauses the pitch when the tab is hidden', async () => {
         window.history.replaceState({}, '', '/?mobileUpsell=1');
