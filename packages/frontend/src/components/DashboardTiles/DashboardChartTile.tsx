@@ -25,6 +25,7 @@ import {
     getPivotConfig,
     getMergeDefinitionQueryExploreNames,
     getShowColumnTotalsFromChartConfig,
+    getShowSubtotalsFromChartConfig,
     getVisibleFields,
     isDashboardChartTileType,
     isFilterableField,
@@ -2026,6 +2027,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     showColumnTotals={getShowColumnTotalsFromChartConfig(
                         chart.chartConfig.config,
                     )}
+                    showSubtotals={getShowSubtotalsFromChartConfig(
+                        chart.chartConfig.config,
+                    )}
                 />
                 <ExportImageModal
                     echartRef={echartRef}
@@ -2400,6 +2404,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
                     pivotConfig={downloadPivotConfig}
                     showColumnTotals={getShowColumnTotalsFromChartConfig(
+                        chart.chartConfig.config,
+                    )}
+                    showSubtotals={getShowSubtotalsFromChartConfig(
                         chart.chartConfig.config,
                     )}
                 />

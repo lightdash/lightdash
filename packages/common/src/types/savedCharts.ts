@@ -1167,6 +1167,11 @@ export const getShowColumnTotalsFromChartConfig = (
         ? config.showColumnCalculation
         : undefined;
 
+export const getShowSubtotalsFromChartConfig = (
+    config: ChartConfig['config'] | undefined,
+): boolean | undefined =>
+    config && isTableChartConfig(config) ? config.showSubtotals : undefined;
+
 export const hashFieldReference = (reference: PivotReference) =>
     reference.pivotValues
         ? `${reference.field}.${reference.pivotValues

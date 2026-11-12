@@ -978,6 +978,7 @@ export class QueryController extends BaseController {
             attachmentDownloadName: body.attachmentDownloadName,
             conditionalFormattings: body.conditionalFormattings,
             showColumnTotals: body.showColumnTotals,
+            showSubtotals: body.showSubtotals,
         });
 
         return {
@@ -1033,6 +1034,7 @@ export class QueryController extends BaseController {
                 attachmentDownloadName: body.attachmentDownloadName,
                 conditionalFormattings: body.conditionalFormattings,
                 showColumnTotals: body.showColumnTotals,
+                showSubtotals: body.showSubtotals,
             });
 
         return {

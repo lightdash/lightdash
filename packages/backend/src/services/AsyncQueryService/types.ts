@@ -96,6 +96,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     expirationSecondsOverride?: number;
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
+    showSubtotals?: boolean;
 };
 
 export type ScheduleDownloadAsyncQueryResultsArgs = Omit<
