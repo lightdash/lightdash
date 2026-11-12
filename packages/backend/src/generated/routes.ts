@@ -22318,6 +22318,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                sharedAccess: { dataType: 'enum', enums: ['none'] },
                 shared: {
                     ref: 'Record_string.AppStateSharedEntry_',
                     required: true,
