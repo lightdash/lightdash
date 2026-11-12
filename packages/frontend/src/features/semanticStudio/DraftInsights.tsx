@@ -30,6 +30,7 @@ import {
     IconArrowDown,
     IconArrowUp,
     IconGitMerge,
+    IconInfoCircle,
     IconTable,
     IconTrash,
     IconUsers,
@@ -975,31 +976,30 @@ export const DraftExplainer: FC<{ asPullRequest: boolean }> = ({
     const [isSeen, setIsSeen] = useState(hasSeenExplainer);
     if (isSeen) return null;
     return (
-        <Paper variant="dotted" p="sm">
-            <Group gap="sm" justify="space-between" wrap="nowrap">
-                <Text fz="sm">
-                    These changes are in development: only you see them. Try
-                    them on your charts with Try my changes.{' '}
-                    {asPullRequest
-                        ? 'Publishing opens a pull request, and nothing is live until it merges.'
-                        : 'Publishing makes them live for everyone on this project.'}
-                </Text>
-                <Button
-                    size="compact-xs"
-                    variant="default"
-                    flex="none"
-                    onClick={() => {
-                        try {
-                            localStorage.setItem(EXPLAINER_KEY, '1');
-                        } catch {
-                            // Without storage it shows again next time.
-                        }
-                        setIsSeen(true);
-                    }}
-                >
-                    Got it
-                </Button>
-            </Group>
-        </Paper>
+        <Group className={classes.hint} gap="sm" wrap="nowrap">
+            <MantineIcon icon={IconInfoCircle} size={16} color="dimmed" />
+            <Text fz="xs" flex={1}>
+                Only you see these changes.{' '}
+                {asPullRequest
+                    ? 'Publishing opens a pull request, and nothing is live until it merges.'
+                    : 'Publishing makes them live for everyone on this project.'}{' '}
+                Use Try my changes to see them on your charts first.
+            </Text>
+            <Button
+                size="compact-xs"
+                variant="subtle"
+                flex="none"
+                onClick={() => {
+                    try {
+                        localStorage.setItem(EXPLAINER_KEY, '1');
+                    } catch {
+                        // Without storage it shows again next time.
+                    }
+                    setIsSeen(true);
+                }}
+            >
+                Got it
+            </Button>
+        </Group>
     );
 };

@@ -7,6 +7,7 @@
 .review {
     flex: 1;
     min-height: 0;
+    padding-block: var(--mantine-spacing-md);
     overflow: auto;
 }
 
