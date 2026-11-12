@@ -158,6 +158,11 @@
     position: relative;
 }
 
+/* Room for the first row's top grip to clear the sticky filters bar */
+.tabGridContainer[data-edit-canvas] {
+    padding-top: 4px;
+}
+
 .gridInteracting {
     user-select: none;
 }
