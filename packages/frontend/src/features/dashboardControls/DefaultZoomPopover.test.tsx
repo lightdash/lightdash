@@ -12,21 +12,18 @@ const customLabels = {
 };
 const enabled = [DateGranularity.WEEK, DateGranularity.MONTH, 'fiscal_quarter'];
 
-// The draft (or pick) lives above the popover, as in the editor provider
+// The draft lives above the popover, as in the editor provider
 const Harness: FC<{
-    isViewer: boolean;
     defaultGranularity: string | null;
     onApply: (value: string | null) => void;
-}> = ({ isViewer, defaultGranularity, onApply }) => {
+}> = ({ defaultGranularity, onApply }) => {
     const [value, setValue] = useState(defaultGranularity);
     return (
         <DefaultZoomPopover
             enabledGranularities={enabled}
             value={value}
             customLabels={customLabels}
-            mode={
-                isViewer ? { kind: 'viewer' } : { kind: 'editor', tileCount: 3 }
-            }
+            tileCount={3}
             isAsking={false}
             onResolvePending={vi.fn()}
             onChange={setValue}
@@ -40,21 +37,8 @@ const renderEditor = () => {
     const onApply = vi.fn();
     renderWithProviders(
         <Harness
-            isViewer={false}
             defaultGranularity={DateGranularity.MONTH}
             onApply={(defaultGranularity) => onApply({ defaultGranularity })}
-        />,
-    );
-    return { onApply };
-};
-
-const renderViewer = (defaultGranularity: string | null) => {
-    const onApply = vi.fn();
-    renderWithProviders(
-        <Harness
-            isViewer
-            defaultGranularity={defaultGranularity}
-            onApply={onApply}
         />,
     );
     return { onApply };
@@ -93,36 +77,5 @@ describe('DefaultZoomPopover', () => {
                 (option) => option.textContent,
             ),
         ).toEqual(['Week', 'Month', 'Fiscal quarter']);
-    });
-
-    it("tells a viewer that clearing leaves tiles on their own grain, as the menu's None", async () => {
-        const { onApply } = renderViewer(DateGranularity.MONTH);
-        const grain = screen.getByRole('combobox', { name: 'Default zoom' });
-        expect(grain).toHaveValue('Month');
-        expect(
-            screen.getByText('If cleared, tiles keep their own grain.'),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: /^Settings/ }),
-        ).not.toBeInTheDocument();
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Clear grain' }),
-        );
-        expect(grain).toHaveAttribute('placeholder', 'None');
-        await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
-        expect(onApply).toHaveBeenCalledWith(null);
-    });
-
-    it('tells a viewer with no default that tiles keep their own grain', async () => {
-        renderViewer(null);
-        const grain = screen.getByRole('combobox', { name: 'Default zoom' });
-        expect(grain).toHaveAttribute('placeholder', 'None');
-        await userEvent.click(grain);
-        await userEvent.click(
-            await screen.findByRole('option', { name: 'Week' }),
-        );
-        expect(
-            screen.getByText('If cleared, tiles keep their own grain.'),
-        ).toBeInTheDocument();
     });
 });

@@ -480,8 +480,6 @@ export const DEFAULT_UI_STRINGS = {
     'controls.parameter.moveFrom': 'Move from {controls}?',
     'controls.parameter.nameList': '{list} and {name}',
     'controls.dateZoom.appliesToNoTiles': 'Applies to no tiles',
-    'controls.dateZoom.clearedUsesSavedGrain':
-        'If cleared, tiles use the saved grain, {grain}.',
     'controls.dateZoom.clearedKeepsOwnGrain':
         'If cleared, tiles keep their own grain.',
     'controls.dateZoom.custom': 'Custom',

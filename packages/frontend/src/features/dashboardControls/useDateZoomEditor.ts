@@ -18,9 +18,9 @@ export type DateZoomEditorValue = {
     newZoom: DateZoomControl | null;
     /** Every tile target as the draft would leave them. */
     draftTargets: DateZoomTileTargets | null;
-    /** Outside edit mode: Apply picks the grain, nothing is saved. */
+    /** Outside edit mode: pills pick from a menu, nothing opens here. */
     isViewer: boolean;
-    /** A viewer's pick in the popover; null: the saved grain. */
+    /** The default zoom's draft grain; null: cleared. */
     pick: string | null;
     /** Another pill was clicked over unapplied changes: the popover asks to Apply or Discard first. */
     isAsking: boolean;

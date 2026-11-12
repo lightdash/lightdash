@@ -533,7 +533,6 @@
         "controls.parameter.moveFrom": "¿Mover desde {controls}?",
         "controls.parameter.nameList": "{list} y {name}",
         "controls.dateZoom.appliesToNoTiles": "No se aplica a ningún mosaico",
-        "controls.dateZoom.clearedUsesSavedGrain": "Si se borra, los mosaicos usan la granularidad guardada, {grain}.",
         "controls.dateZoom.clearedKeepsOwnGrain": "Si se borra, los mosaicos mantienen su propia granularidad.",
         "controls.dateZoom.custom": "Personalizado",
         "controls.dateZoom.clearGrain": "Borrar granularidad",

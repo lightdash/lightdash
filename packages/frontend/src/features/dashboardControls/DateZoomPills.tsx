@@ -60,9 +60,8 @@ import { useParameterEditorSelector } from './useParameterEditor';
 
 const DRAG_DATA = { kind: DATE_ZOOM_DRAG };
 
-// The default zoom's popover: its draft (an editor's) or pick (a viewer's)
+// The default zoom's popover: an editor's draft
 const DefaultZoomEditorContent: FC = () => {
-    const isViewer = useDateZoomEditorSelector((c) => c.isViewer);
     const pick = useDateZoomEditorSelector((c) => c.pick);
     const isAsking = useDateZoomEditorSelector((c) => c.isAsking);
     const setPick = useDateZoomEditorSelector((c) => c.setPick);
@@ -79,7 +78,7 @@ const DefaultZoomEditorContent: FC = () => {
             enabledGranularities={granularities}
             value={pick}
             customLabels={customLabels}
-            mode={isViewer ? { kind: 'viewer' } : { kind: 'editor', tileCount }}
+            tileCount={tileCount}
             isAsking={isAsking}
             onResolvePending={resolvePending}
             onChange={setPick}
@@ -94,11 +93,8 @@ const DateZoomEditorContent: FC = () => {
     const draft = useDateZoomEditorSelector((c) => c.draft);
     const draftTargets = useDateZoomEditorSelector((c) => c.draftTargets);
     const isNew = useDateZoomEditorSelector((c) => c.newZoom !== null);
-    const isViewer = useDateZoomEditorSelector((c) => c.isViewer);
-    const pick = useDateZoomEditorSelector((c) => c.pick);
     const isAsking = useDateZoomEditorSelector((c) => c.isAsking);
     const update = useDateZoomEditorSelector((c) => c.update);
-    const setPick = useDateZoomEditorSelector((c) => c.setPick);
     const apply = useDateZoomEditorSelector((c) => c.apply);
     const cancel = useDateZoomEditorSelector((c) => c.cancel);
     const resolvePending = useDateZoomEditorSelector((c) => c.resolvePending);
@@ -111,32 +107,21 @@ const DateZoomEditorContent: FC = () => {
     const sections = useDashboardSelector(selectControlSections);
     const eligibleTiles = useEligibleDateZoomTiles(config, draft?.uuid ?? '');
     if (draft === null) return null;
-    // A viewer's popover shows the zoom as saved, with their pick
-    const control = isViewer
-        ? (config.controls.find(({ uuid }) => uuid === draft.uuid) ?? draft)
-        : draft;
     return (
         <DateZoomControlPopover
-            control={control}
+            control={draft}
             granularities={granularities}
             customLabels={customLabels}
-            mode={
-                isViewer
-                    ? { kind: 'viewer', granularity: pick, onChange: setPick }
-                    : {
-                          kind: 'editor',
-                          isNew,
-                          sections,
-                          tileCount: getZoomTileUuids(
-                              draftTargets ?? config.tileTargets,
-                              draft.uuid,
-                          ).length,
-                          totalTileCount: eligibleTiles.length,
-                          initialView: 'value',
-                          onChooseTiles: startMapping,
-                          onChange: update,
-                      }
+            isNew={isNew}
+            sections={sections}
+            tileCount={
+                getZoomTileUuids(draftTargets ?? config.tileTargets, draft.uuid)
+                    .length
             }
+            totalTileCount={eligibleTiles.length}
+            initialView="value"
+            onChooseTiles={startMapping}
+            onChange={update}
             isAsking={isAsking}
             onResolvePending={resolvePending}
             onCancel={cancel}
@@ -218,9 +203,7 @@ const DateZoomPill: FC<{
     const remove = useDateZoomEditorSelector((c) => c.remove);
     // The open popover's grain and name, as the draft has them
     const draft = useDateZoomEditorSelector((c) =>
-        !c.isEditingDefault && c.editingId === control.uuid && !c.isViewer
-            ? c.draft
-            : null,
+        !c.isEditingDefault && c.editingId === control.uuid ? c.draft : null,
     );
     // A filter being edited closes first, or asks on unapplied changes
     const requestSwitch = useControlsSidebarSelector((c) => c.requestSwitch);
@@ -473,9 +456,9 @@ export const DefaultZoomButton: FC<{ withDivider: boolean }> = ({
     const isOpen = useDateZoomEditorSelector((c) => c.isEditingDefault);
     const isViewer = useDateZoomEditorSelector((c) => c.isViewer);
     const openDefault = useDateZoomEditorSelector((c) => c.openDefault);
-    // The open popover's draft (an editor's), else what applies
+    // The open popover's draft, else the saved default
     const pick = useDateZoomEditorSelector((c) =>
-        c.isEditingDefault && !c.isViewer ? c.pick : undefined,
+        c.isEditingDefault ? c.pick : undefined,
     );
     const requestSwitch = useControlsSidebarSelector((c) => c.requestSwitch);
     const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);

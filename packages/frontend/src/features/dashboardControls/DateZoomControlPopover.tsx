@@ -35,8 +35,12 @@ const DEFAULT_NAME = 'Date zoom';
 // A new zoom opens on its name, which takes focus itself
 const keepFocus = () => {};
 
-type EditorMode = {
-    kind: 'editor';
+type Props = {
+    /** The editor's draft. */
+    control: DateZoomControl;
+    /** The dashboard's enabled grains, standard then custom. */
+    granularities: string[];
+    customLabels: Record<string, string>;
     /** Just added: it opens on its name. */
     isNew: boolean;
     sections: DashboardControlSection[];
@@ -47,22 +51,6 @@ type EditorMode = {
     onChooseTiles: () => void;
     /** The draft, edited: only Apply takes it to the dashboard. */
     onChange: (next: DateZoomControl) => void;
-};
-
-type ViewerMode = {
-    kind: 'viewer';
-    /** The viewer's pick, from their override else the saved grain; cleared (null): the saved grain. */
-    granularity: string | null;
-    onChange: (granularity: string | null) => void;
-};
-
-type Props = {
-    /** The editor's draft; a viewer's, as saved. */
-    control: DateZoomControl;
-    /** The dashboard's enabled grains, standard then custom. */
-    granularities: string[];
-    customLabels: Record<string, string>;
-    mode: EditorMode | ViewerMode;
     /** Another pill was clicked over unapplied changes: "Apply changes to ... first?" */
     isAsking: boolean;
     onResolvePending: (shouldApply: boolean) => void;
@@ -75,38 +63,29 @@ export const DateZoomControlPopover: FC<Props> = ({
     control,
     granularities,
     customLabels,
-    mode,
+    isNew,
+    sections,
+    tileCount,
+    totalTileCount,
+    initialView,
+    onChooseTiles,
+    onChange,
     isAsking,
     onResolvePending,
     onCancel,
     onApply,
 }) => {
     const getUiString = useUiStrings();
-    const isViewer = mode.kind === 'viewer';
     const draft = control;
-    const setDraft = (write: (current: DateZoomControl) => DateZoomControl) => {
-        if (mode.kind === 'editor') mode.onChange(write(control));
-    };
-    const pick = mode.kind === 'viewer' ? mode.granularity : null;
-    const [view, setView] = useState<PopoverView>(
-        mode.kind === 'editor' ? mode.initialView : 'value',
-    );
-    const isNew = mode.kind === 'editor' && mode.isNew;
+    const setDraft = (write: (current: DateZoomControl) => DateZoomControl) =>
+        onChange(write(control));
+    const [view, setView] = useState<PopoverView>(initialView);
     const [isRenaming, setIsRenaming] = useState(isNew);
     const { ref: pencilRef, exit } = useRefocusAfter(isRenaming);
     const { focusValueView, focusSettingsChip, markBackFromSettings } =
         useSettingsChipFocus(isNew ? keepFocus : focusParameterValueOnMount);
 
-    const labelOf = (granularity: string) =>
-        getGranularityLabel(granularity, customLabels, getUiString);
     const name = draft.name;
-    const caption =
-        isViewer && pick !== null && pick !== control.granularity
-            ? interpolateUiString(
-                  getUiString('controls.dateZoom.clearedUsesSavedGrain'),
-                  { grain: labelOf(control.granularity) },
-              )
-            : null;
 
     const valueView = (
         <Box ref={focusValueView}>
@@ -138,7 +117,7 @@ export const DateZoomControlPopover: FC<Props> = ({
                         </TruncatedText>
                     </Box>
                 )}
-                {!isViewer && !isRenaming && (
+                {!isRenaming && (
                     <Group gap="xs" wrap="nowrap" ml="auto" flex="0 0 auto">
                         {draft.hidden && (
                             <Text size="xs" c="dimmed">
@@ -163,23 +142,21 @@ export const DateZoomControlPopover: FC<Props> = ({
                     label={name}
                     granularities={granularities}
                     customLabels={customLabels}
-                    value={isViewer ? pick : draft.granularity}
-                    placeholder={labelOf(control.granularity)}
-                    isClearable={isViewer}
+                    value={draft.granularity}
+                    placeholder={getGranularityLabel(
+                        control.granularity,
+                        customLabels,
+                        getUiString,
+                    )}
+                    isClearable={false}
                     onChange={(granularity) => {
-                        if (mode.kind === 'viewer') mode.onChange(granularity);
-                        else if (granularity !== null)
+                        if (granularity !== null)
                             setDraft((current) => ({
                                 ...current,
                                 granularity,
                             }));
                     }}
                 />
-                {caption !== null && (
-                    <Text fz="xs" c="dimmed">
-                        {caption}
-                    </Text>
-                )}
             </Stack>
         </Box>
     );
@@ -205,9 +182,6 @@ export const DateZoomControlPopover: FC<Props> = ({
         </EditorFrame>
     );
 
-    if (mode.kind === 'viewer') return frame(null, valueView);
-
-    const { sections, tileCount, totalTileCount } = mode;
     const sectionName =
         sections.find(({ id }) => id === draft.sectionId)?.name ?? null;
     const tilesOf = formatTilesOf(getUiString, tileCount, totalTileCount);
@@ -265,7 +239,7 @@ export const DateZoomControlPopover: FC<Props> = ({
                     <TilesChip
                         label={zooms}
                         chooseTiles={getUiString('controls.chooseTiles')}
-                        onChooseTiles={mode.onChooseTiles}
+                        onChooseTiles={onChooseTiles}
                     />
                     <SettingsChip
                         summary={sectionName}

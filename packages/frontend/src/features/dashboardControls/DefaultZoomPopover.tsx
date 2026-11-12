@@ -1,6 +1,6 @@
 import { Box, Group, Stack, Text } from '@mantine/core';
 import { IconCalendarSearch } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { TilesChip } from './ControlPopoverParts';
@@ -10,22 +10,15 @@ import classes from './FilterEditor.module.css';
 import { EditorActions, EditorFrame } from './FilterPopover';
 import { GrainSelect } from './GrainSelect';
 
-type EditorMode = {
-    kind: 'editor';
-    /** Zoomable tiles in no named zoom: the N in "Applies to the other N tiles". */
-    tileCount: number;
-};
-
-type ViewerMode = { kind: 'viewer' };
-
 type Props = {
     /** The grains viewers can pick, which the select offers. */
     enabledGranularities: string[];
-    /** The editor's draft default, or the viewer's pick; null: cleared. */
+    /** The editor's draft default; null: cleared. */
     value: string | null;
     /** The dashboard's custom grains, by key. */
     customLabels: Record<string, string>;
-    mode: EditorMode | ViewerMode;
+    /** Zoomable tiles in no named zoom: the N in "Applies to the other N tiles". */
+    tileCount: number;
     /** Another pill was clicked over unapplied changes: "Apply changes to ... first?" */
     isAsking: boolean;
     onResolvePending: (shouldApply: boolean) => void;
@@ -39,7 +32,7 @@ export const DefaultZoomPopover: FC<Props> = ({
     enabledGranularities,
     value,
     customLabels,
-    mode,
+    tileCount,
     isAsking,
     onResolvePending,
     onChange,
@@ -55,7 +48,7 @@ export const DefaultZoomPopover: FC<Props> = ({
             : getUiString('controls.dateZoom.clearedKeepsOwnGrain');
     const caption = getCaption();
 
-    const frame = (body: ReactNode) => (
+    return (
         <EditorFrame
             name={title}
             applyBlockedReason={null}
@@ -99,20 +92,13 @@ export const DefaultZoomPopover: FC<Props> = ({
                     )}
                 </Stack>
             </Box>
-            {body}
+            <Group gap="xs" align="center" px="md" pb="sm">
+                <TilesChip
+                    label={`Applies to the other ${formatTileCount(getUiString, tileCount)}`}
+                    chooseTiles={getUiString('controls.chooseTiles')}
+                    onChooseTiles={null}
+                />
+            </Group>
         </EditorFrame>
-    );
-
-    if (mode.kind === 'viewer') return frame(null);
-
-    return frame(
-        <Group gap="xs" align="center" px="md" pb="sm">
-            <TilesChip
-                // Editors only: a viewer's popover has no count
-                label={`Applies to the other ${formatTileCount(getUiString, mode.tileCount)}`}
-                chooseTiles={getUiString('controls.chooseTiles')}
-                onChooseTiles={null}
-            />
-        </Group>,
     );
 };
