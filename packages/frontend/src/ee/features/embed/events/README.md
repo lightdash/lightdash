@@ -26,27 +26,45 @@ The event system must be enabled in the Lightdash embedding configuration. Direc
 - `chart`: `{ chartUuid, chart, exportRequest }` for a saved chart in `Lightdash.Chart` with `isEditMode` set. `chart` is the unsaved chart version (`tableName`, `metricQuery`, `parameters`, `chartConfig`, `tableConfig`, `pivotConfig`), unsaved edits included.
 - `explore`: `{ chart, exportRequest }` for a query that isn't a saved chart, such as `Lightdash.Explore` or "Explore from here".
 
-For `chart` and `explore`, `exportRequest` holds the `queryUuid` of the query on screen (`null` before the first run; it can lag behind edits the user hasn't run yet) and the download options a saved chart's export uses: column order, custom labels, hidden fields, table names, pivot config, conditional formatting and totals. Omitted keys must stay omitted. To export the rows on screen, send it to `schedule-download` with a `type`:
+For `chart` and `explore`, `exportRequest` holds the `queryUuid` of the query on screen (`null` before the first run; it can lag behind edits the user hasn't run yet) and the download options a saved chart's export uses: column order, custom labels, hidden fields, table names, pivot config, conditional formatting and totals. Omitted keys must stay omitted.
+
+For dashboards, `exportRequest` holds the filters, parameters, tile parameters and date zoom the embed's own exports send.
+
+#### Exporting with an embed token
+
+Both export endpoints schedule a job. Send the embed token in the `Lightdash-Embed-Token` header, poll `GET /api/v1/schedulers/job/{jobId}/status` with the same token until it is `completed`, then download the signed, expiring file from `details.url`. The token needs the embed export permission for the format (`canExportPagePdf`, `canExportImages`, `canExportDashboardCsv` or `canExportCsv`).
+
+Dashboards: `POST /api/v2/dashboards/{dashboardUuid}/exports?projectUuid={projectUuid}`. The `projectUuid` query param is required for embed tokens because the path has no project. Add a `format`, and optionally `options` or `selectedTabs`:
 
 ```js
-const { queryUuid, ...options } = event.payload.exportRequest;
-fetch(`/api/v2/projects/${projectUuid}/query/${queryUuid}/schedule-download`, {
-    method: 'POST',
-    body: JSON.stringify({ ...options, type: 'xlsx' }),
-});
+const { dashboardUuid, activeTabUuid, exportRequest } = latestDashboardState;
+const response = await fetch(
+    `${instanceUrl}/api/v2/dashboards/${dashboardUuid}/exports?projectUuid=${projectUuid}`,
+    {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Lightdash-Embed-Token': token },
+        body: JSON.stringify({ ...exportRequest, format: 'pdf', selectedTabs: [activeTabUuid] }),
+    },
+);
+const { results: { jobId } } = await response.json();
+```
+
+Charts and Explore: `POST /api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download` with the remaining options and a `type`:
+
+```js
+const { queryUuid, ...options } = latestChartState.exportRequest;
+const response = await fetch(
+    `${instanceUrl}/api/v2/projects/${projectUuid}/query/${queryUuid}/schedule-download`,
+    {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Lightdash-Embed-Token': token },
+        body: JSON.stringify({ ...options, type: 'xlsx' }),
+    },
+);
+const { results: { jobId } } = await response.json();
 ```
 
 For other row limits, run `chart.metricQuery` with `chart.parameters` through `POST /api/v2/projects/{projectUuid}/query/metric-query` and use the returned `queryUuid`. Stored results are only readable by the same embed user, so the host's token needs the same `user.externalId`.
-
-For dashboards, a host can export what the user sees by sending `exportRequest` plus a `format` (and optionally `options` or `selectedTabs`) to `POST /api/v2/dashboards/{uuid}/exports`:
-
-```js
-onEvent={(event) => {
-    if (event.type === 'contentStateChanged' && event.payload.type === 'dashboard') {
-        latestExportRequest = event.payload.exportRequest;
-    }
-}}
-```
 
 ### Fitting an iframe to its content
 
