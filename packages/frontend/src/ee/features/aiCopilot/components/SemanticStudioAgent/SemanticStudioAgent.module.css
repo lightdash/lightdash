@@ -96,10 +96,97 @@
 .changes {
     display: flex;
     flex-direction: column;
-    gap: var(--mantine-spacing-xl);
+    gap: 20px;
     height: 100%;
     overflow: auto;
-    padding: var(--mantine-spacing-md);
+    padding: 28px var(--mantine-spacing-lg) 64px;
+}
+
+.changes > * {
+    width: 100%;
+    max-width: 980px;
+    margin-inline: auto;
+}
+
+.summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-dimmed);
+}
+
+.summaryDot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.6;
+}
+
+.summaryLink {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-text);
+}
+
+.lineCounts {
+    display: inline-flex;
+    gap: 6px;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    font-variant-numeric: tabular-nums;
+}
+
+.lineCounts [data-sign='add'] {
+    color: var(--mantine-color-green-light-color);
+}
+
+.lineCounts [data-sign='del'] {
+    color: var(--mantine-color-red-light-color);
+}
+
+/* One model's change: what it does to the fields, then its code. */
+.modelCard {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-lg);
+    overflow: hidden;
+    background: var(--mantine-color-body);
+}
+
+.modelHead {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    background: color-mix(
+        in srgb,
+        var(--mantine-color-text) 2.5%,
+        var(--mantine-color-body)
+    );
+}
+
+.modelTile {
+    width: 28px;
+    height: 28px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    border: 1px solid var(--mantine-color-default-border);
+    background: var(--mantine-color-body);
+    color: var(--mantine-color-dimmed);
+}
+
+.modelName {
+    font-size: var(--mantine-font-size-md);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.modelBody {
+    padding: 14px;
 }
 
 /* A change arrives from the chat's side, since that is where it was asked for. */
