@@ -41,7 +41,7 @@ type Props = Omit<MantineIconProps, 'icon'> & {
 };
 
 const FieldIcon = forwardRef<SVGSVGElement, Props>(
-    ({ item, size = 'lg', selected, ...iconProps }, ref) => {
+    ({ item, size = 'lg', stroke = 1.75, selected, ...iconProps }, ref) => {
         const iconColor = selected
             ? 'white'
             : (iconProps.color ?? getFieldColor(item));
@@ -50,6 +50,7 @@ const FieldIcon = forwardRef<SVGSVGElement, Props>(
             ...iconProps,
             ref,
             size,
+            stroke,
             color: iconColor,
         };
         return (

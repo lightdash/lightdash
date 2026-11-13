@@ -1,22 +1,17 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Group, Popover, SegmentedControl } from '@mantine/core';
-import { IconShare2 } from '@tabler/icons-react';
 import {
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-    type FC,
-} from 'react';
+    ActionIcon,
+    Group,
+    Popover,
+    SegmentedControl,
+    Tooltip,
+} from '@mantine/core';
+import { IconDownload } from '@tabler/icons-react';
+import { memo, useCallback, useEffect, useState, type FC } from 'react';
 import {
     explorerActions,
-    selectColumnOrder,
     selectIsEditMode,
     selectIsResultsExpanded,
-    selectMetricQuery,
-    selectParameters,
-    selectSavedChart,
     selectSorts,
     selectTableName,
     useExplorerDispatch,
@@ -26,18 +21,10 @@ import {
     NOT_ON_LIVE_SOURCES,
     useIsRefusedOnLiveSource,
 } from '../../../features/externalConnections/liveSources/apiSourceExplore';
-import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
-import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
-import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
-import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useAccount } from '../../../hooks/user/useAccount';
-import { useCanExportEmbeddedContent } from '../../../hooks/user/useCanExportEmbeddedContent';
 import { Can } from '../../../providers/Ability';
-import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
-import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import AddTableCalculationButton from '../../AddTableCalculationButton';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import {
@@ -50,9 +37,9 @@ import SortButton from '../../SortButton';
 import { ExplorerResults } from './ExplorerResults';
 import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
+import { useResultsExport } from './useResultsExport';
 
 const ResultsCard: FC = memo(() => {
-    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
 
     // View mode state for switching between results and grouped results
@@ -69,9 +56,6 @@ const ResultsCard: FC = memo(() => {
         'tableCalculations',
     );
     const sorts = useExplorerSelector(selectSorts);
-    const metricQuery = useExplorerSelector(selectMetricQuery);
-    const parameters = useExplorerSelector(selectParameters);
-    const columnOrder = useExplorerSelector(selectColumnOrder);
 
     // Check if grouped view is available
     const { isGroupedDisabled } = useGroupedResultsAvailability();
@@ -85,19 +69,6 @@ const ResultsCard: FC = memo(() => {
         }
     }, [isGroupedDisabled, viewMode]);
 
-    const { queryResults, getDownloadQueryUuid } = useExplorerQuery();
-    const merge = useMergeSafe();
-    const mergeResults = merge?.mergeResults;
-
-    const mergedTotalResults =
-        mergeResults?.unpivotedResults?.totalResults ??
-        mergeResults?.results.totalResults;
-    const totalResults = mergeResults
-        ? (mergedTotalResults ?? mergeResults.metricQuery.limit)
-        : queryResults.totalResults;
-
-    const savedChart = useExplorerSelector(selectSavedChart);
-
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
             dispatch(explorerActions.toggleExpandedSection(section));
@@ -105,57 +76,12 @@ const ResultsCard: FC = memo(() => {
         [dispatch],
     );
 
-    const disabled = useMemo(() => (totalResults ?? 0) <= 0, [totalResults]);
-
     const toggleCard = useCallback(
         () => toggleExpandedSection(ExplorerSection.RESULTS),
         [toggleExpandedSection],
     );
     const { user } = useApp();
-    const ability = useAbilityContext();
-    const { data: account } = useAccount();
-    const isEmbedded = account?.isJwtUser() === true;
-    const canEmbedExportCsv = useCanExportEmbeddedContent('csv');
-    const canExportResultsCsv =
-        canEmbedExportCsv ||
-        ability.can(
-            'manage',
-            subject('ExportCsv', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
-        );
-
-    const getGsheetLink = async () => {
-        if (projectUuid) {
-            return uploadGsheet(lightdashApi, {
-                projectUuid,
-                exploreId: tableName,
-                metricQuery,
-                columnOrder,
-                showTableNames: true,
-                parameters,
-                // No pivotConfig - ResultsCard only shows raw table data
-            });
-        } else {
-            throw new Error('Project UUID is missing');
-        }
-    };
-
-    // ResultsCard always downloads raw unpivoted results
-    const getResultsCardDownloadQueryUuid = useCallback(
-        (limit: number | null) => {
-            return mergeResults
-                ? merge.getDownloadQueryUuid(limit, false)
-                : getDownloadQueryUuid(limit, false);
-        },
-        [getDownloadQueryUuid, merge, mergeResults],
-    );
-
-    const exportColumnOrder = mergeResults
-        ? resolveMergeColumnOrder(mergeResults.columnOrder, columnOrder)
-        : columnOrder;
-
+    const resultsExport = useResultsExport();
     return (
         <CollapsableCard
             title="Results"
@@ -251,56 +177,56 @@ const ResultsCard: FC = memo(() => {
                             </Can>
                         )}
 
-                        {canExportResultsCsv && (
+                        {resultsExport.canExport && (
                             <Popover
                                 {...COLLAPSABLE_CARD_POPOVER_PROPS}
-                                disabled={disabled}
+                                disabled={resultsExport.disabled}
                                 position="bottom-end"
                             >
                                 <Popover.Target>
-                                    <ActionIcon
-                                        data-testid="export-csv-button"
-                                        {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
-                                        disabled={disabled}
-                                        // Walkthrough action for
-                                        // manage:ExportCsv: the export
-                                        // dialog for the results table. See
-                                        // scripts/scope-tours.
-                                        data-tour-anchor="export-results"
-                                        data-tour-hint="Open the export dialog"
-                                        data-tour-scope="manage:ExportCsv"
-                                        data-tour-step="2"
-                                        data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
-                                        data-tour-label="Open the export dialog"
-                                        data-tour-title="Download a chart's results"
-                                        data-tour-interactive="true"
-                                        data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="results-heading"]'
-                                        // With Google Drive configured the
-                                        // popover opens on a chooser first;
-                                        // the `?` hop is taken only there.
-                                        data-tour-then='[data-tour-anchor="export-choose-download"]? >> [data-tour-anchor="export-download"]'
-                                        data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:p5:1"
-                                    >
-                                        <MantineIcon icon={IconShare2} />
-                                    </ActionIcon>
+                                    <Tooltip label="Export results">
+                                        <ActionIcon
+                                            data-testid="export-results-button"
+                                            aria-label="Export results"
+                                            {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
+                                            disabled={resultsExport.disabled}
+                                            // Walkthrough action for
+                                            // manage:ExportCsv. See
+                                            // scripts/scope-tours.
+                                            data-tour-anchor="export-results"
+                                            data-tour-hint="Open the export dialog"
+                                            data-tour-scope="manage:ExportCsv"
+                                            data-tour-step="2"
+                                            data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                                            data-tour-label="Open the export dialog"
+                                            data-tour-title="Download a chart's results"
+                                            data-tour-interactive="true"
+                                            data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="results-heading"]'
+                                            // With Google Drive configured the
+                                            // popover opens on a chooser first;
+                                            // the `?` hop is taken only there.
+                                            data-tour-then='[data-tour-anchor="export-choose-download"]? >> [data-tour-anchor="export-download"]'
+                                            data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:p5:1"
+                                        >
+                                            <MantineIcon icon={IconDownload} />
+                                        </ActionIcon>
+                                    </Tooltip>
                                 </Popover.Target>
 
                                 <Popover.Dropdown>
                                     <ExportSelector
                                         projectUuid={projectUuid}
-                                        totalResults={totalResults}
+                                        totalResults={
+                                            resultsExport.totalResults
+                                        }
                                         getDownloadQueryUuid={
-                                            getResultsCardDownloadQueryUuid
+                                            resultsExport.getDownloadQueryUuid
                                         }
                                         getGsheetLink={
-                                            mergeResults || isEmbedded
-                                                ? undefined
-                                                : getGsheetLink
+                                            resultsExport.getGsheetLink
                                         }
-                                        columnOrder={exportColumnOrder}
-                                        customLabels={undefined} // for results table download, don't override labels
-                                        hiddenFields={undefined} // for results table download, don't hide columns
-                                        chartName={savedChart?.name}
+                                        columnOrder={resultsExport.columnOrder}
+                                        chartName={resultsExport.chartName}
                                         showTableNames
                                     />
                                 </Popover.Dropdown>

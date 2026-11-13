@@ -34,6 +34,7 @@ import { IconExclamationCircle, IconKey } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
 import { omit } from 'es-toolkit/compat';
 import { useMemo } from 'react';
+import FieldIcon from '../components/common/Filters/FieldIcon';
 import { JsonCellPreview } from '../components/common/JsonViewer/JsonCellViewer';
 import {
     getJsonCellValue,
@@ -726,6 +727,12 @@ export const useColumns = (): TableColumn[] => {
                                     : undefined
                             }
                         >
+                            <FieldIcon
+                                item={item}
+                                size={12}
+                                stroke={2}
+                                color={fieldColors.color}
+                            />
                             {isField(item) ? (
                                 <>
                                     {isMergeJoinKey && (
@@ -842,7 +849,6 @@ export const useColumns = (): TableColumn[] => {
                         item,
                         draggable: true,
                         frozen: false,
-                        bgColor: fieldColors.bg,
                         headerContext: mergeOrigin
                             ? getMergeFieldProvenance(
                                   mergeOrigin,

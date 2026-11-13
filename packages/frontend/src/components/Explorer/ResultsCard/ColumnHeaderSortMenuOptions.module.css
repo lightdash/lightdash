@@ -1,0 +1,32 @@
+/* One row: the two directions sit side by side as a segmented pair */
+.row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-md);
+    padding: 4px 8px 4px 12px;
+}
+
+.segments {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    background-color: var(--mantine-color-ldGray-1);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.segment {
+    width: auto;
+    padding: 2px 8px;
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--mantine-color-dimmed);
+    border-radius: var(--mantine-radius-xs);
+}
+
+.segment[data-active] {
+    color: var(--mantine-color-text);
+    background-color: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-xs);
+}

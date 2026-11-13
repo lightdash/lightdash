@@ -21,7 +21,7 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine/core';
-import { IconFilter, IconTrash } from '@tabler/icons-react';
+import { IconFilter, IconTrash, IconX } from '@tabler/icons-react';
 import {
     Fragment,
     memo,
@@ -83,6 +83,8 @@ const getFieldKind = (item: NodeItem): 'dimension' | 'metric' | 'default' => {
     if (isAdditionalMetric(item) || isMetric(item)) return 'metric';
     return 'default';
 };
+
+const KIND_ORDER = { dimension: 0, metric: 1, default: 2 };
 
 const getFieldLabel = (item: NodeItem): string =>
     isField(item) || isAdditionalMetric(item)
@@ -329,14 +331,14 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, source, onDeselect }) => {
                         ? customDimensionTourProps
                         : {})}
                 >
-                    <FieldIcon item={item} size="md" />
+                    <FieldIcon item={item} size={12} stroke={2} />
                     <HoverCard
                         openDelay={300}
                         keepMounted={false}
                         withArrow
                         disabled={isHoverCardDisabled}
-                        position="right"
-                        offset={70}
+                        position="bottom-start"
+                        offset={8}
                         transitionProps={ITEM_DETAIL_PREVIEW_TRANSITION_PROPS}
                     >
                         <HoverCard.Target>
@@ -346,10 +348,10 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, source, onDeselect }) => {
                         </HoverCard.Target>
                         <HoverCard.Dropdown
                             hidden={!isHover}
-                            p="md"
-                            miw={400}
-                            mah={500}
-                            maw={500}
+                            p="sm"
+                            miw={240}
+                            mah={360}
+                            maw={340}
                             className={previewClasses.previewDropdown}
                             onClick={handleDropdownClick}
                         >
@@ -378,6 +380,9 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, source, onDeselect }) => {
                             </Badge>
                         </Tooltip>
                     )}
+                    <span className={classes.remove}>
+                        <MantineIcon icon={IconX} size={12} stroke={2} />
+                    </span>
                     <span className={classes.actions}>
                         {showFilterAction && (
                             <Tooltip
@@ -457,7 +462,6 @@ type Props = {
     fields: SelectedField[];
     onDeselect: (fieldId: string, isDimension: boolean) => void;
     heading?: string;
-    showAllFieldsDivider?: boolean;
     combinedSourceLabels?: ReadonlyMap<string, string>;
 };
 
@@ -472,7 +476,6 @@ const SelectedFieldsSectionComponent: FC<Props> = ({
     fields,
     onDeselect,
     heading = 'Selected',
-    showAllFieldsDivider = true,
     combinedSourceLabels,
 }) => {
     const [exitingFields, setExitingFields] = useState<
@@ -583,6 +586,14 @@ const SelectedFieldsSectionComponent: FC<Props> = ({
                 });
             }
         });
+        // Dimensions lead, then metrics
+        result.forEach((group) =>
+            group.rows.sort(
+                (a, b) =>
+                    KIND_ORDER[getFieldKind(a.item)] -
+                    KIND_ORDER[getFieldKind(b.item)],
+            ),
+        );
         return result;
     }, [rows, combinedSourceLabels]);
     const labelCounts = useMemo(() => {
@@ -594,15 +605,34 @@ const SelectedFieldsSectionComponent: FC<Props> = ({
         return counts;
     }, [rows]);
 
+    const handleClearAll = () =>
+        fields.forEach((field) =>
+            (field.onDeselect ?? onDeselect)(field.fieldId, field.isDimension),
+        );
+
     if (rows.length === 0) return null;
+
+    // One table: its name sits in the header instead of on its own line
+    const singleTableLabel = groups.length === 1 ? groups[0].tableLabel : null;
 
     return (
         <div className={classes.section}>
-            <div className={classes.divider}>{heading}</div>
+            <div className={classes.divider}>
+                {heading}
+                {singleTableLabel && (
+                    <span className={classes.source}>{singleTableLabel}</span>
+                )}
+                <UnstyledButton
+                    className={classes.clear}
+                    onClick={handleClearAll}
+                >
+                    Clear all
+                </UnstyledButton>
+            </div>
             <div className={classes.list} data-testid="SelectedFieldsSection">
                 {groups.map((group) => (
                     <Fragment key={group.tableLabel ?? '__no_table__'}>
-                        {group.tableLabel && (
+                        {group.tableLabel && !singleTableLabel && (
                             <div className={classes.groupHeader}>
                                 {group.tableLabel}
                             </div>
@@ -633,9 +663,6 @@ const SelectedFieldsSectionComponent: FC<Props> = ({
                     </Fragment>
                 ))}
             </div>
-            {showAllFieldsDivider && (
-                <div className={classes.divider}>All fields</div>
-            )}
         </div>
     );
 };

@@ -21,7 +21,6 @@ export const DevCopyChartDebugData = () => {
             copyLabel="Copy chart debug data"
             copiedLabel="Copied!"
             tooltipPosition="bottom"
-            variant="default"
             size="md"
         />
     );
