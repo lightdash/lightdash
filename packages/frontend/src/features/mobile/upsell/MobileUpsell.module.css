@@ -77,70 +77,64 @@
     box-shadow: var(--ld-ring);
 }
 
-.signInBody {
-    display: grid;
-    grid-template-columns: fit-content(160px) minmax(0, 1fr);
-    gap: var(--mantine-spacing-md);
-    align-items: start;
+.signInTitle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--mantine-spacing-xs);
+    align-items: center;
 }
 
-.code :global(.mantine-Group-root) > :global(.mantine-Stack-root) {
+.panel {
+    display: grid;
+    grid-template-columns: 160px minmax(0, 1fr);
+    gap: var(--mantine-spacing-md);
+    align-items: center;
+}
+
+.qrColumn [data-used='true'] {
+    opacity: 0.4;
+}
+
+.side {
+    display: grid;
     min-width: 0;
 }
 
-.guide {
-    display: grid;
-    gap: var(--mantine-spacing-sm);
-    align-content: start;
+.side > * {
+    grid-area: 1 / 1;
 }
 
-.steps {
-    display: grid;
-    gap: 10px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
+.side .stage {
+    transition:
+        opacity 0.4s var(--ld-ease),
+        transform 0.4s var(--ld-ease),
+        visibility 0s;
 }
 
-.steps li {
-    display: flex;
-    gap: 8px;
-    align-items: flex-start;
-    color: var(--mantine-color-dimmed);
-    font-size: var(--mantine-font-size-sm);
-    line-height: 1.35;
+.side[data-idle='false'] .stage {
+    opacity: 0;
+    transform: translateX(24px) scale(0.96);
+    visibility: hidden;
+    transition:
+        opacity 0.4s var(--ld-ease),
+        transform 0.4s var(--ld-ease),
+        visibility 0s 0.4s;
 }
 
-.steps li[data-state='current'] {
-    color: var(--mantine-color-text);
-    font-weight: 500;
+.sideStep {
+    align-self: center;
+    min-width: 0;
+    animation: rise 0.48s 0.24s var(--ld-ease) both;
 }
 
-.stepNumber {
-    display: inline-grid;
-    flex: none;
-    place-items: center;
-    width: 19px;
-    height: 19px;
-    border: 1px solid var(--ld-guide);
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.steps li[data-state='current'] .stepNumber {
-    border-color: var(--ld-violet);
-    background: var(--ld-violet);
-    color: var(--mantine-color-white);
-}
-
-.steps li[data-state='done'] .stepNumber {
-    border-color: var(--ld-violet-soft);
-    color: var(--ld-violet-soft);
-}
-
-@container sign-in (width < 340px) {
-    .signInBody {
+@container sign-in (width < 440px) {
+    .panel {
         grid-template-columns: minmax(0, 1fr);
+        justify-items: start;
+    }
+
+    .side {
+        width: 100%;
     }
 }
 
@@ -952,5 +946,6 @@
     .frame *::before,
     .frame *::after {
         animation: none !important;
+        transition: none !important;
     }
 }

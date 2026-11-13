@@ -25,9 +25,17 @@ import useApp from '../../providers/App/useApp';
 import { getHost } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { useMobileSignInSeen } from './mobileSignInSeen';
-import { MobileSignInStep } from './MobileSignInStep';
-import { MOBILE_STRINGS } from './mobileStrings';
 import {
+    isSignInIdle,
+    MobileSignInDetails,
+    MobileSignInQr,
+    MobileSignInStatus,
+    MobileSignInStep,
+} from './MobileSignInStep';
+import { MOBILE_STRINGS } from './mobileStrings';
+import { PreviewQrPattern } from './PreviewQrPattern';
+import {
+    PREVIEW_SIGN_IN_STRINGS,
     previewSignInLabel,
     usePreviewSignIn,
     usePreviewSignInPhase,
@@ -43,6 +51,7 @@ import {
 } from './useMobileSignInCode';
 
 const POPOVER_WIDTH = 'calc(min(420px, 100vw - 32px))';
+const PITCH_POPOVER_WIDTH = 'calc(min(508px, 100vw - 32px))';
 
 const hasLostFocus = () =>
     document.activeElement === null || document.activeElement === document.body;
@@ -83,6 +92,8 @@ const MobileSignInPopover: FC<{
     const previewSignIn = usePreviewSignIn(preview.forced);
     const signIn = previewSignIn ?? liveSignIn;
     const isConfirming = signIn.phase === 'claimed';
+    const host = getHost(health?.siteUrl);
+    const qrPlaceholder = previewSignIn ? <PreviewQrPattern /> : undefined;
     const dropdown = useRef<HTMLDivElement>(null);
     useKeepFocusInPopover(signIn.phase, dropdown);
 
@@ -104,7 +115,13 @@ const MobileSignInPopover: FC<{
             position="bottom-end"
             arrowOffset={16}
             offset={-2}
-            width={menuProps.withinPortal ? POPOVER_WIDTH : 'target'}
+            width={
+                menuProps.withinPortal
+                    ? upsell
+                        ? PITCH_POPOVER_WIDTH
+                        : POPOVER_WIDTH
+                    : 'target'
+            }
             classNames={{ dropdown: classes.signInPopover }}
             zIndex={getDefaultZIndex('max')}
             trapFocus
@@ -147,13 +164,23 @@ const MobileSignInPopover: FC<{
             <Popover.Dropdown ref={dropdown}>
                 <MobileUpsellFrame
                     variation={upsell}
-                    phase={signIn.phase}
+                    isIdle={isSignInIdle(signIn)}
                     title={
                         <>
                             {previewSignIn && (
                                 <Badge color="orange" variant="light">
                                     {previewSignInLabel(previewSignIn.phase)}
                                 </Badge>
+                            )}
+                            {previewSignIn?.phase === 'showing' && (
+                                <Button
+                                    size="compact-xs"
+                                    color="orange"
+                                    variant="light"
+                                    onClick={previewSignIn.show}
+                                >
+                                    {PREVIEW_SIGN_IN_STRINGS.simulateScan}
+                                </Button>
                             )}
                             <Title order={6}>
                                 {MOBILE_STRINGS.signInTitle}
@@ -163,10 +190,26 @@ const MobileSignInPopover: FC<{
                     step={
                         <MobileSignInStep
                             signIn={signIn}
-                            host={getHost(health?.siteUrl)}
+                            host={host}
+                            email={user.data?.email}
+                            qrPlaceholder={qrPlaceholder}
+                        />
+                    }
+                    qr={
+                        <MobileSignInQr
+                            signIn={signIn}
+                            keepUsed
+                            placeholder={qrPlaceholder}
+                        />
+                    }
+                    details={
+                        <MobileSignInDetails
+                            signIn={signIn}
+                            host={host}
                             email={user.data?.email}
                         />
                     }
+                    status={<MobileSignInStatus signIn={signIn} />}
                 />
             </Popover.Dropdown>
         </Popover>

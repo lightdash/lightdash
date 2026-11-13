@@ -133,7 +133,7 @@ describe('MobileSignInStep', () => {
             state: claimedState,
         });
         renderStep();
-        const dialog = await screen.findByRole('dialog', {
+        const dialog = await screen.findByRole('group', {
             name: 'A phone wants to sign in as you',
         });
         expect(within(dialog).getByText('j••••@example.com')).toBeVisible();
@@ -270,10 +270,30 @@ describe('MobileSignInStep', () => {
         expect(screen.getByText(message)).toBeVisible();
     });
 
-    it('shows a waiting line beside the QR code', () => {
+    it('keeps the waiting status for screen readers only', () => {
         mockSignIn({ phase: 'showing', code });
         renderStep();
-        expect(screen.getByText('Waiting for scan')).toBeVisible();
+        expect(screen.getByText('Waiting for scan')).toHaveAttribute(
+            'aria-live',
+            'polite',
+        );
+    });
+
+    it('confirms inline with no dialog and focuses Decline first', async () => {
+        mockSignIn({ phase: 'claimed', code, state: claimedState });
+        renderStep();
+        const group = await screen.findByRole('group', {
+            name: 'A phone wants to sign in as you',
+        });
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(
+            within(group).getByRole('button', { name: 'Decline' }),
+        ).toHaveFocus();
+        expect(
+            screen.getByText('A phone wants to sign in as you', {
+                selector: '[aria-live]',
+            }),
+        ).toBeInTheDocument();
     });
 
     it('announces the number after confirming, with no control to hide it', () => {
@@ -298,7 +318,7 @@ describe('MobileSignInStep', () => {
             state: { ...claimedState, device: null },
         });
         renderStep();
-        const dialog = await screen.findByRole('dialog', {
+        const dialog = await screen.findByRole('group', {
             name: 'A phone wants to sign in as you',
         });
         expect(within(dialog).queryByText('Device')).not.toBeInTheDocument();

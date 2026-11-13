@@ -140,7 +140,10 @@ describe('MobileSignInMenu', () => {
         await screen.findByRole('img', { name: 'Sign-in QR code' });
         expect(document.querySelector('[data-mobile-upsell]')).toBeNull();
         expect(screen.queryByRole('link')).not.toBeInTheDocument();
-        expect(screen.getByText('Waiting for scan')).toBeVisible();
+        expect(screen.getByText('Waiting for scan')).toHaveAttribute(
+            'aria-live',
+            'polite',
+        );
     });
 
     it.each([1, 2, 3, 4, 5, 6] as const)(
@@ -157,7 +160,10 @@ describe('MobileSignInMenu', () => {
                 }),
             ).toBeVisible();
             await screen.findByRole('img', { name: 'Sign-in QR code' });
-            expect(screen.getByText('Waiting for scan')).toBeVisible();
+            expect(screen.getByText('Waiting for scan')).toHaveAttribute(
+                'aria-live',
+                'polite',
+            );
             const frame = document.querySelector('[data-mobile-upsell]');
             expect(frame).toHaveAttribute(
                 'data-mobile-upsell',
@@ -194,6 +200,46 @@ describe('MobileSignInMenu', () => {
             expect(server.deletes()).toEqual([
                 '/user/mobile/sign-in-codes/code-1',
             ]),
+        );
+    });
+
+    it('shows the QR beside the pitch animation while waiting', async () => {
+        window.history.replaceState({}, '', '/?mobileUpsell=2');
+        mockServer();
+        renderMenu(<MobileSignInMenu />);
+        await userEvent.click(openButton());
+        const qr = await screen.findByRole('img', { name: 'Sign-in QR code' });
+        const side = document.querySelector('[data-idle]');
+        expect(side).toHaveAttribute('data-idle', 'true');
+        expect(side?.querySelector('[aria-hidden="true"] svg')).not.toBeNull();
+        expect(side).not.toContainElement(qr);
+        expect(screen.getByText('Waiting for scan')).toHaveAttribute(
+            'aria-live',
+            'polite',
+        );
+    });
+
+    it('swaps the pitch for an inline confirm on scan, with no dialog', async () => {
+        window.history.replaceState({}, '', '/?mobileUpsell=2');
+        const user = userEvent.setup();
+        mockServer({ isClaimed: true });
+        renderMenu(<MobileSignInMenu />);
+        await user.click(openButton());
+        const confirm = await screen.findByRole('group', {
+            name: 'A phone wants to sign in as you',
+        });
+        const side = document.querySelector('[data-idle]');
+        expect(side).toHaveAttribute('data-idle', 'false');
+        expect(side).toContainElement(confirm);
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(
+            screen.getByRole('img', { name: 'Sign-in QR code' }),
+        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(
+                within(confirm).getByRole('button', { name: 'Decline' }),
+            ).toHaveFocus(),
         );
     });
 
@@ -267,7 +313,10 @@ describe('MobileSignInMenu', () => {
                 name: 'Sign-in QR code',
             }),
         ).toBeInTheDocument();
-        expect(within(popover).getByText('Waiting for scan')).toBeVisible();
+        expect(within(popover).getByText('Waiting for scan')).toHaveAttribute(
+            'aria-live',
+            'polite',
+        );
         expect(server.mints()).toHaveLength(1);
     });
 
@@ -367,7 +416,7 @@ describe('MobileSignInMenu', () => {
         '?mobileUpsell=5',
         '?mobileUpsell=6',
     ])(
-        'stays open while the user confirms a phone in the dialog %s',
+        'stays open while the user confirms a phone inline %s',
         async (search) => {
             window.history.replaceState({}, '', `/${search}`);
             const user = userEvent.setup();
@@ -375,7 +424,7 @@ describe('MobileSignInMenu', () => {
             renderMenu(<MobileSignInMenu />);
 
             await user.click(openButton());
-            const confirm = await screen.findByRole('dialog', {
+            const confirm = await screen.findByRole('group', {
                 name: 'A phone wants to sign in as you',
             });
             await user.click(
@@ -406,7 +455,7 @@ describe('MobileSignInMenu', () => {
             renderMenu(<MobileSignInMenu />);
 
             await user.click(openButton());
-            const confirm = await screen.findByRole('dialog', {
+            const confirm = await screen.findByRole('group', {
                 name: 'A phone wants to sign in as you',
             });
             await user.click(
@@ -419,7 +468,7 @@ describe('MobileSignInMenu', () => {
             await within(popover).findByText(nextText);
             await waitFor(() =>
                 expect(
-                    screen.queryByRole('dialog', {
+                    screen.queryByRole('group', {
                         name: 'A phone wants to sign in as you',
                     }),
                 ).not.toBeInTheDocument(),
@@ -448,7 +497,7 @@ describe('MobileSignInMenu', () => {
         user: ReturnType<typeof userEvent.setup>,
     ) => {
         await user.click(openButton());
-        const confirm = await screen.findByRole('dialog', {
+        const confirm = await screen.findByRole('group', {
             name: 'A phone wants to sign in as you',
         });
         await user.click(
@@ -470,7 +519,7 @@ describe('MobileSignInMenu', () => {
         renderMenu(<MobileSignInMenu />);
 
         await user.click(openButton());
-        const confirm = await screen.findByRole('dialog', {
+        const confirm = await screen.findByRole('group', {
             name: 'A phone wants to sign in as you',
         });
         await user.click(

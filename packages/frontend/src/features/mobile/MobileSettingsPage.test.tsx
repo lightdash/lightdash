@@ -147,7 +147,10 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
         expect(
             await screen.findByRole('img', { name: QR_NAME }),
         ).toBeInTheDocument();
-        expect(screen.getByText('Waiting for scan')).toBeVisible();
+        expect(screen.getByText('Waiting for scan')).toHaveAttribute(
+            'aria-live',
+            'polite',
+        );
         expect(
             screen.queryByText(/Expires|minutes|\d+:\d{2}/),
         ).not.toBeInTheDocument();

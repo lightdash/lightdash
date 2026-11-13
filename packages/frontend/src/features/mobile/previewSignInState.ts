@@ -17,6 +17,7 @@ type SignIn = ReturnType<typeof useMobileSignInCode>;
 const PREVIEW_SIGN_IN_PARAM = 'mobileSignInState';
 
 export const PREVIEW_SIGN_IN_PHASES = [
+    'showing',
     'claimed',
     'approved',
     'redeemed',
@@ -30,6 +31,11 @@ export type PreviewSignInPhase = (typeof PREVIEW_SIGN_IN_PHASES)[number];
 
 export const previewSignInLabel = (phase: MobileSignInPhase) =>
     `Preview state: ${phase}`;
+
+export const PREVIEW_SIGN_IN_STRINGS = {
+    simulateScan: 'Preview: simulate scan',
+    pattern: 'Preview only, not a code',
+} as const;
 
 export const parsePreviewSignInPhase = (
     search: string,

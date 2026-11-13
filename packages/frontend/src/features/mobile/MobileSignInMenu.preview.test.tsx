@@ -41,6 +41,7 @@ const openMenu = () =>
     );
 
 const EXPECTED_TEXT = {
+    showing: 'Preview only, not a code',
     claimed: 'A phone wants to sign in as you',
     approved: 'Type this number on your phone',
     redeemed: 'Signed in on a phone',
@@ -77,7 +78,7 @@ describe('preview sign-in state', () => {
                 phase,
             );
         });
-        ['', '?mobileSignInState=showing', '?mobileSignInState=x'].forEach(
+        ['', '?mobileSignInState=hidden', '?mobileSignInState=x'].forEach(
             (search) => {
                 expect(parsePreviewSignInPhase(search)).toBeNull();
             },
@@ -98,7 +99,9 @@ describe('preview sign-in state', () => {
             renderMenu(`?mobileSignInState=${phase}`);
             await openMenu();
             expect(
-                await screen.findByText(EXPECTED_TEXT[phase]),
+                await screen.findByText(EXPECTED_TEXT[phase], {
+                    ignore: '[aria-live], script, style',
+                }),
             ).toBeInTheDocument();
             expect(
                 screen.getByText(previewSignInLabel(phase)),
@@ -110,7 +113,7 @@ describe('preview sign-in state', () => {
     it('moves the preview from claimed to approved on Confirm with no API call', async () => {
         renderMenu('?mobileSignInState=claimed');
         await openMenu();
-        const confirm = await screen.findByRole('dialog', {
+        const confirm = await screen.findByRole('group', {
             name: EXPECTED_TEXT.claimed,
         });
         await userEvent.click(
@@ -126,8 +129,35 @@ describe('preview sign-in state', () => {
         expect(api).not.toHaveBeenCalled();
     });
 
+    it('plays the scan from the idle placeholder with no API call', async () => {
+        renderMenu('?mobileUpsell=2&mobileSignInState=showing');
+        await openMenu();
+        expect(
+            await screen.findByText(EXPECTED_TEXT.showing),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('img', { name: 'Sign-in QR code' }),
+        ).not.toBeInTheDocument();
+        expect(document.querySelector('[data-idle]')).toHaveAttribute(
+            'data-idle',
+            'true',
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Preview: simulate scan' }),
+        );
+        expect(
+            await screen.findByRole('group', { name: EXPECTED_TEXT.claimed }),
+        ).toBeInTheDocument();
+        expect(document.querySelector('[data-idle]')).toHaveAttribute(
+            'data-idle',
+            'false',
+        );
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(api).not.toHaveBeenCalled();
+    });
+
     it('ignores an invalid value and signs in as usual', async () => {
-        renderMenu('?mobileSignInState=showing');
+        renderMenu('?mobileSignInState=hidden');
         await openMenu();
         await vi.waitFor(() => expect(api).toHaveBeenCalled());
         expect(screen.queryByText(/Preview state/)).not.toBeInTheDocument();

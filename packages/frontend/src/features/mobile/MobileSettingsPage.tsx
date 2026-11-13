@@ -114,7 +114,11 @@ const QrCodePanel: FC<{
             {hasFailed ? (
                 <Text size="sm">{MOBILE_STRINGS.couldNotCreateCode}</Text>
             ) : (
-                link && <Text size="sm">{MOBILE_STRINGS.waitingForScan}</Text>
+                link && (
+                    <VisuallyHidden aria-live="polite">
+                        {MOBILE_STRINGS.waitingForScan}
+                    </VisuallyHidden>
+                )
             )}
             <Group gap="xs">
                 {hasFailed ? (
