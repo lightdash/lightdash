@@ -23,6 +23,7 @@ import {
     DbtProjectType,
     DimensionType,
     DownloadFileType,
+    DuckdbConnectionType,
     DuckdbExecutionSpec,
     ExecuteAsyncQueryRequestParams,
     ExploreType,
@@ -12419,6 +12420,67 @@ describe('AsyncQueryService', () => {
             queryCreatedAt: new Date(),
             displayTimezone: null,
         };
+
+        test('closes the result stream without failing a cancelled analytics query', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const close = vi.fn();
+            const write = vi.fn();
+            vi.mocked(
+                service.resultsStorageClient.createUploadStream,
+            ).mockReturnValue({
+                write,
+                close,
+                writeStream: new PassThrough(),
+            });
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue(
+                createMockQueryHistory(QueryHistoryStatus.CANCELLED),
+            );
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'resolveWarehouseCredentials',
+            ).mockResolvedValue({
+                warehouseCredentials: {
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.ANALYTICS,
+                    database: 'memory',
+                    schema: 'main',
+                },
+                warehouseConnectionUuid: null,
+                connectionRoute: null,
+                aiPlan: null,
+                credentialKind: WarehouseCredentialKind.SHARED,
+            });
+            const executeAsyncQuery = vi.fn<
+                WarehouseClient['executeAsyncQuery']
+            >(async ({ isQueuedQueryCancelled }) => {
+                expect(await isQueuedQueryCancelled?.()).toBe(true);
+                throw new warehouses.AnalyticsQueryCancelledError();
+            });
+            const disconnect = vi.fn();
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'acquireUnscoped',
+            ).mockResolvedValue({
+                warehouseClient: { ...warehouseClientMock, executeAsyncQuery },
+                sshTunnel: {
+                    disconnect,
+                } as unknown as SshTunnel<CreateWarehouseCredentials>,
+                tunnelConnectMs: null,
+            });
+
+            await service.runAsyncWarehouseQuery(args);
+
+            expect(executeAsyncQuery).toHaveBeenCalledOnce();
+            expect(disconnect).toHaveBeenCalledOnce();
+            expect(close).toHaveBeenCalledOnce();
+            expect(write).not.toHaveBeenCalled();
+            expect(service.queryHistoryModel.update).not.toHaveBeenCalled();
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).not.toHaveBeenCalled();
+        });
 
         test('stores the safe analytics message and logs the storage status', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);

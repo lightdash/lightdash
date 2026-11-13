@@ -1,3 +1,38 @@
+# [3.252.0](https://github.com/lightdash/lightdash/compare/3.251.2...3.252.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** dashboard copy, delete, restore and rollback carry composer charts ([#32569](https://github.com/lightdash/lightdash/issues/32569)) ([e50467c](https://github.com/lightdash/lightdash/commit/e50467cf4755854df759ef995e1e8594587fa485))
+
+## [3.251.2](https://github.com/lightdash/lightdash/compare/3.251.1...3.251.2) (2026-11-13)
+
+
+### Bug Fixes
+
+* reduce Analytics settings query latency ([#32558](https://github.com/lightdash/lightdash/issues/32558)) ([8c2121f](https://github.com/lightdash/lightdash/commit/8c2121fffec1ca85ea73a5f6c7b6bddac7a4197e))
+
+## [3.251.1](https://github.com/lightdash/lightdash/compare/3.251.0...3.251.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **ai:** stop the Changes tab badge style leaking onto Studio table counts ([#32567](https://github.com/lightdash/lightdash/issues/32567)) ([66dad33](https://github.com/lightdash/lightdash/commit/66dad334af67fd20c9a4d3562bcc6db5f3d59d8d))
+
+# [3.251.0](https://github.com/lightdash/lightdash/compare/3.250.0...3.251.0) (2026-11-13)
+
+
+### Features
+
+* **mobile:** one-code mobile sign-in on Cloud ([#32502](https://github.com/lightdash/lightdash/issues/32502)) ([4a4e0b2](https://github.com/lightdash/lightdash/commit/4a4e0b2e9eb5c78b57368abd5cd0b57e5a1830b8))
+
+# [3.250.0](https://github.com/lightdash/lightdash/compare/3.249.0...3.250.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** create a composer chart by API ([#32563](https://github.com/lightdash/lightdash/issues/32563)) ([c3a9ce9](https://github.com/lightdash/lightdash/commit/c3a9ce929e9cfb3cdb14aa8a540a99a1c930d139))
+
 # [3.249.0](https://github.com/lightdash/lightdash/compare/3.248.0...3.249.0) (2026-11-13)
 
 

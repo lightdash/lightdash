@@ -3,7 +3,7 @@ import {
     QueryHistoryStatus,
     type RawResultRow,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, type QueryFunctionContext } from '@tanstack/react-query';
 import {
     cancelAsyncQuery,
     pollForResults,
@@ -16,57 +16,79 @@ import {
     type AnalyticsQuerySpec,
 } from './analyticsOverviewConfig';
 
-export const useAnalyticsOverviewQuery = (
+export const useAnalyticsOverviewQueries = (
     projectUuid: string,
-    spec: AnalyticsQuerySpec,
+    specs: AnalyticsQuerySpec[],
     filters: AnalyticsFilters,
+    enabled = true,
 ) => {
     const api = useLightdashApi();
-    const query = buildAnalyticsQuery(spec, filters);
-    return useQuery({
-        queryKey: ['analytics-settings', projectUuid, query],
-        staleTime: 5 * 60 * 1000,
-        refetchOnWindowFocus: false,
-        retry: false,
-        queryFn: async ({ signal }): Promise<RawResultRow[]> => {
-            const started = await executeAsyncQuery(
-                api,
-                {
-                    projectUuid,
-                    tableId: query.exploreName,
-                    query,
-                    context: QueryExecutionContext.DASHBOARD,
-                },
-                signal,
-            );
-            const cancel = () => {
-                void cancelAsyncQuery(
-                    api,
-                    projectUuid,
-                    started.queryUuid,
-                ).catch(() => undefined);
-            };
-            signal?.addEventListener('abort', cancel, { once: true });
-            try {
-                if (signal?.aborted) {
-                    cancel();
-                    throw new DOMException('Query cancelled', 'AbortError');
-                }
-                const result = await pollForResults(
-                    api,
-                    projectUuid,
-                    started.queryUuid,
-                    250,
+    const uniqueSpecs = [...new Set(specs)];
+    const results = useQueries({
+        queries: uniqueSpecs.map((spec) => {
+            const query = buildAnalyticsQuery(spec, filters);
+            return {
+                queryKey: ['analytics-settings', projectUuid, query],
+                enabled,
+                staleTime: 5 * 60 * 1000,
+                refetchOnWindowFocus: false,
+                retry: false,
+                queryFn: async ({
                     signal,
-                );
-                if (result.status !== QueryHistoryStatus.READY)
-                    throw new Error('Unable to load analytics');
-                return await api.getResultsFromStream<RawResultRow>(
-                    `/api/v2/projects/${projectUuid}/query/${started.queryUuid}/results`,
-                );
-            } finally {
-                signal?.removeEventListener('abort', cancel);
-            }
-        },
+                }: QueryFunctionContext): Promise<RawResultRow[]> => {
+                    signal?.throwIfAborted();
+                    // Keep the query ID even if the filter changes during creation.
+                    const started = await executeAsyncQuery(api, {
+                        projectUuid,
+                        tableId: query.exploreName,
+                        query,
+                        context: QueryExecutionContext.DASHBOARD,
+                    });
+                    const cancel = () => {
+                        void cancelAsyncQuery(
+                            api,
+                            projectUuid,
+                            started.queryUuid,
+                        ).catch(() => undefined);
+                    };
+                    signal?.addEventListener('abort', cancel, { once: true });
+                    try {
+                        if (signal?.aborted) {
+                            cancel();
+                            signal.throwIfAborted();
+                        }
+                        const result = await pollForResults(
+                            api,
+                            projectUuid,
+                            started.queryUuid,
+                            250,
+                            signal,
+                        );
+                        signal?.throwIfAborted();
+                        if (result.status !== QueryHistoryStatus.READY)
+                            throw new Error('Unable to load analytics');
+                        if (result.nextPage !== undefined)
+                            return await api.getResultsFromStream<RawResultRow>(
+                                `/api/v2/projects/${projectUuid}/query/${started.queryUuid}/results`,
+                            );
+                        return result.rows.map((row) =>
+                            Object.fromEntries(
+                                Object.entries(row).map(([field, cell]) => [
+                                    field,
+                                    cell.value.raw,
+                                ]),
+                            ),
+                        );
+                    } finally {
+                        signal?.removeEventListener('abort', cancel);
+                    }
+                },
+            };
+        }),
     });
+    return specs.map((spec) => results[uniqueSpecs.indexOf(spec)]);
 };
+
+export type AnalyticsOverviewQueryResult = ReturnType<
+    typeof useAnalyticsOverviewQueries
+>[number];

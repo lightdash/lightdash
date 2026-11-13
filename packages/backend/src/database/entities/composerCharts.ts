@@ -25,9 +25,13 @@ export type ComposerChartsTable = Knex.CompositeTableType<
         Partial<
             Pick<
                 DbComposerChart,
-                'composer_chart_uuid' | 'description' | 'created_by_user_uuid'
+                | 'composer_chart_uuid'
+                | 'description'
+                | 'created_at'
+                | 'created_by_user_uuid'
             >
-        >
+        >,
+    Partial<Pick<DbComposerChart, 'deleted_at' | 'deleted_by_user_uuid'>>
 >;
 
 type DbComposerChartVersion = {
@@ -45,7 +49,11 @@ export type ComposerChartVersionsTable = Knex.CompositeTableType<
     Pick<
         DbComposerChartVersion,
         'composer_chart_uuid' | 'created_by_user_uuid'
-    > & { pipeline: string; chart: string }
+    > &
+        Partial<Pick<DbComposerChartVersion, 'created_at'>> & {
+            pipeline: string;
+            chart: string;
+        }
 >;
 
 type DbDashboardTileComposerChart = {

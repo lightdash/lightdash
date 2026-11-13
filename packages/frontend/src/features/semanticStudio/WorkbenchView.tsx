@@ -1244,7 +1244,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const changesBadge =
         waitingOnYou > 0 ? (
             <span
-                className={classes.count}
+                className={classes.tabBadge}
                 data-tone="attention"
                 aria-label={`${waitingOnYou} need you`}
             >
@@ -1253,7 +1253,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         ) : saving ? (
             <span className={classes.busyDot} aria-label="Saving" />
         ) : runs.length > 0 ? (
-            <span className={classes.count}>{runs.length}</span>
+            <span className={classes.tabBadge}>{runs.length}</span>
         ) : null;
     const showLive = () => {
         setIsTryingChanges(false);

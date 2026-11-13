@@ -573,7 +573,31 @@ describe('signed analytics file manifests', () => {
         },
     );
 
-    it('drains in-flight signing before cleanup and never starts another batch after failure', async () => {
+    it('starts the next object when a slot opens, even if an earlier object is slow', async () => {
+        const keys = Array.from({ length: 9 }, (_, i) =>
+            key().replace('part-1', `part-${i}`),
+        );
+        send.mockResolvedValue({ Contents: keys.map((Key) => ({ Key })) });
+        const first = Promise.withResolvers<string>();
+        vi.mocked(getSignedUrl).mockImplementation(async (_client, command) => {
+            const objectKey = (command as GetObjectCommand).input.Key!;
+            if (objectKey === keys[0]) return first.promise;
+            return `signed:${objectKey}`;
+        });
+
+        const resolution = createS3AnalyticsSourceResolver(config)();
+        try {
+            await vi.waitFor(() =>
+                expect(getSignedUrl).toHaveBeenCalledTimes(keys.length),
+            );
+            expect(destroy).not.toHaveBeenCalled();
+        } finally {
+            first.resolve(`signed:${keys[0]}`);
+            await resolution;
+        }
+    });
+
+    it('drains in-flight signing before cleanup and starts no more objects after failure', async () => {
         send.mockResolvedValue({
             Contents: Array.from({ length: 20 }, (_, i) => ({
                 Key: key().replace('part-1', `part-${i}`),
@@ -797,6 +821,55 @@ describe('signed analytics file manifests', () => {
         await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
             noDataMessage,
         );
+    });
+
+    it('prepares only in-range activity files and keeps other sources available', async () => {
+        const activity = (day: string) =>
+            `${prefix}model=user_activity/stream=query_events/dt=${day}/activity.parquet`;
+        const selected = activity('2026-11-06');
+        const other = key('agent_steps', '2026-11-01');
+        send.mockResolvedValue({
+            Contents: [
+                { Key: activity('2026-11-05') },
+                { Key: selected },
+                { Key: activity('2026-11-13') },
+                { Key: other },
+            ],
+        });
+        const result = await createS3AnalyticsSourceResolver({
+            ...config,
+            activityWindow: { start: '2026-11-06', end: '2026-11-13' },
+        })(['user_activity', 'agent_steps']);
+        expect(result.tables.map(({ name }) => name)).toEqual([
+            'user_activity',
+            'agent_steps',
+        ]);
+        expect(
+            vi
+                .mocked(getSignedUrl)
+                .mock.calls.map(
+                    ([, command]) => (command as GetObjectCommand).input.Key,
+                ),
+        ).toEqual([selected, other]);
+    });
+
+    it('exposes a typed empty activity table for a date range without files', async () => {
+        send.mockResolvedValue({
+            Contents: [
+                {
+                    Key: `${prefix}model=user_activity/stream=query_events/dt=2026-11-05/activity.parquet`,
+                },
+            ],
+        });
+        const result = await createS3AnalyticsSourceResolver({
+            ...config,
+            activityWindow: { start: '2026-11-06', end: '2026-11-13' },
+        })(['user_activity']);
+        expect(result.tables).toEqual([]);
+        expect(result.emptyTables?.map(({ name }) => name)).toContain(
+            'user_activity',
+        );
+        expect(getSignedUrl).not.toHaveBeenCalled();
     });
 
     it('refreshes the manifest and does not reuse unversioned signatures', async () => {

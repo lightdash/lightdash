@@ -33,6 +33,7 @@ import {
     Dimension,
     DimensionType,
     DownloadFileType,
+    DuckdbConnectionType,
     ExpiredQueryError,
     Explore,
     ExploreCompiler,
@@ -216,6 +217,7 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
+    AnalyticsQueryCancelledError,
     AnalyticsQueryError,
     DuckdbWarehouseClient,
     mapFieldTypeFromDuckdbTypeName,
@@ -367,6 +369,7 @@ import { OrganizationAccessService } from '../OrganizationAccessService/Organiza
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import { getAnalyticsActivityWindow } from '../ProjectService/analyticsProject/getAnalyticsActivityWindow';
 import { developmentView } from '../ProjectService/developmentView';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
 import {
@@ -4012,6 +4015,7 @@ export class AsyncQueryService extends ProjectService {
         dataTimezone,
         displayTimezone,
         recoverStalledQuery,
+        isQueuedQueryCancelled,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -4023,6 +4027,7 @@ export class AsyncQueryService extends ProjectService {
         dataTimezone?: string;
         displayTimezone: string | null;
         recoverStalledQuery: boolean;
+        isQueuedQueryCancelled?: () => Promise<boolean>;
     }): Promise<{
         columns: ResultColumns;
         /** Pre-pivot columns, so pivoted queries keep a record of the
@@ -4308,6 +4313,9 @@ export class AsyncQueryService extends ProjectService {
                         tags: queryTags,
                         timezone: dataTimezone,
                         recoverStalledQuery,
+                        ...(isQueuedQueryCancelled && {
+                            isQueuedQueryCancelled,
+                        }),
                     },
                     transformRows,
                 ),
@@ -5189,6 +5197,7 @@ export class AsyncQueryService extends ProjectService {
      * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
      */
     private async runAsyncWarehouseQueryInScope({
+        analyticsActivityWindow,
         userUuid,
         organizationUuid,
         isPreviewProject,
@@ -5279,6 +5288,7 @@ export class AsyncQueryService extends ProjectService {
 
         type WarehouseQueryAttempt =
             | { kind: 'complete' }
+            | { kind: 'cancelled' }
             | {
                   kind: 'retry';
                   execute: (warehouseClient: WarehouseClient) => Promise<void>;
@@ -5287,6 +5297,7 @@ export class AsyncQueryService extends ProjectService {
         const withWarehouseAttempt = (
             execute: (
                 warehouseClient: WarehouseClient,
+                isQueuedQueryCancelled?: () => Promise<boolean>,
             ) => Promise<WarehouseQueryAttempt>,
         ) =>
             this.warehouseClientFactory.withWarehouseClient(
@@ -5294,7 +5305,12 @@ export class AsyncQueryService extends ProjectService {
                     kind: 'binding',
                     projectUuid,
                     binding: { kind: 'query', queryUuid },
-                    overrides: warehouseCredentialsOverrides,
+                    overrides: analyticsActivityWindow
+                        ? {
+                              ...warehouseCredentialsOverrides,
+                              analyticsActivityWindow,
+                          }
+                        : warehouseCredentialsOverrides,
                 },
                 connectionContextFromUser(
                     {
@@ -5399,7 +5415,16 @@ export class AsyncQueryService extends ProjectService {
                         ? warehouseCredentials
                         : null;
                     warehouseCredentialsType ??= warehouseCredentials.type;
-                    const result = await execute(warehouseClient);
+                    const isAnalytics =
+                        warehouseCredentials.type === WarehouseTypes.DUCKDB &&
+                        warehouseCredentials.connectionType ===
+                            DuckdbConnectionType.ANALYTICS;
+                    const result = await execute(
+                        warehouseClient,
+                        isAnalytics
+                            ? () => this.isQueryCancelled(queryUuid)
+                            : undefined,
+                    );
                     warehouseQueryCompletedBeforeCleanup =
                         result.kind === 'complete';
                     return result;
@@ -5408,6 +5433,7 @@ export class AsyncQueryService extends ProjectService {
 
         const executeWithWarehouseClient = async (
             warehouseClient: WarehouseClient,
+            isQueuedQueryCancelled?: () => Promise<boolean>,
         ): Promise<WarehouseQueryAttempt> => {
             const credentialsType = warehouseCredentialsType;
             if (credentialsType === undefined) {
@@ -5561,6 +5587,9 @@ export class AsyncQueryService extends ProjectService {
                                 dataTimezone: resolvedDataTimezone,
                                 displayTimezone,
                                 recoverStalledQuery,
+                                ...(isQueuedQueryCancelled && {
+                                    isQueuedQueryCancelled,
+                                }),
                             });
                         setPhaseTimingAttributes(
                             span,
@@ -5812,6 +5841,9 @@ export class AsyncQueryService extends ProjectService {
             try {
                 queryResults = await runWarehouseQuery(warehouseClient);
             } catch (e) {
+                if (e instanceof AnalyticsQueryCancelledError) {
+                    return { kind: 'cancelled' };
+                }
                 const canRetry =
                     !hasWrittenRows &&
                     projectCredentials !== null &&
@@ -6065,6 +6097,8 @@ export class AsyncQueryService extends ProjectService {
                 query.requestParameters.resultEntitlementFingerprint ?? null,
             query: query.compiledSql,
             displayTimezone,
+            analyticsActivityWindow:
+                query.requestParameters.analyticsActivityWindow,
         };
     }
 
@@ -6693,6 +6727,13 @@ export class AsyncQueryService extends ProjectService {
                     const displayTimezone = queryComposer.getDisplayTimezone();
 
                     const warehouseCredentialsType = warehouseCredentials.type;
+                    const analyticsActivityWindow =
+                        warehouseCredentials.type === WarehouseTypes.DUCKDB &&
+                        warehouseCredentials.connectionType ===
+                            DuckdbConnectionType.ANALYTICS &&
+                        !dateZoom
+                            ? getAnalyticsActivityWindow(metricQuery, timezone)
+                            : undefined;
                     const warehouseCredentialsOverrides: RunAsyncWarehouseQueryArgs['warehouseCredentialsOverrides'] =
                         {
                             snowflakeVirtualWarehouse: explore.warehouse,
@@ -7021,6 +7062,7 @@ export class AsyncQueryService extends ProjectService {
                                         : undefined,
                                 resultEntitlementFingerprint:
                                     entitlementFingerprint,
+                                analyticsActivityWindow,
                                 cacheSourceQueryUuid:
                                     resultsCache.cacheHit && identityEnabled
                                         ? resultsCache.queryUuid
@@ -7349,6 +7391,7 @@ export class AsyncQueryService extends ProjectService {
                     trackQueryExecuted(executedSource);
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
+                        analyticsActivityWindow,
                         authMethod: account.authentication.type,
                         agentIdentity: agentIdentity ?? null,
                         resultEntitlementFingerprint: entitlementFingerprint,

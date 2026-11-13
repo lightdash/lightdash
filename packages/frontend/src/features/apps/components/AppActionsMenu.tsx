@@ -701,7 +701,6 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                 <AppStateModal
                     projectUuid={projectUuid}
                     appUuid={appUuid}
-                    appName={getAppDisplayName(appName, appUuid)}
                     opened
                     onClose={() => setIsAppStateModalOpen(false)}
                 />

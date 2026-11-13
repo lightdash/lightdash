@@ -95,7 +95,7 @@
     box-shadow: 0 0 0 3px var(--mantine-color-green-light);
 }
 
-.count {
+.tabBadge {
     min-width: 18px;
     height: 18px;
     padding: 0 5px;
@@ -109,7 +109,7 @@
     color: var(--mantine-color-text);
 }
 
-.count[data-tone='attention'] {
+.tabBadge[data-tone='attention'] {
     background: var(--mantine-color-orange-6);
     color: var(--mantine-color-white);
 }
