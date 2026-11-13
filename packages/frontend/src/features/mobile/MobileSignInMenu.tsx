@@ -5,6 +5,7 @@ import {
     Indicator,
     Popover,
     Title,
+    type PopoverProps,
     Tooltip,
 } from '@mantine/core';
 import { IconDeviceMobile } from '@tabler/icons-react';
@@ -43,6 +44,20 @@ import {
 
 const POPOVER_WIDTH = 'calc(min(420px, 100vw - 32px))';
 const PITCH_POPOVER_WIDTH = 'calc(min(508px, 100vw - 32px))';
+const SCREEN_GUTTER = 16;
+
+const fitInsideScreenGutter: Extract<
+    NonNullable<PopoverProps['middlewares']>['size'],
+    object
+> = {
+    apply: ({ elements }) => {
+        const reference = elements.reference.getBoundingClientRect();
+        const limit = document.documentElement.clientWidth - SCREEN_GUTTER;
+        const overflow = Math.max(0, reference.right - limit);
+        const width = Math.max(0, reference.width - 2 * overflow);
+        elements.floating.style.width = `${width}px`;
+    },
+};
 
 const hasLostFocus = () =>
     document.activeElement === null || document.activeElement === document.body;
@@ -100,7 +115,7 @@ const MobileSignInPopover: FC<{
             id={id}
             opened={opened}
             onChange={(next) => (next ? open() : close())}
-            position="bottom-end"
+            position={menuProps.withinPortal ? 'bottom-end' : 'bottom'}
             arrowOffset={16}
             offset={-2}
             width={
@@ -108,7 +123,12 @@ const MobileSignInPopover: FC<{
                     ? upsell
                         ? PITCH_POPOVER_WIDTH
                         : POPOVER_WIDTH
-                    : 'target'
+                    : undefined
+            }
+            middlewares={
+                menuProps.withinPortal
+                    ? undefined
+                    : { size: fitInsideScreenGutter }
             }
             classNames={{ dropdown: classes.signInPopover }}
             zIndex={getDefaultZIndex('max')}

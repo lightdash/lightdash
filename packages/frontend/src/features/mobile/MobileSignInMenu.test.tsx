@@ -220,6 +220,10 @@ describe('MobileSignInMenu', () => {
         const qr = await screen.findByRole('img', { name: 'Sign-in QR code' });
         const side = document.querySelector('[data-idle]');
         expect(side).toHaveAttribute('data-idle', 'true');
+        expect(document.querySelector('[data-step-active]')).toHaveAttribute(
+            'data-step-active',
+            'false',
+        );
         expect(side?.querySelector('[aria-hidden="true"] svg')).not.toBeNull();
         expect(side).not.toContainElement(qr);
         expect(screen.getByText('Waiting for scan')).toHaveAttribute(
@@ -240,6 +244,10 @@ describe('MobileSignInMenu', () => {
         const side = document.querySelector('[data-idle]');
         expect(side).toHaveAttribute('data-idle', 'false');
         expect(side).toContainElement(confirm);
+        expect(document.querySelector('[data-step-active]')).toHaveAttribute(
+            'data-step-active',
+            'true',
+        );
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         expect(screen.getAllByRole('dialog')).toHaveLength(1);
         expect(

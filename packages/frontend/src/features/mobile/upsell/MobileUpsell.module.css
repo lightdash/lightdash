@@ -139,6 +139,11 @@
     .side {
         width: 100%;
     }
+
+    .panel[data-step-active='true'] .qrColumn,
+    .panel[data-step-active='true'] .stage {
+        display: none;
+    }
 }
 
 .frame[data-paused='true'] *,

@@ -72,7 +72,7 @@ const Pitch = ({
             </div>
             <div className={classes.signIn}>
                 <div className={classes.signInTitle}>{title}</div>
-                <div className={classes.panel}>
+                <div className={classes.panel} data-step-active={!isIdle}>
                     <div className={classes.qrColumn}>
                         {qr}
                         {isIdle && <MobileSignInInstallHint />}
