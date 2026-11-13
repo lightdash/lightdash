@@ -5,6 +5,7 @@ import { lazy, Suspense, useEffect, type FC } from 'react';
 import { Link, useLocation } from 'react-router';
 import { LearnLink } from '../../features/learn/LearnLink';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
+import { MobileSignInMenu } from '../../features/mobile/MobileSignInMenu';
 import Omnibar from '../../features/omnibar';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import useApp from '../../providers/App/useApp';
@@ -163,6 +164,8 @@ export const MainNavBarContent: FC<Props> = ({
                             />
                         </>
                     )}
+
+                    <MobileSignInMenu withLabel={compact} />
 
                     <HelpMenu withLabel={compact} />
 

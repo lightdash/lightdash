@@ -52,7 +52,7 @@ const isDragging = () =>
     screen.getByRole('tab').closest('[data-dragging]') !== null;
 
 describe('DraggableTab', () => {
-    // The filter rail's tab counts lift the cap through the variable
+    // The controls bar's tab counts lift the cap through the variable
     it("caps a tab's width at its share of the viewport unless a stylesheet sets the variable", () => {
         renderTab({ isEditMode: false });
 

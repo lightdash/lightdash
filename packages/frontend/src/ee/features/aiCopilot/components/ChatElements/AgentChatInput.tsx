@@ -338,7 +338,7 @@ const extractToolHints = (editor: Editor | null): string[] => {
 /**
  * Walkthrough action for create:AiDeepResearch: switching the composer to
  * deep research, the control that starts a run. Nothing is submitted; the
- * tour then opens the seeded thread and its finished report.
+ * tour then opens the seeded thread and its run card.
  */
 const deepResearchTourAction = {
     'data-tour-scope': 'create:AiDeepResearch',
@@ -350,7 +350,7 @@ const deepResearchTourAction = {
     'data-tour-via':
         '[data-tour-nav="ask-ai"] >> [data-tour-anchor="composer-options"]',
     'data-tour-then':
-        '[data-tour-anchor="agent-thread"][data-tour-value="Why returns rose in the spring"] >> [data-tour-anchor="research-report-open"]',
+        '[data-tour-anchor="agent-thread"][data-tour-value="Why returns rose in the spring"]',
     'data-tour-docs': 'agents/deep-research.mdx#how-it-works:p2:1',
 };
 
@@ -1765,7 +1765,12 @@ export const AgentChatInput = ({
                         onMouseDown={handleInputCardMouseDown}
                         attachments={renderedAttachments}
                         toolbarLeft={
-                            <Group gap="xs" align="center" wrap="nowrap">
+                            <Group
+                                gap="xs"
+                                align="center"
+                                wrap="nowrap"
+                                miw={0}
+                            >
                                 {renderComposerActionsMenu()}
                                 {renderThemeButton()}
                                 {toolbarStart}

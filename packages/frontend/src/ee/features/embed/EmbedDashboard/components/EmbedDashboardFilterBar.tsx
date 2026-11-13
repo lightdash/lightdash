@@ -21,13 +21,19 @@ import {
 } from '../../../../../features/dashboard/store';
 import { AddControl } from '../../../../../features/dashboardControls/AddControl';
 import { MappingSwap } from '../../../../../features/dashboardControls/ControlsBar';
+import {
+    DateZoomPills,
+    DefaultZoomButton,
+} from '../../../../../features/dashboardControls/DateZoomPills';
 import { FilterPills } from '../../../../../features/dashboardControls/FilterPills';
 import { ParameterPills } from '../../../../../features/dashboardControls/ParameterPills';
 import { SectionedFilters } from '../../../../../features/dashboardControls/SectionedFilters';
 import { SettledFilterFields } from '../../../../../features/dashboardControls/SettledFilterFields';
+import { useNamedDateZoomCount } from '../../../../../features/dashboardControls/useDateZoomBar';
 import { useParameterBarControls } from '../../../../../features/dashboardControls/useParameterBarControls';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
+import { DateZoomCrossTabFieldsLoader } from '../../../../../features/dateZoom/components/DateZoomCrossTabFieldsLoader';
 import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
 import { useActiveTabParameters } from '../../../../../hooks/dashboard/useActiveTabParameters';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
@@ -44,17 +50,19 @@ type Props = {
     /** Tiles rendered on the active tab */
     activeTiles: DashboardTile[];
     isEditMode?: boolean;
-    /** The filters open in the dashboard's filter rail (default false). */
+    /** The filters open in the dashboard's controls bar editor (default false). */
     isControlsEnabled?: boolean;
 };
 
-// The filters as the rail's bar has them: "Add filter" and the pills open
-// the rail, and stay on screen while it is open; a dashboard with sections
+// The filters as the controls bar has them: "Add filter" and the pills open
+// the editor, and stay on screen while it is open; a dashboard with sections
 // shows them as the app's viewer bar does
 const ControlsFilterArea: FC<{
     canAddFilters: boolean;
+    isEditor: boolean;
     withParameters: boolean;
-}> = ({ canAddFilters, withParameters }) => {
+    withDateZooms: boolean;
+}> = ({ canAddFilters, isEditor, withParameters, withDateZooms }) => {
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     // Sections or a stored order: the bar the app's viewers get
     const isSectioned = useDashboardSelector(
@@ -63,6 +71,30 @@ const ControlsFilterArea: FC<{
             selectHasStoredControlOrder(state),
     );
     const getUiString = useUiStrings();
+    const triggerClassName = embedContractClass('ld-dashboard-filter');
+    // An editor's bar is the app's: always sectioned, adding only the kinds
+    // this embed shows
+    if (isEditor) {
+        return (
+            <SettledFilterFields>
+                <SectionedFilters
+                    activeTabUuid={activeTabUuid}
+                    editorActions={
+                        <AddControl
+                            triggerClassName={embedContractClass(
+                                'ld-dashboard-add-filter',
+                            )}
+                            withParameters={withParameters}
+                            withDateZooms={withDateZooms}
+                        />
+                    }
+                    triggerClassName={triggerClassName}
+                    withParameters={withParameters}
+                    withDateZooms={withDateZooms}
+                />
+            </SettledFilterFields>
+        );
+    }
     const actions = (
         <>
             <AddControl
@@ -74,7 +106,6 @@ const ControlsFilterArea: FC<{
             {!canAddFilters && <EmbedResetFiltersButton />}
         </>
     );
-    const triggerClassName = embedContractClass('ld-dashboard-filter');
     // A tile added or removed keeps the pills, as on the app's bar
     return (
         <SettledFilterFields>
@@ -84,6 +115,8 @@ const ControlsFilterArea: FC<{
                     viewerActions={actions}
                     triggerClassName={triggerClassName}
                     withParameters={withParameters}
+                    // Date zooms are pills in the flow, as in the app
+                    withDateZooms={withDateZooms}
                 />
             ) : (
                 <>
@@ -93,6 +126,7 @@ const ControlsFilterArea: FC<{
                         triggerClassName={triggerClassName}
                     />
                     {withParameters && <ParameterPills />}
+                    {withDateZooms && <DateZoomPills />}
                 </>
             )}
         </SettledFilterFields>
@@ -112,6 +146,9 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
+    // With the controls, date zooms are pills in the flow, not on the right
+    const withDateZoomPills =
+        isControlsEnabled && dashboard.canDateZoom === true;
     const parameterControls = useDashboardSelector(selectParameterControls);
     const useParameterControls =
         isControlsEnabled && parameterControls !== null;
@@ -144,8 +181,15 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     // With the controls on, the legacy parameters never show: none until the controls are built
     const showsLegacyParameters = parametersEnabled && !isControlsEnabled;
 
-    // Collapsing only hides filters and parameters — date zoom stays visible
-    const isCollapsible = totalFiltersCount > 0 || totalParametersCount > 0;
+    const namedDateZoomCount = useNamedDateZoomCount();
+    const totalDateZoomsCount = withDateZoomPills ? namedDateZoomCount : 0;
+
+    // Collapsing hides filters, parameters and named zooms; the shipped
+    // Default zoom on the right stays visible, as in the app
+    const isCollapsible =
+        totalFiltersCount > 0 ||
+        totalParametersCount > 0 ||
+        totalDateZoomsCount > 0;
 
     // Interactivity may be enabled with nothing to show (hidden filters, or
     // none defined) — render nothing rather than an empty padded row
@@ -158,6 +202,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
             <DashboardFiltersBarSummary
                 filtersCount={totalFiltersCount}
                 parametersCount={totalParametersCount}
+                dateZoomsCount={totalDateZoomsCount}
                 dateZoomLabel={
                     dashboard.canDateZoom
                         ? getDateZoomSummaryLabel(
@@ -196,9 +241,11 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                     (isControlsEnabled ? (
                         <ControlsFilterArea
                             canAddFilters={canAddFilters}
+                            isEditor={isEditMode}
                             withParameters={
                                 parametersEnabled && useParameterControls
                             }
+                            withDateZooms={withDateZoomPills}
                         />
                     ) : (
                         <EmbedDashboardFilters
@@ -237,6 +284,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                         )}
                     </>
                 )}
+                {!shouldShowFilters && withDateZoomPills && <DateZoomPills />}
             </Group>
 
             <Group gap="xs" wrap="nowrap" flex="0 0 auto">
@@ -244,12 +292,22 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                     <Box
                         className={embedContractClass('ld-dashboard-date-zoom')}
                     >
-                        <DateZoom
-                            isEditMode={false}
-                            dropdownClassName={embedContractClass(
-                                'ld-dashboard-date-zoom-dropdown',
-                            )}
-                        />
+                        {isControlsEnabled && isEditMode ? (
+                            // An editor's Default zoom, as on the app's bar
+                            <>
+                                <DefaultZoomButton />
+                                <DateZoomCrossTabFieldsLoader />
+                            </>
+                        ) : (
+                            <DateZoom
+                                isEditMode={false}
+                                // Named zooms are pills in the flow
+                                withControls={!isControlsEnabled}
+                                dropdownClassName={embedContractClass(
+                                    'ld-dashboard-date-zoom-dropdown',
+                                )}
+                            />
+                        )}
                     </Box>
                 )}
                 {isCollapsible && (

@@ -1,0 +1,95 @@
+.island {
+    position: fixed;
+    left: 50%;
+    bottom: var(--mantine-spacing-md);
+    z-index: var(--mantine-z-index-app);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    max-width: calc(100vw - 2 * var(--mantine-spacing-md));
+    padding: 4px;
+    border: 1px solid var(--mantine-color-dark-4);
+    border-radius: var(--mantine-radius-xl);
+    background: color-mix(
+        in srgb,
+        var(--mantine-color-dark-7) 92%,
+        transparent
+    );
+    backdrop-filter: blur(10px);
+    box-shadow:
+        0 12px 32px -12px rgb(0 0 0 / 0.5),
+        0 0 0 1px rgb(255 255 255 / 0.04) inset;
+    color: var(--mantine-color-white);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    white-space: nowrap;
+    translate: -50% 0;
+    animation: arrive 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes arrive {
+    from {
+        opacity: 0;
+        translate: -50% 16px;
+        scale: 0.96;
+    }
+}
+
+.state {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px 4px 12px;
+    cursor: default;
+}
+
+.pulse {
+    position: relative;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--mantine-color-orange-5);
+}
+
+.pulse::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--mantine-color-orange-5);
+    animation: ping 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping {
+    70%,
+    100% {
+        opacity: 0;
+        scale: 2.8;
+    }
+}
+
+.exit {
+    padding: 4px 12px;
+    border-radius: var(--mantine-radius-xl);
+    background: var(--mantine-color-white);
+    color: var(--mantine-color-dark-9);
+    font-size: inherit;
+    font-weight: 600;
+    transition: background-color 120ms ease;
+}
+
+.exit:hover {
+    background: var(--mantine-color-orange-1);
+}
+
+.exit:focus-visible {
+    outline: 2px solid var(--mantine-color-orange-5);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .island,
+    .pulse::after {
+        animation: none;
+    }
+}

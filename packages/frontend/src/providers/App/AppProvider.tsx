@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, type FC } from 'react';
 import { BrandedFaviconSync } from '../../components/common/BrandedFaviconSync';
 import { BrandedAppNameSync } from '../../components/common/DocumentTitle';
+import { clearDevelopmentView } from '../../features/semanticStudio/developmentView';
 import useHealth from '../../hooks/health/useHealth';
 import { LAST_PROJECT_KEY, LAST_USER_KEY } from '../../hooks/useActiveProject';
 import useUser from '../../hooks/user/useUser';
@@ -46,12 +47,14 @@ const AppProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
             // user logging back in returns to their project; a different user
             // is handled below.
             queryClient.clear();
+            clearDevelopmentView();
         }
 
         if (currentIdentity !== null) {
             const storedIdentity = localStorage.getItem(LAST_USER_KEY);
             if (storedIdentity !== null && storedIdentity !== currentIdentity) {
                 localStorage.removeItem(LAST_PROJECT_KEY);
+                clearDevelopmentView();
                 void queryClient.invalidateQueries(['activeProject']);
             }
             localStorage.setItem(LAST_USER_KEY, currentIdentity);

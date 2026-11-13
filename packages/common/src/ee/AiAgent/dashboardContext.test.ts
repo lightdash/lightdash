@@ -1,5 +1,11 @@
-import { FilterOperator, type DashboardFilters } from '../..';
-import { serializeDashboardFiltersForAiContext } from './dashboardContext';
+import { DateGranularity, FilterOperator, type DashboardFilters } from '../..';
+import {
+    getAiDashboardDateZoomControls,
+    getAiDashboardTileParameters,
+    serializeDashboardDateZoomControlsForAiContext,
+    serializeDashboardFiltersForAiContext,
+    serializeDashboardTileParametersForAiContext,
+} from './dashboardContext';
 
 const filter = {
     id: 'filter-uuid',
@@ -57,5 +63,181 @@ describe('serializeDashboardFiltersForAiContext', () => {
                 },
             ],
         });
+    });
+});
+
+const tiles = [
+    { uuid: 'tile-1', name: 'Revenue' },
+    { uuid: 'tile-2', name: 'Orders' },
+    { uuid: 'tile-3', name: 'Signups' },
+];
+
+describe('getAiDashboardDateZoomControls', () => {
+    it('is absent for a dashboard with no named date zoom', () => {
+        expect(
+            getAiDashboardDateZoomControls({
+                config: { controls: [], tileTargets: {} },
+                runtimeGranularities: {},
+                tiles,
+            }),
+        ).toBeUndefined();
+    });
+
+    it("gives each control the viewer's pick, else its saved grain, with its tiles", () => {
+        const controls = getAiDashboardDateZoomControls({
+            config: {
+                controls: [
+                    {
+                        uuid: 'zoom-1',
+                        name: 'Revenue zoom',
+                        granularity: DateGranularity.MONTH,
+                    },
+                    {
+                        uuid: 'zoom-2',
+                        name: 'Growth zoom',
+                        granularity: DateGranularity.QUARTER,
+                    },
+                ],
+                tileTargets: {
+                    'tile-1': {
+                        controlUuid: 'zoom-1',
+                        fieldId: 'orders.date',
+                        tableName: 'orders',
+                    },
+                    'tile-3': {
+                        controlUuid: 'zoom-2',
+                        fieldId: null,
+                        tableName: null,
+                    },
+                },
+            },
+            runtimeGranularities: { 'zoom-1': DateGranularity.WEEK },
+            tiles,
+        });
+
+        expect(controls).toEqual([
+            {
+                uuid: 'zoom-1',
+                name: 'Revenue zoom',
+                granularity: DateGranularity.WEEK,
+                isViewerPick: true,
+                tiles: [tiles[0]],
+            },
+            {
+                uuid: 'zoom-2',
+                name: 'Growth zoom',
+                granularity: DateGranularity.QUARTER,
+                isViewerPick: false,
+                tiles: [tiles[2]],
+            },
+        ]);
+        expect(
+            serializeDashboardDateZoomControlsForAiContext(controls!),
+        ).toEqual([
+            {
+                name: 'Revenue zoom',
+                granularity: DateGranularity.WEEK,
+                source: 'viewer pick',
+                tiles: ['Revenue'],
+            },
+            {
+                name: 'Growth zoom',
+                granularity: DateGranularity.QUARTER,
+                source: 'saved',
+                tiles: ['Signups'],
+            },
+        ]);
+    });
+});
+
+describe('getAiDashboardTileParameters', () => {
+    const unpicked = {
+        'tile-1': { region: 'EU' },
+        'tile-2': { region: 'EU' },
+        'tile-3': { region: 'EU' },
+    };
+
+    it('is absent without parameter controls', () => {
+        expect(
+            getAiDashboardTileParameters({
+                tiles,
+                parametersByTileUuid: undefined,
+                unpickedParametersByTileUuid: undefined,
+            }),
+        ).toBeUndefined();
+    });
+
+    it('is absent while no pick changes what the controls hold', () => {
+        const scoped = { ...unpicked, 'tile-2': { region: 'US' } };
+        expect(
+            getAiDashboardTileParameters({
+                tiles,
+                parametersByTileUuid: scoped,
+                unpickedParametersByTileUuid: scoped,
+            }),
+        ).toBeUndefined();
+    });
+
+    it('lists every tile when a pick sets them all alike', () => {
+        const tileParameters = getAiDashboardTileParameters({
+            tiles,
+            parametersByTileUuid: {
+                'tile-1': { region: 'US' },
+                'tile-2': { region: 'US' },
+                'tile-3': { region: 'US' },
+            },
+            unpickedParametersByTileUuid: unpicked,
+        });
+        expect(
+            serializeDashboardTileParametersForAiContext(tileParameters!),
+        ).toEqual([
+            {
+                tiles: ['Revenue', 'Orders', 'Signups'],
+                parameters: { region: 'US' },
+            },
+        ]);
+    });
+
+    it('groups tiles by the values a pick leaves them with', () => {
+        const tileParameters = getAiDashboardTileParameters({
+            tiles,
+            parametersByTileUuid: { ...unpicked, 'tile-2': { region: 'US' } },
+            unpickedParametersByTileUuid: unpicked,
+        });
+
+        expect(tileParameters).toEqual([
+            { tile: tiles[0], parameters: { region: 'EU' } },
+            { tile: tiles[1], parameters: { region: 'US' } },
+            { tile: tiles[2], parameters: { region: 'EU' } },
+        ]);
+        expect(
+            serializeDashboardTileParametersForAiContext(tileParameters!),
+        ).toEqual([
+            { tiles: ['Revenue', 'Signups'], parameters: { region: 'EU' } },
+            { tiles: ['Orders'], parameters: { region: 'US' } },
+        ]);
+    });
+
+    it('leaves out tiles left without a value', () => {
+        expect(
+            getAiDashboardTileParameters({
+                tiles,
+                parametersByTileUuid: { 'tile-1': { region: 'US' } },
+                unpickedParametersByTileUuid: unpicked,
+            }),
+        ).toEqual([{ tile: tiles[0], parameters: { region: 'US' } }]);
+    });
+});
+
+describe('serializeDashboardDateZoomControlsForAiContext', () => {
+    it('reads a control stored without the pick flag as saved', () => {
+        const stored = [
+            { uuid: 'zoom-1', name: 'Revenue zoom', granularity: 'Day', tiles },
+        ] as Parameters<
+            typeof serializeDashboardDateZoomControlsForAiContext
+        >[0];
+        expect(
+            serializeDashboardDateZoomControlsForAiContext(stored)[0].source,
+        ).toBe('saved');
     });
 });

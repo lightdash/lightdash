@@ -72,6 +72,14 @@ export type PivotConfiguration = {
      * back to hoisting sort-only sort targets to the front (legacy behavior).
      */
     pivotColumnsOrder?: GroupByColumn[];
+    /**
+     * When true, groups past the pivot column limit are not dropped. Their
+     * values are added up per row into one extra "Other" pivot column
+     * (`OTHER_PIVOT_KEY`), so anything summed across the groups, such as a
+     * stacked bar total, still covers the whole result. Only set for stacked
+     * cartesian charts whose values are all numeric.
+     */
+    foldOverflowGroups?: boolean;
 };
 
 type Field =

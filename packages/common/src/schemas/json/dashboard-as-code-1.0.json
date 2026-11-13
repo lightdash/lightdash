@@ -400,7 +400,7 @@
         "DashboardConfigAsCode": {
             "properties": {
                 "controlOrder": {
-                    "description": "The order of filters, parameter controls and sections on the bar. Absent: the default order.",
+                    "description": "The order of filters, parameter controls, date zoom controls and sections on the bar. Absent: the default order.",
                     "items": {
                         "$ref": "#/$defs/DashboardControlRefAsCode"
                     },
@@ -427,7 +427,7 @@
                             "type": "array"
                         },
                         "tileTargets": {
-                            "$ref": "#/$defs/Record_string.DateZoomTileTarget_"
+                            "$ref": "#/$defs/Record_string.DateZoomTileTargetAsCode_"
                         }
                     },
                     "required": ["tileTargets", "controls"],
@@ -1205,6 +1205,10 @@
                 "sectionSlug": {
                     "type": "string"
                 },
+                "slug": {
+                    "description": "Resolves `controlOrder` refs in this file; derived on download, never stored",
+                    "type": "string"
+                },
                 "uuid": {
                     "type": "string"
                 }
@@ -1212,8 +1216,12 @@
             "required": ["granularity", "name", "uuid"],
             "type": "object"
         },
-        "DateZoomTileTarget": {
+        "DateZoomTileTargetAsCode": {
             "properties": {
+                "controlSlug": {
+                    "description": "Slug of the control at `controlUuid`; written on download, ignored on upload",
+                    "type": "string"
+                },
                 "controlUuid": {
                     "type": "string"
                 },
@@ -1566,9 +1574,9 @@
             "properties": {},
             "type": "object"
         },
-        "Record_string.DateZoomTileTarget_": {
+        "Record_string.DateZoomTileTargetAsCode_": {
             "additionalProperties": {
-                "$ref": "#/$defs/DateZoomTileTarget"
+                "$ref": "#/$defs/DateZoomTileTargetAsCode"
             },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},

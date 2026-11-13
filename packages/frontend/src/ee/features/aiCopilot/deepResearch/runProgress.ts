@@ -1,6 +1,5 @@
 import {
     assertUnreachable,
-    countDeepResearchFindings,
     type AiDeepResearchActivity,
     type AiDeepResearchEvent,
     type AiDeepResearchPhase,
@@ -124,10 +123,6 @@ export const toDeepResearchRegistration = (
     state: 'started',
 });
 
-/** Intro of the report markdown, before the detailed report sections. */
-export const getDeepResearchReportPreview = (markdown: string): string =>
-    markdown.split(/^## /m)[0].trim();
-
 export const adaptDeepResearchRun = ({
     run,
     events,
@@ -173,17 +168,9 @@ export const adaptDeepResearchRun = ({
         elapsedMs: Math.max(0, endTime - startTime),
         sourceCount: null,
         queryCount,
-        findingCount:
-            run.metrics.findingsCount ??
-            (run.resultMarkdown
-                ? countDeepResearchFindings(run.resultMarkdown)
-                : 0),
+        findingCount: run.metrics.findingsCount ?? 0,
         actionRequired: null,
         latestEvents: getLatestEvents(events),
-        resultMarkdown: run.resultMarkdown,
-        reportExpiresAt: run.reportExpiresAt,
-        reportExpiredAt: run.reportExpiredAt,
-        isReportExpired: run.isReportExpired,
         document: run.document,
         errorMessage: run.errorMessage,
     };

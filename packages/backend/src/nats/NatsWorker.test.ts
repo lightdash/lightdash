@@ -6,6 +6,7 @@ import {
 import { StringCodec, type JsMsg } from 'nats';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type NatsClient } from '../clients/NatsClient';
+import Logger from '../logging/logger';
 import { type QueryHistoryModel } from '../models/QueryHistoryModel/QueryHistoryModel';
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { registerPreAggregateStream, STREAM_CONFIGS } from './natsConfig';
@@ -16,6 +17,7 @@ const codec = StringCodec();
 const jobMessage = (subject: string): JsMsg =>
     ({
         subject,
+        info: { deliveryCount: 1 },
         data: codec.encode(
             JSON.stringify({
                 jobId: 'job-1',
@@ -55,8 +57,65 @@ describe('NatsWorker subject dispatch', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.spyOn(Logger, 'warn');
         queryHistoryModel.getByQueryUuid.mockResolvedValue(undefined);
         registerPreAggregateStream();
+    });
+
+    it('logs redelivery before processing the job', async () => {
+        const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        Object.assign(message.info, { deliveryCount: 2 });
+        await buildWorker().handleMessage(message);
+        expect(Logger.warn).toHaveBeenCalledWith(
+            'NATS query message redelivered',
+            {
+                queryUuid: 'query-1',
+                deliveryCount: 2,
+                reason: 'unknown',
+            },
+        );
+        expect(message.ack).toHaveBeenCalledOnce();
+    });
+
+    it('logs an unclaimed job termination', async () => {
+        const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        asyncQueryService.runAsyncWarehouseQueryFromHistory.mockResolvedValueOnce(
+            false,
+        );
+        await buildWorker().handleMessage(message);
+        expect(Logger.warn).toHaveBeenCalledWith(
+            'NATS query message disposition',
+            {
+                queryUuid: 'query-1',
+                deliveryCount: 1,
+                action: 'term',
+                reason: 'not claimed',
+            },
+        );
+        expect(message.term).toHaveBeenCalledOnce();
+    });
+
+    it('logs invalid message termination without its contents', async () => {
+        const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        message.data = codec.encode('{');
+        await buildWorker().handleMessage(message);
+        expect(Logger.warn).toHaveBeenCalledWith(
+            'NATS query message disposition',
+            {
+                queryUuid: null,
+                deliveryCount: 1,
+                action: 'term',
+                reason: 'invalid message',
+            },
+        );
+        expect(message.term).toHaveBeenCalledOnce();
+    });
+
+    it('does not log redelivery for a first delivery', async () => {
+        await buildWorker().handleMessage(
+            jobMessage(STREAM_CONFIGS.warehouse.subjects.query),
+        );
+        expect(Logger.warn).not.toHaveBeenCalled();
     });
 
     it('runs a DuckDB job published on the dedicated DuckDB stream', async () => {
@@ -110,6 +169,15 @@ describe('NatsWorker subject dispatch', () => {
         ).toHaveBeenCalledWith(
             'query-1',
             expect.stringContaining('cannot run'),
+        );
+        expect(Logger.warn).toHaveBeenCalledWith(
+            'NATS query message disposition',
+            {
+                queryUuid: 'query-1',
+                action: 'term',
+                deliveryCount: 1,
+                reason: 'unexpected subject',
+            },
         );
         expect(message.term).toHaveBeenCalled();
         expect(message.ack).not.toHaveBeenCalled();
@@ -182,6 +250,15 @@ describe('NatsWorker subject dispatch', () => {
             },
         } as QueryHistory);
         await buildWorker().handleMessage(message, 'worker-1');
+        expect(Logger.warn).toHaveBeenCalledWith(
+            'NATS query message disposition',
+            {
+                queryUuid: 'query-1',
+                deliveryCount: 1,
+                action: 'term',
+                reason: 'Error',
+            },
+        );
         expect(message.term).toHaveBeenCalledOnce();
         expect(message.nak).not.toHaveBeenCalled();
     });
@@ -251,6 +328,15 @@ describe('NatsWorker subject dispatch', () => {
                 requestParameters: {},
             } as QueryHistory);
             await buildWorker().handleMessage(message, 'worker-1');
+            expect(Logger.warn).toHaveBeenCalledWith(
+                'NATS query message disposition',
+                {
+                    queryUuid: 'query-1',
+                    action: 'nak',
+                    deliveryCount: 1,
+                    reason: error.name,
+                },
+            );
             expect(message.nak).toHaveBeenCalledOnce();
             expect(message.term).not.toHaveBeenCalled();
             expect(queryHistoryModel.getByQueryUuid).toHaveBeenCalledOnce();

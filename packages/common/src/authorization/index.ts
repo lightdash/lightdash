@@ -1,6 +1,8 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import { NotFoundError } from '../types/errors';
+import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { type ProjectMemberProfile } from '../types/projectMemberProfile';
+import { ProjectMemberRole } from '../types/projectMemberRole';
 import { type ProjectType } from '../types/projects';
 import { type Role, type RoleWithScopes } from '../types/roles';
 import { type LightdashUser } from '../types/user';
@@ -44,6 +46,27 @@ type UserAbilityBuilderArgs = {
      * role's scope list fully decides token access.
      */
     patScopeAuthoritative?: boolean;
+    /**
+     * Org opt-in (DataAppConsumerAccess flag): system Viewers can open data
+     * apps they can access. Their app queries are authorized per app version.
+     */
+    dataAppConsumerAccess?: boolean;
+};
+
+// Same discovery rules Interactive Viewer gets, without Explore.
+const applyDataAppConsumerAbilities = (
+    builder: AbilityBuilder<MemberAbility>,
+    userUuid: string,
+    owner: { organizationUuid: string } | { projectUuid: string },
+) => {
+    builder.can('view', 'DataApp', {
+        ...owner,
+        inheritsFromOrgOrProject: true,
+    });
+    builder.can('view', 'DataApp', {
+        ...owner,
+        access: { $elemMatch: { userUuid } },
+    });
 };
 
 export const JWT_HEADER_NAME = 'lightdash-embed-token';
@@ -64,6 +87,7 @@ export const getUserAbilityBuilder = ({
     customRolesEnabled,
     isEnterprise,
     patScopeAuthoritative,
+    dataAppConsumerAccess,
 }: UserAbilityBuilderArgs): UserAbilityBuilderResult => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     const invalidScopes: string[] = [];
@@ -142,6 +166,14 @@ export const getUserAbilityBuilder = ({
                 builder,
                 permissionsConfig,
             });
+            if (
+                dataAppConsumerAccess &&
+                user.role === OrganizationMemberRole.VIEWER
+            ) {
+                applyDataAppConsumerAbilities(builder, user.userUuid, {
+                    organizationUuid: user.organizationUuid,
+                });
+            }
         }
         applyExtraRoles(orgExtraRoleUuids, (scopes) =>
             buildAbilityFromScopes(
@@ -197,6 +229,14 @@ export const getUserAbilityBuilder = ({
                     projectProfile,
                     builder,
                 );
+                if (
+                    dataAppConsumerAccess &&
+                    projectProfile.role === ProjectMemberRole.VIEWER
+                ) {
+                    applyDataAppConsumerAbilities(builder, user.userUuid, {
+                        projectUuid: projectProfile.projectUuid,
+                    });
+                }
             }
             applyExtraRoles(projectProfile.extraRoleUuids ?? [], (scopes) =>
                 buildAbilityFromScopes(

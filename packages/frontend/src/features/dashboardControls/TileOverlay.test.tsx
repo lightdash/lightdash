@@ -22,8 +22,8 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
+import { ControlContractClasses } from './controlContractClasses';
 import type * as LazySelectModule from './LazySelect';
-import { RailContractClasses } from './railContractClasses';
 import { TileOverlays } from './TileOverlay';
 
 const mockSidebar = vi.hoisted(() => ({
@@ -368,17 +368,19 @@ describe('TileOverlays', () => {
 
     it("gives a card's list an embed's dropdown class", async () => {
         renderWithProviders(
-            <RailContractClasses.Provider
+            <ControlContractClasses.Provider
                 value={{
-                    rail: 'rail-class',
+                    editor: 'editor-class',
                     addFilterDropdown: 'ld-dashboard-add-filter-dropdown',
                     filterDropdown: 'ld-dashboard-filter-dropdown',
                     parameter: 'ld-dashboard-parameter',
                     parameterDropdown: 'ld-dashboard-parameter-dropdown',
+                    dateZoom: 'ld-dashboard-date-zoom',
+                    dateZoomDropdown: 'ld-dashboard-date-zoom-dropdown',
                 }}
             >
                 <TileOverlays />
-            </RailContractClasses.Provider>,
+            </ControlContractClasses.Provider>,
         );
 
         select(both.uuid).focus();

@@ -4,6 +4,7 @@ import {
     getDateZoomCapabilities,
     getDateZoomXAxisFieldId,
     hasReservedParameterReference,
+    isDateZoomRefusedOnExplore,
     QueryExecutionContext,
     resolveTileDateZoom,
     type ApiError,
@@ -88,6 +89,9 @@ export type DashboardChartReadyQuery = {
     // Default). Downstream consumers reuse it so visualization, downloads, and
     // underlying data agree with the query that was executed.
     dateZoom: DateZoom | undefined;
+    // The zoom the dashboard asked for when this tile keeps its saved grain
+    // instead (live data sources), so the tile can say the zoom doesn't apply
+    refusedDateZoom?: DateZoom;
 };
 
 export const useDashboardChartReadyQuery = (
@@ -140,6 +144,9 @@ export const useDashboardChartReadyQuery = (
     );
     const setChartZoomableFields = useDashboardContext(
         (c) => c.setChartZoomableFields,
+    );
+    const setTileDateZoomRefused = useDashboardContext(
+        (c) => c.setTileDateZoomRefused,
     );
 
     const sortKey =
@@ -217,10 +224,20 @@ export const useDashboardChartReadyQuery = (
         [chartQuery.data, explore],
     );
 
-    // Single source of truth for this tile's wire date zoom. Attached tiles zoom
-    // their control's grain on the target field; unassigned tiles fall through to
-    // the Default (the existing global picker + x-axis baseline).
-    const tileDateZoom = useMemo(
+    // Live data sources whose integration refuses date zoom keep their saved
+    // grain: they never send the zoom, so one zoom doesn't fail their tiles
+    const isDateZoomRefused = !!explore && isDateZoomRefusedOnExplore(explore);
+
+    useEffect(() => {
+        if (explore) {
+            setTileDateZoomRefused(tileUuid, isDateZoomRefused);
+        }
+    }, [explore, isDateZoomRefused, setTileDateZoomRefused, tileUuid]);
+
+    // The zoom this tile's control (or the Default: the existing global picker
+    // + x-axis baseline) asks for. Attached tiles zoom their control's grain on
+    // the target field.
+    const requestedTileDateZoom = useMemo(
         () =>
             resolveTileDateZoom({
                 config: dateZoomConfig,
@@ -237,6 +254,12 @@ export const useDashboardChartReadyQuery = (
             dateZoomXAxisFieldId,
         ],
     );
+
+    // Single source of truth for this tile's wire date zoom
+    const tileDateZoom = isDateZoomRefused ? undefined : requestedTileDateZoom;
+    const refusedDateZoom = isDateZoomRefused
+        ? requestedTileDateZoom
+        : undefined;
 
     useEffect(() => {
         if (!dateZoomCapabilities) return;
@@ -474,6 +497,7 @@ export const useDashboardChartReadyQuery = (
     return {
         ...queryResult,
         chartQuery,
+        refusedDateZoom,
         error: chartQuery.error || exploreError || queryResult.error,
     };
 };

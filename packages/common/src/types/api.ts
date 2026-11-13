@@ -476,8 +476,11 @@ import { type SchedulerWithLogs } from './schedulerLog';
 import { type SearchResults } from './search';
 import {
     type ApiSemanticLayerDraftApplyResponse,
+    type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
     type ApiSemanticLayerDraftResponse,
+    type ApiSemanticLayerDraftStateResponse,
+    type ApiSemanticLayerDraftUsageResponse,
 } from './semanticStudio';
 import { type ShareUrl } from './share';
 import { type SharedSignInStatus } from './sharedSignIn';
@@ -919,6 +922,9 @@ export type HealthState = {
         enabled: boolean;
     };
     dashboardComments: {
+        enabled: boolean;
+    };
+    mergeQueryAuthoring: {
         enabled: boolean;
     };
     preAggregates: {
@@ -1890,8 +1896,11 @@ type ApiResults =
     | ApiAiProviderCredentialCreatedResponse['results']
     | ApiProjectAiCredentialResponse['results']
     | ApiSemanticLayerDraftResponse['results']
+    | ApiSemanticLayerDraftedModelsResponse['results']
+    | ApiSemanticLayerDraftStateResponse['results']
     | ApiSemanticLayerDraftApplyResponse['results']
-    | ApiSemanticLayerDraftImpactResponse['results'];
+    | ApiSemanticLayerDraftImpactResponse['results']
+    | ApiSemanticLayerDraftUsageResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

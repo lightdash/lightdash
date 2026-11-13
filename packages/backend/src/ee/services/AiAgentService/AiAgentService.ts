@@ -181,7 +181,9 @@ import {
     QuerySourceType,
     QuerySurface,
     ReadinessScore,
+    serializeDashboardDateZoomControlsForAiContext,
     serializeDashboardFiltersForAiContext,
+    serializeDashboardTileParametersForAiContext,
     ShareUrl,
     SlackPrompt,
     sleep,
@@ -709,7 +711,10 @@ import {
     WritebackAgentAccessError,
     WritebackThreadPrClosedError,
 } from '../AiWritebackService/errors';
-import type { AiWritebackSource } from '../AiWritebackService/types';
+import type {
+    AiWritebackSource,
+    ParsedDbtProject,
+} from '../AiWritebackService/types';
 import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writebackAgentWork';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
@@ -3583,7 +3588,11 @@ export class AiAgentService extends BaseService {
 
         let threadScope: EmbedThreadScope;
         if (!isReadOnly) {
-            threadScope = { type: 'writeSpaces', writeSpaceUuids };
+            threadScope = {
+                type: 'writeSpaces',
+                writeSpaceUuids,
+                externalUserId,
+            };
         } else if (externalUserId !== null) {
             threadScope = { type: 'externalUser', externalUserId };
         } else {
@@ -5798,10 +5807,12 @@ export class AiAgentService extends BaseService {
                 );
             }
             if (
-                !(await this.semanticStudioService.canEditModels(
-                    user,
-                    agent.projectUuid,
-                ))
+                !(
+                    await this.semanticStudioService.getStatus(
+                        user,
+                        agent.projectUuid,
+                    )
+                ).enabled
             ) {
                 throw new ForbiddenError(
                     'You cannot change the semantic layer of this project',
@@ -12759,7 +12770,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
     }
 
     static createDeepResearchRunContext(
-        runs: AiDeepResearchRunContextRow[],
+        runs: Array<AiDeepResearchRunContextRow & { has_report: boolean }>,
         latestProgressEvents: DbAiDeepResearchEvent[],
         now = new Date(),
     ): AiAgentDeepResearchRunContext[] {
@@ -12799,9 +12810,9 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         });
     }
 
-    static selectDeepResearchContextRuns(
-        runs: AiDeepResearchRunContextRow[],
-    ): AiDeepResearchRunContextRow[] {
+    static selectDeepResearchContextRuns<T extends AiDeepResearchRunContextRow>(
+        runs: T[],
+    ): T[] {
         const activeRuns = runs.filter(
             ({ status }) => !isAiDeepResearchRunTerminal(status),
         );
@@ -13021,11 +13032,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                             `  Active tab: "${overrides.activeTab.name}"`,
                         );
                     }
+                    // With named zooms the dashboard-wide one needs its own name
+                    const dateZoomLabel = overrides.dateZoomControls
+                        ? 'default date zoom'
+                        : 'date zoom';
                     // Stated explicitly so a reset replaces overrides from earlier turns.
                     const savedState = [
                         !overrides.dashboardFilters && 'filters',
-                        !overrides.dashboardParameters && 'parameter values',
-                        overrides.dateZoom === undefined && 'date zoom',
+                        !overrides.dashboardParameters &&
+                            !overrides.tileParameters &&
+                            'parameter values',
+                        overrides.dateZoom === undefined && dateZoomLabel,
                     ].filter((label): label is string => !!label);
                     if (savedState.length > 0) {
                         overrideLines.push(
@@ -13044,7 +13061,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     }
                     if (overrides.dateZoom !== undefined) {
                         overrideLines.push(
-                            `  Date zoom: ${JSON.stringify(overrides.dateZoom)}`,
+                            `  ${overrides.dateZoomControls ? 'Default date zoom' : 'Date zoom'}: ${JSON.stringify(overrides.dateZoom)}`,
+                        );
+                    }
+                    if (overrides.tileParameters) {
+                        overrideLines.push(
+                            `  Parameter values by tile: ${JSON.stringify(serializeDashboardTileParametersForAiContext(overrides.tileParameters))}`,
+                        );
+                    }
+                    if (overrides.dateZoomControls) {
+                        overrideLines.push(
+                            `  Named date zooms, each setting the grain of its own tiles; the other tiles follow the default date zoom: ${JSON.stringify(serializeDashboardDateZoomControlsForAiContext(overrides.dateZoomControls))}`,
                         );
                     }
                     return overrideLines.length > 0
@@ -13841,8 +13868,23 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             toolResultReady = true;
 
             let result: AiWritebackRunResult;
+            let changedModels: string[] | null = null;
             try {
                 const runArgs = {
+                    ...(prompt.threadCreatedFrom === 'semantic_studio'
+                        ? {
+                              onDbtProject: async (
+                                  project: ParsedDbtProject,
+                              ) => {
+                                  changedModels =
+                                      await this.semanticStudioService.saveDbtTryOut(
+                                          user,
+                                          projectUuid,
+                                          project,
+                                      );
+                              },
+                          }
+                        : {}),
                     agentPermissionsApply: true,
                     user,
                     projectUuid,
@@ -14024,6 +14066,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     deletions: result.deletions ?? null,
                     previewUrl: previewUrl ?? null,
                     steps: result.steps,
+                    changedModels,
                     needsDbtSourceSelection:
                         result.needsDbtSourceSelection ?? null,
                     dbtSourceOptions: result.dbtSourceOptions ?? null,
@@ -15236,7 +15279,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             return runAttachmentShellCommand(files, command);
         };
 
-        const exploreRepo: ExploreRepoFn = async ({ command, target }) => {
+        const exploreRepo: ExploreRepoFn = async ({
+            command,
+            target,
+            rankMatches,
+        }) => {
             const mountFs = await getMountFs();
             const trimmedTarget = target?.trim();
             // `target` selects the starting directory in the unified tree: an
@@ -15258,7 +15305,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 cwd,
                 isTruncated: () => Promise.resolve(mountFs.isTruncated()),
                 budgetHit: () => Promise.resolve(mountFs.wasBudgetHit()),
-                search: (absPath, query) => mountFs.search(absPath, query),
+                search: async (absPath, query) => {
+                    const found = await mountFs.search(absPath, query);
+                    return rankMatches
+                        ? {
+                              ...found,
+                              matches: await rankMatches(found.matches),
+                          }
+                        : found;
+                },
             });
         };
 
@@ -17494,11 +17549,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     AiAgentService.selectDeepResearchContextRuns(
                         threadDeepResearchRuns.map((run) => ({
                             ...run,
-                            has_report:
-                                run.has_report ||
-                                researchDocuments.has(
-                                    run.ai_deep_research_run_uuid,
-                                ),
+                            has_report: researchDocuments.has(
+                                run.ai_deep_research_run_uuid,
+                            ),
                         })),
                     );
                 const latestDeepResearchProgress =
@@ -17548,6 +17601,17 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             featureFlagId: FeatureFlags.AiAgentAskUser,
                         })
                     ).enabled;
+                // A dbt project keeps no draft in Semantic Studio; its thread edits the repository instead.
+                const semanticStudioStatus = isSemanticStudioThread
+                    ? await this.semanticStudioService.getStatus(
+                          user,
+                          promptProject.projectUuid,
+                      )
+                    : null;
+                const semanticStudioDrafts =
+                    semanticStudioStatus !== null &&
+                    semanticStudioStatus.enabled &&
+                    semanticStudioStatus.appliesAs !== 'dbt_pull_request';
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17559,6 +17623,16 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 if (
                     aiWritebackEnabled &&
                     !writebackConnectionSupport.editDbtProject
+                ) {
+                    aiWritebackEnabled = false;
+                }
+
+                // On a dbt project Semantic Studio proposes first: the pull request tools join only the turn the person asks for one.
+                if (
+                    semanticStudioStatus !== null &&
+                    (!semanticStudioStatus.enabled ||
+                        (!semanticStudioDrafts &&
+                            !options.toolHints?.includes('editDbtProject')))
                 ) {
                     aiWritebackEnabled = false;
                 }
@@ -18036,6 +18110,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread,
+                    semanticStudioDrafts,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,

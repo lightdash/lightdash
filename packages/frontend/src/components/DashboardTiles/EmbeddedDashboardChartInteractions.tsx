@@ -179,6 +179,10 @@ const EmbeddedDashboardChartInteractions: FC<Props> = ({
                         <UnderlyingDataMenuItem
                             metricQuery={chart.metricQuery}
                             onViewUnderlyingData={handleViewUnderlyingData}
+                            pivotReference={
+                                contextMenuOptions?.viewUnderlyingDataOptions
+                                    .pivotReference
+                            }
                         />
                     )}
                     {interactions.canDrillDown && (

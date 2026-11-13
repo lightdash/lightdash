@@ -10,10 +10,7 @@ import type {
     AppStateTransport,
 } from './types';
 
-const sharedEntry = (
-    value: unknown,
-    version: number,
-): AppStateSharedEntry => ({
+const sharedEntry = (value: unknown, version: number): AppStateSharedEntry => ({
     value,
     version,
     updatedAt: `2026-10-20T00:00:0${version}.000Z`,
@@ -121,6 +118,27 @@ describe('createAppStateStore', () => {
             'x',
             null,
         );
+    });
+
+    it('drops shared writes, deletes and history when the viewer has no shared access', async () => {
+        const transport = mockTransport({
+            user: {},
+            shared: {},
+            sharedAccess: 'none',
+        });
+        const store = createAppStateStore({ transport, warn: vi.fn() });
+        // Written before the snapshot says shared values are unavailable.
+        store.setShared('early', 'x', null);
+        await store.load();
+        store.setShared('targets', { q1: 2 }, {});
+        await store.deleteShared('targets');
+        await vi.advanceTimersByTimeAsync(300);
+        expect(transport.setShared).not.toHaveBeenCalled();
+        expect(transport.deleteShared).not.toHaveBeenCalled();
+        expect(store.getState().sharedAvailable).toBe(false);
+        expect(store.getState().shared).toEqual({});
+        await expect(store.history('targets')).resolves.toEqual([]);
+        expect(transport.getSharedHistory).not.toHaveBeenCalled();
     });
 
     it('re-applies updaters on top of the server value after a conflict', async () => {
@@ -272,7 +290,10 @@ describe('createAppStateStore ordering and recovery', () => {
         vi.useRealTimers();
     });
 
-    type Deferred = { resolve: (v: unknown) => void; reject: (e: Error) => void };
+    type Deferred = {
+        resolve: (v: unknown) => void;
+        reject: (e: Error) => void;
+    };
     const deferredTransport = () => {
         const transport = mockTransport();
         const holds: Deferred[] = [];

@@ -14,6 +14,7 @@ import {
     toFieldCombinationIssue,
     type CompiledApiSourceQuery,
 } from '../apiSourceExplore';
+import { getGrainIssues, type ApiSourceGrain } from '../apiSourceGrain';
 import {
     LINKEDIN_ADS_MAX_QUERY_ROWS,
     type LinkedInAdsPivot,
@@ -42,17 +43,36 @@ const refuse = (fieldId: string | null, message: string) =>
 const includesColumn = (columns: readonly string[], name: string) =>
     columns.includes(name);
 
-const getPivot = (dimensions: string[]): LinkedInAdsPivot => {
-    if (
-        dimensions.some((n) => includesColumn(LINKEDIN_ADS_CAMPAIGN_COLUMNS, n))
-    ) {
+const getColumnPivot = (name: string): LinkedInAdsPivot | null => {
+    if (includesColumn(LINKEDIN_ADS_CAMPAIGN_COLUMNS, name)) {
         return 'CAMPAIGN';
     }
-    return dimensions.some((n) =>
-        includesColumn(LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS, n),
-    )
+    return includesColumn(LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS, name)
         ? 'CAMPAIGN_GROUP'
-        : 'ACCOUNT';
+        : null;
+};
+
+const getPivot = (dimensions: string[]): LinkedInAdsPivot => {
+    const pivots = dimensions.map(getColumnPivot);
+    if (pivots.includes('CAMPAIGN')) {
+        return 'CAMPAIGN';
+    }
+    return pivots.includes('CAMPAIGN_GROUP') ? 'CAMPAIGN_GROUP' : 'ACCOUNT';
+};
+
+// A campaign or campaign group name identifies its rows on its own, as a
+// campaign name does on Google Ads and Meta Ads.
+const GRAINS: Partial<Record<LinkedInAdsPivot, ApiSourceGrain>> = {
+    CAMPAIGN: {
+        entity: 'campaign',
+        identities: [['campaign.id'], ['campaign.name']],
+        fix: 'Add Campaign name or Campaign ID.',
+    },
+    CAMPAIGN_GROUP: {
+        entity: 'campaign group',
+        identities: [['campaignGroup.id'], ['campaignGroup.name']],
+        fix: 'Add Campaign group name or Campaign group ID.',
+    },
 };
 
 const toIds = (rule: FilterRule) => {
@@ -134,6 +154,19 @@ export const compileLinkedInAdsQuery = ({
         throw refuse(null, 'Pick one date grain: day, month or year.');
     }
     const pivot = getPivot(dimensions);
+
+    const grainIssues = getGrainIssues({
+        explore,
+        integration: 'LinkedIn Ads',
+        grains: GRAINS,
+        level: pivot,
+        levelOf: getColumnPivot,
+        dimensions: metricQuery.dimensions,
+        apiName,
+    });
+    if (grainIssues.length > 0) {
+        throw toApiSourceQueryError(grainIssues);
+    }
 
     const metrics =
         metricQuery.metrics.length > 0

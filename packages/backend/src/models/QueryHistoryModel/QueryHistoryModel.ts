@@ -166,6 +166,15 @@ export function getQueryHistoryRequestColumns(
     };
 }
 
+export class QueryPollingTimeoutError extends Error {
+    readonly timeoutMs: number;
+
+    constructor(timeoutMs: number) {
+        super(`Query polling timed out after ${timeoutMs}ms`);
+        this.timeoutMs = timeoutMs;
+    }
+}
+
 export class QueryHistoryModel {
     readonly database: Knex;
 
@@ -426,29 +435,6 @@ export class QueryHistoryModel {
                 this.database.raw(
                     "jsonb_set(request_parameters, '{resultMessageQuery}', ?::jsonb, true)",
                     [JSON.stringify(messageQuery)],
-                ),
-            );
-    }
-
-    async recordResultResearchRun(
-        queryUuid: string,
-        projectUuid: string,
-        accountId: string,
-        runUuid: string,
-    ): Promise<void> {
-        await this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid)
-            .andWhere((query) => {
-                void query
-                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
-                    .orWhere('created_by_account', accountId);
-            })
-            .update(
-                'request_parameters',
-                this.database.raw(
-                    "jsonb_set(request_parameters, '{resultResearchRunUuid}', ?::jsonb, true)",
-                    [JSON.stringify(runUuid)],
                 ),
             );
     }
@@ -1054,7 +1040,7 @@ export class QueryHistoryModel {
         const poll = async (backoffMs: number): Promise<QueryHistory> => {
             abortSignal?.throwIfAborted();
             if (Date.now() - startTime > timeoutMs) {
-                throw new Error(`Query polling timed out after ${timeoutMs}ms`);
+                throw new QueryPollingTimeoutError(timeoutMs);
             }
 
             const queryHistory = await getQueryHistory();

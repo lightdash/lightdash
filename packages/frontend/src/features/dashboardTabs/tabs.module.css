@@ -158,6 +158,29 @@
     position: relative;
 }
 
+/* Room for the first row's top grip to clear the sticky filters bar */
+.tabGridContainer[data-edit-canvas] {
+    padding-top: 4px;
+}
+
+/* The grid reaches the bottom of the window, so the whole editing area reads
+   as canvas; the action bar clearance sits inside it to carry the pattern */
+.tabGridContainer[data-fill-window] :global(.react-grid-layout) {
+    --canvas-scale: 1;
+    box-sizing: content-box;
+    padding-bottom: calc(var(--canvas-bottom-pad, 0px) / var(--canvas-scale));
+}
+.tabGridContainer[data-fill-window]
+    :global([data-canvas-zoom][data-zoomed] .react-grid-layout) {
+    --canvas-scale: var(--canvas-zoom);
+}
+.tabGridContainer[data-fill-window] :global(.react-grid-layout) {
+    min-height: calc(
+        (100dvh - var(--canvas-top, 0px) - var(--canvas-bottom-pad, 0px)) /
+            var(--canvas-scale)
+    );
+}
+
 .gridInteracting {
     user-select: none;
 }
@@ -192,7 +215,7 @@
         content: '';
         position: absolute;
         inset: var(--tile-gutter);
-        border-radius: var(--mantine-radius-md);
+        border-radius: var(--dashboard-tile-radius-edit);
         background: color-mix(
             in srgb,
             var(--mantine-color-ldGray-5) 35%,
@@ -295,26 +318,28 @@
 }
 
 .gridLines {
+    --grid-line-color: var(--mantine-color-ldGray-2);
+
     & :global(.react-grid-layout) {
         background-image:
             linear-gradient(
                 to right,
-                var(--mantine-color-ldGray-2) 1px,
+                var(--grid-line-color) 1px,
                 transparent 1px
             ),
             linear-gradient(
                 to right,
-                var(--mantine-color-ldGray-2) 1px,
+                var(--grid-line-color) 1px,
                 transparent 1px
             ),
             linear-gradient(
                 to bottom,
-                var(--mantine-color-ldGray-2) 1px,
+                var(--grid-line-color) 1px,
                 transparent 1px
             ),
             linear-gradient(
                 to bottom,
-                var(--mantine-color-ldGray-2) 1px,
+                var(--grid-line-color) 1px,
                 transparent 1px
             );
         background-size: var(--grid-cell-w) var(--grid-cell-h);
@@ -324,6 +349,40 @@
             var(--grid-pad-x) var(--grid-pad-y),
             var(--grid-pad-x) calc(var(--grid-pad-y) + var(--grid-row-h));
     }
+
+    /* A dot in the middle of the gap at each cell corner, so a tile spans dot
+       to dot. Fine columns are about half as wide as rows are tall, so dots
+       mark every second one to keep the spacing even both ways */
+    &[data-canvas-background='dots'] :global(.react-grid-layout) {
+        --grid-gap-x: calc(var(--grid-cell-w) - var(--grid-col-w));
+        --grid-gap-y: calc(var(--grid-cell-h) - var(--grid-row-h));
+        background-image: radial-gradient(
+            circle,
+            var(--grid-line-color) 1px,
+            transparent 1.5px
+        );
+        background-size: calc(var(--grid-cell-w) * 2) var(--grid-cell-h);
+        background-position: calc(
+                var(--grid-pad-x) - var(--grid-gap-x) / 2 - var(--grid-cell-w)
+            )
+            calc(
+                var(--grid-pad-y) - var(--grid-gap-y) / 2 - var(--grid-cell-h) /
+                    2
+            );
+    }
+}
+
+.gridLines[data-edit-canvas] {
+    --grid-line-color: var(--mantine-color-ldGray-3);
+}
+/* Always on while editing, so quieter against the dark page */
+:global([data-mantine-color-scheme='dark']) .gridLines[data-edit-canvas] {
+    --grid-line-color: var(--mantine-color-ldGray-1);
+}
+
+/* Catches events without adding a box to the tile's layout */
+.tilePressBoundary {
+    display: contents;
 }
 
 .filtersBar {

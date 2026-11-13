@@ -27,6 +27,7 @@ export * from './apps/dataAppVizFieldMapping';
 export * from './apps/types';
 export * from './apps/chartTypeIcons';
 export * from './apps/code';
+export * from './apps/consumerAccess';
 export * from './apps/dataReferenceChecker';
 export * from './apps/dataReferences';
 export * from './apps/registry';

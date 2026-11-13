@@ -55,7 +55,6 @@ describe('DeepResearchRunCard', () => {
                     run={{
                         ...deepResearchRunFixture,
                         status,
-                        resultMarkdown: null,
                         findingCount: 0,
                         completedAt: null,
                     }}
@@ -80,7 +79,6 @@ describe('DeepResearchRunCard', () => {
                 run={{
                     ...deepResearchRunFixture,
                     status: 'running',
-                    resultMarkdown: null,
                     completedAt: null,
                     elapsedMs: 250,
                 }}
@@ -103,7 +101,6 @@ describe('DeepResearchRunCard', () => {
                 run={{
                     ...deepResearchRunFixture,
                     status: 'running',
-                    resultMarkdown: null,
                     completedAt: null,
                 }}
                 projectUuid="project-1"
@@ -134,10 +131,6 @@ describe('DeepResearchRunCard', () => {
                     run={{
                         ...deepResearchRunFixture,
                         status,
-                        resultMarkdown:
-                            status === 'cancelled'
-                                ? null
-                                : deepResearchRunFixture.resultMarkdown,
                         errorMessage:
                             status === 'failed'
                                 ? 'The warehouse timed out.'
@@ -176,7 +169,6 @@ describe('DeepResearchRunCard', () => {
                     ...deepResearchRunFixture,
                     status: 'failed',
                     terminalReason: 'no_relevant_data',
-                    resultMarkdown: null,
                     errorMessage:
                         'Deep Research could not find relevant data for this question.',
                 }}
@@ -217,23 +209,22 @@ describe('DeepResearchRunCard', () => {
                 /completed queries and available findings are saved below/i,
             ),
         ).toBeInTheDocument();
-        expect(screen.getByText('Research summary')).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'View full report' }),
+            screen.getByRole('link', {
+                name: /Why enterprise retention fell in Q2/,
+            }),
         ).toBeInTheDocument();
     });
 
-    it('replaces expired report content with a stable rerun action', async () => {
+    it('marks a finished run without a Document as unavailable', async () => {
         const user = userEvent.setup();
         const onRunAgain = vi.fn();
         renderRunCard(
             <DeepResearchRunCard
                 run={{
                     ...deepResearchRunFixture,
-                    resultMarkdown: null,
                     findingCount: 0,
-                    isReportExpired: true,
-                    reportExpiredAt: '2026-07-30T09:18:00.000Z',
+                    document: null,
                 }}
                 projectUuid="project-1"
                 canRunAgain
@@ -246,13 +237,12 @@ describe('DeepResearchRunCard', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByText(
-                'Deep Research reports are available for 30 days.',
+                'Run the research again to publish it as a Document.',
             ),
         ).toBeInTheDocument();
         expect(
             screen.getByText(deepResearchRunFixture.question),
         ).toBeInTheDocument();
-        expect(screen.queryByText('Research summary')).not.toBeInTheDocument();
 
         await user.click(
             screen.getByRole('button', { name: 'Run research again' }),
@@ -260,37 +250,7 @@ describe('DeepResearchRunCard', () => {
         expect(onRunAgain).toHaveBeenCalledOnce();
     });
 
-    it('tracks explicitly opening the full report', async () => {
-        const user = userEvent.setup();
-        renderRunCard(
-            <DeepResearchRunCard
-                run={deepResearchRunFixture}
-                projectUuid="project-1"
-            />,
-        );
-
-        await user.click(
-            screen.getByRole('link', { name: 'View full report' }),
-        );
-
-        expect(
-            screen.getByRole('link', { name: 'View full report' }),
-        ).toHaveAttribute(
-            'href',
-            `/projects/${deepResearchRunFixture.projectUuid}/ai-agents/deep-research/${deepResearchRunFixture.uuid}`,
-        );
-        expect(trackReportEngagement).toHaveBeenCalledWith('opened', {
-            aiDeepResearchRunUuid: deepResearchRunFixture.uuid,
-            projectUuid: deepResearchRunFixture.projectUuid,
-            agentUuid: deepResearchRunFixture.agentUuid,
-            aiThreadUuid: deepResearchRunFixture.threadUuid,
-            status: deepResearchRunFixture.status,
-            completedAt: deepResearchRunFixture.completedAt,
-            updatedAt: deepResearchRunFixture.updatedAt,
-        });
-    });
-
-    it('shows the published Document instead of the legacy report', async () => {
+    it('opens the published Document in the side panel', async () => {
         const user = userEvent.setup();
         renderRunCard(
             <DeepResearchRunCard
@@ -309,8 +269,6 @@ describe('DeepResearchRunCard', () => {
             'href',
             '/projects/project-1/documents/enterprise-retention-in-q2',
         );
-        expect(screen.queryByText('View full report')).not.toBeInTheDocument();
-        expect(screen.queryByText('Research summary')).not.toBeInTheDocument();
 
         await user.click(card);
 
@@ -328,91 +286,6 @@ describe('DeepResearchRunCard', () => {
                 aiDeepResearchRunUuid: deepResearchRunFixture.uuid,
             }),
         );
-    });
-
-    it('keeps a published Document available after report retention ends', () => {
-        renderRunCard(
-            <DeepResearchRunCard
-                run={{
-                    ...deepResearchRunFixture,
-                    resultMarkdown: null,
-                    isReportExpired: true,
-                    document: publishedDocument,
-                }}
-                projectUuid="project-1"
-            />,
-        );
-
-        expect(
-            screen.queryByText('This report is no longer available.'),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('link', { name: /Enterprise retention in Q2/ }),
-        ).toBeInTheDocument();
-    });
-
-    it('renders the research summary as Markdown', () => {
-        renderRunCard(
-            <DeepResearchRunCard
-                run={{
-                    ...deepResearchRunFixture,
-                    status: 'completed',
-                    resultMarkdown: `# Executive summary
-
-This has **important context**, a [source](https://example.com), and \`inline code\`.
-
-- First finding
-- Second finding
-
-## Findings
-
-The full report continues here.`,
-                }}
-                projectUuid="project-1"
-            />,
-        );
-
-        expect(
-            screen.getByRole('heading', { name: 'Executive summary' }),
-        ).toBeInTheDocument();
-        expect(
-            screen
-                .getByText('important context')
-                .closest('[data-streamdown="strong"]'),
-        ).not.toBeNull();
-        expect(screen.getByText('source')).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'source' }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByRole('link', { name: 'source' }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen
-                .getByText('inline code')
-                .closest('[data-streamdown="inline-code"]'),
-        ).not.toBeNull();
-        expect(screen.getByRole('list')).toBeInTheDocument();
-        expect(
-            screen.queryByText('The full report continues here.'),
-        ).not.toBeInTheDocument();
-    });
-
-    it('does not render remote images in the research summary preview', () => {
-        renderRunCard(
-            <DeepResearchRunCard
-                run={{
-                    ...deepResearchRunFixture,
-                    status: 'completed',
-                    resultMarkdown:
-                        '# Summary\n\n![secret](https://attacker.example/collect)',
-                }}
-                projectUuid="project-1"
-            />,
-        );
-
-        expect(screen.queryByRole('img')).not.toBeInTheDocument();
-        expect(document.body.innerHTML).not.toContain('attacker.example');
     });
 
     it('offers reconnection and continue-without-source recovery', async () => {
@@ -467,7 +340,11 @@ The full report continues here.`,
             />,
         );
 
-        expect(screen.getByText('Research summary')).toBeInTheDocument();
+        expect(
+            screen.getByRole('link', {
+                name: /Why enterprise retention fell in Q2/,
+            }),
+        ).toBeInTheDocument();
         await user.click(
             screen.getByRole('button', { name: 'Review permissions' }),
         );
@@ -482,7 +359,6 @@ The full report continues here.`,
                 run={{
                     ...deepResearchRunFixture,
                     status: 'failed',
-                    resultMarkdown: null,
                 }}
                 projectUuid="project-1"
                 canRunAgain

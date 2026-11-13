@@ -6,7 +6,7 @@ import {
     type SearchResults,
 } from '@lightdash/common';
 import {
-    Icon123,
+    IconNumber123,
     IconAbc,
     IconAppWindow,
     IconBrowser,
@@ -60,7 +60,7 @@ export const getOmnibarItemIcon = (item: SearchItem) => {
             if (item.typeLabel?.toLowerCase() === 'dimension') {
                 return IconAbc;
             } else {
-                return Icon123;
+                return IconNumber123;
             }
         case SearchItemType.DOCUMENT:
             return IconFileText;

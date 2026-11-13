@@ -7,12 +7,10 @@ import {
     getShadowedReservedNames,
     isDashboardControlOrder,
     mergeDashboardCustomMetrics,
-    normalizeDateZoomConfig,
     removeDateZoomTileTargets,
     ChartType,
     ContentType,
     DashboardTileTypes,
-    DateGranularity,
     FeatureFlags,
     type AdditionalMetric,
     type DashboardFilterRule,
@@ -115,6 +113,7 @@ import {
 import TileQueryQueueProvider from '../features/dashboard/tileQueryQueue/TileQueryQueueProvider';
 import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
+import { useControlDraftResets } from '../features/dashboardControls/useControlDraftResets';
 import { type EditFiltersVisibility } from '../features/dashboardFilters/EditFiltersVisibilityControl';
 import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
@@ -151,6 +150,7 @@ import { EventName } from '../types/Events';
 import {
     buildDashboardConfig,
     getControlsToSave,
+    getDateZoomConfigToSave,
 } from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
@@ -307,6 +307,7 @@ const Dashboard: FC = () => {
         (c) => c.setHasParameterOrderChanged,
     );
     const dashboardDispatch = useDashboardDispatch();
+    const { resetControlDrafts } = useControlDraftResets();
     const controlSections = useDashboardSelector(selectControlSections);
     const haveControlSectionsChanged = useDashboardSelector(
         selectHaveControlSectionsChanged,
@@ -318,18 +319,12 @@ const Dashboard: FC = () => {
     const haveDateZoomGranularitiesChanged = useDashboardSelector(
         selectHaveDateZoomGranularitiesChanged,
     );
-    const setDateZoomGranularities = useDashboardContext(
-        (c) => c.setDateZoomGranularities,
-    );
     const setHaveDateZoomGranularitiesChanged = useDashboardContext(
         (c) => c.setHaveDateZoomGranularitiesChanged,
     );
     const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
     const hasDefaultDateZoomGranularityChanged = useDashboardSelector(
         selectHasDefaultDateZoomGranularityChanged,
-    );
-    const setDefaultDateZoomGranularity = useDashboardContext(
-        (c) => c.setDefaultDateZoomGranularity,
     );
     const setHasDefaultDateZoomGranularityChanged = useDashboardContext(
         (c) => c.setHasDefaultDateZoomGranularityChanged,
@@ -769,39 +764,7 @@ const Dashboard: FC = () => {
         setPinnedParameters(dashboard.config?.pinnedParameters ?? []);
         setHavePinnedParametersChanged(false);
         setHasParameterOrderChanged(false);
-        dashboardDispatch(
-            dashboardEditActions.setHaveControlSectionsChanged(false),
-        );
-        dashboardDispatch(
-            dashboardParametersActions.setHaveParameterControlsChanged(false),
-        );
-        dashboardDispatch(
-            dashboardEditActions.syncControlSections(
-                dashboard.config?.controlSections ?? [],
-            ),
-        );
-        dashboardDispatch(
-            dashboardEditActions.setHasControlOrderChanged(false),
-        );
-        dashboardDispatch(
-            dashboardEditActions.syncControlOrder(
-                isDashboardControlOrder(dashboard.config?.controlOrder)
-                    ? dashboard.config.controlOrder
-                    : undefined,
-            ),
-        );
-        setDateZoomGranularities(
-            dashboard.config?.dateZoomGranularities ??
-                Object.values(DateGranularity),
-        );
-        setHaveDateZoomGranularitiesChanged(false);
-        setDefaultDateZoomGranularity(
-            dashboard.config?.defaultDateZoomGranularity,
-        );
-        setHasDefaultDateZoomGranularityChanged(false);
-        setDateZoomConfig(normalizeDateZoomConfig(dashboard.config));
-        setHasDateZoomConfigChanged(false);
-        setRequiredFiltersNote(undefined);
+        resetControlDrafts(dashboard.config);
 
         if (dashboardTabs.length > 0) {
             void navigate(
@@ -832,15 +795,8 @@ const Dashboard: FC = () => {
         setSavedParameters,
         setPinnedParameters,
         setHavePinnedParametersChanged,
-        setDateZoomGranularities,
-        setHaveDateZoomGranularitiesChanged,
-        setDefaultDateZoomGranularity,
-        setHasDefaultDateZoomGranularityChanged,
-        setDateZoomConfig,
-        setHasDateZoomConfigChanged,
         setHasParameterOrderChanged,
-        setRequiredFiltersNote,
-        dashboardDispatch,
+        resetControlDrafts,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -1528,6 +1484,11 @@ const Dashboard: FC = () => {
             ],
             controlSections,
             haveControlSectionsChanged,
+            dateZoomConfigToSave: getDateZoomConfigToSave({
+                existingConfig: dashboard.config,
+                dateZoomConfig,
+                hasDateZoomConfigChanged,
+            }),
             parameterInputs: {
                 parameterControls: selectParameterControls(dashboardState),
                 areParameterControlsSaved:

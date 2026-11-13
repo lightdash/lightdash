@@ -204,7 +204,6 @@ describe('getComposerMergeSavedChart', () => {
             'orders_total_order_amount',
         ]);
         const chartJson = JSON.stringify(saved.chartConfig);
-        expect(chartJson).not.toContain('composer_result');
         expect(chartJson).toContain('"merge_month"');
         expect(chartJson).toContain('"merge_margin"');
 
@@ -389,6 +388,28 @@ describe('getComposerMergeSavedChart', () => {
                                 fieldIdBySourceId: {
                                     orders_monthly: 'orders_order_date_month',
                                     '2payments': 'payments_payment_month',
+                                },
+                            },
+                        ],
+                    },
+                ],
+                'orders_vs_payments',
+                null,
+            ),
+        ],
+        [
+            'a join key part has no field on the first source',
+            artifact(
+                [
+                    orders,
+                    payments,
+                    {
+                        ...twoSourceMerge,
+                        joinKey: [
+                            {
+                                name: 'month',
+                                fieldIdBySourceId: {
+                                    payments_monthly: 'payments_payment_month',
                                 },
                             },
                         ],

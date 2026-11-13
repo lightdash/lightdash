@@ -364,6 +364,7 @@ export const buildChart = (
             colorPalette,
             colorMappings,
             nullColor: theme.neutral[6],
+            otherColor: theme.neutral[4],
             chartConfig:
                 resolved.chartType === ChartType.CARTESIAN
                     ? { type: ChartType.CARTESIAN, config: resolved.config }

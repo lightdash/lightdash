@@ -557,6 +557,25 @@ describe('useMobileSignInCode', () => {
         );
     });
 
+    it('cancels a code that arrives after the step closed', async () => {
+        const server = mockServer();
+        const { result } = renderHookWithProviders(() => useMobileSignInCode());
+        act(() => {
+            result.current.show();
+            result.current.hide();
+        });
+        await waitFor(() =>
+            expect(server.deletes()).toEqual([
+                '/user/mobile/sign-in-codes/code-1',
+            ]),
+        );
+        expect(server.mints()).toEqual([{ reason: 'show' }]);
+        expect(result.current.code).toBeNull();
+        expect(result.current.phase).toBe('hidden');
+        await advance(MOBILE_SIGN_IN_POLL_INTERVAL_MS * 3);
+        expect(server.polls()).toBe(0);
+    });
+
     it('trusts the server lifetime, not the browser clock', async () => {
         const server = mockServer({ clockSkewMs: 30 * 60 * 1000 });
         const { result } = renderHookWithProviders(() => useMobileSignInCode());

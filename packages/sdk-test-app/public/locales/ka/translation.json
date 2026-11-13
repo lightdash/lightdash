@@ -13,6 +13,21 @@
                     "Order period": "შეკვეთის პერიოდი"
                 }
             },
+            "sections": {
+                "names": {
+                    "Orders": "შეკვეთები"
+                }
+            },
+            "parameterControls": {
+                "labels": {
+                    "Metric type": "მეტრიკის ტიპი"
+                }
+            },
+            "dateZooms": {
+                "names": {
+                    "Revenue zoom": "შემოსავლის ზუმი"
+                }
+            },
             "tiles": [
                 {
                     "type": "loom",
@@ -153,6 +168,8 @@
         "filters.summary.filterPlural": "ფილტრი",
         "filters.summary.parameterSingular": "პარამეტრი",
         "filters.summary.parameterPlural": "პარამეტრი",
+        "filters.summary.dateZoomSingular": "თარიღის ზუმი",
+        "filters.summary.dateZoomPlural": "თარიღის ზუმი",
         "filters.summary.dateZoomLabel": "თარიღის მასშტაბი:",
         "filters.summary.default": "ნაგულისხმევი",
         "filters.summary.showFilters": "ფილტრების ჩვენება",
@@ -397,6 +414,7 @@
         "aiAgent.composer.mergeNode.stepExplore": "მოითხოვს {explore}-ს",
         "aiAgent.composer.mergeNode.stepKey": "ერთიანდება {fields} ველით",
         "aiAgent.composer.mergeNode.columnFrom": "{column} — {step}",
+        "aiAgent.composer.mergeNode.compileError": "ამ გაერთიანების კომპილაცია ვერ მოხერხდა.",
         "aiAgent.composer.actions.quickActions": "სწრაფი მოქმედებები",
         "aiAgent.composer.actions.downloadResults": "შედეგების ჩამოტვირთვა",
         "aiAgent.composer.nodeStatus.pending": "რიგშია",
@@ -539,6 +557,19 @@
         "controls.parameter.setEverywhereBy": "ყველგან აყენებს {control}",
         "controls.parameter.moveFrom": "გადავიტანოთ {controls}-დან?",
         "controls.parameter.nameList": "{list} და {name}",
+        "controls.dateZoom.appliesToNoTiles": "არცერთ ფილაზე არ ვრცელდება",
+        "controls.dateZoom.clearedKeepsOwnGrain": "თუ გასუფთავდება, ფილები საკუთარ დეტალიზაციას ინარჩუნებს.",
+        "controls.dateZoom.custom": "მორგებული",
+        "controls.dateZoom.clearGrain": "დეტალიზაციის გასუფთავება",
+        "controls.summary.showControls": "კონტროლების ჩვენება",
+        "controls.dateZoom.appliesToWord": "ვრცელდება",
+        "controls.dateZoom.backToDateZoom": "თარიღის მასშტაბზე დაბრუნება",
+        "controls.dateZoom.dateField": "თარიღის ველი",
+        "controls.dateZoom.stopZooming": "ამ ფილის მასშტაბირების შეწყვეტა",
+        "controls.dateZoom.usesParameter": "იყენებს თარიღის მასშტაბის პარამეტრს",
+        "controls.dateZoom.inZoom": "{zoom}-ში",
+        "controls.dateZoom.noDateField": "ამ ფილას არ აქვს მასშტაბირებადი თარიღი",
+        "controls.dateZoom.tilesLocked": "ფილები დაბლოკილია, სანამ თარიღის მასშტაბი რედაქტირდება",
         "filters.tileCard.locked": "ფილები დაბლოკილია ფილტრის რედაქტირებისას",
         "filters.tileCard.unreachable": "ამ ფილას არ აქვს ველი, რომელსაც ეს ფილტრი გამოიყენებს",
         "filters.tileCard.filtered": "ეს ფილა გაფილტრულია",

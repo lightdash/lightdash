@@ -23,6 +23,11 @@
     transition-duration: 0s;
 }
 
+/* Marks every page while the person views their unpublished changes. */
+.header[data-development] {
+    box-shadow: inset 0 -2px 0 var(--mantine-color-orange-6);
+}
+
 .headerEditingDashboardChart {
     justify-content: center;
     border-bottom: none;

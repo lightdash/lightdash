@@ -11,28 +11,14 @@ import {
 } from '@mantine/core';
 import {
     IconAlertCircle,
-    IconCheck,
     IconChevronDown,
     IconPlayerStop,
     IconPlugConnected,
     IconTelescope,
 } from '@tabler/icons-react';
-import {
-    useEffect,
-    useId,
-    useState,
-    type AnchorHTMLAttributes,
-    type FC,
-    type ReactNode,
-} from 'react';
-import { Link } from 'react-router';
-import { type StreamdownProps } from 'streamdown';
-import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import {
-    getDeepResearchReportPreview,
-    isDeepResearchRunTerminal,
-} from '../../deepResearch/runProgress';
+import { isDeepResearchRunTerminal } from '../../deepResearch/runProgress';
 import { type DeepResearchRunView } from '../../deepResearch/types';
 import {
     useCancelDeepResearchMutation,
@@ -40,17 +26,6 @@ import {
 } from '../../hooks/useDeepResearch';
 import { AiDocumentCardButton } from '../ChatElements/AiDocumentCardButton';
 import styles from './DeepResearchRunCard.module.css';
-
-const PreviewLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
-    children,
-}) => <span>{children as ReactNode}</span>;
-
-const PREVIEW_MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
-    a: PreviewLink as unknown as NonNullable<
-        StreamdownProps['components']
-    >['a'],
-    img: () => null,
-};
 
 const STATUS_CONFIG: Record<DeepResearchRunView['status'], { label: string }> =
     {
@@ -201,10 +176,10 @@ export const DeepResearchRunCard = ({
         }
     }, [announcedStatus, run.status]);
 
-    const hasDocument = run.document !== null;
-    const hasReport = !hasDocument && !!run.resultMarkdown;
-    // A published Document outlives the run's report retention.
-    const isReportExpired = !hasDocument && run.isReportExpired;
+    // A finished run without a Document predates Documents; its report is gone.
+    const isReportUnavailable =
+        run.document === null &&
+        (run.status === 'completed' || run.status === 'partially_completed');
     const trackReportOpened = () => {
         if (
             run.status === 'completed' ||
@@ -240,12 +215,14 @@ export const DeepResearchRunCard = ({
             p="lg"
             radius="md"
             aria-label="Deep research run"
-            // Walkthrough look at the run card once the thread opens.
+            // Walkthrough result: the run card in the seeded thread.
             data-tour-scope="create:AiDeepResearch"
-            data-tour-look="1"
-            data-tour-after='[data-tour-anchor="agent-thread"][data-tour-value="Why returns rose in the spring"]'
+            data-tour-step="1"
+            data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid/threads/:threadUuid"
             data-tour-label="The run card stays with the question"
-            data-tour-docs="agents/deep-research.mdx#follow-progress:1"
+            data-tour-docs="agents/deep-research.mdx#when-to-use-deep-research:1"
+            data-tour-return="none"
+            data-tour-resultdocs="agents/deep-research.mdx#follow-progress:1"
         >
             <Stack gap="md">
                 <DeepResearchRunHeading
@@ -400,21 +377,26 @@ export const DeepResearchRunCard = ({
                     </Alert>
                 )}
 
-                {run.status === 'partially_completed' && !isReportExpired && (
-                    <Alert color="orange" icon={<IconAlertCircle size={16} />}>
-                        This report is incomplete. Completed queries and
-                        available findings are saved below.
-                    </Alert>
-                )}
+                {run.status === 'partially_completed' &&
+                    !isReportUnavailable && (
+                        <Alert
+                            color="orange"
+                            icon={<IconAlertCircle size={16} />}
+                        >
+                            This report is incomplete. Completed queries and
+                            available findings are saved below.
+                        </Alert>
+                    )}
 
-                {isReportExpired && (
+                {isReportUnavailable && (
                     <Paper variant="dotted" p="md" radius="sm">
                         <Stack gap="xs">
                             <Text size="sm" fw={600}>
                                 This report is no longer available.
                             </Text>
                             <Text size="sm" c="dimmed">
-                                Deep Research reports are available for 30 days.
+                                Run the research again to publish it as a
+                                Document.
                             </Text>
                             <Text size="sm">{run.question}</Text>
                             {run.completedAt && (
@@ -454,46 +436,6 @@ export const DeepResearchRunCard = ({
                         }}
                         onOpen={trackReportOpened}
                     />
-                )}
-
-                {hasReport && (
-                    <Paper className={styles.answer} p="lg" radius="sm">
-                        <Stack gap="md">
-                            <Group gap="xs">
-                                <MantineIcon
-                                    icon={IconCheck}
-                                    size={16}
-                                    color="dimmed"
-                                />
-                                <Text size="sm" fw={600}>
-                                    Research summary
-                                </Text>
-                            </Group>
-                            {run.resultMarkdown && (
-                                <AiMarkdown
-                                    className={styles.answerPreview}
-                                    components={PREVIEW_MARKDOWN_COMPONENTS}
-                                >
-                                    {getDeepResearchReportPreview(
-                                        run.resultMarkdown,
-                                    )}
-                                </AiMarkdown>
-                            )}
-                            <Button
-                                component={Link}
-                                to={`/projects/${run.projectUuid}/ai-agents/deep-research/${run.uuid}`}
-                                color="ldDark"
-                                size="xs"
-                                w="fit-content"
-                                // Anchor for scope walkthroughs (data-tour-via)
-                                data-tour-anchor="research-report-open"
-                                data-tour-hint="Open the full report"
-                                onClick={trackReportOpened}
-                            >
-                                View full report
-                            </Button>
-                        </Stack>
-                    </Paper>
                 )}
 
                 {run.latestEvents.length > 0 && (

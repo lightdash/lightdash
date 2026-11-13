@@ -18,6 +18,7 @@ import {
     toFieldCombinationIssue,
     type CompiledApiSourceQuery,
 } from '../apiSourceExplore';
+import { getGrainIssues, type ApiSourceGrain } from '../apiSourceGrain';
 import { getFinestLevel, isFinerLevel } from '../apiSourceLevels';
 import { escapeRe2 } from '../escapeRe2';
 import { GOOGLE_ADS_MICROS_FIELDS } from './googleAdsSemanticLayer';
@@ -159,61 +160,43 @@ const toMetricConditions = (apiName: string, rule: FilterRule): string[] => {
     }
 };
 
+const GRAINS: Partial<Record<GoogleAdsResource, ApiSourceGrain>> = {
+    campaign: {
+        entity: 'campaign',
+        identities: [['campaign.id'], ['campaign.name']],
+        fix: 'Add Campaign name or Campaign ID.',
+    },
+    ad_group: {
+        entity: 'ad group',
+        identities: [
+            ['ad_group.id'],
+            ['ad_group.name', 'campaign.id'],
+            ['ad_group.name', 'campaign.name'],
+        ],
+        fix: 'Add Ad group ID, or Ad group name with Campaign name.',
+    },
+};
+
 /**
- * A GAQL report returns one row per resource and segment; it never rolls up
- * across them, and the API has no GROUP BY. Asked for campaign status alone
- * it answers one row per campaign, which reads like a grouped total but
- * isn't. So every row must be identified by what was selected, and filters
- * finer than the selection are refused.
+ * A GAQL report returns one row per resource and segment and never rolls up
+ * across them (`getGrainIssues`), so filters finer than the selection are
+ * refused too.
  */
-const getGrainIssues = ({
+const getFilterIssues = ({
     apiSource,
-    metricQuery,
     filterRules,
     selected,
     resource,
     labelOf,
 }: {
     apiSource: ApiSourceExplore;
-    metricQuery: MetricQuery;
     filterRules: FilterRule[];
     selected: Set<string>;
     resource: GoogleAdsResource;
     labelOf: (fieldId: string) => string;
 }): ApiSourceQueryIssue[] => {
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
-    const firstAt = (level: GoogleAdsResource) =>
-        metricQuery.dimensions.find(
-            (fieldId) => getResource(apiName(fieldId)) === level,
-        ) ?? '';
-    const identityIssues = (): ApiSourceQueryIssue[] => {
-        const hasCampaign =
-            selected.has('campaign.id') || selected.has('campaign.name');
-        if (
-            resource === 'ad_group' &&
-            !selected.has('ad_group.id') &&
-            !(selected.has('ad_group.name') && hasCampaign)
-        ) {
-            const fieldId = firstAt('ad_group');
-            return [
-                toFieldCombinationIssue(
-                    fieldId,
-                    `Google Ads returns one row per ad group and can't group them by ${labelOf(fieldId)}. Add Ad group ID, or Ad group name with Campaign name.`,
-                ),
-            ];
-        }
-        if (resource === 'campaign' && !hasCampaign) {
-            const fieldId = firstAt('campaign');
-            return [
-                toFieldCombinationIssue(
-                    fieldId,
-                    `Google Ads returns one row per campaign and can't group them by ${labelOf(fieldId)}. Add Campaign name or Campaign ID.`,
-                ),
-            ];
-        }
-        return [];
-    };
-    const filterIssues = filterRules.flatMap((rule): ApiSourceQueryIssue[] => {
+    return filterRules.flatMap((rule): ApiSourceQueryIssue[] => {
         const { fieldId } = rule.target;
         const name = apiName(fieldId);
         if (isSegment(name) && !selected.has(name)) {
@@ -238,7 +221,6 @@ const getGrainIssues = ({
         }
         return [];
     });
-    return [...identityIssues(), ...filterIssues];
 };
 
 /**
@@ -277,14 +259,24 @@ export const compileGoogleAdsQuery = ({
     const fromResource =
         getFinestLevel(RESOURCES, selectedDimensions.map(getResource)) ??
         ('customer' as GoogleAdsResource);
-    const issues = getGrainIssues({
-        apiSource,
-        metricQuery,
-        filterRules: dimensionRules,
-        selected: new Set(selectedDimensions),
-        resource: fromResource,
-        labelOf,
-    });
+    const issues = [
+        ...getGrainIssues({
+            explore,
+            integration: 'Google Ads',
+            grains: GRAINS,
+            level: fromResource,
+            levelOf: getResource,
+            dimensions: metricQuery.dimensions,
+            apiName,
+        }),
+        ...getFilterIssues({
+            apiSource,
+            filterRules: dimensionRules,
+            selected: new Set(selectedDimensions),
+            resource: fromResource,
+            labelOf,
+        }),
+    ];
     if (issues.length > 0) {
         throw toApiSourceQueryError(issues);
     }

@@ -2,7 +2,6 @@ import { type ApiSuccess } from '../../types/api/success';
 import { type ItemsMap } from '../../types/field';
 import { type MetricQuery } from '../../types/metricQuery';
 
-export const AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS = 30;
 export const AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS = 32;
 
 export const AI_DEEP_RESEARCH_RUN_STATUSES = [
@@ -382,11 +381,6 @@ export type AiDeepResearchRun = {
     prompt: string;
     status: AiDeepResearchRunStatus;
     terminalReason: AiDeepResearchTerminalReason | null;
-    /** The report narrative with compact <chart> references. */
-    resultMarkdown: string | null;
-    reportExpiresAt: string | null;
-    reportExpiredAt: string | null;
-    isReportExpired: boolean;
     /** Null until the report is published as a Document. */
     document: AiDeepResearchRunDocument | null;
     budget: AiDeepResearchBudget;
@@ -408,9 +402,6 @@ export type AiDeepResearchEventsPage = {
 export type ApiAiDeepResearchRunResponse = ApiSuccess<AiDeepResearchRun>;
 
 export type ApiAiDeepResearchRunListResponse = ApiSuccess<AiDeepResearchRun[]>;
-
-export type ApiAiDeepResearchChartResponse =
-    ApiSuccess<AiDeepResearchChartData>;
 
 export type ApiAiDeepResearchEventsResponse =
     ApiSuccess<AiDeepResearchEventsPage>;

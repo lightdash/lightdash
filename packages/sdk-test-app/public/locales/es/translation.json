@@ -13,6 +13,21 @@
                     "Order period": "Período del pedido"
                 }
             },
+            "sections": {
+                "names": {
+                    "Orders": "Pedidos"
+                }
+            },
+            "parameterControls": {
+                "labels": {
+                    "Metric type": "Tipo de métrica"
+                }
+            },
+            "dateZooms": {
+                "names": {
+                    "Revenue zoom": "Zoom de ingresos"
+                }
+            },
             "tiles": [
                 {
                     "type": "loom",
@@ -153,6 +168,8 @@
         "filters.summary.filterPlural": "filtros",
         "filters.summary.parameterSingular": "parámetro",
         "filters.summary.parameterPlural": "parámetros",
+        "filters.summary.dateZoomSingular": "zoom de fecha",
+        "filters.summary.dateZoomPlural": "zooms de fecha",
         "filters.summary.dateZoomLabel": "Zoom de fecha:",
         "filters.summary.default": "Predeterminado",
         "filters.summary.showFilters": "Mostrar filtros",
@@ -397,6 +414,7 @@
         "aiAgent.composer.mergeNode.stepExplore": "Consulta {explore}",
         "aiAgent.composer.mergeNode.stepKey": "Se combina por {fields}",
         "aiAgent.composer.mergeNode.columnFrom": "{column} de {step}",
+        "aiAgent.composer.mergeNode.compileError": "No se pudo compilar esta combinación.",
         "aiAgent.composer.actions.quickActions": "Acciones rápidas",
         "aiAgent.composer.actions.downloadResults": "Descargar resultados",
         "aiAgent.composer.nodeStatus.pending": "En cola",
@@ -539,6 +557,19 @@
         "controls.parameter.setEverywhereBy": "Definido por {control} en todas partes",
         "controls.parameter.moveFrom": "¿Mover desde {controls}?",
         "controls.parameter.nameList": "{list} y {name}",
+        "controls.dateZoom.appliesToNoTiles": "No se aplica a ningún mosaico",
+        "controls.dateZoom.clearedKeepsOwnGrain": "Si se borra, los mosaicos mantienen su propia granularidad.",
+        "controls.dateZoom.custom": "Personalizado",
+        "controls.dateZoom.clearGrain": "Borrar granularidad",
+        "controls.summary.showControls": "Mostrar controles",
+        "controls.dateZoom.appliesToWord": "se aplica a",
+        "controls.dateZoom.backToDateZoom": "Volver al zoom de fecha",
+        "controls.dateZoom.dateField": "Campo de fecha",
+        "controls.dateZoom.stopZooming": "Dejar de aplicar zoom a este mosaico",
+        "controls.dateZoom.usesParameter": "Usa el parámetro de zoom de fecha",
+        "controls.dateZoom.inZoom": "En {zoom}",
+        "controls.dateZoom.noDateField": "Este mosaico no tiene fecha para aplicar zoom",
+        "controls.dateZoom.tilesLocked": "Los mosaicos están bloqueados mientras se edita un zoom de fecha",
         "filters.tileCard.locked": "Los mosaicos están bloqueados mientras se edita un filtro",
         "filters.tileCard.unreachable": "Este mosaico no tiene ningún campo que este filtro pueda usar",
         "filters.tileCard.filtered": "Este mosaico está filtrado",

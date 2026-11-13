@@ -1,18 +1,24 @@
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { subject } from '@casl/ability';
 import {
+    DATA_APP_NEWER_VERSION_CODE,
     DATA_REFERENCE_EXTRACTOR_VERSION,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     DirectAccessResourceType,
+    extractDataAppDataReferences,
     FeatureFlags,
     ForbiddenError,
     getCustomSqlFieldKey,
+    getUserAbilityBuilder,
     LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS,
     NotFoundError,
+    OrganizationMemberRole,
     ParameterError,
     TooManyRequestsError,
     type DataAppCode,
     type DataAppDependencies,
     type ImportAppCodeRequestBody,
+    type MetricQuery,
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
 import { createHash } from 'node:crypto';
@@ -159,6 +165,7 @@ function buildService(
         canManageDataAppDependencies?: boolean;
         dataAppsEnabled?: boolean;
         chartStudioAvailable?: boolean;
+        consumerAccessEnabled?: boolean;
     } = {},
 ) {
     const appModel = {
@@ -172,6 +179,10 @@ function buildService(
         createVersion: vi.fn().mockResolvedValue({ version: 1 }),
         getLatestVersion: vi.fn().mockResolvedValue(null),
         getVersion: vi.fn().mockResolvedValue(null),
+        getLatestReadyVersion: vi.fn().mockResolvedValue(null),
+        freezeVersionConsumerDataReferences: vi
+            .fn()
+            .mockResolvedValue(undefined),
         countInProgressVersionsForProject: vi.fn().mockResolvedValue(0),
         updateVersionDataReferences: vi.fn().mockResolvedValue(undefined),
         updateVersionStatusIfInProgress: vi.fn().mockResolvedValue(true),
@@ -196,6 +207,8 @@ function buildService(
 
     const featureFlagModel = featureFlagModelWith({
         [FeatureFlags.EnableDataApps]: opts.dataAppsEnabled ?? true,
+        [FeatureFlags.DataAppConsumerAccess]:
+            opts.consumerAccessEnabled ?? true,
     });
 
     const organizationSettingsModel = {
@@ -210,6 +223,7 @@ function buildService(
             organizationUuid: PROJECT_ORG_UUID,
             projectUuid: PROJECT_UUID,
         }),
+        getExploreFromCache: vi.fn().mockResolvedValue({ baseTable: 'orders' }),
     };
 
     const spacePermissionService = {
@@ -532,6 +546,29 @@ describe('AppGenerateService.importAppCode', () => {
                 customDependencies: [],
             }),
         });
+    });
+
+    it('freezes the consumer snapshot from the build-time extraction', async () => {
+        const { service, appModel } = buildService();
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode([
+                {
+                    path: 'src/App.tsx',
+                    contentBase64: Buffer.from(
+                        `import { query } from '@lightdash/query-sdk';
+                         query('orders').metrics(['orders_total_sales']);`,
+                    ).toString('base64'),
+                },
+            ]),
+        } as ImportAppCodeRequestBody);
+
+        const [[, , persisted]] =
+            appModel.updateVersionDataReferences.mock.calls;
+        expect(
+            appModel.freezeVersionConsumerDataReferences,
+        ).toHaveBeenCalledWith(NEW_APP_UUID, 1, persisted);
     });
 
     it('persists extracted references with the extractor version', async () => {
@@ -2912,5 +2949,396 @@ describe('importAppCode slug validation', () => {
             undefined,
             { forceSlug: true, thread: IMPORT_THREAD, vizPreview: null },
         );
+    });
+});
+
+describe('AppGenerateService.authorizeConsumerQuery', () => {
+    const metricQuery: MetricQuery = {
+        exploreName: 'orders',
+        dimensions: ['orders_country'],
+        metrics: ['orders_revenue'],
+        filters: {},
+        sorts: [],
+        limit: 100,
+        tableCalculations: [],
+    };
+    const extract = (source: string) =>
+        extractDataAppDataReferences([
+            {
+                path: 'src/App.tsx',
+                content: `import { query } from '@lightdash/query-sdk'; ${source}`,
+            },
+        ]);
+    const dataReferences = extract(
+        "query('orders').dimensions(['country']).metrics(['revenue']);",
+    );
+    const mintFor = (version: number) =>
+        mintPreviewToken(
+            {
+                active: 'test-lightdash-secret',
+                fallbacks: [],
+                all: ['test-lightdash-secret'],
+            },
+            NEW_APP_UUID,
+            version,
+            USER_UUID,
+            PROJECT_ORG_UUID,
+            PROJECT_UUID,
+        );
+    const request = {
+        account: {
+            isRegisteredUser: () => true,
+            user: { id: USER_UUID },
+        } as never,
+        projectUuid: PROJECT_UUID,
+        organizationUuid: PROJECT_ORG_UUID,
+        previewToken: mintFor(2),
+        metricQuery,
+    };
+    const setup = (opts: { consumerAccessEnabled?: boolean } = {}) => {
+        const result = buildService(opts);
+        result.appModel.findApp.mockResolvedValue({
+            app_id: NEW_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            space_uuid: 'space-uuid',
+            created_by_user_uuid: 'author-uuid',
+        });
+        result.appModel.getLatestReadyVersion.mockResolvedValue({
+            version: 2,
+            status: 'ready',
+            data_references: dataReferences,
+            consumer_data_references: dataReferences,
+        });
+        return result;
+    };
+
+    it('authorizes from the frozen snapshot of the latest ready version', async () => {
+        const { service, appModel } = setup();
+        await expect(service.authorizeConsumerQuery(request)).resolves.toEqual({
+            appUuid: NEW_APP_UUID,
+            version: 2,
+        });
+        expect(appModel.getLatestReadyVersion).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+        );
+        expect(appModel.updateVersionDataReferences).not.toHaveBeenCalled();
+        expect(
+            appModel.freezeVersionConsumerDataReferences,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('ignores fields added to data_references after the snapshot was frozen', async () => {
+        const { service, appModel } = setup();
+        appModel.getLatestReadyVersion.mockResolvedValue({
+            version: 2,
+            status: 'ready',
+            data_references: extract(
+                "query('orders').dimensions(['country', 'email']).metrics(['revenue']);",
+            ),
+            consumer_data_references: dataReferences,
+        });
+        await expect(
+            service.authorizeConsumerQuery({
+                ...request,
+                metricQuery: { ...metricQuery, dimensions: ['orders_email'] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('denies versions without a frozen snapshot', async () => {
+        const { service, appModel } = setup();
+        appModel.getLatestReadyVersion.mockResolvedValue({
+            version: 2,
+            status: 'ready',
+            data_references: dataReferences,
+            consumer_data_references: null,
+        });
+        await expect(service.authorizeConsumerQuery(request)).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
+
+    it.each([
+        ['an older version', 1],
+        ['a version that is not ready yet', 3],
+    ])('denies a token for %s', async (_, version) => {
+        const { service } = setup();
+        await expect(
+            service.authorizeConsumerQuery({
+                ...request,
+                previewToken: mintFor(version),
+            }),
+        ).rejects.toMatchObject({
+            message: expect.stringContaining('newer version'),
+            data: { code: DATA_APP_NEWER_VERSION_CODE },
+        });
+    });
+
+    it('denies when the app has no ready version', async () => {
+        const { service, appModel } = setup();
+        appModel.getLatestReadyVersion.mockResolvedValue(null);
+        await expect(service.authorizeConsumerQuery(request)).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
+
+    it('denies every consumer query when the flag is off', async () => {
+        const { service, appModel } = setup({ consumerAccessEnabled: false });
+        await expect(service.authorizeConsumerQuery(request)).rejects.toThrow(
+            ForbiddenError,
+        );
+        expect(appModel.findApp).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { previewToken: 'forged-token' },
+        { projectUuid: 'another-project' },
+        { organizationUuid: 'another-org' },
+        {
+            account: {
+                isRegisteredUser: () => true,
+                user: { id: 'another-user' },
+            } as never,
+        },
+    ])(
+        'rejects tokens outside the current account and project: %j',
+        async (overrides) => {
+            const { service, appModel } = setup();
+            await expect(
+                service.authorizeConsumerQuery({ ...request, ...overrides }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.getLatestReadyVersion).not.toHaveBeenCalled();
+        },
+    );
+
+    it('rechecks app access even with a valid token', async () => {
+        const { service } = setup();
+        vi.spyOn(
+            service as unknown as { createAuditedAbility: () => unknown },
+            'createAuditedAbility',
+        ).mockReturnValue({ cannot: () => true });
+        await expect(service.authorizeConsumerQuery(request)).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
+
+    describe('custom role with view:DataApp and no Explore', () => {
+        const CUSTOM_ROLE_UUID = 'custom-role-uuid';
+        const ability = getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.MEMBER,
+                organizationUuid: PROJECT_ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: CUSTOM_ROLE_UUID,
+            },
+            projectProfiles: [],
+            permissionsConfig: {
+                pat: { enabled: false, allowedOrgRoles: [] },
+            },
+            customRoleScopes: {
+                [CUSTOM_ROLE_UUID]: [
+                    'view:Project',
+                    'view:Space',
+                    'view:DataApp',
+                ],
+            },
+            customRolesEnabled: true,
+        }).builder.build();
+        const setupCustomRole = (opts: { consumerAccessEnabled?: boolean }) => {
+            const result = setup(opts);
+            result.spacePermissionService.resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: true,
+                access: [],
+            });
+            vi.spyOn(
+                result.service as unknown as {
+                    createAuditedAbility: () => unknown;
+                },
+                'createAuditedAbility',
+            ).mockReturnValue(ability);
+            return result;
+        };
+
+        it('is a consumer: it can view the app but not Explore', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('DataApp', {
+                        organizationUuid: PROJECT_ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                        inheritsFromOrgOrProject: true,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Explore', {
+                        organizationUuid: PROJECT_ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('runs app queries through the snapshot when the flag is on', async () => {
+            const { service } = setupCustomRole({});
+            await expect(
+                service.authorizeConsumerQuery(request),
+            ).resolves.toEqual({ appUuid: NEW_APP_UUID, version: 2 });
+        });
+
+        it('is denied when the flag is off', async () => {
+            const { service } = setupCustomRole({
+                consumerAccessEnabled: false,
+            });
+            await expect(
+                service.authorizeConsumerQuery(request),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
+    it('rejects a query for fields missing from the snapshot', async () => {
+        const { service } = setup();
+        await expect(
+            service.authorizeConsumerQuery({
+                ...request,
+                metricQuery: { ...metricQuery, dimensions: ['orders_email'] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('rejects a query against another explore', async () => {
+        const { service } = setup();
+        await expect(
+            service.authorizeConsumerQuery({
+                ...request,
+                metricQuery: {
+                    ...metricQuery,
+                    exploreName: 'customers',
+                    dimensions: ['customers_email'],
+                    metrics: [],
+                },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    describe('stored consumer queries', () => {
+        const source = {
+            account: request.account,
+            projectUuid: PROJECT_UUID,
+            appUuid: NEW_APP_UUID,
+        };
+
+        it('allows reads and reruns recorded on the latest ready version', async () => {
+            const { service } = setup();
+            await expect(
+                service.assertCanViewQuerySource({ ...source, version: 2 }),
+            ).resolves.toBeUndefined();
+        });
+
+        it('denies reads and reruns once the flag is off, even with a cached ability', async () => {
+            // The mocked ability still allows view:DataApp, as a cached
+            // session would right after the flag is turned off.
+            const { service } = setup({ consumerAccessEnabled: false });
+            await expect(
+                service.assertCanViewQuerySource({ ...source, version: 2 }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('denies reads and reruns recorded on an older version', async () => {
+            const { service } = setup();
+            await expect(
+                service.assertCanViewQuerySource({ ...source, version: 1 }),
+            ).rejects.toThrow('newer version');
+        });
+    });
+
+    describe('explores named differently from their base table', () => {
+        const reportReferences = extract(
+            "query('orders_report').dimensions(['country']).metrics(['revenue']);",
+        );
+        const reportQuery = {
+            ...metricQuery,
+            exploreName: 'orders_report',
+        };
+        const setupReport = () => {
+            const result = setup();
+            result.appModel.getLatestReadyVersion.mockResolvedValue({
+                version: 2,
+                status: 'ready',
+                data_references: reportReferences,
+                consumer_data_references: reportReferences,
+            });
+            return result;
+        };
+
+        it('accepts the base-table field ids the SDK sends', async () => {
+            const { service } = setupReport();
+            await expect(
+                service.authorizeConsumerQuery({
+                    ...request,
+                    metricQuery: reportQuery,
+                }),
+            ).resolves.toEqual({ appUuid: NEW_APP_UUID, version: 2 });
+        });
+
+        it('rejects explore-name field ids, which are not real fields', async () => {
+            const { service } = setupReport();
+            await expect(
+                service.authorizeConsumerQuery({
+                    ...request,
+                    metricQuery: {
+                        ...reportQuery,
+                        dimensions: ['orders_report_country'],
+                        metrics: ['orders_report_revenue'],
+                    },
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+});
+
+describe('AppGenerateService consumer reference snapshot', () => {
+    const makeSourceTar = (files: { path: string; content: string }[]) =>
+        new Promise<Buffer>((resolve, reject) => {
+            const packer = tarPack();
+            const chunks: Buffer[] = [];
+            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+            packer.on('end', () => resolve(Buffer.concat(chunks)));
+            packer.on('error', reject);
+            files.forEach((file) =>
+                packer.entry({ name: file.path }, file.content),
+            );
+            packer.finalize();
+        });
+
+    it('never freezes from the background refresh path', async () => {
+        const { service, appModel } = buildService();
+        const tar = await makeSourceTar([
+            {
+                path: 'src/App.tsx',
+                content:
+                    "import { query } from '@lightdash/query-sdk'; query('orders').dimensions(['email']);",
+            },
+        ]);
+        s3SendSpy.mockImplementation(async (command: unknown) =>
+            command instanceof GetObjectCommand
+                ? { Body: Readable.from([tar]) }
+                : {},
+        );
+        await (
+            service as unknown as {
+                refreshVersionDataReferences: (
+                    appUuid: string,
+                    version: number,
+                ) => Promise<unknown>;
+            }
+        ).refreshVersionDataReferences(NEW_APP_UUID, 2);
+        expect(appModel.updateVersionDataReferences).toHaveBeenCalled();
+        expect(
+            appModel.freezeVersionConsumerDataReferences,
+        ).not.toHaveBeenCalled();
     });
 });

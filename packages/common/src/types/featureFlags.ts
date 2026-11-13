@@ -89,6 +89,14 @@ export enum FeatureFlags {
     EnableDataAppState = 'enable-data-app-state',
 
     /**
+     * Per-organization gate for Viewer access to data apps. Viewers open
+     * apps shared with them and run only the queries each app version's
+     * saved data references cover. Disabled by default on Cloud and
+     * self-hosted.
+     */
+    DataAppConsumerAccess = 'data-app-consumer-access',
+
+    /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
      * Gates the option in the Map Type segmented control. Existing charts
      * already saved with the hexbin layer continue to render either way.

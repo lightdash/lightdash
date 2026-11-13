@@ -212,6 +212,10 @@ import {
 } from './dashboardReferences';
 import { preserveDashboardTileUuids } from './dashboardTileIdentity';
 import { resolveDataAppVizBinding } from './dataAppVizBinding';
+import {
+    getDateZoomConfigWithoutSlugs,
+    getDateZoomConfigWithSlugs,
+} from './dateZoomControlSlugs';
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
 import {
     getContentConnectionName,
@@ -2175,6 +2179,7 @@ export class CoderService extends BaseService {
                       },
                       parameterControls: config?.parameterControls ?? [],
                       sections: config?.controlSections ?? [],
+                      dateZoomControls: config?.dateZoomConfig?.controls ?? [],
                   }
                 : undefined;
         const dashboardAsCode: DashboardWithSectionIds = {
@@ -2203,6 +2208,13 @@ export class CoderService extends BaseService {
                             config.parameterControls,
                         ),
                     }),
+                    // Zoom slugs appear under the same condition as filter slugs
+                    ...(orderedControls &&
+                        config.dateZoomConfig && {
+                            dateZoomConfig: getDateZoomConfigWithSlugs(
+                                config.dateZoomConfig,
+                            ),
+                        }),
                     ...(orderedControls &&
                         storedOrder !== undefined && {
                             controlOrder: getControlOrderAsCode({
@@ -5840,7 +5852,10 @@ export class CoderService extends BaseService {
                 ...dashboardWithDefaults.filters.dimensions,
                 ...dashboardWithDefaults.filters.metrics,
                 ...dashboardWithDefaults.filters.tableCalculations,
-            ].some((filter) => filter.slug !== undefined)
+            ].some((filter) => filter.slug !== undefined) ||
+            dashboardWithDefaults.config?.dateZoomConfig?.controls?.some(
+                (control) => control.slug !== undefined,
+            )
         ) {
             const enabled =
                 await this.dashboardService.areDashboardControlsEnabled(
@@ -5909,12 +5924,22 @@ export class CoderService extends BaseService {
         );
         let dashboardConfig: DashboardConfig | undefined;
         if (dashboardWithResolvedTabs.config) {
+            const { dateZoomConfig: portableDateZoom, ...portableConfig } =
+                dashboardWithResolvedTabs.config;
             const {
                 parameterControls: portableControls,
                 controlOrder: _portableOrder,
                 ...config
             } = CoderService.getConfigWithDateZoomTileUuids(
-                dashboardWithResolvedTabs.config,
+                {
+                    ...portableConfig,
+                    ...(portableDateZoom && {
+                        dateZoomConfig: getDateZoomConfigWithoutSlugs(
+                            portableDateZoom,
+                            controlsEnabled,
+                        ),
+                    }),
+                },
                 tilesWithUuids,
             );
             const existingControls =
@@ -5942,6 +5967,8 @@ export class CoderService extends BaseService {
                 filters: dashboardFilters,
                 parameterControls: dashboardConfig?.parameterControls ?? [],
                 sections: dashboardConfig?.controlSections ?? [],
+                dateZoomControls:
+                    dashboardConfig?.dateZoomConfig?.controls ?? [],
             };
             // An empty list renders like no list, so it isn't stored
             controlOrder =
@@ -5963,6 +5990,9 @@ export class CoderService extends BaseService {
                                   sections:
                                       dashboardWithDefaults.config
                                           ?.controlSections ?? [],
+                                  dateZoomControls:
+                                      dashboardWithResolvedTabs.config
+                                          ?.dateZoomConfig?.controls ?? [],
                               },
                               sources,
                           ),

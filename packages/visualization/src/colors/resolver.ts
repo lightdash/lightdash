@@ -1,5 +1,6 @@
 import {
     ChartType,
+    isOtherPivotValue,
     type ChartConfig,
     type ItemsMap,
     type PivotValue,
@@ -17,7 +18,7 @@ import {
 } from './series';
 
 export type SeriesColorResolver = {
-    /** A shared color for a series, from its own color, the chart metadata, a dimension value color or the palette by order. */
+    /** A shared color for a series, from its own color, the chart metadata, the neutral color for the "Other" group, a dimension value color or the palette by order. */
     getSeriesColor: (seriesLike: SeriesLike) => string;
     /** A shared color for a group value; pie, funnel, treemap and sankey use it. */
     getGroupColor: (groupPrefix: string, identifier: string) => string;
@@ -32,6 +33,12 @@ export type SeriesColorResolverOptions = ColorAssignmentOptions & {
      * from the chart config.
      */
     computedSeries?: Series[];
+    /**
+     * Color for the "Other" group (groups past the pivot column limit, added
+     * together). Lighter than the null color so it reads as the remainder.
+     * Defaults to the null color.
+     */
+    otherColor?: string;
 };
 
 /**
@@ -47,6 +54,7 @@ export const createSeriesColorResolver = ({
     chartConfig,
     itemsMap,
     computedSeries,
+    otherColor = nullColor,
 }: SeriesColorResolverOptions): SeriesColorResolver => {
     const assignment: ColorAssignmentOptions = {
         colorPalette,
@@ -103,6 +111,11 @@ export const createSeriesColorResolver = ({
         } else if (seriesLike.encode && 'yRef' in seriesLike.encode) {
             pivot = seriesLike.encode.yRef?.pivotValues?.[0];
         }
+        // The "Other" group (groups past the pivot column limit, added
+        // together) is not a value of the field. Give it a neutral color so
+        // it reads as the remainder, unless a color was picked above.
+        if (pivot && isOtherPivotValue(pivot.value)) return otherColor;
+
         if (itemsMap && pivot) {
             const { field, value } = pivot;
             const fixedColor = getDimensionValueColor(itemsMap, field, value);

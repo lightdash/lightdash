@@ -32,7 +32,7 @@ import {
     IconSql,
 } from '@tabler/icons-react';
 import { omit } from 'es-toolkit/compat';
-import { useId, useMemo, useState, type FC } from 'react';
+import { useId, useMemo, useState, type FC, type ReactNode } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import FilterOperatorOption from '../../components/common/Filters/FilterOperatorOption';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -51,6 +51,7 @@ import {
 } from '../dashboardFilters/FilterConfiguration/utils';
 import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/useDashboardFilterField';
 import { getDashboardFilterRuleLabel } from '../dashboardFilters/FilterRequirements/utils';
+import { useControlContractClasses } from './controlContractClasses';
 import { DropdownClass } from './DropdownClass';
 import {
     focusAnswerOnMount,
@@ -63,7 +64,6 @@ import { FilterValueSettings, LockedRequiredNote } from './FilterValueSettings';
 import { focusOnMount } from './mappingFocus';
 import { useRefocusAfter } from './nameFocus';
 import { NameInput } from './NameInput';
-import { useRailContractClasses } from './railContractClasses';
 import { SectionSetting } from './SectionSetting';
 import { getSettingsSummary } from './settingsSummary';
 import { withFilterRuleLabel } from './sidebarState';
@@ -86,7 +86,7 @@ const isValueless = (operator: FilterOperator) =>
     operator === FilterOperator.NULL || operator === FilterOperator.NOT_NULL;
 
 /** At the top while a pill or Add waits on the draft. */
-export const EditorPrompt: FC<{
+const EditorPrompt: FC<{
     name: string;
     applyBlockedReason: string | null;
     onResolvePending: (shouldApply: boolean) => void;
@@ -134,9 +134,18 @@ export const EditorActions: FC<{
     /** Off with no reason to give: a filter left with no field. */
     isApplyDisabled: boolean;
     isAsking: boolean;
+    /** In place of "Apply" (default). */
+    applyLabel?: string;
     onCancel: () => void;
     onApply: () => void;
-}> = ({ applyBlockedReason, isApplyDisabled, isAsking, onCancel, onApply }) => {
+}> = ({
+    applyBlockedReason,
+    isApplyDisabled,
+    isAsking,
+    applyLabel,
+    onCancel,
+    onApply,
+}) => {
     const getUiString = useUiStrings();
     return (
         <Group gap="xs" wrap="nowrap" flex="0 0 auto">
@@ -157,13 +166,61 @@ export const EditorActions: FC<{
                         }
                         onClick={onApply}
                     >
-                        {getUiString('filters.apply')}
+                        {applyLabel ?? getUiString('filters.apply')}
                     </Button>
                 </Box>
             </Tooltip>
         </Group>
     );
 };
+
+/** Every control editor's frame: the question over a dimmed, inert body, then the footer. */
+export const EditorFrame: FC<{
+    name: string;
+    applyBlockedReason: string | null;
+    isAsking: boolean;
+    onResolvePending: (shouldApply: boolean) => void;
+    rootRef?: (node: HTMLElement | null) => void;
+    /** Null: no footer (a new filter before its field). */
+    footer: ReactNode;
+    children: ReactNode;
+}> = ({
+    name,
+    applyBlockedReason,
+    isAsking,
+    onResolvePending,
+    rootRef,
+    footer,
+    children,
+}) => (
+    <Box className={classes.root} role="dialog" aria-label={name} ref={rootRef}>
+        {isAsking && (
+            <EditorPrompt
+                name={name}
+                applyBlockedReason={applyBlockedReason}
+                onResolvePending={onResolvePending}
+            />
+        )}
+        {/* While the question is open it is the only live part */}
+        <Box
+            className={classes.body}
+            data-dimmed={isAsking || undefined}
+            inert={isAsking || undefined}
+        >
+            {children}
+            {footer !== null && (
+                <Group
+                    justify="flex-end"
+                    gap="xs"
+                    wrap="nowrap"
+                    className={classes.footer}
+                >
+                    {footer}
+                </Group>
+            )}
+        </Box>
+    </Box>
+);
 
 const OperatorMenu: FC<{
     rule: DashboardFilterRule;
@@ -177,7 +234,7 @@ const OperatorMenu: FC<{
     const multipleDescriptionId = useId();
     const multipleLabelId = useId();
     // Mantine's menu sets its own dropdown class over `DropdownClass`'s
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     const allowsMultiple = !rule.singleValue;
     const options = useMemo(
         () =>
@@ -352,7 +409,7 @@ export const FilterPopover: FC<Props> = ({
     onResolvePending,
 }) => {
     const getUiString = useUiStrings();
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     const tabs = useDashboardSelector(selectDashboardTabs);
     const sections = useDashboardSelector(selectControlSections);
     const getField = useDashboardFilterField();
@@ -629,28 +686,13 @@ export const FilterPopover: FC<Props> = ({
     );
 
     return (
-        <Box className={classes.root} role="dialog" aria-label={name}>
-            {isAsking && (
-                <EditorPrompt
-                    name={name}
-                    applyBlockedReason={applyBlockedReason}
-                    onResolvePending={onResolvePending}
-                />
-            )}
-            {/* While the question is open it is the only live part */}
-            <Box
-                className={classes.body}
-                data-dimmed={isAsking || undefined}
-                inert={isAsking || undefined}
-            >
-                {view === 'settings' ? settingsView : valueView}
-                {chips}
-                <Group
-                    justify="flex-end"
-                    gap="xs"
-                    wrap="nowrap"
-                    className={classes.footer}
-                >
+        <EditorFrame
+            name={name}
+            applyBlockedReason={applyBlockedReason}
+            isAsking={isAsking}
+            onResolvePending={onResolvePending}
+            footer={
+                <>
                     {canReset && (
                         <Tooltip
                             fz="xs"
@@ -684,8 +726,11 @@ export const FilterPopover: FC<Props> = ({
                         onCancel={onCancel}
                         onApply={onApply}
                     />
-                </Group>
-            </Box>
-        </Box>
+                </>
+            }
+        >
+            {view === 'settings' ? settingsView : valueView}
+            {chips}
+        </EditorFrame>
     );
 };

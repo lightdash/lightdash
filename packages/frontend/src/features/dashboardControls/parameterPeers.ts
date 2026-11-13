@@ -371,5 +371,5 @@ export type ParameterMapping = {
     cardByTile: Record<string, ParameterTileCard>;
     valueByTile: Record<string, string | null>;
     takeableTileUuids: string[];
-    setTileUuids: string[];
+    appliedTileUuids: string[];
 };

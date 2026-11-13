@@ -16,6 +16,7 @@ import {
     type ApiConnectorResult,
     type ApiConnectorTransport,
 } from '../ApiConnector';
+import { tooManyRowsError } from '../apiSourceRows';
 import { toGoogleApiError } from './googleApiError';
 import {
     YOUTUBE_ANALYTICS_DATE_FILTERS,
@@ -216,9 +217,10 @@ export class YoutubeAnalyticsConnector implements ApiConnector {
               apiRows.length >= YOUTUBE_ANALYTICS_MAX_VIDEOS
             : requestedRows > maxRows && apiRows.length > maxRows;
         if (hitsCeiling) {
-            throw new ParameterError(
-                `This query has more than ${maxRows} rows, the most one YouTube Analytics query can return. Narrow it with filters, a shorter time range, or a row limit of ${maxRows} or fewer.`,
-            );
+            throw tooManyRowsError({
+                label: 'YouTube Analytics',
+                maxRows: isTopVideos ? YOUTUBE_ANALYTICS_MAX_VIDEOS : maxRows,
+            });
         }
 
         const headers = parsed.data.columnHeaders;
@@ -243,7 +245,7 @@ export class YoutubeAnalyticsConnector implements ApiConnector {
         return {
             columns,
             rows,
-            truncated:
+            hasMoreRows:
                 apiRows.length > rowLimit ||
                 (isTopVideos && apiRows.length >= askedRows),
             bytesRead: null,
