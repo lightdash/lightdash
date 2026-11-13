@@ -252,10 +252,6 @@ const getAnnouncement = (signIn: SignIn): string => {
 
 const USED_CODE_PHASES: SignIn['phase'][] = ['claimed', 'approved'];
 
-export const isSignInIdle = (signIn: SignIn) =>
-    signIn.phase === 'showing' ||
-    (signIn.phase === 'hidden' && signIn.isMinting);
-
 export const MobileSignInQr: FC<{
     signIn: SignIn;
     keepUsed?: boolean;

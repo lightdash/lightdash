@@ -22,11 +22,11 @@ import { useNavBarMenuProps } from '../../components/NavBar/NavBarPortalContext'
 import useHealth from '../../hooks/health/useHealth';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
+import { isSignInIdle } from './isSignInIdle';
 import { getHost } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { useMobileSignInSeen } from './mobileSignInSeen';
 import {
-    isSignInIdle,
     MobileSignInDetails,
     MobileSignInQr,
     MobileSignInStatus,
