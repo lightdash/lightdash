@@ -1,3 +1,10 @@
+## [3.240.4](https://github.com/lightdash/lightdash/compare/3.240.3...3.240.4) (2026-11-13)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep embedded write-space threads private to their viewer ([#32405](https://github.com/lightdash/lightdash/issues/32405)) ([83c073b](https://github.com/lightdash/lightdash/commit/83c073b764568a0e1a86cad664c317515e17d95f))
+
 ## [3.240.3](https://github.com/lightdash/lightdash/compare/3.240.2...3.240.3) (2026-11-12)
 
 
