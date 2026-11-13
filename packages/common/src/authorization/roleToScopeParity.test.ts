@@ -109,6 +109,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     // the feature is gated by license anyway.
     'OrganizationWarehouseCredentials',
     'Roadmap',
+    'Billing',
 ]);
 
 /**
@@ -157,6 +158,7 @@ const PROJECT_PARITY_IGNORE = new Set([
     '*:OrganizationColorPalette',
     '*:OrganizationDesign',
     '*:Roadmap',
+    '*:Billing',
     '*:Learn',
     '*:Group',
     '*:InviteLink',
