@@ -139,9 +139,12 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
                                 fz="xs"
                                 onClick={() => {
                                     if (!isExpanded) onToggleTable(table.name);
-                                    virtualizer.scrollToIndex(index, {
-                                        align: 'start',
-                                    });
+                                    // Wait a frame so a just-expanded table has its rows
+                                    requestAnimationFrame(() =>
+                                        virtualizer.scrollToIndex(index, {
+                                            align: 'start',
+                                        }),
+                                    );
                                 }}
                             >
                                 {table.label}
