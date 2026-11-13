@@ -7,6 +7,11 @@ name: Scope tours docs refresh
 # stops because a citation broke, it opens one pull request for the Learn
 # owners. When nothing would change it opens nothing and the pin stays put.
 #
+# The bump follows a cited text that only moved inside its docs section: it
+# rewrites the citation in the frontend source file, and the pull request
+# holds that file too. A move on its own changes nothing learners see, so it
+# opens no pull request.
+#
 # One refresh pull request is open at a time. While it is open the job does not
 # run the bump, so a fix pushed to that pull request is never overwritten.
 #
@@ -33,6 +38,7 @@ on:
         paths:
             - '.github/workflows/scope-tours-docs-refresh.yml'
             - 'scripts/scope-tours/bump-docs-pin.ts'
+            - 'scripts/scope-tours/citation-moves.ts'
 
 permissions:
     contents: read
@@ -168,12 +174,21 @@ jobs:
                           echo
                           echo "[Full log]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
                       fi
+                      # One line per citation the bump moved, as it printed them.
+                      if grep -q '^moved citation: ' "$RUNNER_TEMP/bump.log"; then
+                          echo
+                          echo '### Moved citations'
+                          echo
+                          echo 'The docs moved these cited texts without changing them, so the bump moved the citations to match. Learners see the same words.'
+                          echo
+                          grep '^moved citation: ' "$RUNNER_TEMP/bump.log" | sed -e 's/^moved citation: /- /' -e 's/@/\&#64;/g'
+                      fi
                       echo
                       echo '### Review'
                       echo
                       echo '- [ ] Each changed card still matches its step title.'
                       echo
-                      echo "A body that now says something unrelated, or a bump that stopped, means the cited text moved in the docs. Fix the \`data-tour-docs\` attribute on this branch, regenerate with the docs at the new pin, and push here. [maintaining-walkthroughs.md]($guide) names each failure and its fix."
+                      echo "The bump follows a cited text that only moved inside its section. A body that now says something unrelated, or a bump that stopped, means the docs edited the text as well as moving it, or renamed its heading. Fix the \`data-tour-docs\` attribute on this branch, regenerate with the docs at the new pin, and push here. [maintaining-walkthroughs.md]($guide) names each failure and its fix."
                       echo
                       # shellcheck disable=SC2016
                       echo 'Opened by `.github/workflows/scope-tours-docs-refresh.yml`. While this pull request is open the job does not run the bump again.'
@@ -192,18 +207,18 @@ jobs:
               env:
                   NEW: ${{ steps.bump.outputs.new }}
               run: |
-                  files='scripts/scope-tours/docs-pin.txt packages/frontend/src/features/scopeTours/generated.ts packages/frontend/src/features/scopeTours/released.ts packages/frontend/src/features/scopeTours/curriculum.ts'
+                  # What the bump changed: the pin, the generated files, and the
+                  # frontend source files whose citation it moved.
+                  git diff --name-only -- scripts/scope-tours/docs-pin.txt packages/frontend/src > "$RUNNER_TEMP/changed.txt"
                   echo '[]' > "$RUNNER_TEMP/additions.json"
-                  for file in $files; do
-                      if ! git diff --quiet -- "$file"; then
-                          # The API takes base64 with no line breaks in it.
-                          base64 < "$file" | tr -d '\n' > "$RUNNER_TEMP/contents.b64"
-                          jq --arg path "$file" --rawfile contents "$RUNNER_TEMP/contents.b64" \
-                              '. + [{path: $path, contents: $contents}]' \
-                              "$RUNNER_TEMP/additions.json" > "$RUNNER_TEMP/additions.next.json"
-                          mv "$RUNNER_TEMP/additions.next.json" "$RUNNER_TEMP/additions.json"
-                      fi
-                  done
+                  while IFS= read -r file; do
+                      # The API takes base64 with no line breaks in it.
+                      base64 < "$file" | tr -d '\n' > "$RUNNER_TEMP/contents.b64"
+                      jq --arg path "$file" --rawfile contents "$RUNNER_TEMP/contents.b64" \
+                          '. + [{path: $path, contents: $contents}]' \
+                          "$RUNNER_TEMP/additions.json" > "$RUNNER_TEMP/additions.next.json"
+                      mv "$RUNNER_TEMP/additions.next.json" "$RUNNER_TEMP/additions.json"
+                  done < "$RUNNER_TEMP/changed.txt"
                   jq -n \
                       --arg repository "$GITHUB_REPOSITORY" \
                       --arg branch "$BRANCH" \
