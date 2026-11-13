@@ -573,7 +573,31 @@ describe('signed analytics file manifests', () => {
         },
     );
 
-    it('drains in-flight signing before cleanup and never starts another batch after failure', async () => {
+    it('starts the next object when a slot opens, even if an earlier object is slow', async () => {
+        const keys = Array.from({ length: 9 }, (_, i) =>
+            key().replace('part-1', `part-${i}`),
+        );
+        send.mockResolvedValue({ Contents: keys.map((Key) => ({ Key })) });
+        const first = Promise.withResolvers<string>();
+        vi.mocked(getSignedUrl).mockImplementation(async (_client, command) => {
+            const objectKey = (command as GetObjectCommand).input.Key!;
+            if (objectKey === keys[0]) return first.promise;
+            return `signed:${objectKey}`;
+        });
+
+        const resolution = createS3AnalyticsSourceResolver(config)();
+        try {
+            await vi.waitFor(() =>
+                expect(getSignedUrl).toHaveBeenCalledTimes(keys.length),
+            );
+            expect(destroy).not.toHaveBeenCalled();
+        } finally {
+            first.resolve(`signed:${keys[0]}`);
+            await resolution;
+        }
+    });
+
+    it('drains in-flight signing before cleanup and starts no more objects after failure', async () => {
         send.mockResolvedValue({
             Contents: Array.from({ length: 20 }, (_, i) => ({
                 Key: key().replace('part-1', `part-${i}`),

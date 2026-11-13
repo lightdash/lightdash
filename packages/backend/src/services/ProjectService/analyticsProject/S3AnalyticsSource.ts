@@ -62,16 +62,26 @@ const mapFiles = async <T>(
     prepare: (file: AnalyticsFile) => Promise<T>,
 ): Promise<T[]> => {
     const values: T[] = [];
-    for (let i = 0; i < files.length; i += PREPARATION_CONCURRENCY) {
-        // eslint-disable-next-line no-await-in-loop
-        const results = await Promise.allSettled(
-            files.slice(i, i + PREPARATION_CONCURRENCY).map(prepare),
-        );
-        for (const result of results) {
-            if (result.status === 'rejected') throw result.reason;
-            values.push(result.value);
-        }
-    }
+    let next = 0;
+    let failure: { error: unknown } | undefined;
+    await Promise.all(
+        Array.from(
+            { length: Math.min(files.length, PREPARATION_CONCURRENCY) },
+            async () => {
+                while (!failure && next < files.length) {
+                    const index = next;
+                    next += 1;
+                    try {
+                        // eslint-disable-next-line no-await-in-loop
+                        values[index] = await prepare(files[index]);
+                    } catch (error) {
+                        failure ??= { error };
+                    }
+                }
+            },
+        ),
+    );
+    if (failure) throw failure.error;
     return values;
 };
 
