@@ -28,5 +28,11 @@
     .notificationsRoot.signedOut[data-position^='bottom']
         :global(.mantine-Notification-root) {
         padding-block: rem(6px);
+        margin-top: 0;
+    }
+
+    .notificationsRoot.signedOut[data-position^='bottom']
+        :global(.mantine-Notification-root:not(:last-child)) {
+        display: none;
     }
 }
