@@ -14,6 +14,9 @@ import { renderWithProviders } from '../../testing/testUtils';
 import LightdashAnalyticsPanel from './LightdashAnalyticsPanel';
 
 vi.mock('../../api');
+vi.mock('./AnalyticsOverview/AnalyticsOverview', () => ({
+    default: () => null,
+}));
 vi.mock(
     '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility',
     () => ({
@@ -116,6 +119,9 @@ describe('LightdashAnalyticsPanel', () => {
         expect(useProjectAiAgentButtonVisibility).toHaveBeenLastCalledWith(
             project.projectUuid,
         );
+        await userEvent.click(
+            screen.getByRole('button', { name: /Verified dashboards/ }),
+        );
         expect(
             await screen.findByRole('link', {
                 name: 'Lightdash usage overview, verified',
@@ -210,6 +216,9 @@ describe('LightdashAnalyticsPanel', () => {
                 : { project },
         );
         renderPanel();
+        await userEvent.click(
+            await screen.findByRole('button', { name: /Verified dashboards/ }),
+        );
         expect(
             await screen.findByRole('link', {
                 name: 'AI usage overview, verified',

@@ -1,0 +1,33 @@
+.metric {
+    padding: var(--mantine-spacing-md);
+    text-align: left;
+    min-width: 0;
+}
+
+.metric:hover,
+.metric[data-selected='true'] {
+    border-color: var(--mantine-color-violet-5);
+}
+
+.metricValue {
+    font-size: var(--mantine-h1-font-size);
+    font-weight: 600;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+}
+
+.tabs {
+    flex-wrap: nowrap;
+    min-width: max-content;
+}
+
+.chart {
+    height: 240px !important;
+}
+
+.emptyChart {
+    height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
