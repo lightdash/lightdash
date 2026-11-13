@@ -45,6 +45,7 @@ import {
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
+import { isAgentOperationOff } from '../../services/AgentPermissionService/assertAgentOperation';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -159,7 +160,7 @@ const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
     const request = await service.loadRequest(
         account.organization.organizationUuid,
     );
-    if (request.enforcementMode === 'off') return;
+    if (isAgentOperationOff(request)) return;
     if (request.enforcementMode === 'admission') {
         await service.assertOperationWithRequest({
             request,
