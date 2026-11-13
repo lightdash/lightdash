@@ -154,7 +154,7 @@ const AnalyticsOverview = ({
     heading: ReactNode;
     actions: ReactNode;
 }) => {
-    const [days, setDays] = useState('30');
+    const [days, setDays] = useState('7');
     const [selectedProject, setSelectedProject] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState('overview');
     const tabsViewport = useRef<HTMLDivElement>(null);
