@@ -369,6 +369,7 @@ import { OrganizationAccessService } from '../OrganizationAccessService/Organiza
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import { getAnalyticsActivityWindow } from '../ProjectService/analyticsProject/getAnalyticsActivityWindow';
 import { developmentView } from '../ProjectService/developmentView';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
 import {
@@ -5196,6 +5197,7 @@ export class AsyncQueryService extends ProjectService {
      * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
      */
     private async runAsyncWarehouseQueryInScope({
+        analyticsActivityWindow,
         userUuid,
         organizationUuid,
         isPreviewProject,
@@ -5303,7 +5305,12 @@ export class AsyncQueryService extends ProjectService {
                     kind: 'binding',
                     projectUuid,
                     binding: { kind: 'query', queryUuid },
-                    overrides: warehouseCredentialsOverrides,
+                    overrides: analyticsActivityWindow
+                        ? {
+                              ...warehouseCredentialsOverrides,
+                              analyticsActivityWindow,
+                          }
+                        : warehouseCredentialsOverrides,
                 },
                 connectionContextFromUser(
                     {
@@ -6090,6 +6097,8 @@ export class AsyncQueryService extends ProjectService {
                 query.requestParameters.resultEntitlementFingerprint ?? null,
             query: query.compiledSql,
             displayTimezone,
+            analyticsActivityWindow:
+                query.requestParameters.analyticsActivityWindow,
         };
     }
 
@@ -6718,6 +6727,13 @@ export class AsyncQueryService extends ProjectService {
                     const displayTimezone = queryComposer.getDisplayTimezone();
 
                     const warehouseCredentialsType = warehouseCredentials.type;
+                    const analyticsActivityWindow =
+                        warehouseCredentials.type === WarehouseTypes.DUCKDB &&
+                        warehouseCredentials.connectionType ===
+                            DuckdbConnectionType.ANALYTICS &&
+                        !dateZoom
+                            ? getAnalyticsActivityWindow(metricQuery, timezone)
+                            : undefined;
                     const warehouseCredentialsOverrides: RunAsyncWarehouseQueryArgs['warehouseCredentialsOverrides'] =
                         {
                             snowflakeVirtualWarehouse: explore.warehouse,
@@ -7046,6 +7062,7 @@ export class AsyncQueryService extends ProjectService {
                                         : undefined,
                                 resultEntitlementFingerprint:
                                     entitlementFingerprint,
+                                analyticsActivityWindow,
                                 cacheSourceQueryUuid:
                                     resultsCache.cacheHit && identityEnabled
                                         ? resultsCache.queryUuid
@@ -7374,6 +7391,7 @@ export class AsyncQueryService extends ProjectService {
                     trackQueryExecuted(executedSource);
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
+                        analyticsActivityWindow,
                         authMethod: account.authentication.type,
                         agentIdentity: agentIdentity ?? null,
                         resultEntitlementFingerprint: entitlementFingerprint,

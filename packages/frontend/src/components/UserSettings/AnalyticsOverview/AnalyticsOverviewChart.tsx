@@ -8,22 +8,18 @@ import {
     analyticsCategoryLabels,
     analyticsFieldId,
     type AnalyticsChartSpec,
-    type AnalyticsFilters,
 } from './analyticsOverviewConfig';
-import { useAnalyticsOverviewQuery } from './useAnalyticsOverviewQuery';
+import { type AnalyticsOverviewQueryResult } from './useAnalyticsOverviewQuery';
 
 const AnalyticsOverviewChart = ({
-    projectUuid,
     chart,
-    filters,
+    result,
     projectNames,
 }: {
-    projectUuid: string;
     chart: AnalyticsChartSpec;
-    filters: AnalyticsFilters;
+    result: AnalyticsOverviewQueryResult;
     projectNames: Record<string, string>;
 }) => {
-    const result = useAnalyticsOverviewQuery(projectUuid, chart.query, filters);
     const theme = useMantineTheme();
     const option = useMemo<EChartsOption>(() => {
         const field = (name: string) => analyticsFieldId(chart.query, name);

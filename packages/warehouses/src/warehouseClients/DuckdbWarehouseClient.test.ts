@@ -219,7 +219,7 @@ describe('internal Parquet projects', () => {
             },
             staleRows,
         );
-        const staleAssertion = expect(stale).rejects.toBeInstanceOf(
+        const staleAssertion = await expect(stale).rejects.toBeInstanceOf(
             AnalyticsQueryCancelledError,
         );
         const current = client.executeAsyncQuery({
@@ -238,7 +238,8 @@ describe('internal Parquet projects', () => {
         await Promise.all([...active, staleAssertion, current]);
 
         expect(isQueuedQueryCancelled).toHaveBeenCalledOnce();
-        expect(createInstanceMock).toHaveBeenCalledTimes(3);
+        // Two held sessions, then one session and its SQL dependency parser.
+        expect(createInstanceMock).toHaveBeenCalledTimes(4);
         expect(resolveSource).toHaveBeenCalledTimes(3);
         expect(staleRows).not.toHaveBeenCalled();
         expect(logger.info).toHaveBeenCalledWith(

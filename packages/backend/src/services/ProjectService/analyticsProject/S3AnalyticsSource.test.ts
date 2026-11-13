@@ -799,6 +799,55 @@ describe('signed analytics file manifests', () => {
         );
     });
 
+    it('prepares only in-range activity files and keeps other sources available', async () => {
+        const activity = (day: string) =>
+            `${prefix}model=user_activity/stream=query_events/dt=${day}/activity.parquet`;
+        const selected = activity('2026-11-06');
+        const other = key('agent_steps', '2026-11-01');
+        send.mockResolvedValue({
+            Contents: [
+                { Key: activity('2026-11-05') },
+                { Key: selected },
+                { Key: activity('2026-11-13') },
+                { Key: other },
+            ],
+        });
+        const result = await createS3AnalyticsSourceResolver({
+            ...config,
+            activityWindow: { start: '2026-11-06', end: '2026-11-13' },
+        })(['user_activity', 'agent_steps']);
+        expect(result.tables.map(({ name }) => name)).toEqual([
+            'user_activity',
+            'agent_steps',
+        ]);
+        expect(
+            vi
+                .mocked(getSignedUrl)
+                .mock.calls.map(
+                    ([, command]) => (command as GetObjectCommand).input.Key,
+                ),
+        ).toEqual([selected, other]);
+    });
+
+    it('exposes a typed empty activity table for a date range without files', async () => {
+        send.mockResolvedValue({
+            Contents: [
+                {
+                    Key: `${prefix}model=user_activity/stream=query_events/dt=2026-11-05/activity.parquet`,
+                },
+            ],
+        });
+        const result = await createS3AnalyticsSourceResolver({
+            ...config,
+            activityWindow: { start: '2026-11-06', end: '2026-11-13' },
+        })(['user_activity']);
+        expect(result.tables).toEqual([]);
+        expect(result.emptyTables?.map(({ name }) => name)).toContain(
+            'user_activity',
+        );
+        expect(getSignedUrl).not.toHaveBeenCalled();
+    });
+
     it('refreshes the manifest and does not reuse unversioned signatures', async () => {
         const resolve = createS3AnalyticsSourceResolver(config);
         await resolve();
