@@ -152,6 +152,9 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
         );
         await model.releaseQueryExecution(oldOwner);
         expect(await statusOf(queryUuid)).toBe(QueryHistoryStatus.EXECUTING);
+        const rowBeforeStaleWrites = await tx('query_history')
+            .where('query_uuid', queryUuid)
+            .first();
         await expect(
             QueryHistoryModel.withQueryExecution(oldOwner, () =>
                 model.update(
@@ -186,6 +189,9 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
                 ),
             ),
         ).rejects.toThrow('Query execution ownership lost');
+        expect(
+            await tx('query_history').where('query_uuid', queryUuid).first(),
+        ).toEqual(rowBeforeStaleWrites);
         await QueryHistoryModel.withQueryExecution(replacement, () =>
             model.update(
                 queryUuid,
