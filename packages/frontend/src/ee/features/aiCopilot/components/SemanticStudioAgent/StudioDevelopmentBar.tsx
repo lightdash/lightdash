@@ -3,7 +3,7 @@ import {
     CiMergeState,
     type CiChecks,
 } from '@lightdash/common';
-import { ActionIcon, Button, Menu, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { IconDots, IconExternalLink } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -29,6 +29,7 @@ import {
 } from '../../hooks/useWritebackProgress';
 import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
 import { WRITEBACK_STEPS } from '../ChatElements/ToolCalls/writebackProgress';
+import { WritebackSegments } from '../ChatElements/ToolCalls/WritebackProgressCard';
 import {
     type StudioPendingChange,
     type StudioPullRequest,
@@ -228,22 +229,26 @@ export const StudioSavingBar: FC<{
     /** The open pull request this save adds to; null when the save opens the first one. */
     pullRequest: StudioPullRequest | null;
 }> = ({ projectUuid, change, pullRequest }) => {
-    const { step, state } = useWritebackProgress(
+    const progress = useWritebackProgress(
         projectUuid,
         change.aiWritebackRunUuid,
     );
+    const { step, state } = progress;
     const elapsed = useElapsed(change.startedAt);
     const [isOnMyChanges, setIsOnMyChanges] = useDevelopmentView();
     return (
         <DevelopmentBar
             summary={
-                <Text fz="xs" c="dimmed" truncate>
-                    {state === 'running'
-                        ? `${WRITEBACK_STEPS[step]}, step ${step + 1} of ${WRITEBACK_STEPS.length}`
-                        : state === 'done'
-                          ? 'Saved'
-                          : 'The change stopped'}
-                </Text>
+                <Group gap="xs" wrap="nowrap" miw={0}>
+                    <WritebackSegments progress={progress} size="sm" />
+                    <Text fz="xs" c="dimmed" truncate>
+                        {state === 'running'
+                            ? `${WRITEBACK_STEPS[step]}, step ${step + 1} of ${WRITEBACK_STEPS.length}`
+                            : state === 'done'
+                              ? 'Saved'
+                              : 'The change stopped'}
+                    </Text>
+                </Group>
             }
         >
             {/* An earlier save can still be tried, and left, while this one runs. */}
