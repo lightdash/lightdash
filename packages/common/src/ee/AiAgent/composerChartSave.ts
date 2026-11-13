@@ -72,10 +72,11 @@ const toPipelineNode = (
     }
 };
 
-/** False for a merge answer that saves as a merged chart; every other composer answer saves as a composer chart. */
+/** Whether an answer saves as a composer chart: v2 answers, except a merge that saves as a merged chart. */
 export const savesAsComposerChart = (
     config: AiComposerChartArtifactConfig,
 ): boolean => {
+    if (config.schemaVersion !== 2) return false;
     const node = config.queries.find(
         ({ nodeId }) => nodeId === config.terminalNodeId,
     );
@@ -100,7 +101,7 @@ export const getComposerChartSaveDraft = ({
     metadata: { title: string; description: string };
 }): ComposerChartSaveDraft => {
     if (config.schemaVersion !== 2) {
-        return unavailable('Ask again to save this answer to a dashboard');
+        return unavailable('Older answers cannot be saved to a dashboard');
     }
     if (config.vizConfig?.type === 'custom') {
         return unavailable(

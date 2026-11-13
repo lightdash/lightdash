@@ -269,6 +269,16 @@ describe('savesAsComposerChart', () => {
         ).toBe(false);
     });
 
+    test('an older answer does not save', () => {
+        expect(
+            savesAsComposerChart({
+                ...answer(null),
+                schemaVersion: 1,
+                vizConfig: null,
+            }),
+        ).toBe(false);
+    });
+
     test.each([
         ['a transformation', answer(null)],
         [

@@ -54,7 +54,7 @@ type FormValues = {
 } & SaveToDashboardFormType &
     SaveToSpaceFormType;
 
-export type SavedComposerChart = {
+export type SavedComposerChartLink = {
     composerChartUuid: string;
     dashboardUuid: string;
 };
@@ -67,7 +67,8 @@ type Props = {
     description: string;
     pipeline: ComposerChartPipeline;
     chart: ComposerStoredChart;
-    onSaved: (saved: SavedComposerChart) => void;
+    /** Links the answer to the chart; the modal closes once it settles. */
+    onSaved: (saved: SavedComposerChartLink) => Promise<void>;
 };
 
 /** The chart save modal for a composer chart: dashboards only, the space option shown greyed out. */
@@ -229,10 +230,10 @@ export const SaveComposerChartModal: FC<Props> = ({
                 projectUuid,
             );
             showToastSuccess({ title: `Saved to "${dashboard.name}"` });
-            onSaved({
+            await onSaved({
                 composerChartUuid: composerChart.uuid,
                 dashboardUuid: dashboard.uuid,
-            });
+            }).catch(() => undefined);
             onClose();
         } catch (e) {
             showToastApiError({

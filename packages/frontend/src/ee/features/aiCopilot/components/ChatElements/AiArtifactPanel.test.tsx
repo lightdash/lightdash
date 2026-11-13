@@ -57,7 +57,9 @@ vi.mock('../../hooks/useProjectAiAgents', () => ({
     useAiAgentArtifactVizQuery: mocks.query,
     useAiAgentDashboardChartVizQuery: mocks.query,
     useUpdateArtifactVersionSavedSql: () => ({ mutateAsync: vi.fn() }),
-    useUpdateArtifactVersionSavedComposerChart: () => ({ mutate: vi.fn() }),
+    useUpdateArtifactVersionSavedComposerChart: () => ({
+        mutateAsync: vi.fn(),
+    }),
 }));
 vi.mock('../../../../../hooks/user/useCreateInAnySpaceAccess', () => ({
     default: () => false,

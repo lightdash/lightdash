@@ -10,17 +10,13 @@ import {
     type ResultColumn,
 } from '@lightdash/common';
 import { useMemo } from 'react';
+import { type SavedComposerChartLink } from '../../../../../features/composerCharts/components/SaveComposerChartModal';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useUpdateArtifactVersionSavedComposerChart } from '../../hooks/useProjectAiAgents';
 import { type ComposerPanelSource } from './useComposerNodeResults';
-
-export type SavedComposerChartLink = {
-    composerChartUuid: string;
-    dashboardUuid: string;
-};
 
 export type ComposerChartSaveAction =
     | { kind: 'saved'; dashboardUuid: string }
@@ -32,7 +28,7 @@ export type ComposerChartSaveAction =
               pipeline: ComposerChartPipeline;
               chart: ComposerStoredChart;
           } | null;
-          link: (saved: SavedComposerChartLink) => void;
+          link: (saved: SavedComposerChartLink) => Promise<void>;
       };
 
 type Args = {
@@ -61,12 +57,13 @@ export const useComposerChartSaveAction = ({
     const isEmbed = useIsEmbedded();
     const authoringEnabled = useContentAuthoringEnabled();
     const { data: flag } = useServerFeatureFlag(FeatureFlags.ComposerCharts);
-    const { mutate: linkChart } = useUpdateArtifactVersionSavedComposerChart(
-        projectUuid,
-        agentUuid,
-        source.kind === 'artifact' ? source.artifactUuid : '',
-        source.kind === 'artifact' ? source.versionUuid : '',
-    );
+    const { mutateAsync: linkChart } =
+        useUpdateArtifactVersionSavedComposerChart(
+            projectUuid,
+            agentUuid,
+            source.kind === 'artifact' ? source.artifactUuid : '',
+            source.kind === 'artifact' ? source.versionUuid : '',
+        );
 
     const draft = useMemo(
         () =>
@@ -93,8 +90,9 @@ export const useComposerChartSaveAction = ({
             dashboardUuid: savedComposerChart.dashboardUuid,
         };
     }
-    const link = (saved: SavedComposerChartLink) =>
-        linkChart({ savedComposerChartUuid: saved.composerChartUuid });
+    const link = async (saved: SavedComposerChartLink) => {
+        await linkChart({ savedComposerChartUuid: saved.composerChartUuid });
+    };
     if (draft.status === 'unavailable') {
         return {
             kind: 'save',

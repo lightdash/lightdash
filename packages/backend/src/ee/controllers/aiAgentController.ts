@@ -2527,11 +2527,11 @@ export class AiAgentController extends BaseController {
     @OperationId('updateArtifactVersionSavedComposerChart')
     async updateArtifactVersionSavedComposerChart(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-        @Path() artifactUuid: string,
-        @Path() versionUuid: string,
-        @Body() body: { savedComposerChartUuid: string | null },
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() artifactUuid: UUID,
+        @Path() versionUuid: UUID,
+        @Body() body: { savedComposerChartUuid: UUID | null },
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);

@@ -37,7 +37,10 @@ import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
-import { SaveComposerChartModal } from '../../../../../features/composerCharts/components/SaveComposerChartModal';
+import {
+    SaveComposerChartModal,
+    type SavedComposerChartLink,
+} from '../../../../../features/composerCharts/components/SaveComposerChartModal';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -59,10 +62,7 @@ import {
     type AiComposerVizConfigPanelMode,
 } from './composerVizConfig/AiComposerVizConfigPanel';
 import { useArtifactResultRows } from './useArtifactResultRows';
-import {
-    useComposerChartSaveAction,
-    type SavedComposerChartLink,
-} from './useComposerChartSaveAction';
+import { useComposerChartSaveAction } from './useComposerChartSaveAction';
 import { useComposerMergeChartActions } from './useComposerMergeChartActions';
 import {
     useComposerNodeResults,

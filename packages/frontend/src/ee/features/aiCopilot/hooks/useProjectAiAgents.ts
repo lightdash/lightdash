@@ -2205,8 +2205,9 @@ export const useUpdateArtifactVersionSavedComposerChart = (
                 method: 'PATCH',
                 body: JSON.stringify({ savedComposerChartUuid }),
             }),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({
+        // Returned so the caller waits until the answer shows it is saved.
+        onSuccess: () =>
+            queryClient.invalidateQueries({
                 queryKey: [
                     AI_AGENT_ARTIFACT_KEY,
                     projectUuid,
@@ -2215,8 +2216,7 @@ export const useUpdateArtifactVersionSavedComposerChart = (
                     'version',
                     versionUuid,
                 ],
-            });
-        },
+            }),
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Chart saved, but the answer could not link to it',

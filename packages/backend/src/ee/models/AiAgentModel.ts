@@ -301,7 +301,6 @@ import { AiSlackArtifactDeliveryModel } from './AiSlackArtifactDeliveryModel';
 import type { AiThreadFileModel } from './AiThreadFileModel';
 import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
 
-// Tool calls that can wait on SQL approval: runSql, or a composer query call with a sql node.
 // A deleted composer chart reads as unsaved, so the answer offers Save again.
 function onSavedComposerChart(this: Knex.JoinClause) {
     this.on(
@@ -311,6 +310,7 @@ function onSavedComposerChart(this: Knex.JoinClause) {
     ).andOnNull(`${ComposerChartsTableName}.deleted_at`);
 }
 
+// Tool calls that can wait on SQL approval: runSql, or a composer query call with a sql node.
 const sqlApprovalToolCallSql = (alias: string): string =>
     `(${alias}.tool_name = 'runSql' OR (${alias}.tool_name IN (${COMPOSER_QUERY_TOOL_NAMES.map(
         (name) => `'${name}'`,
@@ -6684,7 +6684,7 @@ export class AiAgentModel {
         }
 
         await this.database(AiArtifactVersionsTableName)
-            .update(dbUpdate satisfies Partial<DbAiArtifactVersion>)
+            .update(dbUpdate)
             .where({
                 ai_artifact_version_uuid: artifactVersionUuid,
             });
