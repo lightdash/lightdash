@@ -30,6 +30,15 @@ export const canonicalizeForContainment = async (
             if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
                 throw error;
             }
+            // A dangling link exists even though realpath cannot resolve it.
+            // eslint-disable-next-line no-await-in-loop
+            const existingEntry = await fs.lstat(current).catch((statError) => {
+                if ((statError as NodeJS.ErrnoException).code !== 'ENOENT') {
+                    throw statError;
+                }
+                return undefined;
+            });
+            if (existingEntry?.isSymbolicLink()) throw error;
             const parent = path.dirname(current);
             if (parent === current) {
                 // Reached the filesystem root and even it didn't resolve.
@@ -39,6 +48,35 @@ export const canonicalizeForContainment = async (
             current = parent;
         }
     }
+};
+
+const isDescendantPath = (root: string, candidate: string): boolean => {
+    const relative = path.relative(root, candidate);
+    return (
+        relative !== '' &&
+        relative !== '..' &&
+        !relative.startsWith(`..${path.sep}`) &&
+        !path.isAbsolute(relative)
+    );
+};
+
+export const resolveContainedPath = async (
+    root: string,
+    child: string,
+): Promise<string> => {
+    const resolvedRoot = path.resolve(root);
+    const resolvedChild = path.resolve(resolvedRoot, child);
+    if (!isDescendantPath(resolvedRoot, resolvedChild)) {
+        throw new ParameterError('Path resolves outside the target directory');
+    }
+    const [canonicalRoot, canonicalChild] = await Promise.all([
+        canonicalizeForContainment(resolvedRoot),
+        canonicalizeForContainment(resolvedChild),
+    ]);
+    if (!isDescendantPath(canonicalRoot, canonicalChild)) {
+        throw new ParameterError('Path resolves outside the target directory');
+    }
+    return canonicalChild;
 };
 
 /**

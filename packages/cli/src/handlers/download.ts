@@ -125,6 +125,7 @@ import {
     unmatchedUploadRefsWarning,
     uploadFilterMatches,
 } from './apps/appsDownload';
+import { resolveContainedPath } from './apps/pathContainment';
 import { loadTemplateDependencies } from './apps/scaffolding';
 import {
     createBuildLimitWaitState,
@@ -4559,7 +4560,8 @@ export const uploadHandler = async (
             }
 
             const baseDir = getDownloadFolder(contentPathOption);
-            const appsDir = path.join(baseDir, phase.dirName);
+            // eslint-disable-next-line no-await-in-loop
+            const appsDir = await resolveContainedPath(baseDir, phase.dirName);
 
             let appFolderEntries: import('fs').Dirent[];
             try {
