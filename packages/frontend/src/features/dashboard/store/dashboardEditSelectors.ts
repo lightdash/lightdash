@@ -1,10 +1,12 @@
 import {
     DashboardTileTypes,
+    isComposerChartAvailableFiltersTile,
     isDashboardChartTileType,
+    isDashboardComposerChartTile,
     isDashboardSqlChartTile,
     type DashboardTileParameterReferencesTile,
     type DateZoomConfig,
-    type SavedChartsInfoForDashboardAvailableFilters,
+    type DashboardAvailableFiltersTile,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
 import { isEqual } from 'es-toolkit/compat';
@@ -61,6 +63,7 @@ export const selectHasControlOrderChanged = (state: DashboardStoreState) =>
 const tileTypesThatSupportFilters = [
     DashboardTileTypes.SQL_CHART,
     DashboardTileTypes.SAVED_CHART,
+    DashboardTileTypes.COMPOSER_CHART,
 ];
 export const selectHasTilesThatSupportFilters = (state: DashboardStoreState) =>
     !!state.edit.tiles?.some(({ type }) =>
@@ -78,29 +81,45 @@ export const selectTileUuidsKey = (state: DashboardStoreState) =>
 export const selectSavedChartUuidsAndTileUuidsKey = (
     state: DashboardStoreState,
 ) =>
-    state.edit.tiles
-        ?.filter(isDashboardChartTileType)
-        .map((tile) => `${tile.uuid}:${tile.properties.savedChartUuid ?? ''}`)
+    selectSavedChartUuidsAndTileUuids(state)
+        ?.map((tile) =>
+            isComposerChartAvailableFiltersTile(tile)
+                ? `${tile.tileUuid}:composer:${tile.composerChartUuid}`
+                : `${tile.tileUuid}:${tile.savedChartUuid}`,
+        )
         .sort()
         .join(',') ?? '';
 
+const selectIsEmbed = (state: DashboardStoreState) => !!state.source.embedToken;
+
+/** Chart tiles, and outside embeds composer chart tiles, whose fields the filter pickers offer */
 export const selectSavedChartUuidsAndTileUuids = createSelector(
-    [selectDashboardTiles],
-    (tiles) =>
-        tiles
-            ?.filter(isDashboardChartTileType)
-            .reduce<SavedChartsInfoForDashboardAvailableFilters>(
-                (acc, tile) => {
-                    if (tile.properties.savedChartUuid) {
-                        acc.push({
-                            tileUuid: tile.uuid,
-                            savedChartUuid: tile.properties.savedChartUuid,
-                        });
-                    }
-                    return acc;
-                },
-                [],
-            ),
+    [selectDashboardTiles, selectIsEmbed],
+    (tiles, isEmbed) =>
+        tiles?.flatMap<DashboardAvailableFiltersTile>((tile) => {
+            if (
+                isDashboardChartTileType(tile) &&
+                tile.properties.savedChartUuid
+            )
+                return [
+                    {
+                        tileUuid: tile.uuid,
+                        savedChartUuid: tile.properties.savedChartUuid,
+                    },
+                ];
+            if (
+                !isEmbed &&
+                isDashboardComposerChartTile(tile) &&
+                tile.properties.composerChartUuid
+            )
+                return [
+                    {
+                        tileUuid: tile.uuid,
+                        composerChartUuid: tile.properties.composerChartUuid,
+                    },
+                ];
+            return [];
+        }),
     // Moving or resizing a tile keeps the mapping, and everything derived from it
     { memoizeOptions: { resultEqualityCheck: isEqual } },
 );

@@ -15,6 +15,8 @@ import {
     type ExportContentFormat,
     type ExportContentRequest,
     type ParametersValuesMap,
+    isComposerChartAvailableFiltersTile,
+    type DashboardAvailableFiltersTile,
     type SavedChartsInfoForDashboardAvailableFilters,
     type SchedulerCsvOptions,
     type SchedulerImageOptions,
@@ -116,7 +118,7 @@ const deleteDashboard = async (
 
 const postDashboardsAvailableFilters = async (
     lightdashApi: LightdashApi,
-    savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+    savedChartUuidsAndTileUuids: DashboardAvailableFiltersTile[],
 ) =>
     lightdashApi<DashboardAvailableFilters>({
         url: `/dashboards/availableFilters`,
@@ -136,7 +138,7 @@ const postEmbedDashboardsAvailableFilters = async (
     });
 
 export const useDashboardsAvailableFilters = (
-    savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+    savedChartUuidsAndTileUuids: DashboardAvailableFiltersTile[],
     projectUuid?: string,
     embedToken?: string,
 ) => {
@@ -148,7 +150,12 @@ export const useDashboardsAvailableFilters = (
                 ? postEmbedDashboardsAvailableFilters(
                       lightdashApi,
                       projectUuid,
-                      savedChartUuidsAndTileUuids,
+                      // Embeds draw no composer tile
+                      savedChartUuidsAndTileUuids.flatMap((tile) =>
+                          isComposerChartAvailableFiltersTile(tile)
+                              ? []
+                              : [tile],
+                      ),
                   )
                 : postDashboardsAvailableFilters(
                       lightdashApi,

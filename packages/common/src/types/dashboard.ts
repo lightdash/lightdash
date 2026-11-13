@@ -485,6 +485,28 @@ export type SavedChartsInfoForDashboardAvailableFilters = {
     savedChartUuid: string;
 }[];
 
+/** A tile the app's available-filters lookup lists fields for; embeds send saved charts only. */
+export type ComposerChartAvailableFiltersTile = {
+    tileUuid: string;
+    composerChartUuid: string;
+};
+
+// Saved-chart items carry no discriminant on the wire, so the composer key tells them apart
+export type DashboardAvailableFiltersTile =
+    | SavedChartsInfoForDashboardAvailableFilters[number]
+    | ComposerChartAvailableFiltersTile;
+
+export const isComposerChartAvailableFiltersTile = (
+    tile: DashboardAvailableFiltersTile,
+): tile is ComposerChartAvailableFiltersTile => 'composerChartUuid' in tile;
+
+/** A composer chart the caller may view, with its semantic-layer nodes' explores. */
+export type ComposerAvailableFilterSource = {
+    uuid: string;
+    projectUuid: string;
+    exploreNames: string[];
+};
+
 export type DashboardTileParameterReferencesTile = {
     tileUuid: string;
     savedChartUuid: string | null;

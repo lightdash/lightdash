@@ -40,6 +40,7 @@ import {
     combineManifestSources,
     CompilationSource,
     CompiledDimension,
+    ComposerAvailableFilterSource,
     ConflictError,
     ContentType,
     convertCustomMetricToDbt,
@@ -63,6 +64,7 @@ import {
     CustomFormatType,
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
+    DashboardAvailableFiltersTile,
     DashboardBasicDetails,
     DashboardFilters,
     DatabricksAuthenticationType,
@@ -141,6 +143,7 @@ import {
     isAiAccessQueryContext,
     isAwsIamRoleArn,
     isCartesianChartConfig,
+    isComposerChartAvailableFiltersTile,
     isCustomDimension,
     isCustomSqlDimension,
     isDateItem,
@@ -245,7 +248,6 @@ import {
     ResultsCacheProjectSettings,
     ResultsCacheStatus,
     SavedChartDAO,
-    SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     SignInSubjectBasis,
     SingleConnectionProjectError,
@@ -16438,9 +16440,11 @@ export class ProjectService
         );
     }
 
+    /** `composerSources` are composer charts the caller already authorized, each with its semantic-layer nodes' explores. */
     async getAvailableFiltersForSavedQueries(
         account: Account,
-        savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+        tiles: DashboardAvailableFiltersTile[],
+        composerSources: ComposerAvailableFilterSource[] = [],
     ): Promise<DashboardAvailableFilters> {
         type ChartFilters = {
             uuid: string;
@@ -16457,16 +16461,23 @@ export class ProjectService
                 name: 'ProjectService.getAvailableFiltersForSavedQueries',
             },
             async () => {
-                const savedQueryUuids = savedChartUuidsAndTileUuids.map(
-                    ({ savedChartUuid }) => savedChartUuid,
+                const savedQueryUuids = tiles.flatMap((tile) =>
+                    isComposerChartAvailableFiltersTile(tile)
+                        ? []
+                        : [tile.savedChartUuid],
                 );
 
                 const savedCharts =
-                    await this.savedChartModel.getInfoForAvailableFilters(
-                        savedQueryUuids,
-                    );
+                    savedQueryUuids.length > 0
+                        ? await this.savedChartModel.getInfoForAvailableFilters(
+                              savedQueryUuids,
+                          )
+                        : [];
 
-                if (savedCharts.length === 0) {
+                const projectUuid =
+                    savedCharts[0]?.projectUuid ??
+                    composerSources[0]?.projectUuid;
+                if (projectUuid === undefined) {
                     return [];
                 }
 
@@ -16486,9 +16497,11 @@ export class ProjectService
                     ),
                     this.findExplores({
                         account,
-                        projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
+                        projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
                         exploreNames: uniq(
-                            savedCharts.flatMap((chart) => chart.exploreNames),
+                            [...savedCharts, ...composerSources].flatMap(
+                                (chart) => chart.exploreNames,
+                            ),
                         ),
                         organizationUuid: account.organization.organizationUuid,
                     }),
@@ -16522,23 +16535,25 @@ export class ProjectService
                         }),
                     ),
                 );
-                const chartAccess = new Map(
-                    chartsWithSpaceContext.map(({ savedChart }, index) => [
-                        savedChart.uuid,
-                        accessResults[index],
-                    ]),
-                );
+                const chartAccess = new Map([
+                    ...chartsWithSpaceContext.map(
+                        ({ savedChart }, index) =>
+                            [savedChart.uuid, accessResults[index]] as const,
+                    ),
+                    ...composerSources.map(({ uuid }) => [uuid, true] as const),
+                ]);
                 const shouldRedactSql = this.cannotViewEmbedCompiledSql(
                     account,
-                    savedCharts[0].projectUuid,
+                    projectUuid,
                 );
 
+                const filterSources = [...savedCharts, ...composerSources];
                 const filtersByExplore = new Map<
                     string,
                     Promise<FilterableDimension[]>
                 >();
                 return Promise.all(
-                    savedCharts.map(async (savedChart) => {
+                    filterSources.map(async (savedChart) => {
                         if (!chartAccess.get(savedChart.uuid)) {
                             return {
                                 uuid: savedChart.uuid,
@@ -16608,6 +16623,10 @@ export class ProjectService
                 );
             },
         );
+        const chartUuidOf = (tile: DashboardAvailableFiltersTile) =>
+            isComposerChartAvailableFiltersTile(tile)
+                ? tile.composerChartUuid
+                : tile.savedChartUuid;
 
         // Explores that relabel a shared join alias keep their own entries
         const allFilterableFields: FilterableDimension[] = [];
@@ -16636,12 +16655,12 @@ export class ProjectService
             });
         });
 
-        const savedQueryFilters = savedChartUuidsAndTileUuids.reduce<
+        const savedQueryFilters = tiles.reduce<
             DashboardAvailableFilters['savedQueryFilters']
         >((acc, savedChartUuidAndTileUuid) => {
             const filterResult = allFilters.find(
                 (result) =>
-                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
+                    result.uuid === chartUuidOf(savedChartUuidAndTileUuid),
             );
             if (!filterResult || !filterResult.filters.length) return acc;
 
@@ -16655,12 +16674,12 @@ export class ProjectService
             };
         }, {});
 
-        const savedQueryMetricFilters = savedChartUuidsAndTileUuids.reduce<
+        const savedQueryMetricFilters = tiles.reduce<
             DashboardAvailableFilters['savedQueryMetricFilters']
         >((acc, savedChartUuidAndTileUuid) => {
             const filterResult = allFilters.find(
                 (result) =>
-                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
+                    result.uuid === chartUuidOf(savedChartUuidAndTileUuid),
             );
             if (!filterResult || !filterResult.metricFilters.length) return acc;
 
