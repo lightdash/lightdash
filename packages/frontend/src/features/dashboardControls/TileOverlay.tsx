@@ -60,7 +60,7 @@ import {
     getTileHighlight,
     type TileHighlight,
 } from './tileProps';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { useFieldTileActions } from './useFieldTileActions';
 import { useFilterFieldsMap } from './useFilterFieldsMap';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
@@ -349,7 +349,7 @@ const TileOverlay = memo<TileOverlayProps>(
 
 // Mounted only while tiles are chosen: opening a filter leaves every tile as it is
 export const TileOverlays: FC = () => {
-    const isEditing = useControlsSidebarSelector((c) => c.isMapping);
+    const isEditing = useControlsEditorSelector((c) => c.isMapping);
     const contractClasses = useControlContractClasses();
     // The tile cards' lists, as an embed's stylesheet targets them
     return (
@@ -361,23 +361,21 @@ export const TileOverlays: FC = () => {
 
 const EditedTileOverlays: FC = () => {
     const getUiString = useUiStrings();
-    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
-    const activeFieldId = useControlsSidebarSelector((c) => c.activeFieldId);
-    const highlightedFieldId = useControlsSidebarSelector(
+    const editingRule = useControlsEditorSelector((c) => c.editingRule);
+    const activeFieldId = useControlsEditorSelector((c) => c.activeFieldId);
+    const highlightedFieldId = useControlsEditorSelector(
         (c) => c.highlightedFieldId,
     );
-    const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
-    const applyWithUndo = useControlsSidebarSelector((c) => c.applyWithUndo);
-    const setHighlightedFieldId = useControlsSidebarSelector(
+    const updateFilter = useControlsEditorSelector((c) => c.updateFilter);
+    const applyWithUndo = useControlsEditorSelector((c) => c.applyWithUndo);
+    const setHighlightedFieldId = useControlsEditorSelector(
         (c) => c.setHighlightedFieldId,
     );
-    const clearHighlightedField = useControlsSidebarSelector(
+    const clearHighlightedField = useControlsEditorSelector(
         (c) => c.clearHighlightedField,
     );
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const waitingFieldIds = useControlsSidebarSelector(
-        (c) => c.waitingFieldIds,
-    );
+    const isPlaceholder = useControlsEditorSelector((c) => c.isPlaceholder);
+    const waitingFieldIds = useControlsEditorSelector((c) => c.waitingFieldIds);
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,

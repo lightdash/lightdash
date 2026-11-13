@@ -16,7 +16,7 @@ through fields. User-facing copy says _tile_, never _chart_.
 Read the matching file before changing that area:
 
 - [`docs/provider.md`](docs/provider.md): read when changing
-  `ControlsSidebarProvider`, an edit's lifecycle (the draft, open, switch,
+  `ControlsEditorProvider`, an edit's lifecycle (the draft, open, switch,
   Apply, Cancel, mode change), "changed"/dirty rules, undo or focus return.
 - [`docs/editor.md`](docs/editor.md): read when changing the editor popover
   (`FilterPopover`), the lock or "Required" rules, Escape handling or the
@@ -41,10 +41,10 @@ is untouched and removing the flag is deleting these lines.
 
 Gated on the flag:
 
-- `pages/Dashboard.tsx`: `ControlsSidebarPage` instead of `Page`; the header
+- `pages/Dashboard.tsx`: `ControlsEditorPage` instead of `Page`; the header
   through `DashboardHeaderGuard`; `PageSpinner` until the flag's
   `isInitialLoading` ends, so `Page` is never swapped for
-  `ControlsSidebarPage` (that remounts the grid).
+  `ControlsEditorPage` (that remounts the grid).
 - `features/dashboardTabs/index.tsx`: `ControlsBar` instead of
   `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`. The
   shipped Hide is unchanged; the collapsed `DashboardFiltersBarSummary`
@@ -154,8 +154,8 @@ Fix behaviour in the shared piece, once, never in a copy.
 
 | File | Owns |
 | --- | --- |
-| `ControlsSidebarProvider.tsx`, `useControlsSidebar.ts`, `sidebarState.ts` | The edit state, every write to filters, focus return; pure state helpers |
-| `ControlsSidebarPage.tsx` | Drop-in for `Page`: the provider plus tile overlays, tab counts, link prompts, field bar |
+| `ControlsEditorProvider.tsx`, `useControlsEditor.ts`, `editorState.ts` | The edit state, every write to filters, focus return; pure state helpers |
+| `ControlsEditorPage.tsx` | Drop-in for `Page`: the provider plus tile overlays, tab counts, link prompts, field bar |
 | `ControlsBar.tsx` | The shipped bar with its openings; picks flat or `SectionedFilters`; `MappingSwap` cross-fades to `MappingRow` (the embed's bar uses it too) |
 | `ControlMappingRow.tsx` | Every mapping row's frame; the parameter and date zoom rows (back, open pill, count, Clear all tiles, Cancel, Apply) |
 | `MappingRow.tsx` | Mapping: the open pill, title and counts, field chips, "Add a field", Cancel and Apply |
@@ -210,8 +210,8 @@ Each one has broken before or would break silently.
   A section move is the one write that reaches the dashboard at once.
 - **Callbacks are stable.** Provider callbacks read state from the `latest`
   ref and write through the `write*` helpers; a new callback does the same.
-  Per-tile, per-pill and page-wide readers use `useControlsSidebarSelector`
-  with a selector that returns a stable value, never `useControlsSidebar()`.
+  Per-tile, per-pill and page-wide readers use `useControlsEditorSelector`
+  with a selector that returns a stable value, never `useControlsEditor()`.
 - **Memoised tiles.** `TileOverlay` reads no context and is memoised with
   `areTilePropsEqual`: pass primitives and stable references, never the rule
   or a per-render object, or every tile re-renders on every edit.
@@ -386,5 +386,5 @@ in `ee/features/embed/EmbedDashboard/components/*.test.tsx`, and
 `utils/dashboardConfig.test.ts` pins saved config. Run one file at a time:
 
 ```bash
-pnpm -F frontend test src/features/dashboardControls/ControlsSidebarProvider.test.tsx
+pnpm -F frontend test src/features/dashboardControls/ControlsEditorProvider.test.tsx
 ```

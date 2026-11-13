@@ -56,11 +56,11 @@ vi.mock('../../ee/providers/Embed/useIsEmbedded', () => ({
 vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track }),
 }));
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditorSelector: (
         selector: (c: {
             isMapping: boolean;
-            isSidebarOpen: boolean;
+            isEditorOpen: boolean;
             isViewer: boolean;
             requestSwitch: typeof requestSwitch;
             tileHoverOwner: { current: string | null };
@@ -68,7 +68,7 @@ vi.mock('./useControlsSidebar', () => ({
     ) =>
         selector({
             isMapping: false,
-            isSidebarOpen: false,
+            isEditorOpen: false,
             isViewer: false,
             requestSwitch,
             tileHoverOwner,

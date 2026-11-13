@@ -63,6 +63,20 @@ import {
 } from './controlContractClasses';
 import { getOtherPillsSelector } from './controlKinds';
 import { DateZoomEditorProvider } from './DateZoomEditorProvider';
+import {
+    canKeepFilterRule,
+    findFilterRule,
+    haveFiltersChangedSince,
+    haveOtherFilterRulesChanged,
+    isDefaultValueIncomplete,
+    isFilterRuleDirty,
+    PLACEHOLDER_TARGET,
+    applyDraft,
+    removeFilterRule,
+    replaceFilterRule,
+    withSectionOf,
+    type ControlsEditorSnapshot,
+} from './editorState';
 import { getLinkKey } from './linkCandidates';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import {
@@ -76,28 +90,14 @@ import {
     type FieldsMap,
 } from './peers';
 import { countFilters, getMoveNeighbours } from './sections';
-import {
-    canKeepFilterRule,
-    findFilterRule,
-    haveFiltersChangedSince,
-    haveOtherFilterRulesChanged,
-    isDefaultValueIncomplete,
-    isFilterRuleDirty,
-    PLACEHOLDER_TARGET,
-    applyDraft,
-    removeFilterRule,
-    replaceFilterRule,
-    withSectionOf,
-    type ControlsSidebarSnapshot,
-} from './sidebarState';
 import { useOrderSectionChanges } from './useControlOrder';
 import {
-    ControlsSidebarContext,
+    ControlsEditorContext,
     type FieldApply,
-    useControlsSidebarSelector,
-    type ControlsSidebarContextValue,
+    useControlsEditorSelector,
+    type ControlsEditorContextValue,
     type MoveDirection,
-} from './useControlsSidebar';
+} from './useControlsEditor';
 import { useEditorDismiss } from './useEditorDismiss';
 import { useFilterFieldsMap } from './useFilterFieldsMap';
 
@@ -163,10 +163,10 @@ type FocusTarget = { filterId: string | null; sectionId: string | null };
 const FocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
     target,
 }) => {
-    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    const isEditorOpen = useControlsEditorSelector((c) => c.isEditorOpen);
     useEffect(() => {
         const current = target.current;
-        if (current === null || isSidebarOpen) return;
+        if (current === null || isEditorOpen) return;
         target.current = null;
         // A pill disabled by a refetch cannot take it
         const pill =
@@ -181,7 +181,7 @@ const FocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
             ? pill
             : (sectionAdd ?? document.querySelector<HTMLElement>(ADD_SELECTOR))
         )?.focus();
-    }, [isSidebarOpen, target]);
+    }, [isEditorOpen, target]);
     return null;
 };
 
@@ -193,14 +193,14 @@ type FilterSet = 'saved' | 'temporary';
 
 const NO_FIELD_IDS: string[] = [];
 
-type SidebarState = {
+type EditorState = {
     filterId: string;
     isNew: boolean;
     // The mode the edit was started in: it keeps writing that mode's filters
     // until the mode change has closed it
     isViewer: boolean;
     filterSet: FilterSet;
-    snapshot: ControlsSidebarSnapshot;
+    snapshot: ControlsEditorSnapshot;
     // Where the control sat before its last field was removed, else null
     emptiedAt: {
         group: FilterGroup;
@@ -216,13 +216,13 @@ type SidebarState = {
 
 // As the shipped popover's Tiles tab: an editor's filters and a viewer's own,
 // never a viewer's saved filter
-const canChooseTiles = (state: SidebarState): boolean =>
+const canChooseTiles = (state: EditorState): boolean =>
     !state.isViewer || state.filterSet === 'temporary';
 
 // What Apply or Cancel would decide: a new filter with no field yet has
 // nothing to lose, and a section move is applied at once, so it is no edit
 const isEditUnapplied = (
-    state: SidebarState,
+    state: EditorState,
     isPlaceholder: boolean,
     dashboardFilters: DashboardFilters,
     toSaved: (rule: DashboardFilterRule) => DashboardFilterRule,
@@ -265,7 +265,7 @@ const createPlaceholder = (
 // What the callbacks read. Kept in a ref so their identity never changes, and
 // written eagerly so two calls in one event (commit a label, then close) agree.
 type Latest = {
-    state: SidebarState | null;
+    state: EditorState | null;
     // Asked while the edit had unapplied changes, until answered
     pending: Pending | null;
     placeholder: DashboardFilterRule | null;
@@ -458,7 +458,7 @@ type ProviderProps = PropsWithChildren<{
     contractClasses?: ControlContractClassNames | null;
 }>;
 
-export const ControlsSidebarProvider: FC<ProviderProps> = ({
+export const ControlsEditorProvider: FC<ProviderProps> = ({
     canAddFilters = true,
     isEditMode: isEditModeInput,
     contractClasses = null,
@@ -507,7 +507,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
 
-    const [state, setState] = useState<SidebarState | null>(null);
+    const [state, setState] = useState<EditorState | null>(null);
     // An edit writes the filters of the mode it started in, also in the render
     // where the mode has changed and before the change has closed it
     const isEditViewer = state?.isViewer ?? isViewer;
@@ -633,7 +633,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     // Once the editor is done: changed when the filters differ from the
     // snapshot; unchanged only when the flag was the editor's own to lower
     const settleFiltersChanged = useCallback(
-        (snapshot: ControlsSidebarSnapshot) => {
+        (snapshot: ControlsEditorSnapshot) => {
             const current = latest.current;
             const toSaved = (rule: DashboardFilterRule) =>
                 withoutDefaultTileTargets(
@@ -666,7 +666,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         setPlaceholder(next);
     }, []);
 
-    const writeState = useCallback((next: SidebarState | null) => {
+    const writeState = useCallback((next: EditorState | null) => {
         latest.current.state = next;
         setState(next);
     }, []);
@@ -1696,15 +1696,15 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     }, [discard, trackClosed]);
 
     // Derived, not reset: a rule that left the dashboard filters closes the
-    // sidebar, and the next open or Add starts over
-    const isSidebarOpen = state !== null && editingRule !== null;
+    // editor, and the next open or Add starts over
+    const isEditorOpen = state !== null && editingRule !== null;
     const isMapping =
         state !== null &&
         state.mappingStart !== null &&
-        isSidebarOpen &&
+        isEditorOpen &&
         !isPlaceholder;
     const isAsking =
-        isSidebarOpen &&
+        isEditorOpen &&
         getPending({
             pending,
             savedFilters,
@@ -1764,7 +1764,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         fieldUndo,
     ]);
     useEditorDismiss({
-        isOpen: isSidebarOpen,
+        isOpen: isEditorOpen,
         isFieldClicked: clickedFieldId !== null,
         isAsking,
         isPristineNew: isPlaceholder && state?.isNew === true,
@@ -1782,7 +1782,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [editingFilterId],
     );
 
-    const value = useMemo<ControlsSidebarContextValue>(
+    const value = useMemo<ControlsEditorContextValue>(
         () => ({
             editing,
             isViewer,
@@ -1792,7 +1792,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             isPlaceholder,
             editingRule,
             editorFilters: dashboardFilters,
-            isSidebarOpen,
+            isEditorOpen,
             isMapping,
             canChooseTiles: state !== null && canChooseTiles(state),
             startMapping,
@@ -1842,7 +1842,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             state,
             isViewer,
             canAddFilters,
-            isSidebarOpen,
+            isEditorOpen,
             isMapping,
             startMapping,
             cancelMapping,
@@ -1883,7 +1883,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     );
 
     return (
-        <ControlsSidebarContext.Provider value={value}>
+        <ControlsEditorContext.Provider value={value}>
             <ControlContractClasses.Provider value={contractClasses}>
                 <ParameterEditorProvider isViewer={isViewer}>
                     <DateZoomEditorProvider isViewer={isViewer}>
@@ -1900,6 +1900,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     </span>
                 </VisuallyHidden>
             )}
-        </ControlsSidebarContext.Provider>
+        </ControlsEditorContext.Provider>
     );
 };

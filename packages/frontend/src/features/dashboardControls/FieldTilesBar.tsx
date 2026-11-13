@@ -26,9 +26,9 @@ import {
 import { getChangeCount, type FieldScope } from './peers';
 import { useBarHost } from './useBarHost';
 import {
-    useControlsSidebarSelector,
+    useControlsEditorSelector,
     type FieldApply,
-} from './useControlsSidebar';
+} from './useControlsEditor';
 import {
     nameReplacedFields,
     useFieldTileActions,
@@ -322,15 +322,15 @@ export const FieldBar: FC<{
 // Floats over the tiles while a chip is selected in mapping: that one
 // field's count and actions. Never for the hovered field
 export const FieldTilesBar: FC = () => {
-    const isMapping = useControlsSidebarSelector((c) => c.isMapping);
-    const editingRule = useControlsSidebarSelector((c) =>
+    const isMapping = useControlsEditorSelector((c) => c.isMapping);
+    const editingRule = useControlsEditorSelector((c) =>
         c.isMapping ? c.editingRule : null,
     );
-    const highlightedFieldId = useControlsSidebarSelector(
+    const highlightedFieldId = useControlsEditorSelector(
         (c) => c.highlightedFieldId,
     );
-    const fieldUndo = useControlsSidebarSelector((c) => c.fieldUndo);
-    const undoApply = useControlsSidebarSelector((c) => c.undoApply);
+    const fieldUndo = useControlsEditorSelector((c) => c.fieldUndo);
+    const undoApply = useControlsEditorSelector((c) => c.undoApply);
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);

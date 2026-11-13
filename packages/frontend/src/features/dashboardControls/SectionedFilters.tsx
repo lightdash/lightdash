@@ -105,6 +105,7 @@ import {
 } from './controlOrder';
 import { dateZoomPillSelector } from './dateZoomControls';
 import { DateZoomPills } from './DateZoomPills';
+import { isEditingIn, isNewFilterIn, removeFilterRule } from './editorState';
 import { formatSectionCount } from './fieldLabels';
 import { FilterPills } from './FilterPills';
 import pillClasses from './FilterPills.module.css';
@@ -140,9 +141,8 @@ import {
     lineGapTargetId,
 } from './sections';
 import { SelectionBar } from './SelectionBar';
-import { isEditingIn, isNewFilterIn, removeFilterRule } from './sidebarState';
 import { useOrderSectionChanges } from './useControlOrder';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { useDateZoomBar } from './useDateZoomBar';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { hasOpenLayer } from './useEditorDismiss';
@@ -254,7 +254,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
     const controlCount = parameterCount + dateZoomCount;
     const hasVisible = visibleRules.length > 0 || controlCount > 0;
     const isFolded = !(isOpen && hasVisible);
-    const isEditorOnAdd = useControlsSidebarSelector(
+    const isEditorOnAdd = useControlsEditorSelector(
         (c) =>
             isNewFilterIn(c, [section.id]) ||
             (isFolded && isEditingIn(c, section.id)),
@@ -626,7 +626,7 @@ export const SectionedFilters: FC<Props> = ({
         source: DashboardSectionCreatedSource;
     } | null>(null);
     const getUiString = useUiStrings();
-    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const isViewer = useControlsEditorSelector((c) => c.isViewer);
     // A viewer's flips last for one visit: a mode change starts from the saved state
     const [flipsMode, setFlipsMode] = useState(isViewer);
     if (flipsMode !== isViewer) {
@@ -636,7 +636,7 @@ export const SectionedFilters: FC<Props> = ({
     // A filter or a parameter control: either locks the section controls
     const isEditing = useIsControlEdited();
     // A filter being created is no move: Cancel takes it out
-    const newFilterId = useControlsSidebarSelector((c) =>
+    const newFilterId = useControlsEditorSelector((c) =>
         c.isNew ? (c.editing?.filterId ?? null) : null,
     );
     // Any edit, however it starts, ends the selection: adjusted in render
