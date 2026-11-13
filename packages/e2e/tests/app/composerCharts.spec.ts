@@ -135,11 +135,24 @@ test.describe('Composer charts on dashboards', () => {
                 .locator('.echarts-for-react');
         await expect(chartOf('Orders')).toBeVisible();
         await expect(chartOf('Classic')).toBeVisible();
-        // Same rows, fields and chart config draw the same pixels.
+        // Compared as drawn SVG: page screenshots differ by sub-pixel tile offsets.
+        const drawingOf = (title: string) =>
+            chartOf(title)
+                .locator('svg')
+                .first()
+                .evaluate((svg) => ({
+                    shapes: [...svg.querySelectorAll('path')].map(
+                        (path) =>
+                            `${path.getAttribute('d')} ${path.getAttribute('fill')}`,
+                    ),
+                    texts: [...svg.querySelectorAll('text')].map(
+                        (text) => text.textContent,
+                    ),
+                }));
         await expect(async () => {
-            expect(await chartOf('Orders').screenshot()).toEqual(
-                await chartOf('Classic').screenshot(),
-            );
+            const drawing = await drawingOf('Orders');
+            expect(drawing.texts).toContain('completed');
+            expect(drawing).toEqual(await drawingOf('Classic'));
         }).toPass({ timeout: 30_000 });
     });
 });
