@@ -269,6 +269,7 @@ import {
     type CachedExploreSource,
     type CachedSourceCatalog,
 } from './cachedExploreSource';
+import { copyComposerChartsToPreview } from './copyComposerChartsToPreview';
 import {
     allocateStagedExploreNames,
     getLegacyPrimaryExploreNames,
@@ -8134,6 +8135,13 @@ export class ProjectModel {
                 dashboardTilesMapping.map((m) => [m.id, m.newId]),
             );
 
+            const previewComposerChartUuidBySource =
+                await copyComposerChartsToPreview(
+                    trx,
+                    previewProjectUuid,
+                    previewDashboardUuidBySource,
+                );
+
             const copyDashboardTileContent = async (table: string) => {
                 const content = await trx(table)
                     .whereRaw('?? = ANY(?::uuid[])', [
@@ -8145,15 +8153,30 @@ export class ProjectModel {
                         dashboardVersionIds,
                     ]);
 
-                if (content.length === 0) return undefined;
+                // A tile row of a deleted composer chart has no copy to point at
+                const copied = content.filter(
+                    (d) =>
+                        !d.composer_chart_uuid ||
+                        previewComposerChartUuidBySource.has(
+                            d.composer_chart_uuid,
+                        ),
+                );
+                if (copied.length === 0) return undefined;
 
                 const newContent = await chunkedInsertReturning<
                     (typeof content)[number]
                 >(
                     trx,
                     table,
-                    content.map((d) => ({
+                    copied.map((d) => ({
                         ...d,
+
+                        ...(d.composer_chart_uuid && {
+                            composer_chart_uuid:
+                                previewComposerChartUuidBySource.get(
+                                    d.composer_chart_uuid,
+                                ),
+                        }),
 
                         // only applied to tile charts
                         ...(d.saved_chart_id && {
@@ -8191,6 +8214,9 @@ export class ProjectModel {
             // source project's app — the preview project gets no `apps` row of
             // its own. See `docs/data-apps.md` Limitations.
             await copyDashboardTileContent('dashboard_tile_data_apps');
+            await copyDashboardTileContent(
+                DashboardTileComposerChartsTableName,
+            );
 
             // Get AI Agents from the source project
             // Note: AI agents are an Enterprise Edition feature. The table may not exist
