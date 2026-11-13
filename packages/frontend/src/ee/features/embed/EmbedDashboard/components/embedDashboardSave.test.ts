@@ -383,6 +383,49 @@ describe('filters the embed token hides', () => {
             ).toEqual(['a', 'b', 'c', 'new']);
         });
 
+        it.each([
+            ['no allowed filters', { allowedFilters: [] }],
+            ['a null allowed list', { allowedFilters: null }],
+        ])(
+            "keeps every dimension rule under 'some' with %s",
+            (_case, allowed) => {
+                expect(
+                    save({
+                        filters: storeWith([]),
+                        filtersInteractivity: {
+                            enabled: FilterInteractivityValues.some,
+                            ...allowed,
+                        },
+                    })?.dimensions,
+                ).toEqual(loadedFilters.dimensions);
+            },
+        );
+
+        it("keeps the rules 'some' hides when the token also hides the bar", () => {
+            expect(
+                save({
+                    filters: storeWith([editedB]),
+                    filtersInteractivity: { ...some, hidden: true },
+                })?.dimensions.map(({ id }) => id),
+            ).toEqual(['a', 'b', 'c']);
+        });
+
+        it('saves a hidden rule once, as loaded, when the store still holds it', () => {
+            expect(
+                save({
+                    filters: storeWith([
+                        rule('a', { values: ['edited'] }),
+                        editedB,
+                    ]),
+                    filtersInteractivity: some,
+                })?.dimensions,
+            ).toEqual([
+                loadedFilters.dimensions[0],
+                editedB,
+                loadedFilters.dimensions[2],
+            ]);
+        });
+
         it("saves the editor's metric and calculation rules under 'some'", () => {
             expect(
                 save({
