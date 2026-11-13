@@ -64,6 +64,7 @@ const setup = () => {
             releaseQueryExecution,
             failUnfinishedQueryDelivery,
             getByQueryUuid: async () => undefined,
+            updateExecutingHeartbeat: vi.fn(async () => 1),
         } as unknown as QueryHistoryModel,
         asyncQueryService: {
             runAsyncWarehouseQueryFromHistory: runQuery,
