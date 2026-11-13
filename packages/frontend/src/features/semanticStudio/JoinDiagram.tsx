@@ -30,7 +30,7 @@ import {
     toJoinGraph,
     type JoinLink,
     type JoinTableNode,
-} from './joinDiagram';
+} from './joinGraph';
 
 type TableFlowNode = Node<JoinTableNode, 'table'>;
 type JoinFlowEdge = Edge<JoinLink, 'join'>;
@@ -117,22 +117,26 @@ const JoinEdge: FC<EdgeProps<JoinFlowEdge>> = ({
             <EdgeLabelRenderer>
                 {cardinality ? (
                     <>
-                        <span
-                            className={classes.cardinality}
+                        <Box
+                            component="span"
+                            className={classes.sourceCardinality}
                             style={{
-                                transform: `translate(4px, -100%) translate(${sourceX}px, ${sourceY - 2}px)`,
+                                '--x': `${sourceX}px`,
+                                '--y': `${sourceY}px`,
                             }}
                         >
                             {cardinality[0]}
-                        </span>
-                        <span
-                            className={classes.cardinality}
+                        </Box>
+                        <Box
+                            component="span"
+                            className={classes.targetCardinality}
                             style={{
-                                transform: `translate(-100%, -100%) translate(${targetX - 6}px, ${targetY - 2}px)`,
+                                '--x': `${targetX}px`,
+                                '--y': `${targetY}px`,
                             }}
                         >
                             {cardinality[1]}
-                        </span>
+                        </Box>
                     </>
                 ) : null}
                 <Tooltip
@@ -152,9 +156,7 @@ const JoinEdge: FC<EdgeProps<JoinFlowEdge>> = ({
                         variant={fanOut ? 'light' : 'default'}
                         color={fanOut ? 'orange' : undefined}
                         className={classes.edgeLabel}
-                        style={{
-                            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-                        }}
+                        style={{ '--x': `${labelX}px`, '--y': `${labelY}px` }}
                     >
                         {relationship ?? 'relationship not set'}
                     </Badge>

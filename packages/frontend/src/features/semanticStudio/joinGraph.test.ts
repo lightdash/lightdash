@@ -11,11 +11,14 @@ import {
     isFanOut,
     layoutJoinGraph,
     toJoinGraph,
-} from './joinDiagram';
+} from './joinGraph';
 
 const table = (name: string, extra: Partial<CompiledTable> = {}) =>
-    ({ name, label: name.replace(/^./, (c) => c.toUpperCase()), ...extra }) as
-        CompiledTable;
+    ({
+        name,
+        label: name.replace(/^./, (c) => c.toUpperCase()),
+        ...extra,
+    }) as CompiledTable;
 
 const join = (
     tableName: string,
@@ -130,12 +133,12 @@ describe('toJoinGraph', () => {
                 [table('orders'), table('customers'), table('regions')],
             ),
         );
-        expect(graph.links.map(({ source, target }) => [source, target])).toEqual(
-            [
-                ['orders', 'customers'],
-                ['customers', 'regions'],
-            ],
-        );
+        expect(
+            graph.links.map(({ source, target }) => [source, target]),
+        ).toEqual([
+            ['orders', 'customers'],
+            ['customers', 'regions'],
+        ]);
     });
 
     it('falls back to the base table when the condition names no known table', () => {
@@ -146,7 +149,10 @@ describe('toJoinGraph', () => {
                 [table('orders'), table('fx')],
             ),
         );
-        expect(graph.links[0]).toMatchObject({ source: 'orders', target: 'fx' });
+        expect(graph.links[0]).toMatchObject({
+            source: 'orders',
+            target: 'fx',
+        });
     });
 
     it('names the model behind an aliased join', () => {
@@ -179,9 +185,7 @@ describe('toJoinGraph', () => {
 describe('formatJoinKeys', () => {
     it('drops template braces and collapses whitespace', () => {
         expect(
-            formatJoinKeys(
-                '${a.x} = ${b.y}\n   AND ${ a.z } = ${b.z}',
-            ),
+            formatJoinKeys('${a.x} = ${b.y}\n   AND ${ a.z } = ${b.z}'),
         ).toBe('a.x = b.y AND a.z = b.z');
     });
 });

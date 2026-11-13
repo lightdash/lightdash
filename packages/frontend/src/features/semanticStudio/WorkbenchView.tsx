@@ -74,6 +74,7 @@ import {
     ExternalSourcesTable,
 } from './externalSources/ExternalSourcesView';
 import { useManagedExternalSource } from './externalSources/useManagedExternalSource';
+import { JoinDiagram } from './JoinDiagram';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import { LiveSourceManager } from './liveSources/LiveSourceManager';
 import {
@@ -105,7 +106,6 @@ import {
     getModelCodeSearch,
     VIEW_PARAM,
 } from './modelCode';
-import { JoinDiagram } from './JoinDiagram';
 import { ModelCodeView, ModelTabs } from './ModelTabs';
 import {
     DraftDevelopmentBar,
