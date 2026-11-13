@@ -1319,7 +1319,7 @@ describe('tidying tiles', () => {
         ).toEqual([at('a', 0, 0, 12), at('b', 12, 0, 12), at('c', 24, 0, 12)]);
     });
 
-    it('moves a tile stacked under another into the next row', () => {
+    it('keeps tiles stacked beside a taller tile in its row', () => {
         expect(
             tidyTiles([
                 at('tall', 0, 0, 12, 12),
@@ -1328,9 +1328,109 @@ describe('tidying tiles', () => {
             ]),
         ).toEqual([
             at('tall', 0, 0, 18, 12),
-            at('top', 18, 0, 18, 12),
-            at('bottom', 0, 12, 36, 6),
+            at('top', 18, 0, 18),
+            at('bottom', 18, 6, 18),
         ]);
+    });
+
+    it('stretches a short stack to the row height in its proportions', () => {
+        expect(
+            tidyTiles([
+                at('kpi1', 0, 0, 8, 2),
+                at('kpi2', 0, 2, 8, 2),
+                at('kpi3', 0, 4, 8, 2),
+                at('chart', 8, 0, 16, 12),
+                at('map', 24, 0, 12, 10),
+            ]),
+        ).toEqual([
+            at('kpi1', 0, 0, 8, 4),
+            at('kpi2', 0, 4, 8, 4),
+            at('kpi3', 0, 8, 8, 4),
+            at('chart', 8, 0, 16, 12),
+            at('map', 24, 0, 12, 12),
+        ]);
+    });
+
+    it('moves a tile under a row of equal heights into the next row', () => {
+        expect(
+            tidyTiles([
+                at('a', 0, 0, 18),
+                at('b', 18, 0, 18),
+                at('under', 0, 6, 12),
+            ]),
+        ).toEqual([
+            at('a', 0, 0, 18),
+            at('b', 18, 0, 18),
+            at('under', 0, 6, 36),
+        ]);
+    });
+
+    it('moves a tile that mostly hangs below the row into the next row', () => {
+        expect(
+            tidyTiles([
+                at('tall', 0, 0, 18, 8),
+                at('top', 18, 0, 18, 6),
+                at('long', 18, 6, 18, 20),
+            ]),
+        ).toEqual([
+            at('tall', 0, 0, 18, 8),
+            at('top', 18, 0, 18, 8),
+            at('long', 0, 8, 36, 20),
+        ]);
+    });
+
+    it('keeps a row of tiles over a wide tile beside a taller tile', () => {
+        const tidy = [
+            at('text', 0, 0, 9, 10),
+            at('kpi1', 9, 0, 9, 4),
+            at('kpi2', 18, 0, 9, 4),
+            at('kpi3', 27, 0, 9, 4),
+            at('table', 9, 4, 27, 6),
+        ];
+        expect(tidyTiles(tidy)).toEqual(tidy);
+    });
+
+    it('stretches nested rows to fill the height beside a taller tile', () => {
+        expect(
+            tidyTiles([
+                at('text', 0, 0, 9, 10),
+                at('kpi1', 9, 0, 9, 4),
+                at('kpi2', 18, 0, 9, 3),
+                at('table', 9, 4, 18, 4),
+            ]),
+        ).toEqual([
+            at('text', 0, 0, 12, 10),
+            at('kpi1', 12, 0, 12, 5),
+            at('kpi2', 24, 0, 12, 5),
+            at('table', 12, 5, 24, 5),
+        ]);
+    });
+
+    it('falls back to plain rows when tiles interlock', () => {
+        expect(
+            tidyTiles([
+                at('a', 0, 0, 24, 6),
+                at('b', 24, 0, 12, 12),
+                at('c', 0, 6, 12, 12),
+                at('e', 12, 6, 12, 6),
+                at('d', 12, 12, 24, 6),
+            ]),
+        ).toEqual([
+            at('a', 0, 0, 24, 12),
+            at('b', 24, 0, 12, 12),
+            at('c', 0, 12, 18, 12),
+            at('e', 18, 12, 18, 12),
+            at('d', 0, 24, 36, 6),
+        ]);
+    });
+
+    it('leaves a tidy layout with a stack as it is', () => {
+        const tidy = [
+            at('kpi1', 0, 0, 12, 4),
+            at('kpi2', 0, 4, 12, 4),
+            at('chart', 12, 0, 24, 8),
+        ];
+        expect(tidyTiles(tidy)).toEqual(tidy);
     });
 
     it('lands uneven splits on half steps that still span the grid', () => {

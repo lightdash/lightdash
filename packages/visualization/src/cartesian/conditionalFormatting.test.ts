@@ -5,6 +5,7 @@ import {
     FieldType,
     FilterOperator,
     getItemId,
+    RESULT_COLUMN_TABLE,
     type ItemsMap,
 } from '@lightdash/common';
 import { describe, expect, test } from 'vitest';
@@ -283,5 +284,39 @@ describe('getCartesianConditionalFormattingColor', () => {
                 } as any,
             }),
         ).toBe('#00ff00');
+    });
+
+    test('resolves a rule on a result column field by its column name', () => {
+        const resultColumn = (name: string): ItemsMap[string] =>
+            ({
+                ...itemsMap.metric_value,
+                name,
+                table: RESULT_COLUMN_TABLE,
+                tableLabel: '',
+            }) as ItemsMap[string];
+        const resultItemsMap: ItemsMap = {
+            revenue: resultColumn('revenue'),
+            target: resultColumn('target'),
+        };
+        const config = createConditionalFormattingConfigWithSingleColor(
+            '#ff0000',
+            { fieldId: getItemId(resultItemsMap.revenue) },
+        );
+        config.rules = [
+            {
+                id: 'below-target',
+                operator: FilterOperator.LESS_THAN,
+                compareTarget: { fieldId: getItemId(resultItemsMap.target) },
+            },
+        ];
+
+        expect(
+            getCartesianConditionalFormattingColor({
+                itemsMap: resultItemsMap,
+                conditionalFormattings: [config],
+                rowValues: { revenue: 5, target: 10 },
+                series: { encode: { yRef: { field: 'revenue' } } } as any,
+            }),
+        ).toBe('#ff0000');
     });
 });

@@ -33,10 +33,10 @@ import { AddControl } from './AddControl';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import { ParameterPills } from './ParameterPills';
 
-const mockSidebar = vi.hoisted(() => ({
+const mockEditor = vi.hoisted(() => ({
     tileHoverOwner: { current: null as string | null },
     current: {
-        isSidebarOpen: false,
+        isEditorOpen: false,
         isViewer: false,
         canAddFilters: true,
         isNew: false,
@@ -82,13 +82,13 @@ const renderWithProviders = (
         </DashboardStoreTestProvider>,
     );
 
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
-        selector: (value: typeof mockSidebar.current) => unknown,
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditorSelector: (
+        selector: (value: typeof mockEditor.current) => unknown,
     ) => {
         const context = {
-            ...mockSidebar.current,
-            tileHoverOwner: mockSidebar.tileHoverOwner,
+            ...mockEditor.current,
+            tileHoverOwner: mockEditor.tileHoverOwner,
         };
         return selector(context);
     },
@@ -106,8 +106,8 @@ describe('AddControl', () => {
 
     beforeEach(() => {
         setIsAddFilterDisabled.mockClear();
-        mockSidebar.current = {
-            isSidebarOpen: false,
+        mockEditor.current = {
+            isEditorOpen: false,
             isViewer: false,
             canAddFilters: true,
             isNew: false,
@@ -150,9 +150,9 @@ describe('AddControl', () => {
         expect(editor()).toBeNull();
         unmount();
 
-        mockSidebar.current = {
-            ...mockSidebar.current,
-            isSidebarOpen: true,
+        mockEditor.current = {
+            ...mockEditor.current,
+            isEditorOpen: true,
             isNew: true,
             isPlaceholder: true,
         };
@@ -161,16 +161,16 @@ describe('AddControl', () => {
         unmountPicking();
 
         // Picked: the editor moves to the new filter's pill
-        mockSidebar.current = { ...mockSidebar.current, isPlaceholder: false };
+        mockEditor.current = { ...mockEditor.current, isPlaceholder: false };
         renderWithProviders(<AddControl />);
         expect(editor()).toBeNull();
     });
 
     it("leaves a new filter started from a section's + to that +, unless the section is gone", () => {
         const editor = () => document.querySelector('[data-controls-editor]');
-        mockSidebar.current = {
-            ...mockSidebar.current,
-            isSidebarOpen: true,
+        mockEditor.current = {
+            ...mockEditor.current,
+            isEditorOpen: true,
             isNew: true,
             isPlaceholder: true,
             editingRule: { sectionId: 's' },
@@ -210,7 +210,7 @@ describe('AddControl', () => {
             screen.queryByRole('button', { name: 'Filter rules' }),
         ).not.toBeInTheDocument();
         fireEvent.click(add());
-        expect(mockSidebar.current.openNew).toHaveBeenCalledTimes(1);
+        expect(mockEditor.current.openNew).toHaveBeenCalledTimes(1);
     });
 
     it('is the trigger joined to the menu, with no caret between them', () => {
@@ -376,10 +376,10 @@ describe('AddControl', () => {
 
     describe('for a viewer', () => {
         beforeEach(() => {
-            mockSidebar.current.isViewer = true;
+            mockEditor.current.isViewer = true;
         });
 
-        it('is the shipped view mode button on the bar: no eye or menu, opens the rail', () => {
+        it('is the shipped view mode button on the bar: no eye or menu, opens the editor', () => {
             renderWithProviders(<AddControl />);
             expect(
                 screen.queryByRole('button', {
@@ -390,7 +390,7 @@ describe('AddControl', () => {
                 screen.queryByRole('button', { name: 'Filter bar settings' }),
             ).not.toBeInTheDocument();
             fireEvent.click(add());
-            expect(mockSidebar.current.openNew).toHaveBeenCalledTimes(1);
+            expect(mockEditor.current.openNew).toHaveBeenCalledTimes(1);
         });
 
         it('shows the tooltip it is given, as an embed passes it', async () => {
@@ -415,11 +415,11 @@ describe('AddControl', () => {
     it.each([false, true])(
         'is inert while a filter is edited, for a viewer too (%s)',
         (isViewer) => {
-            mockSidebar.current.isViewer = isViewer;
+            mockEditor.current.isViewer = isViewer;
             const { rerender } = renderWithProviders(<AddControl />);
             expect(add().closest('[inert]')).toBeNull();
 
-            mockSidebar.current.isSidebarOpen = true;
+            mockEditor.current.isEditorOpen = true;
             rerender(
                 <DashboardStoreTestProvider store={createDashboardTestStore()}>
                     <AddControl />
@@ -444,7 +444,7 @@ describe('AddControl', () => {
 
         expect(add()).toBeDisabled();
         fireEvent.click(add());
-        expect(mockSidebar.current.openNew).not.toHaveBeenCalled();
+        expect(mockEditor.current.openNew).not.toHaveBeenCalled();
     });
 
     it('stays enabled without fields when a SQL chart tile reported columns', () => {
@@ -465,7 +465,7 @@ describe('AddControl', () => {
 
             expect(add()).toHaveAttribute('data-loading', 'true');
             fireEvent.click(add());
-            expect(mockSidebar.current.openNew).not.toHaveBeenCalled();
+            expect(mockEditor.current.openNew).not.toHaveBeenCalled();
         },
     );
 });
@@ -534,7 +534,11 @@ describe('AddControl with parameters', () => {
         controls = [],
         triggerClassName,
         section,
+        withParameters,
+        withDateZooms,
     }: {
+        withParameters?: boolean;
+        withDateZooms?: boolean;
         discoveryPending?: boolean;
         isViewer?: boolean;
         tileParameterReferences?: Record<string, string[]>;
@@ -542,16 +546,16 @@ describe('AddControl with parameters', () => {
         triggerClassName?: string;
         section?: Parameters<typeof AddControl>[0]['section'];
     } = {}) => {
-        mockSidebar.current = {
-            ...mockSidebar.current,
+        mockEditor.current = {
+            ...mockEditor.current,
             isViewer,
-            isSidebarOpen: false,
+            isEditorOpen: false,
             isNew: false,
             isPlaceholder: false,
             editingRule: null,
             openNew,
             discard,
-        } as typeof mockSidebar.current;
+        } as typeof mockEditor.current;
         const store = createDashboardTestStore({
             isEditMode: !isViewer,
             parameterDefinitions: definitions,
@@ -585,6 +589,8 @@ describe('AddControl with parameters', () => {
                     <AddControl
                         triggerClassName={triggerClassName}
                         section={section}
+                        withParameters={withParameters}
+                        withDateZooms={withDateZooms}
                     />
                     <ParameterPills />
                 </ParameterEditorProvider>
@@ -721,6 +727,24 @@ describe('AddControl with parameters', () => {
         ).not.toBeInTheDocument();
         await user.click(screen.getByRole('menuitem', { name: /^Filter/ }));
         expect(openNew).toHaveBeenCalledTimes(1);
+    });
+
+    it('offers only the kinds it is allowed, as in an embed whose token hides the others', async () => {
+        const { user } = setup({ withDateZooms: false });
+        await user.click(screen.getByRole('button', { name: 'Add' }));
+        expect(
+            await screen.findByRole('menuitem', { name: /^Parameter/ }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('menuitem', { name: /^Date zoom/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('is "Add filter" alone for an editor allowed neither parameters nor date zoom', async () => {
+        const { user } = setup({ withParameters: false, withDateZooms: false });
+        await user.click(screen.getByRole('button', { name: 'Add filter' }));
+        expect(openNew).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
     });
 
     it('keeps parameter creation unavailable while controls are not loaded', async () => {

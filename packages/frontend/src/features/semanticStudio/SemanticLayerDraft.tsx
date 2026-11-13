@@ -10,7 +10,6 @@ import {
     Loader,
     Menu,
     Paper,
-    SegmentedControl,
     Stack,
     Text,
     ThemeIcon,
@@ -25,7 +24,6 @@ import {
     IconGitPullRequest,
     IconTable,
     IconWorldUpload,
-    IconX,
 } from '@tabler/icons-react';
 import { countBy, sortBy, uniqBy } from 'es-toolkit/compat';
 import { useEffect, useRef, useState, type FC } from 'react';
@@ -37,6 +35,7 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
+import { useFinishDiscardedWork } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { ChangeDiff } from './ChangeDiff';
 import { DevelopmentBar } from './DevelopmentBar';
@@ -46,7 +45,6 @@ import {
     DraftUsage,
     MetricComparison,
     ModelNotices,
-    DraftExplainer,
     PublishChecklist,
     PublishSummary,
 } from './DraftInsights';
@@ -69,6 +67,7 @@ import {
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
+import { useTryInExplore } from './useTryInExplore';
 
 const KIND_NOUNS: [ChangeKind, string][] = [
     ['new', 'new model'],
@@ -383,28 +382,33 @@ const DraftActions: FC<{
 export const ChangesSwitch: FC<{
     isOnMyChanges: boolean;
     onChange: (next: boolean) => void;
-}> = ({ isOnMyChanges, onChange }) => (
+    /** Why it cannot be switched right now; shown disabled with this as its tooltip. */
+    unavailableReason?: string;
+}> = ({ isOnMyChanges, onChange, unavailableReason }) => (
     <Tooltip
         multiline
         w={240}
         label={
-            isOnMyChanges
-                ? 'Explore, charts and dashboards are reading your changes. Only you see this.'
-                : 'Switch to My changes to try them in Explore, charts and dashboards. Only you see it.'
+            unavailableReason ??
+            (isOnMyChanges
+                ? 'Explore, charts and dashboards are reading your changes. Only you see this. Click to go back to live.'
+                : 'Try your changes in Explore, charts and dashboards. Only you see it.')
         }
     >
-        <SegmentedControl
+        <Button
             size="xs"
             flex="none"
-            aria-label="What your queries read"
+            variant={isOnMyChanges ? 'light' : 'default'}
             color={isOnMyChanges ? 'orange' : undefined}
-            value={isOnMyChanges ? 'mine' : 'live'}
-            onChange={(next) => onChange(next === 'mine')}
-            data={[
-                { value: 'live', label: 'Live' },
-                { value: 'mine', label: 'My changes' },
-            ]}
-        />
+            aria-pressed={isOnMyChanges}
+            data-disabled={unavailableReason !== undefined || undefined}
+            aria-disabled={unavailableReason !== undefined}
+            onClick={() => {
+                if (unavailableReason === undefined) onChange(!isOnMyChanges);
+            }}
+        >
+            {isOnMyChanges ? 'Viewing my changes' : 'View my changes'}
+        </Button>
     </Tooltip>
 );
 
@@ -467,8 +471,10 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
+    const tryInExplore = useTryInExplore(projectUuid);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
@@ -481,35 +487,25 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const reviewing = searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW;
     const blocked = cannotApply(draft, null);
     const conflicts = countConflicts(draft, null);
+    // A removed model has nothing to open.
+    const tryModel =
+        draft.models.find((entry) => getChangeKind(entry) !== 'removed')
+            ?.model ?? null;
     return (
         <DevelopmentBar
-            status={
-                <Badge color="orange" flex="none">
-                    Draft
-                </Badge>
-            }
             summary={
-                <Text fz="xs" c="dimmed" truncate>
-                    {draft.models.length > 0
-                        ? summarizeDraftModels(draft)
-                        : 'Nothing new to publish'}
-                </Text>
+                draft.models.length > 0 ? null : (
+                    <Text fz="xs" c="dimmed" truncate>
+                        Nothing new to publish
+                    </Text>
+                )
             }
         >
-            <ChangesSwitch
-                isOnMyChanges={isPreviewing}
-                onChange={setIsPreviewing}
-            />
-            {reviewing ? null : (
-                <Button
-                    size="xs"
-                    variant="default"
-                    onClick={() =>
-                        setSearchParams({ [DRAFT_PARAM]: DRAFT_REVIEW })
-                    }
-                >
-                    Review
-                </Button>
+            {isPreviewing ? null : (
+                <ChangesSwitch
+                    isOnMyChanges={false}
+                    onChange={setIsPreviewing}
+                />
             )}
             {conflicts > 0 ? (
                 <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
@@ -568,6 +564,11 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {tryModel ? (
+                        <Menu.Item onClick={() => tryInExplore(tryModel, null)}>
+                            Try in Explore
+                        </Menu.Item>
+                    ) : null}
                     <Menu.Item
                         disabled={
                             check.isLoading ||
@@ -586,17 +587,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
-            {reviewing ? (
-                <Tooltip label="Close review">
-                    <ActionIcon
-                        size="md"
-                        aria-label="Close review"
-                        onClick={() => setSearchParams({})}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
-            ) : null}
             {discarding ? (
                 <MantineModal
                     opened
@@ -608,7 +598,10 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     onClose={() => setDiscarding(false)}
                     onConfirm={() =>
                         discard.mutate(null, {
-                            onSuccess: () => setDiscarding(false),
+                            onSuccess: () => {
+                                setDiscarding(false);
+                                finishDiscardedWork();
+                            },
                         })
                     }
                 />
@@ -690,7 +683,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
     draft,
     onAskAgent,
 }) => {
-    const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     // A check that is running or found something is worth reading; one not yet run is asked for from the menu.
     const showsImpact =
@@ -706,7 +698,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
     );
     return (
         <Stack gap="md" className={classes.review}>
-            <DraftExplainer asPullRequest={asPullRequest} />
             <MessageList
                 variant="danger"
                 title="This cannot be applied yet"
@@ -783,11 +774,20 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                 projectUuid={projectUuid}
                                 model={modelChange}
                             />
-                            <ChangeDiff
-                                modelName={modelChange.model}
-                                change={modelChange}
-                                variant="full"
-                            />
+                            {/* Until the choice is made the diff would only repeat both versions. */}
+                            {modelChange.reconciliation?.state ===
+                            'conflict' ? (
+                                <Text fz="xs" c="dimmed" p="sm">
+                                    The code shows once you choose which version
+                                    to keep.
+                                </Text>
+                            ) : (
+                                <ChangeDiff
+                                    modelName={modelChange.model}
+                                    change={modelChange}
+                                    variant="full"
+                                />
+                            )}
                             <MetricComparison
                                 projectUuid={projectUuid}
                                 draft={draft}

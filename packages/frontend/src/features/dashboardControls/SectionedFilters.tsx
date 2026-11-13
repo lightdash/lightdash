@@ -77,6 +77,7 @@ import {
     selectParameterControls,
     selectDashboardFilters,
     selectSavedFilterOverrides,
+    useDashboardDateZoomConfig,
     useDashboardDispatch,
     useDashboardSelector,
     useDashboardStore,
@@ -104,6 +105,7 @@ import {
 } from './controlOrder';
 import { dateZoomPillSelector } from './dateZoomControls';
 import { DateZoomPills } from './DateZoomPills';
+import { isEditingIn, isNewFilterIn, removeFilterRule } from './editorState';
 import { formatSectionCount } from './fieldLabels';
 import { FilterPills } from './FilterPills';
 import pillClasses from './FilterPills.module.css';
@@ -139,15 +141,15 @@ import {
     lineGapTargetId,
 } from './sections';
 import { SelectionBar } from './SelectionBar';
-import { isEditingIn, isNewFilterIn, removeFilterRule } from './sidebarState';
 import { useOrderSectionChanges } from './useControlOrder';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { useDateZoomBar } from './useDateZoomBar';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { hasOpenLayer } from './useEditorDismiss';
 import { useIsControlEdited } from './useIsControlEdited';
 import {
     getParameterEntryName,
+    useIsParameterControlLockedInEmbed,
     useParameterBarControls,
 } from './useParameterBarControls';
 import { useParameterEditorSelector } from './useParameterEditor';
@@ -170,7 +172,8 @@ type CapsuleActions = {
     /** Alt with an arrow on the name: along the bar, or to the line above or below */
     onMove: (direction: MoveDirection) => void;
     onRename: (name: string) => void;
-    onRemove: () => void;
+    /** Null where the section holds controls this bar does not show (an embed token's limits) */
+    onRemove: (() => void) | null;
 };
 
 type CapsuleProps = {
@@ -223,6 +226,8 @@ const SectionCapsule: FC<CapsuleProps> = ({
     renderMembers,
 }) => {
     const getUiString = useUiStrings();
+    // What a viewer reads; an editor's name button keeps the name as saved
+    const displayName = section.name || getUiString('controls.untitledSection');
     const summaryId = useId();
     const [isRenaming, setIsRenaming] = useState(false);
     const { ref: nameRef, exit: renameExit } = useRefocusAfter(isRenaming);
@@ -243,14 +248,14 @@ const SectionCapsule: FC<CapsuleProps> = ({
         getUiString(
             isOpen ? 'controls.collapseSection' : 'controls.expandSection',
         ),
-        { section: section.name },
+        { section: displayName },
     );
     // Nothing to show on this tab (an editor's bar only): the member count
     // Date zooms count with parameters: both read as controls
     const controlCount = parameterCount + dateZoomCount;
     const hasVisible = visibleRules.length > 0 || controlCount > 0;
     const isFolded = !(isOpen && hasVisible);
-    const isEditorOnAdd = useControlsSidebarSelector(
+    const isEditorOnAdd = useControlsEditorSelector(
         (c) =>
             isNewFilterIn(c, [section.id]) ||
             (isFolded && isEditingIn(c, section.id)),
@@ -277,7 +282,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     color="dimmed"
                 />
                 <Text span fz="xs" fw={600}>
-                    {section.name}
+                    {displayName}
                 </Text>
             </UnstyledButton>
         ) : (
@@ -362,6 +367,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     isEditorOpen: isEditorOnAdd,
                     allowParameters: withParameters,
                 }}
+                withDateZooms={withDateZooms}
             />
             <SectionMenu
                 label={`${section.name} menu`}
@@ -380,7 +386,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
         <Box
             ref={setNodeRef}
             role="group"
-            aria-label={section.name}
+            aria-label={displayName}
             className={classes.capsule}
             data-collapsed={isFolded || undefined}
             data-editable={actions !== null || undefined}
@@ -571,12 +577,16 @@ type Props = {
     activeTabUuid: string | undefined;
     /** A viewer's bar before the pills (default: `AddControl`); an embed passes its own. */
     viewerActions?: ReactNode;
+    /** An editor's bar before the pills (default: `AddControl`); an embed passes its own. */
+    editorActions?: ReactNode;
     /** An embed's class contract hook on each pill (default none). */
     triggerClassName?: string;
     /** Parameter controls after the filters in each pass (default true; an embed may hide them). */
     withParameters?: boolean;
     /** Date zooms after the parameter controls (default true; off in an embed without date zoom). */
     withDateZooms?: boolean;
+    /** Saved filters an embed token keeps off the bar (default none). */
+    hiddenFilters?: DashboardFilterRule[];
 };
 
 // The filter area of a dashboard with sections: Add, then the unsectioned
@@ -590,9 +600,11 @@ type Props = {
 export const SectionedFilters: FC<Props> = ({
     activeTabUuid,
     viewerActions = <AddControl />,
+    editorActions = <AddControl />,
     triggerClassName,
     withParameters = true,
     withDateZooms = true,
+    hiddenFilters = [],
 }) => {
     const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
     const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -618,7 +630,7 @@ export const SectionedFilters: FC<Props> = ({
         source: DashboardSectionCreatedSource;
     } | null>(null);
     const getUiString = useUiStrings();
-    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const isViewer = useControlsEditorSelector((c) => c.isViewer);
     // A viewer's flips last for one visit: a mode change starts from the saved state
     const [flipsMode, setFlipsMode] = useState(isViewer);
     if (flipsMode !== isViewer) {
@@ -628,7 +640,7 @@ export const SectionedFilters: FC<Props> = ({
     // A filter or a parameter control: either locks the section controls
     const isEditing = useIsControlEdited();
     // A filter being created is no move: Cancel takes it out
-    const newFilterId = useControlsSidebarSelector((c) =>
+    const newFilterId = useControlsEditorSelector((c) =>
         c.isNew ? (c.editing?.filterId ?? null) : null,
     );
     // Any edit, however it starts, ends the selection: adjusted in render
@@ -717,11 +729,13 @@ export const SectionedFilters: FC<Props> = ({
     const { getTabsUsingFilter } = useFilterTabPlacement();
     const parameterBar = useParameterBarControls();
     const parameterControls = useDashboardSelector(selectParameterControls);
-    // A hidden control is an editor's: a viewer's section of only hidden ones has no pill, so no capsule
+    const isLockedInEmbed = useIsParameterControlLockedInEmbed();
+    // A viewer's section of only hidden or token-locked controls has no pill, so no capsule
     const parameterEntries = withParameters
         ? parameterBar.entries.filter(
               ({ isNeedsValue, control }) =>
-                  !isNeedsValue && !(isViewer && control.hidden),
+                  !isNeedsValue &&
+                  !(isViewer && (control.hidden || isLockedInEmbed(control))),
           )
         : [];
     const parameterCountOf = (sectionId: string | null) =>
@@ -738,6 +752,18 @@ export const SectionedFilters: FC<Props> = ({
     const dateZoomEntries = withDateZooms
         ? zoomBar.filter(({ isNew }) => !isNew)
         : [];
+    // Members of a kind this bar leaves out (an embed token's limits), on any
+    // tab: removing their section here would strand them elsewhere
+    const zoomControls = useDashboardDateZoomConfig().controls;
+    const hasUnshownMembers = (sectionId: string) =>
+        (!withParameters &&
+            (parameterControls?.some(
+                (control) => control.sectionId === sectionId,
+            ) ??
+                false)) ||
+        (!withDateZooms &&
+            zoomControls.some((control) => control.sectionId === sectionId)) ||
+        hiddenFilters.some((rule) => rule.sectionId === sectionId);
     const dateZoomCountOf = (sectionId: string | null) =>
         dateZoomEntries.filter((entry) => entry.sectionId === sectionId).length;
     const setZoomSection = useDateZoomEditorSelector((c) => c.setSection);
@@ -1106,26 +1132,28 @@ export const SectionedFilters: FC<Props> = ({
                                       name,
                                   }),
                               ),
-                          onRemove: () => {
-                              // The menu leaves with its capsule
-                              focusAfter.current = [ADD_FILTER_SELECTOR];
-                              const before = store.getState();
-                              dispatch(
-                                  dashboardEditActions.removeControlSection(
-                                      section.id,
-                                  ),
-                              );
-                              if (rules.length > 0) {
-                                  setDashboardFilters((filters) =>
-                                      removeSectionFromRules(
-                                          filters,
-                                          section.id,
-                                      ),
-                                  );
-                                  setHaveFiltersChanged(true);
-                              }
-                              orderSectionChanges(before);
-                          },
+                          onRemove: hasUnshownMembers(section.id)
+                              ? null
+                              : () => {
+                                    // The menu leaves with its capsule
+                                    focusAfter.current = [ADD_FILTER_SELECTOR];
+                                    const before = store.getState();
+                                    dispatch(
+                                        dashboardEditActions.removeControlSection(
+                                            section.id,
+                                        ),
+                                    );
+                                    if (rules.length > 0) {
+                                        setDashboardFilters((filters) =>
+                                            removeSectionFromRules(
+                                                filters,
+                                                section.id,
+                                            ),
+                                        );
+                                        setHaveFiltersChanged(true);
+                                    }
+                                    orderSectionChanges(before);
+                                },
                       }
             }
         />
@@ -1976,7 +2004,7 @@ export const SectionedFilters: FC<Props> = ({
                                 <>
                                     {renderOrderLines(
                                         <UnsectionTarget>
-                                            <AddControl />
+                                            {editorActions}
                                         </UnsectionTarget>,
                                         barEnd,
                                     )}
@@ -1992,7 +2020,7 @@ export const SectionedFilters: FC<Props> = ({
                                         />
                                     )}
                                     <UnsectionTarget>
-                                        <AddControl />
+                                        {editorActions}
                                     </UnsectionTarget>
                                     {pills}
                                     {/* A first section is named inline, where its capsule lands */}

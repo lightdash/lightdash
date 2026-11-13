@@ -179,6 +179,8 @@ export type ContentTableOptions<TData extends RowData> = {
         /** Heading. Overrides emptyMessage/filteredMessage when set. */
         title?: ReactNode;
     };
+    /** Set false to keep the current page when `data` changes. */
+    autoResetPageIndex?: boolean;
     enableBottomToolbar?: boolean;
     enableColumnResizing?: boolean;
     enableEditing?: boolean;

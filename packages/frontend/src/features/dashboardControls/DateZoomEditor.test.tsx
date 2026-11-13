@@ -24,13 +24,13 @@ import {
     selectCurrentDateZoomConfig,
     selectDateZoomGranularity,
 } from '../dashboard/store';
+import {
+    ControlContractClasses,
+    type ControlContractClassNames,
+} from './controlContractClasses';
 import { DateZoomEditorProvider } from './DateZoomEditorProvider';
 import { DateZoomPills, DefaultZoomButton } from './DateZoomPills';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
-import {
-    RailContractClasses,
-    type RailContractClassNames,
-} from './railContractClasses';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 
 const {
@@ -56,11 +56,11 @@ vi.mock('../../ee/providers/Embed/useIsEmbedded', () => ({
 vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track }),
 }));
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditorSelector: (
         selector: (c: {
             isMapping: boolean;
-            isSidebarOpen: boolean;
+            isEditorOpen: boolean;
             isViewer: boolean;
             requestSwitch: typeof requestSwitch;
             tileHoverOwner: { current: string | null };
@@ -68,7 +68,7 @@ vi.mock('./useControlsSidebar', () => ({
     ) =>
         selector({
             isMapping: false,
-            isSidebarOpen: false,
+            isEditorOpen: false,
             isViewer: false,
             requestSwitch,
             tileHoverOwner,
@@ -158,7 +158,7 @@ const setup = ({
     isViewer?: boolean;
     controlGranularities?: Record<string, string>;
     dateZoomGranularity?: DateGranularity;
-    contractClasses?: RailContractClassNames | null;
+    contractClasses?: ControlContractClassNames | null;
 } = {}) => {
     const store = createDashboardTestStore({
         isEditMode: !isViewer,
@@ -189,7 +189,7 @@ const setup = ({
     const user = userEvent.setup();
     renderWithProviders(
         <DashboardStoreTestProvider store={store}>
-            <RailContractClasses.Provider value={contractClasses}>
+            <ControlContractClasses.Provider value={contractClasses}>
                 <ParameterEditorProvider isViewer={isViewer}>
                     <DateZoomEditorProvider isViewer={isViewer}>
                         <DateZoomPills />
@@ -224,7 +224,7 @@ const setup = ({
                         ))}
                     </DateZoomEditorProvider>
                 </ParameterEditorProvider>
-            </RailContractClasses.Provider>
+            </ControlContractClasses.Provider>
         </DashboardStoreTestProvider>,
     );
     const config = () => selectCurrentDateZoomConfig(store.getState());
@@ -756,7 +756,7 @@ describe('Date zoom editor', () => {
         const { user } = setup({
             isViewer: true,
             contractClasses: {
-                rail: 'rail',
+                editor: 'editor',
                 addFilterDropdown: 'add-list',
                 filterDropdown: 'filter-list',
                 parameter: 'ld-dashboard-parameter',

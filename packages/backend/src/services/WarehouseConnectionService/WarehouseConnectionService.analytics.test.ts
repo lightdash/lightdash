@@ -12,6 +12,7 @@ import {
     type CreateBigqueryCredentials,
     type CreatePostgresCredentials,
     type CreateRedshiftCredentials,
+    type CreateSnowflakeCredentials,
     type CreateTrinoCredentials,
     type PossibleAbilities,
     type ProjectSummary,
@@ -833,6 +834,73 @@ describe('preview extra connection CLI refresh', () => {
                 sshTunnelPrivateKey: 'parent-private-key',
             });
             expect(stored).not.toMatchObject({ password: 'parent-password' });
+        },
+    );
+    it.each([false, true])(
+        'a Snowflake extra on a different warehouse requires user credentials only when inheriting across warehouses (%s)',
+        async (flagEnabled) => {
+            const developer: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'developer',
+                password: 'fresh-password',
+                database: 'DEV',
+                warehouse: 'DEV_WH',
+                schema: 'dbt_developer',
+            };
+            const snowflakeExtra = (uuid: string) => ({
+                ...connection(uuid, false),
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+            });
+            const h = setupRefresh();
+            h.model.get.mockResolvedValue(snowflakeExtra(extraUuid));
+            h.model.list.mockImplementation(async (p: typeof project) =>
+                p.projectUuid === upstream.projectUuid
+                    ? [snowflakeExtra('upstream-extra')]
+                    : [
+                          connection(primaryUuid, true),
+                          snowflakeExtra(extraUuid),
+                      ],
+            );
+            h.model.getCredentials.mockImplementation(
+                async (p: typeof project) =>
+                    p.projectUuid === upstream.projectUuid
+                        ? {
+                              ...developer,
+                              user: 'service_user',
+                              password: 'parent-password',
+                              warehouse: 'PROD_WH',
+                              requireUserCredentials: true,
+                          }
+                        : developer,
+            );
+            h.featureFlagService.get.mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId ===
+                        FeatureFlags.PreviewInheritsAcrossWarehouses
+                            ? flagEnabled
+                            : true,
+                }),
+            );
+
+            await h.service.update(
+                account,
+                projectUuid,
+                extraUuid,
+                { warehouseConnection: developer },
+                RequestMethod.CLI,
+            );
+
+            const stored =
+                h.model.updateExtraCredentials.mock.calls[0][2].credentials;
+            expect(stored).toMatchObject(developer);
+            expect(stored.requireUserCredentials).toBe(flagEnabled);
+            expect(h.featureFlagService.get).toHaveBeenCalledWith({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.PreviewInheritsAcrossWarehouses,
+            });
         },
     );
     it('preserves the preview own tunnel and explicit opt-out', async () => {

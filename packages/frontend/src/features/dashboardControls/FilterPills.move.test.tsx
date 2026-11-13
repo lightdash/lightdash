@@ -21,7 +21,7 @@ import {
     dashboardFiltersActions,
     selectDashboardFilters,
 } from '../dashboard/store';
-import { ControlsSidebarProvider } from './ControlsSidebarProvider';
+import { ControlsEditorProvider } from './ControlsEditorProvider';
 import { FilterPills } from './FilterPills';
 
 // The provider and the pills as they are: only the dashboard context is mocked
@@ -102,9 +102,9 @@ describe('moving a pill on the bar', () => {
         );
         renderWithProviders(
             <DashboardStoreTestProvider store={store}>
-                <ControlsSidebarProvider>
+                <ControlsEditorProvider>
                     <FilterPills activeTabUuid={undefined} />
-                </ControlsSidebarProvider>
+                </ControlsEditorProvider>
             </DashboardStoreTestProvider>,
         );
         const pills = () =>
@@ -194,9 +194,9 @@ describe('moving a pill on the bar', () => {
         );
         renderWithProviders(
             <DashboardStoreTestProvider store={store}>
-                <ControlsSidebarProvider>
+                <ControlsEditorProvider>
                     <FilterPills activeTabUuid="tab-1" />
-                </ControlsSidebarProvider>
+                </ControlsEditorProvider>
             </DashboardStoreTestProvider>,
         );
         const status = () =>

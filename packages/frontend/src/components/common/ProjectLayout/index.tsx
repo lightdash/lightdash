@@ -3,6 +3,8 @@ import * as Sentry from '@sentry/react';
 import { type FC } from 'react';
 import { Outlet, useLocation, useMatches, useNavigation } from 'react-router';
 import ScopeTourHost from '../../../features/scopeTours/ScopeTourHost';
+import { useAnalyticsProjectRouteView } from '../../../hooks/useAnalyticsProjectView';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import NavBar from '../../NavBar';
 import PageSpinner from '../../PageSpinner';
 import { ContentAuthoringRoute } from './ContentAuthoringRoute';
@@ -18,6 +20,8 @@ import classes from './ProjectLayout.module.css';
  * The handle can be on any route in the hierarchy, not just the deepest child.
  */
 const ProjectLayout: FC = () => {
+    const projectRoute = useOptionalProjectRoute();
+    useAnalyticsProjectRouteView(projectRoute?.project);
     const matches = useMatches();
     const location = useLocation();
     const navigation = useNavigation();

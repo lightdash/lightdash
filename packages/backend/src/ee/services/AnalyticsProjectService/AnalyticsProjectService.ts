@@ -1,6 +1,9 @@
+import { subject } from '@casl/ability';
 import {
     AnalyticsHistoryBackfillStatus,
     AnalyticsProjectStatus,
+    AnalyticsProjectView,
+    assertIsAccountWithOrg,
     ConflictError,
     ContentType,
     EnsureAnalyticsProjectResult,
@@ -9,14 +12,18 @@ import {
     getLtreePathFromContentAsCodePath,
     isUserWithOrg,
     NotFoundError,
+    RegisteredAccount,
     SessionUser,
 } from '@lightdash/common';
 import { memoize } from 'es-toolkit/compat';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
+import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
 } from '../../../analytics/systemExplores/sampleContent';
+import { trackSafely } from '../../../analytics/trackSafely';
+import { toSessionUser } from '../../../auth/account';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import {
     ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
@@ -47,6 +54,7 @@ import { getAnalyticsContentHash } from './analyticsContentHash';
 import { analyticsHomepage } from './analyticsHomepage';
 
 type Dependencies = {
+    analytics: Pick<LightdashAnalytics, 'track'>;
     lightdashConfig: Pick<LightdashConfig, 'usageEvents'>;
     aiAgentModel: Pick<AiAgentModel, 'findAllAgents'>;
     getAiAgentService: () => Pick<
@@ -83,6 +91,7 @@ type Dependencies = {
     projectModel: Pick<
         ProjectModel,
         | 'getAllByOrganizationUuid'
+        | 'getSummary'
         | 'getAnalyticsModelCounts'
         | 'runInAnalyticsProvisioningLock'
         | 'saveExploresToCache'
@@ -91,6 +100,7 @@ type Dependencies = {
         ProjectService,
         | 'isAnalyticsProjectEnabled'
         | 'assertAnalyticsProjectAdministration'
+        | 'assertAnalyticsProjectAccess'
         | 'ensureAnalyticsProject'
         | 'delete'
     >;
@@ -134,6 +144,53 @@ export class AnalyticsProjectService extends BaseService {
             user,
         );
         return user.organizationUuid;
+    }
+
+    async trackView(
+        account: RegisteredAccount,
+        view: AnalyticsProjectView,
+    ): Promise<void> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        if (view.source === 'settings') {
+            await this.authorize(toSessionUser(account));
+        }
+        if (view.projectUuid !== null) {
+            const project = await this.dependencies.projectModel.getSummary(
+                view.projectUuid,
+            );
+            if (
+                project.organizationUuid !== organizationUuid ||
+                project.provisioningSource !== 'analytics'
+            ) {
+                throw new ForbiddenError();
+            }
+            if (view.source !== 'settings') {
+                await this.dependencies.projectService.assertAnalyticsProjectAccess(
+                    account,
+                    project,
+                );
+                if (
+                    this.createAuditedAbility(account).cannot(
+                        'view',
+                        subject('Project', project),
+                    )
+                ) {
+                    throw new ForbiddenError();
+                }
+            }
+        }
+        trackSafely(() =>
+            this.dependencies.analytics.track({
+                event: 'analytics_project.viewed',
+                userId: account.user.id,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: view.projectUuid,
+                    source: view.source,
+                },
+            }),
+        );
     }
 
     private async needsAnalyticsAgent(

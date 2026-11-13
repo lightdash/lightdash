@@ -28,13 +28,13 @@ import AddFilterButton from '../dashboardFilters/AddFilterButton';
 import { AddMenuBackContext } from './addMenuBack';
 import { AddKindItems, ParameterPicker } from './ControlPickers';
 import { focusStartOnMount } from './editorFocus';
+import { isNewFilterIn, isPickingNewField } from './editorState';
 import { FilterBarMenu } from './FilterBarMenu';
 import { EditorPopover } from './FilterEditor';
 import classes from './FilterPills.module.css';
 import { MENU_TRANSITION } from './menuTransition';
 import { getParameterOptions, type ParameterOption } from './parameterOptions';
-import { isNewFilterIn, isPickingNewField } from './sidebarState';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { useIsControlEdited } from './useIsControlEdited';
 import { useParameterEditorSelector } from './useParameterEditor';
@@ -109,6 +109,10 @@ type Props = {
     triggerClassName?: string;
     /** The viewer bar's tooltip (default: the shipped app wording). */
     unsavedFiltersTooltip?: string;
+    /** Offers parameters (default true; off in an embed without parameter interactivity). */
+    withParameters?: boolean;
+    /** Offers "Date zoom" (default true; off in an embed without date zoom). */
+    withDateZooms?: boolean;
     section?: {
         id: string;
         name: string;
@@ -125,21 +129,23 @@ type Props = {
 export const AddControl: FC<Props> = ({
     triggerClassName,
     unsavedFiltersTooltip,
+    withParameters = true,
+    withDateZooms = true,
     section,
 }) => {
-    const openNew = useControlsSidebarSelector((c) => c.openNew);
-    const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
-    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const openNew = useControlsEditorSelector((c) => c.openNew);
+    const canAddFilters = useControlsEditorSelector((c) => c.canAddFilters);
+    const isViewer = useControlsEditorSelector((c) => c.isViewer);
     const sectionIds = useDashboardSelector(selectControlSections).map(
         (section) => section.id,
     );
-    const isNewOpen = useControlsSidebarSelector(
+    const isNewOpen = useControlsEditorSelector(
         (c) => isPickingNewField(c) && !isNewFilterIn(c, sectionIds),
     );
     const resetDashboardFilters = useDashboardContext(
         (c) => c.resetDashboardFilters,
     );
-    const discard = useControlsSidebarSelector((c) => c.discard);
+    const discard = useControlsEditorSelector((c) => c.discard);
     const addParameterControl = useParameterEditorSelector((c) => c.add);
     const addDateZoom = useDateZoomEditorSelector((c) => c.add);
     // As the shipped "Add date zoom": an editor's, on a dashboard with tiles
@@ -149,7 +155,7 @@ export const AddControl: FC<Props> = ({
     const parameterValues = useDashboardSelector(selectParameterValues);
     const parameterControls = useDashboardSelector(selectParameterControls);
     const parameters = useParameterOptions(
-        isViewer || section?.allowParameters === false,
+        isViewer || !withParameters || section?.allowParameters === false,
     );
     const referencesReady = useDashboardSelector((state) => {
         const tiles = selectDashboardTiles(state);
@@ -167,7 +173,7 @@ export const AddControl: FC<Props> = ({
     const [step, setStep] = useState<Step>('closed');
     const anchorRef = useRef<HTMLDivElement>(null);
     const canAddParameter = referencesReady && parameters.length > 0;
-    const canAddDateZoom = !isViewer && hasTiles;
+    const canAddDateZoom = !isViewer && hasTiles && withDateZooms;
     // Nothing but filters: "Add filter", straight to the field search
     const hasChoice =
         parameterControls !== null && (canAddParameter || canAddDateZoom);
@@ -244,7 +250,9 @@ export const AddControl: FC<Props> = ({
                         triggerClassName={triggerClassName}
                         unsavedFiltersTooltip={unsavedFiltersTooltip}
                         editModeAction={
-                            isViewer ? undefined : <FilterBarMenu />
+                            isViewer ? undefined : (
+                                <FilterBarMenu withDateZooms={withDateZooms} />
+                            )
                         }
                         label={
                             hasChoice ? getUiString('controls.add') : undefined

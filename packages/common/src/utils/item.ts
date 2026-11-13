@@ -49,6 +49,9 @@ export const isNumericType = (
     return numericTypes.includes(type);
 };
 
+/** Table of fields synthesized from query result columns, which have no explore table. */
+export const RESULT_COLUMN_TABLE = '<composer>';
+
 export const getItemId = (
     item: ItemsMap[string] | AdditionalMetric | Pick<Field, 'name' | 'table'>,
 ) => {
@@ -61,6 +64,9 @@ export const getItemId = (
     }
     if (isTableCalculation(item)) {
         return item.name;
+    }
+    if (item.table === RESULT_COLUMN_TABLE) {
+        return item.name.replaceAll('.', '__');
     }
     // dimension or metric or additional metric or field
     return `${item.table}_${item.name.replaceAll('.', '__')}`;

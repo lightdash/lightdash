@@ -64,6 +64,7 @@ export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
     return (
         <AiComposerArtifactPanel
             key={`${messageUuid}:${nodeId}`}
+            savedComposerChart={null}
             projectUuid={projectUuid}
             agentUuid={agentUuid}
             source={{

@@ -1275,6 +1275,14 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:ComposerChart',
+        description: 'Save composer charts onto dashboards',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:Explore@self',
         description:
             'Explore and query data in preview projects created by the user',

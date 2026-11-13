@@ -76,6 +76,7 @@ import {
     RegisterOrActivateUser,
     resolveEffectiveOrganizationSettings,
     ServiceAccount,
+    ServiceAccountScope,
     SessionUser,
     SnowflakeAuthenticationType,
     SpaceMemberRole,
@@ -4659,12 +4660,57 @@ export class UserService extends BaseService {
      * `UserModel.generateUserAbilityBuilder`.
      */
     async getSessionUserForServiceAccount(
-        serviceAccount: ServiceAccount,
+        serviceAccount: Pick<ServiceAccount, 'userUuid' | 'organizationUuid'>,
     ): Promise<SessionUser> {
         return this.userModel.findSessionUserAndOrgByUuid(
             serviceAccount.userUuid,
             serviceAccount.organizationUuid,
         );
+    }
+
+    async getHeadlessServiceAccountSessionUser(
+        userUuid: string,
+        organizationUuid?: string,
+    ): Promise<
+        | (SessionUser & {
+              serviceAccount: { uuid: string; description: string };
+          })
+        | undefined
+    > {
+        if (this.lightdashConfig.license.licenseKey === null) {
+            return undefined;
+        }
+        const serviceAccount =
+            await this.userModel.findServiceAccountByUserUuid(userUuid);
+        if (!serviceAccount) {
+            return undefined;
+        }
+        if (serviceAccount.expiresAt && serviceAccount.expiresAt < new Date()) {
+            return undefined;
+        }
+        const isScimOnly =
+            serviceAccount.scopes.length === 1 &&
+            serviceAccount.scopes[0] === ServiceAccountScope.SCIM_MANAGE;
+        if (isScimOnly) {
+            return undefined;
+        }
+        if (
+            organizationUuid !== undefined &&
+            organizationUuid !== serviceAccount.organizationUuid
+        ) {
+            return undefined;
+        }
+        const sessionUser = await this.getSessionUserForServiceAccount({
+            userUuid,
+            organizationUuid: serviceAccount.organizationUuid,
+        });
+        return {
+            ...sessionUser,
+            serviceAccount: {
+                uuid: serviceAccount.uuid,
+                description: serviceAccount.description,
+            },
+        };
     }
 
     async isOpenIdLinked(

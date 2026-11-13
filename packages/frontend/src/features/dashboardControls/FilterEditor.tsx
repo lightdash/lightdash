@@ -24,14 +24,14 @@ import {
 import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
 import { ControlEditorPopover } from './ControlEditorPopover';
 import { focusStartOnMount } from './editorFocus';
+import { findFilterRule } from './editorState';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import classes from './FilterEditor.module.css';
 import { EditorActions, EditorFrame, FilterPopover } from './FilterPopover';
 import { canTileTakeFilter } from './peers';
-import { findFilterRule } from './sidebarState';
 import { useAppliedTileCount } from './useAppliedTileCount';
 import { useApplyBlockedReason } from './useApplyBlockedReason';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { useFilterRuleField } from './useFilterRuleField';
 import { useFiltersStartOfWeek } from './useFiltersStartOfWeek';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
@@ -39,14 +39,14 @@ import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 // A filter with no field yet: a new one's field search alone, or an existing
 // one left with no field, which keeps its name and cannot be applied
 const PlaceholderEditor: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
-    const isNew = useControlsSidebarSelector((c) => c.isNew);
-    const emptiedFieldLabel = useControlsSidebarSelector(
+    const isNew = useControlsEditorSelector((c) => c.isNew);
+    const emptiedFieldLabel = useControlsEditorSelector(
         (c) => c.emptiedFieldLabel,
     );
-    const isAsking = useControlsSidebarSelector((c) => c.isAsking);
-    const resolvePending = useControlsSidebarSelector((c) => c.resolvePending);
-    const discard = useControlsSidebarSelector((c) => c.discard);
-    const close = useControlsSidebarSelector((c) => c.close);
+    const isAsking = useControlsEditorSelector((c) => c.isAsking);
+    const resolvePending = useControlsEditorSelector((c) => c.resolvePending);
+    const discard = useControlsEditorSelector((c) => c.discard);
+    const close = useControlsEditorSelector((c) => c.close);
     const getUiString = useUiStrings();
     const applyBlockedReason = useApplyBlockedReason(rule);
     // No props, so one element: the list never re-renders on its own
@@ -90,19 +90,19 @@ const FilterEditor: FC<{
     rule: DashboardFilterRule;
     field: DashboardFilterableField | null;
 }> = ({ rule, field }) => {
-    const isNew = useControlsSidebarSelector((c) => c.isNew);
-    const isAsking = useControlsSidebarSelector((c) => c.isAsking);
-    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
-    const canChooseTiles = useControlsSidebarSelector((c) => c.canChooseTiles);
-    const editorFilters = useControlsSidebarSelector((c) => c.editorFilters);
-    const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
-    const updateOtherFilters = useControlsSidebarSelector(
+    const isNew = useControlsEditorSelector((c) => c.isNew);
+    const isAsking = useControlsEditorSelector((c) => c.isAsking);
+    const isViewer = useControlsEditorSelector((c) => c.isViewer);
+    const canChooseTiles = useControlsEditorSelector((c) => c.canChooseTiles);
+    const editorFilters = useControlsEditorSelector((c) => c.editorFilters);
+    const updateFilter = useControlsEditorSelector((c) => c.updateFilter);
+    const updateOtherFilters = useControlsEditorSelector(
         (c) => c.updateOtherFilters,
     );
-    const startMapping = useControlsSidebarSelector((c) => c.startMapping);
-    const resolvePending = useControlsSidebarSelector((c) => c.resolvePending);
-    const discard = useControlsSidebarSelector((c) => c.discard);
-    const close = useControlsSidebarSelector((c) => c.close);
+    const startMapping = useControlsEditorSelector((c) => c.startMapping);
+    const resolvePending = useControlsEditorSelector((c) => c.resolvePending);
+    const discard = useControlsEditorSelector((c) => c.discard);
+    const close = useControlsEditorSelector((c) => c.close);
     const { user } = useApp();
     const canManageExplore = !!user.data?.ability?.can('manage', 'Explore');
     const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
@@ -209,7 +209,7 @@ const EditorFiltersProvider: FC<{ children: ReactNode }> = ({ children }) => {
 // Mounted with the filter id as key, so the view and the name never carry
 // over to another filter
 const FilterEditorContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const isPlaceholder = useControlsEditorSelector((c) => c.isPlaceholder);
     // A dimension or a metric, as the shipped bar resolves it
     const field = useFilterRuleField(rule);
     if (isPlaceholder) return <PlaceholderEditor rule={rule} />;
@@ -222,10 +222,10 @@ const FilterEditorContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
 
 // The edited filter's body, keyed by its id
 const EditorContent: FC = () => {
-    const filterId = useControlsSidebarSelector((c) =>
-        c.isSidebarOpen ? (c.editing?.filterId ?? null) : null,
+    const filterId = useControlsEditorSelector((c) =>
+        c.isEditorOpen ? (c.editing?.filterId ?? null) : null,
     );
-    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    const editingRule = useControlsEditorSelector((c) => c.editingRule);
     if (filterId === null || editingRule === null) return null;
     return <FilterEditorContent key={filterId} rule={editingRule} />;
 };
@@ -239,7 +239,7 @@ type EditorPopoverProps = {
 
 export const EditorPopover: FC<EditorPopoverProps> = ({ isOpen, children }) => {
     // Mapping stands in for the popover until its Cancel brings it back
-    const isMapping = useControlsSidebarSelector((c) => c.isMapping);
+    const isMapping = useControlsEditorSelector((c) => c.isMapping);
     return (
         <ControlEditorPopover
             isShown={isOpen && !isMapping}

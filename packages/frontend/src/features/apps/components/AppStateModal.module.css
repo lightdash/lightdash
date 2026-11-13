@@ -87,7 +87,7 @@
     width: 130px;
 }
 
-.clearButton {
+.headerActions {
     flex-shrink: 0;
 }
 
@@ -99,4 +99,8 @@
 .valueJson {
     white-space: pre-wrap;
     word-break: break-word;
+}
+
+.sizeRing {
+    flex-shrink: 0;
 }

@@ -18,23 +18,23 @@ import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProv
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { FilterBarPopoversProvider } from '../dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
+import { ControlContractClasses } from './controlContractClasses';
 import { EditorPopover } from './FilterEditor';
 import classes from './FilterEditor.module.css';
-import { RailContractClasses } from './railContractClasses';
-import { type ControlsSidebarContextValue } from './useControlsSidebar';
+import { type ControlsEditorContextValue } from './useControlsEditor';
 
-const mockSidebar = vi.hoisted(() => ({
+const mockEditor = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebar: vi.fn(() => mockSidebar.current),
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditor: vi.fn(() => mockEditor.current),
+    useControlsEditorSelector: (
         selector: (value: Record<string, unknown>) => unknown,
-    ) => selector(mockSidebar.current),
+    ) => selector(mockEditor.current),
 }));
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
@@ -139,8 +139,8 @@ const makeRule = (
     ...overrides,
 });
 
-const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
-    const value: ControlsSidebarContextValue = {
+const setEditor = (overrides: Partial<ControlsEditorContextValue>) => {
+    const value: ControlsEditorContextValue = {
         editing: { filterId: 'filter-1' },
         isViewer: false,
         canAddFilters: true,
@@ -148,7 +148,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         isPlaceholder: false,
         editingRule: makeRule({}),
         editorFilters: { dimensions: [], metrics: [], tableCalculations: [] },
-        isSidebarOpen: true,
+        isEditorOpen: true,
         isMapping: false,
         canChooseTiles: true,
         startMapping: vi.fn(),
@@ -188,7 +188,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         dismissLink: vi.fn(),
         ...overrides,
     };
-    mockSidebar.current = value;
+    mockEditor.current = value;
     return value;
 };
 
@@ -278,7 +278,7 @@ describe('EditorPopover', () => {
     const button = (name: string) => screen.getByRole('button', { name });
 
     it('draws nothing at its target the moment it closes, and arrives through its own CSS', () => {
-        setSidebar({});
+        setEditor({});
         const { rerender } = renderWithProviders(<Editor />);
         expect(editor()).toHaveClass(classes.dropdown);
         expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -293,11 +293,11 @@ describe('EditorPopover', () => {
     });
 
     it('hands the settings the tiles the filter is on, over every tab', () => {
-        setSidebar({});
+        setEditor({});
         const { rerender } = renderWithProviders(<Editor />);
         expect(appliesTo()).toBe('Applies to 2 tiles. Choose tiles');
 
-        setSidebar({
+        setEditor({
             editingRule: makeRule({ tileTargets: { a: false, b: REGION } }),
         });
         rerender(<Editor />);
@@ -308,7 +308,7 @@ describe('EditorPopover', () => {
             dashboardTiles: [tile('a', 't1'), tile('b', 't1'), tile('c', 't2')],
             dashboardTabs: [tab('t1', 0), tab('t2', 1)],
         };
-        setSidebar({});
+        setEditor({});
         rerender(<Editor />);
         expect(appliesTo()).toBe('Applies to 2 tiles. Choose tiles');
     });
@@ -325,7 +325,7 @@ describe('EditorPopover', () => {
                 } as DashboardTile,
             ],
         };
-        setSidebar({
+        setEditor({
             editingRule: makeRule({ tileTargets: { b: false } }),
         });
         renderWithProviders(<Editor />);
@@ -334,13 +334,13 @@ describe('EditorPopover', () => {
     });
 
     it('renders nothing while no filter is edited', () => {
-        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
+        setEditor({ editing: null, editingRule: null, isEditorOpen: false });
         renderWithProviders(<Editor />);
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
     it('is a dialog named by the filter: no header, badge or X', () => {
-        setSidebar({
+        setEditor({
             isNew: false,
             editingRule: makeRule({ label: 'Order status' }),
         });
@@ -357,7 +357,7 @@ describe('EditorPopover', () => {
     });
 
     it('ends with Cancel and Apply, the only filled button', () => {
-        const { close, discard } = setSidebar({ isNew: false });
+        const { close, discard } = setEditor({ isNew: false });
         renderWithProviders(<Editor />);
 
         const apply = button('Apply');
@@ -374,7 +374,7 @@ describe('EditorPopover', () => {
     });
 
     it('opens a new filter on its field search alone, then the value view once a field is picked', () => {
-        setSidebar({
+        setEditor({
             isPlaceholder: true,
             editingRule: placeholder,
         });
@@ -388,7 +388,7 @@ describe('EditorPopover', () => {
         expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
         expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
 
-        const { discard } = setSidebar({
+        const { discard } = setEditor({
             isPlaceholder: false,
             editingRule: makeRule({}),
         });
@@ -400,7 +400,7 @@ describe('EditorPopover', () => {
     });
 
     it('keeps the name of an existing control left with no field, Apply disabled', () => {
-        setSidebar({
+        setEditor({
             isNew: false,
             isPlaceholder: true,
             emptiedFieldLabel: 'Status',
@@ -419,7 +419,7 @@ describe('EditorPopover', () => {
 
     describe('Apply guards', () => {
         it('lets an editor apply a required filter with no value: viewers set it', () => {
-            setSidebar({
+            setEditor({
                 isNew: false,
                 editingRule: makeRule({
                     required: true,
@@ -432,7 +432,7 @@ describe('EditorPopover', () => {
         });
 
         it("disables a viewer's Apply on a required filter they cleared, with the shipped wording", async () => {
-            setSidebar({
+            setEditor({
                 isViewer: true,
                 isNew: false,
                 canChooseTiles: false,
@@ -445,7 +445,7 @@ describe('EditorPopover', () => {
                 await screen.findByText('Filter field and value required'),
             ).toBeInTheDocument();
 
-            setSidebar({
+            setEditor({
                 isViewer: true,
                 isNew: false,
                 canChooseTiles: false,
@@ -456,7 +456,7 @@ describe('EditorPopover', () => {
         });
 
         it('lets a viewer apply a required filter saved with no value they did not touch', () => {
-            setSidebar({
+            setEditor({
                 isViewer: true,
                 isNew: false,
                 canChooseTiles: false,
@@ -473,7 +473,7 @@ describe('EditorPopover', () => {
         it("disables a viewer's Apply on a required group only while no member has a value", () => {
             const a = makeRule({ id: 'filter-a', requiredGroupId: 'g' });
             const b = makeRule({ requiredGroupId: 'g', values: [] });
-            setSidebar({
+            setEditor({
                 isViewer: true,
                 canChooseTiles: false,
                 isNew: false,
@@ -483,7 +483,7 @@ describe('EditorPopover', () => {
             const { rerender } = renderWithProviders(<Editor />);
             expect(button('Apply')).toBeEnabled();
 
-            setSidebar({
+            setEditor({
                 isViewer: true,
                 canChooseTiles: false,
                 isNew: false,
@@ -502,7 +502,7 @@ describe('EditorPopover', () => {
                 disabled: true,
                 values: ['x'],
             });
-            setSidebar({
+            setEditor({
                 isViewer: true,
                 canChooseTiles: false,
                 isNew: false,
@@ -517,7 +517,7 @@ describe('EditorPopover', () => {
                 requiredGroupId: 'g',
                 required: true,
             });
-            setSidebar({
+            setEditor({
                 isViewer: true,
                 canChooseTiles: false,
                 isNew: false,
@@ -529,7 +529,7 @@ describe('EditorPopover', () => {
         });
 
         it('disables Apply on a filter that reaches no tile', async () => {
-            setSidebar({
+            setEditor({
                 isNew: false,
                 editingRule: makeRule({ tileTargets: { a: false, b: false } }),
             });
@@ -544,7 +544,7 @@ describe('EditorPopover', () => {
         });
 
         it("never blocks a viewer's own filter", () => {
-            setSidebar({
+            setEditor({
                 isViewer: true,
                 isNew: false,
                 editingRule: makeRule({ tileTargets: { a: false, b: false } }),
@@ -556,7 +556,7 @@ describe('EditorPopover', () => {
 
     describe('a pill or Add with changes unapplied', () => {
         it('asks at the top: Discard or Apply, with the rest dimmed and inert', () => {
-            const { resolvePending, close, discard } = setSidebar({
+            const { resolvePending, close, discard } = setEditor({
                 isNew: false,
                 isAsking: true,
             });
@@ -590,7 +590,7 @@ describe('EditorPopover', () => {
         });
 
         it('focuses Discard when Apply cannot answer', () => {
-            setSidebar({
+            setEditor({
                 isNew: false,
                 isAsking: true,
                 editingRule: makeRule({ tileTargets: { a: false, b: false } }),
@@ -600,7 +600,7 @@ describe('EditorPopover', () => {
         });
 
         it('has no prompt and a live footer otherwise', () => {
-            setSidebar({ isNew: false });
+            setEditor({ isNew: false });
             renderWithProviders(<Editor />);
             expect(screen.queryByRole('status')).not.toBeInTheDocument();
             expect(button('Cancel').closest('[inert]')).toBeNull();
@@ -608,7 +608,7 @@ describe('EditorPopover', () => {
         });
 
         it('cannot Apply from the prompt what Apply could not', () => {
-            setSidebar({
+            setEditor({
                 isNew: false,
                 isAsking: true,
                 editingRule: makeRule({ tileTargets: { a: false, b: false } }),
@@ -622,7 +622,7 @@ describe('EditorPopover', () => {
     });
 
     it('names the open filter after its field while it has no label', () => {
-        setSidebar({});
+        setEditor({});
         renderWithProviders(<Editor />);
 
         expect(
@@ -636,7 +636,7 @@ describe('EditorPopover', () => {
     });
 
     it('names a filter whose field is gone "Filter name", with a text value', () => {
-        setSidebar({
+        setEditor({
             editingRule: makeRule({
                 target: { fieldId: 'orders_gone', tableName: 'orders' },
             }),
@@ -651,7 +651,7 @@ describe('EditorPopover', () => {
     });
 
     it('uses the type a SQL column filter carries', () => {
-        setSidebar({
+        setEditor({
             editingRule: makeRule({
                 target: {
                     fieldId: 'ordered_at',
@@ -673,7 +673,7 @@ describe('EditorPopover', () => {
         );
 
         it('closes the editor, then opens the filter rules of the bar', () => {
-            const { close } = setSidebar({ isNew: false });
+            const { close } = setEditor({ isNew: false });
             renderWithProviders(
                 <FilterBarPopoversProvider>
                     <Editor />
@@ -687,7 +687,7 @@ describe('EditorPopover', () => {
         });
 
         it('offers no way to the filter rules where the bar cannot be reached', () => {
-            setSidebar({ isNew: false });
+            setEditor({ isNew: false });
             renderWithProviders(<Editor />);
             fireEvent.click(button('Settings'));
             expect(
@@ -695,8 +695,8 @@ describe('EditorPopover', () => {
             ).not.toBeInTheDocument();
         });
 
-        it('writes the other filters Required changes through the sidebar', () => {
-            const { updateOtherFilters } = setSidebar({ isNew: false });
+        it('writes the other filters Required changes through the editor', () => {
+            const { updateOtherFilters } = setEditor({ isNew: false });
             renderWithProviders(<Editor />);
             fireEvent.click(button('Settings'));
             fireEvent.click(button('change others'));
@@ -727,7 +727,7 @@ describe('EditorPopover', () => {
         });
 
         it('is named by its metric and hands it to its settings', () => {
-            setSidebar({ editingRule: metricRule });
+            setEditor({ editingRule: metricRule });
             renderWithProviders(<Editor />);
 
             expect(
@@ -743,7 +743,7 @@ describe('EditorPopover', () => {
     });
 
     it('names a SQL column filter by its column, with settings with no field', () => {
-        setSidebar({
+        setEditor({
             editingRule: makeRule({
                 target: {
                     fieldId: 'country',
@@ -762,7 +762,7 @@ describe('EditorPopover', () => {
     });
 
     it('moves focus to the field search when a new filter opens', async () => {
-        setSidebar({
+        setEditor({
             isPlaceholder: true,
             editingRule: makeRule({ target: { fieldId: '', tableName: '' } }),
         });
@@ -774,7 +774,7 @@ describe('EditorPopover', () => {
     });
 
     it('keeps focus inside while it is open: Tab from Apply goes around', async () => {
-        setSidebar({ isNew: false });
+        setEditor({ isNew: false });
         renderWithProviders(<Editor />);
         act(() => button('Apply').focus());
         await userEvent.tab();
@@ -785,7 +785,7 @@ describe('EditorPopover', () => {
     });
 
     it('stays open on Enter with no label', () => {
-        const { close } = setSidebar({});
+        const { close } = setEditor({});
         renderWithProviders(<Editor />);
 
         fireEvent.keyDown(nameInput(), {
@@ -798,15 +798,15 @@ describe('EditorPopover', () => {
         const own = makeRule({ id: 'own', label: undefined });
 
         it('carries the classes an embed gives the editor and its lists', () => {
-            setSidebar({
+            setEditor({
                 isViewer: true,
                 editing: { filterId: 'own' },
                 editingRule: own,
             });
             renderWithProviders(
-                <RailContractClasses.Provider
+                <ControlContractClasses.Provider
                     value={{
-                        rail: 'ld-dashboard-filter-rail',
+                        editor: 'ld-dashboard-control-editor',
                         addFilterDropdown: 'add-list',
                         filterDropdown: 'ld-dashboard-filter-dropdown',
                         parameter: 'ld-dashboard-parameter',
@@ -816,22 +816,22 @@ describe('EditorPopover', () => {
                     }}
                 >
                     <Editor />
-                </RailContractClasses.Provider>,
+                </ControlContractClasses.Provider>,
             );
-            expect(editor()).toHaveClass('ld-dashboard-filter-rail');
+            expect(editor()).toHaveClass('ld-dashboard-control-editor');
             expect(editor()).toHaveClass('ld-dashboard-filter-dropdown');
         });
 
         it("carries the embed's list class on the operator menu", async () => {
-            setSidebar({
+            setEditor({
                 isViewer: true,
                 editing: { filterId: 'own' },
                 editingRule: own,
             });
             renderWithProviders(
-                <RailContractClasses.Provider
+                <ControlContractClasses.Provider
                     value={{
-                        rail: 'ld-dashboard-filter-rail',
+                        editor: 'ld-dashboard-control-editor',
                         addFilterDropdown: 'add-list',
                         filterDropdown: 'ld-dashboard-filter-dropdown',
                         parameter: 'ld-dashboard-parameter',
@@ -841,7 +841,7 @@ describe('EditorPopover', () => {
                     }}
                 >
                     <Editor />
-                </RailContractClasses.Provider>,
+                </ControlContractClasses.Provider>,
             );
             await userEvent.click(
                 screen.getByRole('button', { name: /^Operator:/ }),
@@ -852,7 +852,7 @@ describe('EditorPopover', () => {
         });
 
         it('edits their own filter in the same editor, with Cancel and Apply', () => {
-            const { close, discard } = setSidebar({
+            const { close, discard } = setEditor({
                 isViewer: true,
                 isNew: false,
                 editing: { filterId: 'own' },
@@ -866,7 +866,7 @@ describe('EditorPopover', () => {
         });
 
         it('shows the name as text they cannot edit', () => {
-            setSidebar({
+            setEditor({
                 isViewer: true,
                 isNew: false,
                 editing: { filterId: 'own' },
@@ -886,7 +886,7 @@ describe('EditorPopover', () => {
                 ...mockDashboardContext.current,
                 dashboard: { filters: filters([saved]) },
             };
-            const { updateFilter, close } = setSidebar({
+            const { updateFilter, close } = setEditor({
                 isViewer: true,
                 isNew: false,
                 canChooseTiles: false,
@@ -901,7 +901,7 @@ describe('EditorPopover', () => {
         });
 
         it('creates a new filter of theirs with Apply', () => {
-            setSidebar({
+            setEditor({
                 isViewer: true,
                 isNew: true,
                 editing: { filterId: 'own' },

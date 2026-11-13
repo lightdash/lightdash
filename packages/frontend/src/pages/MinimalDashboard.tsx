@@ -39,6 +39,7 @@ import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import SqlChartTile from '../components/DashboardTiles/DashboardSqlChartTile';
 import MinimalDashboardTabs from '../components/MinimalDashboardTabs';
+import DashboardComposerChartTile from '../features/composerCharts/components/DashboardComposerChartTile';
 import {
     selectDashboardTiles,
     useDashboardSelector,
@@ -151,6 +152,17 @@ const renderDashboardTile = (tile: Dashboard['tiles'][number]) => {
             return (
                 <DataAppTile
                     key={tile.uuid}
+                    tile={tile}
+                    isEditMode={false}
+                    onDelete={() => {}}
+                    onEdit={() => {}}
+                />
+            );
+        case DashboardTileTypes.COMPOSER_CHART:
+            return (
+                <DashboardComposerChartTile
+                    key={tile.uuid}
+                    minimal
                     tile={tile}
                     isEditMode={false}
                     onDelete={() => {}}

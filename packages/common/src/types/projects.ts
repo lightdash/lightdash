@@ -836,6 +836,9 @@ export const mergeWarehouseCredentials = <
 >(
     baseCredentials: T,
     newCredentials: T,
+    options: { inheritAcrossSnowflakeWarehouses: boolean } = {
+        inheritAcrossSnowflakeWarehouses: false,
+    },
 ): T => {
     // If types don't match, return newCredentials as-is (can't merge different warehouse types)
     if (baseCredentials.type !== newCredentials.type) {
@@ -849,6 +852,7 @@ export const mergeWarehouseCredentials = <
     // Edge case: if the warehouse is snowflake but with a different warehouse, return newCredentials as-is
     // This is to avoid enforcing requireUserCredentials on a different snowflake warehouse that might not have SSO enabled or different roles
     if (
+        !options.inheritAcrossSnowflakeWarehouses &&
         baseCredentials.type === WarehouseTypes.SNOWFLAKE &&
         newCredentials.type === WarehouseTypes.SNOWFLAKE &&
         baseCredentials.warehouse.toLowerCase().trim() !==

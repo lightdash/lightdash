@@ -1,4 +1,8 @@
-import { ForbiddenError, MissingConfigError } from '@lightdash/common';
+import {
+    ForbiddenError,
+    MissingConfigError,
+    type AnalyticsActivityWindow,
+} from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import Logger from '../../../logging/logger';
@@ -15,7 +19,10 @@ export const assertAnalyticsProjectEnabled = async (
 export const createAnalyticsClient = async (
     organizationUuid: string,
     isAnalyticsProjectEnabled: () => boolean,
-    options: { allowEmpty?: boolean } = {},
+    options: {
+        allowEmpty?: boolean;
+        activityWindow?: AnalyticsActivityWindow;
+    } = {},
 ): Promise<DuckdbWarehouseClient> => {
     await assertAnalyticsProjectEnabled(isAnalyticsProjectEnabled);
     const storage = lightdashConfig.usageEvents.s3;

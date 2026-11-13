@@ -13,7 +13,7 @@ import {
 import { getParameterTabCounts } from './parameterPeers';
 import { getTakeableTabCounts, getTilesOnTab } from './peers';
 import classes from './TabCounts.module.css';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { useDateZoomMapping } from './useDateZoomMapping';
 import { useParameterMapping } from './useParameterMapping';
 import { usePortalTargets } from './usePortalTargets';
@@ -49,10 +49,10 @@ type Props = {
 
 export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
     const getUiString = useUiStrings();
-    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
-    const isMapping = useControlsSidebarSelector((c) => c.isMapping);
+    const editingRule = useControlsEditorSelector((c) => c.editingRule);
+    const isPlaceholder = useControlsEditorSelector((c) => c.isPlaceholder);
+    const isViewer = useControlsEditorSelector((c) => c.isViewer);
+    const isMapping = useControlsEditorSelector((c) => c.isMapping);
     const rule = editingRule;
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);

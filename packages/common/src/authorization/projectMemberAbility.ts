@@ -253,6 +253,9 @@ export const projectMemberAbilities: Record<
         can('create', 'DataApp', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'ComposerChart', {
+            projectUuid: member.projectUuid,
+        });
         can('create', 'Space', {
             projectUuid: member.projectUuid,
         });

@@ -39,7 +39,7 @@ import {
     type FieldsByTile,
     type SqlColumnsByTile,
 } from './peers';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { useFilterFieldsMap } from './useFilterFieldsMap';
 
 // The fields a press replaces: one or two by name, more as "other fields"
@@ -168,17 +168,13 @@ export type FieldTileActions = {
 export const useFieldTileActions = (
     sqlColumnsByTile: SqlColumnsByTile,
 ): FieldTileActions | null => {
-    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const removeLastField = useControlsSidebarSelector(
-        (c) => c.removeLastField,
-    );
-    const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
-    const applyWithUndo = useControlsSidebarSelector((c) => c.applyWithUndo);
-    const waitingFieldIds = useControlsSidebarSelector(
-        (c) => c.waitingFieldIds,
-    );
-    const removeWaitingField = useControlsSidebarSelector(
+    const editingRule = useControlsEditorSelector((c) => c.editingRule);
+    const isPlaceholder = useControlsEditorSelector((c) => c.isPlaceholder);
+    const removeLastField = useControlsEditorSelector((c) => c.removeLastField);
+    const updateFilter = useControlsEditorSelector((c) => c.updateFilter);
+    const applyWithUndo = useControlsEditorSelector((c) => c.applyWithUndo);
+    const waitingFieldIds = useControlsEditorSelector((c) => c.waitingFieldIds);
+    const removeWaitingField = useControlsEditorSelector(
         (c) => c.removeWaitingField,
     );
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);

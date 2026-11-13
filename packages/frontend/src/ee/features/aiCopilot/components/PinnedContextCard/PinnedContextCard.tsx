@@ -290,7 +290,7 @@ export const PinnedContextCard: FC<Props> = ({
             return (
                 <ContentReferenceLink kind="semantic_model" showArrow={false}>
                     {item.fieldName
-                        ? `${item.modelName}.${item.fieldName}`
+                        ? `${item.modelName} / ${item.fieldName.replace(`${item.modelName}_`, '')}`
                         : item.modelName}
                 </ContentReferenceLink>
             );

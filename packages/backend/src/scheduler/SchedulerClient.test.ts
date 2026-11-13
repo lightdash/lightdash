@@ -89,7 +89,8 @@ test('serializes catalog indexing per project so an earlier deploy cannot overwr
 });
 
 describe('initial usage processing', () => {
-    it('deduplicates by organization and shares the serial nightly queue without retries', async () => {
+    it('allows recreated projects to revive initial processing on the serial nightly queue', async () => {
+        graphileAddJob.mockClear();
         const client = makeClient(true);
         await client.scheduleInitialUsageProcessing(traceProperties);
         expect(graphileAddJob).toHaveBeenCalledWith(
@@ -98,7 +99,7 @@ describe('initial usage processing', () => {
             {
                 queueName: 'usage-events-compaction',
                 jobKey: `initial-usage-processing:${ORG_UUID}`,
-                jobKeyMode: 'unsafe_dedupe',
+                jobKeyMode: 'preserve_run_at',
                 maxAttempts: 1,
                 priority: JobPriority.LOW,
             },

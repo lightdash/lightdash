@@ -3,7 +3,10 @@ import {
     S3ServiceException,
     type S3Client,
 } from '@aws-sdk/client-s3';
-import { ParameterError } from '@lightdash/common';
+import {
+    ParameterError,
+    type AnalyticsActivityWindow,
+} from '@lightdash/common';
 import {
     AnalyticsQueryError,
     type DuckdbParquetSource,
@@ -30,12 +33,16 @@ import {
     type S3ConnectionConfig,
 } from '../../../clients/Aws/S3BaseClient';
 import Logger from '../../../logging/logger';
-import { analyticsFileCache } from './AnalyticsFileCache';
+import {
+    analyticsFileCache,
+    MAX_ANALYTICS_CACHE_FILE_BYTES,
+} from './AnalyticsFileCache';
 import { analyticsSignedUrlCache } from './AnalyticsSignedUrlCache';
 
 type S3AnalyticsSourceConfig = {
     storage: S3ConnectionConfig & { bucket: string };
     organizationUuid: string;
+    activityWindow?: AnalyticsActivityWindow;
     // Provisioning must authenticate storage before the first processing job.
     allowEmpty?: boolean;
 };
@@ -44,7 +51,7 @@ const SIGNED_URL_LIFETIME_SECONDS = 900;
 const MAX_FILES = 10_000;
 const PREPARATION_CONCURRENCY = 8;
 const EXPIRY_MARGIN_MS = 120_000;
-const MAX_BUFFERED_BYTES = 32 * 1024 * 1024;
+const MAX_BUFFERED_BYTES = 64 * 1024 * 1024;
 
 type AnalyticsFile = {
     key: string;
@@ -58,16 +65,26 @@ const mapFiles = async <T>(
     prepare: (file: AnalyticsFile) => Promise<T>,
 ): Promise<T[]> => {
     const values: T[] = [];
-    for (let i = 0; i < files.length; i += PREPARATION_CONCURRENCY) {
-        // eslint-disable-next-line no-await-in-loop
-        const results = await Promise.allSettled(
-            files.slice(i, i + PREPARATION_CONCURRENCY).map(prepare),
-        );
-        for (const result of results) {
-            if (result.status === 'rejected') throw result.reason;
-            values.push(result.value);
-        }
-    }
+    let next = 0;
+    let failure: { error: unknown } | undefined;
+    await Promise.all(
+        Array.from(
+            { length: Math.min(files.length, PREPARATION_CONCURRENCY) },
+            async () => {
+                while (!failure && next < files.length) {
+                    const index = next;
+                    next += 1;
+                    try {
+                        // eslint-disable-next-line no-await-in-loop
+                        values[index] = await prepare(files[index]);
+                    } catch (error) {
+                        failure ??= { error };
+                    }
+                }
+            },
+        ),
+    );
+    if (failure) throw failure.error;
     return values;
 };
 
@@ -112,6 +129,7 @@ const storageError = (error: unknown): AnalyticsQueryError => {
 export const createS3AnalyticsSourceResolver = ({
     storage,
     organizationUuid,
+    activityWindow,
     allowEmpty = false,
 }: S3AnalyticsSourceConfig): ((
     referencedTables?: readonly string[],
@@ -254,7 +272,7 @@ export const createS3AnalyticsSourceResolver = ({
                     );
                     if (history) historySources.add(history.name);
                     const userActivity =
-                        /^model=user_activity\/stream=(query_events|ai_usage|data_app_events|export_events|agent_steps|mcp_tool_calls|content_views)\/dt=(\d{4}-\d{2}-\d{2})\/activity\.parquet$/.test(
+                        /^model=user_activity\/stream=(?:query_events|ai_usage|data_app_events|export_events|agent_steps|mcp_tool_calls|content_views)\/dt=(\d{4}-\d{2}-\d{2})\/activity\.parquet$/.exec(
                             key.slice(prefix.length),
                         );
                     const dimension = usageDimensionNames.find(
@@ -266,8 +284,6 @@ export const createS3AnalyticsSourceResolver = ({
                         : (match?.[1] ?? null);
                     if (userActivity) tableName = 'user_activity';
                     if (history) tableName = history.name;
-                    // Expose all retained partitions. Date filters belong to
-                    // the Explore query, not a fixed source-level window.
                     if (tableName) {
                         if (
                             match ||
@@ -277,7 +293,16 @@ export const createS3AnalyticsSourceResolver = ({
                             dimension === 'people'
                         )
                             hasEvents = true;
-                        if (!requested || requested.has(tableName)) {
+                        // The activity builder writes each row's UTC day from its partition key.
+                        const outsideActivityWindow =
+                            userActivity &&
+                            activityWindow &&
+                            (userActivity[1] < activityWindow.start ||
+                                userActivity[1] >= activityWindow.end);
+                        if (
+                            !outsideActivityWindow &&
+                            (!requested || requested.has(tableName))
+                        ) {
                             fileCount += 1;
                             if (fileCount > MAX_FILES)
                                 throw new AnalyticsQueryError(
@@ -312,7 +337,7 @@ export const createS3AnalyticsSourceResolver = ({
                             size &&
                             Number.isSafeInteger(size) &&
                             size > 0 &&
-                            size <= 1024 * 1024,
+                            size <= MAX_ANALYTICS_CACHE_FILE_BYTES,
                     ) && bufferedBytes + bytes <= MAX_BUFFERED_BYTES;
                 const downloadStart = performance.now();
                 const buffers = canBuffer

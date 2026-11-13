@@ -17,7 +17,7 @@
 - Mantine's Escape, click outside and roles are off: the provider owns both
   (`useEditorDismiss`), and an `aria-expanded` target would read as an open
   list to `hasOpenLayer`. The dropdown carries `data-controls-editor` and the
-  embed's `rail` and `filterDropdown` classes; its body is a `dialog` named
+  embed's `editor` and `filterDropdown` classes; its body is a `dialog` named
   by the filter.
 - No tile overlay or card shows while a filter is open; they belong to
   mapping, while which the popover stays closed (`isMapping`).

@@ -30,18 +30,18 @@ import { AddMenuBackContext } from './addMenuBack';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { useEditorDismiss } from './useEditorDismiss';
 
-const mockSidebar = vi.hoisted(() => ({
+const mockEditor = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebar: () => mockSidebar.current,
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditor: () => mockEditor.current,
+    useControlsEditorSelector: (
         selector: (value: Record<string, unknown>) => unknown,
-    ) => selector(mockSidebar.current),
+    ) => selector(mockEditor.current),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -136,11 +136,11 @@ const addWaitingField = vi.fn();
 const removeWaitingField = vi.fn();
 const removeLastField = vi.fn();
 
-const setSidebar = (
+const setEditor = (
     editingRule: DashboardFilterRule,
     overrides: Record<string, unknown> = {},
 ) => {
-    mockSidebar.current = {
+    mockEditor.current = {
         editingRule,
         isPlaceholder: false,
         editorFilters: { dimensions: [], metrics: [], tableCalculations: [] },
@@ -248,7 +248,7 @@ describe('FieldsAndTiles', () => {
 
     describe('a new control', () => {
         it('picks its first field in the shipped field search, opened, with nothing else', async () => {
-            setSidebar(rule(''), { isPlaceholder: true });
+            setEditor(rule(''), { isPlaceholder: true });
             renderWithProviders(<FieldsAndTiles />);
 
             expect(
@@ -280,7 +280,7 @@ describe('FieldsAndTiles', () => {
         });
 
         it('keeps Escape for the open list, then hands it to the editor', async () => {
-            setSidebar(rule(''), { isPlaceholder: true });
+            setEditor(rule(''), { isPlaceholder: true });
             renderWithProviders(<Editor />);
 
             const search = screen.getByTestId(FIELD_SEARCH);
@@ -302,7 +302,7 @@ describe('FieldsAndTiles', () => {
                 ...mockDashboardContext.current,
                 allFilterableFields: [status, createdDay, createdMonth],
             };
-            setSidebar(rule(''), { isPlaceholder: true });
+            setEditor(rule(''), { isPlaceholder: true });
             renderWithProviders(<FieldsAndTiles />);
 
             await userEvent.click(screen.getByTestId(FIELD_SEARCH));
@@ -324,7 +324,7 @@ describe('FieldsAndTiles', () => {
                 ...mockDashboardContext.current,
                 allFilterableMetrics: [revenue],
             };
-            setSidebar(rule(''), { isPlaceholder: true });
+            setEditor(rule(''), { isPlaceholder: true });
             renderWithProviders(<FieldsAndTiles />);
             await userEvent.click(screen.getByTestId(FIELD_SEARCH));
             await screen.findByText('Orders');
@@ -353,7 +353,7 @@ describe('FieldsAndTiles', () => {
                     'tile-2': [status],
                 },
             };
-            setSidebar(rule(''), { isPlaceholder: true });
+            setEditor(rule(''), { isPlaceholder: true });
             renderWithProviders(<FieldsAndTiles />);
 
             await userEvent.click(screen.getByTestId(FIELD_SEARCH));
@@ -363,7 +363,7 @@ describe('FieldsAndTiles', () => {
         });
 
         it('keeps the viewer field picker without tile hints or automatic selection', async () => {
-            setSidebar(rule(''), { isPlaceholder: true, isViewer: true });
+            setEditor(rule(''), { isPlaceholder: true, isViewer: true });
             renderWithProviders(<FieldsAndTiles />);
             const options = await screen.findAllByRole('option');
             expect(
@@ -391,7 +391,7 @@ describe('FieldsAndTiles', () => {
                     'tile-2': { columns: [country] },
                 },
             };
-            setSidebar(rule(''), { isPlaceholder: true });
+            setEditor(rule(''), { isPlaceholder: true });
             renderWithProviders(<FieldsAndTiles />);
 
             expect(fieldSearch()).not.toBeInTheDocument();
@@ -434,7 +434,7 @@ describe('FieldsAndTiles', () => {
                 allFilterableFieldsMap: {},
                 filterableFieldsByTileUuid: undefined,
             };
-            setSidebar(rule(''), { isPlaceholder: true });
+            setEditor(rule(''), { isPlaceholder: true });
         });
 
         it('searches the columns already returned', async () => {
@@ -554,7 +554,7 @@ describe('FieldsAndTiles', () => {
     });
 
     it('keeps a field a filter already uses pickable, with only its tiles', async () => {
-        setSidebar(rule(''), {
+        setEditor(rule(''), {
             isPlaceholder: true,
             editorFilters: {
                 dimensions: [rule('orders_status')],
@@ -572,7 +572,7 @@ describe('FieldsAndTiles', () => {
     });
 
     it('goes back to the Add choice only when "Add" gives it a way back', async () => {
-        setSidebar(rule(''), { isPlaceholder: true });
+        setEditor(rule(''), { isPlaceholder: true });
         const { unmount } = renderWithProviders(<FieldsAndTiles />);
         expect(
             screen.queryByRole('button', { name: 'Back' }),
@@ -590,7 +590,7 @@ describe('FieldsAndTiles', () => {
     });
 
     it('renders nothing when no control is edited', () => {
-        mockSidebar.current = { ...mockSidebar.current, editingRule: null };
+        mockEditor.current = { ...mockEditor.current, editingRule: null };
         renderWithProviders(<FieldsAndTiles />);
 
         expect(fieldSearch()).not.toBeInTheDocument();

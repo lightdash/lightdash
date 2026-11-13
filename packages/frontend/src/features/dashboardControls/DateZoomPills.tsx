@@ -24,6 +24,7 @@ import filterClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
 import { DateZoomControlMenuItems } from '../dateZoom/components/DateZoomControlPills';
 import { useEligibleDateZoomTiles } from '../dateZoom/hooks';
 import { getGranularityLabel } from '../dateZoom/utils';
+import { useControlContractClasses } from './controlContractClasses';
 import { ControlEditorPopover } from './ControlEditorPopover';
 import { DateZoomControlPopover } from './DateZoomControlPopover';
 import {
@@ -35,9 +36,8 @@ import { DefaultZoomPopover } from './DefaultZoomPopover';
 import pillClasses from './FilterPills.module.css';
 import classes from './ParameterPills.module.css';
 import { BarDroppable, PillDraggable } from './PillDraggable';
-import { useRailContractClasses } from './railContractClasses';
 import { useBarPill } from './useBarPill';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import {
     useDateZoomBar,
     useDefaultZoomTileCount,
@@ -127,7 +127,7 @@ const DateZoomEditorPopover: FC<{
     isDefault?: boolean;
     children: ReactNode;
 }> = ({ isOpen, isDefault = false, children }) => {
-    const filterMapping = useControlsSidebarSelector((c) => c.isMapping);
+    const filterMapping = useControlsEditorSelector((c) => c.isMapping);
     const parameterMapping = useParameterEditorSelector((c) => c.isMapping);
     const dateZoomMapping = useDateZoomEditorSelector((c) => c.isMapping);
     return (
@@ -184,7 +184,7 @@ const DateZoomPill: FC<{
     neighbourIds: string[];
 }> = ({ entry, neighbourIds }) => {
     const getUiString = useUiStrings();
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     const { control, isNew } = entry;
     const isOpen = useDateZoomEditorSelector(
         (c) => !c.isEditingDefault && c.editingId === control.uuid,
@@ -198,7 +198,7 @@ const DateZoomPill: FC<{
         !c.isEditingDefault && c.editingId === control.uuid ? c.draft : null,
     );
     // A filter being edited closes first, or asks on unapplied changes
-    const requestSwitch = useControlsSidebarSelector((c) => c.requestSwitch);
+    const requestSwitch = useControlsEditorSelector((c) => c.requestSwitch);
     const isEditing = useIsControlEdited();
     const customLabels = useDashboardSelector(
         selectAvailableCustomGranularities,
@@ -447,7 +447,7 @@ export const DefaultZoomButton: FC = () => {
     const pick = useDateZoomEditorSelector((c) =>
         c.isEditingDefault ? c.pick : undefined,
     );
-    const requestSwitch = useControlsSidebarSelector((c) => c.requestSwitch);
+    const requestSwitch = useControlsEditorSelector((c) => c.requestSwitch);
     const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
     const defaultGranularity = useDefaultDateZoomGranularity();
     const customLabels = useDashboardSelector(

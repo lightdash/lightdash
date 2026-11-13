@@ -14,7 +14,7 @@ import {
     type ControlKind,
 } from './controlKinds';
 import { type FocusTarget } from './EditorFocusReturn';
-import { type FieldApply } from './useControlsSidebar';
+import { type FieldApply } from './useControlsEditor';
 import { useEditorDismiss } from './useEditorDismiss';
 
 const APPLY_SELECTOR = '[data-controls-editor] [data-controls-apply]';

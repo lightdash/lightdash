@@ -26,18 +26,18 @@ import {
     type FieldsByTile,
 } from './peers';
 
-const mockSidebar = vi.hoisted(() => ({
+const mockEditor = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebar: () => mockSidebar.current,
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditor: () => mockEditor.current,
+    useControlsEditorSelector: (
         selector: (value: Record<string, unknown>) => unknown,
-    ) => selector(mockSidebar.current),
+    ) => selector(mockEditor.current),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -99,11 +99,11 @@ const cancelMapping = vi.fn();
 const endMapping = vi.fn();
 const close = vi.fn();
 
-const setSidebar = (
+const setEditor = (
     editingRule: DashboardFilterRule,
     overrides: Record<string, unknown> = {},
 ) => {
-    mockSidebar.current = {
+    mockEditor.current = {
         isMapping: true,
         isViewer: false,
         isPlaceholder: false,
@@ -195,7 +195,7 @@ describe('MappingRow', () => {
 
     it('reads as one sentence: the open pill filters its count using a chip per field, then Add a field, Cancel and Apply', () => {
         const editingRule = rule({ 'tile-1': REGION });
-        setSidebar(editingRule);
+        setEditor(editingRule);
         const { container } = renderRow();
 
         expect(screen.getByText('filters')).toBeVisible();
@@ -237,7 +237,7 @@ describe('MappingRow', () => {
         const pill = () => document.querySelector('[inert] [data-open]');
 
         it('shows the filter as the bar does, not the draft', () => {
-            setSidebar(rule({ 'tile-1': REGION }));
+            setEditor(rule({ 'tile-1': REGION }));
             renderRow(<MappingRow />, {
                 dimensions: [{ ...rule(), values: ['pending'] }],
                 metrics: [],
@@ -248,7 +248,7 @@ describe('MappingRow', () => {
         });
 
         it('shows a new filter as not in effect until Apply', () => {
-            setSidebar(rule({ 'tile-1': REGION }));
+            setEditor(rule({ 'tile-1': REGION }));
             renderRow(<MappingRow />, {
                 dimensions: [],
                 metrics: [],
@@ -259,7 +259,7 @@ describe('MappingRow', () => {
 
         it("shows a viewer's own applied filter from the temporary filters", () => {
             const own = { ...rule({ 'tile-1': REGION }), id: 'own' };
-            setSidebar(own, { isViewer: true });
+            setEditor(own, { isViewer: true });
             const empty = {
                 dimensions: [],
                 metrics: [],
@@ -275,7 +275,7 @@ describe('MappingRow', () => {
     });
 
     it('reserves the widest count so the row never shifts', () => {
-        setSidebar(rule({ 'tile-1': false }));
+        setEditor(rule({ 'tile-1': false }));
         renderRow();
 
         const summary = screen.getByText('1 of 3 tiles').parentElement;
@@ -295,7 +295,7 @@ describe('MappingRow', () => {
                 { uuid: 'tab-2', name: 'Two', order: 1 },
             ],
         };
-        setSidebar(rule());
+        setEditor(rule());
         renderRow();
 
         expect(screen.getByText('2 of 3 tiles')).toBeVisible();
@@ -312,7 +312,7 @@ describe('MappingRow', () => {
                 'tile-3': [joinedStatus],
             },
         };
-        setSidebar(rule());
+        setEditor(rule());
         const { unmount } = renderRow();
         expect(chips()).toEqual(['Orders Status', 'Order customer Status']);
         await userEvent.hover(
@@ -324,7 +324,7 @@ describe('MappingRow', () => {
         unmount();
 
         // Off the joined tiles, its label is one to add again
-        setSidebar(rule({ 'tile-2': false, 'tile-3': false }));
+        setEditor(rule({ 'tile-2': false, 'tile-3': false }));
         renderRow();
         expect(chips()).toEqual(['Orders Status']);
         await userEvent.click(
@@ -334,7 +334,7 @@ describe('MappingRow', () => {
     });
 
     it('selects a chip on click, deselects it on a second, and marks its tiles on hover', async () => {
-        setSidebar(rule());
+        setEditor(rule());
         const { unmount } = renderRow();
 
         const chip = screen.getByRole('button', { name: 'Orders Status' });
@@ -344,7 +344,7 @@ describe('MappingRow', () => {
         expect(setHighlightedFieldId).toHaveBeenCalledWith(STATUS_KEY);
         unmount();
 
-        setSidebar(rule(), { highlightedFieldId: STATUS_KEY });
+        setEditor(rule(), { highlightedFieldId: STATUS_KEY });
         renderRow();
         const selected = screen.getByRole('button', { name: 'Orders Status' });
         expect(selected).toHaveAttribute('aria-pressed', 'true');
@@ -353,7 +353,7 @@ describe('MappingRow', () => {
     });
 
     it('lists the fitting fields of tiles not yet filtered in the shipped picker, and filters only those tiles with the one picked', async () => {
-        setSidebar(rule({ 'tile-1': false }));
+        setEditor(rule({ 'tile-1': false }));
         renderRow();
 
         await userEvent.click(
@@ -397,7 +397,7 @@ describe('MappingRow', () => {
                 'tile-3': [status, carrier],
             },
         };
-        setSidebar(rule());
+        setEditor(rule());
         renderRow();
 
         expect(
@@ -406,7 +406,7 @@ describe('MappingRow', () => {
     });
 
     it('starts with a back arrow that returns to the filter', async () => {
-        setSidebar(rule());
+        setEditor(rule());
         renderRow();
 
         const back = screen.getByRole('button', { name: 'Back to filter' });
@@ -421,7 +421,7 @@ describe('MappingRow', () => {
     });
 
     it('Cancel leaves mapping, and Apply commits it', async () => {
-        setSidebar(rule());
+        setEditor(rule());
         renderRow();
 
         await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -431,14 +431,14 @@ describe('MappingRow', () => {
     });
 
     it('switches Apply off for a filter that reaches no tile', () => {
-        setSidebar(rule({ 'tile-1': false, 'tile-2': false, 'tile-3': false }));
+        setEditor(rule({ 'tile-1': false, 'tile-2': false, 'tile-3': false }));
         renderRow();
 
         expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
     });
 
     it('is a marked editor surface that takes focus, so Escape there leaves mapping', () => {
-        setSidebar(rule());
+        setEditor(rule());
         const { container } = renderRow();
 
         const row = container.querySelector('[data-controls-editor]');
@@ -466,7 +466,7 @@ describe('MappingRow', () => {
             dashboardTabs: tabs,
         };
         const editingRule = rule({ 'tile-3': REGION });
-        setSidebar(editingRule);
+        setEditor(editingRule);
         renderRow();
 
         const tabCounts = Object.values(
@@ -514,7 +514,7 @@ describe('MappingRow', () => {
                     'tile-3': [carrier],
                 },
             };
-            setSidebar(
+            setEditor(
                 rule({ 'tile-1': false, 'tile-2': false, 'tile-3': false }),
             );
             renderRow();
@@ -535,7 +535,7 @@ describe('MappingRow', () => {
         });
 
         it('opens with its search focused, and narrows the list', async () => {
-            setSidebar(rule({ 'tile-1': false }));
+            setEditor(rule({ 'tile-1': false }));
             renderRow();
 
             await userEvent.click(
@@ -548,7 +548,7 @@ describe('MappingRow', () => {
         });
 
         it('hands focus to the chip it added', async () => {
-            setSidebar(rule({ 'tile-1': false }));
+            setEditor(rule({ 'tile-1': false }));
             const { rerender } = renderRow();
 
             await userEvent.click(
@@ -558,7 +558,7 @@ describe('MappingRow', () => {
                 await screen.findByRole('option', { name: 'Region' }),
             );
             // The provider's write lands: the chip is there, selected
-            setSidebar(rule({ 'tile-1': REGION, 'tile-3': REGION }), {
+            setEditor(rule({ 'tile-1': REGION, 'tile-3': REGION }), {
                 highlightedFieldId: REGION_KEY,
             });
             rerender();
@@ -578,7 +578,7 @@ describe('MappingRow', () => {
         );
 
         it('goes from the selected chip to the bar on Tab', async () => {
-            setSidebar(rule({ 'tile-1': REGION }), {
+            setEditor(rule({ 'tile-1': REGION }), {
                 highlightedFieldId: REGION_KEY,
             });
             renderRow(
@@ -597,7 +597,7 @@ describe('MappingRow', () => {
         });
 
         it('comes back to the chip once the bar goes', () => {
-            setSidebar(rule({ 'tile-1': REGION }), {
+            setEditor(rule({ 'tile-1': REGION }), {
                 highlightedFieldId: REGION_KEY,
             });
             const { rerender } = renderRow(
@@ -609,7 +609,7 @@ describe('MappingRow', () => {
             screen.getByRole('button', { name: 'Filter all tiles' }).focus();
 
             // Escape from the bar deselects it, and the bar leaves
-            setSidebar(rule({ 'tile-1': REGION }));
+            setEditor(rule({ 'tile-1': REGION }));
             rerender(<MappingRow />);
             expect(
                 screen.getByRole('button', { name: 'Orders Region' }),
@@ -617,7 +617,7 @@ describe('MappingRow', () => {
         });
 
         it('goes to "Add a field" when Undo took the chip away', () => {
-            setSidebar(rule({ 'tile-1': REGION }), {
+            setEditor(rule({ 'tile-1': REGION }), {
                 highlightedFieldId: REGION_KEY,
             });
             const { rerender } = renderRow(
@@ -628,7 +628,7 @@ describe('MappingRow', () => {
             );
             screen.getByRole('button', { name: 'Filter all tiles' }).focus();
 
-            setSidebar(rule());
+            setEditor(rule());
             rerender(<MappingRow />);
             expect(
                 screen.getByRole('button', { name: 'Add a field' }),

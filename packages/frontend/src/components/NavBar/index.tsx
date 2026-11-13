@@ -188,7 +188,6 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                         navBarMode === NavBarMode.EDITING_DASHBOARD_CHART &&
                             classes.headerEditingDashboardChart,
                     )}
-                    data-development={isDevelopmentView || undefined}
                     mt={hasBanner ? BANNER_HEIGHT : 0}
                     display={isFullscreen ? 'none' : 'flex'}
                     px="md"

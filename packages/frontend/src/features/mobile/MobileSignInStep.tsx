@@ -20,6 +20,7 @@ import MantineModal from '../../components/common/MantineModal';
 import AppColorSchemeScope from '../../components/NavBar/AppColorSchemeScope';
 import { maskEmail } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
+import { MobileSignInInstallHint } from './MobileSignInInstallHint';
 import { MOBILE_SIGN_IN_STRINGS as S, MOBILE_STRINGS } from './mobileStrings';
 import { type useMobileSignInCode } from './useMobileSignInCode';
 
@@ -111,6 +112,7 @@ const ShownCode: FC<StepContext> = ({ signIn }) =>
             </Box>
             <Stack gap="sm" className={classes.details}>
                 <Text size="sm">{MOBILE_STRINGS.waitingForScan}</Text>
+                <MobileSignInInstallHint />
             </Stack>
         </Group>
     ) : null;

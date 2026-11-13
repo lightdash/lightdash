@@ -69,6 +69,7 @@ export type ExportResultsProps = {
     pivotConfig?: PivotConfig;
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
+    showSubtotals?: boolean;
     hideLimitSelection?: boolean;
     forceShowLimitSelection?: boolean;
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
@@ -89,6 +90,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         pivotConfig,
         conditionalFormattings,
         showColumnTotals,
+        showSubtotals,
         hideLimitSelection = false,
         forceShowLimitSelection = false,
         renderDialogActions,
@@ -147,6 +149,11 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             exportPivotedData && pivotConfig
                                 ? undefined
                                 : showColumnTotals,
+                        showSubtotals:
+                            fileType === DownloadFileType.XLSX &&
+                            (!pivotConfig || !exportPivotedData)
+                                ? showSubtotals
+                                : undefined,
                     };
 
                     return scheduleDownloadQuery(

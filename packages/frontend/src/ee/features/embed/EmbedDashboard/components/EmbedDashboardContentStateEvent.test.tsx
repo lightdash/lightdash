@@ -1,0 +1,188 @@
+import {
+    FilterInteractivityValues,
+    FilterOperator,
+    type Dashboard,
+    type DashboardFilterRule,
+    type DashboardFilters,
+    type DashboardVersionedFields,
+    type InteractivityOptions,
+} from '@lightdash/common';
+import { act, render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    dashboardDateZoomActions,
+    dashboardEditActions,
+    dashboardFiltersActions,
+} from '../../../../../features/dashboard/store';
+import { createDashboardTestStore } from '../../../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../../../testing/DashboardStoreTestProvider';
+import { LightdashEventType } from '../../events/types';
+import { CONTENT_STATE_DEBOUNCE_MS } from '../../hooks/useEmbedContentStateEvent';
+import EmbedDashboardContentStateEvent from './EmbedDashboardContentStateEvent';
+
+const dispatchEmbedEvent = vi.fn();
+vi.mock('../../../../providers/Embed/useEmbed', () => ({
+    default: () => ({ dispatchEmbedEvent, isEmbedEventReady: true }),
+}));
+
+const rule = (id: string, values: string[]): DashboardFilterRule => ({
+    id,
+    label: undefined,
+    target: { fieldId: 'orders_status', tableName: 'orders' },
+    operator: FilterOperator.EQUALS,
+    values,
+});
+
+const filters = (dimensions: DashboardFilterRule[]): DashboardFilters => ({
+    dimensions,
+    metrics: [],
+    tableCalculations: [],
+});
+
+const embedDashboard = (
+    enabled: FilterInteractivityValues | null,
+): Dashboard & InteractivityOptions =>
+    ({
+        uuid: 'dashboard-uuid',
+        dashboardFiltersInteractivity: enabled ? { enabled } : undefined,
+    }) as Dashboard & InteractivityOptions;
+
+const withFilterInteractivity = {
+    source: { embedDashboard: embedDashboard(FilterInteractivityValues.all) },
+};
+
+const dashboardVersion: DashboardVersionedFields = {
+    tiles: [],
+    tabs: [],
+    filters: filters([]),
+    parameters: {},
+    config: { isDateZoomDisabled: false },
+};
+
+const renderEmitter = (store: ReturnType<typeof createDashboardTestStore>) =>
+    render(
+        <DashboardStoreTestProvider store={store}>
+            <EmbedDashboardContentStateEvent
+                dashboardUuid="dashboard-uuid"
+                dashboardVersion={dashboardVersion}
+            />
+        </DashboardStoreTestProvider>,
+    );
+
+describe('EmbedDashboardContentStateEvent', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        dispatchEmbedEvent.mockClear();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('waits for the filters to be applied', () => {
+        const store = createDashboardTestStore(withFilterInteractivity);
+        renderEmitter(store);
+        act(() => {
+            vi.advanceTimersByTime(CONTENT_STATE_DEBOUNCE_MS);
+        });
+        expect(dispatchEmbedEvent).not.toHaveBeenCalled();
+
+        act(() => {
+            store.dispatch(
+                dashboardFiltersActions.setDashboardFilters(filters([])),
+            );
+        });
+        act(() => {
+            vi.advanceTimersByTime(CONTENT_STATE_DEBOUNCE_MS);
+        });
+        expect(dispatchEmbedEvent).toHaveBeenCalledOnce();
+    });
+
+    it.each([null, FilterInteractivityValues.none])(
+        'emits with filter interactivity %s, where filters stay empty',
+        (enabled) => {
+            const store = createDashboardTestStore({
+                source: { embedDashboard: embedDashboard(enabled) },
+            });
+            renderEmitter(store);
+            act(() => {
+                vi.advanceTimersByTime(CONTENT_STATE_DEBOUNCE_MS);
+            });
+            expect(dispatchEmbedEvent).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('waits for the embed dashboard to load', () => {
+        renderEmitter(createDashboardTestStore());
+        act(() => {
+            vi.advanceTimersByTime(CONTENT_STATE_DEBOUNCE_MS);
+        });
+        expect(dispatchEmbedEvent).not.toHaveBeenCalled();
+    });
+
+    it('emits the dashboard, parameters, date zoom and tab', () => {
+        const store = createDashboardTestStore({
+            ...withFilterInteractivity,
+            dashboardFilters: filters([rule('saved', ['completed'])]),
+            dashboardTemporaryFilters: filters([rule('added', ['placed'])]),
+            parameterValues: { region: 'EMEA' },
+            dateZoomGranularity: 'MONTH',
+        });
+        act(() => {
+            store.dispatch(
+                dashboardEditActions.setActiveTab({
+                    uuid: 'tab-2',
+                    name: 'Tab 2',
+                    order: 1,
+                }),
+            );
+        });
+        renderEmitter(store);
+        act(() => {
+            vi.advanceTimersByTime(CONTENT_STATE_DEBOUNCE_MS);
+        });
+
+        expect(dispatchEmbedEvent).toHaveBeenCalledExactlyOnceWith(
+            LightdashEventType.ContentStateChanged,
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+                activeTabUuid: 'tab-2',
+                dashboard: dashboardVersion,
+                exportRequest: {
+                    dashboardFilters: dashboardVersion.filters,
+                    parameters: { region: 'EMEA' },
+                    dateZoomGranularity: 'MONTH',
+                },
+            },
+        );
+    });
+
+    it('emits again when the user changes the view', () => {
+        const store = createDashboardTestStore({
+            ...withFilterInteractivity,
+            dashboardFilters: filters([]),
+        });
+        renderEmitter(store);
+        act(() => {
+            vi.advanceTimersByTime(CONTENT_STATE_DEBOUNCE_MS);
+        });
+
+        act(() => {
+            store.dispatch(dashboardDateZoomActions.setGranularity('WEEK'));
+        });
+        act(() => {
+            vi.advanceTimersByTime(CONTENT_STATE_DEBOUNCE_MS);
+        });
+
+        expect(dispatchEmbedEvent).toHaveBeenCalledTimes(2);
+        expect(dispatchEmbedEvent).toHaveBeenLastCalledWith(
+            LightdashEventType.ContentStateChanged,
+            expect.objectContaining({
+                exportRequest: expect.objectContaining({
+                    dateZoomGranularity: 'WEEK',
+                }),
+            }),
+        );
+    });
+});

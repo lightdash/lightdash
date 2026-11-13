@@ -1092,11 +1092,12 @@ a .hoverCard:hover,
     width: 30%;
 }
 
+/* Centred without transform: Mantine's :active translateY would override it. */
 .metricsEmptyCta {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    inset: 0;
+    width: fit-content;
+    margin: auto;
 }
 
 .styleToolbar {

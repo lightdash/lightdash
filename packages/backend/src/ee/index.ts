@@ -70,6 +70,7 @@ import { ReleaseHighlightsModel } from './models/ReleaseHighlightsModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
 import { ScimRequestLogModel } from './models/ScimRequestLogModel';
+import { SemanticStudioWorkspaceModel } from './models/SemanticStudioWorkspaceModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { createLightdashPgWireHandlers } from './postgresWire/lightdashHandlers';
 import { PostgresWireServer } from './postgresWire/PostgresWireServer';
@@ -199,6 +200,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 context,
             }) =>
                 new AnalyticsProjectService({
+                    analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     getAiAgentService: () =>
@@ -428,6 +430,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectModelDocumentModel:
                         models.getProjectModelDocumentModel<ProjectModelDocumentModel>(),
+                    workspaceModel:
+                        models.getSemanticStudioWorkspaceModel<SemanticStudioWorkspaceModel>(),
                     projectService: repository.getProjectService(),
                     validationService: repository.getValidationService(),
                     repoModels: new RepoModelSource({
@@ -1530,6 +1534,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     refreshTokenRotation: models.getRefreshTokenRotation(),
                     aiAccessService: repository.getAiAccessService(),
                     getDocumentService: () => repository.getDocumentService(),
+                    getComposerChartService: () =>
+                        repository.getComposerChartService(),
                     contentDraftModel: models.getContentDraftModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -1776,6 +1782,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new HomepageRecommendedActionSkipsModel({ database }),
             projectModelDocumentModel: ({ database }) =>
                 new ProjectModelDocumentModel({ database }),
+            semanticStudioWorkspaceModel: ({ database }) =>
+                new SemanticStudioWorkspaceModel({ database }),
             aiAgentModel: ({ database, utils }) =>
                 new AiAgentModel({
                     database,

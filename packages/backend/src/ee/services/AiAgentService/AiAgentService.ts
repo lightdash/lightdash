@@ -118,6 +118,8 @@ import {
     getAiAgentSkillListingText,
     getAppDisplayName,
     getComposerChartStage,
+    getComposerChartStageNodeId,
+    getComposerNodeSorts,
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
@@ -366,6 +368,7 @@ import {
 } from '../../../services/AiAccessService/agentExecutionContext';
 import { type AgentResultReadDecision } from '../../../services/AiAccessService/AiAccessService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { REQUEST_AUTHORITY } from '../../../services/AsyncQueryService/types';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
@@ -1670,7 +1673,7 @@ export class AiAgentService extends BaseService {
                     key = `preview_environment:${item.previewProjectUuid}`;
                     break;
                 case 'semantic_model':
-                    key = `semantic_model:${item.modelName}`;
+                    key = `semantic_model:${item.modelName}:${item.fieldName ?? ''}`;
                     break;
                 case 'data_app_element':
                     key = dataAppElementContextKey(item);
@@ -3588,7 +3591,11 @@ export class AiAgentService extends BaseService {
 
         let threadScope: EmbedThreadScope;
         if (!isReadOnly) {
-            threadScope = { type: 'writeSpaces', writeSpaceUuids };
+            threadScope = {
+                type: 'writeSpaces',
+                writeSpaceUuids,
+                externalUserId,
+            };
         } else if (externalUserId !== null) {
             threadScope = { type: 'externalUser', externalUserId };
         } else {
@@ -10706,12 +10713,23 @@ export class AiAgentService extends BaseService {
                           vizConfig.dataAppVizVersion ?? undefined,
                       )
                     : null;
-            const nodeIds = new Set(queries.map(({ nodeId }) => nodeId));
-            let nodeId = 'chart_stage';
-            while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
+            const nodeId = getComposerChartStageNodeId(
+                queries.flatMap((query) =>
+                    query.nodeId ? [query.nodeId] : [],
+                ),
+            );
+            const terminal = queries.find(
+                (query) => query.nodeId === terminalNodeId,
+            );
+            if (!terminal) {
+                throw new Error(
+                    `No query for terminal node "${terminalNodeId}"`,
+                );
+            }
             const query = getComposerChartStage({
                 vizConfig,
                 customChartTypeSlots: slots ?? [],
+                sorts: getComposerNodeSorts(terminal),
                 nodeId,
                 source: terminalNodeId,
             });
@@ -10904,6 +10922,7 @@ export class AiAgentService extends BaseService {
                         runtimeOptions?.userAttributeOverrides ?? {},
                     invalidateCache: false,
                     plans: {},
+                    authority: REQUEST_AUTHORITY,
                     // Re-renders stay unattributed: prompt ids mark tool runs only.
                     aiAttribution: null,
                 });
@@ -11593,6 +11612,7 @@ export class AiAgentService extends BaseService {
                             runtimeOptions?.userAttributeOverrides ?? {},
                         invalidateCache: false,
                         plans: {},
+                        authority: REQUEST_AUTHORITY,
                         // Re-renders stay unattributed: prompt ids mark tool runs only.
                         aiAttribution: null,
                     },
@@ -11711,6 +11731,7 @@ export class AiAgentService extends BaseService {
         } & (
             | { savedDashboardUuid: string | null }
             | { savedSqlUuid: string | null }
+            | { savedComposerChartUuid: string | null }
         ),
     ): Promise<void> {
         const { organizationUuid } = user;
@@ -11773,6 +11794,19 @@ export class AiAgentService extends BaseService {
         ) {
             throw new NotFoundError(
                 `Saved SQL chart not found in project: ${update.savedSqlUuid}`,
+            );
+        }
+
+        if (
+            'savedComposerChartUuid' in update &&
+            update.savedComposerChartUuid !== null &&
+            !(await this.aiAgentModel.isComposerChartInProject(
+                update.savedComposerChartUuid,
+                agent.projectUuid,
+            ))
+        ) {
+            throw new NotFoundError(
+                `Composer chart not found in project: ${update.savedComposerChartUuid}`,
             );
         }
 
@@ -13147,8 +13181,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                 }
                 case 'semantic_model':
                     return item.fieldName
-                        ? `- The person has field "${item.fieldName}" of model "${item.modelName}" open.`
-                        : `- The person has model "${item.modelName}" open.`;
+                        ? `- The person is looking at field "${item.fieldName}" of model "${item.modelName}".`
+                        : `- The person is looking at model "${item.modelName}".`;
                 case 'preview_environment': {
                     const name = item.projectName
                         ? ` (${item.projectName})`
@@ -13877,6 +13911,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                                           user,
                                           projectUuid,
                                           project,
+                                          prompt.threadUuid,
                                       );
                               },
                           }

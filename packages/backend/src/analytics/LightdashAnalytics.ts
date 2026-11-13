@@ -64,6 +64,7 @@ import {
     type AiRouterRouteNextAction,
     type AiWritebackFailureStage,
     type AiWritebackWorkstream,
+    type AnalyticsProjectView,
     type AppVersionDependencyEntry,
     type DataAppClaudeEffort,
     type DataAppClaudeModel,
@@ -804,6 +805,7 @@ export type QueryCompletedEvent = BaseTrack & {
         responseTimingBasis?: 'request' | 'query_submission' | null;
         workloadOrigin?: string;
         dashboardTileId?: string | null;
+        chartKind?: 'classic_chart' | 'composer_chart' | null;
         appId?: string | null;
         appVersion?: number | null;
         requestId?: string | null;
@@ -2133,6 +2135,16 @@ type PromoteContent = BaseTrack & {
         hasExistingContent?: boolean;
         chartsCount?: number;
         error?: string;
+    };
+};
+
+type AnalyticsProjectViewedEvent = BaseTrack & {
+    event: 'analytics_project.viewed';
+    userId: string;
+    properties: {
+        projectId: string | null;
+        organizationId: string;
+        source: AnalyticsProjectView['source'];
     };
 };
 
@@ -5074,6 +5086,7 @@ type TypedEvent =
     | DashboardView
     | PromoteContent
     | AnalyticsDashboardView
+    | AnalyticsProjectViewedEvent
     | SchedulerUpsertEvent
     | SchedulerDeleteEvent
     | SchedulerRestoredEvent

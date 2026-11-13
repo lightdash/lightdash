@@ -779,8 +779,8 @@ describe('Slack image delivery scope', () => {
                     expect.objectContaining({
                         type: 'bar',
                         encode: {
-                            x: 'composer_result_orders_status',
-                            y: 'composer_result_orders_revenue',
+                            x: 'orders_status',
+                            y: 'orders_revenue',
                         },
                     }),
                 ],

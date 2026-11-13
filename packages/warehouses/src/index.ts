@@ -6,7 +6,10 @@ export * from './warehouseClients/AthenaWarehouseClient';
 export * from './warehouseClients/BigqueryWarehouseClient';
 export * from './warehouseClients/DatabricksWarehouseClient';
 export * from './warehouseClients/DuckdbWarehouseClient';
-export { AnalyticsQueryError } from './warehouseClients/AnalyticsQueryError';
+export {
+    AnalyticsQueryCancelledError,
+    AnalyticsQueryError,
+} from './warehouseClients/AnalyticsQueryError';
 export * from './warehouseClients/duckdbEmbeddedBundle';
 export { MotherduckInstanceCache } from './warehouseClients/MotherduckInstanceCache';
 export type { MotherduckCacheEvent } from './warehouseClients/MotherduckInstanceCache';
@@ -18,3 +21,5 @@ export * from './warehouseClients/SnowflakeWarehouseClient';
 export * from './warehouseClients/snowflakePrivateKey';
 export * from './warehouseClients/TrinoWarehouseClient';
 export * from './warehouseSqlBuilderFromType';
+
+export { createTimeBudgetYield } from './utils/streamRows';

@@ -69,6 +69,10 @@ declare module 'express-session' {
             threadTs?: string | undefined;
             trigger?: 'vote' | 'app_mention' | undefined;
         };
+        headlessServiceAccount?: {
+            userUuid: string;
+            serviceAccountUuid: string;
+        };
         impersonation?: {
             adminUserUuid: string;
             adminName: string;

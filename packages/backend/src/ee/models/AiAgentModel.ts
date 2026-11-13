@@ -139,6 +139,7 @@ import {
     type DbApp,
     type DbAppVersion,
 } from '../../database/entities/apps';
+import { ComposerChartsTableName } from '../../database/entities/composerCharts';
 import { ContentAsCodeSnapshotsTableName } from '../../database/entities/contentAsCodeSnapshots';
 import {
     DashboardsTableName,
@@ -300,6 +301,15 @@ import { AiSlackArtifactDeliveryModel } from './AiSlackArtifactDeliveryModel';
 import type { AiThreadFileModel } from './AiThreadFileModel';
 import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
 
+// A deleted composer chart reads as unsaved, so the answer offers Save again.
+function onSavedComposerChart(this: Knex.JoinClause) {
+    this.on(
+        `${ComposerChartsTableName}.composer_chart_uuid`,
+        '=',
+        `${AiArtifactVersionsTableName}.saved_composer_chart_uuid`,
+    ).andOnNull(`${ComposerChartsTableName}.deleted_at`);
+}
+
 // Tool calls that can wait on SQL approval: runSql, or a composer query call with a sql node.
 const sqlApprovalToolCallSql = (alias: string): string =>
     `(${alias}.tool_name = 'runSql' OR (${alias}.tool_name IN (${COMPOSER_QUERY_TOOL_NAMES.map(
@@ -308,9 +318,13 @@ const sqlApprovalToolCallSql = (alias: string): string =>
         queries: [{ sourceType: QuerySourceType.SQL }],
     })}'::jsonb))`;
 
-/** Which embedded threads a token can see: by its write spaces, or by its viewer when it has none. */
+/** Which embedded threads a token can see: by its write spaces and viewer, or by its viewer alone when it has no write spaces. */
 export type EmbedThreadScope =
-    | { type: 'writeSpaces'; writeSpaceUuids: string[] }
+    | {
+          type: 'writeSpaces';
+          writeSpaceUuids: string[];
+          externalUserId: string | null;
+      }
     | { type: 'externalUser'; externalUserId: string };
 
 export type AiPromptResponseState = {
@@ -6655,15 +6669,22 @@ export class AiAgentModel {
         artifactVersionUuid: string,
         update:
             | Pick<AiArtifact, 'savedDashboardUuid'>
-            | Pick<AiArtifact, 'savedSqlUuid'>,
+            | Pick<AiArtifact, 'savedSqlUuid'>
+            | Pick<AiArtifact, 'savedComposerChartUuid'>,
     ): Promise<void> {
-        const dbUpdate =
-            'savedDashboardUuid' in update
-                ? { saved_dashboard_uuid: update.savedDashboardUuid }
-                : { saved_sql_uuid: update.savedSqlUuid };
+        let dbUpdate: Partial<DbAiArtifactVersion>;
+        if ('savedDashboardUuid' in update) {
+            dbUpdate = { saved_dashboard_uuid: update.savedDashboardUuid };
+        } else if ('savedSqlUuid' in update) {
+            dbUpdate = { saved_sql_uuid: update.savedSqlUuid };
+        } else {
+            dbUpdate = {
+                saved_composer_chart_uuid: update.savedComposerChartUuid,
+            };
+        }
 
         await this.database(AiArtifactVersionsTableName)
-            .update(dbUpdate satisfies Partial<DbAiArtifactVersion>)
+            .update(dbUpdate)
             .where({
                 ai_artifact_version_uuid: artifactVersionUuid,
             });
@@ -6696,6 +6717,21 @@ export class AiAgentModel {
                 chart_config: chartConfig,
             } satisfies Partial<DbAiArtifactVersion>)
             .where({ ai_artifact_version_uuid: artifactVersionUuid });
+    }
+
+    async isComposerChartInProject(
+        composerChartUuid: string,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(ComposerChartsTableName)
+            .select('composer_chart_uuid')
+            .where({
+                composer_chart_uuid: composerChartUuid,
+                project_uuid: projectUuid,
+            })
+            .whereNull('deleted_at')
+            .first();
+        return row !== undefined;
     }
 
     async isSavedSqlInProject(
@@ -7324,9 +7360,10 @@ export class AiAgentModel {
             case 'writeSpaces': {
                 // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
                 const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
+                // A token without a viewer only sees threads started without one.
                 return this.database.raw(
-                    `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0)`,
-                    [scope.writeSpaceUuids],
+                    `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0 AND ${AiWebAppThreadTableName}.embed_external_user_id IS NOT DISTINCT FROM ?::text)`,
+                    [scope.writeSpaceUuids, scope.externalUserId],
                 );
             }
             case 'externalUser':
@@ -9784,6 +9821,8 @@ export class AiAgentModel {
                 savedQueryUuid: version.saved_query_uuid,
                 savedSqlUuid: version.saved_sql_uuid,
                 savedDashboardUuid: version.saved_dashboard_uuid,
+                savedComposerChartUuid: null,
+                savedComposerChartDashboardUuid: null,
                 createdAt: artifact.created_at,
                 versionNumber: version.version_number,
                 versionUuid: version.ai_artifact_version_uuid,
@@ -9870,6 +9909,8 @@ export class AiAgentModel {
                 savedQueryUuid: version.saved_query_uuid,
                 savedSqlUuid: version.saved_sql_uuid,
                 savedDashboardUuid: version.saved_dashboard_uuid,
+                savedComposerChartUuid: null,
+                savedComposerChartDashboardUuid: null,
                 createdAt: artifact.created_at,
                 versionNumber: version.version_number,
                 versionUuid: version.ai_artifact_version_uuid,
@@ -9954,6 +9995,8 @@ export class AiAgentModel {
                 savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
                 savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                 savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                savedComposerChartUuid: `${ComposerChartsTableName}.composer_chart_uuid`,
+                savedComposerChartDashboardUuid: `${ComposerChartsTableName}.dashboard_uuid`,
                 createdAt: `${AiArtifactsTableName}.created_at`,
                 versionNumber: `${AiArtifactVersionsTableName}.version_number`,
                 versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
@@ -9971,7 +10014,8 @@ export class AiAgentModel {
                 AiArtifactVersionsTableName,
                 `${AiArtifactsTableName}.ai_artifact_uuid`,
                 `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-            );
+            )
+            .leftJoin(ComposerChartsTableName, onSavedComposerChart);
 
         if (versionUuid) {
             // Get specific version by UUID
@@ -10024,6 +10068,8 @@ export class AiAgentModel {
                 savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
                 savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                 savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                savedComposerChartUuid: `${ComposerChartsTableName}.composer_chart_uuid`,
+                savedComposerChartDashboardUuid: `${ComposerChartsTableName}.dashboard_uuid`,
                 createdAt: `${AiArtifactsTableName}.created_at`,
                 versionNumber: `${AiArtifactVersionsTableName}.version_number`,
                 versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
@@ -10042,6 +10088,7 @@ export class AiAgentModel {
                 `${AiArtifactsTableName}.ai_artifact_uuid`,
                 `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
             )
+            .leftJoin(ComposerChartsTableName, onSavedComposerChart)
             .where(`${AiArtifactsTableName}.ai_artifact_uuid`, artifactUuid)
             .andWhere(
                 `${AiArtifactVersionsTableName}.version_number`,
@@ -10073,6 +10120,8 @@ export class AiAgentModel {
                     savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
                     savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                     savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                    savedComposerChartUuid: `${ComposerChartsTableName}.composer_chart_uuid`,
+                    savedComposerChartDashboardUuid: `${ComposerChartsTableName}.dashboard_uuid`,
                     createdAt: `${AiArtifactsTableName}.created_at`,
                     versionNumber: `${AiArtifactVersionsTableName}.version_number`,
                     versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
@@ -10091,6 +10140,7 @@ export class AiAgentModel {
                     `${AiArtifactsTableName}.ai_artifact_uuid`,
                     `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
                 )
+                .leftJoin(ComposerChartsTableName, onSavedComposerChart)
                 .where(`${AiArtifactsTableName}.ai_thread_uuid`, threadUuid)
                 .andWhere(
                     `${AiArtifactVersionsTableName}.version_number`,
@@ -10264,6 +10314,8 @@ export class AiAgentModel {
                 savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
                 savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                 savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                savedComposerChartUuid: `${ComposerChartsTableName}.composer_chart_uuid`,
+                savedComposerChartDashboardUuid: `${ComposerChartsTableName}.dashboard_uuid`,
                 createdAt: `${AiArtifactsTableName}.created_at`,
                 versionNumber: `${AiArtifactVersionsTableName}.version_number`,
                 versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
@@ -10281,6 +10333,7 @@ export class AiAgentModel {
                 `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
                 `${AiArtifactsTableName}.ai_artifact_uuid`,
             )
+            .leftJoin(ComposerChartsTableName, onSavedComposerChart)
             .where(`${AiArtifactVersionsTableName}.ai_prompt_uuid`, promptUuid)
             .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc')
             .then((results) =>

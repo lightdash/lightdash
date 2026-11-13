@@ -1,10 +1,10 @@
 import { Popover } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
-import classes from './FilterEditor.module.css';
 import {
-    useRailContractClasses,
-    type RailContractClassNames,
-} from './railContractClasses';
+    useControlContractClasses,
+    type ControlContractClassNames,
+} from './controlContractClasses';
+import classes from './FilterEditor.module.css';
 
 // Closing is immediate and opening is the dropdown's own CSS arrival, which
 // also plays when the editor moves to a new pill
@@ -15,7 +15,7 @@ type Props = {
     isShown: boolean;
     /** The embed contract class of this kind's popover. */
     dropdownClass: keyof Pick<
-        RailContractClassNames,
+        ControlContractClassNames,
         'filterDropdown' | 'parameterDropdown' | 'dateZoomDropdown'
     >;
     position?: 'bottom-start' | 'bottom-end';
@@ -37,7 +37,7 @@ export const ControlEditorPopover: FC<Props> = ({
     content,
     children,
 }) => {
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     return (
         <Popover
             opened={isShown}
@@ -63,7 +63,7 @@ export const ControlEditorPopover: FC<Props> = ({
                     className={
                         contractClasses === null
                             ? classes.dropdown
-                            : `${classes.dropdown} ${contractClasses.rail} ${contractClasses[dropdownClass]}`
+                            : `${classes.dropdown} ${contractClasses.editor} ${contractClasses[dropdownClass]}`
                     }
                 >
                     {content}

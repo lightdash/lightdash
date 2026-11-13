@@ -9,6 +9,7 @@ import {
     AiAgentModel,
     type EmbedThreadScope,
 } from '../../../models/AiAgentModel';
+import { up as backfillThreadViewers } from '../20261111120000_backfill_embed_external_user_id_on_write_space_threads';
 
 vi.mock('../../../../config/lightdashConfig', async () => ({
     lightdashConfig: (await import('../../../../config/lightdashConfig.mock'))
@@ -133,9 +134,13 @@ describe('embedded AI thread write spaces', () => {
             threadContext: 'Embedded conversation',
         });
 
-    const writeSpaces = (writeSpaceUuids: string[]): EmbedThreadScope => ({
+    const writeSpaces = (
+        writeSpaceUuids: string[],
+        externalUserId: string | null = null,
+    ): EmbedThreadScope => ({
         type: 'writeSpaces',
         writeSpaceUuids,
+        externalUserId,
     });
 
     const externalUser = (externalUserId: string): EmbedThreadScope => ({
@@ -298,8 +303,39 @@ describe('embedded AI thread write spaces', () => {
             isInScope(threadUuid, externalUser('viewer-a')),
         ).resolves.toBe(false);
         await expect(
+            isInScope(threadUuid, writeSpaces([f.spaces.tenantA], 'viewer-a')),
+        ).resolves.toBe(true);
+    });
+
+    test('keeps write-space threads to the viewer who started them', async () => {
+        const threadUuid = await createThread([f.spaces.tenantA], 'viewer-a');
+
+        await expect(
+            isInScope(threadUuid, writeSpaces([f.spaces.tenantA], 'viewer-a')),
+        ).resolves.toBe(true);
+        await expect(
+            isInScope(threadUuid, writeSpaces([f.spaces.tenantA], 'viewer-b')),
+        ).resolves.toBe(false);
+        await expect(
+            isInScope(threadUuid, writeSpaces([f.spaces.tenantA])),
+        ).resolves.toBe(false);
+        expect(
+            await listThreadUuids(writeSpaces([f.spaces.tenantA], 'viewer-a')),
+        ).toContain(threadUuid);
+        expect(
+            await listThreadUuids(writeSpaces([f.spaces.tenantA], 'viewer-b')),
+        ).not.toContain(threadUuid);
+    });
+
+    test('keeps write-space threads without a viewer out of tokens with one', async () => {
+        const threadUuid = await createThread([f.spaces.tenantA]);
+
+        await expect(
             isInScope(threadUuid, writeSpaces([f.spaces.tenantA])),
         ).resolves.toBe(true);
+        await expect(
+            isInScope(threadUuid, writeSpaces([f.spaces.tenantA], 'viewer-a')),
+        ).resolves.toBe(false);
     });
 
     test('keeps write-space threads out of read-only tokens after their first space is deleted', async () => {
@@ -322,6 +358,61 @@ describe('embedded AI thread write spaces', () => {
         const threadUuid = await createThread(undefined);
         await expect(
             isInScope(threadUuid, externalUser('viewer-a')),
+        ).resolves.toBe(false);
+    });
+
+    test('backfills the viewer of older write-space threads from their first prompt', async () => {
+        const addPrompt = (threadUuid: string, externalUserId: string | null) =>
+            model.createWebAppPrompt({
+                threadUuid,
+                createdByUserUuid: f.userUuid,
+                prompt: 'How many orders?',
+                modelConfig: null,
+                externalUserId,
+            });
+        const clearViewer = (threadUuid: string) =>
+            migrated.database.raw(
+                'UPDATE ai_web_app_thread SET embed_external_user_id = NULL WHERE ai_thread_uuid = ?',
+                [threadUuid],
+            );
+
+        const legacyThread = await createThread([f.spaces.tenantA]);
+        await addPrompt(legacyThread, 'viewer-a');
+        await addPrompt(legacyThread, 'viewer-b');
+        const anonymousThread = await createThread([f.spaces.tenantA]);
+        await addPrompt(anonymousThread, null);
+        const nonEmbedThread = await createThread(undefined);
+        await addPrompt(nonEmbedThread, 'viewer-a');
+        const readOnlyThread = await createThread([], 'viewer-c');
+        await clearViewer(readOnlyThread);
+        await addPrompt(readOnlyThread, 'viewer-c');
+
+        await backfillThreadViewers(migrated.database);
+        await backfillThreadViewers(migrated.database);
+
+        expect((await readThread(legacyThread)).embed_external_user_id).toBe(
+            'viewer-a',
+        );
+        expect(
+            (await readThread(anonymousThread)).embed_external_user_id,
+        ).toBeNull();
+        expect(
+            (await readThread(nonEmbedThread)).embed_external_user_id,
+        ).toBeNull();
+        expect(
+            (await readThread(readOnlyThread)).embed_external_user_id,
+        ).toBeNull();
+        await expect(
+            isInScope(
+                legacyThread,
+                writeSpaces([f.spaces.tenantA], 'viewer-a'),
+            ),
+        ).resolves.toBe(true);
+        await expect(
+            isInScope(
+                legacyThread,
+                writeSpaces([f.spaces.tenantA], 'viewer-b'),
+            ),
         ).resolves.toBe(false);
     });
 });

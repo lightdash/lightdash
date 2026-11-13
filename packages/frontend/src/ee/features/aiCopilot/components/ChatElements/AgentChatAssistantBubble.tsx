@@ -981,6 +981,7 @@ const AssistantBubbleContent: FC<{
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}
+                    startedAt={message.createdAt}
                 />
             )}
             {editRepoMetadata && (

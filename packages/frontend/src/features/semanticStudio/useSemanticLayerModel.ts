@@ -9,6 +9,7 @@ import {
     type SemanticLayerDraftImpact,
     type SemanticLayerDraftMoveDirection,
     type SemanticLayerDraftUsage,
+    type SemanticLayerTouchedField,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
@@ -181,6 +182,26 @@ export const useSemanticLayerDraftUsage = (projectUuid: string) =>
         '/draft/usage',
         true,
     );
+
+/** Saved content that reads fields a pull request redefines or removes. */
+export const useSemanticLayerFieldUsage = (
+    projectUuid: string,
+    fields: SemanticLayerTouchedField[],
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<SemanticLayerDraftUsage, ApiError>({
+        queryKey: ['semantic-layer-field-usage', projectUuid, fields],
+        queryFn: () =>
+            lightdashApi<SemanticLayerDraftUsage>({
+                url: toUrl(projectUuid, '/field-usage'),
+                method: 'POST',
+                body: JSON.stringify({ fields }),
+            }),
+        enabled: fields.length > 0,
+        retry: false,
+        staleTime: 60_000,
+    });
+};
 
 export const useRefreshSemanticLayerDraft = (projectUuid: string) => {
     const queryClient = useQueryClient();

@@ -27,8 +27,8 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: (selector: (c: { setParameter: () => void }) => unknown) =>
         selector({ setParameter: vi.fn() }),
 }));
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditorSelector: (
         selector: (c: {
             isMapping: boolean;
             requestSwitch: (proceed: () => void) => void;

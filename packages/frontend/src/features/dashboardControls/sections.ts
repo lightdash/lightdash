@@ -290,7 +290,7 @@ export const lineGapPlacementOf = (
         ? { lineStartId: id.slice('line-gap:'.length) || null }
         : null;
 
-/** The droppable id of the rail's header, which takes a filter out of its section */
+/** The droppable id of the controls bar's header, which takes a filter out of its section */
 export const UNSECTIONED_TARGET_ID = 'unsectioned-target';
 
 /**

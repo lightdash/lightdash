@@ -26,6 +26,7 @@ const TILE_TYPE_LABELS: Record<DashboardTileTypes, string> = {
     [DashboardTileTypes.LOOM]: 'video',
     [DashboardTileTypes.HEADING]: 'heading',
     [DashboardTileTypes.DATA_APP]: 'data app',
+    [DashboardTileTypes.COMPOSER_CHART]: 'composer chart',
 };
 
 /**

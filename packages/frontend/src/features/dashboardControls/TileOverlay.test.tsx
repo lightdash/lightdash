@@ -22,11 +22,11 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
+import { ControlContractClasses } from './controlContractClasses';
 import type * as LazySelectModule from './LazySelect';
-import { RailContractClasses } from './railContractClasses';
 import { TileOverlays } from './TileOverlay';
 
-const mockSidebar = vi.hoisted(() => ({
+const mockEditor = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const mockDashboardContext = vi.hoisted(() => ({
@@ -40,14 +40,14 @@ const mockContainers = vi.hoisted(() => ({
 }));
 
 const wholeContextReads = vi.hoisted(() => ({ current: 0 }));
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebar: () => {
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditor: () => {
         wholeContextReads.current += 1;
-        return mockSidebar.current;
+        return mockEditor.current;
     },
-    useControlsSidebarSelector: (
+    useControlsEditorSelector: (
         selector: (value: Record<string, unknown>) => unknown,
-    ) => selector(mockSidebar.current),
+    ) => selector(mockEditor.current),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -150,8 +150,8 @@ const applyWithUndo = vi.fn((next: DashboardFilterRule, _apply: unknown) =>
 );
 const setHighlightedFieldId = vi.fn();
 
-const setSidebar = (overrides: Record<string, unknown> = {}) => {
-    mockSidebar.current = {
+const setEditor = (overrides: Record<string, unknown> = {}) => {
+    mockEditor.current = {
         editingRule: rule(),
         isPlaceholder: false,
         isMapping: true,
@@ -248,7 +248,7 @@ describe('TileOverlays', () => {
             },
         };
         mockTileStatusContext.current = { sqlChartTilesMetadata: {} };
-        setSidebar();
+        setEditor();
     });
 
     it('names a field with its table when another field of the filter has its name', async () => {
@@ -265,7 +265,7 @@ describe('TileOverlays', () => {
                 [otherTab.uuid]: [statusField],
             },
         };
-        setSidebar({
+        setEditor({
             editingRule: rule({
                 tileTargets: {
                     [statusOnly.uuid]: {
@@ -322,7 +322,7 @@ describe('TileOverlays', () => {
                 [statusOnly.uuid]: [joinedStatus],
             },
         };
-        setSidebar({ activeFieldId: 'orders_status::Order customer::Status' });
+        setEditor({ activeFieldId: 'orders_status::Order customer::Status' });
         renderWithProviders(<TileOverlays />);
         expect(overlay(statusOnly.uuid)).toHaveAttribute(
             'data-highlighted',
@@ -368,9 +368,9 @@ describe('TileOverlays', () => {
 
     it("gives a card's list an embed's dropdown class", async () => {
         renderWithProviders(
-            <RailContractClasses.Provider
+            <ControlContractClasses.Provider
                 value={{
-                    rail: 'rail-class',
+                    editor: 'editor-class',
                     addFilterDropdown: 'ld-dashboard-add-filter-dropdown',
                     filterDropdown: 'ld-dashboard-filter-dropdown',
                     parameter: 'ld-dashboard-parameter',
@@ -380,7 +380,7 @@ describe('TileOverlays', () => {
                 }}
             >
                 <TileOverlays />
-            </RailContractClasses.Provider>,
+            </ControlContractClasses.Provider>,
         );
 
         select(both.uuid).focus();
@@ -410,7 +410,7 @@ describe('TileOverlays', () => {
     );
 
     it('marks filtered tiles as filtered and the ones that could be as available while no field is active', () => {
-        setSidebar({
+        setEditor({
             editingRule: rule({ tileTargets: { [both.uuid]: false } }),
         });
         renderWithProviders(<TileOverlays />);
@@ -428,7 +428,7 @@ describe('TileOverlays', () => {
     });
 
     it('says "Not filtered" with "Filter this tile", which puts the tile on the field it has', async () => {
-        setSidebar({
+        setEditor({
             editingRule: rule({ tileTargets: { [both.uuid]: false } }),
         });
         renderWithProviders(<TileOverlays />);
@@ -447,7 +447,7 @@ describe('TileOverlays', () => {
     });
 
     it('hands focus to the select that replaces "Filter this tile"', async () => {
-        setSidebar({
+        setEditor({
             editingRule: rule({ tileTargets: { [both.uuid]: false } }),
         });
         const { rerender } = renderWithProviders(<TileOverlays />);
@@ -458,13 +458,13 @@ describe('TileOverlays', () => {
             }),
         );
         // The provider's write lands: the tile is on Status
-        setSidebar({ editingRule: updateFilter.mock.calls[0][0] });
+        setEditor({ editingRule: updateFilter.mock.calls[0][0] });
         rerender(<TileOverlays />);
         expect(select(both.uuid)).toHaveFocus();
     });
 
     it('says "Filtered via" a field other than the filter\'s own', () => {
-        setSidebar({
+        setEditor({
             editingRule: rule({
                 tileTargets: {
                     [both.uuid]: {
@@ -495,14 +495,14 @@ describe('TileOverlays', () => {
                 },
             },
         };
-        setSidebar();
+        setEditor();
         const { rerender } = renderWithProviders(<TileOverlays />);
         expect(overlay(sql.uuid)).toHaveAttribute(
             'data-highlighted',
             'available',
         );
 
-        setSidebar({
+        setEditor({
             editingRule: rule({
                 tileTargets: {
                     [sql.uuid]: {
@@ -527,7 +527,7 @@ describe('TileOverlays', () => {
             },
         });
         // No active field: both are filtered
-        setSidebar({ editingRule });
+        setEditor({ editingRule });
         const { rerender } = renderWithProviders(<TileOverlays />);
         expect(overlay(both.uuid)).toHaveAttribute(
             'data-highlighted',
@@ -542,7 +542,7 @@ describe('TileOverlays', () => {
 
         // The field "both" is on: it is mapped, the other tile is on
         // another field
-        setSidebar({ editingRule, activeFieldId: 'orders_region' });
+        setEditor({ editingRule, activeFieldId: 'orders_region' });
         rerender(<TileOverlays />);
         expect(overlay(both.uuid)).toHaveAttribute(
             'data-highlighted',
@@ -556,7 +556,7 @@ describe('TileOverlays', () => {
         expect(renders(statusOnly.uuid)).toBe(2);
 
         // A field neither tile is on: "both" changes, the other tile does not
-        setSidebar({ editingRule, activeFieldId: 'orders_other' });
+        setEditor({ editingRule, activeFieldId: 'orders_other' });
         rerender(<TileOverlays />);
         expect(overlay(both.uuid)).toHaveAttribute('data-highlighted', 'other');
         expect(overlay(statusOnly.uuid)).toHaveAttribute(
@@ -567,13 +567,13 @@ describe('TileOverlays', () => {
         expect(renders(statusOnly.uuid)).toBe(2);
 
         // No active field again: both go back to filtered, so both render
-        setSidebar({ editingRule });
+        setEditor({ editingRule });
         rerender(<TileOverlays />);
         expect(renders(both.uuid)).toBe(4);
         expect(renders(statusOnly.uuid)).toBe(3);
 
         // Nothing changed for either tile
-        setSidebar({ editingRule, waitingFieldIds: [] });
+        setEditor({ editingRule, waitingFieldIds: [] });
         rerender(<TileOverlays />);
         expect(renders(both.uuid)).toBe(4);
         expect(renders(statusOnly.uuid)).toBe(3);
@@ -581,25 +581,25 @@ describe('TileOverlays', () => {
 
     it('never re-renders a tile that is not filtered when the active field changes', () => {
         const editingRule = rule({ tileTargets: { [both.uuid]: false } });
-        setSidebar({ editingRule });
+        setEditor({ editingRule });
         const { rerender } = renderWithProviders(<TileOverlays />);
         // An unfiltered card has no select: its button stays the same node
         const filterTile = card(both.uuid).getByRole('button');
         expect(renders(statusOnly.uuid)).toBe(1);
 
         // A field it offers and the filtered tile is not on
-        setSidebar({ editingRule, activeFieldId: 'orders_region' });
+        setEditor({ editingRule, activeFieldId: 'orders_region' });
         rerender(<TileOverlays />);
         expect(renders(statusOnly.uuid)).toBe(2);
 
         // The field the filtered tile is on
-        setSidebar({ editingRule, activeFieldId: 'orders_status' });
+        setEditor({ editingRule, activeFieldId: 'orders_status' });
         rerender(<TileOverlays />);
         expect(card(both.uuid).getByRole('button')).toBe(filterTile);
         expect(renders(statusOnly.uuid)).toBe(3);
 
         // At rest the filtered tile goes back to filtered
-        setSidebar({ editingRule });
+        setEditor({ editingRule });
         rerender(<TileOverlays />);
         expect(overlay(both.uuid)).toHaveAttribute(
             'data-highlighted',
@@ -613,7 +613,7 @@ describe('TileOverlays', () => {
         expect(renders(both.uuid)).toBe(1);
         expect(renders(statusOnly.uuid)).toBe(1);
 
-        setSidebar({
+        setEditor({
             editingRule: rule({ tileTargets: { [both.uuid]: false } }),
         });
         rerender(<TileOverlays />);
@@ -689,7 +689,7 @@ describe('TileOverlays', () => {
         });
 
         it('takes back a card action while a field is clicked', async () => {
-            setSidebar({ highlightedFieldId: 'orders_status::Orders::Status' });
+            setEditor({ highlightedFieldId: 'orders_status::Orders::Status' });
             renderWithProviders(<TileOverlays />);
 
             await userEvent.click(clearButton(both.uuid)!);
@@ -707,7 +707,7 @@ describe('TileOverlays', () => {
         });
 
         it('has nothing to take back when the card writes another field', async () => {
-            setSidebar({ highlightedFieldId: 'orders_region::Orders::Region' });
+            setEditor({ highlightedFieldId: 'orders_region::Orders::Region' });
             renderWithProviders(<TileOverlays />);
 
             // Off the Status tile while Region is clicked
@@ -741,7 +741,7 @@ describe('TileOverlays', () => {
         });
 
         it('removes a secondary field instead of leaving it waiting', async () => {
-            setSidebar({
+            setEditor({
                 editingRule: rule({ tileTargets: { [both.uuid]: REGION } }),
                 highlightedFieldId: 'orders_region::Orders::Region',
                 removeWaitingField,
@@ -763,7 +763,7 @@ describe('TileOverlays', () => {
         });
 
         it('removes the first field and promotes the next one', async () => {
-            setSidebar({
+            setEditor({
                 editingRule: rule({ tileTargets: { [both.uuid]: REGION } }),
                 removeWaitingField,
                 removeLastField,
@@ -780,7 +780,7 @@ describe('TileOverlays', () => {
         });
 
         it("keeps the filter's only field, leaving the tile out", async () => {
-            setSidebar({
+            setEditor({
                 editingRule: rule({ tileTargets: { [both.uuid]: false } }),
                 removeWaitingField,
                 removeLastField,
@@ -799,7 +799,7 @@ describe('TileOverlays', () => {
         });
 
         it('only leaves the tile out while the field has other tiles', async () => {
-            setSidebar({
+            setEditor({
                 editingRule: rule({ tileTargets: { [both.uuid]: REGION } }),
                 removeWaitingField,
                 removeLastField,
@@ -961,7 +961,7 @@ describe('TileOverlays', () => {
         });
 
         it('selects no chip for "Filter this tile"', async () => {
-            setSidebar({
+            setEditor({
                 editingRule: rule({
                     tileTargets: { [statusOnly.uuid]: false },
                 }),
@@ -999,7 +999,7 @@ describe('TileOverlays', () => {
                         [statusOnly.uuid]: [statusField],
                     },
                 };
-                setSidebar({
+                setEditor({
                     editingRule: rule({
                         target: {
                             fieldId: 'orders_created_day',
@@ -1064,7 +1064,7 @@ describe('TileOverlays', () => {
                     [third.uuid]: [statusField, regionField],
                 },
             };
-            setSidebar({
+            setEditor({
                 editingRule: rule({
                     tileTargets: {
                         [both.uuid]: {
@@ -1082,7 +1082,7 @@ describe('TileOverlays', () => {
         });
 
         it('does not repeat a waiting field', async () => {
-            setSidebar({ waitingFieldIds: ['orders_region'] });
+            setEditor({ waitingFieldIds: ['orders_region'] });
             renderWithProviders(<TileOverlays />);
 
             await userEvent.click(select(both.uuid));
@@ -1137,7 +1137,7 @@ describe('TileOverlays', () => {
                     },
                 },
             };
-            setSidebar({
+            setEditor({
                 editingRule: rule({
                     tileTargets: {
                         [sql.uuid]: {
@@ -1215,7 +1215,7 @@ describe('TileOverlays', () => {
                     [statusOnly.uuid]: [statusField, ...waiting],
                 },
             };
-            setSidebar({
+            setEditor({
                 waitingFieldIds: waiting.map((field) => `orders_${field.name}`),
             });
             renderWithProviders(<TileOverlays />);
@@ -1228,13 +1228,13 @@ describe('TileOverlays', () => {
 
         it('re-renders no tile when the rule changes without its fields', () => {
             const editingRule = rule({ tileTargets: { [both.uuid]: false } });
-            setSidebar({ editingRule, activeFieldId: 'orders_region' });
+            setEditor({ editingRule, activeFieldId: 'orders_region' });
             const { rerender } = renderWithProviders(<TileOverlays />);
             // The filtered tile is on another field than the active one
             expect(renders(statusOnly.uuid)).toBe(1);
 
             // A new rule object with the same fields and mapping
-            setSidebar({
+            setEditor({
                 editingRule: { ...editingRule, values: ['completed'] },
                 activeFieldId: 'orders_region',
             });
@@ -1356,7 +1356,7 @@ describe('TileOverlays', () => {
                 [statusOnly.uuid]: [statusField],
             },
         };
-        setSidebar({
+        setEditor({
             editingRule: rule({ target: { fieldId: '', tableName: '' } }),
             isPlaceholder: true,
         });
@@ -1385,21 +1385,21 @@ describe('TileOverlays', () => {
     });
 
     it('renders nothing while a filter is open but its tiles are not being chosen', () => {
-        setSidebar({ isMapping: false });
+        setEditor({ isMapping: false });
         renderWithProviders(<TileOverlays />);
 
         allTiles.forEach((t) => expect(overlay(t.uuid)).toBeNull());
     });
 
     it('renders nothing when no control is edited', () => {
-        setSidebar({ editingRule: null });
+        setEditor({ editingRule: null });
         renderWithProviders(<TileOverlays />);
 
         allTiles.forEach((t) => expect(overlay(t.uuid)).toBeNull());
     });
 
     it('marks a tile on another field as other, whether or not it offers the active field', () => {
-        setSidebar({ activeFieldId: 'orders_region' });
+        setEditor({ activeFieldId: 'orders_region' });
         renderWithProviders(<TileOverlays />);
 
         // Offers Region
@@ -1418,7 +1418,7 @@ describe('TileOverlays', () => {
     });
 
     it('offers a waiting field in the select of a tile that could take it', async () => {
-        setSidebar({ waitingFieldIds: ['orders_region'] });
+        setEditor({ waitingFieldIds: ['orders_region'] });
         renderWithProviders(<TileOverlays />);
         await userEvent.click(select(both.uuid));
 
@@ -1430,7 +1430,7 @@ describe('TileOverlays', () => {
 
     it('keeps an unfiltered tile available, whether or not it offers the active field', () => {
         // Offers Region
-        setSidebar({
+        setEditor({
             editingRule: rule({ tileTargets: { [both.uuid]: false } }),
             activeFieldId: 'orders_region',
         });
@@ -1441,7 +1441,7 @@ describe('TileOverlays', () => {
         );
 
         // Does not
-        setSidebar({
+        setEditor({
             editingRule: rule({ tileTargets: { [statusOnly.uuid]: false } }),
             activeFieldId: 'orders_region',
         });
@@ -1468,7 +1468,7 @@ describe('TileOverlays', () => {
                 },
             },
         };
-        setSidebar({
+        setEditor({
             editingRule: rule({
                 tileTargets: {
                     [sql.uuid]: {
@@ -1486,7 +1486,7 @@ describe('TileOverlays', () => {
     });
 
     it('marks an unfiltered tile as available and a tile on the field as mapped', () => {
-        setSidebar({
+        setEditor({
             editingRule: rule({ tileTargets: { [both.uuid]: false } }),
             activeFieldId: 'orders_status',
         });
@@ -1518,7 +1518,7 @@ describe('TileOverlays', () => {
                 },
             },
         };
-        setSidebar({
+        setEditor({
             editingRule: rule({
                 tileTargets: {
                     [sql.uuid]: {
@@ -1551,12 +1551,12 @@ describe('TileOverlays', () => {
         const scrollIntoView = vi.fn();
         Element.prototype.scrollIntoView = scrollIntoView;
 
-        setSidebar({ activeFieldId: 'orders_status' });
+        setEditor({ activeFieldId: 'orders_status' });
         const { unmount } = renderWithProviders(<TileOverlays />);
         expect(scrollIntoView).not.toHaveBeenCalled();
         unmount();
 
-        setSidebar({
+        setEditor({
             activeFieldId: 'orders_status',
             highlightedFieldId: 'orders_status',
         });
@@ -1573,7 +1573,7 @@ describe('TileOverlays', () => {
             matches: query === '(prefers-reduced-motion: reduce)',
         })) as unknown as typeof window.matchMedia;
 
-        setSidebar({
+        setEditor({
             activeFieldId: 'orders_status',
             highlightedFieldId: 'orders_status',
         });
@@ -1593,15 +1593,15 @@ describe('TileOverlays', () => {
             activeFieldId: 'orders_status',
             highlightedFieldId: 'orders_status',
         };
-        setSidebar(clicked);
+        setEditor(clicked);
         const { rerender } = renderWithProviders(<TileOverlays />);
         expect(scrollIntoView).toHaveBeenCalledTimes(1);
 
         // Hovering, or tabbing past, the Region row
-        setSidebar({ ...clicked, activeFieldId: 'orders_region' });
+        setEditor({ ...clicked, activeFieldId: 'orders_region' });
         rerender(<TileOverlays />);
         // And leaving it: Status is the active field again
-        setSidebar(clicked);
+        setEditor(clicked);
         rerender(<TileOverlays />);
 
         expect(scrollIntoView).toHaveBeenCalledTimes(1);
@@ -1635,7 +1635,7 @@ describe('TileOverlays', () => {
         it('is not on the field of that id: the tile is "other", and is no scroll target', () => {
             const scrollIntoView = vi.fn();
             Element.prototype.scrollIntoView = scrollIntoView;
-            setSidebar({
+            setEditor({
                 editingRule: rule({ tileTargets: { [sql.uuid]: onColumn } }),
                 activeFieldId: 'orders_status',
                 highlightedFieldId: 'orders_status',
@@ -1656,7 +1656,7 @@ describe('TileOverlays', () => {
         });
 
         it('names a SQL column filter by its column, and offers a chart tile no field for it', () => {
-            setSidebar({
+            setEditor({
                 editingRule: rule({
                     target: onColumn,
                     tileTargets: { [sql.uuid]: onColumn },
@@ -1706,7 +1706,7 @@ describe('TileOverlays', () => {
         Element.prototype.scrollIntoView = scrollIntoView;
 
         const editingRule = rule({ tileTargets: { [both.uuid]: false } });
-        setSidebar({ editingRule });
+        setEditor({ editingRule });
         const { rerender } = renderWithProviders(<TileOverlays />);
         expect(overlay(both.uuid)).toHaveAttribute(
             'data-highlighted',
@@ -1719,7 +1719,7 @@ describe('TileOverlays', () => {
         expect(scrollIntoView).not.toHaveBeenCalled();
 
         // Hover alone changes the marks' subject, and still does not scroll
-        setSidebar({ editingRule, activeFieldId: 'orders_status' });
+        setEditor({ editingRule, activeFieldId: 'orders_status' });
         rerender(<TileOverlays />);
         expect(scrollIntoView).not.toHaveBeenCalled();
     });
@@ -1738,11 +1738,11 @@ describe('TileOverlays', () => {
             ...mockDashboardContext.current,
             dashboardTiles: [statusOnly, both],
         };
-        setSidebar({ editingRule });
+        setEditor({ editingRule });
         const { rerender } = renderWithProviders(<TileOverlays />);
         expect(scrollIntoView).not.toHaveBeenCalled();
 
-        setSidebar({
+        setEditor({
             editingRule,
             activeFieldId: 'orders_region',
             highlightedFieldId: 'orders_region',
@@ -1762,7 +1762,7 @@ describe('TileOverlays', () => {
         Element.prototype.scrollIntoView = scrollIntoView;
 
         // Region waits: "both" offers it and every filtered tile is on Status
-        setSidebar({
+        setEditor({
             editingRule: rule({ tileTargets: { [statusOnly.uuid]: false } }),
             waitingFieldIds: ['orders_region'],
             activeFieldId: 'orders_region',
@@ -1782,7 +1782,7 @@ describe('TileOverlays', () => {
         const scrollIntoView = vi.fn();
         Element.prototype.scrollIntoView = scrollIntoView;
 
-        setSidebar({
+        setEditor({
             activeFieldId: 'orders_region',
             highlightedFieldId: 'orders_status',
         });
@@ -1828,7 +1828,7 @@ describe('TileOverlays', () => {
         });
 
         it('is on no particular field while a field is active', () => {
-            setSidebar({ activeFieldId: 'orders_status' });
+            setEditor({ activeFieldId: 'orders_status' });
             renderWithProviders(<TileOverlays />);
 
             expect(overlay(app.uuid)).toHaveAttribute(
@@ -1838,7 +1838,7 @@ describe('TileOverlays', () => {
         });
 
         it('reads "This tile is not filtered" and is available once it is left out', () => {
-            setSidebar({
+            setEditor({
                 editingRule: rule({ tileTargets: { [app.uuid]: false } }),
                 activeFieldId: 'orders_status',
             });
@@ -1860,7 +1860,7 @@ describe('TileOverlays', () => {
                 rule({ tileTargets: { [app.uuid]: false } }),
             );
 
-            setSidebar({
+            setEditor({
                 editingRule: rule({
                     tileTargets: {
                         [app.uuid]: false,
@@ -1880,7 +1880,7 @@ describe('TileOverlays', () => {
             expect(renders(both.uuid)).toBe(1);
             expect(renders(statusOnly.uuid)).toBe(1);
 
-            setSidebar({
+            setEditor({
                 editingRule: rule({ tileTargets: { [app.uuid]: false } }),
             });
             rerender(<TileOverlays />);
@@ -1897,7 +1897,7 @@ describe('TileOverlays', () => {
             "The selected field 'orders_gone' is not available on this tile";
 
         beforeEach(() => {
-            setSidebar({
+            setEditor({
                 editingRule: rule({
                     tileTargets: { [statusOnly.uuid]: GONE },
                 }),
@@ -1934,7 +1934,7 @@ describe('TileOverlays', () => {
         });
 
         it('names a field the dashboard still knows by its label', () => {
-            setSidebar({
+            setEditor({
                 editingRule: rule({
                     tileTargets: {
                         [statusOnly.uuid]: {
@@ -1960,7 +1960,7 @@ describe('TileOverlays', () => {
                 'available',
             );
 
-            setSidebar({
+            setEditor({
                 editingRule: rule({
                     tileTargets: { [statusOnly.uuid]: GONE },
                 }),
@@ -2040,7 +2040,7 @@ describe('TileOverlays', () => {
                     },
                 },
             };
-            setSidebar({
+            setEditor({
                 editingRule: rule({
                     tileTargets: {
                         [sql.uuid]: {
@@ -2078,7 +2078,7 @@ describe('TileOverlays', () => {
                 },
             };
             // The filter is on a string field
-            setSidebar({
+            setEditor({
                 editingRule: rule({
                     tileTargets: {
                         [sql.uuid]: {

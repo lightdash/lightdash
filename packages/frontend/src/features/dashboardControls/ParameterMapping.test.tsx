@@ -46,8 +46,8 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
 const { tileHoverOwner } = vi.hoisted(() => ({
     tileHoverOwner: { current: null as string | null },
 }));
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditorSelector: (
         selector: (c: Record<string, unknown>) => unknown,
     ) =>
         selector({

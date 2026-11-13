@@ -10,7 +10,7 @@
     display: block;
 }
 
-/* The rail's filter area sizes the bar's narrow layouts, as the app's
+/* The controls bar's filter area sizes the bar's narrow layouts, as the app's
    `.content` does; its width still comes from the bar's flex row */
 .filterArea {
     container-type: inline-size;

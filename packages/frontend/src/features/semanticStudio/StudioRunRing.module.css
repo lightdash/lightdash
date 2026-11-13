@@ -1,0 +1,42 @@
+.ringIcon {
+    display: grid;
+    place-items: center;
+    color: var(--mantine-color-dimmed);
+}
+
+.ringIcon[data-kind='saving'] {
+    color: var(--mantine-color-violet-light-color);
+}
+
+.ringIcon[data-kind='saving'] svg {
+    animation: spin 1.2s linear infinite;
+}
+
+.ringIcon[data-kind='ready'] {
+    color: var(--mantine-color-green-light-color);
+}
+
+.ringIcon[data-kind='failing'] {
+    color: var(--mantine-color-red-light-color);
+}
+
+.ringIcon[data-kind='in_review'] {
+    color: var(--mantine-color-blue-light-color);
+}
+
+.clock {
+    font-family: var(--mantine-font-family-monospace);
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ringIcon[data-kind='saving'] svg {
+        animation: none;
+    }
+}

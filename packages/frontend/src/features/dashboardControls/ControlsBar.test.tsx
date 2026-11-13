@@ -30,8 +30,8 @@ const renderWithProviders = (ui: ReactElement) =>
         </DashboardStoreTestProvider>,
     );
 const mockCompact = vi.hoisted(() => ({ current: false }));
-const mockSidebar = vi.hoisted(() => ({
-    current: { isSidebarOpen: false, isMapping: false },
+const mockEditor = vi.hoisted(() => ({
+    current: { isEditorOpen: false, isMapping: false },
 }));
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
@@ -60,10 +60,10 @@ vi.mock('../parameters', () => ({
     ),
 }));
 
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
-        selector: (value: typeof mockSidebar.current) => unknown,
-    ) => selector(mockSidebar.current),
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditorSelector: (
+        selector: (value: typeof mockEditor.current) => unknown,
+    ) => selector(mockEditor.current),
 }));
 
 vi.mock('./AddControl', async (importOriginal) => ({
@@ -145,7 +145,7 @@ describe('ControlsBar', () => {
         });
 
         it('shows the mapping row over the filter row, which is faded and inert', () => {
-            mockSidebar.current = { isSidebarOpen: true, isMapping: true };
+            mockEditor.current = { isEditorOpen: true, isMapping: true };
             renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
             expect(screen.getByTestId('mapping-row')).toBeInTheDocument();
@@ -157,12 +157,12 @@ describe('ControlsBar', () => {
         });
 
         it('brings the filter row back as it was once mapping ends', () => {
-            mockSidebar.current = { isSidebarOpen: true, isMapping: true };
+            mockEditor.current = { isEditorOpen: true, isMapping: true };
             const { rerender } = renderWithProviders(
                 <ControlsBar {...baseProps} isEditMode />,
             );
 
-            mockSidebar.current = { isSidebarOpen: true, isMapping: false };
+            mockEditor.current = { isEditorOpen: true, isMapping: false };
             rerender(
                 <DashboardStoreTestProvider store={createDashboardTestStore()}>
                     <ControlsBar {...baseProps} isEditMode />
@@ -177,7 +177,7 @@ describe('ControlsBar', () => {
 
     beforeEach(() => {
         mockCompact.current = false;
-        mockSidebar.current = { isSidebarOpen: false, isMapping: false };
+        mockEditor.current = { isEditorOpen: false, isMapping: false };
         mockDashboardContext.current = {
             isAddFilterDisabled: false,
             setIsDateZoomDisabled: vi.fn(),
@@ -360,7 +360,7 @@ describe('ControlsBar', () => {
     );
 
     it('keeps the bar while a filter is edited', () => {
-        mockSidebar.current = { isSidebarOpen: true, isMapping: false };
+        mockEditor.current = { isEditorOpen: true, isMapping: false };
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
         expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
@@ -447,7 +447,7 @@ describe('ControlsBar', () => {
 
     it('shows the bar in place on compact viewports while a filter is edited', () => {
         mockCompact.current = true;
-        mockSidebar.current = { isSidebarOpen: true, isMapping: false };
+        mockEditor.current = { isEditorOpen: true, isMapping: false };
         renderWithProviders(<ControlsBar {...baseProps} />);
 
         expect(screen.getByTestId('filter-pills')).toBeInTheDocument();

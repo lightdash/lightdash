@@ -1,3 +1,9 @@
+import { type UUID } from './api/uuid';
+
+export type AnalyticsProjectView =
+    | { source: 'settings'; projectUuid: UUID | null }
+    | { source: 'homepage' | 'project'; projectUuid: UUID };
+
 export type AnalyticsProcessingStats = {
     partitionsDiscovered: number;
     partitionsCompacted: number;

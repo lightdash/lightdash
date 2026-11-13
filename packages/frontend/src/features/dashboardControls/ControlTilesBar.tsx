@@ -9,7 +9,7 @@ import {
 import { FieldBar, type FieldBarCopy } from './FieldTilesBar';
 import { getTilesOnTab, type FieldScope } from './peers';
 import { useBarHost } from './useBarHost';
-import { type FieldApply } from './useControlsSidebar';
+import { type FieldApply } from './useControlsEditor';
 import { type FieldTiles, type TileScope } from './useFieldTileActions';
 
 const noop = () => {};

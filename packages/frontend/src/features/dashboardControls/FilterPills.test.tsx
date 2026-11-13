@@ -60,7 +60,7 @@ const renderWithProviders = (ui: ReactElement) => {
 const mockTileStatus = vi.hoisted(() => ({
     current: { sqlChartTilesMetadata: {} } as Record<string, unknown>,
 }));
-const mockSidebar = vi.hoisted(() => ({
+const mockEditor = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const mockTrack = vi.hoisted(() => vi.fn());
@@ -84,10 +84,10 @@ vi.mock('../../hooks/useProjectUuid', () => ({
 vi.mock('../../hooks/useProject', () => ({
     useProject: () => ({ data: undefined }),
 }));
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditorSelector: (
         selector: (value: Record<string, unknown>) => unknown,
-    ) => selector(mockSidebar.current),
+    ) => selector(mockEditor.current),
 }));
 vi.mock(
     '../dashboardFilters/ActiveFilters/FilterPillButton',
@@ -269,10 +269,10 @@ describe('FilterPills', () => {
             removeMetricDashboardFilter,
             updateMetricDashboardFilter: vi.fn(),
         };
-        mockSidebar.current = {
+        mockEditor.current = {
             editing: null,
             editingRule: null,
-            isSidebarOpen: false,
+            isEditorOpen: false,
             isNew: false,
             open,
             close,
@@ -289,7 +289,7 @@ describe('FilterPills', () => {
         expect(pill(/^Region/)).toBeInTheDocument();
     });
 
-    it('opens the sidebar on the clicked pill', async () => {
+    it('opens the editor on the clicked pill', async () => {
         const user = userEvent.setup();
         renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
@@ -301,10 +301,10 @@ describe('FilterPills', () => {
 
     it('hands a click on the pill being edited to open, which decides what it does', async () => {
         const user = userEvent.setup();
-        mockSidebar.current = {
-            ...mockSidebar.current,
+        mockEditor.current = {
+            ...mockEditor.current,
             editing: { filterId: 'saved' },
-            isSidebarOpen: true,
+            isEditorOpen: true,
         };
         renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
@@ -368,10 +368,10 @@ describe('FilterPills', () => {
             setContext({
                 dashboardFilters: { ...noFilters, dimensions: [savedRule] },
             });
-            mockSidebar.current = {
-                ...mockSidebar.current,
+            mockEditor.current = {
+                ...mockEditor.current,
                 editing: { filterId: 'new' },
-                isSidebarOpen: true,
+                isEditorOpen: true,
                 isNew: true,
                 isPlaceholder: false,
                 editingRule: newRule,
@@ -478,10 +478,10 @@ describe('FilterPills', () => {
     });
 
     it('marks the pill being edited as open, with no badge', () => {
-        mockSidebar.current = {
-            ...mockSidebar.current,
+        mockEditor.current = {
+            ...mockEditor.current,
             editing: { filterId: 'saved' },
-            isSidebarOpen: true,
+            isEditorOpen: true,
         };
         const { rerender } = renderWithProviders(
             <FilterPills activeTabUuid={undefined} />,
@@ -502,10 +502,10 @@ describe('FilterPills', () => {
         const openClassName = pill(/^Status/).className;
 
         // Closed: only the open marker goes
-        mockSidebar.current = {
-            ...mockSidebar.current,
+        mockEditor.current = {
+            ...mockEditor.current,
             editing: null,
-            isSidebarOpen: false,
+            isEditorOpen: false,
         };
         rerender(<FilterPills activeTabUuid={undefined} />);
         expect(pill(/^Status/)).not.toHaveAttribute('data-open');
@@ -606,7 +606,7 @@ describe('FilterPills', () => {
 
     it('keeps the X, and the lock in place but hidden and inert, while a filter is edited', async () => {
         const user = userEvent.setup();
-        mockSidebar.current = { ...mockSidebar.current, isSidebarOpen: true };
+        mockEditor.current = { ...mockEditor.current, isEditorOpen: true };
         setContext({
             dashboardFilters: {
                 ...filters,
@@ -618,7 +618,7 @@ describe('FilterPills', () => {
         });
         renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
-        // Still rendered, so no pill changes width as the rail opens
+        // Still rendered, so no pill changes width as the editor opens
         const locks = screen.getAllByRole('button', {
             name: /ock filter/,
             hidden: true,
@@ -1271,16 +1271,16 @@ describe('FilterPills', () => {
             expect(setHaveFiltersChanged).not.toHaveBeenCalled();
         });
 
-        it('drags a pill only while the sidebar is closed and its field is loaded', () => {
+        it('drags a pill only while the editor is closed and its field is loaded', () => {
             const { unmount } = renderWithProviders(
                 <FilterPills activeTabUuid={undefined} />,
             );
             expect(pill(/^Status/).closest('[data-can-drag]')).not.toBeNull();
             unmount();
 
-            mockSidebar.current = {
-                ...mockSidebar.current,
-                isSidebarOpen: true,
+            mockEditor.current = {
+                ...mockEditor.current,
+                isEditorOpen: true,
             };
             const { unmount: unmountOpen } = renderWithProviders(
                 <FilterPills activeTabUuid={undefined} />,
@@ -1290,9 +1290,9 @@ describe('FilterPills', () => {
             expect(pill(/^Status/).closest('[data-can-drag]')).toBeNull();
             unmountOpen();
 
-            mockSidebar.current = {
-                ...mockSidebar.current,
-                isSidebarOpen: false,
+            mockEditor.current = {
+                ...mockEditor.current,
+                isEditorOpen: false,
             };
             setContext({ allFilterableFields: undefined });
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
@@ -1410,7 +1410,7 @@ describe('FilterPills', () => {
         };
 
         beforeEach(() => {
-            mockSidebar.current = { ...mockSidebar.current, isViewer: true };
+            mockEditor.current = { ...mockEditor.current, isViewer: true };
             setContext({
                 dashboardTemporaryFilters: {
                     ...noFilters,
@@ -1441,10 +1441,10 @@ describe('FilterPills', () => {
             expect(pill(/^Status/)).not.toHaveAttribute('data-open');
             expect(pill(/^Status/)).toHaveAttribute('data-in-effect');
 
-            mockSidebar.current = {
-                ...mockSidebar.current,
+            mockEditor.current = {
+                ...mockEditor.current,
                 editing: { filterId: 'saved' },
-                isSidebarOpen: true,
+                isEditorOpen: true,
             };
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
             const opened = screen.getAllByRole('button', {
@@ -1455,10 +1455,10 @@ describe('FilterPills', () => {
         });
 
         it('dashes their own pill and marks it open in the editor', () => {
-            mockSidebar.current = {
-                ...mockSidebar.current,
+            mockEditor.current = {
+                ...mockEditor.current,
                 editing: { filterId: 'own' },
-                isSidebarOpen: true,
+                isEditorOpen: true,
             };
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
             const own = pill(/^Order region/);
@@ -1670,10 +1670,10 @@ describe('FilterPills', () => {
             await user.hover(pill(/^Status/));
             expect(hoveredTiles()).toEqual(['tile-1']);
 
-            mockSidebar.current = {
-                ...mockSidebar.current,
+            mockEditor.current = {
+                ...mockEditor.current,
                 editing: { filterId: 'no-default' },
-                isSidebarOpen: true,
+                isEditorOpen: true,
             };
             rerender(<FilterPills activeTabUuid={undefined} />);
             expect(hoveredTiles()).toEqual([]);
@@ -1701,7 +1701,7 @@ describe('FilterPills', () => {
         });
 
         it("never moves a viewer's pill", () => {
-            mockSidebar.current = { ...mockSidebar.current, isViewer: true };
+            mockEditor.current = { ...mockEditor.current, isViewer: true };
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
             altArrow(pill(/^Region/), 'ArrowLeft');
             expect(moveFilter).not.toHaveBeenCalled();
@@ -1760,7 +1760,7 @@ describe('FilterPills', () => {
 
         it('puts "Only you see this filter" before a viewer\'s own tables', async () => {
             const user = userEvent.setup();
-            mockSidebar.current = { ...mockSidebar.current, isViewer: true };
+            mockEditor.current = { ...mockEditor.current, isViewer: true };
             setContext({
                 dashboardTemporaryFilters: {
                     ...noFilters,

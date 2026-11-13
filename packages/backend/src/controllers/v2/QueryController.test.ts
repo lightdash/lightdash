@@ -284,6 +284,57 @@ describe('QueryController', () => {
             expect.objectContaining({ pivotConfiguration }),
         );
     });
+
+    describe('executeAsyncSqlChartQuery', () => {
+        const runSqlChart = (account: unknown) => {
+            const executeAsyncSqlChartQuery = vi
+                .fn()
+                .mockResolvedValue({ queryUuid: 'query-uuid' });
+            const controller = new QueryController({
+                getAsyncQueryService: () => ({ executeAsyncSqlChartQuery }),
+            } as unknown as ConstructorParameters<typeof QueryController>[0]);
+            controller.setStatus = vi.fn();
+            const req = {
+                account,
+                headers: {},
+                header: vi.fn(),
+            } as unknown as express.Request;
+            return {
+                executeAsyncSqlChartQuery,
+                response: controller.executeAsyncSqlChartQuery(
+                    { savedSqlUuid: 'sql-chart-uuid', parameters: { a: 'b' } },
+                    'project-uuid',
+                    req,
+                ),
+            };
+        };
+
+        // Embedded dashboards run their SQL tiles through the dashboard SQL chart route
+        it.each(['dashboard', 'chart', 'aiAgent', 'dataApp'])(
+            'refuses a %s embed token',
+            async (type) => {
+                const { executeAsyncSqlChartQuery, response } = runSqlChart({
+                    isJwtUser: () => true,
+                    access: { content: { type } },
+                });
+                await expect(response).rejects.toThrow(ForbiddenError);
+                expect(executeAsyncSqlChartQuery).not.toHaveBeenCalled();
+            },
+        );
+
+        it('runs the chart for a signed-in user', async () => {
+            const { executeAsyncSqlChartQuery, response } = runSqlChart({
+                isJwtUser: () => false,
+            });
+            await response;
+            expect(executeAsyncSqlChartQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    savedSqlUuid: 'sql-chart-uuid',
+                    parameters: { a: 'b' },
+                }),
+            );
+        });
+    });
 });
 
 it.each([

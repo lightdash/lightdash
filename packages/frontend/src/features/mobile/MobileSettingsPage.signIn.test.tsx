@@ -1,12 +1,20 @@
+import { LightdashMode } from '@lightdash/common';
 import { screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { MobileSettingsPage } from './MobileSettingsPage';
+import { MOBILE_SIGN_IN_STRINGS } from './mobileStrings';
 import { useMobileAppLink } from './useMobileAppLink';
 import { useMobileSignInCode } from './useMobileSignInCode';
 
+const health = vi.hoisted<{ mode: string | null }>(() => ({ mode: 'default' }));
 vi.mock('../../hooks/health/useHealth', () => ({
-    default: () => ({ data: { siteUrl: 'https://app.example.com' } }),
+    default: () => ({
+        data:
+            health.mode === null
+                ? undefined
+                : { siteUrl: 'https://app.example.com', mode: health.mode },
+    }),
 }));
 vi.mock('./useMobileAppLink', () => ({ useMobileAppLink: vi.fn() }));
 vi.mock('./useMobileSignInCode', () => ({ useMobileSignInCode: vi.fn() }));
@@ -45,6 +53,82 @@ const scannedLink: ReturnType<typeof useMobileAppLink> = {
 };
 
 describe('MobileSettingsPage sign-in step', () => {
+    beforeEach(() => {
+        health.mode = LightdashMode.DEFAULT;
+        qrSignIn.enabled = true;
+    });
+
+    it('renders no setup flow while the instance mode loads', () => {
+        health.mode = null;
+        vi.mocked(useMobileAppLink).mockReturnValue(scannedLink);
+        vi.mocked(useMobileSignInCode).mockClear();
+        renderWithProviders(<MobileSettingsPage />);
+
+        expect(
+            screen.queryByRole('heading', { name: 'Get the app' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('heading', { name: 'Sign in on your phone' }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(useMobileAppLink).toHaveBeenLastCalledWith({
+            isPaused: false,
+            enabled: false,
+        });
+        expect(useMobileSignInCode).not.toHaveBeenCalled();
+    });
+
+    it('shows only the sign-in code on Cloud and pauses install codes', () => {
+        health.mode = LightdashMode.CLOUD_BETA;
+        vi.mocked(useMobileAppLink).mockReturnValue({
+            ...scannedLink,
+            isScanned: false,
+        });
+        vi.mocked(useMobileSignInCode).mockReturnValue({
+            ...signedIn,
+            phase: 'showing',
+            code: {
+                codeUuid: 'code-1',
+                signInUrl: 'https://app.example.com/m/sign-in#c=code-1',
+                approvalNonce: 'nonce-1',
+                expiresAt: '2026-11-09T12:02:00.000Z',
+                expiresInSeconds: 120,
+            },
+        });
+        renderWithProviders(<MobileSettingsPage />);
+
+        expect(screen.getByText('Sign in on your phone')).toBeVisible();
+        expect(screen.queryByText('Get the app')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'I already have the app' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByText(MOBILE_SIGN_IN_STRINGS.installHint),
+        ).toBeVisible();
+        expect(useMobileSignInCode).toHaveBeenLastCalledWith({
+            autoShow: true,
+        });
+        expect(useMobileAppLink).toHaveBeenLastCalledWith({
+            isPaused: false,
+            enabled: false,
+        });
+    });
+
+    it('keeps the install step on Cloud when QR sign-in is off', () => {
+        health.mode = LightdashMode.CLOUD_BETA;
+        qrSignIn.enabled = false;
+        vi.mocked(useMobileAppLink).mockReturnValue(scannedLink);
+        vi.mocked(useMobileSignInCode).mockClear();
+        renderWithProviders(<MobileSettingsPage />);
+
+        expect(screen.getByText('Get the app')).toBeVisible();
+        expect(useMobileSignInCode).not.toHaveBeenCalled();
+        expect(useMobileAppLink).toHaveBeenLastCalledWith({
+            isPaused: false,
+            enabled: true,
+        });
+    });
+
     it('marks step 2 done once a phone is signed in', () => {
         qrSignIn.enabled = true;
         vi.mocked(useMobileAppLink).mockReturnValue(scannedLink);

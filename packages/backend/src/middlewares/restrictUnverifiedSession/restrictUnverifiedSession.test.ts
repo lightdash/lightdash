@@ -1,5 +1,6 @@
 import { ForbiddenError, type SessionUser } from '@lightdash/common';
 import type express from 'express';
+import { fromServiceAccount } from '../../auth/account';
 import {
     buildAccount,
     defaultSessionUser,
@@ -74,6 +75,25 @@ describe('createRestrictUnverifiedSessionMiddleware', () => {
         );
 
         expectForbidden(next);
+    });
+
+    it('allows a service-account account without a verified email', () => {
+        const { next } = run(
+            buildRequest({
+                account: fromServiceAccount(
+                    {
+                        ...unverifiedUser,
+                        serviceAccount: {
+                            uuid: 'service-account-uuid',
+                            description: 'export token',
+                        },
+                    },
+                    '',
+                ),
+            }),
+        );
+
+        expect(next).toHaveBeenCalledWith();
     });
 
     it.each([

@@ -18,6 +18,7 @@ import {
     usesBigqueryWorkloadIdentity,
     WarehouseTypes,
     type AiExecutionPlan,
+    type AnalyticsActivityWindow,
     type CreateDatabricksCredentials,
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
@@ -98,6 +99,7 @@ import type {
 } from './WarehouseCredentialSource';
 
 export type WarehouseClientOverrides = {
+    analyticsActivityWindow?: AnalyticsActivityWindow;
     snowflakeVirtualWarehouse?: string;
     databricksCompute?: string;
 };
@@ -969,11 +971,9 @@ export class WarehouseClientFactory {
     async acquireUnscoped(
         projectUuid: string | null,
         credentials: CreateWarehouseCredentials,
-        overrides?: {
+        overrides?: WarehouseClientOverrides & {
             aiPlan?: AiExecutionPlan | null;
             agentSession?: boolean;
-            snowflakeVirtualWarehouse?: string;
-            databricksCompute?: string;
         },
         tunnelOptions?: SshTunnelOptions,
         organizationUuid: string | null = null,
@@ -1039,6 +1039,7 @@ export class WarehouseClientFactory {
                     warehouseClient: await createAnalyticsClient(
                         project.organizationUuid,
                         this.isAnalyticsProjectEnabled,
+                        { activityWindow: overrides?.analyticsActivityWindow },
                     ),
                     sshTunnel,
                     tunnelConnectMs: null,
