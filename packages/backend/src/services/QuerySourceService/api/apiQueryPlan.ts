@@ -47,6 +47,7 @@ export type ApiScanStep = ApiPlanStepBase & {
 
 /**
  * Adds attributes to an earlier step's rows by id, a batch of ids per call.
+ * Each call answers its whole batch in one page, at most one row per id.
  * Rows whose id isn't found keep null attributes.
  */
 export type ApiLookupStep = ApiPlanStepBase & {
@@ -172,8 +173,16 @@ const chunk = <T>(items: T[], size: number): T[][] =>
         items.slice(index * size, (index + 1) * size),
     );
 
-const toKey = (value: unknown): string | null =>
-    value === null || value === undefined ? null : String(value);
+/** Ids are strings or numbers; a number matches its string form. */
+const toKey = (value: unknown, stepId: string): string | null => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'string' || typeof value === 'number') {
+        return String(value);
+    }
+    throw new UnexpectedServerError(
+        `Api query plan step "${stepId}" got an id that isn't a string or number`,
+    );
+};
 
 /**
  * Runs a plan step by step. Any step that fails fails the query, so a result
@@ -267,26 +276,37 @@ export const runApiQueryPlan = async ({
                         `Api query plan step "${step.from}" has no rows`,
                     );
                 }
+                const sourceColumns = new Set(
+                    source.columns.map(({ name }) => name),
+                );
+                if (
+                    step.columns.some(
+                        ({ name }) =>
+                            sourceColumns.has(name) || name === step.keyColumn,
+                    )
+                ) {
+                    throw new UnexpectedServerError(
+                        `Api query plan step "${step.id}" adds a column "${step.from}" already has`,
+                    );
+                }
                 const keys = [
                     ...new Set(
                         source.rows.flatMap(
-                            (row) => toKey(row[step.keyColumn]) ?? [],
+                            (row) => toKey(row[step.keyColumn], step.id) ?? [],
                         ),
                     ),
                 ];
                 const batches = chunk(keys, step.batchSize);
+                // Calls were already spent, so this isn't a refusal: it
+                // fails like the transport's own per-query count
                 if (batches.length > step.maxCalls) {
-                    throw toApiSourceQueryError([
-                        {
-                            code: 'live_source.refused.call_budget',
-                            fieldId: null,
-                            message: `This query needs more than ${formatCount(
-                                step.maxCalls,
-                            )} ${label} API calls to look up ${formatCount(
-                                keys.length,
-                            )} ids. Narrow it with filters or a shorter time range.`,
-                        },
-                    ]);
+                    throw new ParameterError(
+                        `This query needs more than ${formatCount(
+                            step.maxCalls,
+                        )} ${label} API calls to look up ${formatCount(
+                            keys.length,
+                        )} ids. Narrow it with filters or a shorter time range.`,
+                    );
                 }
                 const found = new Map<string, Record<string, unknown>>();
                 for (const batch of batches) {
@@ -296,16 +316,27 @@ export const runApiQueryPlan = async ({
                         limit: batch.length,
                         keys: batch,
                     });
+                    if (page.nextCursor !== undefined) {
+                        throw new UnexpectedServerError(
+                            `${label} answered api query plan step "${step.id}" with more than one page`,
+                        );
+                    }
                     page.rows.forEach((row) => {
-                        const key = toKey(row[step.keyColumn]);
-                        if (key !== null) found.set(key, row);
+                        const key = toKey(row[step.keyColumn], step.id);
+                        if (key === null) return;
+                        if (found.has(key)) {
+                            throw new UnexpectedServerError(
+                                `${label} returned two rows for one id in api query plan step "${step.id}"`,
+                            );
+                        }
+                        found.set(key, row);
                     });
                 }
                 last = {
                     ...source,
                     columns: [...source.columns, ...step.columns],
                     rows: source.rows.map((row) => {
-                        const key = toKey(row[step.keyColumn]);
+                        const key = toKey(row[step.keyColumn], step.id);
                         const match = key === null ? undefined : found.get(key);
                         return {
                             ...row,

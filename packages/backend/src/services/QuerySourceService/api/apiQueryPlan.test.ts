@@ -317,24 +317,119 @@ describe('a multi-call plan', () => {
         expect(calls).toHaveLength(0);
     });
 
-    it('refuses a lookup with more ids than its calls can cover, before looking any up', async () => {
+    it('fails a lookup with more ids than its calls can cover, before looking any up', async () => {
         const { connector, calls } = fakeConnector();
         const [scan, lookup] = plan().steps;
 
-        await expect(
-            runApiQueryPlan({
-                plan: plan({ steps: [scan, { ...lookup, maxCalls: 1 }] }),
-                connector,
-                usage: noUsage,
-            }),
-        ).rejects.toMatchObject({
+        const error = await runApiQueryPlan({
+            plan: plan({ steps: [scan, { ...lookup, maxCalls: 1 }] }),
+            connector,
+            usage: noUsage,
+        }).catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(ParameterError);
+        expect(error).toMatchObject({
             message:
                 'This query needs more than 1 Records API calls to look up 3 ids. Narrow it with filters or a shorter time range.',
-            data: { liveSourceErrorCode: 'live_source.refused.call_budget' },
         });
+        // The scan already called the API, so it isn't a refusal
+        expect((error as ParameterError).data).toEqual({});
         expect(
             calls.filter(({ request }) => request === 'owners'),
         ).toHaveLength(0);
+    });
+
+    describe('lookup answers', () => {
+        const run = (
+            fetchOwners: (args: ApiConnectorFetchArgs) => Promise<{
+                rows: Record<string, unknown>[];
+                nextCursor?: string;
+            }>,
+            steps = plan().steps,
+        ) => {
+            const { connector } = fakeConnector();
+            return runApiQueryPlan({
+                plan: plan({ steps }),
+                connector: {
+                    ...connector,
+                    fetchRows: (args) =>
+                        args.request === 'owners'
+                            ? fetchOwners(args)
+                            : connector.fetchRows!(args),
+                },
+                usage: noUsage,
+            });
+        };
+
+        it('matches a numeric id to its string form', async () => {
+            const [scan, lookup] = plan().steps;
+            const numeric = await runApiQueryPlan({
+                plan: plan({ steps: [scan, lookup] }),
+                connector: {
+                    describe: () => FAKE_DESCRIPTION,
+                    execute: vi.fn(),
+                    fetchRows: async (args) =>
+                        args.request === 'owners'
+                            ? { rows: [{ owner_id: 7, owner_name: 'Seven' }] }
+                            : {
+                                  rows: [
+                                      {
+                                          deal_id: 'd',
+                                          owner_id: '7',
+                                          amount: 1,
+                                      },
+                                  ],
+                              },
+                },
+                usage: noUsage,
+            });
+            expect(numeric.rows).toEqual([
+                { deal_id: 'd', owner_id: '7', amount: 1, owner_name: 'Seven' },
+            ]);
+        });
+
+        it('fails when a batch comes back in more than one page', async () => {
+            await expect(
+                run(async () => ({ rows: [], nextCursor: 'next' })),
+            ).rejects.toThrow('with more than one page');
+        });
+
+        it('fails when an id comes back twice', async () => {
+            await expect(
+                run(async () => ({
+                    rows: [
+                        { owner_id: 'o0', owner_name: 'Ada' },
+                        { owner_id: 'o0', owner_name: 'Ada L.' },
+                    ],
+                })),
+            ).rejects.toThrow('two rows for one id');
+        });
+
+        it("fails on an id that isn't a string or number", async () => {
+            await expect(
+                run(async () => ({
+                    rows: [{ owner_id: { id: 'o0' }, owner_name: 'Ada' }],
+                })),
+            ).rejects.toThrow("isn't a string or number");
+        });
+
+        it('fails when it adds a column the earlier step has', async () => {
+            const [scan, lookup] = plan().steps;
+            await expect(
+                run(
+                    async () => ({ rows: [] }),
+                    [
+                        scan,
+                        {
+                            ...lookup,
+                            columns: [
+                                { name: 'amount', type: DimensionType.NUMBER },
+                            ],
+                        } as typeof lookup,
+                    ],
+                ),
+            ).rejects.toThrow('adds a column "deals" already has');
+        });
     });
 
     it('refuses records past what its pages can read', async () => {
