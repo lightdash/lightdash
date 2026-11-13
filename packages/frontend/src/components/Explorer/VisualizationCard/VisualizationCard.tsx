@@ -74,8 +74,14 @@ import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import SortButton from '../../SortButton';
 import ExplorerChartSidebar from '../ChartGallery/ExplorerChartSidebar';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
+import {
+    useAddDroppedFieldToQuery,
+    useFieldDrop,
+    type DraggedField,
+} from '../fieldDrag';
 import StaleResultsNotice from '../StaleResultsNotice';
 import ChartTypeButton from './ChartTypeButton';
+import DroppedFieldPlacer from './DroppedFieldPlacer';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import { useDirtyPivotConfiguration } from './useDirtyPivotConfiguration';
 import { useExplorerChartColorPalette } from './useExplorerChartColorPalette';
@@ -251,6 +257,22 @@ const VisualizationCard: FC<Props> = memo((props) => {
         () => dispatch(explorerActions.closeVisualizationConfig()),
         [dispatch],
     );
+    // A field dropped on the chart joins the query, opens the chart, and is
+    // given a place in it once its results arrive
+    const [droppedField, setDroppedField] = useState<{
+        field: DraggedField;
+        pickChartType: boolean;
+    } | null>(null);
+    const addDroppedFieldToQuery = useAddDroppedFieldToQuery();
+    const fieldDrop = useFieldDrop((field) => {
+        const wasClosed = !explorerStore
+            .getState()
+            .explorer.expandedSections.includes(ExplorerSection.VISUALIZATION);
+        addDroppedFieldToQuery(field);
+        if (wasClosed) toggleExpandedSection(ExplorerSection.VISUALIZATION);
+        setDroppedField({ field, pickChartType: wasClosed });
+    });
+
     // A new chart starts on the gallery: try types first, then configure one
     const hasSavedChart = !!savedChart;
     const handleConfigureClick = useCallback(() => {
@@ -419,6 +441,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
             >
                 <CollapsableCard
                     title="Chart"
+                    dropProps={fieldDrop.dropProps}
+                    isDropActive={fieldDrop.isOver}
                     isOpen={isOpen}
                     disabled={!hasSelectedFields}
                     isVisualizationCard
@@ -568,6 +592,14 @@ const VisualizationCard: FC<Props> = memo((props) => {
                         </>
                     }
                 >
+                    {droppedField && (
+                        <DroppedFieldPlacer
+                            key={droppedField.field.fieldId}
+                            field={droppedField.field}
+                            pickChartType={droppedField.pickChartType}
+                            onPlaced={() => setDroppedField(null)}
+                        />
+                    )}
                     {renderVisualization && (
                         <>
                             {isLoadingQueryResults && (

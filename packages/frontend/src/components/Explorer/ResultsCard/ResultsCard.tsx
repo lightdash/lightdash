@@ -35,6 +35,7 @@ import {
 import MantineIcon from '../../common/MantineIcon';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
+import { useAddDroppedFieldToQuery, useFieldDrop } from '../fieldDrag';
 import StaleResultsNotice from '../StaleResultsNotice';
 import { ExplorerResults } from './ExplorerResults';
 import { ResultsViewMode } from './types';
@@ -85,9 +86,13 @@ const ResultsCard: FC = memo(() => {
     );
     const { user } = useApp();
     const resultsExport = useResultsExport();
+    // A field dropped here joins the query, which then runs
+    const fieldDrop = useFieldDrop(useAddDroppedFieldToQuery());
     return (
         <CollapsableCard
             title="Results"
+            dropProps={fieldDrop.dropProps}
+            isDropActive={fieldDrop.isOver}
             isOpen={resultsIsOpen}
             onToggle={toggleCard}
             disabled={!tableName || !hasSelectedFields}

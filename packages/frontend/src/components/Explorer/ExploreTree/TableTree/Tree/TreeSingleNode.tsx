@@ -39,7 +39,14 @@ import {
     IconInfoCircle,
     IconTrash,
 } from '@tabler/icons-react';
-import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useMemo,
+    useState,
+    type DragEvent,
+    type FC,
+} from 'react';
 import { useToggle } from 'react-use';
 import {
     explorerActions,
@@ -60,6 +67,7 @@ import { EventName } from '../../../../../types/Events';
 import { getFieldColors } from '../../../../../utils/fieldColors';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
+import { startFieldDrag } from '../../../fieldDrag';
 import { useCustomMetricSourceId } from '../../CustomMetricSourceContext';
 import { useFieldFilterTarget } from '../../FieldFilterTargetContext';
 import { useCustomMetricDelete } from '../../useCustomMetricDelete';
@@ -521,6 +529,14 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         '--tree-node-hover-bg': itemColors.bgHover,
                     }}
                     leftSection={icon}
+                    draggable={!isMissing}
+                    onDragStart={(event: DragEvent) =>
+                        startFieldDrag(event, {
+                            fieldId: node.key,
+                            isDimension:
+                                isDimension(item) || isCustomDimension(item),
+                        })
+                    }
                     onClick={handleClick}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
