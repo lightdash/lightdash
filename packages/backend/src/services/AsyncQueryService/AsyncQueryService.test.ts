@@ -7118,7 +7118,7 @@ describe('AsyncQueryService', () => {
                               submission: [],
                               pivotConfiguration: null,
                               plan: null,
-                              binding: null,
+                              authority: { kind: 'request' },
                           });
                 await expect(result).rejects.toThrow('Raw SQL');
                 expect(run).not.toHaveBeenCalled();
@@ -19659,7 +19659,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                 userAttributeOverrides: {},
                 invalidateCache: false,
                 plans: {},
-                binding: { kind: 'document', context },
+                authority: { kind: 'document', context },
                 aiAttribution: null,
             }),
         ).rejects.toThrow('Only the persisted Document query can execute');
@@ -19969,7 +19969,7 @@ describe('query sources carry the execution context', () => {
     const submissionDefaults: Omit<SubmitSourceQueryArgs, 'query'> = {
         account: sessionAccount,
         projectUuid,
-        binding: null,
+        authority: { kind: 'request' },
         context: QueryExecutionContext.MULTI_SOURCE_QUERY,
         resolvedReferences: {},
         submission: [],
@@ -32309,7 +32309,7 @@ describe('bound composer chart runs', () => {
         );
         await service.executeAsyncComposeSqlQuery({
             ...args,
-            composerRunBinding: bindingFor(account),
+            authority: { kind: 'composer', binding: bindingFor(account) },
         });
         expect(storedRequest(service).composerChartSource).toEqual(stamp);
         expect(storedRequest(service).queryUsage).toMatchObject({
@@ -32333,7 +32333,7 @@ describe('bound composer chart runs', () => {
         );
         await service.executeAsyncPythonQuery({
             ...args,
-            composerRunBinding: bindingFor(account),
+            authority: { kind: 'composer', binding: bindingFor(account) },
         });
         expect(storedRequest(service).composerChartSource).toEqual(stamp);
     });
@@ -32350,7 +32350,7 @@ describe('bound composer chart runs', () => {
                 context: QueryExecutionContext.DASHBOARD,
                 code: 'def run(inputs, params):\n    return inputs["orders"]',
                 references: { orders: referenced.queryUuid },
-                composerRunBinding: bindingFor(account),
+                authority: { kind: 'composer', binding: bindingFor(account) },
             }),
         ).rejects.toThrow('Composer run binding does not match');
     });
@@ -32390,7 +32390,7 @@ describe('bound composer chart runs', () => {
         );
         await service.executeAsyncSqlQuery({
             ...args,
-            composerRunBinding: bindingFor(account),
+            authority: { kind: 'composer', binding: bindingFor(account) },
         });
         expect(execute).toHaveBeenCalledWith(
             expect.objectContaining({ composerChartSource: stamp }),
@@ -32437,7 +32437,7 @@ describe('bound composer chart runs', () => {
         );
         await service.executeAsyncMetricQuery({
             ...args,
-            composerRunBinding: bindingFor(account),
+            authority: { kind: 'composer', binding: bindingFor(account) },
         });
         expect(prepare).toHaveBeenCalledWith(
             expect.objectContaining({ preloadedUserAccessControls: controls }),
