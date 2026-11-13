@@ -12,15 +12,7 @@ import {
     type SemanticLayerSourceQuery,
     type SqlSourceQuery,
 } from '../types/querySources';
-import {
-    ChartType,
-    type BigNumberConfig,
-    type CartesianChartConfig,
-    type ChartConfig,
-    type FunnelChartConfig,
-    type PieChartConfig,
-    type TableChartConfig,
-} from '../types/savedCharts';
+import { ChartType, type ChartConfig } from '../types/savedCharts';
 import assertUnreachable from '../utils/assertUnreachable';
 
 type StoredNode<T> = T & {
@@ -48,18 +40,11 @@ export type ComposerChartColumn = {
     fieldType: FieldType.DIMENSION | FieldType.METRIC;
 };
 
-/** Chart types whose column names the parser can check. */
-export type ComposerChartConfig =
-    | CartesianChartConfig
-    | TableChartConfig
-    | BigNumberConfig
-    | PieChartConfig
-    | FunnelChartConfig;
-
 export type ComposerStoredChart = {
     schemaVersion: 1;
     columns: ComposerChartColumn[];
-    chartConfig: ComposerChartConfig;
+    /** Any classic config at the API; the parser refuses types it cannot check by name. */
+    chartConfig: ChartConfig;
     pivotConfig: { columns: string[] } | null;
     tableConfig: { columnOrder: string[] };
 };

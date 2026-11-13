@@ -194,4 +194,22 @@ describe('Composer charts', () => {
         );
         expect(refused.status).toBe(403);
     });
+
+    it('refuses a custom chart type by name', async () => {
+        const dashboard = await createDashboard();
+        const body = composerChartBody(dashboard.uuid);
+        const refused = await admin.post<{ error: { message: string } }>(
+            chartsUrl,
+            {
+                ...body,
+                chart: {
+                    ...body.chart,
+                    chartConfig: { type: ChartType.DATA_APP_VIZ },
+                },
+            },
+            { failOnStatusCode: false },
+        );
+        expect(refused.status).toBe(400);
+        expect(refused.body.error.message).toContain('custom chart types');
+    });
 });
