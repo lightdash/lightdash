@@ -26,9 +26,9 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
+import { useUncontrolled } from '@mantine/hooks';
 import { IconAlertTriangle, IconPlus, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useRef, type FC } from 'react';
-import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
 import {
     type FieldsWithSuggestions,
@@ -48,6 +48,9 @@ type Props = {
     setFilters: (value: Filters) => void;
     isEditMode: boolean;
     compact?: boolean;
+    /** Lets a parent open the "add filter" field picker, e.g. from a header. */
+    addFilterOpened?: boolean;
+    onAddFilterOpenedChange?: (opened: boolean) => void;
 };
 
 type InvalidFilterRule =
@@ -122,16 +125,19 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
             {!isOpen ? (
                 <Group
                     align="center"
-                    justify={totalFilterRules > 0 ? 'space-between' : 'center'}
+                    justify={
+                        totalFilterRules > 0 ? 'space-between' : 'flex-start'
+                    }
+                    gap="xs"
                     flex={1}
                 >
+                    {totalFilterRules === 0 && (
+                        <Text fz="xs" c="dimmed">
+                            No filters yet.
+                        </Text>
+                    )}
                     <Button
                         variant={totalFilterRules > 0 ? 'light' : 'subtle'}
-                        className={
-                            totalFilterRules > 0
-                                ? undefined
-                                : classes.addFirstFilter
-                        }
                         size="xs"
                         leftSection={<MantineIcon icon={IconPlus} />}
                         disabled={fields.length <= 0}
@@ -184,10 +190,22 @@ const FiltersFormComponent: FC<Props> = ({
     setFilters,
     isEditMode,
     compact = false,
+    addFilterOpened,
+    onAddFilterOpenedChange,
 }) => {
     // const theme = useMantineTheme();
     const { itemsMap, baseTable } = useFiltersContext<FieldsWithSuggestions>();
-    const [isOpen, toggleFieldInput] = useToggle(false);
+    const [isOpen, setIsOpen] = useUncontrolled({
+        value: addFilterOpened,
+        defaultValue: false,
+        onChange: onAddFilterOpenedChange,
+    });
+    // Also used as a click handler, so anything but a boolean means "toggle"
+    const toggleFieldInput = useCallback(
+        (next?: unknown) =>
+            setIsOpen(typeof next === 'boolean' ? next : !isOpen),
+        [isOpen, setIsOpen],
+    );
     const fields = useMemo<FieldWithSuggestions[]>(() => {
         return Object.values(itemsMap);
     }, [itemsMap]);

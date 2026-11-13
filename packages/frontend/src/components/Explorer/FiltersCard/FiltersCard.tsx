@@ -15,7 +15,8 @@ import {
     type FilterExpression,
     type Filters,
 } from '@lightdash/common';
-import { Badge, Box, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Text, Tooltip } from '@mantine/core';
+import { IconPlus } from '@tabler/icons-react';
 import {
     memo,
     useCallback,
@@ -48,9 +49,11 @@ import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehous
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
+import { COLLAPSABLE_CARD_ACTION_ICON_PROPS } from '../../common/CollapsableCard/constants';
 import FiltersForm from '../../common/Filters';
 import { getConditionalRuleLabelFromItem } from '../../common/Filters/FilterInputs/utils';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
+import MantineIcon from '../../common/MantineIcon';
 import classes from './FiltersCard.module.css';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
@@ -59,6 +62,7 @@ const QueryAFiltersCard: FC = memo(() => {
 
     const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
     const hasSelectedFields = useExplorerSelector(selectHasSelectedFields);
+    const [isAddingFilter, setIsAddingFilter] = useState(false);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
@@ -396,6 +400,28 @@ const QueryAFiltersCard: FC = memo(() => {
                     : ''
             }
             onToggle={() => toggleExpandedSection(ExplorerSection.FILTERS)}
+            rightHeaderElement={
+                isEditMode &&
+                !!tableName &&
+                !isInactive && (
+                    <Tooltip label="Add filter" position="bottom">
+                        <ActionIcon
+                            {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
+                            aria-label="Add filter"
+                            onClick={() => {
+                                if (!filterIsOpen) {
+                                    toggleExpandedSection(
+                                        ExplorerSection.FILTERS,
+                                    );
+                                }
+                                setIsAddingFilter(true);
+                            }}
+                        >
+                            <MantineIcon icon={IconPlus} />
+                        </ActionIcon>
+                    </Tooltip>
+                )
+            }
             headerElement={
                 <>
                     {totalActiveFilters > 0 && !filterIsOpen ? (
@@ -408,10 +434,10 @@ const QueryAFiltersCard: FC = memo(() => {
                             }
                             position="bottom-start"
                         >
-                            <Badge>
+                            <Text fz="xs" c="dimmed">
                                 {totalActiveFilters} active filter
                                 {totalActiveFilters === 1 ? '' : 's'}
-                            </Badge>
+                            </Text>
                         </Tooltip>
                     ) : null}
                     {totalActiveFilters > 0 && filterIsOpen && !isEditMode ? (
@@ -444,6 +470,8 @@ const QueryAFiltersCard: FC = memo(() => {
                         isEditMode={isEditMode}
                         filters={processedFilters}
                         setFilters={setFilters}
+                        addFilterOpened={isAddingFilter}
+                        onAddFilterOpenedChange={setIsAddingFilter}
                     />
                 </FiltersProvider>
             )}

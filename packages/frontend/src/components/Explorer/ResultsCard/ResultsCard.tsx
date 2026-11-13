@@ -5,6 +5,7 @@ import {
     Group,
     Popover,
     SegmentedControl,
+    Text,
     Tooltip,
 } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
@@ -137,6 +138,16 @@ const ResultsCard: FC = memo(() => {
                 // Hide header controls when in grouped view
                 isGroupedView ? null : (
                     <Group wrap="nowrap" gap="xs">
+                        {resultsExport.totalResults !== undefined &&
+                            resultsExport.totalResults > 0 &&
+                            !isStale && (
+                                <Text fz="xs" c="dimmed">
+                                    {resultsExport.totalResults.toLocaleString()}{' '}
+                                    {resultsExport.totalResults === 1
+                                        ? 'row'
+                                        : 'rows'}
+                                </Text>
+                            )}
                         {tableName && sorts.length > 0 && (
                             <SortButton isEditMode={isEditMode} sorts={sorts} />
                         )}

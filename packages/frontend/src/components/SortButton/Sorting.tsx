@@ -10,10 +10,10 @@ import {
     Button,
     Group,
     Select,
-    Text,
+    Stack,
     Tooltip,
 } from '@mantine/core';
-import { IconGripVertical, IconMinus, IconPlus } from '@tabler/icons-react';
+import { IconGripVertical, IconPlus, IconX } from '@tabler/icons-react';
 import { forwardRef, useCallback, useState } from 'react';
 import { type Props } from '.';
 import {
@@ -78,6 +78,25 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
         [dispatch, sorts],
     );
 
+    // Swaps the field a sort is on, keeping its direction and nulls position
+    const changeSortField = useCallback(
+        (identity: PivotSortIdentity, fieldId: string) => {
+            const newSorts = sorts.map((s) =>
+                matchesIdentity(s, identity)
+                    ? {
+                          fieldId,
+                          descending: s.descending,
+                          ...(s.nullsFirst !== undefined && {
+                              nullsFirst: s.nullsFirst,
+                          }),
+                      }
+                    : s,
+            );
+            dispatch(explorerActions.setSortFields(newSorts));
+        },
+        [dispatch, sorts],
+    );
+
     const moveSortFields = useCallback(
         (sourceIndex: number, destinationIndex: number) => {
             const newSorts = [...sorts];
@@ -105,7 +124,7 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
         }),
     );
 
-    const addOptions = columns
+    const columnOptions = columns
         .map((c) => {
             const item = c.meta?.item;
             if (!item || !c.id) return null;
@@ -114,13 +133,10 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
             return { fieldId: c.id, item, label } as IdentityWithItem;
         })
         .filter((c): c is IdentityWithItem => c !== null)
-        .filter(
-            (opt) =>
-                !sorts.some((s) =>
-                    matchesIdentity(s, { fieldId: opt.fieldId }),
-                ),
-        )
         .map((opt) => ({ value: opt.fieldId, label: opt.label }));
+    const addOptions = columnOptions.filter(
+        (opt) => !sorts.some((s) => matchesIdentity(s, { fieldId: opt.value })),
+    );
 
     const resetAddState = () => setIsAddingSort(false);
 
@@ -133,7 +149,7 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
     const hasAddableSomething = addOptions.length > 0;
 
     return (
-        <>
+        <Stack gap="xs">
             <SortableList
                 items={sortKeys}
                 onReorder={(from, to) => moveSortFields(from, to)}
@@ -150,12 +166,19 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                                 <SortItem
                                     isEditMode={isEditMode}
                                     sortable={sortable}
-                                    isFirstItem={index === 0}
                                     isOnlyItem={sorts.length === 1}
                                     sort={sort}
                                     column={columns.find(
                                         (c) => c.id === sort.fieldId,
                                     )}
+                                    fieldOptions={columnOptions.filter(
+                                        (opt) =>
+                                            opt.value === sort.fieldId ||
+                                            addOptions.includes(opt),
+                                    )}
+                                    onChangeField={(fieldId) => {
+                                        changeSortField(identity, fieldId);
+                                    }}
                                     onAddSortField={(opts) => {
                                         addSortField(identity, opts);
                                     }}
@@ -177,31 +200,18 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
 
             {isEditMode && hasAddableSomething && (
                 <>
-                    {!isAddingSort ? (
-                        <Button
-                            variant="light"
-                            color="gray"
-                            size="compact-xs"
-                            onClick={() => setIsAddingSort(true)}
-                            leftSection={<MantineIcon icon={IconPlus} />}
-                        >
-                            Add sort
-                        </Button>
-                    ) : (
-                        <Group wrap="nowrap" gap="sm" pl="xs" py="two">
-                            {sorts.length > 0 && (
-                                <MantineIcon
-                                    color="ldGray.5"
-                                    opacity={0.9}
-                                    icon={IconGripVertical}
-                                    className={classes.grabHandle}
-                                />
-                            )}
-                            <Text fz="xs">then by</Text>
+                    {isAddingSort && (
+                        <Group wrap="nowrap" gap="xs" miw={500}>
+                            <MantineIcon
+                                icon={IconGripVertical}
+                                className={classes.placeholderHandle}
+                            />
                             <Select
-                                placeholder="Column"
+                                aria-label="Sort field"
+                                placeholder="Choose a field to sort by"
                                 size="xs"
                                 searchable
+                                autoFocus
                                 data={addOptions}
                                 value={null}
                                 onChange={handleAdd}
@@ -209,15 +219,29 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                                 comboboxProps={{ withinPortal: false }}
                             />
                             <Tooltip label="Cancel">
-                                <ActionIcon size="xs" onClick={resetAddState}>
-                                    <MantineIcon icon={IconMinus} />
+                                <ActionIcon
+                                    aria-label="Cancel"
+                                    size="sm"
+                                    onClick={resetAddState}
+                                >
+                                    <MantineIcon icon={IconX} />
                                 </ActionIcon>
                             </Tooltip>
                         </Group>
                     )}
+                    <Button
+                        variant="default"
+                        size="compact-xs"
+                        className={classes.addSort}
+                        disabled={isAddingSort}
+                        onClick={() => setIsAddingSort(true)}
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                    >
+                        Add sort
+                    </Button>
                 </>
             )}
-        </>
+        </Stack>
     );
 });
 
