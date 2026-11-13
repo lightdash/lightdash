@@ -74,6 +74,7 @@ import {
     ExternalSourcesTable,
 } from './externalSources/ExternalSourcesView';
 import { useManagedExternalSource } from './externalSources/useManagedExternalSource';
+import { JoinDiagram } from './JoinDiagram';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import { LiveSourceManager } from './liveSources/LiveSourceManager';
 import {
@@ -765,6 +766,14 @@ const MainPane: FC<{
                         key={explore.id}
                         projectUuid={view.project.id}
                         modelName={explore.id}
+                        joins={
+                            source?.kind === 'modelled' ? (
+                                <JoinDiagram
+                                    projectUuid={view.project.id}
+                                    exploreName={explore.name}
+                                />
+                            ) : null
+                        }
                         fields={
                             <ExploreBody
                                 // Its live or in-development switch belongs to one model.
