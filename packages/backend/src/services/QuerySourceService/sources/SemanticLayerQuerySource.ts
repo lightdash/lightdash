@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     DimensionType,
     getDimensions,
     getItemId,
@@ -15,6 +16,7 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
+import type { DocumentQueryContext } from '../../DocumentService/DocumentQueryContext';
 import type { ProjectService } from '../../ProjectService/ProjectService';
 import type {
     QuerySourceClient,
@@ -125,6 +127,18 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         };
     }
 
+    private static getBoundContext(binding: SubmitSourceQueryArgs['binding']): {
+        documentQueryContext?: DocumentQueryContext;
+    } {
+        if (binding === null) return {};
+        switch (binding.kind) {
+            case 'document':
+                return { documentQueryContext: binding.context };
+            default:
+                return assertUnreachable(binding.kind, 'Unknown run binding');
+        }
+    }
+
     // eslint-disable-next-line class-methods-use-this
     getQueryReferences(): string[] {
         return [];
@@ -140,7 +154,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         userAttributeOverrides,
         invalidateCache,
         pivotConfiguration,
-        documentQueryContext,
+        binding,
     }: SubmitSourceQueryArgs): Promise<{
         queryUuid: string;
         cacheHit: boolean;
@@ -150,7 +164,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         const metricQuery = metricQueryOfSemanticNode(sourceQuery);
 
         const results = await this.asyncQueryService.executeAsyncMetricQuery({
-            ...(documentQueryContext ? { documentQueryContext } : {}),
+            ...SemanticLayerQuerySource.getBoundContext(binding),
             account,
             projectUuid,
             metricQuery,
