@@ -3569,15 +3569,16 @@ export class CoderService extends BaseService {
             projectUuid,
             slug,
         );
-        if (existing && !existing.deleted) {
-            const stored = await this.composerChartModel.get(existing.uuid);
+        const live = existing && !existing.deleted ? existing : null;
+        if (live) {
+            const stored = await this.composerChartModel.get(live.uuid);
             const [current] = await this.getComposerChartsAsCode(projectUuid, [
                 { ...stored, dashboardSlug: file.dashboardSlug, spaceSlug: '' },
             ]);
             if (isComposerChartAsCodeUnchanged(file, current)) {
                 return {
                     action: PromotionAction.NO_CHANGES,
-                    composerChartUuid: existing.uuid,
+                    composerChartUuid: live.uuid,
                 };
             }
         }
@@ -3600,16 +3601,15 @@ export class CoderService extends BaseService {
             ),
         };
 
-        const [dashboard] =
-            existing && !existing.deleted
-                ? []
-                : await this.dashboardModel.find({
-                      projectUuid,
-                      slug: file.dashboardSlug,
-                  });
+        const [dashboard] = live
+            ? []
+            : await this.dashboardModel.find({
+                  projectUuid,
+                  slug: file.dashboardSlug,
+              });
         let dashboardUuid = dashboard?.uuid;
         let placeholderUuid: string | null = null;
-        if (dashboardUuid === undefined && !(existing && !existing.deleted)) {
+        if (dashboardUuid === undefined && !live) {
             placeholderUuid = await this.createPlaceholderDashboard(
                 user,
                 projectUuid,
@@ -3633,10 +3633,7 @@ export class CoderService extends BaseService {
                     },
                 );
             return {
-                action:
-                    existing && !existing.deleted
-                        ? PromotionAction.UPDATE
-                        : PromotionAction.CREATE,
+                action: live ? PromotionAction.UPDATE : PromotionAction.CREATE,
                 composerChartUuid,
             };
         } catch (error) {

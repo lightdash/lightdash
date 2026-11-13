@@ -906,6 +906,10 @@ describe('Composer charts', () => {
             expect((await getChart(chart.uuid)).body.results.versionUuid).toBe(
                 chart.versionUuid,
             );
+            expect(await downloadChart(chart.slug)).toMatchObject({
+                pipeline: file.pipeline,
+                chart: file.chart,
+            });
             expect(
                 composerChartUuidsOn(await getDashboard(dashboard.uuid)),
             ).toEqual([chart.uuid]);
@@ -946,6 +950,29 @@ describe('Composer charts', () => {
             expect(
                 composerChartUuidsOn(await getDashboard(dashboard.uuid)),
             ).toEqual([stored.uuid]);
+        });
+
+        it('creates a placeholder dashboard for a chart naming one that does not exist', async () => {
+            const { chart } = await createDashboardWithSqlChart();
+            const dashboardSlug = uniqueName('composer placeholder')
+                .toLowerCase()
+                .replace(/\W+/g, '-');
+            const file = {
+                ...(await downloadChart(chart.slug)),
+                slug: `${dashboardSlug}-chart`,
+                dashboardSlug,
+            };
+            const created = await uploadChart(file);
+            expect(created.status).toBe(200);
+            const stored = (
+                await getChart(created.body.results.composerChartUuid)
+            ).body.results;
+            tracker.trackDashboard(stored.dashboardUuid);
+            const placeholder = await getDashboard(stored.dashboardUuid);
+            expect(placeholder).toMatchObject({
+                slug: dashboardSlug,
+                tiles: [],
+            });
         });
 
         it('appends a version for a changed file, keeping the chart on its dashboard', async () => {
@@ -1063,7 +1090,7 @@ describe('Composer charts', () => {
             ]);
         });
 
-        it('refuses a chart with a sql node to an org:edit service account, but lets it re-upload one unchanged', async () => {
+        it('refuses a chart with a sql or merge node to an org:edit service account, but lets it re-upload one unchanged', async () => {
             const { chart } = await createDashboardWithSqlChart();
             const file = await downloadChart(chart.slug);
             const account = await admin.post<
@@ -1096,6 +1123,25 @@ describe('Composer charts', () => {
                 );
                 expect(refused.status).toBe(403);
                 expect(refused.body.error.message).toContain('SQL runner');
+
+                const merge = await uploadChart(
+                    {
+                        ...file,
+                        pipeline: {
+                            schemaVersion: 1,
+                            terminalNodeId: 'merged',
+                            nodes: everyKindPipeline.nodes.filter(
+                                ({ nodeId }) =>
+                                    ['amounts', 'counts', 'merged'].includes(
+                                        nodeId,
+                                    ),
+                            ),
+                        },
+                    },
+                    { post },
+                );
+                expect(merge.status).toBe(403);
+                expect(merge.body.error.message).toContain('merge');
             } finally {
                 await admin.delete(
                     `/api/v1/service-accounts/${account.body.results.uuid}`,

@@ -188,11 +188,7 @@ export class ComposerChartService extends BaseService {
         return enabled;
     }
 
-    /**
-     * Every check a submitted write runs, in order: strict parse, the flag,
-     * update on the owning dashboard, the per-node permissions, the custom
-     * chart type. Returns the documents to store.
-     */
+    /** The checks every submitted write runs; returns the documents to store. */
     private async authorizeWrite(
         account: RegisteredAccount,
         projectUuid: string,
@@ -235,7 +231,6 @@ export class ComposerChartService extends BaseService {
         return { pipeline, chart };
     }
 
-    /** The create endpoint. */
     async create(
         account: RegisteredAccount,
         projectUuid: string,
@@ -260,11 +255,7 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.get(uuid);
     }
 
-    /**
-     * Content-as-code upload of a new or changed chart: the create checks,
-     * then a new chart with exactly `slug`, or a version appended to the
-     * chart holding it. An existing chart stays on its dashboard.
-     */
+    /** Content-as-code upload; an existing chart stays on its dashboard. */
     async writeFromCode(
         account: RegisteredAccount,
         projectUuid: string,
