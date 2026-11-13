@@ -56,6 +56,7 @@
 
 /* Tables are plain rows split by a hairline, not filled bands */
 .item[data-sticky-header] :global(.mantine-NavLink-root) {
+    height: 30px;
     border-radius: 0;
 }
 

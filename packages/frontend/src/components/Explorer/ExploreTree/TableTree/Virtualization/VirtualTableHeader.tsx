@@ -60,7 +60,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             closePreview={handleMouseLeave}
             tableMetadata={tableMetadata}
         >
-            <Text truncate fz={13} fw={600}>
+            <Text truncate fz="sm" fw={600}>
                 {table.label}
             </Text>
         </TableItemDetailPreview>
@@ -78,7 +78,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             leftSection={
                 <MantineIcon
                     icon={isJoined ? IconArrowsJoin : IconTable}
-                    size={14}
+                    size={16}
                     color="ldGray.6"
                 />
             }
