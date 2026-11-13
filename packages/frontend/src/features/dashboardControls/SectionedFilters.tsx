@@ -584,6 +584,8 @@ type Props = {
     withParameters?: boolean;
     /** Date zooms after the parameter controls (default true; off in an embed without date zoom). */
     withDateZooms?: boolean;
+    /** Saved filters an embed token keeps off the bar (default none). */
+    hiddenFilters?: DashboardFilterRule[];
 };
 
 // The filter area of a dashboard with sections: Add, then the unsectioned
@@ -601,6 +603,7 @@ export const SectionedFilters: FC<Props> = ({
     triggerClassName,
     withParameters = true,
     withDateZooms = true,
+    hiddenFilters = [],
 }) => {
     const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
     const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -756,7 +759,8 @@ export const SectionedFilters: FC<Props> = ({
             ) ??
                 false)) ||
         (!withDateZooms &&
-            zoomControls.some((control) => control.sectionId === sectionId));
+            zoomControls.some((control) => control.sectionId === sectionId)) ||
+        hiddenFilters.some((rule) => rule.sectionId === sectionId);
     const dateZoomCountOf = (sectionId: string | null) =>
         dateZoomEntries.filter((entry) => entry.sectionId === sectionId).length;
     const setZoomSection = useDateZoomEditorSelector((c) => c.setSection);

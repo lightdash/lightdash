@@ -48,6 +48,7 @@ import type {
     QuerySourceClient,
     SourceQueryAiAttribution,
     SourceQueryExecutionContext,
+    SourceQueryRunBinding,
     SubmitSourceQueryArgs,
 } from './types';
 
@@ -57,11 +58,13 @@ const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
 const organizationUuid = 'test-org-uuid';
 const executionContext: SourceQueryExecutionContext & {
     aiAttribution: SourceQueryAiAttribution | null;
+    binding: SourceQueryRunBinding | null;
 } = {
     parameters: {},
     userAttributeOverrides: {},
     invalidateCache: false,
     aiAttribution: null,
+    binding: null,
 };
 
 const createFakeSource = (
@@ -581,6 +584,7 @@ describe('QuerySourceService', () => {
                 invalidateCache: false,
                 pivotConfiguration: null,
                 plan: null,
+                binding: null,
             };
             const { userAttributeOverrides, ...withoutOverrides } = args;
             // @ts-expect-error omitting the overrides is a compile error, not a silent default

@@ -46,6 +46,7 @@ import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../../../../components/DashboardTiles/UnmetRequirementsPlaceholder';
+import DashboardComposerChartTile from '../../../../../features/composerCharts/components/DashboardComposerChartTile';
 import {
     selectActiveTab,
     selectDashboardFilters,
@@ -398,6 +399,16 @@ const EmbedDashboardGrid: FC<{
                                     key={tile.uuid}
                                     tile={tile}
                                     projectUuid={projectUuid}
+                                />
+                            ) : tile.type ===
+                              DashboardTileTypes.COMPOSER_CHART ? (
+                                <DashboardComposerChartTile
+                                    key={tile.uuid}
+                                    minimal
+                                    tile={tile}
+                                    isEditMode={isEditMode}
+                                    onDelete={() => onDeleteTile(tile)}
+                                    onEdit={onEditTile}
                                 />
                             ) : (
                                 assertUnreachable(
@@ -1183,6 +1194,7 @@ const EmbedDashboard: FC<{
                 .filter(
                     (tile) =>
                         tile.type === DashboardTileTypes.DATA_APP ||
+                        tile.type === DashboardTileTypes.COMPOSER_CHART ||
                         (!hasUnmetFilterRequirements &&
                             (tile.type === DashboardTileTypes.SAVED_CHART ||
                                 tile.type === DashboardTileTypes.SQL_CHART)),
