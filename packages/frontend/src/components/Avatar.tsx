@@ -17,6 +17,7 @@ import {
 } from '@lightdash/common';
 import { Avatar, type AvatarProps } from '@mantine/core';
 import { forwardRef, Fragment } from 'react';
+import { USER_AVATAR_RADIUS } from './Avatar.constants';
 import classes from './Avatar.module.css';
 
 type AvatarClassNames = Partial<
@@ -47,12 +48,22 @@ const mergeClassNames = (
 
 // No photo and no explicit gradient choice falls back to the original plain avatar.
 export const LightdashUserAvatar = forwardRef<HTMLDivElement, Props>(
-    ({ userUuid, avatarUrl, avatarGradient, classNames, ...props }, ref) => {
+    (
+        {
+            userUuid,
+            avatarUrl,
+            avatarGradient,
+            classNames,
+            radius = userUuid ? USER_AVATAR_RADIUS : '100%',
+            ...props
+        },
+        ref,
+    ) => {
         if (avatarUrl) {
             return (
                 <Avatar
                     ref={ref}
-                    radius="100%"
+                    radius={radius}
                     color="initials"
                     src={avatarUrl}
                     imageProps={{ loading: 'lazy' }}
@@ -69,7 +80,7 @@ export const LightdashUserAvatar = forwardRef<HTMLDivElement, Props>(
             return (
                 <Avatar
                     ref={ref}
-                    radius="100%"
+                    radius={radius}
                     color="initials"
                     data-avatar-gradient={avatarGradient}
                     classNames={mergeClassNames(classNames)}
@@ -101,7 +112,7 @@ export const LightdashUserAvatar = forwardRef<HTMLDivElement, Props>(
                     </style>
                     <Avatar
                         ref={ref}
-                        radius="100%"
+                        radius={radius}
                         color="initials"
                         data-avatar-gradient="custom"
                         classNames={mergeClassNames(classNames, meshClassName)}
@@ -124,7 +135,7 @@ export const LightdashUserAvatar = forwardRef<HTMLDivElement, Props>(
                     </style>
                     <Avatar
                         ref={ref}
-                        radius="100%"
+                        radius={radius}
                         color="initials"
                         data-avatar-gradient="custom"
                         classNames={mergeClassNames(classNames, solidClassName)}
@@ -137,7 +148,7 @@ export const LightdashUserAvatar = forwardRef<HTMLDivElement, Props>(
             <Avatar
                 ref={ref}
                 variant="light"
-                radius="100%"
+                radius={radius}
                 color="initials"
                 classNames={classNames}
                 {...props}

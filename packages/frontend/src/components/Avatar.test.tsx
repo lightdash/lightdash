@@ -6,6 +6,55 @@ import { LightdashUserAvatar } from './Avatar';
 const UUID_A = 'b264d83a-9000-426a-85ec-3f9c20f368ce';
 
 describe('LightdashUserAvatar', () => {
+    it.each([
+        ['initials', {}],
+        ['preset', { avatarGradient: 'lilac' }],
+        ['hex', { avatarGradient: '#5e4cff' }],
+        ['mesh', { avatarGradient: 'mesh:2:#5e4cff' }],
+        ['solid', { avatarGradient: 'solid:#5e4cff' }],
+        ['photo', { avatarUrl: '/avatar.png' }],
+    ] as const)(
+        'uses the same proportional crop for %s user avatars',
+        (_, avatarProps) => {
+            renderWithProviders(
+                <LightdashUserAvatar
+                    userUuid={UUID_A}
+                    name="Ada Lovelace"
+                    data-testid="avatar"
+                    {...avatarProps}
+                />,
+            );
+
+            expect(screen.getByTestId('avatar')).toHaveStyle({
+                '--avatar-radius': '37.5%',
+            });
+        },
+    );
+
+    it('preserves an explicit crop override', () => {
+        renderWithProviders(
+            <LightdashUserAvatar
+                userUuid={UUID_A}
+                radius="100%"
+                data-testid="avatar"
+            />,
+        );
+
+        expect(screen.getByTestId('avatar')).toHaveStyle({
+            '--avatar-radius': '100%',
+        });
+    });
+
+    it('preserves the circular crop for non-user images', () => {
+        renderWithProviders(
+            <LightdashUserAvatar src="/agent.png" data-testid="avatar" />,
+        );
+
+        expect(screen.getByTestId('avatar')).toHaveStyle({
+            '--avatar-radius': '100%',
+        });
+    });
+
     it('falls back to the legacy plain avatar with a userUuid but no gradient or photo', () => {
         renderWithProviders(
             <LightdashUserAvatar userUuid={UUID_A} name="Ada Lovelace" />,
