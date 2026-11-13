@@ -1135,6 +1135,55 @@ describe('preview CLI credential refresh', () => {
         expect(saved(f)).toMatchObject(credentials);
         expect(saved(f)).not.toHaveProperty('sshTunnelHost');
     });
+    describe('Snowflake preview on a different warehouse than its parent', () => {
+        const developer = {
+            ...snowflake(),
+            authenticationType: SnowflakeAuthenticationType.PASSWORD,
+            user: 'developer',
+            password: 'fresh-password',
+            refreshToken: undefined,
+            warehouse: 'DEV_WH',
+        };
+        const parentPolicy = {
+            ...snowflake(),
+            warehouse: 'PROD_WH',
+            requireUserCredentials: true,
+        };
+        const refreshDeveloper = async (flagEnabled: boolean) => {
+            const f = setup(developer, { preview: true });
+            f.projectModel.getWarehouseCredentialsForBinding.mockResolvedValue(
+                parentPolicy,
+            );
+            f.featureFlagModel.get.mockImplementation(
+                async ({ featureFlagId }) => ({
+                    enabled:
+                        flagEnabled &&
+                        featureFlagId ===
+                            FeatureFlags.PreviewInheritsAcrossWarehouses,
+                }),
+            );
+            await refresh(f, RequestMethod.CLI, developer);
+            return f;
+        };
+
+        test('does not require user credentials by default', async () => {
+            const f = await refreshDeveloper(false);
+            expect(saved(f)).toMatchObject(developer);
+            expect(saved(f)?.requireUserCredentials).not.toBe(true);
+        });
+
+        test('requires user credentials when the organization inherits across warehouses', async () => {
+            const f = await refreshDeveloper(true);
+            expect(saved(f)).toMatchObject({
+                ...developer,
+                requireUserCredentials: true,
+            });
+            expect(f.featureFlagModel.get).toHaveBeenCalledWith({
+                user: { organizationUuid: f.project.organizationUuid },
+                featureFlagId: FeatureFlags.PreviewInheritsAcrossWarehouses,
+            });
+        });
+    });
     test('preserves the saved tunnel if the upstream credentials are gone', async () => {
         const f = setup({ ...incoming, ...tunnel }, { preview: true });
         f.projectModel.getWarehouseCredentialsForBinding.mockRejectedValue(
