@@ -1,64 +1,32 @@
 # Test composer dashboard
 
-Creates a dashboard holding one composer chart tile on a preview or local
-instance, for proofs and manual checks. Needs the `composer-charts` flag on
-(it is on in previews) and a personal access token of an editor or above.
+A dashboard holding one composer chart tile, for proofs and tests. Never add
+composer tiles to a seeded dashboard: content-as-code upload and promotion
+refuse dashboards that hold them, so `contentAsCode.test.ts` and
+`promotion.test.ts` fail.
+
+One helper, `createComposerDashboard` in
+`packages/api-tests/helpers/composerDashboard.ts`, creates a new dashboard, its
+composer chart and the tile; `deleteComposerDashboard` removes the dashboard
+and, through it, the chart.
+
+On a preview or local instance (needs the `composer-charts` flag, on in
+previews, and a personal access token of an editor or above):
 
 ```bash
-export SITE_URL=https://<preview>.lightdash.dev LDPAT=<token>
-export PROJECT=3675b69e-8324-4110-bdca-059031aa8da3 # seeded Jaffle shop
-
-# 1. A new dashboard. Never use a seeded one: content-as-code and promotion tests read them.
-DASHBOARD=$(curl -s -H "Authorization: ApiKey $LDPAT" -H 'Content-Type: application/json' \
-  "$SITE_URL/api/v1/projects/$PROJECT/dashboards" \
-  -d '{"name":"Composer test dashboard","tiles":[],"tabs":[]}' | jq -r .results.uuid)
-
-# 2. The composer chart, owned by that dashboard.
-CHART=$(curl -s -H "Authorization: ApiKey $LDPAT" -H 'Content-Type: application/json' \
-  "$SITE_URL/api/v2/projects/$PROJECT/composer-charts" -d @- <<EOF | jq -r .results.uuid
-{
-  "dashboardUuid": "$DASHBOARD",
-  "name": "Orders by status",
-  "pipeline": {
-    "schemaVersion": 1,
-    "terminalNodeId": "orders",
-    "nodes": [{
-      "sourceType": "semanticLayer", "nodeId": "orders", "title": "Orders by status",
-      "exploreName": "orders",
-      "dimensions": ["orders_status"], "metrics": ["orders_total_order_amount"]
-    }]
-  },
-  "chart": {
-    "schemaVersion": 1,
-    "columns": [
-      {"reference": "orders_status", "fieldType": "dimension"},
-      {"reference": "orders_total_order_amount", "fieldType": "metric"}
-    ],
-    "chartConfig": {"type": "cartesian", "config": {
-      "layout": {"xField": "orders_status", "yField": ["orders_total_order_amount"]},
-      "eChartsConfig": {}
-    }},
-    "pivotConfig": null,
-    "tableConfig": {"columnOrder": ["orders_status", "orders_total_order_amount"]}
-  }
-}
-EOF
-)
-
-# 3. Its tile, through the ordinary dashboard update.
-curl -s -X PATCH -H "Authorization: ApiKey $LDPAT" -H 'Content-Type: application/json' \
-  "$SITE_URL/api/v1/dashboards/$DASHBOARD" -d @- <<EOF
-{"tabs": [], "filters": {"dimensions": [], "metrics": [], "tableCalculations": []},
- "tiles": [{"type": "composer_chart", "x": 0, "y": 0, "h": 9, "w": 12,
-            "properties": {"title": "Orders", "composerChartUuid": "$CHART", "chartName": null}}]}
-EOF
-
-# 4. A bound run, as any viewer of the dashboard. Poll each queryUuid at
-#    /api/v2/projects/$PROJECT/query/<queryUuid>.
-TILE=$(curl -s -H "Authorization: ApiKey $LDPAT" "$SITE_URL/api/v1/dashboards/$DASHBOARD" | jq -r '.results.tiles[0].uuid')
-curl -s -H "Authorization: ApiKey $LDPAT" -H 'Content-Type: application/json' \
-  "$SITE_URL/api/v2/projects/$PROJECT/composer-charts/$CHART/run" \
-  -d "{\"dashboardUuid\":\"$DASHBOARD\",\"tileUuid\":\"$TILE\",\"dashboardFilters\":{\"dimensions\":[],\"metrics\":[],\"tableCalculations\":[]},\"parameters\":{},\"excludedParameterKeys\":[],\"invalidateCache\":false}"
+SITE_URL=https://<preview>.lightdash.dev LDPAT=<token> \
+  pnpm -F api-tests composer-dashboard create
+# {"dashboardUuid":"…","composerChartUuid":"…","url":"…"}
+SITE_URL=… LDPAT=… pnpm -F api-tests composer-dashboard delete <dashboardUuid>
 ```
 
-Delete the dashboard when done.
+In tests:
+
+```ts
+// packages/api-tests
+const { dashboard, chart } = await createComposerDashboard(apiClientSend(admin));
+tracker.trackDashboard(dashboard.uuid);
+
+// packages/e2e (support/cleanup.ts deletes it when the worker exits)
+const { dashboard, chart } = await createComposerDashboard(api);
+```

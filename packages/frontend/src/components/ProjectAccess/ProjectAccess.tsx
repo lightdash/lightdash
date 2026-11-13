@@ -31,7 +31,14 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { ProjectRoleSetCell } from '../../features/roleSets/components/ProjectRoleSetCell';
 import {
     useMultipleRolesEnabled,
@@ -629,6 +636,8 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
     const table = useContentTable({
         columns,
         data: filteredUsers,
+        // A role change refetches the list; stay on the page being edited.
+        autoResetPageIndex: false,
         enableColumnResizing: false,
         enablePagination: true,
         enableSorting: false,
@@ -752,6 +761,18 @@ const ProjectAccess: FC<ProjectAccessProps> = ({ projectUuid }) => {
             density: 'xs',
         },
     });
+
+    useEffect(() => {
+        table.setPageIndex(0);
+    }, [search, showMembersOnly, table]);
+
+    const filteredUsersCount = filteredUsers.length;
+    useEffect(() => {
+        const lastPageIndex = Math.max(0, table.getPageCount() - 1);
+        if (table.getState().pagination.pageIndex > lastPageIndex) {
+            table.setPageIndex(lastPageIndex);
+        }
+    }, [filteredUsersCount, table]);
 
     return (
         <>

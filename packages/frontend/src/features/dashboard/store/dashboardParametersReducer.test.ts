@@ -363,6 +363,7 @@ describe('dashboardParametersReducer', () => {
                 actions.setTileVirtualViewSavedParameters({
                     tileUuid: 'tile-1',
                     values: { status: 'Shipped' },
+                    isPartial: false,
                 }),
             );
             expect(next.tileVirtualViewSavedParameters).toEqual({
@@ -374,6 +375,7 @@ describe('dashboardParametersReducer', () => {
                     actions.setTileVirtualViewSavedParameters({
                         tileUuid: 'tile-1',
                         values: { status: 'Shipped' },
+                        isPartial: false,
                     }),
                 ),
             ).toBe(next);
@@ -636,6 +638,7 @@ describe('dashboardParametersReducer', () => {
             actions.setTileVirtualViewSavedParameters({
                 tileUuid: 'tile-1',
                 values: { week: 'own' },
+                isPartial: false,
             }),
         ];
 
@@ -698,6 +701,201 @@ describe('dashboardParametersReducer', () => {
             );
             expect(next.tileChartSavedParameters).toEqual({});
             expect(next.tileVirtualViewSavedParameters).toEqual({});
+        });
+    });
+
+    describe('merged chart tiles', () => {
+        // A merged tile reports its primary explore's values only: a partial answer
+        const report = (values: Record<string, string>, isPartial: boolean) =>
+            actions.setTileVirtualViewSavedParameters({
+                tileUuid: 'tile-1',
+                values,
+                isPartial,
+            });
+        const listing = (
+            virtualViewSavedValues: Record<string, Record<string, string>>,
+            source = 'chart-1',
+        ) =>
+            actions.addDiscoveredParameterReferences({
+                references: {},
+                definitions: {},
+                sources: Object.fromEntries(
+                    Object.keys(virtualViewSavedValues).map((tileUuid) => [
+                        tileUuid,
+                        source,
+                    ]),
+                ),
+                chartSavedValues: {},
+                virtualViewSavedValues,
+            });
+        const valuesAfter = (
+            steps: ReturnType<
+                | typeof report
+                | typeof listing
+                | typeof actions.resetChangedTileParameterSources
+                | typeof actions.keepTileParameterState
+            >[],
+        ) =>
+            steps.reduce(reducer, stateWith()).tileVirtualViewSavedParameters[
+                'tile-1'
+            ];
+
+        it.each([
+            ['the listing first', true],
+            ['the tile first', false],
+        ])("ends with the listing's values with %s", (_order, listingFirst) => {
+            const listed = listing({ 'tile-1': { week: 'listed' } });
+            const own = report({ week: 'primary' }, true);
+            expect(
+                valuesAfter(listingFirst ? [listed, own] : [own, listed]),
+            ).toEqual({ week: 'listed' });
+        });
+
+        it.each([
+            ['no listing arrived', []],
+            ['the listing left the tile out', [listing({ 'tile-2': {} })]],
+        ])(
+            "ends with the primary explore's values when %s",
+            (_case, listings) => {
+                expect(
+                    valuesAfter([
+                        ...listings,
+                        report({ week: 'primary' }, true),
+                    ]),
+                ).toEqual({ week: 'primary' });
+            },
+        );
+
+        it.each([
+            ['the tile reports first', true],
+            ['the listing refetch lands first', false],
+        ])(
+            'takes the refetched listing once a chart that ran alone becomes merged, when %s',
+            (_order, tileFirst) => {
+                const becameMerged = report({}, true);
+                const refetch = listing({ 'tile-1': { week: 'saved' } });
+                expect(
+                    valuesAfter([
+                        listing({ 'tile-1': {} }),
+                        report({}, false),
+                        ...(tileFirst
+                            ? [becameMerged, refetch]
+                            : [refetch, becameMerged]),
+                    ]),
+                ).toEqual({ week: 'saved' });
+            },
+        );
+
+        it('follows a later listing refetch', () => {
+            expect(
+                valuesAfter([
+                    listing({ 'tile-1': { week: 'first' } }),
+                    report({}, true),
+                    listing({ 'tile-1': { week: 'second' } }),
+                ]),
+            ).toEqual({ week: 'second' });
+        });
+
+        it("applies the tile's own report again once the chart is no longer merged", () => {
+            expect(
+                valuesAfter([
+                    listing({ 'tile-1': { week: 'listed' } }),
+                    report({ week: 'primary' }, true),
+                    report({ week: 'own' }, false),
+                    listing({ 'tile-1': { week: 'relisted' } }),
+                ]),
+            ).toEqual({ week: 'own' });
+        });
+
+        it('drops the listed values when the tile points at another chart', () => {
+            expect(
+                valuesAfter([
+                    actions.resetChangedTileParameterSources({
+                        'tile-1': 'chart-1',
+                    }),
+                    listing({ 'tile-1': { week: 'listed' } }),
+                    report({ week: 'primary' }, true),
+                    actions.resetChangedTileParameterSources({
+                        'tile-1': 'chart-2',
+                    }),
+                    report({ week: 'other primary' }, true),
+                ]),
+            ).toEqual({ week: 'other primary' });
+        });
+
+        it.each([
+            ['the listing first', true],
+            ['the tile first', false],
+        ])(
+            "lays the listing over the primary explore's values with %s",
+            (_order, listingFirst) => {
+                const listed = listing({ 'tile-1': { week: 'listed' } });
+                const own = report({ week: 'primary', day: 'primary' }, true);
+                // A shared key takes the listing's value; a key only the primary has stays
+                expect(
+                    valuesAfter(listingFirst ? [listed, own] : [own, listed]),
+                ).toEqual({ week: 'listed', day: 'primary' });
+            },
+        );
+
+        it('drops a key the refetched listing no longer has', () => {
+            expect(
+                valuesAfter([
+                    report({ day: 'primary' }, true),
+                    listing({ 'tile-1': { week: 'listed' } }),
+                    listing({ 'tile-1': {} }),
+                ]),
+            ).toEqual({ day: 'primary' });
+        });
+
+        it("keeps the new primary explore's values when the listing refetch failed", () => {
+            expect(
+                valuesAfter([
+                    listing({ 'tile-1': {} }),
+                    report({}, false),
+                    // The chart became merged on a virtual view; no new listing arrived
+                    report({ week: 'new' }, true),
+                ]),
+            ).toEqual({ week: 'new' });
+        });
+
+        it("forgets a removed tile, so a restored one does not take another chart's listing", () => {
+            const steps = [
+                actions.resetChangedTileParameterSources({
+                    'tile-1': 'chart-a',
+                }),
+                // Chart A's listing failed
+                report({ week: 'A' }, true),
+                actions.resetChangedTileParameterSources({
+                    'tile-1': 'chart-b',
+                }),
+                listing({ 'tile-1': { week: 'B' } }, 'chart-b'),
+                report({}, true),
+                // The tile is deleted, then Cancel restores it on chart A
+                actions.keepTileParameterState([]),
+            ];
+            const removed = steps.reduce(reducer, stateWith());
+            expect(removed.tileListedVirtualViewSavedParameters).toEqual({});
+            expect(removed.tilePartialVirtualViewReports).toEqual({});
+            expect(
+                valuesAfter([
+                    ...steps,
+                    actions.resetChangedTileParameterSources({
+                        'tile-1': 'chart-a',
+                    }),
+                    report({ week: 'A' }, true),
+                ]),
+            ).toEqual({ week: 'A' });
+        });
+
+        it('no-ops on a repeated partial report', () => {
+            const state = [
+                listing({ 'tile-1': { week: 'listed' } }),
+                report({ week: 'primary' }, true),
+            ].reduce(reducer, stateWith());
+            expect(reducer(state, report({ week: 'primary' }, true))).toBe(
+                state,
+            );
         });
     });
 
