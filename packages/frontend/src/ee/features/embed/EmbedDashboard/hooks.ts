@@ -69,11 +69,12 @@ export const useEmbedSavedParameters = (
                 ...picks,
                 ...Object.fromEntries(
                     tokenKeys
-                        // A viewer's own pick stays for a parameter they may change
+                        // A viewer's own pick stays for a parameter they may change;
+                        // an empty pick is edit mode's, and the server runs the token value
                         .filter(
                             (key) =>
                                 !(
-                                    key in picks &&
+                                    (picks[key] ?? null) !== null &&
                                     isParameterAllowedInEmbed(
                                         interactivity,
                                         key,

@@ -169,7 +169,7 @@ describe('useEmbedSavedParameters', () => {
         expect(updatePicks({ other: 1 })).toEqual({ region: 'APAC', other: 1 });
     });
 
-    it("keeps a viewer's pick for a parameter they may change, even an empty one", () => {
+    it("keeps a viewer's pick for a parameter they may change, but not an empty one", () => {
         renderHook(() =>
             useEmbedSavedParameters({
                 parameters,
@@ -183,7 +183,7 @@ describe('useEmbedSavedParameters', () => {
 
         expect(updatePicks({ region: 'EMEA', status: null })).toEqual({
             region: 'EMEA',
-            status: null,
+            status: 'placed',
         });
     });
 
