@@ -57,7 +57,10 @@ import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
-import { getFieldColors } from '../../../../../utils/fieldColors';
+import {
+    getFieldColor,
+    getFieldColors,
+} from '../../../../../utils/fieldColors';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
 import { useCustomMetricSourceId } from '../../CustomMetricSourceContext';
@@ -122,22 +125,20 @@ const NavItemIcon = ({
                 {tzAffordance.pinIcon ? (
                     <MantineIcon
                         icon={tzAffordance.pinIcon}
-                        color="inherit"
-                        size={12}
-                        stroke={2}
+                        color={getFieldColor(item)}
+                        size="md"
                     />
                 ) : (
                     <FieldIcon
                         item={item}
-                        color="inherit"
-                        size={12}
-                        stroke={2}
+                        color={getFieldColor(item)}
+                        size="md"
                     />
                 )}
             </Tooltip>
         );
     }
-    return <FieldIcon item={item} color="inherit" size={12} stroke={2} />;
+    return <FieldIcon item={item} color={getFieldColor(item)} size="md" />;
 };
 
 NavItemIcon.displayName = 'NavItemIcon';
@@ -472,8 +473,8 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     // Non-virtualized mode uses NavLink's built-in nesting with childrenOffset
     const pl = useMemo(() => {
         if (isVirtualized) {
-            // Base padding is 8px, each nesting level adds 12px
-            return `${8 + (depth ?? 0) * 12}px`;
+            // Base padding is 12px, each nesting level adds 20px
+            return `${12 + (depth ?? 0) * 20}px`;
         }
         return undefined;
     }, [depth, isVirtualized]);
@@ -547,7 +548,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 }
                             >
                                 <HoverCard.Target>
-                                    <Text truncate fz={13} flex={1}>
+                                    <Text truncate fz="sm" flex={1}>
                                         <Highlight
                                             component="span"
                                             highlight={searchQuery || ''}
@@ -559,14 +560,14 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 </HoverCard.Target>
                                 <HoverCard.Dropdown
                                     hidden={!isHover}
-                                    p="sm"
-                                    miw={240}
-                                    mah={360}
+                                    p="md"
+                                    miw={400}
+                                    mah={500}
                                     /**
                                      * Takes up space to the right, so it's OK to go fairly wide in the interest
                                      * of readability.
                                      */
-                                    maw={340}
+                                    maw={500}
                                     className={`${styles.detailPreviewDropdown} ${previewClasses.previewDropdown}`}
                                     onClick={handleDropdownClick}
                                 >

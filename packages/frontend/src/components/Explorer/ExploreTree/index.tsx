@@ -9,7 +9,7 @@ import {
     type Explore,
     type Metric,
 } from '@lightdash/common';
-import { ActionIcon, Loader, TextInput } from '@mantine/core';
+import { TextInput, Loader, ActionIcon } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import {
@@ -361,8 +361,6 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         <CustomMetricSourceContext.Provider value={customMetricSourceId}>
             <FieldFilterTargetContext.Provider value={filterTarget ?? null}>
                 <TextInput
-                    size="xs"
-                    leftSectionWidth={34}
                     leftSection={<MantineIcon icon={IconSearch} />}
                     rightSectionPointerEvents={isPending ? 'none' : 'all'}
                     rightSection={

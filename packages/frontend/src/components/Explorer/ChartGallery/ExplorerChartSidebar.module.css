@@ -1,21 +1,4 @@
-/* The whole panel runs a size down. Mantine resolves its size tokens at
-   :root, so they are restated here to pick up the smaller scale. */
 .root {
-    --mantine-scale: 0.875;
-    --mantine-font-size-xs: 0.6875rem;
-    --mantine-font-size-sm: 0.75rem;
-    --mantine-font-size-md: 0.875rem;
-    --mantine-font-size-lg: 1rem;
-    --mantine-font-size-xl: 1.125rem;
-    --mantine-spacing-xxs: calc(0.125rem * var(--mantine-scale));
-    --mantine-spacing-xs: calc(0.5rem * var(--mantine-scale));
-    --mantine-spacing-sm: calc(0.75rem * var(--mantine-scale));
-    --mantine-spacing-md: calc(1rem * var(--mantine-scale));
-    --mantine-spacing-lg: calc(1.25rem * var(--mantine-scale));
-    --mantine-spacing-xl: calc(1.5rem * var(--mantine-scale));
-    --mantine-spacing-xxl: calc(2rem * var(--mantine-scale));
-
-    font-size: var(--mantine-font-size-sm);
     height: 100%;
     min-height: 0;
     padding: var(--mantine-spacing-md);

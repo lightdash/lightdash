@@ -5,6 +5,7 @@ import {
     Loader,
     Stack,
     Text,
+    Title,
     useMantineColorScheme,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -23,43 +24,11 @@ import {
 import { useCompiledSql } from '../hooks/useCompiledSql';
 import { useExploreWarehouseConnection } from '../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../hooks/useProjectUuid';
-import RunningBar from './common/RunningBar';
 import Editor, { type BeforeMount, type EditorProps } from './MonacoEditor';
 
 const MONACO_READ_ONLY: EditorProps['options'] = {
     ...MONACO_DEFAULT_OPTIONS,
     readOnly: true,
-    domReadOnly: true,
-    // A viewer, not an editor: no cursor line, guides, folding or ruler
-    renderLineHighlight: 'none',
-    guides: { indentation: false },
-    folding: false,
-    overviewRulerLanes: 0,
-    hideCursorInOverviewRuler: true,
-    lineNumbersMinChars: 3,
-    lineDecorationsWidth: 14,
-    padding: { top: 4, bottom: 16 },
-    fontSize: 12.5,
-    lineHeight: 21,
-    scrollbar: {
-        useShadows: false,
-        verticalScrollbarSize: 8,
-        horizontalScrollbarSize: 8,
-    },
-};
-
-const READ_ONLY_LINE_NUMBER_COLOR = { light: '#b4b4bd', dark: '#5c5c66' };
-
-const getReadOnlyTheme = (colorScheme: 'light' | 'dark') => {
-    const theme = getLightdashMonacoTheme(colorScheme);
-    return {
-        ...theme,
-        colors: {
-            ...theme.colors,
-            'editorLineNumber.foreground':
-                READ_ONLY_LINE_NUMBER_COLOR[colorScheme],
-        },
-    };
 };
 
 export type SqlViewType = 'query' | 'pivotQuery';
@@ -87,16 +56,15 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
     const beforeMount: BeforeMount = useCallback(
         (monaco) => {
             registerMonacoLanguage(monaco, language);
-            // Own theme names: Monaco themes are global and other editors keep theirs
-            monaco.editor.defineTheme('lightdash-light-readonly', {
+            monaco.editor.defineTheme('lightdash-light', {
                 base: 'vs',
                 inherit: true,
-                ...getReadOnlyTheme('light'),
+                ...getLightdashMonacoTheme('light'),
             });
-            monaco.editor.defineTheme('lightdash-dark-readonly', {
+            monaco.editor.defineTheme('lightdash-dark', {
                 base: 'vs-dark',
                 inherit: true,
-                ...getReadOnlyTheme('dark'),
+                ...getLightdashMonacoTheme('dark'),
             });
         },
         [language],
@@ -140,12 +108,12 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
 
     if (isInitialLoading || (merge.isMergeActive && merge.isInitialLoading)) {
         return (
-            <Box mih={60}>
-                <RunningBar label="Compiling SQL" />
-                <Text fz="xs" c="dimmed" ta="center" pt="lg">
+            <Stack my="xs" align="center">
+                <Loader size="lg" color="gray" mt="xs" />
+                <Title order={4} fw={500} c="dimmed">
                     Compiling SQL
-                </Text>
-            </Box>
+                </Title>
+            </Stack>
         );
     }
 
@@ -231,8 +199,8 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
                     options={MONACO_READ_ONLY}
                     theme={
                         colorScheme === 'dark'
-                            ? 'lightdash-dark-readonly'
-                            : 'lightdash-light-readonly'
+                            ? 'lightdash-dark'
+                            : 'lightdash-light'
                     }
                 />
             </Box>

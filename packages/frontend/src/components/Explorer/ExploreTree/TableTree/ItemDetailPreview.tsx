@@ -361,8 +361,8 @@ export const TableItemDetailPreview = ({
                  * Takes up space to the right, so it's OK to go fairly wide in the interest
                  * of readability.
                  */
-                maw={340}
-                p="sm"
+                maw={500}
+                p="md"
                 className={classes.previewDropdown}
                 /**
                  * If we don't stop propagation, users may unintentionally toggle dimensions/metrics

@@ -5,14 +5,12 @@ import MantineIcon from '../../common/MantineIcon';
 
 type SectionHeaderProps = {
     label: string;
-    count: number;
     isExpanded: boolean;
     onToggle: () => void;
 };
 
 const SectionHeader: FC<SectionHeaderProps> = ({
     label,
-    count,
     isExpanded,
     onToggle,
 }) => {
@@ -26,21 +24,18 @@ const SectionHeader: FC<SectionHeaderProps> = ({
             data-tour-hint="Open the {value} section"
             data-tour-value={label}
             disableRightSectionRotation
-            rightSection={
+            rightSection={<></>}
+            leftSection={
                 <MantineIcon
                     icon={isExpanded ? IconChevronDown : IconChevronRight}
                     size={12}
-                    stroke={2}
                     color="dimmed"
                 />
             }
             label={
-                <Group gap={6} wrap="nowrap">
-                    <Text fw={600} fz="xs">
+                <Group>
+                    <Text fw={500} fz="xs" c="dimmed">
                         {label}
-                    </Text>
-                    <Text fz="xs" c="dimmed">
-                        {count}
                     </Text>
                 </Group>
             }

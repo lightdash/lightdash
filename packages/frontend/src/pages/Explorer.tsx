@@ -67,7 +67,7 @@ const ExplorerContent = memo(() => {
             sidebarTitle="Tables and fields"
             {...rightSidebarProps}
             withFullHeight
-            noContentPadding
+            withPaddedContent
         >
             <Explorer />
         </Page>

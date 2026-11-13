@@ -22,7 +22,7 @@ import {
 import { ActionIcon, Box, Group, Menu, Text } from '@mantine/core';
 import {
     IconCopy,
-    IconDotsVertical,
+    IconDots,
     IconFilter,
     IconMinus,
     IconPencil,
@@ -534,7 +534,7 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                                 bg="transparent"
                                 aria-label="Context menu"
                             >
-                                <MantineIcon icon={IconDotsVertical} />
+                                <MantineIcon icon={IconDots} />
                             </ActionIcon>
                         </Menu.Target>
 

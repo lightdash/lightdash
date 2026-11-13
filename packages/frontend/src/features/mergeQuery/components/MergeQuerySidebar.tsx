@@ -232,6 +232,7 @@ export const MergeQuerySidebar: FC<{
                 fields={selectedFields}
                 onDeselect={onPrimaryFieldChange}
                 heading={`Selected for result · ${selectedFields.length}`}
+                showAllFieldsDivider={false}
             />
 
             <Box className={styles.datasets}>
