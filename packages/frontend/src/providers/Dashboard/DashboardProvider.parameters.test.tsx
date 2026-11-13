@@ -4,10 +4,12 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
 import {
+    dashboardParametersActions,
     selectAppliedParameterValues,
     selectDashboardParameters,
     selectMissingRequiredParameters,
     selectParameterValues,
+    useDashboardDispatch,
     useDashboardSelector,
 } from '../../features/dashboard/store';
 import DashboardProvider from './DashboardProvider';
@@ -58,10 +60,14 @@ const savedParameters = {
     status: { parameterName: 'status', value: 'Shipped' },
 };
 
-const renderParameters = (path = '/dashboard/dashboard-uuid') =>
+const renderParameters = (
+    path = '/dashboard/dashboard-uuid',
+    isEditModeExternal = false,
+) =>
     renderHook(
         () => ({
             ...useDashboardContext((context) => context),
+            dispatch: useDashboardDispatch(),
             dashboardParameters: useDashboardSelector(
                 selectDashboardParameters,
             ),
@@ -81,7 +87,9 @@ const renderParameters = (path = '/dashboard/dashboard-uuid') =>
                         <Route
                             path="/dashboard/:dashboardUuid/:mode?"
                             element={
-                                <DashboardProvider>
+                                <DashboardProvider
+                                    isEditModeExternal={isEditModeExternal}
+                                >
                                     {children}
                                 </DashboardProvider>
                             }
@@ -134,6 +142,20 @@ describe('ParameterChanged embed event', () => {
         const { result } = renderParameters('/dashboard/dashboard-uuid/edit');
         act(() => result.current.setSavedParameters(savedParameters));
         act(() => result.current.setParameter('status', 'Cancelled'));
+        expect(parameterChangedCalls()).toEqual([]);
+    });
+
+    it('stays quiet when an embed editor enters edit mode', () => {
+        const { result } = renderParameters(undefined, true);
+        act(() => result.current.setSavedParameters(savedParameters));
+        act(() => result.current.setParameter('status', 'Cancelled'));
+        mocks.dispatchEmbedEvent.mockClear();
+
+        act(() => {
+            result.current.dispatch(
+                dashboardParametersActions.setIsEditMode(true),
+            );
+        });
         expect(parameterChangedCalls()).toEqual([]);
     });
 });
