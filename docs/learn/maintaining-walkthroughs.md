@@ -81,7 +81,7 @@ The Learn owners (the Customer Success team, Linear project Lightdash University
 
 The smoke starts each walkthrough as a learner and completes it by clicking only what the walkthrough highlights. It needs a running instance with Learn on:
 
-1. Start the instance (`/docker-dev`). Learn has no feature flag, so it is on in development and in Rainbow previews.
+1. Start the instance (`scripts/dev-fast-start.sh`). Learn has no feature flag, so it is on in development and in Rainbow previews.
 2. As an organization admin, open Learn and press **Enable Learn** (or `POST /api/v1/org/training-project`). This creates the training project.
 3. Run the smoke as a non-admin account. On the development seed that is the viewer, `demo3@lightdash.com`:
 
