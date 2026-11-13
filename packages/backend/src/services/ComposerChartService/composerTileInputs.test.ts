@@ -341,6 +341,25 @@ describe('applyDashboardParametersToComposerNodes', () => {
     });
 });
 
+describe('applyDashboardParametersToComposerNodes shared map', () => {
+    it('is not narrowed by a semantic-layer explore', () => {
+        const restricted = buildExplore('orders', ['status'], {
+            parameters: { region: { label: 'Region', options: ['eu'] } },
+        });
+        const result = applyDashboardParametersToComposerNodes({
+            nodes: [ordersNode, sqlNode],
+            exploreByNodeId: { orders: restricted },
+            projectDefinitions: {},
+            dashboardValues: { 'orders.region': 'us' },
+            excludedKeys: [],
+        });
+        expect(result.parameters).toEqual({ 'orders.region': 'us' });
+        expect(nodeById(result.nodes, 'orders')).toMatchObject({
+            parameters: {},
+        });
+    });
+});
+
 describe('getComposerParameterReferences', () => {
     it('reports the references of every node except Python ones', () => {
         expect(

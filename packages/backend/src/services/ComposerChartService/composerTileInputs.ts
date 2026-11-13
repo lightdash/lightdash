@@ -112,9 +112,9 @@ export const applyDashboardParametersToComposerNodes = ({
                 }),
             };
         }),
-        // A composer chart stores no shared values of its own
+        // No shared values are stored; project definitions only, so no explore's options narrow other tiers
         parameters: getDashboardTileParameterOverrides({
-            definitions: definitionsFor(Object.values(exploreByNodeId)),
+            definitions: definitionsFor([]),
             dashboardValues,
             chartSavedValues: {},
             excludedKeys,
