@@ -25,13 +25,13 @@ import { useDateZoomEditorSelector } from './useDateZoomEditor';
 const { tileHoverOwner } = vi.hoisted(() => ({
     tileHoverOwner: { current: null as string | null },
 }));
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditorSelector: (
         selector: (c: Record<string, unknown>) => unknown,
     ) =>
         selector({
             isMapping: false,
-            isSidebarOpen: false,
+            isEditorOpen: false,
             isViewer: false,
             requestSwitch: (proceed: () => void) => proceed(),
             tileHoverOwner,

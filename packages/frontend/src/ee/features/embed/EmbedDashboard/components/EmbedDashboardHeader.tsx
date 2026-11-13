@@ -21,7 +21,7 @@ type Props = {
     /** Tiles rendered on the active tab */
     activeTiles: DashboardTile[];
     isEditMode?: boolean;
-    /** The filters open in the dashboard's filter rail (default false). */
+    /** The filters open in the dashboard's controls bar editor (default false). */
     isControlsEnabled?: boolean;
 };
 

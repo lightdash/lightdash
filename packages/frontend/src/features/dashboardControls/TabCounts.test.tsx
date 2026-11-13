@@ -27,7 +27,7 @@ type PortalTargetsModule = typeof PortalTargets;
 
 const tileStatus = { current: { sqlChartTilesMetadata: {} } };
 
-const mockSidebar = vi.hoisted(() => ({
+const mockEditor = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const mockDashboardContext = vi.hoisted(() => ({
@@ -44,11 +44,11 @@ const mockPortal = vi.hoisted(() => ({
     },
 }));
 
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebar: () => mockSidebar.current,
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditor: () => mockEditor.current,
+    useControlsEditorSelector: (
         selector: (value: Record<string, unknown>) => unknown,
-    ) => selector(mockSidebar.current),
+    ) => selector(mockEditor.current),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -113,8 +113,8 @@ const rule = (
     ...overrides,
 });
 
-const setSidebar = (overrides: Record<string, unknown> = {}) => {
-    mockSidebar.current = {
+const setEditor = (overrides: Record<string, unknown> = {}) => {
+    mockEditor.current = {
         editingRule: rule(),
         isPlaceholder: false,
         isViewer: false,
@@ -215,7 +215,7 @@ describe('TabCounts', () => {
                 'tile-region': [region],
             },
         };
-        setSidebar();
+        setEditor();
     });
 
     it('counts the filtered tiles out of the tiles on each tab that can take the filter', async () => {
@@ -242,7 +242,7 @@ describe('TabCounts', () => {
     });
 
     it("keeps the whole filter's count whichever chip is hovered or selected", () => {
-        setSidebar({
+        setEditor({
             editingRule: rule({
                 tileTargets: {
                     'tile-region': {
@@ -290,7 +290,7 @@ describe('TabCounts', () => {
         expect(badgeText('tab-2')).toBe('1/2');
         unmount();
 
-        setSidebar({
+        setEditor({
             editingRule: rule({ tileTargets: { 'tile-app': false } }),
         });
         renderWithProviders(<TabCounts />);
@@ -298,7 +298,7 @@ describe('TabCounts', () => {
     });
 
     it('shows no count for a placeholder, but keeps its width', () => {
-        setSidebar({
+        setEditor({
             editingRule: rule({ target: { fieldId: '', tableName: '' } }),
             isPlaceholder: true,
         });
@@ -309,7 +309,7 @@ describe('TabCounts', () => {
     });
 
     it('shows a full reach as a whole fraction', () => {
-        setSidebar({
+        setEditor({
             editingRule: rule({
                 target: { fieldId: 'orders_region', tableName: 'orders' },
             }),
@@ -326,14 +326,14 @@ describe('TabCounts', () => {
         expect(badge('tab-2')).toHaveAttribute('data-reserve', '1/1');
         expect(badge('tab-empty')).toHaveAttribute('data-reserve', '0/0');
 
-        setSidebar({ activeFieldId: 'orders_region' });
+        setEditor({ activeFieldId: 'orders_region' });
         rerender(<TabCounts />);
         expect(badgeText('tab-1')).toBe('2/2');
         expect(badge('tab-1')).toHaveAttribute('data-reserve', '3/3');
     });
 
     it('holds no width on any tab in edit mode while no filter is open', async () => {
-        setSidebar({ editingRule: null });
+        setEditor({ editingRule: null });
         renderWithProviders(<TabCounts />);
 
         TAB_UUIDS.forEach((tabUuid) => {
@@ -348,7 +348,7 @@ describe('TabCounts', () => {
     });
 
     it("renders nothing on a viewer's dashboard while no filter is open", () => {
-        setSidebar({ editingRule: null, isViewer: true });
+        setEditor({ editingRule: null, isViewer: true });
         renderWithProviders(<TabCounts />);
 
         TAB_UUIDS.forEach((tabUuid) =>
@@ -357,7 +357,7 @@ describe('TabCounts', () => {
     });
 
     it("adds no slot for a viewer's new filter until a field is picked", () => {
-        setSidebar({
+        setEditor({
             editingRule: rule({ target: { fieldId: '', tableName: '' } }),
             isPlaceholder: true,
             isViewer: true,
@@ -376,7 +376,7 @@ describe('TabCounts', () => {
     });
 
     it("never counts a viewer's tabs: a viewer never chooses tiles", () => {
-        setSidebar({ isViewer: true, isMapping: false });
+        setEditor({ isViewer: true, isMapping: false });
         renderWithProviders(<TabCounts />);
 
         TAB_UUIDS.forEach((tabUuid) =>
@@ -385,11 +385,11 @@ describe('TabCounts', () => {
     });
 
     it('counts only while tiles are chosen: an open filter keeps its slots empty', () => {
-        setSidebar({ isMapping: false });
+        setEditor({ isMapping: false });
         const { rerender } = renderWithProviders(<TabCounts />);
         TAB_UUIDS.forEach((tabUuid) => expect(badgeText(tabUuid)).toBe(''));
 
-        setSidebar();
+        setEditor();
         rerender(<TabCounts />);
         expect(badgeText('tab-1')).not.toBe('');
     });
@@ -402,7 +402,7 @@ describe('TabCounts', () => {
             );
             expect(badge('tab-1')).toHaveAttribute('data-controls-overlay');
 
-            setSidebar({ isViewer: true });
+            setEditor({ isViewer: true });
             renderWithProviders(<TabCounts hasTabSlots />);
             expect(mockPortal.last?.getSelector('tab-1')).not.toContain(
                 'data-position',
@@ -414,13 +414,13 @@ describe('TabCounts', () => {
             const { rerender } = renderWithProviders(<TabCounts hasTabSlots />);
             expect(mockPortal.last?.lockSiblings).toBe(true);
 
-            setSidebar({ editingRule: null });
+            setEditor({ editingRule: null });
             rerender(<TabCounts hasTabSlots />);
             expect(mockPortal.last?.lockSiblings).toBe(false);
         });
 
         it('takes the menu out for a new filter too', () => {
-            setSidebar({
+            setEditor({
                 editingRule: rule({ target: { fieldId: '', tableName: '' } }),
                 isPlaceholder: true,
             });
@@ -429,7 +429,7 @@ describe('TabCounts', () => {
         });
 
         it("never locks a viewer's tabs", () => {
-            setSidebar({ isViewer: true });
+            setEditor({ isViewer: true });
             renderWithProviders(<TabCounts hasTabSlots />);
             expect(mockPortal.last?.lockSiblings).toBe(false);
         });
@@ -549,7 +549,7 @@ describe('TabCounts', () => {
 
         it('scrolls to the active tab at rest in edit mode', () => {
             const { list } = clipTab();
-            setSidebar({ editingRule: null });
+            setEditor({ editingRule: null });
             renderWithProviders(<TabCounts />);
 
             expect(list.scrollLeft).toBe(100);
@@ -559,7 +559,7 @@ describe('TabCounts', () => {
             const { list } = clipTab();
             const { rerender } = renderWithProviders(<TabCounts />);
             list.scrollLeft = 0;
-            setSidebar({ editingRule: rule({ id: 'other' }) });
+            setEditor({ editingRule: rule({ id: 'other' }) });
             rerender(<TabCounts />);
 
             expect(list.scrollLeft).toBe(0);
@@ -569,7 +569,7 @@ describe('TabCounts', () => {
             const { list } = clipTab();
             const { rerender } = renderWithProviders(<TabCounts />);
             list.scrollLeft = 0;
-            setSidebar();
+            setEditor();
             rerender(<TabCounts />);
             rerender(<TabCounts />);
 

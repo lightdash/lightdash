@@ -1,18 +1,12 @@
-/*
- * Layering: the page canvas (--ld-color-page) holds the chat and one panel on
- * the body colour; the rail and page live inside that panel. Tree and row
- * navigation never animate.
- */
+/* Flat to the page edges: the chat and the workbench split by a line, not cards. Tree and row navigation never animate. */
 .shell {
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: 'workspace agent';
-    gap: var(--mantine-spacing-xs);
     height: 100%;
     min-height: 0;
-    padding: var(--mantine-spacing-xs);
-    background: var(--ld-color-page);
+    background: var(--mantine-color-body);
 }
 
 .shell[data-no-chat='true'] {
@@ -20,7 +14,6 @@
     grid-template-areas: 'workspace';
 }
 
-/* Two cards on the canvas: the chat, and everything it changes. */
 .workspace {
     grid-area: workspace;
     display: flex;
@@ -28,9 +21,6 @@
     min-height: 0;
     min-width: 0;
     overflow: hidden;
-    background: var(--mantine-color-body);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
 }
 
 .toolbar {
@@ -40,10 +30,196 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
-/* Studio reads the person's changes too, and looks the same either way without this. */
-.toolbar[data-my-changes] {
-    border-bottom-color: var(--mantine-color-orange-5);
-    box-shadow: 0 1px 0 var(--mantine-color-orange-5);
+/* Where the person is in the workspace: the models, or the changes the conversation made. */
+.crumb {
+    padding: 4px 6px;
+    border-radius: 6px;
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-sm);
+}
+
+.crumb:hover {
+    background: color-mix(in srgb, var(--mantine-color-text) 5%, transparent);
+}
+
+.crumb[aria-current='page'] {
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+/* Live and Changes: where you are, never what you have open. */
+.views {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--mantine-color-text) 5%, transparent);
+}
+
+.view {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 7px;
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-dimmed);
+    transition:
+        background-color 140ms var(--ease-out),
+        color 140ms var(--ease-out);
+}
+
+.view:hover {
+    color: var(--mantine-color-text);
+}
+
+.view[aria-selected='true'] {
+    background: var(--mantine-color-body);
+    color: var(--mantine-color-text);
+    font-weight: 500;
+    box-shadow:
+        0 0 0 1px var(--mantine-color-default-border),
+        0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.liveDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mantine-color-green-6);
+    transition: box-shadow 140ms var(--ease-out);
+}
+
+.view[aria-selected='true'] .liveDot {
+    box-shadow: 0 0 0 3px var(--mantine-color-green-light);
+}
+
+.tabBadge {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--mantine-color-text) 9%, transparent);
+    font-size: 11px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--mantine-color-text);
+}
+
+.tabBadge[data-tone='attention'] {
+    background: var(--mantine-color-orange-6);
+    color: var(--mantine-color-white);
+}
+
+.busyDot {
+    position: relative;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--mantine-color-violet-6);
+}
+
+.busyDot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: inherit;
+    animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping {
+    75%,
+    100% {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .busyDot::after {
+        animation: none;
+    }
+}
+
+/* The open change: its name, where it stands, and what you can do with it. */
+.changeBar {
+    flex: none;
+    min-height: 46px;
+    padding: 6px var(--mantine-spacing-xs);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    background: color-mix(
+        in srgb,
+        var(--mantine-color-text) 2.5%,
+        var(--mantine-color-body)
+    );
+}
+
+.changeHeader {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.back {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+    transition: color 140ms var(--ease-out);
+}
+
+.back:hover {
+    color: var(--mantine-color-text);
+}
+
+.changeTitleRow {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--mantine-spacing-md);
+}
+
+.changeTitleRow > :last-child {
+    flex: none;
+    margin-left: auto;
+}
+
+.changeTitle {
+    min-width: 0;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+}
+
+.changeMeta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+}
+
+.changeName {
+    max-width: 360px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+}
+
+.stageLine {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .workspaceBody {

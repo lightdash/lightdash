@@ -1,17 +1,24 @@
 import {
+    LightdashMode,
     MobileSignInCodeStatus,
     MobileSignInRefusal,
     type MobileSignInCodeState,
 } from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { maskEmail } from './mobileFormat';
 import MobileSignInLandingPage from './MobileSignInLandingPage';
 import { MobileSignInStep } from './MobileSignInStep';
+import { MOBILE_SIGN_IN_LANDING_STRINGS } from './mobileStrings';
 import { stripMobileSignInFragment } from './stripMobileSignInFragment';
 import { type useMobileSignInCode } from './useMobileSignInCode';
+
+const health = vi.hoisted(() => ({ mode: 'default' }));
+vi.mock('../../hooks/health/useHealth', () => ({
+    default: () => ({ data: { mode: health.mode } }),
+}));
 
 let current: ReturnType<typeof useMobileSignInCode>;
 
@@ -351,8 +358,15 @@ describe('MobileSignInStep', () => {
 });
 
 describe('MobileSignInLandingPage', () => {
-    it('asks the user to install the app and scan again', () => {
+    beforeEach(() => {
+        health.mode = LightdashMode.DEFAULT;
+    });
+
+    it('keeps the original copy and store links outside Cloud', () => {
         renderWithProviders(<MobileSignInLandingPage />);
+        expect(
+            screen.getByText(MOBILE_SIGN_IN_LANDING_STRINGS.body),
+        ).toBeVisible();
         expect(
             screen.getByRole('heading', {
                 name: 'Get the Lightdash app',
@@ -362,6 +376,20 @@ describe('MobileSignInLandingPage', () => {
             screen.getByRole('link', { name: 'Download on the App Store' }),
         ).toBeVisible();
     });
+
+    it.each(Object.values(LightdashMode))(
+        'uses the correct copy in %s mode',
+        (mode) => {
+            health.mode = mode;
+            renderWithProviders(<MobileSignInLandingPage />);
+
+            const expected =
+                mode === LightdashMode.CLOUD_BETA
+                    ? MOBILE_SIGN_IN_LANDING_STRINGS.cloudBody
+                    : MOBILE_SIGN_IN_LANDING_STRINGS.body;
+            expect(screen.getByText(expected)).toBeVisible();
+        },
+    );
 });
 
 describe('stripMobileSignInFragment', () => {

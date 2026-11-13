@@ -130,6 +130,7 @@ export const DEFAULT_UI_STRINGS = {
     'tileMenu.downloadData': 'Download data',
     'tileMenu.exportImage': 'Export image',
     'tileMenu.viewUnderlyingData': 'View underlying data',
+    'tile.composerChart.notAvailable': 'This chart is not available here',
     'dateZoom.defaultZoom': 'Default zoom',
     'dateZoom.none': 'None',
     'dateZoom.viewModeTooltip':
@@ -382,38 +383,6 @@ export const DEFAULT_UI_STRINGS = {
     'filters.unsavedFiltersTooltip': 'Filters you add are not saved',
     'filters.summary.hideFilters': 'Hide filters',
     'filters.summary.hide': 'Hide',
-    'filters.rail.newFilter': 'New filter',
-    'filters.rail.filterName': 'Filter name',
-    'filters.rail.removeFilter': 'Remove filter',
-    'filters.rail.onlyYouSeeFilter': 'Only you see this filter',
-    'filters.rail.collapse': 'Collapse',
-    'filters.rail.tileCount.singular': '{count} tile',
-    'filters.rail.tileCount.plural': '{count} tiles',
-    'filters.rail.countOf': '{applied} of {total}',
-    'filters.rail.tabFraction': '{applied}/{total}',
-    'filters.rail.searchFields': 'Search fields',
-    'filters.rail.noOtherField':
-        'No tile has another field this filter could use',
-    'filters.rail.sqlColumn': 'SQL column',
-    'filters.rail.thisFilter': 'this filter',
-    'filters.rail.tabCountTooltip.singular':
-        '{applied} of {total} tile on this tab is filtered by {subject}',
-    'filters.rail.tabCountTooltip.plural':
-        '{applied} of {total} tiles on this tab are filtered by {subject}',
-    'filters.rail.sectionCount.singular': '{count} filter',
-    'filters.rail.sectionCount.plural': '{count} filters',
-    'filters.rail.untitledSection': 'Untitled section',
-    'filters.rail.collapseSection': 'Collapse section {section}',
-    'filters.rail.expandSection': 'Expand section {section}',
-    'filters.rail.add': 'Add',
-    'filters.rail.discard': 'Discard',
-    'filters.rail.applyChangesFirst': 'Apply changes to {filter} first?',
-    'filters.rail.appliesTo': 'Applies to {tiles}',
-    'filters.rail.chooseTiles': 'Choose tiles',
-    'filters.rail.addField': 'Add a field',
-    'filters.rail.mappingFilters': 'filters',
-    'filters.rail.backToFilter': 'Back to filter',
-    'filters.rail.mappingUsing': 'using',
     'controls.newFilter': 'New filter',
     'controls.filterName': 'Filter name',
     'controls.removeFilter': 'Remove filter',
@@ -684,51 +653,11 @@ export type SdkUiOverrides = Partial<Record<UiStringKey, string>>;
 
 export type UiStringResolver = (key: UiStringKey) => string;
 
-const LEGACY_CONTROL_KEYS: Partial<Record<UiStringKey, UiStringKey>> = {
-    'controls.newFilter': 'filters.rail.newFilter',
-    'controls.filterName': 'filters.rail.filterName',
-    'controls.removeFilter': 'filters.rail.removeFilter',
-    'controls.onlyYouSeeFilter': 'filters.rail.onlyYouSeeFilter',
-    'controls.collapse': 'filters.rail.collapse',
-    'controls.tileCount.singular': 'filters.rail.tileCount.singular',
-    'controls.tileCount.plural': 'filters.rail.tileCount.plural',
-    'controls.countOf': 'filters.rail.countOf',
-    'controls.tabFraction': 'filters.rail.tabFraction',
-    'controls.searchFields': 'filters.rail.searchFields',
-    'controls.noOtherField': 'filters.rail.noOtherField',
-    'controls.sqlColumn': 'filters.rail.sqlColumn',
-    'controls.thisFilter': 'filters.rail.thisFilter',
-    'controls.tabCountTooltip.singular':
-        'filters.rail.tabCountTooltip.singular',
-    'controls.tabCountTooltip.plural': 'filters.rail.tabCountTooltip.plural',
-    'controls.sectionCount.singular': 'filters.rail.sectionCount.singular',
-    'controls.sectionCount.plural': 'filters.rail.sectionCount.plural',
-    'controls.untitledSection': 'filters.rail.untitledSection',
-    'controls.collapseSection': 'filters.rail.collapseSection',
-    'controls.expandSection': 'filters.rail.expandSection',
-    'controls.add': 'filters.rail.add',
-    'controls.discard': 'filters.rail.discard',
-    'controls.applyChangesFirst': 'filters.rail.applyChangesFirst',
-    'controls.appliesTo': 'filters.rail.appliesTo',
-    'controls.chooseTiles': 'filters.rail.chooseTiles',
-    'controls.addField': 'filters.rail.addField',
-    'controls.mappingFilters': 'filters.rail.mappingFilters',
-    'controls.backToFilter': 'filters.rail.backToFilter',
-    'controls.mappingUsing': 'filters.rail.mappingUsing',
-};
-
-/** Prefer the current override, then the equivalent shipped SDK key. */
+/** Prefer the override, then the English default. */
 export const resolveUiString = (
     key: UiStringKey,
     override?: (key: UiStringKey) => string | undefined,
-): string => {
-    const legacyKey = LEGACY_CONTROL_KEYS[key];
-    return (
-        override?.(key) ??
-        (legacyKey === undefined ? undefined : override?.(legacyKey)) ??
-        DEFAULT_UI_STRINGS[key]
-    );
-};
+): string => override?.(key) ?? DEFAULT_UI_STRINGS[key];
 
 export const interpolateUiString = (
     template: string,

@@ -921,6 +921,10 @@ const Settings: FC = () => {
     const isFixedContent = useMemo(() => {
         return (
             !matchPath(
+                { path: '/generalSettings/lightdashAnalytics' },
+                location.pathname,
+            ) &&
+            !matchPath(
                 {
                     path: '/generalSettings/projectManagement',
                     end: true,

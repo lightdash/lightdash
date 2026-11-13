@@ -20,7 +20,8 @@ type MintSchedule = { id: number; at: number };
 
 export const useMobileAppLink = ({
     isPaused = false,
-}: { isPaused?: boolean } = {}) => {
+    enabled = true,
+}: { isPaused?: boolean; enabled?: boolean } = {}) => {
     const lightdashApi = useLightdashApi();
     const isVisible = useDocumentVisibility() === 'visible';
 
@@ -82,7 +83,12 @@ export const useMobileAppLink = ({
                 body: undefined,
             }),
         {
-            enabled: link !== null && isVisible && !hasFailed && !isPaused,
+            enabled:
+                enabled &&
+                link !== null &&
+                isVisible &&
+                !hasFailed &&
+                !isPaused,
             refetchInterval: (data) =>
                 data?.scannedAt ? false : MOBILE_APP_LINK_POLL_INTERVAL_MS,
             refetchIntervalInBackground: false,
@@ -95,7 +101,13 @@ export const useMobileAppLink = ({
     const { mutate, isLoading: isMinting } = mint;
     const firedScheduleId = useRef<number | null>(null);
     useEffect(() => {
-        if (!isVisible || isScanned || isMinting || schedule === null) {
+        if (
+            !isVisible ||
+            isScanned ||
+            isMinting ||
+            !enabled ||
+            schedule === null
+        ) {
             return undefined;
         }
         const fire = () => {
@@ -110,7 +122,7 @@ export const useMobileAppLink = ({
         }
         const timer = window.setTimeout(fire, delay);
         return () => window.clearTimeout(timer);
-    }, [isVisible, isScanned, isMinting, schedule, mutate]);
+    }, [isVisible, isScanned, isMinting, enabled, schedule, mutate]);
 
     return {
         link,

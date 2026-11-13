@@ -3588,7 +3588,11 @@ export class AiAgentService extends BaseService {
 
         let threadScope: EmbedThreadScope;
         if (!isReadOnly) {
-            threadScope = { type: 'writeSpaces', writeSpaceUuids };
+            threadScope = {
+                type: 'writeSpaces',
+                writeSpaceUuids,
+                externalUserId,
+            };
         } else if (externalUserId !== null) {
             threadScope = { type: 'externalUser', externalUserId };
         } else {
@@ -10904,6 +10908,7 @@ export class AiAgentService extends BaseService {
                         runtimeOptions?.userAttributeOverrides ?? {},
                     invalidateCache: false,
                     plans: {},
+                    binding: null,
                     // Re-renders stay unattributed: prompt ids mark tool runs only.
                     aiAttribution: null,
                 });
@@ -11593,6 +11598,7 @@ export class AiAgentService extends BaseService {
                             runtimeOptions?.userAttributeOverrides ?? {},
                         invalidateCache: false,
                         plans: {},
+                        binding: null,
                         // Re-renders stay unattributed: prompt ids mark tool runs only.
                         aiAttribution: null,
                     },
@@ -13877,6 +13883,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                                           user,
                                           projectUuid,
                                           project,
+                                          prompt.threadUuid,
                                       );
                               },
                           }

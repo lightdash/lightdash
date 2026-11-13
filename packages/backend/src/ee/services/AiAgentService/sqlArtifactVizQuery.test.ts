@@ -229,6 +229,7 @@ describe('AiAgentService SQL artifact visualization query', () => {
                     threadScope: {
                         type: 'writeSpaces',
                         writeSpaceUuids: ['space-uuid'],
+                        externalUserId: null,
                     },
                     spaceAccess: ['space-uuid'],
                     readOnlySpaceUuids: [],

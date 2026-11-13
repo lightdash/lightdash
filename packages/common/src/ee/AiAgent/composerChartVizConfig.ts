@@ -1,15 +1,15 @@
 import {
-    DimensionType,
-    FieldType,
-    friendlyName,
-    MetricType,
-    type Dimension,
-    type ItemsMap,
-    type Metric,
-} from '../../types/field';
+    COMPOSER_RESULT_EXPLORE_NAME,
+    ComposerResultColumns,
+    getComposerPivotStage,
+    getComposerResultFieldId,
+    getComposerResultQuery,
+    toComposerResultMetric,
+    toComposerResultRows,
+} from '../../composer/composerResultChart';
+import { DimensionType, type ItemsMap } from '../../types/field';
 import { type MetricQuery } from '../../types/metricQuery';
 import {
-    QuerySourceType,
     type DuckdbSourceQuery,
     type QueryNodeId,
 } from '../../types/querySources';
@@ -20,14 +20,8 @@ import {
     type DataAppVizChart,
     type DataAppVizFieldMapping,
 } from '../../types/savedCharts';
-import { TimeFrames } from '../../types/timeFrames';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { formatItemValue } from '../../utils/formatting';
-import { getItemId } from '../../utils/item';
-import {
-    VizAggregationOptions,
-    VizIndexType,
-} from '../../visualizations/types';
 import { getDataAppVizFieldIds } from '../apps/dataAppVizFieldMapping';
 import { type DataAppVizField } from '../apps/types';
 import { getRunQueryChartConfig } from './chartConfig/web/runQueryTool/getRunQueryChartConfig';
@@ -41,12 +35,6 @@ import {
     type ToolRunQueryArgsTransformed,
     type ToolRunQueryBuiltinChartConfig,
 } from './schemas';
-
-/** Synthetic explore of a composer node result; its fields are the result columns. */
-export const COMPOSER_RESULT_TABLE_NAME = 'composer_result';
-
-export const getComposerResultFieldId = (reference: string): string =>
-    getItemId({ table: COMPOSER_RESULT_TABLE_NAME, name: reference });
 
 export type ComposerRunQueryChart = {
     metricQuery: MetricQuery;
@@ -62,118 +50,10 @@ export type ComposerCustomChartTypeSlot = Pick<
     'name' | 'type'
 >;
 
-// Day-or-coarser truncations are calendar dates, though result columns
-// report the warehouse's timestamp type.
-const CALENDAR_TIME_FRAMES: (TimeFrames | undefined)[] = [
-    TimeFrames.DAY,
-    TimeFrames.WEEK,
-    TimeFrames.MONTH,
-    TimeFrames.QUARTER,
-    TimeFrames.YEAR,
-];
-
 const isTimeType = (type: DimensionType) =>
     type === DimensionType.DATE || type === DimensionType.TIMESTAMP;
 
-const toDimensionType = (column: ResultColumn): DimensionType =>
-    column.type === DimensionType.TIMESTAMP &&
-    CALENDAR_TIME_FRAMES.includes(column.timeInterval)
-        ? DimensionType.DATE
-        : column.type;
-
-const toFieldBase = (column: ResultColumn) => ({
-    table: COMPOSER_RESULT_TABLE_NAME,
-    name: column.reference,
-    label: column.label ?? friendlyName(column.reference),
-    tableLabel: '',
-    sql: '',
-    hidden: false,
-    ...(column.format ? { format: column.format } : {}),
-});
-
-const toDimension = (column: ResultColumn): Dimension => ({
-    ...toFieldBase(column),
-    fieldType: FieldType.DIMENSION,
-    type: toDimensionType(column),
-    ...(column.timeInterval ? { timeInterval: column.timeInterval } : {}),
-});
-
-const toMetric = (column: ResultColumn): Metric => ({
-    ...toFieldBase(column),
-    fieldType: FieldType.METRIC,
-    type: MetricType.NUMBER,
-});
-
 const unique = (values: string[]) => [...new Set(values)];
-
-/** Result columns by reference; rejects references that would share a field id. */
-class ComposerColumns {
-    private readonly byReference: Map<string, ResultColumn>;
-
-    constructor(readonly columns: ResultColumn[]) {
-        this.byReference = new Map(
-            columns.map((column) => [column.reference, column]),
-        );
-        const fieldIds = new Map<string, string>();
-        columns.forEach(({ reference }) => {
-            const fieldId = getComposerResultFieldId(reference);
-            const other = fieldIds.get(fieldId);
-            if (other !== undefined && other !== reference) {
-                throw new Error(
-                    `Columns "${other}" and "${reference}" cannot be charted together`,
-                );
-            }
-            fieldIds.set(fieldId, reference);
-        });
-    }
-
-    get(reference: string): ResultColumn {
-        const column = this.byReference.get(reference);
-        if (!column) {
-            throw new Error(`Column "${reference}" is not in the result`);
-        }
-        return column;
-    }
-
-    isNumeric(reference: string): boolean {
-        return this.byReference.get(reference)?.type === DimensionType.NUMBER;
-    }
-
-    get references(): string[] {
-        return this.columns.map(({ reference }) => reference);
-    }
-}
-
-/** Builds the synthetic query and fields over references; everything downstream reads field ids. */
-const toQuery = (
-    columns: ComposerColumns,
-    dimensions: string[],
-    metrics: string[],
-): { metricQuery: MetricQuery; fields: ItemsMap } => {
-    const fields: ItemsMap = {};
-    dimensions.forEach((reference) => {
-        fields[getComposerResultFieldId(reference)] = toDimension(
-            columns.get(reference),
-        );
-    });
-    metrics.forEach((reference) => {
-        fields[getComposerResultFieldId(reference)] = toMetric(
-            columns.get(reference),
-        );
-    });
-    return {
-        metricQuery: {
-            exploreName: COMPOSER_RESULT_TABLE_NAME,
-            dimensions: dimensions.map(getComposerResultFieldId),
-            metrics: metrics.map(getComposerResultFieldId),
-            filters: {},
-            sorts: [],
-            limit: 5000,
-            tableCalculations: [],
-        },
-        fields,
-    };
-};
 
 type CartesianVizType = 'bar' | 'line' | 'area' | 'scatter';
 type RunQueryBuilderVizType = CartesianVizType | 'pie' | 'funnel';
@@ -215,19 +95,21 @@ const toRunQueryVizType = (
     }
 };
 
-const getTableChart = (columns: ComposerColumns): ComposerRunQueryChart => {
+const getTableChart = (
+    columns: ComposerResultColumns,
+): ComposerRunQueryChart => {
     const { references } = columns;
     const metrics = references.filter((ref) => columns.isNumeric(ref));
     const dimensions = references.filter((ref) => !columns.isNumeric(ref));
     return {
-        ...toQuery(columns, dimensions, metrics),
+        ...getComposerResultQuery(columns, dimensions, metrics),
         chartConfig: { type: ChartType.TABLE },
         pivotColumns: [],
     };
 };
 
 const getBigNumberReferences = (
-    columns: ComposerColumns,
+    columns: ComposerResultColumns,
     vizConfig: ComposerBuiltinChartVizConfig,
 ): { value: string; label: string | null } => {
     const value =
@@ -238,12 +120,12 @@ const getBigNumberReferences = (
 };
 
 const getBigNumberChart = (
-    columns: ComposerColumns,
+    columns: ComposerResultColumns,
     vizConfig: ComposerBuiltinChartVizConfig,
 ): ComposerRunQueryChart => {
     const { value, label } = getBigNumberReferences(columns, vizConfig);
     return {
-        ...toQuery(columns, [], [value]),
+        ...getComposerResultQuery(columns, [], [value]),
         chartConfig: {
             type: ChartType.BIG_NUMBER,
             config: {
@@ -283,7 +165,7 @@ const withUnstackedSecondaryArea = (chartConfig: ChartConfig): ChartConfig => {
 
 /** The runQuery tool query and chart config a builtin composer chart maps onto. */
 const getRunQueryBuilderInput = (
-    columns: ComposerColumns,
+    columns: ComposerResultColumns,
     vizConfig: ComposerBuiltinChartVizConfig,
     type: RunQueryBuilderVizType,
 ) => {
@@ -305,7 +187,11 @@ const getRunQueryBuilderInput = (
         throw new Error(`y2 must not be in y: ${y2}`);
     }
     const metrics = unique([...y, ...(y2 ? [y2] : [])]);
-    const { metricQuery, fields } = toQuery(columns, dimensions, metrics);
+    const { metricQuery, fields } = getComposerResultQuery(
+        columns,
+        dimensions,
+        metrics,
+    );
     const fieldIdOf = getComposerResultFieldId;
     const chartConfig: ToolRunQueryBuiltinChartConfig = {
         defaultVizType: toRunQueryVizType(type, vizConfig.horizontal),
@@ -324,7 +210,7 @@ const getRunQueryBuilderInput = (
 };
 
 const getRunQueryBuilderChart = (
-    columns: ComposerColumns,
+    columns: ComposerResultColumns,
     vizConfig: ComposerBuiltinChartVizConfig,
     type: RunQueryBuilderVizType,
     metadata: { title: string; description: string },
@@ -391,7 +277,7 @@ const getCustomChartTypeReferences = (
 
 /** The custom chart type as a DATA_APP_VIZ chart; columns bound to its series slots pivot. */
 const getCustomChartTypeChart = (
-    columns: ComposerColumns,
+    columns: ComposerResultColumns,
     vizConfig: ComposerStoredCustomChartVizConfig,
     slots: ComposerCustomChartTypeSlot[],
 ): ComposerRunQueryChart => {
@@ -400,7 +286,7 @@ const getCustomChartTypeChart = (
         fieldMapping,
         slots,
     );
-    const { metricQuery, fields } = toQuery(
+    const { metricQuery, fields } = getComposerResultQuery(
         columns,
         [...index, ...split],
         values,
@@ -436,7 +322,7 @@ export const getComposerRunQueryChart = ({
     metadata: { title: string; description: string };
     customChartTypeSlots: ComposerCustomChartTypeSlot[];
 }): ComposerRunQueryChart => {
-    const columns = new ComposerColumns(resultColumns);
+    const columns = new ComposerResultColumns(resultColumns);
     if (vizConfig.type === 'custom') {
         return getCustomChartTypeChart(
             columns,
@@ -462,25 +348,6 @@ export const getComposerRunQueryChart = ({
     }
 };
 
-/** Row keys renamed to field ids, keeping only the chart's fields: builders treat any extra key as data (funnel labels). */
-export const toComposerResultRows = <Value>(
-    chart: Pick<ComposerRunQueryChart, 'metricQuery' | 'fields'>,
-    rows: Record<string, Value>[],
-): Record<string, Value>[] => {
-    const fieldIds = [
-        ...chart.metricQuery.dimensions,
-        ...chart.metricQuery.metrics,
-    ];
-    return rows.map((row) =>
-        Object.fromEntries(
-            fieldIds.map((fieldId) => [
-                fieldId,
-                row[chart.fields[fieldId].name],
-            ]),
-        ),
-    );
-};
-
 export type ComposerBigNumber = { value: string; label: string };
 
 /** A big number's first-row value, formatted as the web card draws it; null when that value is empty. */
@@ -494,14 +361,14 @@ export const getComposerBigNumber = ({
     vizConfig: ComposerStoredChartVizConfig;
 }): ComposerBigNumber | null => {
     if (vizConfig.type !== 'big_number') return null;
-    const composerColumns = new ComposerColumns(columns);
+    const composerColumns = new ComposerResultColumns(columns);
     const { value: reference, label } = getBigNumberReferences(
         composerColumns,
         vizConfig,
     );
     const value = rows[0]?.[reference];
     if (value === null || value === undefined) return null;
-    const metric = toMetric(composerColumns.get(reference));
+    const metric = toComposerResultMetric(composerColumns.get(reference));
     return {
         value: formatItemValue(metric, value),
         label: label ?? metric.label,
@@ -529,7 +396,7 @@ export const getComposerSlackRunQueryChart = ({
 } | null => {
     if (!isComposerSlackImageVizConfig(vizConfig)) return null;
     const { metricQuery, fields, chartConfig } = getRunQueryBuilderInput(
-        new ComposerColumns(resultColumns),
+        new ComposerResultColumns(resultColumns),
         vizConfig,
         vizConfig.type,
     );
@@ -537,7 +404,7 @@ export const getComposerSlackRunQueryChart = ({
         tool: {
             ...metadata,
             queryConfig: {
-                exploreName: COMPOSER_RESULT_TABLE_NAME,
+                exploreName: COMPOSER_RESULT_EXPLORE_NAME,
                 dimensions: metricQuery.dimensions,
                 metrics: metricQuery.metrics,
                 sorts: [],
@@ -602,16 +469,7 @@ const getSplitReferences = (
     }
 };
 
-const quoteIdentifier = (name: string) => `"${name.replaceAll('"', '""')}"`;
-
-const CHART_STAGE_SOURCE_NAME = 'node_result';
-
-/**
- * The chart stage for a series split: a DuckDB query over the presented
- * node's result renaming the split's columns to field ids, then pivoting.
- * Derived from the viz config's references alone; null without a split.
- * source is the presented node's id or result query uuid.
- */
+/** The pivot stage for the viz config's series split over source (the presented node's id or result query uuid); null without a split. */
 export const getComposerChartStage = ({
     vizConfig,
     customChartTypeSlots,
@@ -625,34 +483,13 @@ export const getComposerChartStage = ({
 }): DuckdbSourceQuery | null => {
     const references = getSplitReferences(vizConfig, customChartTypeSlots);
     if (!references) return null;
-    const { index, split, values } = references;
-    const fieldId = getComposerResultFieldId;
-    return {
-        sourceType: QuerySourceType.DUCKDB,
+    return getComposerPivotStage({
+        indexColumns: references.index,
+        pivotColumns: references.split,
+        valueColumns: references.values,
         nodeId,
-        sql: `SELECT ${unique([...index, ...split, ...values])
-            .map(
-                (reference) =>
-                    `${quoteIdentifier(reference)} AS ${quoteIdentifier(fieldId(reference))}`,
-            )
-            .join(', ')} FROM ${quoteIdentifier(CHART_STAGE_SOURCE_NAME)}`,
-        references: { [CHART_STAGE_SOURCE_NAME]: source },
-        pivotConfiguration: {
-            // The pivot reads only the references; the axis type comes from the chart.
-            indexColumn: index.map((reference) => ({
-                reference: fieldId(reference),
-                type: VizIndexType.CATEGORY,
-            })),
-            groupByColumns: split.map((reference) => ({
-                reference: fieldId(reference),
-            })),
-            valuesColumns: values.map((reference) => ({
-                reference: fieldId(reference),
-                aggregation: VizAggregationOptions.ANY,
-            })),
-            sortBy: undefined,
-        },
-    };
+        source,
+    });
 };
 
 type ReferenceCheck = {

@@ -35,6 +35,12 @@ export type SourceQueryExecutionContext = {
     invalidateCache: boolean;
 };
 
+/** Server-built proof that a submission runs a persisted chart; never built from a request. */
+export type SourceQueryRunBinding = {
+    kind: 'document';
+    context: DocumentQueryContext;
+};
+
 /** The AI agent run a batch belongs to, for analytics. */
 export type SourceQueryAiAttribution = {
     aiAgentUuid: string | null;
@@ -55,7 +61,7 @@ export type ValidateSourceQueryArgs = SourceQueryExecutionContext & {
 };
 
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
-    documentQueryContext?: DocumentQueryContext;
+    binding: SourceQueryRunBinding | null;
     account: Account;
     projectUuid: string;
     context: QueryExecutionContext;

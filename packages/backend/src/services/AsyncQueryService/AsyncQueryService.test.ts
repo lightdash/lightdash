@@ -85,6 +85,7 @@ import {
     type CreateBigqueryCredentials,
     type DashboardParameterControl,
     type Document,
+    type DocumentExploreChartContent,
     type DocumentQueryReference,
     type Explore,
     type ItemsMap,
@@ -256,12 +257,14 @@ import {
     cacheMiss,
     MissCacheResult,
 } from '../CacheService/types';
+import { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import { DocumentService } from '../DocumentService/DocumentService';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import * as analyticsClient from '../ProjectService/analyticsProject/analyticsProjectClient';
+import { developmentView } from '../ProjectService/developmentView';
 import { mergePersonalWarehouseCredentials } from '../ProjectService/personalWarehouseCredentials';
 import { type CheckGoogleRefreshToken } from '../ProjectService/previewBigquerySsoCredentials';
 import type { ProjectService } from '../ProjectService/ProjectService';
@@ -7105,6 +7108,7 @@ describe('AsyncQueryService', () => {
                               submission: [],
                               pivotConfiguration: null,
                               plan: null,
+                              binding: null,
                           });
                 await expect(result).rejects.toThrow('Raw SQL');
                 expect(run).not.toHaveBeenCalled();
@@ -19521,6 +19525,76 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         await drainMergeEvents(trackAccount, 1);
     });
 
+    it('refuses a document-bound pipeline node that is not the persisted Document query', async () => {
+        const { service, executeAsyncQuery } = buildServiceWithCompiledLegs();
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'Document', action: 'view' },
+        ]);
+        const [persisted, other] = attributeScopedMergeQuery.sources;
+        if (!('metricQuery' in persisted) || !('metricQuery' in other)) {
+            throw new Error('Expected metric sources');
+        }
+        const context = DocumentQueryContext.fromChart({
+            account,
+            projectUuid,
+            reference: {
+                documentUuid: 'saved-doc',
+                versionUuid: 'saved-version',
+                chartId: 'c1',
+            },
+            content: {
+                source: 'semantic',
+                chart: {
+                    name: 'Saved chart',
+                    tableName: persisted.metricQuery.exploreName,
+                    metricQuery: persisted.metricQuery,
+                    chartConfig: { type: ChartType.TABLE },
+                },
+            } as DocumentExploreChartContent,
+            sourceRowCap: lightdashConfigMock.query.maxLimit,
+        });
+
+        const runner = new QuerySourceService({
+            analytics: analyticsMock,
+            getAsyncQueryService: () => service,
+            getAgentPermissionService: () =>
+                ({ assertOperation: vi.fn() }) as never,
+            projectModel: (service as AnyType).projectModel,
+            featureFlagModel: (service as AnyType).featureFlagModel,
+            queryHistoryModel: service.queryHistoryModel,
+            registry: QuerySourceRegistry.withBuiltInSources({
+                asyncQueryService: service,
+                projectService: service,
+            }),
+        });
+
+        await expect(
+            runner.submitQueries({
+                account,
+                projectUuid,
+                queries: [
+                    {
+                        nodeId: 'other',
+                        sourceType: QuerySourceType.SEMANTIC_LAYER,
+                        exploreName: other.metricQuery.exploreName,
+                        dimensions: other.metricQuery.dimensions,
+                        metrics: other.metricQuery.metrics,
+                    },
+                ],
+                context: QueryExecutionContext.CHART,
+                parameters: {},
+                userAttributeOverrides: {},
+                invalidateCache: false,
+                plans: {},
+                binding: { kind: 'document', context },
+                aiAttribution: null,
+            }),
+        ).rejects.toThrow('Only the persisted Document query can execute');
+        expect(executeAsyncQuery).not.toHaveBeenCalled();
+    });
+
     it('refuses a pivot the composer rejects before any leg runs', async () => {
         const { service, create } = buildService({
             config: lightdashConfigMock,
@@ -19824,6 +19898,7 @@ describe('query sources carry the execution context', () => {
     const submissionDefaults: Omit<SubmitSourceQueryArgs, 'query'> = {
         account: sessionAccount,
         projectUuid,
+        binding: null,
         context: QueryExecutionContext.MULTI_SOURCE_QUERY,
         resolvedReferences: {},
         submission: [],
@@ -21651,6 +21726,31 @@ describe('fresh stored result read boundary', () => {
         service.exportsStorageClient.isEnabled = vi.fn(() => true);
         return { service, access, account, history, reload, currentUser, page };
     };
+    test('checks a result against the unpublished model the development view ran it on', async () => {
+        const f = setupRead();
+        vi.mocked(f.service.projectModel.getExploreFromCache).mockRejectedValue(
+            new NotFoundError('Explore does not exist.'),
+        );
+        const read = () =>
+            f.service.getAsyncQueryHistory({
+                account: f.account,
+                projectUuid,
+                queryUuid: f.history.queryUuid,
+            });
+        await expect(read()).rejects.toThrow(NotFoundError);
+        const inView = (explore: Explore | null) =>
+            developmentView.run(
+                {
+                    findExplores: async () =>
+                        new Map([[metricQueryMock.exploreName, explore]]),
+                    hasChanges: async () => true,
+                },
+                read,
+            );
+        await expect(inView(validExplore)).resolves.toBeDefined();
+        // A model the person's changes remove is refused, like a missing one.
+        await expect(inView(null)).rejects.toThrow(ForbiddenError);
+    });
     test.each(
         [
             AgentActorSurface.IN_APP_AGENT,

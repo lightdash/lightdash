@@ -27,6 +27,7 @@ import filterClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
 import { useFilterTabPlacement } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { ShadowedReservedNameWarning } from '../parameters/components/ShadowedReservedNameWarning';
 import { getParameterDisplayValue } from '../parameters/utils/parameterDisplayValue';
+import { useControlContractClasses } from './controlContractClasses';
 import { ControlEditorPopover } from './ControlEditorPopover';
 import pillClasses from './FilterPills.module.css';
 import { ParameterControlPopover } from './ParameterControlPopover';
@@ -36,9 +37,8 @@ import {
 } from './parameterControlsBar';
 import classes from './ParameterPills.module.css';
 import { BarDroppable, PillDraggable } from './PillDraggable';
-import { useRailContractClasses } from './railContractClasses';
 import { useBarPill } from './useBarPill';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { useIsControlEdited } from './useIsControlEdited';
 import {
     getParameterEntryName,
@@ -142,7 +142,7 @@ const ParameterEditorPopover: FC<{
     bar: ParameterBar;
     children: ReactNode;
 }> = ({ isOpen, entry, bar, children }) => {
-    const filterMapping = useControlsSidebarSelector((c) => c.isMapping);
+    const filterMapping = useControlsEditorSelector((c) => c.isMapping);
     const parameterMapping = useParameterEditorSelector((c) => c.isMapping);
     return (
         <ControlEditorPopover
@@ -162,7 +162,7 @@ const ParameterPill: FC<{
     neighbourIds: string[];
 }> = ({ entry, bar, neighbourIds }) => {
     const getUiString = useUiStrings();
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     const { control, parameters, input, isNeedsValue, isMissing } = entry;
     const isOpen = useParameterEditorSelector(
         (c) => c.editingId === control.id,
@@ -170,7 +170,7 @@ const ParameterPill: FC<{
     const isViewer = useParameterEditorSelector((c) => c.isViewer);
     const open = useParameterEditorSelector((c) => c.open);
     // A filter being edited closes first, or asks on unapplied changes
-    const requestSwitch = useControlsSidebarSelector((c) => c.requestSwitch);
+    const requestSwitch = useControlsEditorSelector((c) => c.requestSwitch);
     const move = useParameterEditorSelector((c) => c.move);
     const remove = useParameterEditorSelector((c) => c.remove);
     const isEditing = useIsControlEdited();

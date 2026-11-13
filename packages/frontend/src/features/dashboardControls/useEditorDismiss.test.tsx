@@ -26,11 +26,11 @@ import {
     useDashboardSelector,
     type DashboardStore,
 } from '../dashboard/store';
-import { ControlsSidebarProvider } from './ControlsSidebarProvider';
+import { ControlsEditorProvider } from './ControlsEditorProvider';
 import {
-    useControlsSidebar,
-    type ControlsSidebarContextValue,
-} from './useControlsSidebar';
+    useControlsEditor,
+    type ControlsEditorContextValue,
+} from './useControlsEditor';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -60,7 +60,7 @@ const initialFilters: DashboardFilters = {
     tableCalculations: [],
 };
 
-const sidebar: { current: ControlsSidebarContextValue | null } = {
+const editor: { current: ControlsEditorContextValue | null } = {
     current: null,
 };
 const onLabelBlur = vi.fn();
@@ -70,9 +70,9 @@ const disabledPills = { current: false };
 
 // Stand-ins with the attributes the real bar, editor and tiles render
 const Page: FC = () => {
-    const value = useControlsSidebar();
-    sidebar.current = value;
-    const { isSidebarOpen, openNew, open, close, discard } = value;
+    const value = useControlsEditor();
+    editor.current = value;
+    const { isEditorOpen, openNew, open, close, discard } = value;
     const filters = useDashboardSelector(selectDashboardFilters);
     return (
         <>
@@ -104,12 +104,12 @@ const Page: FC = () => {
                     </button>
                 ))}
             </div>
-            {isSidebarOpen && (
+            {isEditorOpen && (
                 <div data-controls-editor data-testid="editor">
                     <input
                         aria-label="Label"
                         data-controls-label
-                        onBlur={() => onLabelBlur(sidebar.current?.editing)}
+                        onBlur={() => onLabelBlur(editor.current?.editing)}
                     />
                     <button type="button" aria-pressed>
                         Field row
@@ -178,17 +178,17 @@ const Wrapper: FC = () => {
     return (
         <DashboardStoreTestProvider store={dashboardStore}>
             <MantineProvider>
-                <ControlsSidebarProvider>
+                <ControlsEditorProvider>
                     <Page />
-                </ControlsSidebarProvider>
+                </ControlsEditorProvider>
             </MantineProvider>
         </DashboardStoreTestProvider>
     );
 };
 
 const value = () => {
-    if (sidebar.current === null) throw new Error('expected a provider');
-    return sidebar.current;
+    if (editor.current === null) throw new Error('expected a provider');
+    return editor.current;
 };
 const pill = (id: string) => screen.getByRole('button', { name: `Pill ${id}` });
 const apply = () => screen.getByRole('button', { name: 'Apply' });
@@ -207,14 +207,14 @@ describe('dismissing in the controls editor', () => {
     });
 
     afterEach(() => {
-        sidebar.current = null;
+        editor.current = null;
     });
 
     describe('Escape', () => {
         it('cancels the edit from inside it, focus back on the pill', () => {
             act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
             escape(label());
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
             expect(
                 selectDashboardFilters(store.current!.getState()).dimensions[0],
             ).toEqual(rule('a'));
@@ -264,10 +264,10 @@ describe('dismissing in the controls editor', () => {
             escape(label());
             expect(value().highlightedFieldId).toBeNull();
             expect(value().hoveredFieldId).toBeNull();
-            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isEditorOpen).toBe(true);
 
             escape(label());
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
         });
 
         it('clears a clicked field from the page, then closes from there, never from elsewhere', () => {
@@ -278,11 +278,11 @@ describe('dismissing in the controls editor', () => {
             expect(value().highlightedFieldId).toBeNull();
 
             escape(screen.getByRole('button', { name: 'Tile card' }));
-            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isEditorOpen).toBe(true);
 
             // Focus lost to the page still belongs to the open editor
             escape();
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
         });
 
         it.each([
@@ -300,7 +300,7 @@ describe('dismissing in the controls editor', () => {
 
             escape(label());
             expect(value().highlightedFieldId).toBe('orders_a');
-            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isEditorOpen).toBe(true);
 
             // Closed: the same press now reaches the editor
             target.setAttribute('aria-expanded', 'false');
@@ -323,7 +323,7 @@ describe('dismissing in the controls editor', () => {
             expect(value().isAsking).toBe(false);
 
             escape(apply());
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
         });
 
         it('is left to a combobox marked open by data-expanded', () => {
@@ -333,11 +333,11 @@ describe('dismissing in the controls editor', () => {
             document.body.appendChild(target);
 
             escape(label());
-            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isEditorOpen).toBe(true);
 
             target.removeAttribute('data-expanded');
             escape(label());
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
             target.remove();
         });
 
@@ -347,7 +347,7 @@ describe('dismissing in the controls editor', () => {
             document.body.appendChild(modal);
 
             escape(label());
-            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isEditorOpen).toBe(true);
             modal.remove();
         });
 
@@ -355,7 +355,7 @@ describe('dismissing in the controls editor', () => {
             clickField();
             escape(screen.getByLabelText('Search fields'));
             expect(value().highlightedFieldId).toBe('orders_a');
-            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isEditorOpen).toBe(true);
         });
 
         it('does nothing once another handler has taken it', () => {
@@ -364,7 +364,7 @@ describe('dismissing in the controls editor', () => {
             escape(label());
             window.removeEventListener('keydown', taken, true);
 
-            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isEditorOpen).toBe(true);
         });
 
         it('is listened for only while the editor is open', () => {
@@ -397,7 +397,7 @@ describe('dismissing in the controls editor', () => {
             fireEvent.mouseDown(getTarget());
             fireEvent.click(getTarget());
             expect(value().highlightedFieldId).toBe('orders_a');
-            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isEditorOpen).toBe(true);
         });
 
         it('is never listened for', () => {
@@ -419,7 +419,7 @@ describe('dismissing in the controls editor', () => {
 
         it('closes a clean edit', () => {
             press(screen.getByText('Tile card'));
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
         });
 
         it('lets a label being typed commit into the edit before it is discarded', () => {
@@ -429,14 +429,14 @@ describe('dismissing in the controls editor', () => {
             // Blurred while the editor was still open, so the commit lands
             // in the draft the press then discards, never on the dashboard
             expect(onLabelBlur).toHaveBeenCalledWith({ filterId: 'a' });
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
         });
 
         it('discards unapplied changes with no question', () => {
             act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
             press(document.body);
             expect(value().isAsking).toBe(false);
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
             expect(savedA()).toEqual(rule('a'));
         });
 
@@ -445,7 +445,7 @@ describe('dismissing in the controls editor', () => {
             ['a pill, whose click switches', () => pill('b')],
         ])('on %s does nothing', (_, getTarget) => {
             press(getTarget());
-            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isEditorOpen).toBe(true);
             expect(value().isAsking).toBe(false);
         });
 
@@ -453,7 +453,7 @@ describe('dismissing in the controls editor', () => {
             act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
             const target = screen.getByText('Tile card');
             press(target);
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
             const mouseDown = createEvent.mouseDown(target);
             fireEvent(target, mouseDown);
             expect(mouseDown.defaultPrevented).toBe(false);
@@ -471,10 +471,10 @@ describe('dismissing in the controls editor', () => {
             document.body.appendChild(list);
 
             press(list);
-            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isEditorOpen).toBe(true);
 
             press(screen.getByText('Tile card'));
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
             search.remove();
             list.remove();
         });
@@ -485,7 +485,7 @@ describe('dismissing in the controls editor', () => {
             target.setAttribute('data-expanded', 'true');
             document.body.appendChild(target);
             press(document.body);
-            expect(value().isSidebarOpen).toBe(true);
+            expect(value().isEditorOpen).toBe(true);
             target.remove();
         });
     });
@@ -498,13 +498,13 @@ describe('dismissing in the controls editor', () => {
             fireEvent.click(pill('b'));
             act(() => label().focus());
             fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
             expect(pill('b')).toHaveFocus();
         });
 
         it('goes to "Add" once the pill\'s X removed the edited filter', () => {
             act(() => value().removeFilterById('a'));
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
             expect(screen.queryByText('Pill a')).not.toBeInTheDocument();
             expect(addButton()).toHaveFocus();
         });
@@ -514,7 +514,7 @@ describe('dismissing in the controls editor', () => {
             fireEvent.click(addButton());
             act(() => label().focus());
             escape(label());
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
             expect(addButton()).toHaveFocus();
         });
 
@@ -565,7 +565,7 @@ describe('dismissing in the controls editor', () => {
             fireEvent.click(sectionAdd());
             act(() => label().focus());
             escape(label());
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
             expect(sectionAdd()).toHaveFocus();
 
             // Cancelled with a field
@@ -603,7 +603,7 @@ describe('dismissing in the controls editor', () => {
                     dimensions: [rule('a')],
                 }),
             );
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
             expect(pill('a')).not.toHaveFocus();
         });
 
@@ -616,7 +616,7 @@ describe('dismissing in the controls editor', () => {
 
         it('closes a clean edit from its own pill, focus back on it', () => {
             fireEvent.click(pill('a'));
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().isEditorOpen).toBe(false);
             expect(pill('a')).toHaveFocus();
         });
 

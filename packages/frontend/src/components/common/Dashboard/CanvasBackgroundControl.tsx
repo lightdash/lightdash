@@ -1,5 +1,10 @@
 import { Center, SegmentedControl, Tooltip } from '@mantine/core';
-import { IconGrid4x4, IconGridDots, type Icon } from '@tabler/icons-react';
+import {
+    IconColumns3,
+    IconGrid4x4,
+    IconGridDots,
+    type Icon,
+} from '@tabler/icons-react';
 import { memo } from 'react';
 import {
     dashboardEditActions,
@@ -17,6 +22,7 @@ const OPTIONS: {
 }[] = [
     { value: 'grid', icon: IconGrid4x4, tooltip: 'Grid background' },
     { value: 'dots', icon: IconGridDots, tooltip: 'Dotted background' },
+    { value: 'columns', icon: IconColumns3, tooltip: 'Column guides' },
 ];
 
 const isCanvasBackground = (value: string): value is CanvasBackground =>

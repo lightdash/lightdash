@@ -26,6 +26,7 @@ import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
 import { maskEmail } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
+import { MobileSignInInstallHint } from './MobileSignInInstallHint';
 import { MOBILE_SIGN_IN_STRINGS as S, MOBILE_STRINGS } from './mobileStrings';
 import { type useMobileSignInCode } from './useMobileSignInCode';
 
@@ -100,7 +101,7 @@ const FailedMint: FC<StepContext> = ({ signIn }) => (
     </Stack>
 );
 
-const ShownCode: FC<StepContext> = () => null;
+const ShownCode: FC<StepContext> = () => <MobileSignInInstallHint />;
 
 const ConfirmSignIn: FC<StepContext> = ({
     signIn,

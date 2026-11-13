@@ -5,7 +5,7 @@ import {
     type ParameterMapping,
     type ParameterTileChange,
 } from './parameterPeers';
-import { type FieldApply } from './useControlsSidebar';
+import { type FieldApply } from './useControlsEditor';
 import { type ParameterBarEntry } from './useParameterBarControls';
 
 /** A control picked in "Add", with the key it sets and the tiles Apply binds it on. */

@@ -1,9 +1,51 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 // This rule is failing in CI but passes locally
 import { NextFunction, Request, Response } from 'express';
+import type { SessionData } from 'express-session';
 import * as Account from '../../auth/account';
 import { requestContextFromExpress } from '../../auth/account/requestContext';
 import Logger from '../../logging/logger';
+
+const attachSessionAccount = (req: Request) => {
+    if (!req.user) return;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    req.account = Account.fromSession(req.user, req.headers.cookie || '');
+    const requestContext = requestContextFromExpress(req);
+    req.account.requestContext = requestContext;
+    req.user.requestContext = requestContext;
+};
+
+const attachHeadlessServiceAccount = async (
+    req: Request,
+    mark: NonNullable<SessionData['headlessServiceAccount']>,
+) => {
+    const { user } = req;
+    if (!user) return;
+    const serviceAccountUser =
+        mark.userUuid === user.userUuid
+            ? await req.services
+                  .getUserService()
+                  .getHeadlessServiceAccountSessionUser(
+                      user.userUuid,
+                      user.organizationUuid,
+                  )
+            : undefined;
+    if (
+        !serviceAccountUser ||
+        serviceAccountUser.serviceAccount.uuid !== mark.serviceAccountUuid
+    ) {
+        // Fails closed only because service-account user rows are created
+        // with is_active = false: isAuthenticated then refuses this plain
+        // session account. Keep that invariant if this fallback stays.
+        attachSessionAccount(req);
+        return;
+    }
+    req.user = serviceAccountUser;
+    req.account = Account.fromServiceAccount(serviceAccountUser, '');
+    const requestContext = requestContextFromExpress(req);
+    req.account.requestContext = requestContext;
+    req.user.requestContext = requestContext;
+};
 
 /**
  * Middleware to attach the account to the request.
@@ -28,11 +70,15 @@ export function sessionAccountMiddleware(
         return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    req.account = Account.fromSession(req.user, req.headers.cookie || '');
-    const requestContext = requestContextFromExpress(req);
-    req.account.requestContext = requestContext;
-    req.user.requestContext = requestContext;
+    const headlessServiceAccount = req.session?.headlessServiceAccount;
+    if (headlessServiceAccount) {
+        attachHeadlessServiceAccount(req, headlessServiceAccount).then(
+            () => next(),
+            next,
+        );
+        return;
+    }
 
+    attachSessionAccount(req);
     next();
 }

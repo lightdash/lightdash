@@ -16,11 +16,11 @@ import {
     getFilterLockToggle,
 } from '../dashboardFilters/ActiveFilters/filterLock';
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
+import { replaceFilterRule } from './editorState';
 import { EditorPopover } from './FilterEditor';
 import classes from './FilterPills.module.css';
-import { replaceFilterRule } from './sidebarState';
 import { useBarPill } from './useBarPill';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { getFilterHoverTileUuids } from './useTileHover';
 
 // An editor's pill, a viewer's on a saved filter, or a viewer's on a filter of
@@ -39,7 +39,7 @@ type Props = {
     /** Edit mode: added in this session, not in the saved dashboard. */
     isDraft: boolean;
     /** While a filter is edited the grip and lock are hidden and inert. */
-    isSidebarOpen: boolean;
+    isEditorOpen: boolean;
     activeTabUuid: string | undefined;
     hasTabs: boolean;
     dashboardUuid: string | undefined;
@@ -60,7 +60,7 @@ export const FilterPill: FC<Props> = memo(
         isSelected,
         isDisabled,
         isDraft,
-        isSidebarOpen,
+        isEditorOpen,
         activeTabUuid,
         hasTabs,
         dashboardUuid,
@@ -69,11 +69,11 @@ export const FilterPill: FC<Props> = memo(
     }) => {
         const { track } = useTracking();
         const getUiString = useUiStrings();
-        const open = useControlsSidebarSelector((c) => c.open);
-        const removeFilterById = useControlsSidebarSelector(
+        const open = useControlsEditorSelector((c) => c.open);
+        const removeFilterById = useControlsEditorSelector(
             (c) => c.removeFilterById,
         );
-        const moveFilter = useControlsSidebarSelector((c) => c.moveFilter);
+        const moveFilter = useControlsEditorSelector((c) => c.moveFilter);
         const setDashboardFilters = useDashboardContext(
             (c) => c.setDashboardFilters,
         );
@@ -97,7 +97,7 @@ export const FilterPill: FC<Props> = memo(
             // The X, the lock and the required mark (`data-own-tooltip`)
             // have tooltips of their own
             pillSelector: '[data-controls-pill]',
-            canSelect: kind === 'editor' && !isSidebarOpen,
+            canSelect: kind === 'editor' && !isEditorOpen,
             open: () => {
                 if (!isReadOnlyLocked) open(filter.id);
             },
@@ -105,14 +105,14 @@ export const FilterPill: FC<Props> = memo(
             // (the key handler is an editor's only)
             canMove: true,
             moveAlong: (direction) => moveFilter(filter.id, direction),
-            isTileHoverEnabled: kind === 'editor' && !isSidebarOpen,
+            isTileHoverEnabled: kind === 'editor' && !isEditorOpen,
             getTileUuids: (state) =>
                 getFilterHoverTileUuids(filter, state, getFieldsByTile()),
         });
         // Dashed pills say why first, in the tooltip the pill already has:
         // the select hint, else the tables one. The open pill has its editor
         const dashedNote =
-            isSelected && isSidebarOpen
+            isSelected && isEditorOpen
                 ? null
                 : kind === 'viewerOwn'
                   ? getUiString('controls.onlyYouSeeFilter')
@@ -155,7 +155,7 @@ export const FilterPill: FC<Props> = memo(
         };
 
         return (
-            <EditorPopover isOpen={isSelected && isSidebarOpen}>
+            <EditorPopover isOpen={isSelected && isEditorOpen}>
                 <Tooltip
                     fz="xs"
                     maw={300}
@@ -187,7 +187,7 @@ export const FilterPill: FC<Props> = memo(
                                     ? getFilterLockLabel(isLocked, hasTabs)
                                     : null
                             }
-                            areActionsHidden={isSidebarOpen}
+                            areActionsHidden={isEditorOpen}
                             onLockToggle={(e) => {
                                 e.stopPropagation();
                                 toggleLock();

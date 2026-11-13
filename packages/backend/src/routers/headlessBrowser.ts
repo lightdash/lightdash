@@ -24,19 +24,14 @@ headlessBrowserRouter.post('/login', async (req, res, next) => {
         }
         Logger.debug(`Headless browser login request for user ${userUuid}`);
 
-        const sessionUser = await req.services
-            .getUserService()
-            .getSessionByUserUuid(userUuid);
+        const userService = req.services.getUserService();
+        const serviceAccountUser =
+            await userService.getHeadlessServiceAccountSessionUser(userUuid);
+        const sessionUser =
+            serviceAccountUser ??
+            (await userService.getSessionByUserUuid(userUuid));
 
-        req.login(sessionUser, (err) => {
-            if (err) {
-                Logger.error(
-                    `Headless browser login failed: Error during req.login for user ${userUuid}`,
-                );
-                next(err);
-                return;
-            }
-
+        const sendLoginResponse = () => {
             const internalHost = new URL(
                 lightdashConfig.headlessBrowser.internalLightdashHost,
             );
@@ -75,6 +70,36 @@ headlessBrowserRouter.post('/login', async (req, res, next) => {
                 results: {
                     userUuid: sessionUser.userUuid,
                 },
+            });
+        };
+
+        req.login(sessionUser, (err) => {
+            if (err) {
+                Logger.error(
+                    `Headless browser login failed: Error during req.login for user ${userUuid}`,
+                );
+                next(err);
+                return;
+            }
+
+            if (!serviceAccountUser) {
+                sendLoginResponse();
+                return;
+            }
+
+            req.session.headlessServiceAccount = {
+                userUuid: serviceAccountUser.userUuid,
+                serviceAccountUuid: serviceAccountUser.serviceAccount.uuid,
+            };
+            req.session.save((saveErr) => {
+                if (saveErr) {
+                    Logger.error(
+                        `Headless browser login failed: Error saving session for user ${userUuid}`,
+                    );
+                    next(saveErr);
+                    return;
+                }
+                sendLoginResponse();
             });
         });
     } catch (e) {
