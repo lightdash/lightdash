@@ -30,7 +30,11 @@ describe('getMcpAnalystPrompt', () => {
             'not a restriction or evidence of intent to analyze a preview',
         );
         expect(guidance).toContain(
-            'otherwise ask which DEFAULT project to use',
+            'otherwise use the only DEFAULT project in availableProjects',
+        );
+        expect(guidance).toContain('ask which to use when there are several');
+        expect(guidance).toContain(
+            'If none are available, explain that no production project is available',
         );
         expect(guidance).toContain('including an explicitly requested preview');
         expect(guidance).toContain(
