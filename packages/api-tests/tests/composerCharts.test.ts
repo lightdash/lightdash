@@ -585,6 +585,61 @@ describe('Composer charts', () => {
         });
     });
 
+    it('runs a one-node semantic-layer chart to the same rows as the classic query', async () => {
+        const body = composerChartBody('');
+        const { chart, tileUuid } = await createComposerDashboard(
+            body.pipeline,
+            body.chart,
+        );
+        const run = await admin.post<Body<ComposerChartRunResults>>(
+            runUrl(chart.uuid),
+            runRequest(chart.dashboardUuid, tileUuid),
+        );
+        expect(run.status).toBe(200);
+        const [node] = body.pipeline.nodes;
+        if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
+            throw new Error('Expected a semantic-layer node');
+        }
+        const classic = await admin.post<Body<{ queryUuid: string }>>(
+            `/api/v2/projects/${projectUuid}/query/metric-query`,
+            {
+                context: 'exploreView',
+                query: {
+                    exploreName: node.exploreName,
+                    dimensions: node.dimensions,
+                    metrics: node.metrics,
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+            },
+        );
+        expect(classic.status).toBe(200);
+        const sortedRaw = (rows: unknown[]) =>
+            JSON.stringify(
+                (rows as Record<string, { value: { raw: unknown } }>[])
+                    .map((row) =>
+                        Object.fromEntries(
+                            Object.entries(row).map(([id, { value }]) => [
+                                id,
+                                value.raw,
+                            ]),
+                        ),
+                    )
+                    .sort((a, b) =>
+                        JSON.stringify(a).localeCompare(JSON.stringify(b)),
+                    ),
+            );
+        expect(
+            sortedRaw(
+                await pollRows(admin, run.body.results.queries[0].queryUuid),
+            ),
+        ).toBe(
+            sortedRaw(await pollRows(admin, classic.body.results.queryUuid)),
+        );
+    });
+
     it('runs a group-by as a server-built pivot stage whose rows a viewer can read', async () => {
         const { chart, tileUuid } = await createComposerDashboard(
             {

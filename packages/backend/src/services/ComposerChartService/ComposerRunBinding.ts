@@ -32,9 +32,7 @@ export class ComposerRunBinding {
         return new ComposerRunBinding(
             account.user.userUuid,
             chart.projectUuid,
-            stage
-                ? [...chart.pipeline.nodes, { ...stage, title: 'Series split' }]
-                : chart.pipeline.nodes,
+            stage ? [...chart.pipeline.nodes, stage] : chart.pipeline.nodes,
             {
                 composerChartUuid: chart.uuid,
                 dashboardUuid: chart.dashboardUuid,

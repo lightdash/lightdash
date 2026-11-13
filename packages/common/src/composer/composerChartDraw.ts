@@ -187,7 +187,7 @@ export const getComposerChartDraw = ({
             chart.tableConfig.columnOrder.length > 0
                 ? chart.tableConfig.columnOrder
                 : [...dimensions, ...metrics],
-        pivotColumns: chart.pivotConfig?.columns ?? [],
+        pivotColumns: getSplitColumns(chart).columns,
     };
 };
 
