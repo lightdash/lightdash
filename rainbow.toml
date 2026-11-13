@@ -8,8 +8,8 @@
 [[app.service]]
 name = "dev"
 command = "cd packages/backend && exec node --import tsx src/index.ts"
-ports = [8080]
-serve_port = 8080
+port = 8080
+serve = true
 restart_on_inject = true           # re-exec on fork to read the injected SITE_URL (see [origin])
 
 # The Snowflake AI OAuth/SDK stub the API tests drive. Plain node, no deps;
