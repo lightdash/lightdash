@@ -310,14 +310,14 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const isRegistryMetric =
         isAdditionalMetric(item) &&
         (dashboardMetricIds?.has(getItemId(item)) ?? false);
-    // The '=' badge marks provenance: dashboard-local from creation. The ids
-    // set is only provided when the shared-metrics layer is enabled.
     const fieldChange = useFieldChangeInDevelopment(
         useProjectUuid(),
         isField(item) ? item.table : '',
         isField(item) ? item.name : '',
     );
 
+    // The '=' badge marks provenance: dashboard-local from creation. The ids
+    // set is only provided when the shared-metrics layer is enabled.
     const isDashboardMetric =
         isRegistryMetric ||
         (dashboardMetricIds !== undefined && isAdditionalMetric(item));
