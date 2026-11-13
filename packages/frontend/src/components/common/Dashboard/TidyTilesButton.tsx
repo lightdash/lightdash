@@ -29,7 +29,7 @@ export const TidyTilesButton = memo(() => {
                 label={
                     canTidy ? (
                         <ShortcutTooltipLabel
-                            label="Tidy: close gaps and even out rows"
+                            label="Tidy layout"
                             shortcut={EDIT_SHORTCUTS.tidy}
                         />
                     ) : (
