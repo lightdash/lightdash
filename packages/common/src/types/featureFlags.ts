@@ -254,6 +254,12 @@ export enum FeatureFlags {
      */
     BigqueryWorkloadIdentityAuth = 'bigquery-workload-identity-auth',
     /**
+     * Organization-scoped, off by default: "Sign in with Google" for BigQuery
+     * also requests drive.readonly, so Google Sheets-backed tables can be queried.
+     * Restricted scope: only enable once the instance's OAuth app is verified for it.
+     */
+    BigqueryOAuthDriveAccess = 'bigquery-oauth-drive-access',
+    /**
      * Organization-scoped: org admins can bring their own AI provider keys,
      * restrict model visibility, and route those keys through a custom base
      * URL (an OpenAI/Anthropic/Gemini-compatible gateway). Off by default;
