@@ -34,6 +34,7 @@ describe('useTileVirtualViewSavedParameters', () => {
         expect(setTileVirtualViewSavedParameters).toHaveBeenCalledWith(
             'tile-1',
             { status: 'Shipped' },
+            false,
         );
     });
 
@@ -57,15 +58,39 @@ describe('useTileVirtualViewSavedParameters', () => {
         expect(setTileVirtualViewSavedParameters).toHaveBeenCalledWith(
             'tile-1',
             {},
+            false,
         );
     });
 
-    it('reports nothing for a merged chart, whose other queries the explore does not cover', () => {
+    it("reports a merged chart's primary explore values as a partial answer", () => {
         renderHook(() =>
             useTileVirtualViewSavedParameters('tile-1', explore, true),
         );
 
-        expect(setTileVirtualViewSavedParameters).not.toHaveBeenCalled();
+        expect(setTileVirtualViewSavedParameters).toHaveBeenCalledWith(
+            'tile-1',
+            { status: 'Shipped' },
+            true,
+        );
+    });
+
+    it('reports again in full when the chart is no longer merged', () => {
+        const { rerender } = renderHook(
+            ({ isMergedChart }) =>
+                useTileVirtualViewSavedParameters(
+                    'tile-1',
+                    explore,
+                    isMergedChart,
+                ),
+            { initialProps: { isMergedChart: true } },
+        );
+        rerender({ isMergedChart: false });
+
+        expect(setTileVirtualViewSavedParameters).toHaveBeenLastCalledWith(
+            'tile-1',
+            { status: 'Shipped' },
+            false,
+        );
     });
 
     it('reports nothing with dashboard controls off', () => {

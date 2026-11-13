@@ -137,6 +137,7 @@ export type DashboardContextType = {
     setTileVirtualViewSavedParameters: (
         tileUuid: string,
         values: ParametersValuesMap,
+        isPartial: boolean,
     ) => void;
     addParameterDefinitions: (parameters: ParameterDefinitions) => void;
     setPinnedParameters: (parameters: string[]) => void;

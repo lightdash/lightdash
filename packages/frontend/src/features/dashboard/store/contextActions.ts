@@ -407,11 +407,13 @@ export const createDashboardContextActions = (
         setTileVirtualViewSavedParameters: (
             tileUuid: string,
             values: ParametersValuesMap,
+            isPartial: boolean,
         ) =>
             dispatch(
                 dashboardParametersActions.setTileVirtualViewSavedParameters({
                     tileUuid,
                     values,
+                    isPartial,
                 }),
             ),
         addParameterDefinitions: (parameters: ParameterDefinitions) =>

@@ -18,11 +18,12 @@ export const useTileVirtualViewSavedParameters = (
     const isEnabled = dashboardControlsFlag?.enabled === true;
     useEffect(() => {
         // While the explore loads, keep the listed values; a chart swap clears them in the store
-        // A merged chart's other queries have explores this tile never loads: keep the listed values
-        if (!isEnabled || !explore || isMergedChart) return;
+        if (!isEnabled || !explore) return;
+        // A merged chart's other queries have explores this tile never loads: a partial answer
         setTileVirtualViewSavedParameters(
             tileUuid,
             explore.savedParameterValues ?? {},
+            isMergedChart,
         );
     }, [
         explore,
