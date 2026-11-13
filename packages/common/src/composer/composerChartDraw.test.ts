@@ -368,7 +368,9 @@ describe('getComposerChartPivotStage', () => {
             },
         });
         expect(stage).toMatchObject({ sourceType: QuerySourceType.DUCKDB });
-        if (stage?.sourceType !== QuerySourceType.DUCKDB) return;
+        if (stage?.sourceType !== QuerySourceType.DUCKDB) {
+            throw new Error('The stage is a duckdb node');
+        }
         expect(stage.pivotConfiguration).toMatchObject({
             valuesColumns: [{ reference: 'revenue' }],
             sortBy: [{ reference: 'revenue', direction: 'DESC' }],
@@ -395,7 +397,9 @@ describe('getComposerChartPivotStage', () => {
         expect(stage).toMatchObject({
             sql: expect.stringContaining('"order_count" AS "order_count"'),
         });
-        if (stage?.sourceType !== QuerySourceType.DUCKDB) return;
+        if (stage?.sourceType !== QuerySourceType.DUCKDB) {
+            throw new Error('The stage is a duckdb node');
+        }
         expect(stage.pivotConfiguration).toMatchObject({
             valuesColumns: [{ reference: 'revenue' }],
             sortOnlyColumns: [{ reference: 'order_count' }],
