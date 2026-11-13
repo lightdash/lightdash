@@ -7,7 +7,7 @@
 import { ApiConnectorType, assertUnreachable } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import MantineModal from '../../../components/common/MantineModal';
 import useHealth from '../../../hooks/health/useHealth';
 import { useDeleteExternalConnection } from '../../externalConnections/hooks/useDeleteExternalConnection';
@@ -30,9 +30,10 @@ import {
     toPostHogFormValues,
 } from '../../externalConnections/liveSources/postHogConnection';
 import { PostHogConnectionModal } from '../../externalConnections/liveSources/PostHogConnectionModal';
-import { SourceConnectedModal } from '../../externalConnections/liveSources/SourceConnectedModal';
+import { ReattachLiveSourceModal } from '../../externalConnections/liveSources/ReattachLiveSourceModal';
 import { TokenLiveSourceModal } from '../../externalConnections/liveSources/TokenLiveSourceModal';
 import { useLiveSourceSignInResult } from '../../externalConnections/liveSources/useLiveSourceSignInResult';
+import { getSemanticStudioSourceUrl } from '../urls';
 import {
     LiveSourceActionsContext,
     type LiveSourceActions,
@@ -45,7 +46,7 @@ type Dialog =
     | { kind: 'create'; connector: ApiConnectorType }
     | { kind: 'edit'; connection: LiveSourceConnection }
     | { kind: 'remove'; connection: LiveSourceConnection }
-    | { kind: 'connected'; connectionUuid: string };
+    | { kind: 'reattach'; connectionUuid: string };
 
 const RemoveLiveSourceModal: FC<{
     projectUuid: string;
@@ -285,11 +286,14 @@ const LiveSourceDialogs: FC<{
     canUseLinkedInAds,
     onRemoved,
 }) => {
+    const navigate = useNavigate();
+    // A new source opens on its own page, offering to reattach a deleted one
+    const openConnected = (connectionUuid: string) => {
+        void navigate(getSemanticStudioSourceUrl(projectUuid, connectionUuid));
+        setDialog({ kind: 'reattach', connectionUuid });
+    };
     const { isPickingGoogleSource, closeGoogleSourcePicker } =
-        useLiveSourceSignInResult({
-            onConnected: (connectionUuid) =>
-                setDialog({ kind: 'connected', connectionUuid }),
-        });
+        useLiveSourceSignInResult({ onConnected: openConnected });
     // ?add=true, from older links, opens the add flow.
     const [searchParams, setSearchParams] = useSearchParams();
     useEffect(() => {
@@ -329,9 +333,7 @@ const LiveSourceDialogs: FC<{
                     connection={connection}
                     canSignIn={canSignIn}
                     onClose={close}
-                    onCreated={(connectionUuid) =>
-                        setDialog({ kind: 'connected', connectionUuid })
-                    }
+                    onCreated={openConnected}
                 />
             )}
             {isPickingGoogleSource && (
@@ -340,12 +342,12 @@ const LiveSourceDialogs: FC<{
                     onClose={closeGoogleSourcePicker}
                     onConnected={(connectionUuid) => {
                         closeGoogleSourcePicker();
-                        setDialog({ kind: 'connected', connectionUuid });
+                        openConnected(connectionUuid);
                     }}
                 />
             )}
-            {dialog.kind === 'connected' && (
-                <SourceConnectedModal
+            {dialog.kind === 'reattach' && (
+                <ReattachLiveSourceModal
                     projectUuid={projectUuid}
                     connectionUuid={dialog.connectionUuid}
                     onClose={close}
