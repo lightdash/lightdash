@@ -1,3 +1,16 @@
+# [3.242.0](https://github.com/lightdash/lightdash/compare/3.241.0...3.242.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **dashboards:** keep stacked tiles beside their taller neighbours when tidying ([#32537](https://github.com/lightdash/lightdash/issues/32537)) ([497d87e](https://github.com/lightdash/lightdash/commit/497d87e9ad3e2a2d6e04a5ada3bd7105537a2314))
+* **homepage:** keep Choose metrics button in place while pressed ([#32534](https://github.com/lightdash/lightdash/issues/32534)) ([497bb01](https://github.com/lightdash/lightdash/commit/497bb018afceecb428765b9b8bff322f8913d2d9))
+
+
+### Features
+
+* **ai:** review Studio changes in one place and show what a dbt save is doing ([#32521](https://github.com/lightdash/lightdash/issues/32521)) ([7575f1e](https://github.com/lightdash/lightdash/commit/7575f1ee8b2f0edb8f63706e39369bd78854f694))
+
 # [3.241.0](https://github.com/lightdash/lightdash/compare/3.240.5...3.241.0) (2026-11-13)
 
 
