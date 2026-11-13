@@ -1763,7 +1763,8 @@ describe('composer bound run', () => {
                     terminalNodeId: 'forecast',
                     nodes: storedNodes,
                 },
-            } as ComposerChart,
+                chart: { pivotConfig: null, chartConfig: { type: 'table' } },
+            } as unknown as ComposerChart,
             tileUuid: 'tile-uuid',
         });
     const createBoundSources = () => {

@@ -32230,6 +32230,7 @@ describe('bound composer chart runs', () => {
                 projectUuid,
                 dashboardUuid: 'dashboard-uuid',
                 pipeline: { schemaVersion: 1, terminalNodeId: 'n', nodes: [] },
+                chart: { pivotConfig: null, chartConfig: { type: 'table' } },
             } as unknown as ComposerChart,
             tileUuid: 'tile-uuid',
         });
