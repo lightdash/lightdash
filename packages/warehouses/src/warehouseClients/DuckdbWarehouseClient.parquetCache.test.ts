@@ -242,7 +242,7 @@ describe('private query staging of cached Parquet', () => {
         expect(manifest.tables[0].urls[0]).toMatch(/^https:/);
     });
 
-    it('stages a complete cached table larger than 8 MiB without remote reads', async () => {
+    it('stages a complete cached table larger than 32 MiB without remote reads', async () => {
         const file = path.join(directory, 'large-fixture.parquet');
         const instance = await DuckDBInstance.create(':memory:', {
             memory_limit: '256MB',
@@ -260,14 +260,14 @@ describe('private query staging of cached Parquet', () => {
         const part = await fs.readFile(file);
         expect(part.length).toBeLessThan(1024 * 1024);
         const manifest = source('large');
-        const urls = Array.from({ length: 40 }, (_, i) =>
+        const urls = Array.from({ length: 100 }, (_, i) =>
             manifest.tables[0].urls[0].replace(
                 'part.parquet',
                 `part-${i}.parquet`,
             ),
         );
-        expect(part.length * urls.length).toBeGreaterThan(8 * 1024 * 1024);
-        expect(part.length * urls.length).toBeLessThan(32 * 1024 * 1024);
+        expect(part.length * urls.length).toBeGreaterThan(32 * 1024 * 1024);
+        expect(part.length * urls.length).toBeLessThan(64 * 1024 * 1024);
         manifest.tables[0].urls = urls;
         manifest.fileBuffers = new Map(urls.map((url) => [url, part]));
         const writes = vi.spyOn(fs, 'writeFile');
@@ -278,7 +278,7 @@ describe('private query staging of cached Parquet', () => {
                     'SELECT count(*) AS total, sum(value) AS sum FROM query_events',
                 )
             ).rows,
-        ).toEqual([{ total: '400000', sum: '1999800000' }]);
+        ).toEqual([{ total: '1000000', sum: '4999500000' }]);
         expect(writes).toHaveBeenCalledTimes(urls.length);
         await Promise.all(
             writes.mock.calls.map(([staged]) =>
