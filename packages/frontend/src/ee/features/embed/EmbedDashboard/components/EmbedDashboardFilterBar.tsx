@@ -2,6 +2,7 @@ import {
     canAddDashboardFiltersInEmbed,
     isParameterInteractivityEnabled,
     type Dashboard,
+    type DashboardFilterRule,
     type DashboardTile,
     type InteractivityOptions,
 } from '@lightdash/common';
@@ -36,6 +37,7 @@ import { DateZoom } from '../../../../../features/dateZoom';
 import { DateZoomCrossTabFieldsLoader } from '../../../../../features/dateZoom/components/DateZoomCrossTabFieldsLoader';
 import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
 import { useActiveTabParameters } from '../../../../../hooks/dashboard/useActiveTabParameters';
+import { getEmbedHiddenFilters } from '../../../../../providers/Dashboard/embedFilterInteractivity';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 import styles from './EmbedDashboardFilterBar.module.css';
@@ -62,7 +64,14 @@ const ControlsFilterArea: FC<{
     isEditor: boolean;
     withParameters: boolean;
     withDateZooms: boolean;
-}> = ({ canAddFilters, isEditor, withParameters, withDateZooms }) => {
+    hiddenFilters: DashboardFilterRule[];
+}> = ({
+    canAddFilters,
+    isEditor,
+    withParameters,
+    withDateZooms,
+    hiddenFilters,
+}) => {
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     // Sections or a stored order: the bar the app's viewers get
     const isSectioned = useDashboardSelector(
@@ -91,6 +100,7 @@ const ControlsFilterArea: FC<{
                     triggerClassName={triggerClassName}
                     withParameters={withParameters}
                     withDateZooms={withDateZooms}
+                    hiddenFilters={hiddenFilters}
                 />
             </SettledFilterFields>
         );
@@ -246,6 +256,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                                 parametersEnabled && useParameterControls
                             }
                             withDateZooms={withDateZoomPills}
+                            hiddenFilters={getEmbedHiddenFilters(dashboard)}
                         />
                     ) : (
                         <EmbedDashboardFilters

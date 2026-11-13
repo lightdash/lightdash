@@ -187,6 +187,10 @@ import {
     type CurrentChartSqlItems,
 } from './chartPermissions';
 import {
+    assertNoComposerChartTilesToReplace,
+    isNotComposerChartTile,
+} from './composerChartTiles';
+import {
     buildContentAsCodeSnapshot,
     type SnapshotAsCodeContent,
 } from './contentAsCodeSnapshot';
@@ -2039,8 +2043,10 @@ export class CoderService extends BaseService {
                 }),
             ),
         );
-        const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
-            (tile): DashboardTileAsCode => {
+        // Composer chart tiles have no as-code shape yet; upload refuses them.
+        const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles
+            .filter(isNotComposerChartTile)
+            .map((tile): DashboardTileAsCode => {
                 const tabSlug = tile.tabUuid
                     ? getDashboardTabSlug(dashboardWithSortedTabs, tile.tabUuid)
                     : null;
@@ -2142,9 +2148,7 @@ export class CoderService extends BaseService {
                     tabUuid: undefined,
                     tabSlug,
                 };
-            },
-            [],
-        );
+            });
         tilesWithoutUuids.sort(
             (left, right) =>
                 left.y - right.y ||
@@ -5901,6 +5905,10 @@ export class CoderService extends BaseService {
                 dashboardWithResolvedTabs.tiles,
                 tabUuidsBySlug,
             );
+        assertNoComposerChartTilesToReplace(
+            slug,
+            existingDashboard?.tiles ?? [],
+        );
         const tilesWithUuids = preserveDashboardTileUuids(
             resolvedTiles,
             existingDashboard?.tiles ?? [],

@@ -81,6 +81,12 @@ import {
     DashboardTileCommentsTableName,
 } from '../database/entities/comments';
 import {
+    ComposerChartsTable,
+    ComposerChartsTableName,
+    DashboardTileComposerChartsTable,
+    DashboardTileComposerChartsTableName,
+} from '../database/entities/composerCharts';
+import {
     ContentAsCodeSnapshotsTableName,
     ContentAsCodeSnapshotTable,
 } from '../database/entities/contentAsCodeSnapshots';
@@ -903,6 +909,8 @@ declare module 'knex/types/tables' {
         [DashboardTileMarkdownsTableName]: DashboardTileMarkdownsTable;
         [DashboardTileHeadingsTableName]: DashboardTileHeadingsTable;
         [DashboardTileDataAppsTableName]: DashboardTileDataAppsTable;
+        [DashboardTileComposerChartsTableName]: DashboardTileComposerChartsTable;
+        [ComposerChartsTableName]: ComposerChartsTable;
         [OnboardingTableName]: OnboardingTable;
         [OpenIdIdentitiesTableName]: OpenIdIdentitiesTable;
         [OrganizationMembershipsTableName]: OrganizationMembershipsTable;

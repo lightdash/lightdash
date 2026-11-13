@@ -540,6 +540,7 @@ export const isTileFilterable = (tile: DashboardTile) =>
         DashboardTileTypes.MARKDOWN,
         DashboardTileTypes.LOOM,
         DashboardTileTypes.DATA_APP,
+        DashboardTileTypes.COMPOSER_CHART,
     ].includes(tile.type);
 
 const isChartTile = (tile: Pick<DashboardTile, 'type'>): boolean =>

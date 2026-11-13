@@ -3187,6 +3187,28 @@ describe('SectionedFilters', () => {
                     'c',
                 ]);
             });
+
+            it('cannot remove a section whose only filter is one the token hides', async () => {
+                renderSectioned([rule('one', 'a')], 'tab-1', undefined, [], {
+                    hiddenFilters: [rule('hidden', 'c')],
+                });
+                await openMenu('Empty');
+                expect(removeItems()).toHaveLength(0);
+            });
+
+            it('removes a section the hidden filters are not in', async () => {
+                renderSectioned([rule('one', 'a')], 'tab-1', undefined, [], {
+                    hiddenFilters: [rule('hidden', 'c')],
+                });
+                await openMenu('Dates');
+                expect(removeItems()).toHaveLength(1);
+            });
+
+            it('removes a section left with no filter where nothing is hidden', async () => {
+                renderSectioned([rule('one', 'a')], 'tab-1');
+                await openMenu('Empty');
+                expect(removeItems()).toHaveLength(1);
+            });
         });
 
         it('removes a section with members in one click, keeping them on the bar in one write', async () => {

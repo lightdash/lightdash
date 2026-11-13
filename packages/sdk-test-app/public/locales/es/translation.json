@@ -148,6 +148,7 @@
         "tileMenu.downloadData": "Descargar datos",
         "tileMenu.exportImage": "Exportar imagen",
         "tileMenu.viewUnderlyingData": "Ver datos subyacentes",
+        "tile.composerChart.notAvailable": "Este gráfico no está disponible aquí",
         "dateZoom.defaultZoom": "Zoom predeterminado",
         "dateZoom.none": "Ninguno",
         "dateZoom.viewModeTooltip": "Los gráficos mostrarán las fechas con su granularidad original.",
