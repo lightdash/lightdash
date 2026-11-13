@@ -269,6 +269,10 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             resolved: false,
             reason,
             isFatal: preAggregationRoute.mode === 'required',
+            ...(resolution.reason ===
+            PreAggregationDuckDbResolveReason.MATERIALIZATION_NEAR_EXPIRY
+                ? { fallbackReason: 'materialization_near_expiry' as const }
+                : {}),
         };
     }
 

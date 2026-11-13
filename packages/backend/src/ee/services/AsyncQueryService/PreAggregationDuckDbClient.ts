@@ -99,6 +99,7 @@ export enum PreAggregationDuckDbResolveReason {
     MISSING_PRE_AGGREGATE_S3_CONFIG = 'missing_pre_aggregate_s3_config',
     MISSING_DUCKDB_RUNTIME_CONFIG = 'missing_duckdb_runtime_config',
     NO_ACTIVE_MATERIALIZATION = 'no_active_materialization',
+    MATERIALIZATION_NEAR_EXPIRY = 'materialization_near_expiry',
     RESOLVE_ERROR = 'resolve_error',
     INCOMPATIBLE_PRODUCER = 'incompatible_producer',
 }
@@ -107,6 +108,22 @@ type ProjectWarehouseClient = {
     scope: string[];
     warehouseClient: WarehouseClient;
 };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export const isMaterializationNearExpiry = ({
+    materializedAt,
+    now,
+    lifecycleDays,
+    marginDays,
+}: {
+    materializedAt: Date;
+    now: number;
+    lifecycleDays: number | null;
+    marginDays: number;
+}): boolean =>
+    lifecycleDays !== null &&
+    now - materializedAt.getTime() >= (lifecycleDays - marginDays) * DAY_MS;
 
 export class PreAggregationDuckDbClient {
     private readonly lightdashConfig: LightdashConfig;
@@ -230,6 +247,8 @@ export class PreAggregationDuckDbClient {
         switch (reason) {
             case PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION:
                 return `No active materialization found for pre-aggregate explore "${preAggregateExploreName}"`;
+            case PreAggregationDuckDbResolveReason.MATERIALIZATION_NEAR_EXPIRY:
+                return `The active materialization for pre-aggregate explore "${preAggregateExploreName}" is too close to storage expiry to read. Refresh the pre-aggregate.`;
             case PreAggregationDuckDbResolveReason.MISSING_PRE_AGGREGATE_S3_CONFIG:
                 return 'Pre-aggregate DuckDB routing is unavailable: missing S3 configuration';
             case PreAggregationDuckDbResolveReason.MISSING_DUCKDB_RUNTIME_CONFIG:
@@ -341,6 +360,35 @@ export class PreAggregationDuckDbClient {
             return {
                 resolved: false,
                 reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
+            };
+        }
+
+        const { lifecycleDays, marginDays } =
+            this.lightdashConfig.preAggregates.materializationExpiry;
+        const now = Date.now();
+        if (
+            isMaterializationNearExpiry({
+                materializedAt: activeMaterialization.materializedAt,
+                now,
+                lifecycleDays,
+                marginDays,
+            })
+        ) {
+            Logger.warn('DuckDB pre-agg materialization near storage expiry', {
+                queryUuid: args.queryUuid,
+                projectUuid: args.projectUuid,
+                preAggExploreName,
+                materializationUuid: activeMaterialization.materializationUuid,
+                materializedAt:
+                    activeMaterialization.materializedAt.toISOString(),
+                materializationAgeMs:
+                    now - activeMaterialization.materializedAt.getTime(),
+                lifecycleDays,
+                marginDays,
+            });
+            return {
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.MATERIALIZATION_NEAR_EXPIRY,
             };
         }
 

@@ -1130,6 +1130,30 @@ export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
     };
 };
 
+export const parsePreAggregateMaterializationExpiryConfig = (): {
+    lifecycleDays: number | null;
+    marginDays: number;
+} => {
+    const lifecycleDays = getNonNegativeIntegerFromEnvironmentVariable(
+        'PRE_AGGREGATES_MATERIALIZATION_LIFECYCLE_DAYS',
+        30,
+    );
+    const marginDays = getPositiveIntegerFromEnvironmentVariable(
+        'PRE_AGGREGATES_MATERIALIZATION_EXPIRY_MARGIN_DAYS',
+        1,
+    );
+    if (lifecycleDays === 0) {
+        return { lifecycleDays: null, marginDays };
+    }
+    if (marginDays >= lifecycleDays) {
+        throw new ParseError(
+            `PRE_AGGREGATES_MATERIALIZATION_EXPIRY_MARGIN_DAYS (${marginDays}) must be less than PRE_AGGREGATES_MATERIALIZATION_LIFECYCLE_DAYS (${lifecycleDays}).`,
+            {},
+        );
+    }
+    return { lifecycleDays, marginDays };
+};
+
 export const parsePreAggregateResultsS3Config = ():
     | Omit<S3Config, 'expirationTime'>
     | undefined => {
@@ -2058,6 +2082,10 @@ export type LightdashConfig = {
     preAggregates: {
         enabled: boolean;
         parquetEnabled: boolean;
+        materializationExpiry: {
+            lifecycleDays: number | null;
+            marginDays: number;
+        };
         materializationMaxRows: number | null;
         /** Max memory DuckDB can use for caching parquet data and query intermediates on the shared query instance (e.g. '256MB', '1GB', '2GB'). Only affects pre-aggregate reads, not materializations which use isolated instances. */
         duckdbQueryMemoryLimit: string | null;
@@ -4297,6 +4325,8 @@ export const parseConfig = (): LightdashConfig => {
             enabled: preAggregatesEnabled,
             parquetEnabled:
                 process.env.PRE_AGGREGATES_PARQUET_ENABLED === 'true',
+            materializationExpiry:
+                parsePreAggregateMaterializationExpiryConfig(),
             materializationMaxRows:
                 getIntegerFromEnvironmentVariable('PRE_AGGREGATES_MAX_ROWS') ??
                 null,

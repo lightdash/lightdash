@@ -492,6 +492,7 @@ export const lightdashConfigMock: LightdashConfig = {
     preAggregates: {
         enabled: false,
         parquetEnabled: false,
+        materializationExpiry: { lifecycleDays: 30, marginDays: 1 },
         materializationMaxRows: null,
         duckdbQueryMemoryLimit: null,
         s3: {
