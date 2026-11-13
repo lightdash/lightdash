@@ -28,6 +28,15 @@ export type StudioThread = {
 
 type Owner = { projectUuid: string; userUuid: string };
 
+const latestPullRequestUrl = (workspaceAlias: string) =>
+    `(SELECT r.pr_url FROM ${AiWritebackRunTableName} r WHERE r.ai_thread_uuid = ${workspaceAlias}.ai_thread_uuid AND r.pr_url IS NOT NULL ORDER BY r.created_at DESC LIMIT 1)`;
+
+// Two switches at once would otherwise both pass the deactivate step and trip the one-active index.
+const lockOwner = (trx: Knex.Transaction, { projectUuid, userUuid }: Owner) =>
+    trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [
+        `semantic-studio-workspace:${projectUuid}:${userUuid}`,
+    ]);
+
 const toWorkspace = (
     row: WorkspaceRow,
     viewerUuid: string,
@@ -87,9 +96,7 @@ export class SemanticStudioWorkspaceModel {
                 't.agent_uuid',
                 'u.first_name',
                 'u.last_name',
-                trx.raw(
-                    `(SELECT r.pr_url FROM ${AiWritebackRunTableName} r WHERE r.ai_thread_uuid = w.ai_thread_uuid AND r.pr_url IS NOT NULL ORDER BY r.created_at DESC LIMIT 1) AS latest_pr_url`,
-                ),
+                trx.raw(`${latestPullRequestUrl('w')} AS latest_pr_url`),
             );
     }
 
@@ -155,6 +162,7 @@ export class SemanticStudioWorkspaceModel {
         thread: StudioThread & { threadUuid: string; name: string },
     ): Promise<string> {
         return this.database.transaction(async (trx) => {
+            await lockOwner(trx, owner);
             await trx(SemanticStudioWorkspacesTableName)
                 .where({
                     project_uuid: owner.projectUuid,
@@ -186,6 +194,7 @@ export class SemanticStudioWorkspaceModel {
 
     async activate(owner: Owner, workspaceUuid: string): Promise<void> {
         await this.database.transaction(async (trx) => {
+            await lockOwner(trx, owner);
             await trx(SemanticStudioWorkspacesTableName)
                 .where({
                     project_uuid: owner.projectUuid,
@@ -261,7 +270,7 @@ export class SemanticStudioWorkspaceModel {
             });
     }
 
-    /** Records what a pull request's provider said about it; a merge finishes its workspace. */
+    /** Records what a workspace's current pull request's provider said about it; a merge finishes the workspace. */
     async recordPullRequestState(
         projectUuid: string,
         url: string,
@@ -270,15 +279,10 @@ export class SemanticStudioWorkspaceModel {
         const now = this.database.fn.now();
         await this.database(SemanticStudioWorkspacesTableName)
             .where('project_uuid', projectUuid)
-            .andWhere((where) =>
-                where
-                    .where('pull_request_url', url)
-                    .orWhereIn(
-                        'ai_thread_uuid',
-                        this.database(AiWritebackRunTableName)
-                            .select('ai_thread_uuid')
-                            .where({ project_uuid: projectUuid, pr_url: url }),
-                    ),
+            // An older pull request of the same conversation must not finish the one in review now.
+            .andWhereRaw(
+                `? = COALESCE(${latestPullRequestUrl(SemanticStudioWorkspacesTableName)}, pull_request_url)`,
+                [url],
             )
             .whereNull('finished_at')
             .update({
