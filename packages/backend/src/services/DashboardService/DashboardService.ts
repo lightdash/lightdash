@@ -1199,7 +1199,7 @@ export class DashboardService
         projectUuid: string,
         dashboardUuidOrSlug: UuidOrSlug,
     ): Promise<DashboardContentParameter[]> {
-        // Not getByIdOrSlug: listing parameters must not count as a dashboard view
+        // The model, not this.getByIdOrSlug: that records a dashboard view
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
             { projectUuid },
