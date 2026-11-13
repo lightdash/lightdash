@@ -1,4 +1,7 @@
-import { FILTER_EXPRESSION_GRAMMAR_DESCRIPTION } from '@lightdash/common';
+import {
+    FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+    getContextToolDefinition,
+} from '@lightdash/common';
 import { MCP_FILTER_EXPRESSION_GUIDANCE_SECTION } from './filterGuidance';
 import { getMcpAnalystPrompt } from './mcpAnalyst';
 
@@ -10,6 +13,36 @@ const semanticQueryOptions = {
 };
 
 describe('getMcpAnalystPrompt', () => {
+    it.each([
+        { runSqlEnabled: false, runMetricQueryEnabled: false },
+        { runSqlEnabled: true, runMetricQueryEnabled: false },
+        { runSqlEnabled: false, runMetricQueryEnabled: true },
+        { runSqlEnabled: true, runMetricQueryEnabled: true },
+    ])('preserves production-first selection in every mode: %o', (mode) => {
+        const prompt = getMcpAnalystPrompt({
+            ...semanticQueryOptions,
+            ...mode,
+        });
+
+        expect(prompt).toContain('production/preview and pinned-scope');
+        const guidance = getContextToolDefinition.for('mcp').description;
+        expect(guidance).toContain(
+            'not a restriction or evidence of intent to analyze a preview',
+        );
+        expect(guidance).toContain(
+            'otherwise use the only DEFAULT project in availableProjects',
+        );
+        expect(guidance).toContain('ask which to use when there are several');
+        expect(guidance).toContain(
+            'If none are available, explain that no production project is available',
+        );
+        expect(guidance).toContain('including an explicitly requested preview');
+        expect(guidance).toContain(
+            'ask for confirmation before ordinary business analysis',
+        );
+        expect(guidance).toContain('activeProject is the only allowed project');
+    });
+
     it('keeps workflow guidance without tool-specific manuals', () => {
         const prompt = getMcpAnalystPrompt(semanticQueryOptions);
 
