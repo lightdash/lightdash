@@ -160,30 +160,30 @@ describe('getComposerRunQueryChart', () => {
             }),
         );
         expect(result.metricQuery.dimensions).toEqual([
-            'composer_result_orders_month',
-            'composer_result_status',
+            'orders_month',
+            'status',
         ]);
-        expect(result.metricQuery.metrics).toEqual(['composer_result_revenue']);
-        expect(result.fields.composer_result_orders_month).toMatchObject({
+        expect(result.metricQuery.metrics).toEqual(['revenue']);
+        expect(result.fields.orders_month).toMatchObject({
             type: DimensionType.DATE,
-            table: 'composer_result',
+            table: '<composer>',
             name: 'orders_month',
         });
-        expect(result.fields.composer_result_revenue).toMatchObject({
-            table: 'composer_result',
+        expect(result.fields.revenue).toMatchObject({
+            table: '<composer>',
             name: 'revenue',
         });
         expect(result.chartConfig).toMatchObject({
             type: ChartType.CARTESIAN,
             config: {
                 layout: {
-                    xField: 'composer_result_orders_month',
-                    yField: ['composer_result_revenue'],
+                    xField: 'orders_month',
+                    yField: ['revenue'],
                 },
                 eChartsConfig: { series: [{ type: 'bar' }] },
             },
         });
-        expect(result.pivotColumns).toEqual(['composer_result_status']);
+        expect(result.pivotColumns).toEqual(['status']);
     });
 
     test('stacked bar sets stack on the series', () => {
@@ -200,7 +200,7 @@ describe('getComposerRunQueryChart', () => {
             config: {
                 layout: { stack: true },
                 eChartsConfig: {
-                    series: [{ stack: 'composer_result_revenue' }],
+                    series: [{ stack: 'revenue' }],
                 },
             },
         });
@@ -225,13 +225,8 @@ describe('getComposerRunQueryChart', () => {
         const { metricQuery, chartConfig, pivotColumns } = chart(
             viz({ type: 'line' }),
         );
-        expect(metricQuery.dimensions).toEqual([
-            'composer_result_orders_month',
-        ]);
-        expect(metricQuery.metrics).toEqual([
-            'composer_result_revenue',
-            'composer_result_order_count',
-        ]);
+        expect(metricQuery.dimensions).toEqual(['orders_month']);
+        expect(metricQuery.metrics).toEqual(['revenue', 'order_count']);
         expect(chartConfig).toMatchObject({
             config: {
                 eChartsConfig: {
@@ -239,13 +234,13 @@ describe('getComposerRunQueryChart', () => {
                         {
                             type: 'line',
                             encode: {
-                                yRef: { field: 'composer_result_revenue' },
+                                yRef: { field: 'revenue' },
                             },
                         },
                         {
                             type: 'line',
                             encode: {
-                                yRef: { field: 'composer_result_order_count' },
+                                yRef: { field: 'order_count' },
                             },
                         },
                     ],
@@ -273,7 +268,7 @@ describe('getComposerRunQueryChart', () => {
                 },
             },
         });
-        expect(pivotColumns).toEqual(['composer_result_status']);
+        expect(pivotColumns).toEqual(['status']);
     });
 
     test('y2 goes on the secondary axis', () => {
@@ -286,10 +281,7 @@ describe('getComposerRunQueryChart', () => {
                 labels: { x: null, y: 'Revenue', y2: 'Orders' },
             }),
         );
-        expect(metricQuery.metrics).toEqual([
-            'composer_result_revenue',
-            'composer_result_order_count',
-        ]);
+        expect(metricQuery.metrics).toEqual(['revenue', 'order_count']);
         expect(chartConfig).toMatchObject({
             config: {
                 eChartsConfig: {
@@ -345,7 +337,7 @@ describe('getComposerRunQueryChart', () => {
         );
         expect(chartConfig).toMatchObject({
             config: {
-                layout: { xField: 'composer_result_order_count' },
+                layout: { xField: 'order_count' },
                 eChartsConfig: { series: [{ type: 'scatter' }] },
             },
         });
@@ -360,12 +352,12 @@ describe('getComposerRunQueryChart', () => {
                 groupBy: ['orders_month'],
             }),
         );
-        expect(metricQuery.dimensions).toEqual(['composer_result_status']);
+        expect(metricQuery.dimensions).toEqual(['status']);
         expect(chartConfig).toMatchObject({
             type: ChartType.PIE,
             config: {
-                groupFieldIds: ['composer_result_status'],
-                metricId: 'composer_result_revenue',
+                groupFieldIds: ['status'],
+                metricId: 'revenue',
             },
         });
         expect(pivotColumns).toEqual([]);
@@ -377,7 +369,7 @@ describe('getComposerRunQueryChart', () => {
         );
         expect(chartConfig).toMatchObject({
             type: ChartType.FUNNEL,
-            config: { fieldId: 'composer_result_revenue' },
+            config: { fieldId: 'revenue' },
         });
     });
 
@@ -390,13 +382,11 @@ describe('getComposerRunQueryChart', () => {
             }),
         );
         expect(result.metricQuery.dimensions).toEqual([]);
-        expect(result.metricQuery.metrics).toEqual([
-            'composer_result_order_count',
-        ]);
+        expect(result.metricQuery.metrics).toEqual(['order_count']);
         expect(result.chartConfig).toEqual({
             type: ChartType.BIG_NUMBER,
             config: {
-                selectedField: 'composer_result_order_count',
+                selectedField: 'order_count',
                 showBigNumberLabel: true,
                 showTableNamesInLabel: false,
                 label: 'Orders',
@@ -408,13 +398,10 @@ describe('getComposerRunQueryChart', () => {
         const result = chart(viz({ type: 'table' }));
         expect(result.chartConfig).toEqual({ type: ChartType.TABLE });
         expect(result.metricQuery.dimensions).toEqual([
-            'composer_result_orders_month',
-            'composer_result_status',
+            'orders_month',
+            'status',
         ]);
-        expect(result.metricQuery.metrics).toEqual([
-            'composer_result_revenue',
-            'composer_result_order_count',
-        ]);
+        expect(result.metricQuery.metrics).toEqual(['revenue', 'order_count']);
         expect(result.pivotColumns).toEqual([]);
     });
 
@@ -430,14 +417,14 @@ describe('getComposerRunQueryChart', () => {
                 dataAppVizUuid: 'viz-uuid',
                 dataAppVizVersion: 3,
                 fieldMapping: {
-                    x: 'composer_result_orders_month',
-                    series: 'composer_result_status',
-                    values: ['composer_result_revenue'],
+                    x: 'orders_month',
+                    series: 'status',
+                    values: ['revenue'],
                 },
             },
         });
-        expect(result.pivotColumns).toEqual(['composer_result_status']);
-        expect(result.metricQuery.metrics).toEqual(['composer_result_revenue']);
+        expect(result.pivotColumns).toEqual(['status']);
+        expect(result.metricQuery.metrics).toEqual(['revenue']);
     });
 
     test('an unknown column is rejected', () => {
@@ -546,23 +533,23 @@ describe('getComposerChartStage', () => {
         ).toEqual({
             sourceType: QuerySourceType.DUCKDB,
             nodeId: 'chart_stage',
-            sql: 'SELECT "orders_month" AS "composer_result_orders_month", "say ""hi""" AS "composer_result_say ""hi""", "revenue" AS "composer_result_revenue", "order_count" AS "composer_result_order_count" FROM "node_result"',
+            sql: 'SELECT "orders_month" AS "orders_month", "say ""hi""" AS "say ""hi""", "revenue" AS "revenue", "order_count" AS "order_count" FROM "node_result"',
             references: { node_result: 'orders' },
             pivotConfiguration: {
                 indexColumn: [
                     {
-                        reference: 'composer_result_orders_month',
+                        reference: 'orders_month',
                         type: VizIndexType.CATEGORY,
                     },
                 ],
-                groupByColumns: [{ reference: 'composer_result_say "hi"' }],
+                groupByColumns: [{ reference: 'say "hi"' }],
                 valuesColumns: [
                     {
-                        reference: 'composer_result_revenue',
+                        reference: 'revenue',
                         aggregation: VizAggregationOptions.ANY,
                     },
                     {
-                        reference: 'composer_result_order_count',
+                        reference: 'order_count',
                         aggregation: VizAggregationOptions.ANY,
                     },
                 ],
@@ -587,9 +574,9 @@ describe('getComposerChartStage', () => {
             { name: 'values', type: 'metric' },
         ]);
         expect(result?.pivotConfiguration).toMatchObject({
-            indexColumn: [{ reference: 'composer_result_orders_month' }],
-            groupByColumns: [{ reference: 'composer_result_status' }],
-            valuesColumns: [{ reference: 'composer_result_revenue' }],
+            indexColumn: [{ reference: 'orders_month' }],
+            groupByColumns: [{ reference: 'status' }],
+            valuesColumns: [{ reference: 'revenue' }],
         });
     });
 });
@@ -613,8 +600,8 @@ describe('toComposerResultRows', () => {
             ]),
         ).toEqual([
             {
-                composer_result_status: value('completed'),
-                composer_result_revenue: value(10),
+                status: value('completed'),
+                revenue: value(10),
             },
         ]);
     });
