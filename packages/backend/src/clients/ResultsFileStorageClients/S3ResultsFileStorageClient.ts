@@ -10,7 +10,7 @@ import fs from 'fs';
 import { PassThrough, Readable } from 'stream';
 import Logger from '../../logging/logger';
 import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
-import { writeWithBackpressure } from '../../utils/streamUtils';
+import { createJsonlWriter } from '../../utils/streamUtils';
 import {
     S3CacheClient,
     type S3CacheClientArguments,
@@ -110,14 +110,10 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
 
         // Create a function that can be used as a streamQuery callback
         // This function handles backpressure by waiting for drain when buffer is full.
+        const writeRows = createJsonlWriter(passThrough);
         const write = async (rows: WarehouseResults['rows']): Promise<void> => {
             try {
-                for await (const row of rows) {
-                    await writeWithBackpressure(
-                        passThrough,
-                        `${JSON.stringify(row)}\n`,
-                    );
-                }
+                await writeRows(rows);
             } catch (error) {
                 Logger.error(
                     `Failed to write rows to fileName ${fileName}: ${getErrorMessage(

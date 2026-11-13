@@ -1,47 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.253.0",
-  "previousVersion": "3.252.0",
-  "releaseDate": "2026-11-13T14:45:13.581Z",
+  "version": "3.255.1",
+  "previousVersion": "3.255.0",
+  "releaseDate": "2026-11-13T16:31:35.987Z",
   "migrations": {
-    "present": true,
-    "count": 3,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 3,
-    "files": [
-      {
-        "name": "20261113150000_add_saved_composer_chart_to_ai_artifact_versions.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_artifact_versions"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      },
-      {
-        "name": "20261113150100_validate_ai_artifact_versions_saved_composer_chart_fk.ts",
-        "edition": "ee",
-        "tables": [],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      },
-      {
-        "name": "20261113150200_index_ai_artifact_versions_saved_composer_chart.ts",
-        "edition": "ee",
-        "tables": [],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

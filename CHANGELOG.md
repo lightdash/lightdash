@@ -1,3 +1,53 @@
+## [3.255.1](https://github.com/lightdash/lightdash/compare/3.255.0...3.255.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **project-access:** stay on the current page after changing a user's role ([#32577](https://github.com/lightdash/lightdash/issues/32577)) ([0b64daa](https://github.com/lightdash/lightdash/commit/0b64daaec9fac2d57925275839358a612a3d848f))
+
+# [3.255.0](https://github.com/lightdash/lightdash/compare/3.254.1...3.255.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* polish analytics settings layout and chart consistency ([#32550](https://github.com/lightdash/lightdash/issues/32550)) ([a14c74a](https://github.com/lightdash/lightdash/commit/a14c74af3707597babd8b6b475ea7b273c5b098e))
+
+
+### Features
+
+* **embed:** emit contentStateChanged with current filters, parameters and query ([#32421](https://github.com/lightdash/lightdash/issues/32421)) ([aba3e68](https://github.com/lightdash/lightdash/commit/aba3e68a2cb06b0dea681b86ba3700d37e115cc1))
+
+## [3.254.1](https://github.com/lightdash/lightdash/compare/3.254.0...3.254.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* preserve scheduler shutdown in Rainbow previews ([#32535](https://github.com/lightdash/lightdash/issues/32535)) ([d6e0776](https://github.com/lightdash/lightdash/commit/d6e0776a386de4c4629f50f4da65d8d52fa35d3c))
+
+
+### Performance Improvements
+
+* **results:** yield to the event loop while streaming warehouse rows [d-f5d48aa4] ([#32443](https://github.com/lightdash/lightdash/issues/32443)) ([19b0530](https://github.com/lightdash/lightdash/commit/19b053012b15e61d0f360a199e38a18d520e05f9))
+
+# [3.254.0](https://github.com/lightdash/lightdash/compare/3.253.1...3.254.0) (2026-11-13)
+
+
+### Features
+
+* **dashboards:** add keyboard shortcuts to the edit toolbar with hints on hold ([#32565](https://github.com/lightdash/lightdash/issues/32565)) ([245074c](https://github.com/lightdash/lightdash/commit/245074c4f83bfdf607c1765a6f0da6f5a214bcdc))
+
+## [3.253.1](https://github.com/lightdash/lightdash/compare/3.253.0...3.253.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* keep larger Analytics Parquet files on the bounded cache path ([#32536](https://github.com/lightdash/lightdash/issues/32536)) ([288d526](https://github.com/lightdash/lightdash/commit/288d5264f0312256880a7ba450a99fdc90954b42))
+
+
+### Performance Improvements
+
+* reduce memory and disk spill in analytics field usage ([#32099](https://github.com/lightdash/lightdash/issues/32099)) ([0ce6298](https://github.com/lightdash/lightdash/commit/0ce629852528d0c861e93ed018734801f0cd6533))
+
 # [3.253.0](https://github.com/lightdash/lightdash/compare/3.252.0...3.253.0) (2026-11-13)
 
 

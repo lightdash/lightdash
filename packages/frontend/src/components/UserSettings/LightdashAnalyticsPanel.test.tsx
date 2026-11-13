@@ -12,6 +12,7 @@ import { sharedLightdashApi } from '../../api';
 import { useProjectAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
+import AnalyticsOverview from './AnalyticsOverview/AnalyticsOverview';
 import LightdashAnalyticsPanel from './LightdashAnalyticsPanel';
 
 vi.mock('../../api');
@@ -21,22 +22,24 @@ vi.mock('./AnalyticsAskAiButton', () => ({
     ),
 }));
 vi.mock('./AnalyticsOverview/AnalyticsOverview', () => ({
-    default: ({
-        heading,
-        actions,
-        projectUrlIdentifier,
-    }: {
-        heading: ReactNode;
-        actions: ReactNode;
-        projectUrlIdentifier: string;
-    }) => (
-        <>
-            {heading}
-            <a href={`/projects/${projectUrlIdentifier}/home`}>
-                Project homepage
-            </a>
-            {actions}
-        </>
+    default: vi.fn(
+        ({
+            heading,
+            actions,
+            projectUrlIdentifier,
+        }: {
+            heading: ReactNode;
+            actions: ReactNode;
+            projectUrlIdentifier: string;
+        }) => (
+            <>
+                {heading}
+                <a href={`/projects/${projectUrlIdentifier}/home`}>
+                    Project homepage
+                </a>
+                {actions}
+            </>
+        ),
     ),
 }));
 vi.mock(
@@ -101,7 +104,7 @@ describe('LightdashAnalyticsPanel', () => {
         );
     });
 
-    it('creates only on click and stays in settings with dashboard, homepage and AI links', async () => {
+    it('creates only on click and stays in settings with homepage and AI links', async () => {
         mockedLightdashApi.mockResolvedValue({ project: null });
         renderPanel();
         const create = await screen.findByRole('button', {
@@ -143,17 +146,9 @@ describe('LightdashAnalyticsPanel', () => {
         expect(useProjectAiAgentButtonVisibility).toHaveBeenLastCalledWith(
             project.projectUuid,
         );
-        await userEvent.click(
-            screen.getByRole('button', { name: /Verified dashboards/ }),
-        );
         expect(
-            await screen.findByRole('link', {
-                name: 'Lightdash usage overview, verified',
-            }),
-        ).toHaveAttribute(
-            'href',
-            '/projects/lightdash-analytics-1/dashboards/lightdash-analytics-overview/view',
-        );
+            screen.queryByText('Verified dashboards'),
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByText('Analytics homepage'),
         ).not.toBeInTheDocument();
@@ -220,7 +215,7 @@ describe('LightdashAnalyticsPanel', () => {
         ).toBeVisible();
     });
 
-    it('only shows verified dashboard shortcuts without a separate Refresh action', async () => {
+    it('passes only verified dashboards to the overview without a duplicate dashboard list', async () => {
         mockPanelApi(async ({ url }) =>
             url.includes('/dashboards?')
                 ? [
@@ -243,16 +238,13 @@ describe('LightdashAnalyticsPanel', () => {
                 : { project },
         );
         renderPanel();
-        await userEvent.click(
-            await screen.findByRole('button', { name: /Verified dashboards/ }),
+        await waitFor(() =>
+            expect(
+                vi.mocked(AnalyticsOverview).mock.lastCall?.[0].dashboards,
+            ).toEqual([expect.objectContaining({ uuid: 'dashboard' })]),
         );
         expect(
-            await screen.findByRole('link', {
-                name: 'AI usage overview, verified',
-            }),
-        ).toBeVisible();
-        expect(
-            screen.queryByRole('link', { name: 'Draft dashboard' }),
+            screen.queryByText('Verified dashboards'),
         ).not.toBeInTheDocument();
         expect(sharedLightdashApi).toHaveBeenCalledWith({
             url: '/projects/analytics-project/dashboards?includePrivate=true',
@@ -271,14 +263,6 @@ describe('LightdashAnalyticsPanel', () => {
         expect(
             screen.queryByRole('button', { name: 'Add sample dashboard' }),
         ).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('link', { name: 'AI usage overview, verified' }),
-        ).toHaveAttribute(
-            'href',
-            '/projects/lightdash-analytics-1/dashboards/ai-usage-overview/view',
-        );
-        expect(screen.getByText('Daily AI usage')).toBeVisible();
-        expect(screen.getByText(/^Updated /)).toBeVisible();
     });
 
     it('requires confirmation before deleting and returns to Create', async () => {

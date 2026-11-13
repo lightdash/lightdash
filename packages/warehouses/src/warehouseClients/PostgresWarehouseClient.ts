@@ -31,10 +31,10 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import * as pg from 'pg';
 import { PoolConfig, QueryResult, types } from 'pg';
-import { Writable } from 'stream';
 import * as tls from 'tls';
 import { rootCertificates } from 'tls';
 import { normalizeUnicode } from '../utils/sql';
+import { createRowBatchWriter } from '../utils/streamRows';
 import './pgProtocolGuard';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
@@ -571,45 +571,30 @@ export class PostgresClient<
                         { type: DimensionType }
                     > | null = null;
 
-                    const writable = new Writable({
-                        objectMode: true,
-                        async write(
-                            chunk: {
-                                row: AnyType;
-                                fields: QueryResult<AnyType>['fields'];
-                            },
-                            encoding,
-                            callback,
-                        ) {
+                    const writable = createRowBatchWriter(
+                        (chunk: {
+                            row: AnyType;
+                            fields: QueryResult<AnyType>['fields'];
+                        }) => {
                             receivedRow = true;
-                            try {
-                                if (cachedFields === null) {
-                                    cachedFields =
-                                        PostgresClient.convertQueryResultFields(
-                                            chunk.fields,
-                                        );
-                                    reportPhase(
-                                        'query',
-                                        performance.now() - queryStart,
+                            if (cachedFields === null) {
+                                cachedFields =
+                                    PostgresClient.convertQueryResultFields(
+                                        chunk.fields,
                                     );
-                                    fetchStart = performance.now();
-                                    startStep('fetch');
-                                }
-                                rowsFetched += 1;
-                                await streamCallback({
-                                    fields: cachedFields,
-                                    rows: [chunk.row],
-                                });
-                                callback();
-                            } catch (writeError) {
-                                if (writeError instanceof Error) {
-                                    callback(writeError);
-                                } else {
-                                    callback(new Error(String(writeError)));
-                                }
+                                reportPhase(
+                                    'query',
+                                    performance.now() - queryStart,
+                                );
+                                fetchStart = performance.now();
+                                startStep('fetch');
                             }
+                            rowsFetched += 1;
+                            return chunk.row;
                         },
-                    });
+                        (rows) =>
+                            streamCallback({ fields: cachedFields!, rows }),
+                    );
 
                     // Wait for writable to finish processing all async callbacks
                     // (not 'end' on readable - async write callbacks may still be in flight)

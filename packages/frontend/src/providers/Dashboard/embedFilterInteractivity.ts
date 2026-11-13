@@ -11,6 +11,15 @@ import { emptyDashboardFilters } from '../../features/dashboard/store';
 type EmbedFilterInteractivity = Pick<Dashboard, 'filters'> &
     Pick<InteractivityOptions, 'dashboardFiltersInteractivity'>;
 
+/** Viewers can't use any filter, so the embed's filters stay the empty sentinel */
+export const isEmbedFilterInteractivityOff = (
+    embedDashboard: Pick<InteractivityOptions, 'dashboardFiltersInteractivity'>,
+) =>
+    !embedDashboard.dashboardFiltersInteractivity ||
+    getFilterInteractivityValue(
+        embedDashboard.dashboardFiltersInteractivity.enabled,
+    ) === FilterInteractivityValues.none;
+
 /** Limits filters to what an embedded dashboard lets viewers interact with */
 export const applyEmbedFilterInteractivity = (
     filters: DashboardFilters,
@@ -20,7 +29,10 @@ export const applyEmbedFilterInteractivity = (
         return filters;
     }
 
-    if (!embedDashboard.dashboardFiltersInteractivity) {
+    if (
+        isEmbedFilterInteractivityOff(embedDashboard) ||
+        !embedDashboard.dashboardFiltersInteractivity
+    ) {
         return emptyDashboardFilters;
     }
 
@@ -28,10 +40,6 @@ export const applyEmbedFilterInteractivity = (
     const filterInteractivityValue = getFilterInteractivityValue(
         interactivityOptions.enabled,
     );
-
-    if (filterInteractivityValue === FilterInteractivityValues.none) {
-        return emptyDashboardFilters;
-    }
 
     if (filterInteractivityValue === FilterInteractivityValues.some) {
         return {

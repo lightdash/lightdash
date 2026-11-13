@@ -1726,3 +1726,80 @@ describe('BigqueryWarehouseClient.getTablePartitioning', () => {
         );
     });
 });
+
+describe('BigQuery result streaming pages', () => {
+    it('caps raw SDK pages and preserves all values and order across empty and partial pages', async () => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const schema = {
+            fields: [
+                { name: 'id', type: 'INTEGER' },
+                { name: 'timestamp', type: 'TIMESTAMP' },
+                { name: 'value', type: 'STRING' },
+                {
+                    name: 'nested',
+                    type: 'RECORD',
+                    fields: [{ name: 'label', type: 'STRING' }],
+                },
+            ],
+        };
+        const raw = Array.from({ length: 1203 }, (_, id) => ({
+            f: [
+                { v: String(id) },
+                { v: '1672531200123456' },
+                { v: id % 2 ? null : 'é\u2028\n' },
+                { v: { f: [{ v: `label-${id}` }] } },
+            ],
+        }));
+        const expected = raw.map((_, id) => ({
+            id,
+            timestamp: new Date('2023-01-01T00:00:00.123Z'),
+            value: id % 2 ? null : 'é\u2028\n',
+            nested: JSON.stringify({ label: `label-${id}` }),
+        }));
+        const getQueryResults = vi
+            .fn()
+            .mockResolvedValueOnce([[], null, { schema }])
+            .mockResolvedValueOnce([
+                raw.slice(0, 500),
+                { pageToken: 'second' },
+                { schema },
+            ])
+            .mockResolvedValueOnce([[], { pageToken: 'third' }, { schema }])
+            .mockResolvedValueOnce([
+                raw.slice(500, 1000),
+                { pageToken: 'last' },
+                { schema },
+            ])
+            .mockResolvedValueOnce([raw.slice(1000), null, { schema }]);
+        warehouse.client.createQueryJob = vi.fn(async () => [
+            { id: 'job', getQueryResults },
+        ]) as unknown as BigQuery['createQueryJob'];
+        const batches: unknown[][] = [];
+        await warehouse.streamQuery(
+            'SELECT 1',
+            ({ rows }) => {
+                batches.push(rows);
+            },
+            {},
+        );
+        expect(getQueryResults).toHaveBeenNthCalledWith(2, {
+            autoPaginate: false,
+            maxResults: 5000,
+            skipParsing: true,
+        });
+        expect(getQueryResults).toHaveBeenNthCalledWith(5, {
+            pageToken: 'last',
+            autoPaginate: false,
+            maxResults: 5000,
+            skipParsing: true,
+        });
+        expect(batches.flat()).toEqual(expected);
+        expect(batches.every((batch) => batch.length <= 64)).toBe(true);
+        expect(
+            batches
+                .flat()
+                .map((row) => JSON.stringify(row))
+                .join('\n'),
+        ).toBe(expected.map((row) => JSON.stringify(row)).join('\n'));
+    });
+});
