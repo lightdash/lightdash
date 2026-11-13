@@ -122,6 +122,12 @@ import {
     SemanticLayerNudge,
     SettingsLink,
 } from './shared';
+import {
+    AddToStudioChatContext,
+    sameStudioChatRef,
+    startStudioChatRefDrag,
+    type StudioChatRef,
+} from './studioChatRefs';
 import { needsYou } from './studioRuns';
 import { StudioStageLine, type StudioStage } from './StudioStageLine';
 import { StudioWorkspacesList } from './StudioWorkspacesList';
@@ -276,6 +282,16 @@ const Tree: FC<{
                             data-selected={node.key === selectedTreeKey}
                             top={item.start}
                             pl={depth * 14 + 4}
+                            draggable={node.ref.type === 'explore'}
+                            onDragStart={(event) => {
+                                if (node.ref.type !== 'explore') return;
+                                startStudioChatRefDrag(event.dataTransfer, {
+                                    modelName: node.ref.exploreId,
+                                    fieldName: null,
+                                    modelLabel: node.label,
+                                    fieldLabel: null,
+                                });
+                            }}
                             onClick={() => {
                                 onSelect(node);
                                 if (isContainer) onToggle(node.key);
@@ -675,6 +691,16 @@ const MainPane: FC<{
                             order={3}
                             className={classes.title}
                             title={title}
+                            draggable={ref?.type === 'explore'}
+                            onDragStart={(event) => {
+                                if (ref?.type !== 'explore') return;
+                                startStudioChatRefDrag(event.dataTransfer, {
+                                    modelName: ref.exploreId,
+                                    fieldName: null,
+                                    modelLabel: title,
+                                    fieldLabel: null,
+                                });
+                            }}
                         >
                             {title}
                         </Title>
@@ -1256,6 +1282,15 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         setHasStarted(true);
         setIsChatOpen(true);
     };
+    const [attached, setAttached] = useState<StudioChatRef[]>([]);
+    const attachToChat = (ref: StudioChatRef) => {
+        setAttached((current) =>
+            current.some((item) => sameStudioChatRef(item, ref))
+                ? current
+                : [...current, ref],
+        );
+        openChat();
+    };
     const askFirst = (prompt: string) => {
         openChat();
         setAskedPrompt(prompt);
@@ -1326,6 +1361,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         </header>
     );
 
+    const renderPaneWithChat = () => (
+        <AddToStudioChatContext.Provider
+            value={chat.isAvailable ? attachToChat : null}
+        >
+            {renderPane()}
+        </AddToStudioChatContext.Provider>
+    );
     const renderPane = () => {
         switch (pane) {
             case 'changes':
@@ -1444,6 +1486,16 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         <SemanticStudioAgent
                             projectUuid={view.project.id}
                             {...openModel}
+                            attached={attached}
+                            onAttach={attachToChat}
+                            onDetach={(ref) =>
+                                setAttached((current) =>
+                                    current.filter(
+                                        (item) => !sameStudioChatRef(item, ref),
+                                    ),
+                                )
+                            }
+                            onAttachedSent={() => setAttached([])}
                             prompt={askedPrompt}
                             onPromptTaken={() => setAskedPrompt(null)}
                             showStarters={canBuildFirstModel}
@@ -1647,7 +1699,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 />
                             )}
                             {pane === 'browse' ? (
-                                renderPane()
+                                renderPaneWithChat()
                             ) : (
                                 <Box
                                     className={classes.main}
@@ -1655,7 +1707,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         pane === 'code' || pane === 'changes'
                                     }
                                 >
-                                    {renderPane()}
+                                    {renderPaneWithChat()}
                                 </Box>
                             )}
                         </Box>

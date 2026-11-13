@@ -108,12 +108,35 @@
 }
 
 .fieldRow {
+    position: relative;
     height: 36px;
     cursor: pointer;
 }
 
 .fieldRow:hover {
     background: var(--mantine-color-default-hover);
+}
+
+/* Shown on hover: the row can be dragged into the chat. */
+.dragGrip {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    display: flex;
+    translate: 0 -50%;
+    color: var(--mantine-color-dimmed);
+    opacity: 0;
+    cursor: grab;
+    transition: opacity 120ms ease;
+}
+
+.fieldRow:hover .dragGrip,
+.fieldRow:focus-visible .dragGrip {
+    opacity: 1;
+}
+
+.fieldRow:active {
+    cursor: grabbing;
 }
 
 .fieldRow:focus-visible {
