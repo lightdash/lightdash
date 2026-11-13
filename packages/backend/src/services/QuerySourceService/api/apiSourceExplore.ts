@@ -27,6 +27,7 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { type ApiConnectorCapabilities } from './ApiConnector';
+import { type ApiQueryPlan } from './apiQueryPlan';
 
 type ApiSourceFieldDefinition = {
     /** Stable within the explore: saved charts reference it forever, so never rename it. */
@@ -252,6 +253,12 @@ export type CompiledApiSourceQuery = {
      * YYYY), turned into the period's first day so they read as dates.
      */
     periodColumns?: Record<string, ApiSourcePeriodFormat>;
+    /**
+     * How the query runs when it needs several API calls; part of the
+     * results cache key. Absent, `query` runs as one connector execution.
+     * Either way `query` is what the call log and SQL view show.
+     */
+    plan?: ApiQueryPlan;
 };
 
 export type ApiSourcePeriodFormat = 'iso_week' | 'year_month' | 'year';

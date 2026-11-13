@@ -95,10 +95,29 @@ export type ApiConnectorExecuteArgs = {
     limit: number;
 };
 
+/** One call of a query plan's scan or lookup step. */
+export type ApiConnectorFetchArgs = {
+    /** The step's request, in the connector's own language. */
+    request: string;
+    limit: number;
+    /** Where the page starts; absent for the first page. */
+    cursor?: string;
+    /** The ids a lookup asks for. */
+    keys?: string[];
+};
+
+export type ApiConnectorPage = {
+    rows: Record<string, unknown>[];
+    /** Where the next page starts, when there is one. */
+    nextCursor?: string;
+};
+
 /** One external API an api query source can call live. */
 export interface ApiConnector {
     describe(): ApiConnectorDescription;
     execute(args: ApiConnectorExecuteArgs): Promise<ApiConnectorResult>;
+    /** Only connectors whose queries compile to several calls implement it. */
+    fetchRows?(args: ApiConnectorFetchArgs): Promise<ApiConnectorPage>;
 }
 
 /** What one query's calls cost, counted by the transport so failed queries count too. */

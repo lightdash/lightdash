@@ -2034,6 +2034,9 @@ export class ExternalConnectionService extends BaseService {
         return {
             describe: () => connector.describe(),
             execute: (args) => connector.execute(args),
+            ...(connector.fetchRows
+                ? { fetchRows: connector.fetchRows.bind(connector) }
+                : {}),
             usage: () => ({ ...usage }),
             logCall: async (call) => {
                 try {
