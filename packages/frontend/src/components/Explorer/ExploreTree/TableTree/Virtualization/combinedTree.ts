@@ -96,15 +96,6 @@ export const buildCombinedFieldTree = (
     );
     const sections: SectionInfo[] = [
         {
-            type: TreeSection.Dimensions,
-            label: 'Dimensions',
-            color: LD_FIELD_COLORS.dimension.color,
-            itemsMap: toItemsMap(
-                tables.flatMap((table) => Object.values(table.dimensions)),
-            ),
-            orderFieldsBy,
-        },
-        {
             type: TreeSection.Metrics,
             label: 'Metrics',
             color: LD_FIELD_COLORS.metric.color,
@@ -131,6 +122,15 @@ export const buildCombinedFieldTree = (
                             : undefined,
                     },
                 ]),
+            ),
+            orderFieldsBy,
+        },
+        {
+            type: TreeSection.Dimensions,
+            label: 'Dimensions',
+            color: LD_FIELD_COLORS.dimension.color,
+            itemsMap: toItemsMap(
+                tables.flatMap((table) => Object.values(table.dimensions)),
             ),
             orderFieldsBy,
         },

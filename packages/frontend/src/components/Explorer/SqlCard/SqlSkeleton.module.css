@@ -1,0 +1,64 @@
+/* Sized to the read-only editor's own metrics so the SQL lands in place */
+.root {
+    padding: 4px 0 16px;
+    overflow: hidden;
+}
+
+.line {
+    display: flex;
+    align-items: center;
+    height: 21px;
+}
+
+.lineNumber {
+    flex: 0 0 auto;
+    width: 34px;
+    padding-right: 4px;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 12.5px;
+    text-align: right;
+    color: var(--mantine-color-ldGray-4);
+    user-select: none;
+}
+
+.code {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 8px;
+
+    &[data-indent='1'] {
+        padding-left: 20px;
+    }
+}
+
+.token {
+    flex: 0 0 auto;
+    width: var(--token-width);
+    height: 8px;
+    border-radius: 2px;
+    background-color: var(--mantine-color-ldGray-2);
+
+    &[data-keyword] {
+        background-color: var(--mantine-color-ldGray-4);
+    }
+}
+
+/* A soft wave runs down the query, one line after another */
+@media (prefers-reduced-motion: no-preference) {
+    .code {
+        animation: sql-skeleton-pulse 1400ms ease-in-out infinite;
+        animation-delay: calc(var(--line-index) * 70ms);
+    }
+}
+
+@keyframes sql-skeleton-pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.45;
+    }
+}

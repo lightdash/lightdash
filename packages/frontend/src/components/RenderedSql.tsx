@@ -1,12 +1,5 @@
 import { formatSql, getMergeCompiledSqlText } from '@lightdash/common';
-import {
-    Alert,
-    Box,
-    Loader,
-    Stack,
-    Text,
-    useMantineColorScheme,
-} from '@mantine/core';
+import { Alert, Box, Stack, Text, useMantineColorScheme } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import {
@@ -24,6 +17,7 @@ import { useCompiledSql } from '../hooks/useCompiledSql';
 import { useExploreWarehouseConnection } from '../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import RunningBar from './common/RunningBar';
+import SqlSkeleton from './Explorer/SqlCard/SqlSkeleton';
 import Editor, { type BeforeMount, type EditorProps } from './MonacoEditor';
 
 const MONACO_READ_ONLY: EditorProps['options'] = {
@@ -140,11 +134,9 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
 
     if (isInitialLoading || (merge.isMergeActive && merge.isInitialLoading)) {
         return (
-            <Box mih={60}>
+            <Box>
                 <RunningBar label="Compiling SQL" />
-                <Text fz="xs" c="dimmed" ta="center" pt="lg">
-                    Compiling SQL
-                </Text>
+                <SqlSkeleton />
             </Box>
         );
     }
@@ -224,7 +216,11 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
             )}
             <Box flex={1}>
                 <Editor
-                    loading={<Loader color="gray" size="xs" />}
+                    loading={
+                        <Box w="100%" h="100%">
+                            <SqlSkeleton />
+                        </Box>
+                    }
                     language={language}
                     beforeMount={beforeMount}
                     value={formattedSql}
