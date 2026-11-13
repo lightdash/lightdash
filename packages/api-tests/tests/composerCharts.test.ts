@@ -258,13 +258,16 @@ describe('Composer charts', () => {
         `${chartsUrl}/${composerChartUuid}/run`;
 
     /** A dashboard holding one composer tile; returns the chart and its tile. */
-    const createComposerDashboard = async (pipeline: ComposerChartPipeline) => {
+    const createComposerDashboard = async (
+        pipeline: ComposerChartPipeline,
+        chart?: CreateComposerChart['chart'],
+    ) => {
         const dashboard = await createDashboard();
         const body = composerChartBody(dashboard.uuid);
         const created = await admin.post<Body<ComposerChart>>(chartsUrl, {
             ...body,
             pipeline,
-            chart: {
+            chart: chart ?? {
                 ...body.chart,
                 columns: [
                     { reference: 'status', fieldType: FieldType.DIMENSION },
@@ -558,6 +561,75 @@ describe('Composer charts', () => {
                 0,
             );
         }
+    });
+
+    it('returns a semantic-layer chart’s own fields, so the tile draws the project’s labels and formats', async () => {
+        const body = composerChartBody('');
+        const { chart, tileUuid } = await createComposerDashboard(
+            body.pipeline,
+            body.chart,
+        );
+        const viewer = await loginAsViewer();
+        const run = await viewer.post<Body<ComposerChartRunResults>>(
+            runUrl(chart.uuid),
+            runRequest(chart.dashboardUuid, tileUuid),
+        );
+        expect(run.status).toBe(200);
+        expect(run.body.results.chartStageQueryUuid).toBeNull();
+        expect(run.body.results.fields).toMatchObject({
+            orders_status: { table: 'orders', fieldType: FieldType.DIMENSION },
+            orders_total_order_amount: {
+                table: 'orders',
+                fieldType: FieldType.METRIC,
+            },
+        });
+    });
+
+    it('runs a group-by as a server-built pivot stage whose rows a viewer can read', async () => {
+        const { chart, tileUuid } = await createComposerDashboard(
+            {
+                schemaVersion: 1,
+                terminalNodeId: 'orders',
+                nodes: [
+                    {
+                        sourceType: QuerySourceType.SQL,
+                        nodeId: 'orders',
+                        title: 'Orders by status and size',
+                        sql: "SELECT status, CASE WHEN amount > 10 THEN 'big' ELSE 'small' END AS size, sum(amount) AS total FROM postgres.jaffle.orders GROUP BY 1, 2",
+                    },
+                ],
+            },
+            {
+                schemaVersion: 1,
+                columns: [
+                    { reference: 'status', fieldType: FieldType.DIMENSION },
+                    { reference: 'size', fieldType: FieldType.DIMENSION },
+                    { reference: 'total', fieldType: FieldType.METRIC },
+                ],
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: { xField: 'status', yField: ['total'] },
+                        eChartsConfig: {},
+                    },
+                },
+                pivotConfig: { columns: ['size'] },
+                tableConfig: { columnOrder: [] },
+            },
+        );
+        const viewer = await loginAsViewer();
+        const run = await viewer.post<Body<ComposerChartRunResults>>(
+            runUrl(chart.uuid),
+            runRequest(chart.dashboardUuid, tileUuid),
+        );
+        expect(run.status).toBe(200);
+        const { chartStageQueryUuid, queries } = run.body.results;
+        expect(queries.map(({ queryUuid }) => queryUuid)).toContain(
+            chartStageQueryUuid,
+        );
+        expect(
+            (await pollRows(viewer, String(chartStageQueryUuid))).length,
+        ).toBeGreaterThan(0);
     });
 
     it('refuses a run request carrying nodes, or naming a chart its dashboard does not own', async () => {

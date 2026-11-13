@@ -82,6 +82,7 @@ export * from './compiler/referenceLookup';
 export * from './compiler/translator';
 export * from './compiler/writebackColumn';
 export * from './composer/composerChart';
+export * from './composer/composerChartDraw';
 export * from './composer/composerResultChart';
 export * from './parameters/dashboardParameterControls';
 export * from './parameters/dashboardTileParameters';

@@ -1,5 +1,6 @@
 import {
     ForbiddenError,
+    getComposerChartPivotStage,
     type Account,
     type ComposerChart,
     type ComposerChartPipelineNode,
@@ -14,6 +15,8 @@ export class ComposerRunBinding {
         readonly projectUuid: string,
         readonly nodes: ComposerChartPipelineNode[],
         readonly stamp: ComposerChartRunSource,
+        /** The server-built series-split stage, run after the terminal node; null without a group-by. */
+        readonly chartStageNodeId: string | null,
     ) {}
 
     static forAuthorizedViewer({
@@ -25,15 +28,19 @@ export class ComposerRunBinding {
         chart: ComposerChart;
         tileUuid: string;
     }): ComposerRunBinding {
+        const stage = getComposerChartPivotStage(chart.pipeline, chart.chart);
         return new ComposerRunBinding(
             account.user.userUuid,
             chart.projectUuid,
-            chart.pipeline.nodes,
+            stage
+                ? [...chart.pipeline.nodes, { ...stage, title: 'Series split' }]
+                : chart.pipeline.nodes,
             {
                 composerChartUuid: chart.uuid,
                 dashboardUuid: chart.dashboardUuid,
                 tileUuid,
             },
+            stage?.nodeId ?? null,
         );
     }
 
