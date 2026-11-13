@@ -387,7 +387,6 @@ import {
     validatePagination,
 } from '../ProjectService/resultsPagination';
 import type {
-    ApiConnector,
     ApiConnectorCall,
     ApiConnectorResult,
     MeteredApiConnector,
@@ -398,6 +397,12 @@ import {
     isLiveSourceErrorReportable,
     type ApiQueryOutcome,
 } from '../QuerySourceService/api/apiQueryOutcome';
+import {
+    getApiQueryPlanBudgetIssue,
+    runApiQueryPlan,
+    toOneStepApiQueryPlan,
+    type ApiQueryPlan,
+} from '../QuerySourceService/api/apiQueryPlan';
 import { toApiSourceQueryError } from '../QuerySourceService/api/apiSourceExplore';
 import {
     assertApiResultComplete,
@@ -12509,6 +12514,22 @@ export class AsyncQueryService extends ProjectService {
             timezone: queryComposer.getTimezone() ?? 'UTC',
             now: new Date(),
         });
+        const budgetIssue = compiled.plan
+            ? getApiQueryPlanBudgetIssue(compiled.plan, connector.describe())
+            : null;
+        if (budgetIssue) {
+            this.trackApiSourceRefusals({
+                account,
+                organizationUuid,
+                projectUuid,
+                exploreName: explore.name,
+                apiSource,
+                issues: [budgetIssue],
+                context,
+                querySurface,
+            });
+            throw toApiSourceQueryError([budgetIssue]);
+        }
         const { queryUuid, reusable } = await this.submitApiQuery({
             account,
             projectUuid,
@@ -12516,6 +12537,7 @@ export class AsyncQueryService extends ProjectService {
             connector,
             payload: { kind: 'query', query: compiled.query },
             limit: compiled.requestLimit,
+            plan: compiled.plan,
             // The compiled request has every relative date resolved, so it
             // names exactly the rows the API returns.
             cacheKeySql: JSON.stringify({
@@ -12566,6 +12588,7 @@ export class AsyncQueryService extends ProjectService {
         connector,
         payload,
         limit,
+        plan,
         cacheKeySql,
         context,
         querySurface,
@@ -12579,6 +12602,8 @@ export class AsyncQueryService extends ProjectService {
         connector: MeteredApiConnector;
         payload: ApiSourcePayload;
         limit: number;
+        /** Absent, `payload` runs as one connector execution. */
+        plan?: ApiQueryPlan;
         cacheKeySql: string;
         context: QueryExecutionContext;
         querySurface: QuerySurface | undefined;
@@ -12745,6 +12770,7 @@ export class AsyncQueryService extends ProjectService {
             connector,
             payload,
             limit,
+            plan,
             cacheKey,
             context,
             queryCreatedAt,
@@ -12770,6 +12796,7 @@ export class AsyncQueryService extends ProjectService {
         connector,
         payload,
         limit,
+        plan,
         cacheKey,
         context,
         queryCreatedAt,
@@ -12784,6 +12811,7 @@ export class AsyncQueryService extends ProjectService {
         connector: MeteredApiConnector;
         payload: ApiSourcePayload;
         limit: number;
+        plan: ApiQueryPlan | undefined;
         cacheKey: string;
         context: QueryExecutionContext;
         queryCreatedAt: Date;
@@ -12839,8 +12867,12 @@ export class AsyncQueryService extends ProjectService {
                             this.executeApiConnector(
                                 connector,
                                 connectorType,
-                                payload,
-                                limit,
+                                plan ??
+                                    toOneStepApiQueryPlan({
+                                        payload,
+                                        limit,
+                                        description: connector.describe(),
+                                    }),
                             ),
                     );
                     executeMs = Date.now() - startedAt;
@@ -13053,17 +13085,20 @@ export class AsyncQueryService extends ProjectService {
         return latest;
     }
 
-    /** One connector call, measured by outcome; rethrows what it caught. */
+    /** One query's plan, measured by outcome; rethrows what it caught. */
     private async executeApiConnector(
-        connector: ApiConnector,
+        connector: MeteredApiConnector,
         connectorType: ApiConnectorType,
-        payload: ApiSourcePayload,
-        limit: number,
+        plan: ApiQueryPlan,
     ): Promise<ApiConnectorResult> {
         const startedAt = Date.now();
         this.prometheusMetrics?.trackApiSourceInflight(connectorType, 1);
         try {
-            const result = await connector.execute({ payload, limit });
+            const result = await runApiQueryPlan({
+                plan,
+                connector,
+                usage: () => connector.usage(),
+            });
             this.prometheusMetrics?.observeApiSourceRequest(
                 connectorType,
                 'ok',

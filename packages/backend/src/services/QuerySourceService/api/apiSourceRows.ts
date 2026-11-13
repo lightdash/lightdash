@@ -1,4 +1,5 @@
 import { ParameterError } from '@lightdash/common';
+import { type ApiConnectorPage } from './ApiConnector';
 
 /**
  * The error every live data source gives when a query has more rows than one
@@ -16,12 +17,6 @@ export const tooManyRowsError = ({
             'en-US',
         )} rows, the most one query can read, so its result would be incomplete. Narrow the date range, add a filter or remove a dimension.`,
     );
-
-type ApiSourcePage = {
-    rows: Record<string, unknown>[];
-    /** Where the next page starts, when there is one. */
-    nextCursor?: string;
-};
 
 /**
  * Reads one row past the limit, over as many pages as a query may fetch, to
@@ -46,7 +41,7 @@ export const readRowsWithinCap = async ({
     fetchPage: (request: {
         limit: number;
         cursor: string | undefined;
-    }) => Promise<ApiSourcePage>;
+    }) => Promise<ApiConnectorPage>;
 }): Promise<{
     rows: Record<string, unknown>[];
     hasMoreRows: boolean;

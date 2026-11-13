@@ -287,6 +287,7 @@ import {
     validExplore,
 } from '../ProjectService/ProjectService.mock';
 import { buildApiSourceExplores } from '../QuerySourceService/api/apiSourceExplores';
+import { ga4Integration } from '../QuerySourceService/api/google/ga4Integration';
 import { QuerySourceRegistry } from '../QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { SemanticLayerQuerySource } from '../QuerySourceService/sources/SemanticLayerQuerySource';
@@ -2225,6 +2226,58 @@ describe('AsyncQueryService', () => {
                     readForms,
                 ),
             ).toBe(true);
+        });
+
+        test('refuses a plan that could make more calls than one query may, before submitting it', async () => {
+            const ga4Compile = ga4Integration.compile;
+            const compile = vi
+                .spyOn(ga4Integration, 'compile')
+                .mockImplementation((args) => ({
+                    ...ga4Compile(args),
+                    plan: {
+                        steps: [
+                            {
+                                id: 'report',
+                                kind: 'report',
+                                payload: { kind: 'query', query: '{}' },
+                                limit: 10,
+                                maxCalls: 3,
+                            },
+                        ],
+                        budget: { calls: 3, bytes: 1, ms: 1 },
+                    },
+                }));
+            const { execute, connector, submitApiQuery } = setup();
+            connector.describe.mockReturnValue({
+                label: 'GA4',
+                maxRows: 100000,
+                limits: { callsPerQuery: 2 },
+            } as never);
+            const track = vi.spyOn(
+                AsyncQueryService.prototype as AnyType,
+                'trackApiSourceRefusals',
+            );
+
+            try {
+                await expect(execute()).rejects.toMatchObject({
+                    data: {
+                        liveSourceErrorCode: 'live_source.refused.call_budget',
+                    },
+                });
+                expect(submitApiQuery).not.toHaveBeenCalled();
+                expect(track).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        issues: [
+                            expect.objectContaining({
+                                code: 'live_source.refused.call_budget',
+                            }),
+                        ],
+                    }),
+                );
+            } finally {
+                compile.mockRestore();
+                track.mockRestore();
+            }
         });
 
         test('refuses a pivot before calling the integration', async () => {
