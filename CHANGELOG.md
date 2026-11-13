@@ -1,3 +1,10 @@
+# [3.247.0](https://github.com/lightdash/lightdash/compare/3.246.0...3.247.0) (2026-11-13)
+
+
+### Features
+
+* **ai:** call Studio workspaces changes ([#32556](https://github.com/lightdash/lightdash/issues/32556)) ([688352e](https://github.com/lightdash/lightdash/commit/688352e6368607d7edb60c5f26c41b373ef6a662))
+
 # [3.246.0](https://github.com/lightdash/lightdash/compare/3.245.0...3.246.0) (2026-11-13)
 
 
