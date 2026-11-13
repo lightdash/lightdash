@@ -35,6 +35,7 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
+import { useFinishDiscardedWork } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { ChangeDiff } from './ChangeDiff';
 import { DevelopmentBar } from './DevelopmentBar';
@@ -66,10 +67,6 @@ import {
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
-import {
-    useActiveStudioWorkspace,
-    useStudioWorkspaceAction,
-} from './useStudioWorkspaces';
 import { useTryInExplore } from './useTryInExplore';
 
 const KIND_NOUNS: [ChangeKind, string][] = [
@@ -477,8 +474,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const tryInExplore = useTryInExplore(projectUuid);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
-    const activeWorkspace = useActiveStudioWorkspace(projectUuid);
-    const workspaceAction = useStudioWorkspaceAction(projectUuid);
+    const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
@@ -604,13 +600,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                         discard.mutate(null, {
                             onSuccess: () => {
                                 setDiscarding(false);
-                                if (activeWorkspace) {
-                                    workspaceAction.mutate({
-                                        kind: 'finish',
-                                        workspaceUuid:
-                                            activeWorkspace.workspaceUuid,
-                                    });
-                                }
+                                finishDiscardedWork();
                             },
                         })
                     }
