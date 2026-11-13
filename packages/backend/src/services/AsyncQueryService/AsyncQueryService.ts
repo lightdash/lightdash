@@ -10631,7 +10631,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         dateZoom,
         limit,
-        parameters,
+        parameters: requestedParameters,
         sorts,
     }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
@@ -10666,6 +10666,16 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
+        // A dashboard embed token can call this route directly, so it runs with the values its source query ran with
+        const parameters =
+            isJwtUser(account) && account.access.content.type === 'dashboard'
+                ? (source.usedParameters ??
+                  AsyncQueryService.getAccountParameterInputs(
+                      account,
+                      requestedParameters,
+                      undefined,
+                  ).parameters)
+                : requestedParameters;
 
         const {
             warehouseCredentials,

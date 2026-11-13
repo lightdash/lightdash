@@ -96,6 +96,7 @@ import {
     type MergeTypedColumn,
     type MetricQuery,
     type ParameterDefinitions,
+    type ParametersValuesMap,
     type PivotConfiguration,
     type ProjectDefaults,
     type RegisteredAccount,
@@ -1141,6 +1142,115 @@ describe('underlying data dimension selection', () => {
             );
         },
     );
+});
+
+describe('underlying data parameters', () => {
+    const runUnderlyingData = async (
+        account: Account,
+        usedParameters: ParametersValuesMap | null,
+    ) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(service.queryHistoryModel.get).mockResolvedValue({
+            queryUuid: 'source-query',
+            metricQuery: metricQueryMock,
+            fields: {},
+            requestParameters: {},
+            usedParameters,
+        } as unknown as QueryHistory);
+        // Stops the run once the parameters are resolved
+        const combineParameters = vi
+            .spyOn(service, 'combineParameters')
+            .mockRejectedValue(new Error('parameters resolved'));
+        await expect(
+            service.executeAsyncUnderlyingDataQuery({
+                account,
+                projectUuid,
+                underlyingDataSourceQueryUuid: 'source-query',
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                filters: {},
+                parameters: { region: 'APAC', currency: 'USD' },
+            }),
+        ).rejects.toThrow('parameters resolved');
+        return combineParameters.mock.calls[0][2];
+    };
+
+    const buildEmbedAccount = () => {
+        const account = fromJwt({
+            decodedToken: defaultJwtToken,
+            embed: {
+                projectUuid,
+                organization: {
+                    organizationUuid: projectSummary.organizationUuid,
+                    name: 'Test Organization',
+                    createdAt: new Date('2024-01-01'),
+                },
+                encodedSecret: 'test-encoded-secret',
+                dashboardUuids: [],
+                allowAllDashboards: true,
+                chartUuids: [],
+                allowAllCharts: true,
+                allowAllApps: false,
+                appUuids: [],
+                createdAt: '2024-01-01',
+                user: null,
+            },
+            source: 'test-jwt-token',
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'test-dashboard-uuid',
+                chartUuids: [],
+                explores: [],
+            },
+            userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+        });
+        account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
+        account.access.parameters = {
+            enabled: true,
+            allowedParameters: ['region'],
+            values: { currency: 'GBP' },
+        };
+        return account;
+    };
+
+    it('runs an embed drill-down with the values its source query ran with', async () => {
+        expect(
+            await runUnderlyingData(buildEmbedAccount(), { region: 'UK' }),
+        ).toEqual({ region: 'UK' });
+    });
+
+    it('applies the embed token rules when the source query has no recorded values', async () => {
+        expect(await runUnderlyingData(buildEmbedAccount(), null)).toEqual({
+            region: 'APAC',
+            currency: 'GBP',
+        });
+    });
+
+    it('leaves the parameters of a data app token as sent', async () => {
+        const account = buildEmbedAccount();
+        account.access.content = {
+            type: 'dataApp',
+            appUuid: 'app-uuid',
+            chartUuids: [],
+            explores: [],
+        };
+        expect(await runUnderlyingData(account, { region: 'UK' })).toEqual({
+            region: 'APAC',
+            currency: 'USD',
+        });
+    });
+
+    it('leaves the parameters of a signed-in user as sent', async () => {
+        const account = buildAccount();
+        account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
+        expect(await runUnderlyingData(account, { region: 'UK' })).toEqual({
+            region: 'APAC',
+            currency: 'USD',
+        });
+    });
 });
 
 describe('AsyncQueryService', () => {
