@@ -1,7 +1,12 @@
 import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
-import { IconArrowsMinimize, IconMinus, IconPlus } from '@tabler/icons-react';
-import { memo, useCallback } from 'react';
+import {
+    IconArrowsMaximize,
+    IconArrowsMinimize,
+    IconMinus,
+    IconPlus,
+} from '@tabler/icons-react';
+import { memo, useCallback, useState } from 'react';
 import {
     dashboardEditActions,
     selectCanvasZoom,
@@ -28,16 +33,32 @@ export const CanvasZoomControls = memo(() => {
     const zoomOut = () => setZoom(stepCanvasZoom(zoom, 'out'));
     const zoomIn = () => setZoom(stepCanvasZoom(zoom, 'in'));
     const reset = () => setZoom(ACTUAL_SIZE_ZOOM);
-    const fit = useCallback(() => {
+    const [fitted, setFitted] = useState<{
+        zoom: number;
+        zoomBefore: number;
+    } | null>(null);
+    // Any other zoom step leaves the fitted view
+    const isFitted = fitted !== null && fitted.zoom === zoom;
+    const toggleFit = () => {
+        if (isFitted) {
+            setFitted(null);
+            setZoom(fitted.zoomBefore);
+            return;
+        }
         const fitZoom = fitVisibleCanvasToWindow();
-        if (fitZoom !== null) setZoom(fitZoom);
-    }, [setZoom]);
+        if (fitZoom === null || fitZoom === zoom) return;
+        setFitted({ zoom: fitZoom, zoomBefore: zoom });
+        setZoom(fitZoom);
+    };
+    const fitLabel = isFitted
+        ? `Back to ${Math.round(fitted.zoomBefore * 100)}%`
+        : 'Zoom to fit';
 
     useHotkeys([
         ...toHotkeyItems(EDIT_SHORTCUTS.zoomOut, zoomOut),
         ...toHotkeyItems(EDIT_SHORTCUTS.zoomReset, reset),
         ...toHotkeyItems(EDIT_SHORTCUTS.zoomIn, zoomIn),
-        ...toHotkeyItems(EDIT_SHORTCUTS.zoomToFit, fit),
+        ...toHotkeyItems(EDIT_SHORTCUTS.zoomToFit, toggleFit),
     ]);
 
     return (
@@ -106,17 +127,25 @@ export const CanvasZoomControls = memo(() => {
                 <Tooltip
                     label={
                         <ShortcutTooltipLabel
-                            label="Zoom to fit"
+                            label={fitLabel}
                             shortcut={EDIT_SHORTCUTS.zoomToFit}
                         />
                     }
                 >
                     <ActionIcon
                         size="md"
-                        aria-label="Zoom to fit"
-                        onClick={fit}
+                        aria-label={fitLabel}
+                        aria-pressed={isFitted}
+                        variant={isFitted ? 'light' : 'subtle'}
+                        onClick={toggleFit}
                     >
-                        <MantineIcon icon={IconArrowsMinimize} />
+                        <MantineIcon
+                            icon={
+                                isFitted
+                                    ? IconArrowsMaximize
+                                    : IconArrowsMinimize
+                            }
+                        />
                     </ActionIcon>
                 </Tooltip>
             </ShortcutHint>
