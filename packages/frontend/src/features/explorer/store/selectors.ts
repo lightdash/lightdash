@@ -59,6 +59,16 @@ export const selectMetricQuery = createSelector(
     (unsavedChartVersion) => unsavedChartVersion.metricQuery,
 );
 
+// Chart, results and SQL have nothing to show until a field is selected
+export const selectHasSelectedFields = createSelector(
+    [selectMetricQuery],
+    (metricQuery) =>
+        metricQuery.dimensions.length +
+            metricQuery.metrics.length +
+            metricQuery.tableCalculations.length >
+        0,
+);
+
 const selectExpandedSections = createSelector(
     [selectExplorerState],
     (explorer) => explorer.expandedSections,
@@ -76,19 +86,22 @@ export const selectIsParametersExpanded = createSelector(
 );
 
 export const selectIsVisualizationExpanded = createSelector(
-    [selectExpandedSections],
-    (expandedSections) =>
+    [selectExpandedSections, selectHasSelectedFields],
+    (expandedSections, hasSelectedFields) =>
+        hasSelectedFields &&
         expandedSections.includes(ExplorerSection.VISUALIZATION),
 );
 
 export const selectIsSqlExpanded = createSelector(
-    [selectExpandedSections],
-    (expandedSections) => expandedSections.includes(ExplorerSection.SQL),
+    [selectExpandedSections, selectHasSelectedFields],
+    (expandedSections, hasSelectedFields) =>
+        hasSelectedFields && expandedSections.includes(ExplorerSection.SQL),
 );
 
 export const selectIsResultsExpanded = createSelector(
-    [selectExpandedSections],
-    (expandedSections) => expandedSections.includes(ExplorerSection.RESULTS),
+    [selectExpandedSections, selectHasSelectedFields],
+    (expandedSections, hasSelectedFields) =>
+        hasSelectedFields && expandedSections.includes(ExplorerSection.RESULTS),
 );
 
 export const selectIsVisualizationConfigOpen = createSelector(

@@ -1,3 +1,194 @@
 .groupedView {
     overflow: auto;
 }
+
+/* These rules are for the flat results grid only; the grouped view keeps the
+   pivot table's own look. */
+/* Results grid: row hairlines only, no column rules or zebra, and quiet
+   single-line headers. The shared table has no hooks for its inner parts, so
+   they are matched by their module class name. */
+.results:not([data-grouped]) [class*='tableScrollableWrapper'] {
+    border: 0;
+    border-block: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 0;
+}
+
+.results:not([data-grouped]) table tbody tr td,
+.results:not([data-grouped]) table tbody tr td:not(:first-child) {
+    box-shadow: inset 0 1px 0 0 var(--mantine-color-ldGray-2);
+}
+
+.results:not([data-grouped]) table tbody tr[data-odd] {
+    background-color: transparent;
+}
+
+.results:not([data-grouped]) table thead th,
+.results:not([data-grouped]) table thead th:not(:first-child) {
+    padding: 7px 8.5px;
+    vertical-align: middle;
+    box-shadow: none;
+}
+
+.results:not([data-grouped]) table thead th:first-child,
+.results:not([data-grouped]) table tbody td:first-child {
+    color: var(--mantine-color-ldGray-5);
+    font-weight: 400;
+}
+
+.results:not([data-grouped]) [class*='thContainer'] {
+    align-items: center;
+}
+
+/* Header label: the field name in ink, led by its type icon in the field
+   kind's colour, with its table in grey underneath. Long names wrap inside
+   the column, so it stays as wide as its values, and every line ends at the
+   column's right edge. */
+.results:not([data-grouped]) [class*='tableHeaderLabelContainer'] {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 12px;
+    text-align: right;
+    white-space: normal;
+}
+
+.results:not([data-grouped]) [class*='tableHeaderBoldLabel'] {
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+/* The icon flows with the name's first word */
+.results:not([data-grouped]) [class*='tableHeaderBoldLabel'] > svg {
+    display: inline-block !important;
+    margin-right: 6px;
+    vertical-align: -1px;
+}
+
+.results:not([data-grouped]) [class*='tableHeaderRegularLabel'] {
+    order: 2;
+    color: var(--mantine-color-ldGray-5);
+    font-size: 11px;
+    opacity: 1;
+}
+
+/* The column menu stays out of the way until the header is in use */
+.results:not([data-grouped]) table thead th [class*='thActionsContainer'] {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.results:not([data-grouped]) table thead th:hover [class*='thActionsContainer'],
+.results:not([data-grouped])
+    table
+    thead
+    th:focus-within
+    [class*='thActionsContainer'] {
+    opacity: 1;
+}
+
+/* Every results column aligns to the right, labels over their values */
+.results table tbody td,
+.results table tbody td[data-nan],
+.results table tfoot td,
+.results table tfoot td[data-nan],
+.results table tfoot th {
+    text-align: right !important;
+}
+
+.results table thead th [class*='thContainer'] {
+    position: relative;
+    justify-content: flex-end;
+}
+
+/* The menu overlays the column's right edge so it never pushes the label */
+.results table thead th [class*='thActionsContainer'] {
+    position: absolute;
+    right: 0;
+    margin: 0;
+    background-color: var(--mantine-color-body);
+    border-radius: var(--mantine-radius-sm);
+}
+
+/* Pagination shares the totals row's tint, with small quiet controls */
+.results:not([data-grouped]) [class*='tableFooter'] {
+    padding: 4px 8.5px;
+    margin-top: 0;
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+/* Pages or Scroll is a plain text choice: the current one in ink */
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-SegmentedControl-root) {
+    padding: 0;
+    background-color: transparent;
+}
+
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-SegmentedControl-indicator) {
+    display: none;
+}
+
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-SegmentedControl-control) {
+    border: 0;
+}
+
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-SegmentedControl-control)::before {
+    display: none;
+}
+
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-SegmentedControl-label):not([data-active]) {
+    color: var(--mantine-color-ldGray-5);
+}
+
+/* Totals close the table: a firmer rule above, on the shared footer tint */
+.results:not([data-grouped]) table tfoot [class*='footerCell'] {
+    box-shadow: inset 0 1px 0 0 var(--mantine-color-ldGray-4);
+}
+
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-SegmentedControl-label) {
+    padding: 2px 10px 2px 0;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-Pagination-control) {
+    --pagination-control-size: 24px;
+
+    background-color: transparent;
+    border: 0;
+}
+
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-Pagination-control):hover:not(:disabled) {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.results:not([data-grouped]) [class*='tableScrollableWrapper'] {
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+}
+
+/* A re-run keeps the last rows in place, dimmed, under the progress bar */
+.results[data-running] > [class*='tableContainer'] {
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 160ms ease;
+}
+
+/* These rows answer an earlier selection: step them back until re-run */
+.results[data-stale] table tbody,
+.results[data-stale] table tfoot {
+    opacity: 0.35;
+}

@@ -7,7 +7,7 @@ import {
     type PivotConfiguration,
 } from '@lightdash/common';
 import { Box, List, Tooltip } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertTriangle } from '@tabler/icons-react';
 import { isEqual } from 'es-toolkit/compat';
 import { useMemo, type FC } from 'react';
 import {
@@ -209,7 +209,11 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
                 aria-label="Results may be incorrect"
                 display="inline-flex"
             >
-                <MantineIcon icon={IconAlertCircle} color="yellow" size="lg" />
+                <MantineIcon
+                    icon={IconAlertTriangle}
+                    color="yellow.8"
+                    size="md"
+                />
             </Box>
         </Tooltip>
     );

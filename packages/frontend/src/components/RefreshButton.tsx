@@ -1,14 +1,15 @@
 import { FeatureFlags, type TimezoneSetting } from '@lightdash/common';
 import {
-    Box,
+    Indicator,
     Button,
     Group,
     Kbd,
+    Text,
     Tooltip,
     type MantineSize,
 } from '@mantine/core';
 import { useHotkeys, useOs } from '@mantine/hooks';
-import { IconPlayerPlay } from '@tabler/icons-react';
+import { IconPlayerPlay, IconRefresh } from '@tabler/icons-react';
 import { memo, useCallback, useTransition, type FC } from 'react';
 import {
     explorerActions,
@@ -26,6 +27,7 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import MantineIcon from './common/MantineIcon';
+import { useIsResultsStale } from './Explorer/useIsResultsStale';
 import PreAggregateStatusBadge from './PreAggregateStatusBadge';
 import { ExplorerQueryCostEstimateBadge } from './QueryCostEstimate/ExplorerQueryCostEstimate';
 import RunQuerySettings from './RunQuerySettings';
@@ -90,16 +92,30 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     useHotkeys([['mod + enter', onClick, { preventDefault: true }]]);
 
     const isRunning = isLoading || !!merge.isRunning;
+    // The fields changed since the last run, so what is on screen is behind
+    const isStale = useIsResultsStale() && !merge.isMerging;
 
     return (
         <Group gap="xs" wrap="nowrap">
             <ExplorerQueryCostEstimateBadge />
-            <Box pos="relative">
+            <Indicator
+                disabled={!isStale}
+                processing
+                position="top-start"
+                color="orange"
+                size={9}
+                offset={2}
+            >
                 <Button.Group>
                     <Tooltip
                         label={
                             mergeBlockedReason ?? (
                                 <Group gap={4} wrap="nowrap">
+                                    {isStale && (
+                                        <Text fz="xs">
+                                            Fields changed since the last run
+                                        </Text>
+                                    )}
                                     <Kbd size="xs">
                                         {os === 'macos' || os === 'ios'
                                             ? '⌘'
@@ -125,7 +141,13 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                             aria-disabled={
                                 mergeBlockedReason ? true : undefined
                             }
-                            leftSection={<MantineIcon icon={IconPlayerPlay} />}
+                            leftSection={
+                                <MantineIcon
+                                    icon={
+                                        isStale ? IconRefresh : IconPlayerPlay
+                                    }
+                                />
+                            }
                             loading={isRunning}
                             onClick={onClick}
                             data-testid="RefreshButton/RunQueryButton"
@@ -170,7 +192,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                     />
                 </Button.Group>
                 <PreAggregateStatusBadge />
-            </Box>
+            </Indicator>
         </Group>
     );
 });

@@ -80,10 +80,13 @@ const ExportSelector: FC<
             );
         } else if (hasGoogleDrive && getGsheetLink) {
             return (
-                <Stack gap="xs">
+                // Reads as a menu: full-width rows, no borders
+                <Stack gap={2} miw={180}>
                     <Button
                         size="xs"
-                        variant="default"
+                        variant="subtle"
+                        fullWidth
+                        justify="flex-start"
                         onClick={() => setExportType('csv')}
                         leftSection={<MantineIcon icon={IconFileTypeCsv} />}
                         disabled={isExportingGoogleSheets}

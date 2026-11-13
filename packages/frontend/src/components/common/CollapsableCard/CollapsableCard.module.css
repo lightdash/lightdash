@@ -50,6 +50,13 @@
     overflow: visible;
 }
 
+/* Something is being dragged over the card and can be dropped on it */
+.card[data-drop-active] {
+    outline: 2px solid var(--mantine-color-text);
+    outline-offset: -2px;
+    background-color: var(--mantine-color-ldGray-0);
+}
+
 .visualizationWrapper {
     position: relative;
     width: 100%;

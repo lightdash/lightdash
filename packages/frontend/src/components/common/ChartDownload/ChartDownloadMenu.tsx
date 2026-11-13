@@ -6,9 +6,16 @@ import {
     getPivotConfig,
     type ApiScheduledDownloadCsv,
 } from '@lightdash/common';
-import { ActionIcon, Popover } from '@mantine/core';
-import { IconShare2 } from '@tabler/icons-react';
-import { memo, useCallback } from 'react';
+import {
+    ActionIcon,
+    Popover,
+    SegmentedControl,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconDownload } from '@tabler/icons-react';
+import { memo, useCallback, useState, type FC, type ReactNode } from 'react';
 import DataAppVizDownloadMenu from '../../../features/apps/DataAppVizDownloadMenu';
 import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { useAccount } from '../../../hooks/user/useAccount';
@@ -47,6 +54,74 @@ export type ChartDownloadMenuProps = {
         showTableNames: boolean,
         customLabels?: Record<string, string>,
     ) => Promise<ApiScheduledDownloadCsv>;
+};
+
+type ExportPart = {
+    key: 'results' | 'chart';
+    label: string;
+    disabled: boolean;
+    content: ReactNode;
+};
+
+const ExportPopover: FC<{ parts: ExportPart[] }> = ({ parts }) => {
+    const [selectedKey, setSelectedKey] = useState<ExportPart['key'] | null>(
+        null,
+    );
+    if (parts.length === 0) return null;
+
+    const firstEnabled = parts.find((part) => !part.disabled);
+    const active =
+        parts.find((part) => part.key === selectedKey && !part.disabled) ??
+        firstEnabled ??
+        parts[0];
+    const allDisabled = firstEnabled === undefined;
+    const label =
+        parts.length > 1 ? 'Export' : `Export ${active.label.toLowerCase()}`;
+
+    return (
+        <Popover
+            {...COLLAPSABLE_CARD_POPOVER_PROPS}
+            disabled={allDisabled}
+            position="bottom-end"
+        >
+            <Popover.Target>
+                <Tooltip label={label}>
+                    <ActionIcon
+                        data-testid="export-csv-button"
+                        aria-label={label}
+                        {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
+                        disabled={allDisabled}
+                    >
+                        <MantineIcon icon={IconDownload} />
+                    </ActionIcon>
+                </Tooltip>
+            </Popover.Target>
+
+            <Popover.Dropdown>
+                <Stack gap="sm" miw={240}>
+                    {parts.length > 1 && (
+                        <SegmentedControl
+                            size="xs"
+                            fullWidth
+                            value={active.key}
+                            onChange={(value) =>
+                                setSelectedKey(
+                                    parts.find((part) => part.key === value)
+                                        ?.key ?? null,
+                                )
+                            }
+                            data={parts.map((part) => ({
+                                value: part.key,
+                                label: part.label,
+                                disabled: part.disabled,
+                            }))}
+                        />
+                    )}
+                    {active.content}
+                </Stack>
+            </Popover.Dropdown>
+        </Popover>
+    );
 };
 
 const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
@@ -143,35 +218,24 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             ) : null;
         }
 
-        if (
-            CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
-                visualizationConfig.chartType,
-            ) &&
-            CHART_TYPES_WITHOUT_DATA_EXPORT.includes(
-                visualizationConfig.chartType,
-            )
-        ) {
-            return null;
-        }
-        return isTableVisualizationConfig(visualizationConfig) &&
-            getChartDownloadQueryUuid ? (
-            canExportCsv ? (
-                <Popover
-                    {...COLLAPSABLE_CARD_POPOVER_PROPS}
-                    disabled={disabled}
-                    position="bottom-end"
-                >
-                    <Popover.Target>
-                        <ActionIcon
-                            data-testid="export-csv-button"
-                            {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
-                            disabled={disabled}
-                        >
-                            <MantineIcon icon={IconShare2} />
-                        </ActionIcon>
-                    </Popover.Target>
-
-                    <Popover.Dropdown>
+        const getChartPart = (): ExportPart | null => {
+            if (
+                CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
+                    visualizationConfig.chartType,
+                ) &&
+                CHART_TYPES_WITHOUT_DATA_EXPORT.includes(
+                    visualizationConfig.chartType,
+                )
+            ) {
+                return null;
+            }
+            if (isTableVisualizationConfig(visualizationConfig)) {
+                if (!canExportCsv) return null;
+                return {
+                    key: 'chart',
+                    label: 'Chart data',
+                    disabled,
+                    content: (
                         <ExportSelector
                             projectUuid={projectUuid}
                             totalResults={resultsData?.totalResults}
@@ -221,37 +285,26 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                                           )
                             }
                         />
-                    </Popover.Dropdown>
-                </Popover>
-            ) : null
-        ) : isTableVisualizationConfig(visualizationConfig) &&
-          !getDownloadQueryUuid ? null : canExportImages ? (
-            <Popover
-                {...COLLAPSABLE_CARD_POPOVER_PROPS}
-                disabled={disabled}
-                position="bottom-end"
-            >
-                <Popover.Target>
-                    <ActionIcon
-                        data-testid="export-csv-button"
-                        {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
-                        disabled={disabled}
-                    >
-                        <MantineIcon icon={IconShare2} />
-                    </ActionIcon>
-                </Popover.Target>
+                    ),
+                };
+            }
+            if (!canExportImages) return null;
+            return {
+                key: 'chart',
+                label: 'Chart image',
+                disabled,
+                content: chartRef.current ? (
+                    <ChartDownloadOptions getChartInstance={getChartInstance} />
+                ) : (
+                    <Text fz="xs" c="dimmed">
+                        Open the chart to download it as an image.
+                    </Text>
+                ),
+            };
+        };
 
-                <Popover.Dropdown>
-                    {visualizationConfig?.chartType &&
-                    !isTableVisualizationConfig(visualizationConfig) &&
-                    chartRef.current ? (
-                        <ChartDownloadOptions
-                            getChartInstance={getChartInstance}
-                        />
-                    ) : null}
-                </Popover.Dropdown>
-            </Popover>
-        ) : null;
+        const chartPart = getChartPart();
+        return <ExportPopover parts={chartPart ? [chartPart] : []} />;
     },
 );
 

@@ -1,3 +1,63 @@
+/* Flush layout: sections stack edge to edge, split by hairlines, no tiles */
 .stack {
     flex-grow: 1;
+    gap: 0;
+    background-color: var(--mantine-color-body);
+}
+
+.stack > :global(.mantine-Card-root) {
+    margin-top: -1px;
+    border: 0;
+    border-block: 1px solid var(--mantine-color-default-border);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* Toolbars and bars that are not sections keep a small inset */
+.stack > :not(:global(.mantine-Card-root)) {
+    margin: 8px 12px;
+}
+
+/* Before a table is picked the whole area is the prompt to pick one */
+.stack > .landing {
+    flex: 1;
+    padding-bottom: 12vh;
+    margin: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .landing {
+        animation: section-in 320ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    }
+
+    /* Sections arrive top to bottom, one after another */
+    .stack > :global(.mantine-Card-root) {
+        animation: section-in 360ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    }
+
+    .stack > :global(.mantine-Card-root) ~ :global(.mantine-Card-root) {
+        animation-delay: 50ms;
+    }
+
+    .stack
+        > :global(.mantine-Card-root)
+        ~ :global(.mantine-Card-root)
+        ~ :global(.mantine-Card-root) {
+        animation-delay: 100ms;
+    }
+
+    .stack
+        > :global(.mantine-Card-root)
+        ~ :global(.mantine-Card-root)
+        ~ :global(.mantine-Card-root)
+        ~ :global(.mantine-Card-root) {
+        animation-delay: 150ms;
+    }
+}
+
+@keyframes section-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
 }

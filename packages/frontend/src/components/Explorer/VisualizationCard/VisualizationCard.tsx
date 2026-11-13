@@ -4,11 +4,11 @@ import {
     NotFoundError,
     type ApiErrorDetail,
     type ChartConfig,
-    type ChartType,
+    ChartType,
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Button } from '@mantine/core';
+import { Box, Button, Group, Stack, Text } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
@@ -33,11 +33,13 @@ import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
     explorerActions,
     selectChartConfig,
+    selectChartSidebarStep,
     selectChartType,
     selectChartTypeAuthoring,
     selectColumnOrder,
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
+    selectHasSelectedFields,
     selectIsVisualizationExpanded,
     selectMetricQuery,
     selectParameters,
@@ -59,9 +61,11 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 import useFullscreen from '../../../providers/Fullscreen/useFullscreen';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
+import { CHART_GALLERY_SIDEBAR_TITLE_ID } from '../../common/ChartGallery/ChartGalleryContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
+import RunningBar from '../../common/RunningBar';
 import LightdashVisualization from '../../LightdashVisualization';
 import { useEditedChartConfig } from '../../LightdashVisualization/useVisualizationContext';
 import VisualizationProvider, {
@@ -71,11 +75,23 @@ import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import SortButton from '../../SortButton';
 import ExplorerChartSidebar from '../ChartGallery/ExplorerChartSidebar';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
+import {
+    useAddDroppedFieldToQuery,
+    useFieldDrop,
+    type DraggedField,
+} from '../fieldDrag';
+import { ExplorerHint } from '../onboarding';
+import ExploreIdleIllustration from '../ResultsCard/ExploreIdleIllustration';
+import StaleResultsPrompt from '../StaleResultsPrompt';
+import { useIsResultsStale } from '../useIsResultsStale';
+import ChartTypeSummary from './ChartTypeSummary';
+import DroppedFieldPlacer from './DroppedFieldPlacer';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import { useDirtyPivotConfiguration } from './useDirtyPivotConfiguration';
 import { useExplorerChartColorPalette } from './useExplorerChartColorPalette';
 import { useExplorerResultsData } from './useExplorerResultsData';
 import useVisualizationConfigPortalTarget from './useVisualizationConfigPortalTarget';
+import classes from './VisualizationCard.module.css';
 import VisualizationTimezone from './VisualizationTimezone';
 import VisualizationWarning from './VisualizationWarning';
 
@@ -210,6 +226,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const isVisualizationExpanded = useExplorerSelector(
         selectIsVisualizationExpanded,
     );
+    const hasSelectedFields = useExplorerSelector(selectHasSelectedFields);
     // Without the heading there is no way to expand the card, so force it open
     const isOpen = minimal || isVisualizationExpanded || isFullscreen;
     const isEditMode = useExplorerSelector(selectIsEditMode);
@@ -245,6 +262,43 @@ const VisualizationCard: FC<Props> = memo((props) => {
         () => dispatch(explorerActions.closeVisualizationConfig()),
         [dispatch],
     );
+    // A field dropped on the chart joins the query, opens the chart, and is
+    // given a place in it once its results arrive
+    const [droppedField, setDroppedField] = useState<{
+        field: DraggedField;
+        pickChartType: boolean;
+    } | null>(null);
+    const addDroppedFieldToQuery = useAddDroppedFieldToQuery();
+    const fieldDrop = useFieldDrop((field) => {
+        const wasClosed = !explorerStore
+            .getState()
+            .explorer.expandedSections.includes(ExplorerSection.VISUALIZATION);
+        addDroppedFieldToQuery(field);
+        if (wasClosed) toggleExpandedSection(ExplorerSection.VISUALIZATION);
+        setDroppedField({ field, pickChartType: wasClosed });
+    });
+
+    const isStale = useIsResultsStale();
+    const isChoosingChartType =
+        useExplorerSelector(selectChartSidebarStep) === 'choose';
+    // Bars, lines and pivoted tables need a number: with only dimensions
+    // they draw blank
+    const isPivotedTable =
+        chartType === ChartType.TABLE && (pivotConfig?.columns.length ?? 0) > 0;
+    const hasNothingToPlot =
+        (chartType === ChartType.CARTESIAN || isPivotedTable) &&
+        metricQuery.metrics.length === 0 &&
+        metricQuery.tableCalculations.length === 0 &&
+        (resultsData?.rows.length ?? 0) > 0;
+
+    // A new chart starts on the gallery: try types first, then configure one
+    const hasSavedChart = !!savedChart;
+    const handleConfigureClick = useCallback(() => {
+        dispatch(explorerActions.openVisualizationConfig());
+        if (!hasSavedChart) {
+            dispatch(explorerActions.setChartSidebarStep('choose'));
+        }
+    }, [dispatch, hasSavedChart]);
 
     // Deep link (e.g. the removed-chart-type recovery hint): arrive in edit
     // mode with the config sidebar already open, then drop the param.
@@ -405,7 +459,10 @@ const VisualizationCard: FC<Props> = memo((props) => {
             >
                 <CollapsableCard
                     title="Chart"
+                    dropProps={fieldDrop.dropProps}
+                    isDropActive={fieldDrop.isOver}
                     isOpen={isOpen}
+                    disabled={!hasSelectedFields}
                     isVisualizationCard
                     // Walkthrough look for view:SavedChart: the chart is
                     // the first thing to read on a saved chart. See
@@ -423,8 +480,26 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     minimal={minimal}
                     onToggle={toggleSection}
                     headerElement={
-                        isOpen && (
-                            <>
+                        !isOpen ? (
+                            // Results alone are not a chart yet: point at the next step
+                            isEditMode &&
+                            (resultsData?.rows.length ?? 0) > 0 && (
+                                <>
+                                    <ChartTypeSummary
+                                        chartType={chartType}
+                                        onClick={toggleSection}
+                                    />
+                                    <ExplorerHint
+                                        name="visualize"
+                                        target='[data-tour="explorer-visualize"]'
+                                        title="Turn this into a chart"
+                                        body="Your results are ready. Open the chart to see them visualised."
+                                        position="bottom-start"
+                                    />
+                                </>
+                            )
+                        ) : (
+                            <Group gap="xs" wrap="nowrap">
                                 {sorts.length > 0 && (
                                     <SortButton
                                         sorts={sorts}
@@ -441,12 +516,6 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                         health.data?.pivotTable?.maxColumnLimit
                                     }
                                 />
-                            </>
-                        )
-                    }
-                    rightHeaderElement={
-                        isOpen && (
-                            <>
                                 <VisualizationTimezone
                                     resolvedTimezone={
                                         query.data?.resolvedTimezone
@@ -455,74 +524,132 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                         query.data?.metricQuery?.timezone
                                     }
                                 />
-                                {isEditMode ? (
-                                    <Button
-                                        ref={visualizationConfigButtonRef}
-                                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                                        onClick={
-                                            isVisualizationConfigOpen
-                                                ? closeVisualizationConfig
-                                                : openVisualizationConfig
-                                        }
-                                        rightSection={
-                                            <MantineIcon
-                                                icon={
-                                                    isVisualizationConfigOpen
-                                                        ? IconLayoutSidebarLeftCollapse
-                                                        : IconLayoutSidebarLeftExpand
-                                                }
-                                            />
-                                        }
-                                    >
-                                        {isVisualizationConfigOpen
-                                            ? 'Close configure'
-                                            : 'Configure'}
-                                    </Button>
-                                ) : null}
-
-                                {/*
-                                 * NOTE: not using Mantine Portal because this page lacks a MantineProvider
-                                 * TODO: use Mantine Portal with reuseTargetNode flag to avoid rendering additional divs
-                                 */}
-                                {portalTarget &&
-                                    // The modal owns the config while a type
-                                    // is authored; a second mount in the
-                                    // sidebar would echo its state.
-                                    !chartTypeAuthoring &&
-                                    createPortal(
-                                        <ExplorerChartSidebar
-                                            chartType={chartType}
-                                            onClose={closeVisualizationConfig}
-                                        />,
-                                        portalTarget,
-                                    )}
-
-                                {!!projectUuid && (
-                                    <ChartDownloadMenu
-                                        getDownloadQueryUuid={
-                                            mergeResults && merge
-                                                ? merge.getDownloadQueryUuid
-                                                : getDownloadQueryUuid
-                                        }
-                                        projectUuid={projectUuid}
-                                        chartName={savedChart?.name}
-                                        getGsheetLink={
-                                            mergeResults
-                                                ? undefined
-                                                : getGsheetLink
-                                        }
-                                    />
-                                )}
-
-                                {import.meta.env.DEV && (
-                                    <DevCopyChartDebugData />
-                                )}
-                            </>
+                            </Group>
                         )
                     }
+                    rightHeaderElement={
+                        <>
+                            {isOpen && (
+                                <>
+                                    {isEditMode ? (
+                                        <Button
+                                            ref={visualizationConfigButtonRef}
+                                            {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                                            variant={
+                                                isVisualizationConfigOpen
+                                                    ? 'light'
+                                                    : 'subtle'
+                                            }
+                                            aria-pressed={
+                                                isVisualizationConfigOpen
+                                            }
+                                            onClick={
+                                                isVisualizationConfigOpen
+                                                    ? closeVisualizationConfig
+                                                    : handleConfigureClick
+                                            }
+                                            rightSection={
+                                                <MantineIcon
+                                                    icon={
+                                                        isVisualizationConfigOpen
+                                                            ? IconLayoutSidebarLeftCollapse
+                                                            : IconLayoutSidebarLeftExpand
+                                                    }
+                                                />
+                                            }
+                                        >
+                                            Configure
+                                        </Button>
+                                    ) : null}
+
+                                    {/*
+                                     * NOTE: not using Mantine Portal because this page lacks a MantineProvider
+                                     * TODO: use Mantine Portal with reuseTargetNode flag to avoid rendering additional divs
+                                     */}
+                                    {portalTarget &&
+                                        // The modal owns the config while a type
+                                        // is authored; a second mount in the
+                                        // sidebar would echo its state.
+                                        !chartTypeAuthoring &&
+                                        createPortal(
+                                            <ExplorerChartSidebar
+                                                chartType={chartType}
+                                                onClose={
+                                                    closeVisualizationConfig
+                                                }
+                                            />,
+                                            portalTarget,
+                                        )}
+                                </>
+                            )}
+
+                            {!!projectUuid && (
+                                <ChartDownloadMenu
+                                    getDownloadQueryUuid={
+                                        mergeResults && merge
+                                            ? merge.getDownloadQueryUuid
+                                            : getDownloadQueryUuid
+                                    }
+                                    projectUuid={projectUuid}
+                                    chartName={savedChart?.name}
+                                    getGsheetLink={
+                                        mergeResults ? undefined : getGsheetLink
+                                    }
+                                />
+                            )}
+
+                            {isOpen && import.meta.env.DEV && (
+                                <DevCopyChartDebugData />
+                            )}
+                        </>
+                    }
                 >
+                    {isVisualizationConfigOpen && isChoosingChartType && (
+                        <ExplorerHint
+                            name="chart-types"
+                            target={`#${CHART_GALLERY_SIDEBAR_TITLE_ID}`}
+                            title="Try a few chart types"
+                            body="Click through the types to see your data each way, then configure the one you like."
+                            position="left-start"
+                        />
+                    )}
+                    {droppedField && (
+                        <DroppedFieldPlacer
+                            key={droppedField.field.fieldId}
+                            field={droppedField.field}
+                            pickChartType={droppedField.pickChartType}
+                            onPlaced={() => setDroppedField(null)}
+                        />
+                    )}
                     {renderVisualization && (
                         <>
+                            {isLoadingQueryResults && (
+                                <RunningBar label="Running query" />
+                            )}
+                            {isStale ? (
+                                <Box className={classes.staleCover}>
+                                    <Stack gap="xs" align="center">
+                                        <ExploreIdleIllustration variant="chart" />
+                                        <StaleResultsPrompt subject="your chart" />
+                                    </Stack>
+                                </Box>
+                            ) : (
+                                hasNothingToPlot && (
+                                    <Box className={classes.staleCover}>
+                                        <Stack gap={2} align="center">
+                                            <ExploreIdleIllustration variant="chart" />
+                                            <Text fz="sm" fw={500} mt="xs">
+                                                Add a metric to see a chart
+                                            </Text>
+                                            <Text fz="xs" c="dimmed">
+                                                {isPivotedTable
+                                                    ? 'A pivoted table needs a metric to fill its cells.'
+                                                    : 'This chart type needs a number to plot. Pick a metric, or switch to a table.'}
+                                            </Text>
+                                        </Stack>
+                                    </Box>
+                                )
+                            )}
                             <LightdashVisualization
                                 ref={measureRef}
                                 className="sentry-block ph-no-capture"

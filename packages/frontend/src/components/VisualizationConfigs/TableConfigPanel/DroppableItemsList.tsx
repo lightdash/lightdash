@@ -11,10 +11,16 @@ import ColumnConfiguration, {
 } from './ColumnConfiguration';
 import classes from './DroppableItemsList.module.css';
 
+// Where a field dragged in from another list would land
+export type PivotDropHint = { itemId: string; position: 'before' | 'after' };
+
 type DroppableItemsListProps = {
     droppableId: string;
     itemIds: string[];
     disableReorder: boolean;
+    /** Whether the field being dragged may be dropped in this list. */
+    canDrop: boolean;
+    dropHint: PivotDropHint | null;
     placeholder?: string;
     draggableItemIds?: string[];
     getColumnConfigurationProps?: (
@@ -22,10 +28,15 @@ type DroppableItemsListProps = {
     ) => Omit<ColumnConfigurationProps, 'fieldId'>;
 };
 
+// Lists that cannot be reordered keep their items still during a drag
+const noShiftStrategy = () => null;
+
 const DroppableItemsList: FC<DroppableItemsListProps> = ({
     droppableId,
     itemIds,
     disableReorder,
+    canDrop,
+    dropHint,
     placeholder,
     draggableItemIds,
     getColumnConfigurationProps,
@@ -38,28 +49,30 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
         (over.id === droppableId || itemIds.some((id) => id === over.id));
     const hasItems = itemIds.length > 0;
     return (
-        <Stack gap="xs" className={classes.droppableList}>
+        <Stack
+            gap="xs"
+            className={classes.droppableList}
+            data-drop-target={(isDragging && canDrop) || undefined}
+            data-drop-over={(isDraggingOver && canDrop) || undefined}
+            data-drop-blocked={(isDragging && !canDrop) || undefined}
+        >
             <SortableContext
                 id={droppableId}
                 items={itemIds}
-                strategy={sortingStrategy.vertical}
+                strategy={
+                    disableReorder ? noShiftStrategy : sortingStrategy.vertical
+                }
             >
                 <Stack
                     gap="xs"
                     ref={setNodeRef}
                     data-pivot-list={droppableId}
-                    mih={isDragging ? '30px' : undefined}
-                    bg={
-                        isDraggingOver
-                            ? 'ldGray.1'
-                            : isDragging
-                              ? 'ldGray.0'
-                              : undefined
-                    }
+                    mih={30}
+                    justify="center"
                 >
-                    {!isDragging && !hasItems ? (
-                        <Text size="xs" c="dimmed" m="xs" ta="center">
-                            {placeholder}
+                    {!hasItems ? (
+                        <Text size="xs" c="dimmed" ta="center">
+                            {isDragging && canDrop ? 'Drop here' : placeholder}
                         </Text>
                     ) : null}
                     {itemIds.map((itemId) => {
@@ -78,14 +91,18 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                         gap="xs"
                                         ref={sortable.ref}
                                         data-pivot-item={itemId}
+                                        data-drop-hint={
+                                            dropHint?.itemId === itemId
+                                                ? dropHint.position
+                                                : undefined
+                                        }
                                         // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                                         style={sortable.style}
                                         className={clsx(
                                             sortable.className,
-                                            (sortable.isDragging ||
-                                                (isDragging &&
-                                                    disableReorder)) &&
-                                                classes.hiddenItem,
+                                            classes.item,
+                                            sortable.isDragging &&
+                                                classes.ghostItem,
                                         )}
                                     >
                                         {isDraggable ? (

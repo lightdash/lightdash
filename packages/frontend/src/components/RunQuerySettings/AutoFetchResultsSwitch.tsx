@@ -1,13 +1,9 @@
 import { Switch, Tooltip, type MantineSize } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
 import { memo, type FC } from 'react';
-import { AUTO_FETCH_ENABLED_DEFAULT, AUTO_FETCH_ENABLED_KEY } from './defaults';
+import { useAutoFetch } from './useAutoFetch';
 
 const AutoFetchResultsSwitch: FC<{ size?: MantineSize }> = memo(({ size }) => {
-    const [autoFetchEnabled, setAutoFetchEnabled] = useLocalStorage({
-        key: AUTO_FETCH_ENABLED_KEY,
-        defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
-    });
+    const { isEnabled, toggle } = useAutoFetch();
 
     return (
         <Tooltip
@@ -18,8 +14,8 @@ const AutoFetchResultsSwitch: FC<{ size?: MantineSize }> = memo(({ size }) => {
             <Switch
                 size={size}
                 label="Auto-fetch results"
-                checked={autoFetchEnabled}
-                onChange={() => setAutoFetchEnabled(!autoFetchEnabled)}
+                checked={isEnabled}
+                onChange={toggle}
                 // This removes the thumb icon from the switch
                 thumbIcon={<></>}
             />

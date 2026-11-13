@@ -1,0 +1,15 @@
+/* One card needs no "1 of 1" */
+.hidden {
+    display: none;
+}
+
+/* Nor a Skip next to its only button */
+.navigationButton[data-variant='default'] {
+    display: none;
+}
+
+/* Focus moves into the card for keyboard users; the card itself needs no ring */
+.tooltip:focus,
+.tooltip:focus-visible {
+    outline: none;
+}

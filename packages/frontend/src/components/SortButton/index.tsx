@@ -33,7 +33,7 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
     };
 
     return (
-        <Popover position="top-start" disabled={!isEditMode}>
+        <Popover position="bottom-start" disabled={!isEditMode}>
             <Popover.Target>
                 <Badge
                     color="blue"

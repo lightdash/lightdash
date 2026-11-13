@@ -1,130 +1,154 @@
+/* The selection is a wrap of kind-tinted tokens above the tree */
 .section {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     flex-shrink: 0;
+    gap: 8px;
+    padding-bottom: 4px;
     animation: fade-in 180ms ease;
+}
+
+.row {
+    --kind: var(--mantine-color-ldGray-6);
+}
+
+.row[data-field-kind='dimension'] {
+    --kind: var(--ld-field-dimension-color);
+}
+
+.row[data-field-kind='metric'] {
+    --kind: var(--ld-field-metric-color);
 }
 
 .divider {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 8px;
-    padding: 0 4px;
-    font-size: 11px;
+    padding: 0 8px;
+    /* Same weight and size as a table header in the tree below */
+    font-size: var(--mantine-font-size-sm);
+    line-height: 20px;
     font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--mantine-color-ldGray-6);
+    color: var(--mantine-color-text);
     user-select: none;
 }
 
-.divider::before,
-.divider::after {
-    content: '';
-    flex: 1;
-    border-top: 1px solid var(--mantine-color-ldGray-3);
+/* Appears when the selection is hovered or focused */
+.clear {
+    margin-left: auto;
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-6);
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.clear:hover {
+    color: var(--mantine-color-text);
+}
+
+.section:hover .clear,
+.section:focus-within .clear {
+    opacity: 1;
+}
+
+.source {
+    overflow: hidden;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--mantine-color-ldGray-6);
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Cap the pinned area so a long selection can't crowd out the tree */
 .list {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 4px;
-    max-height: 224px;
+    max-height: 208px;
+    padding-inline: 8px;
     overflow-y: auto;
 }
 
 .row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    width: 100%;
-    height: 28px;
-    padding: 0 10px;
-    flex-shrink: 0;
+    gap: 5px;
+    position: relative;
+    max-width: 100%;
+    height: 22px;
+    padding: 0 8px 0 6px;
     overflow: hidden;
     cursor: pointer;
-    border: 1px solid transparent;
-    border-radius: var(--mantine-radius-sm);
-    animation: row-enter 180ms ease;
+    background-color: color-mix(in srgb, var(--kind) 9%, transparent);
+    border-radius: 6px;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--kind) 18%, transparent);
+    transition:
+        background-color 120ms ease,
+        box-shadow 120ms ease,
+        transform 120ms ease;
+}
+
+.row:hover,
+.row:focus-visible {
+    background-color: color-mix(in srgb, var(--kind) 16%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--kind) 40%, transparent);
+}
+
+.row:active {
+    transform: scale(0.97);
 }
 
 .rowExiting {
-    animation: row-exit 180ms ease forwards;
+    opacity: 0;
     pointer-events: none;
+    transform: scale(0.9);
+    transition:
+        opacity 180ms ease,
+        transform 180ms ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .row:not(.rowExiting) {
+        animation: token-in 240ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+    }
+}
+
+@keyframes token-in {
+    from {
+        opacity: 0;
+        transform: scale(0.86);
+    }
+}
+
+/* The remove mark takes the type icon's place while the chip is hovered */
+.remove {
+    position: absolute;
+    top: 50%;
+    left: 6px;
+    display: none;
+    color: var(--kind);
+    transform: translateY(-50%);
+}
+
+.row:hover > svg:first-child,
+.row:focus-visible > svg:first-child {
+    opacity: 0;
+}
+
+.row:hover .remove,
+.row:focus-visible .remove {
+    display: flex;
+}
+
+.actions {
+    display: none;
 }
 
 .row svg {
     flex-shrink: 0;
-}
-
-.row[data-field-kind='dimension'] {
-    background-color: var(--ld-field-dimension-bg);
-    border-color: color-mix(
-        in srgb,
-        var(--ld-field-dimension-color) 28%,
-        transparent
-    );
-}
-
-.row[data-field-kind='dimension']:hover {
-    background-color: var(--ld-field-dimension-bg-hover);
-    border-color: color-mix(
-        in srgb,
-        var(--ld-field-dimension-color) 45%,
-        transparent
-    );
-}
-
-.row[data-field-kind='metric'] {
-    background-color: light-dark(
-        var(--ld-field-metric-bg),
-        color-mix(in srgb, var(--ld-field-metric-color) 14%, transparent)
-    );
-    border-color: color-mix(
-        in srgb,
-        var(--ld-field-metric-color) 28%,
-        transparent
-    );
-}
-
-.row[data-field-kind='metric']:hover {
-    background-color: light-dark(
-        var(--ld-field-metric-bg-hover),
-        color-mix(in srgb, var(--ld-field-metric-color) 22%, transparent)
-    );
-    border-color: color-mix(
-        in srgb,
-        var(--ld-field-metric-color) 45%,
-        transparent
-    );
-}
-
-.row[data-field-kind='default'] {
-    background-color: var(--ld-field-default-bg);
-    border-color: color-mix(
-        in srgb,
-        var(--ld-field-default-color) 28%,
-        transparent
-    );
-}
-
-.row[data-field-kind='default']:hover {
-    background-color: var(--ld-field-default-bg-hover);
-    border-color: color-mix(
-        in srgb,
-        var(--ld-field-default-color) 45%,
-        transparent
-    );
-}
-
-.actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
-    margin-left: auto;
 }
 
 .label {
@@ -133,42 +157,18 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 13px;
+    font-size: 12px;
+    font-weight: 500;
     text-align: left;
 }
 
 .groupHeader {
-    flex-shrink: 0;
-    padding: 4px 12px;
-    font-size: 12px;
+    flex-basis: 100%;
+    font-size: 11px;
+    line-height: 16px;
     font-weight: 500;
     color: var(--mantine-color-ldGray-6);
     user-select: none;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-@keyframes row-enter {
-    from {
-        height: 0;
-        opacity: 0;
-    }
-    to {
-        height: 28px;
-        opacity: 1;
-    }
-}
-
-@keyframes row-exit {
-    from {
-        height: 28px;
-        opacity: 1;
-    }
-    to {
-        height: 0;
-        opacity: 0;
-    }
 }
 
 @keyframes fade-in {

@@ -18,6 +18,12 @@ interface CollapsableCardProps {
     isVisualizationCard?: boolean;
     hideHeading?: boolean;
     minimal?: boolean;
+    /** Handlers and state that make the whole card a drop target. */
+    dropProps?: Pick<
+        React.HTMLAttributes<HTMLDivElement>,
+        'onDragEnter' | 'onDragOver' | 'onDragLeave' | 'onDrop'
+    >;
+    isDropActive?: boolean;
     /** Walkthrough markers for the card itself (a surface worth a look). */
     tourProps?: Record<`data-tour-${string}`, string>;
     /** Walkthrough markers for the heading, whose click opens the card. */
@@ -40,6 +46,8 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     minHeight = 300,
     tourProps,
     headingTourProps,
+    dropProps,
+    isDropActive = false,
 }) => {
     const handleToggle = useCallback(
         (value: boolean) => onToggle?.(value),
@@ -61,6 +69,8 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
             unstyled={minimal}
             flex={shouldExpand ? 1 : undefined}
             className={classes.card}
+            data-drop-active={isDropActive || undefined}
+            {...dropProps}
             {...tourProps}
         >
             {!hideHeading && (

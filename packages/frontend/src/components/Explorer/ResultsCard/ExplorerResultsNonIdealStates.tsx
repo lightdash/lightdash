@@ -3,15 +3,14 @@ import {
     type ApiErrorDetail,
     type QueryHistoryStatus,
 } from '@lightdash/common';
-import { Anchor, Text } from '@mantine/core';
-import { IconTableOff } from '@tabler/icons-react';
+import { Anchor, Button, Text } from '@mantine/core';
+import { IconArrowNarrowLeft, IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
 import { Link } from 'react-router';
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
-import NoTableIcon from '../../../svgs/emptystate-no-table.svg?react';
 import { LD_FIELD_COLORS } from '../../../theme';
 import { SectionName } from '../../../types/Events';
 import { EmptyState } from '../../common/EmptyState';
@@ -19,6 +18,7 @@ import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { RefreshButton } from '../../RefreshButton';
+import ExploreIdleIllustration from './ExploreIdleIllustration';
 import classes from './ExplorerResultsNonIdealStates.module.css';
 import { getQueryLoadingStateCopy } from './queryLoadingState';
 
@@ -28,6 +28,11 @@ const ExploreDocumentationUrl =
 export const EmptyStateNoColumns = () => {
     return (
         <EmptyState
+            gap="xs"
+            py="xl"
+            icon={<ExploreIdleIllustration variant="fields" />}
+            titleProps={{ fz: 'sm' }}
+            descriptionProps={{ fz: 'xs' }}
             title={
                 <>
                     Pick a metric & select its dimensions{' '}
@@ -35,7 +40,6 @@ export const EmptyStateNoColumns = () => {
                         href={ExploreDocumentationUrl}
                         pos="relative"
                         top={2}
-                        iconProps={{ size: 'lg' }}
                     />
                 </>
             }
@@ -53,7 +57,7 @@ export const EmptyStateNoColumns = () => {
                 </>
             }
         >
-            <Text className={classes.animatedTextRoot} c="dimmed">
+            <Text className={classes.animatedTextRoot} c="dimmed" fz="xs">
                 <Text span>
                     eg. How many{' '}
                     <Text span c={LD_FIELD_COLORS.metric.color}>
@@ -112,6 +116,10 @@ export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <EmptyState
             maw={500}
+            gap="xs"
+            py="xl"
+            icon={<ExploreIdleIllustration variant="table" />}
+            descriptionProps={{ fz: 'xs' }}
             description={
                 <>
                     {description}{' '}
@@ -131,12 +139,15 @@ export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
 export const NoTableSelected = () => (
     <EmptyState
         maw={520}
-        icon={<NoTableIcon />}
-        title="Select a table"
+        gap="xs"
+        icon={<ExploreIdleIllustration variant="tables" />}
+        title="Pick a table to start"
+        titleProps={{ fz: 'sm' }}
+        descriptionProps={{ fz: 'xs' }}
         description={
             <>
-                To run a query, first select the table that you would like to
-                explore.{' '}
+                Choose a table from the list on the left to see its dimensions
+                and metrics.{' '}
                 <DocumentationHelpButton
                     href={ExploreDocumentationUrl}
                     pos="relative"
@@ -144,7 +155,22 @@ export const NoTableSelected = () => (
                 />
             </>
         }
-    />
+    >
+        <Button
+            size="xs"
+            variant="default"
+            leftSection={<MantineIcon icon={IconArrowNarrowLeft} />}
+            onClick={() =>
+                document
+                    .querySelector<HTMLInputElement>(
+                        '[data-tour-anchor="explore-search"]',
+                    )
+                    ?.focus()
+            }
+        >
+            Search tables
+        </Button>
+    </EmptyState>
 );
 
 export const EmptyStateExploreLoading = () => (
@@ -152,7 +178,14 @@ export const EmptyStateExploreLoading = () => (
 );
 
 export const ExploreIdleState = () => (
-    <EmptyState title="Run query to see your results" />
+    <EmptyState
+        gap="xs"
+        icon={<ExploreIdleIllustration variant="chart" />}
+        title="No results yet"
+        titleProps={{ fz: 'sm' }}
+        description="Run the query to see them here."
+        descriptionProps={{ fz: 'xs' }}
+    />
 );
 
 export const ExploreEmptyQueryState = () => (
@@ -170,9 +203,15 @@ export const ExploreLoadingState = ({
     const { title, description } = getQueryLoadingStateCopy(queryStatus);
 
     return (
-        <EmptyStateLoader
+        <EmptyState
+            gap="xs"
+            py="xl"
+            icon={<ExploreIdleIllustration variant="chart" loading />}
             title={title}
+            titleProps={{ fz: 'sm' }}
             description={description}
+            descriptionProps={{ fz: 'xs' }}
+            role="status"
             data-testid="results-table-loading"
         />
     );

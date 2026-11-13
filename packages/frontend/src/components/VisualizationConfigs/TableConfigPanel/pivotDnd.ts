@@ -69,6 +69,23 @@ export const getPivotDrop = (
     };
 };
 
+// Mirrors what a drop does: dimensions move between rows and columns, value
+// fields between rows and metrics, and every list but metrics reorders
+export const canDropInPivotList = (
+    source: DroppableIds,
+    destination: DroppableIds,
+    field: { isDimension: boolean; isValueField: boolean },
+): boolean => {
+    if (source === destination) return source !== DroppableIds.METRICS;
+    if (destination === DroppableIds.COLUMNS) {
+        return source === DroppableIds.ROWS && field.isDimension;
+    }
+    if (destination === DroppableIds.ROWS) {
+        return source === DroppableIds.COLUMNS || field.isValueField;
+    }
+    return source === DroppableIds.ROWS && field.isValueField;
+};
+
 // Prefer the item under the pointer over its list; keyboard drags have no pointer
 export const pivotCollisionDetection: CollisionDetection = (args) => {
     const hits = pointerWithin(args);

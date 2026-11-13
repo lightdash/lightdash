@@ -2,6 +2,7 @@ import {
     DndContext,
     DragOverlay,
     type DragEndEvent,
+    type DragMoveEvent,
     type DragStartEvent,
 } from '@dnd-kit/core';
 import {
@@ -36,6 +37,7 @@ import {
     lockToAxis,
     useSortableSensors,
 } from '../../common/Sortable/sortableUtils';
+import { ExplorerHint } from '../../Explorer/onboarding';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
@@ -46,8 +48,9 @@ import { GrabIcon } from '../common/GrabIcon';
 import { RowLimitControls } from '../common/RowLimitControls';
 import ColumnConfiguration from './ColumnConfiguration';
 import { MAX_PIVOTS } from './constants';
-import DroppableItemsList from './DroppableItemsList';
+import DroppableItemsList, { type PivotDropHint } from './DroppableItemsList';
 import {
+    canDropInPivotList,
     DroppableIds,
     findPivotList,
     getPivotDrop,
@@ -90,6 +93,7 @@ const PivotLayout: FC = () => {
     const { setMetricsAsRows } = useTableEditorActions();
     const { columns, rows, metrics } = usePivotLayout();
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [dropHint, setDropHint] = useState<PivotDropHint | null>(null);
     const sensors = useSortableSensors();
     const portalTarget = usePortalTarget();
     const { showToastError } = useToaster();
@@ -222,15 +226,67 @@ const PivotLayout: FC = () => {
         ],
     );
 
-    const onDragEnd = ({ active, over }: DragEndEvent) => {
-        setActiveId(null);
-        if (!over) return;
+    const isBelowOver = ({ active, over }: DragMoveEvent | DragEndEvent) => {
         const translated = active.rect.current.translated;
-        const isBelowOverItem =
+        return (
+            !!over &&
             translated !== null &&
             translated.top + translated.height / 2 >
-                over.rect.top + over.rect.height / 2;
-        const drop = getPivotDrop(lists, active.id, over.id, isBelowOverItem);
+                over.rect.top + over.rect.height / 2
+        );
+    };
+
+    // Which lists the dragged field may land in, so the others can step back
+    const activeSource =
+        activeId !== null ? findPivotList(lists, activeId) : null;
+    const activeField =
+        activeId !== null ? resultsData?.fields?.[activeId] : undefined;
+    const canDropIn = (destination: DroppableIds) =>
+        activeId === null ||
+        activeSource === null ||
+        canDropInPivotList(activeSource, destination, {
+            isDimension: dimensions.includes(activeId),
+            isValueField: isPivotRowValue(activeField),
+        });
+
+    // Within a list the items shift to show the spot; across lists a line does
+    const onDragMove = (event: DragMoveEvent) => {
+        const { over } = event;
+        const overList = over ? findPivotList(lists, over.id) : null;
+        const next: PivotDropHint | null =
+            over &&
+            overList !== null &&
+            overList !== activeSource &&
+            over.id !== overList &&
+            canDropIn(overList)
+                ? {
+                      itemId: String(over.id),
+                      position: isBelowOver(event) ? 'after' : 'before',
+                  }
+                : null;
+        setDropHint((current) =>
+            current?.itemId === next?.itemId &&
+            current?.position === next?.position
+                ? current
+                : next,
+        );
+    };
+
+    const endDrag = () => {
+        setActiveId(null);
+        setDropHint(null);
+    };
+
+    const onDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        endDrag();
+        if (!over) return;
+        const drop = getPivotDrop(
+            lists,
+            active.id,
+            over.id,
+            isBelowOver(event),
+        );
         if (drop) onDrop(drop);
     };
 
@@ -247,14 +303,24 @@ const PivotLayout: FC = () => {
             onDragStart={({ active }: DragStartEvent) =>
                 setActiveId(String(active.id))
             }
+            onDragMove={onDragMove}
             onDragEnd={onDragEnd}
-            onDragCancel={() => setActiveId(null)}
+            onDragCancel={endDrag}
         >
+            <ExplorerHint
+                name="pivot-lists"
+                target={`[data-pivot-list="${DroppableIds.COLUMNS}"]`}
+                title="Drag to pivot"
+                body="Move a dimension into Columns to pivot the table. Metrics can move into Rows."
+                position="left"
+            />
             <Config>
                 <Config.Section>
                     <Config.Heading>Columns</Config.Heading>
                     <DroppableItemsList
                         droppableId={DroppableIds.COLUMNS}
+                        canDrop={canDropIn(DroppableIds.COLUMNS)}
+                        dropHint={dropHint}
                         itemIds={columns}
                         disableReorder={false}
                         placeholder={
@@ -265,6 +331,8 @@ const PivotLayout: FC = () => {
                     <Config.Heading>Rows</Config.Heading>
                     <DroppableItemsList
                         droppableId={DroppableIds.ROWS}
+                        canDrop={canDropIn(DroppableIds.ROWS)}
+                        dropHint={dropHint}
                         itemIds={rows}
                         disableReorder={false}
                         placeholder={
@@ -275,6 +343,8 @@ const PivotLayout: FC = () => {
                     <Config.Heading>Metrics</Config.Heading>
                     <DroppableItemsList
                         droppableId={DroppableIds.METRICS}
+                        canDrop={canDropIn(DroppableIds.METRICS)}
+                        dropHint={dropHint}
                         itemIds={metrics}
                         placeholder={
                             'Drag metrics or table calculations into this area'
@@ -479,16 +549,17 @@ const GeneralSettings: FC = () => {
                         />
                     </Box>
                 </Tooltip>
-                <Checkbox
-                    size="xs"
-                    ml="lg"
-                    label="Expand subtotals by default"
-                    checked={showSubtotalsExpanded ?? false}
-                    onChange={() => {
-                        toggle('showSubtotalsExpanded');
-                    }}
-                    disabled={!canUseSubtotals || !showSubtotals}
-                />
+                {canUseSubtotals && showSubtotals && (
+                    <Checkbox
+                        size="xs"
+                        ml="lg"
+                        label="Expand subtotals by default"
+                        checked={showSubtotalsExpanded ?? false}
+                        onChange={() => {
+                            toggle('showSubtotalsExpanded');
+                        }}
+                    />
+                )}
                 <Tooltip
                     disabled={
                         canUseSubtotals && !showSubtotals && !metricsAsRows

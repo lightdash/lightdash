@@ -1,11 +1,13 @@
 import { getItemLabel, getItemMap, isField } from '@lightdash/common';
-import { Box, Center, Loader, Text } from '@mantine/core';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { Box, Text } from '@mantine/core';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import {
     explorerActions,
     selectAdditionalMetrics,
     selectChartConfig,
     selectColumnOrder,
+    selectDimensions,
+    selectMetrics,
     selectCustomDimensions,
     selectIsEditMode,
     selectParameters,
@@ -27,7 +29,9 @@ import type {
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import PivotTable from '../../common/PivotTable';
+import RunningBar from '../../common/RunningBar';
 import Table from '../../common/Table';
+import { useIsResultsStale } from '../useIsResultsStale';
 import CellContextMenu from './CellContextMenu';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import classes from './ExplorerResults.module.css';
@@ -39,6 +43,7 @@ import {
     MissingRequiredParameters,
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
+import { getQueryLoadingStateCopy } from './queryLoadingState';
 import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
 import { usePivotTableData } from './usePivotTableData';
@@ -103,8 +108,9 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     // default disables totals for the results table
     const totalsEnabledByDefault = useColumnTotalsEnabledByDefault(projectUuid);
 
-    const dimensions = query.data?.metricQuery?.dimensions ?? [];
-    const metrics = query.data?.metricQuery?.metrics ?? [];
+    const isStale = useIsResultsStale();
+    const dimensions = useExplorerSelector(selectDimensions);
+    const metrics = useExplorerSelector(selectMetrics);
     const explorerColumnOrder = useExplorerSelector(selectColumnOrder);
     const resultsColumnOrder = mergeResults
         ? resolveMergeColumnOrder(mergeResults.columnOrder, explorerColumnOrder)
@@ -445,15 +451,15 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
             dimensions.length <= 0 ? (
                 <>
                     Pick one or more{' '}
-                    <Text span c="blue.9" fz="sm" fw="bold">
+                    <Text span c="blue.9" fw="bold">
                         dimensions
                     </Text>{' '}
-                    to split your selected metric by.
+                    to split your selected metrics by.
                 </>
             ) : metrics.length <= 0 ? (
                 <>
                     Pick a{' '}
-                    <Text span c="yellow.9" fz="sm" fw="bold">
+                    <Text span c="yellow.9" fw="bold">
                         metric
                     </Text>{' '}
                     to make calculations across your selected dimensions.
@@ -481,6 +487,34 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         }),
         [totalsEnabledByDefault],
     );
+
+    // The last settled rows stay on screen, dimmed, while a re-run is in flight
+    const [settled, setSettled] = useState<{
+        tableName: string;
+        rows: typeof rows;
+        columns: typeof columns;
+        columnOrder: typeof resultsColumnOrder;
+        totalRows: typeof totalRows;
+    } | null>(null);
+    if (
+        status === 'success' &&
+        activeTableName &&
+        rows &&
+        rows.length > 0 &&
+        settled?.rows !== rows
+    ) {
+        setSettled({
+            tableName: activeTableName,
+            rows,
+            columns,
+            columnOrder: resultsColumnOrder,
+            totalRows,
+        });
+    }
+    const previous =
+        status === 'loading' && settled?.tableName === activeTableName
+            ? settled
+            : null;
 
     if (!activeTableName) return <NoTableSelected />;
 
@@ -514,9 +548,9 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
 
         if (pivotTableQuery.isLoading || groupedResultsData?.isFetchingRows) {
             return (
-                <Center mih={200}>
-                    <Loader />
-                </Center>
+                <Box mih={200}>
+                    <RunningBar label="Loading chart results" />
+                </Box>
             );
         }
 
@@ -551,8 +585,9 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
             <Box
-                px="xs"
-                py="lg"
+                className={classes.results}
+                data-stale={isStale || undefined}
+                mod={{ running: !!previous, grouped: showGroupedView }}
                 data-testid="results-table-container"
                 // Walkthrough result marker for manage:Explore: the rows a
                 // query of one's own returned.
@@ -564,6 +599,11 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 data-tour-return="none"
                 data-tour-resultdocs="explore/explore-view.mdx#the-explore-page:li4"
             >
+                {status === 'loading' && !showGroupedView && (
+                    <RunningBar
+                        label={getQueryLoadingStateCopy(queryStatus).title}
+                    />
+                )}
                 {showGroupedView ? (
                     // Grouped results view - shows pivoted data with hierarchical headers
                     // Match approximate height of the paginated results table
@@ -573,14 +613,18 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 ) : (
                     // Regular results view - shows unpivoted data
                     <Table
-                        status={status}
+                        status={previous ? 'success' : status}
                         errorDetail={apiError?.error}
-                        data={rows || []}
-                        totalRowsCount={totalRows || 0}
+                        data={previous?.rows ?? rows ?? []}
+                        totalRowsCount={
+                            (previous ? previous.totalRows : totalRows) || 0
+                        }
                         isFetchingRows={isFetchingRows}
                         fetchMoreRows={fetchMoreRows}
-                        columns={columns}
-                        columnOrder={resultsColumnOrder}
+                        columns={previous?.columns ?? columns}
+                        columnOrder={
+                            previous?.columnOrder ?? resultsColumnOrder
+                        }
                         onColumnOrderChange={handleColumnOrderChange}
                         cellContextMenu={cellContextMenu}
                         headerContextMenu={

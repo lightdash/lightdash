@@ -5,13 +5,14 @@ import {
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
-import { Group, Menu, Stack, Text, ActionIcon, HoverCard } from '@mantine/core';
+import { ActionIcon, Group, HoverCard, Menu, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconCode,
-    IconDots,
+    IconDotsVertical,
     IconGitMerge,
+    IconRoute,
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
@@ -24,6 +25,7 @@ import {
     useTransition,
     type FC,
 } from 'react';
+import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import VirtualViewAsCodeModal from '../../../features/contentAsCode/components/VirtualViewAsCodeModal';
 import {
     explorerActions,
@@ -50,6 +52,7 @@ import {
     EditVirtualViewModal,
 } from '../../../features/virtualView';
 import { useExplore } from '../../../hooks/useExplore';
+import { useGuidedTour } from '../../../hooks/useGuidedTour';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -62,6 +65,7 @@ import { useCanClearCachedResults } from '../../ProjectResultsCache/useCanClearC
 import ExploreTree from '../ExploreTree';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
+import { EXPLORER_TOUR_STORAGE_KEY, ExplorerTour } from '../onboarding';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
 import classes from './index.module.css';
 
@@ -79,6 +83,13 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         useDisclosure();
     const [isClearCacheOpen, clearCacheModalHandlers] = useDisclosure();
     const [, startTransition] = useTransition();
+
+    // Onboarding stays out of embeds and out of automated browsers
+    const isEmbedded = useIsEmbedded();
+    const tour = useGuidedTour({
+        storageKey: EXPLORER_TOUR_STORAGE_KEY,
+        autoStartOnFirstVisit: !isEmbedded && !navigator.webdriver,
+    });
 
     const projectUuid = useProjectUuid();
     const canClearCache = useCanClearCachedResults(projectUuid);
@@ -232,8 +243,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     return (
         <>
+            <ExplorerTour opened={tour.isOpen} onClose={tour.closeTour} />
             <Stack
                 h="100%"
+                gap="xs"
                 className={classes.panel}
                 // Walkthrough look for manage:Explore: the table's fields,
                 // seen once the table is open and before any is picked.
@@ -257,10 +270,16 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     data-tour-return="none"
                     data-tour-resultdocs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:p2:1"
                     justify="space-between"
+                    pl={8}
+                    pr={1}
                     display={isGuidedMerge ? 'none' : undefined}
                 >
                     <Group gap="xs">
-                        <PageBreadcrumbs size="md" items={breadcrumbs} />
+                        <PageBreadcrumbs
+                            size="sm"
+                            separatorMargin={6}
+                            items={breadcrumbs}
+                        />
                         {explore.type === ExploreType.EXTERNAL_SOURCE &&
                             explore.externalSource && (
                                 <ExternalSourceBadge
@@ -292,8 +311,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     {explore.type !== ExploreType.EXTERNAL_SOURCE &&
                         (canMergeAnotherQuery ||
                             hasVirtualViewActions ||
-                            canClearCache) && (
-                            <Menu withArrow offset={-2}>
+                            canClearCache ||
+                            !isEmbedded) && (
+                            <Menu position="bottom-end">
                                 <Menu.Target>
                                     {/* Two literal triggers: the tour generator reads anchors and hints from source. */}
                                     {isVirtualView ? (
@@ -303,18 +323,32 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             aria-label="Virtual view actions"
                                             variant="transparent"
                                         >
-                                            <MantineIcon icon={IconDots} />
+                                            <MantineIcon
+                                                icon={IconDotsVertical}
+                                            />
                                         </ActionIcon>
                                     ) : (
                                         <ActionIcon
                                             aria-label="Query options"
                                             variant="transparent"
                                         >
-                                            <MantineIcon icon={IconDots} />
+                                            <MantineIcon
+                                                icon={IconDotsVertical}
+                                            />
                                         </ActionIcon>
                                     )}
                                 </Menu.Target>
                                 <Menu.Dropdown>
+                                    {!isEmbedded && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconRoute} />
+                                            }
+                                            onClick={tour.startTour}
+                                        >
+                                            Take the tour
+                                        </Menu.Item>
+                                    )}
                                     {canMergeAnotherQuery && (
                                         <Menu.Item
                                             leftSection={
@@ -324,9 +358,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             }
                                             onClick={handleAddMergeSource}
                                         >
-                                            <Text fz="xs" fw={500}>
-                                                Merge another query
-                                            </Text>
+                                            Merge another query
                                         </Menu.Item>
                                     )}
                                     {canMergeAnotherQuery &&
@@ -344,9 +376,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             data-tour-hint="Edit the virtual view"
                                             onClick={handleEditVirtualView}
                                         >
-                                            <Text fz="xs" fw={500}>
-                                                Edit virtual view
-                                            </Text>
+                                            Edit virtual view
                                         </Menu.Item>
                                     )}
                                     {isVirtualView && canViewContentAsCode && (
@@ -373,8 +403,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                     )}
                                     {canClearCache && (
                                         <>
-                                            {(canMergeAnotherQuery ||
-                                                hasVirtualViewActions) && (
+                                            {hasVirtualViewActions && (
                                                 <Menu.Divider />
                                             )}
                                             <ClearCachedResultsMenuItem
@@ -408,9 +437,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                                     handleDeleteVirtualView
                                                 }
                                             >
-                                                <Text fz="xs" fw={500}>
-                                                    Delete
-                                                </Text>
+                                                Delete
                                             </Menu.Item>
                                         </>
                                     )}
@@ -427,7 +454,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             />
                         )}
                 </Group>
-
                 {isGuidedMerge ? (
                     <MergeQuerySidebar
                         primaryExplore={explore}

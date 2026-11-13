@@ -104,6 +104,11 @@ const renderPanel = (appMocks?: Parameters<typeof renderWithProviders>[1]) => {
     );
 };
 
+// The first-visit tour would cover the panel; these tests start past it
+beforeEach(() => {
+    localStorage.setItem('ld.explorer.tour.v1', '1');
+});
+
 describe('ExplorePanel loading state', () => {
     beforeEach(() => {
         mockUseExplore.mockReset();
@@ -205,13 +210,15 @@ describe('ExplorePanel virtual view actions', () => {
         expect(
             screen.getByRole('menuitem', { name: /Merge another query/ }),
         ).toBeInTheDocument();
-        expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+        // Merge, plus the tour replay that every menu carries
+        expect(screen.getAllByRole('menuitem')).toHaveLength(2);
     });
 
     it.each([
         { isMerging: true, readOnly: false },
         { isMerging: false, readOnly: true },
-    ])('hides merge when unavailable: %o', (state) => {
+    ])('hides merge when unavailable: %o', async (state) => {
+        const user = userEvent.setup();
         mockUseExplore.mockReturnValue(
             exploreQuery({
                 data: { ...mockExplore, type: ExploreType.VIRTUAL },
@@ -224,8 +231,13 @@ describe('ExplorePanel virtual view actions', () => {
         };
 
         renderPanel({ user: { abilityRules: [] } });
+        // A guided merge replaces the panel, so there may be no menu at all
+        const trigger = screen.queryByRole('button', {
+            name: 'Virtual view actions',
+        });
+        if (trigger) await user.click(trigger);
         expect(
-            screen.queryByRole('button', { name: 'Virtual view actions' }),
+            screen.queryByRole('menuitem', { name: /Merge another query/ }),
         ).not.toBeInTheDocument();
     });
 
@@ -275,12 +287,15 @@ describe('ExplorePanel query options', () => {
         testState.merge = undefined;
     });
 
-    it('hides query options when merge is unavailable', () => {
+    it('offers only the tour when merge is unavailable', async () => {
+        const user = userEvent.setup();
         renderPanel();
 
+        await user.click(screen.getByRole('button', { name: 'Query options' }));
+        expect(screen.getAllByRole('menuitem')).toHaveLength(1);
         expect(
-            screen.queryByRole('button', { name: 'Query options' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('menuitem', { name: 'Take the tour' }),
+        ).toBeInTheDocument();
     });
 
     it('offers merge, marked beta, with no feature flag enabled', async () => {
@@ -326,12 +341,16 @@ describe('ExplorePanel clear cache', () => {
         );
     };
 
-    it('hides the action without permission', () => {
+    it('hides the action without permission', async () => {
+        const user = userEvent.setup();
         testState.canClearCache = false;
         renderPanel();
 
+        await user.click(screen.getByRole('button', { name: 'Query options' }));
         expect(
-            screen.queryByRole('button', { name: 'Query options' }),
+            screen.queryByRole('menuitem', {
+                name: 'Clear cache for everyone',
+            }),
         ).not.toBeInTheDocument();
     });
 

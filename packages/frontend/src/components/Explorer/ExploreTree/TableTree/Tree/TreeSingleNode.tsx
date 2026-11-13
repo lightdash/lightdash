@@ -39,7 +39,14 @@ import {
     IconInfoCircle,
     IconTrash,
 } from '@tabler/icons-react';
-import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useMemo,
+    useState,
+    type DragEvent,
+    type FC,
+} from 'react';
 import { useToggle } from 'react-use';
 import {
     explorerActions,
@@ -57,12 +64,10 @@ import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
-import {
-    getFieldColor,
-    getFieldColors,
-} from '../../../../../utils/fieldColors';
+import { getFieldColors } from '../../../../../utils/fieldColors';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
+import { startFieldDrag } from '../../../fieldDrag';
 import { useCustomMetricSourceId } from '../../CustomMetricSourceContext';
 import { useFieldFilterTarget } from '../../FieldFilterTargetContext';
 import { useCustomMetricDelete } from '../../useCustomMetricDelete';
@@ -125,20 +130,22 @@ const NavItemIcon = ({
                 {tzAffordance.pinIcon ? (
                     <MantineIcon
                         icon={tzAffordance.pinIcon}
-                        color={getFieldColor(item)}
-                        size="md"
+                        color="inherit"
+                        size={12}
+                        stroke={2}
                     />
                 ) : (
                     <FieldIcon
                         item={item}
-                        color={getFieldColor(item)}
-                        size="md"
+                        color="inherit"
+                        size={12}
+                        stroke={2}
                     />
                 )}
             </Tooltip>
         );
     }
-    return <FieldIcon item={item} color={getFieldColor(item)} size="md" />;
+    return <FieldIcon item={item} color="inherit" size={12} stroke={2} />;
 };
 
 NavItemIcon.displayName = 'NavItemIcon';
@@ -473,8 +480,8 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     // Non-virtualized mode uses NavLink's built-in nesting with childrenOffset
     const pl = useMemo(() => {
         if (isVirtualized) {
-            // Base padding is 12px, each nesting level adds 20px
-            return `${12 + (depth ?? 0) * 20}px`;
+            // Base padding is 8px, each nesting level adds 12px
+            return `${8 + (depth ?? 0) * 12}px`;
         }
         return undefined;
     }, [depth, isVirtualized]);
@@ -522,6 +529,14 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         '--tree-node-hover-bg': itemColors.bgHover,
                     }}
                     leftSection={icon}
+                    draggable={!isMissing}
+                    onDragStart={(event: DragEvent) =>
+                        startFieldDrag(event, {
+                            fieldId: node.key,
+                            isDimension:
+                                isDimension(item) || isCustomDimension(item),
+                        })
+                    }
                     onClick={handleClick}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
@@ -548,7 +563,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 }
                             >
                                 <HoverCard.Target>
-                                    <Text truncate fz="sm" flex={1}>
+                                    <Text truncate fz={13} flex={1}>
                                         <Highlight
                                             component="span"
                                             highlight={searchQuery || ''}
@@ -560,14 +575,14 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 </HoverCard.Target>
                                 <HoverCard.Dropdown
                                     hidden={!isHover}
-                                    p="md"
-                                    miw={400}
-                                    mah={500}
+                                    p="sm"
+                                    miw={240}
+                                    mah={360}
                                     /**
                                      * Takes up space to the right, so it's OK to go fairly wide in the interest
                                      * of readability.
                                      */
-                                    maw={500}
+                                    maw={340}
                                     className={`${styles.detailPreviewDropdown} ${previewClasses.previewDropdown}`}
                                     onClick={handleDropdownClick}
                                 >

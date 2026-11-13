@@ -1,13 +1,5 @@
 import { formatSql, getMergeCompiledSqlText } from '@lightdash/common';
-import {
-    Alert,
-    Box,
-    Loader,
-    Stack,
-    Text,
-    Title,
-    useMantineColorScheme,
-} from '@mantine/core';
+import { Alert, Box, Stack, Text, useMantineColorScheme } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import {
@@ -24,11 +16,44 @@ import {
 import { useCompiledSql } from '../hooks/useCompiledSql';
 import { useExploreWarehouseConnection } from '../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../hooks/useProjectUuid';
+import RunningBar from './common/RunningBar';
+import SqlSkeleton from './Explorer/SqlCard/SqlSkeleton';
 import Editor, { type BeforeMount, type EditorProps } from './MonacoEditor';
 
 const MONACO_READ_ONLY: EditorProps['options'] = {
     ...MONACO_DEFAULT_OPTIONS,
     readOnly: true,
+    domReadOnly: true,
+    // A viewer, not an editor: no cursor line, guides, folding or ruler
+    renderLineHighlight: 'none',
+    guides: { indentation: false },
+    folding: false,
+    overviewRulerLanes: 0,
+    hideCursorInOverviewRuler: true,
+    lineNumbersMinChars: 3,
+    lineDecorationsWidth: 14,
+    padding: { top: 4, bottom: 16 },
+    fontSize: 12.5,
+    lineHeight: 21,
+    scrollbar: {
+        useShadows: false,
+        verticalScrollbarSize: 8,
+        horizontalScrollbarSize: 8,
+    },
+};
+
+const READ_ONLY_LINE_NUMBER_COLOR = { light: '#b4b4bd', dark: '#5c5c66' };
+
+const getReadOnlyTheme = (colorScheme: 'light' | 'dark') => {
+    const theme = getLightdashMonacoTheme(colorScheme);
+    return {
+        ...theme,
+        colors: {
+            ...theme.colors,
+            'editorLineNumber.foreground':
+                READ_ONLY_LINE_NUMBER_COLOR[colorScheme],
+        },
+    };
 };
 
 export type SqlViewType = 'query' | 'pivotQuery';
@@ -56,15 +81,16 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
     const beforeMount: BeforeMount = useCallback(
         (monaco) => {
             registerMonacoLanguage(monaco, language);
-            monaco.editor.defineTheme('lightdash-light', {
+            // Own theme names: Monaco themes are global and other editors keep theirs
+            monaco.editor.defineTheme('lightdash-light-readonly', {
                 base: 'vs',
                 inherit: true,
-                ...getLightdashMonacoTheme('light'),
+                ...getReadOnlyTheme('light'),
             });
-            monaco.editor.defineTheme('lightdash-dark', {
+            monaco.editor.defineTheme('lightdash-dark-readonly', {
                 base: 'vs-dark',
                 inherit: true,
-                ...getLightdashMonacoTheme('dark'),
+                ...getReadOnlyTheme('dark'),
             });
         },
         [language],
@@ -108,12 +134,10 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
 
     if (isInitialLoading || (merge.isMergeActive && merge.isInitialLoading)) {
         return (
-            <Stack my="xs" align="center">
-                <Loader size="lg" color="gray" mt="xs" />
-                <Title order={4} fw={500} c="dimmed">
-                    Compiling SQL
-                </Title>
-            </Stack>
+            <Box>
+                <RunningBar label="Compiling SQL" />
+                <SqlSkeleton />
+            </Box>
         );
     }
 
@@ -192,15 +216,19 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
             )}
             <Box flex={1}>
                 <Editor
-                    loading={<Loader color="gray" size="xs" />}
+                    loading={
+                        <Box w="100%" h="100%">
+                            <SqlSkeleton />
+                        </Box>
+                    }
                     language={language}
                     beforeMount={beforeMount}
                     value={formattedSql}
                     options={MONACO_READ_ONLY}
                     theme={
                         colorScheme === 'dark'
-                            ? 'lightdash-dark'
-                            : 'lightdash-light'
+                            ? 'lightdash-dark-readonly'
+                            : 'lightdash-light-readonly'
                     }
                 />
             </Box>

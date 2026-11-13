@@ -1,0 +1,24 @@
+/* Stands in for a chart whose fields no longer match the selection */
+.staleCover {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--mantine-color-body);
+}
+
+/* A closed Chart row names its chart type, in the same quiet voice as the
+   other rows' counts */
+.summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
+
+.summary:hover {
+    color: var(--mantine-color-text);
+}
