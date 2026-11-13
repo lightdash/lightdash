@@ -1,6 +1,5 @@
 import {
     type AiAgentSummary,
-    type AiAgentThread,
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
@@ -41,6 +40,7 @@ import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import { QuietCardsContext } from '../ChatElements/ToolCalls/quietCards';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
+import { getOpenProposal } from './studioProposal';
 import {
     useChatOpen,
     useStudioAgent,
@@ -74,16 +74,6 @@ const withOpenModel = (
 
 const PANEL_WIDTH = 360;
 const PANEL_MIN_WIDTH = 300;
-
-/** Whether the agent's latest reply proposes a change that no pull request carries yet. */
-const hasOpenProposal = (messages: AiAgentThread['messages']): boolean => {
-    const last = messages.findLast(({ role }) => role === 'assistant');
-    return (
-        last?.role === 'assistant' &&
-        (last.message ?? '').includes('```diff') &&
-        !last.toolCalls.some(({ toolName }) => toolName === 'editDbtProject')
-    );
-};
 
 const useStartThread = (
     projectUuid: string,
@@ -270,7 +260,9 @@ const ExistingThread: FC<
             agentUuid={agent.uuid}
             renderArtifactsInline
         >
-            {!keepsDraft && !isBusy && hasOpenProposal(thread.messages) ? (
+            {!keepsDraft &&
+            !isBusy &&
+            getOpenProposal(thread.messages).length > 0 ? (
                 <div className={classes.pullRequestPrompt}>
                     <Stack className={classes.pullRequestCard} gap="sm">
                         <Group gap="sm" wrap="nowrap">

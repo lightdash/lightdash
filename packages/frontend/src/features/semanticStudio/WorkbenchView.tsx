@@ -6,10 +6,11 @@
  */
 import { assertUnreachable } from '@lightdash/common';
 import {
+    ActionIcon,
     Anchor,
     Box,
-    Button,
     Breadcrumbs,
+    Button,
     Center,
     Group,
     Loader,
@@ -18,13 +19,13 @@ import {
     TextInput,
     Title,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import {
     IconChevronRight,
     IconCode,
     IconFileCode,
     IconSearch,
-    IconTable,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -39,12 +40,20 @@ import {
 import { useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
-import { StudioDevelopmentBar } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioDevelopmentBar';
+import { StudioChanges } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioChanges';
+import {
+    StudioDevelopmentBar,
+    StudioSavingBar,
+} from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioDevelopmentBar';
 import {
     useChatOpen,
     useSemanticStudioChat,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
-import { useStudioPullRequest } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
+import {
+    useStudioPendingChange,
+    useStudioProposal,
+    useStudioPullRequest,
+} from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
 import { useProject } from '../../hooks/useProject';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
 import { useDevelopmentView } from './developmentView';
@@ -126,7 +135,14 @@ import classes from './WorkbenchView.module.css';
 const ROW_HEIGHT = 28;
 
 /** What the workspace shows beside the rail. */
-type Pane = 'code' | 'review' | 'browse' | 'intro' | 'buildFirst' | 'empty';
+type Pane =
+    | 'code'
+    | 'changes'
+    | 'review'
+    | 'browse'
+    | 'intro'
+    | 'buildFirst'
+    | 'empty';
 
 /** Says whose unpublished work a model has: this person's, someone else's, or both. */
 const DraftMarker: FC<{
@@ -851,27 +867,6 @@ const CodeRail: FC<{
 
 const FILE_PARAM = 'file';
 
-const VIEW_OPTIONS = [
-    {
-        value: 'preview',
-        label: (
-            <Group gap={6} wrap="nowrap">
-                <MantineIcon icon={IconTable} size={14} />
-                Models
-            </Group>
-        ),
-    },
-    {
-        value: 'code',
-        label: (
-            <Group gap={6} wrap="nowrap">
-                <MantineIcon icon={IconCode} size={14} />
-                Code
-            </Group>
-        ),
-    },
-];
-
 const BUILD_MODEL_PROMPT =
     'Look through my warehouse and suggest the first model and metrics to add.';
 
@@ -941,9 +936,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const hasDraft = (draft?.changes.length ?? 0) > 0;
     // With nothing live, what the draft adds is the page.
     const isBuildingFirstModel = isEmpty && hasDraft;
+    // With changes to check and nothing else asked for, the changes are the page.
+    const isDefaultView =
+        view.selected === null && searchParams.get(VIEW_PARAM) === null;
     const isReviewingDraft =
         isBuildingFirstModel ||
-        (hasDraft && searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW);
+        (hasDraft &&
+            (searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW || isDefaultView));
     const openExplore =
         view.selected?.type === 'explore' || view.selected?.type === 'field'
             ? view.selected.exploreId
@@ -967,6 +966,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
     const pullRequest = useStudioPullRequest(view.project.id);
     const development = !keepsDraft && pullRequest?.isOpen ? pullRequest : null;
+    const pendingChange = useStudioPendingChange(view.project.id);
+    const saving = keepsDraft ? null : pendingChange;
     const [isTryingChanges, setIsTryingChanges] = useDevelopmentView();
     // A dbt project's changes are tried through its pull request's preview, so there is nothing to try once that closes.
     const hasClosedPullRequest =
@@ -978,6 +979,55 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         chat.isAvailable &&
         keepsDraft &&
         searchParams.get(VIEW_PARAM) === 'code';
+    // When a save lands, the workspace opens its diff, so the change is reviewed where it was asked for.
+    const wasSaving = useRef(false);
+    useEffect(() => {
+        if (wasSaving.current && !saving && development) {
+            setSearchParams({ [VIEW_PARAM]: 'changes' });
+        }
+        wasSaving.current = !!saving;
+    }, [saving, development, setSearchParams]);
+    const proposal = useStudioProposal(view.project.id);
+    const hasProposal = !keepsDraft && proposal.length > 0;
+    // A dbt project's changes are its conversation's: what it proposes, and what its pull request holds.
+    const isChanges =
+        !keepsDraft &&
+        (!!development || hasProposal) &&
+        (searchParams.get(VIEW_PARAM) === 'changes' || isDefaultView);
+    const hasChanges = keepsDraft
+        ? hasDraft && !isBuildingFirstModel
+        : !!development || hasProposal;
+    // A new proposal opens the changes, like a save does.
+    const proposalKey = hasProposal ? proposal.join('\n') : null;
+    const lastProposalKey = useRef(proposalKey);
+    useEffect(() => {
+        if (proposalKey && proposalKey !== lastProposalKey.current) {
+            setSearchParams({ [VIEW_PARAM]: 'changes' });
+        }
+        lastProposalKey.current = proposalKey;
+    }, [proposalKey, setSearchParams]);
+    // The workspace the conversation made, named for where its changes stand.
+    const pullRequestNumber = /\/(\d+)\/?$/.exec(development?.prUrl ?? '')?.[1];
+    const workspace = saving
+        ? { name: 'Saving', hint: 'The change is being saved.' }
+        : development
+          ? {
+                name: pullRequestNumber
+                    ? `Pull request #${pullRequestNumber}`
+                    : 'Pull request',
+                hint: 'Not live until it merges.',
+            }
+          : hasProposal
+            ? {
+                  name: 'Proposed change',
+                  hint: 'Not saved yet. Open the pull request from the chat to save it.',
+              }
+            : keepsDraft && hasDraft && !isBuildingFirstModel
+              ? {
+                    name: 'Draft',
+                    hint: 'Only you see these changes until you publish them.',
+                }
+              : null;
     // Only models with YAML here have a file: a deployed model's YAML lives where it was deployed from.
     const { data: stored } = useSemanticLayerStoredModels(
         view.project.id,
@@ -996,10 +1046,17 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const switchView = (next: string) => {
         if (next === 'code') {
             setSearchParams({ [VIEW_PARAM]: 'code' });
+        } else if (next === 'changes') {
+            setSearchParams(
+                keepsDraft
+                    ? { [DRAFT_PARAM]: DRAFT_REVIEW }
+                    : { [VIEW_PARAM]: 'changes' },
+            );
         } else if (requestedFile && modelled.includes(requestedFile)) {
             view.select({ type: 'explore', exploreId: requestedFile });
         } else {
-            setSearchParams({});
+            // Named, since with changes to check the bare page shows those.
+            setSearchParams(hasChanges ? { [VIEW_PARAM]: 'models' } : {});
         }
     };
 
@@ -1010,11 +1067,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         chat.isAvailable && keepsDraft && hasWarehouse && modelled.length === 0;
     const pane = ((): Pane => {
         if (isCode) return 'code';
+        if (isChanges) return 'changes';
         if (isReviewingDraft) return 'review';
         if (!isEmpty) return 'browse';
         if (!canBuildFirstModel) return 'empty';
         return chat.hasThread || hasStarted ? 'buildFirst' : 'intro';
     })();
+    // Reviewing changes takes the full width: the tree is for browsing models.
+    const isReviewPane = pane === 'changes' || pane === 'review';
     // What the chat is told the person has open: in the code view that is the file, not the page behind it.
     const openModel = isCode
         ? { modelName: file, fieldName: searchParams.get(FIELD_PARAM) }
@@ -1032,6 +1092,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
 
     const renderPane = () => {
         switch (pane) {
+            case 'changes':
+                return (
+                    <StudioChanges
+                        projectUuid={view.project.id}
+                        pullRequest={development}
+                        proposal={hasProposal ? proposal : []}
+                    />
+                );
             case 'code':
                 return file ? (
                     <ModelCodeView
@@ -1138,24 +1206,59 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         {pane === 'intro' ||
                         !chat.isAvailable ||
                         // A dbt project has nothing to put here until its conversation has a pull request.
-                        (!keepsDraft && !development && isChatOpen) ? null : (
+                        (!keepsDraft &&
+                            !development &&
+                            !saving &&
+                            !hasProposal &&
+                            isChatOpen) ? null : (
                             <Group
                                 className={classes.toolbar}
-                                data-my-changes={isTryingChanges || undefined}
                                 justify="space-between"
                                 wrap="nowrap"
                                 gap="sm"
                             >
-                                {keepsDraft ? (
-                                    <SegmentedControl
-                                        size="xs"
-                                        flex="none"
-                                        value={isCode ? 'code' : 'preview'}
-                                        onChange={switchView}
-                                        data={VIEW_OPTIONS}
+                                <Group gap={6} wrap="nowrap" flex="none">
+                                    <UnstyledButton
+                                        className={classes.crumb}
+                                        aria-current={
+                                            pane === 'browse'
+                                                ? 'page'
+                                                : undefined
+                                        }
+                                        onClick={() => switchView('models')}
+                                    >
+                                        Models
+                                    </UnstyledButton>
+                                    {workspace ? (
+                                        <>
+                                            <Text fz="xs" c="dimmed">
+                                                /
+                                            </Text>
+                                            <Tooltip label={workspace.hint}>
+                                                <UnstyledButton
+                                                    className={classes.crumb}
+                                                    aria-current={
+                                                        isReviewPane
+                                                            ? 'page'
+                                                            : undefined
+                                                    }
+                                                    onClick={() =>
+                                                        switchView('changes')
+                                                    }
+                                                >
+                                                    {workspace.name}
+                                                </UnstyledButton>
+                                            </Tooltip>
+                                        </>
+                                    ) : null}
+                                </Group>
+                                {saving ? (
+                                    <StudioSavingBar
+                                        projectUuid={view.project.id}
+                                        change={saving}
+                                        pullRequest={development}
                                     />
-                                ) : null}
-                                {development ? (
+                                ) : development ? (
                                     <StudioDevelopmentBar
                                         projectUuid={view.project.id}
                                         pullRequest={development}
@@ -1167,11 +1270,37 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     />
                                 ) : null}
                                 <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
+                                    {keepsDraft ? (
+                                        <Tooltip
+                                            label={
+                                                isCode
+                                                    ? 'Back to models'
+                                                    : 'Read the YAML'
+                                            }
+                                        >
+                                            <ActionIcon
+                                                size="md"
+                                                variant={
+                                                    isCode ? 'light' : 'default'
+                                                }
+                                                aria-label="Code"
+                                                aria-pressed={isCode}
+                                                onClick={() =>
+                                                    switchView(
+                                                        isCode
+                                                            ? 'models'
+                                                            : 'code',
+                                                    )
+                                                }
+                                            >
+                                                <MantineIcon icon={IconCode} />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    ) : null}
                                     {chat.isAvailable && !isChatOpen ? (
                                         <Button
                                             size="xs"
-                                            variant="light"
-                                            color="indigo"
+                                            variant="default"
                                             flex="none"
                                             onClick={() => setIsChatOpen(true)}
                                         >
@@ -1183,7 +1312,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         )}
                         <Box
                             className={classes.workspaceBody}
-                            data-no-rail={pane !== 'code' && isEmpty}
+                            data-no-rail={
+                                isReviewPane || (pane !== 'code' && isEmpty)
+                            }
                         >
                             {pane === 'code' ? (
                                 <CodeRail
@@ -1198,7 +1329,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         })
                                     }
                                 />
-                            ) : isEmpty ? null : (
+                            ) : isEmpty || isReviewPane ? null : (
                                 <Rail
                                     view={view}
                                     expanded={expanded}
@@ -1212,7 +1343,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             ) : (
                                 <Box
                                     className={classes.main}
-                                    data-full={pane === 'code'}
+                                    data-full={
+                                        pane === 'code' || pane === 'changes'
+                                    }
                                 >
                                     {renderPane()}
                                 </Box>

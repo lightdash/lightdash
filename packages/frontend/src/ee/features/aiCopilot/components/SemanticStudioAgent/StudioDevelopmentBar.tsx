@@ -3,7 +3,7 @@ import {
     CiMergeState,
     type CiChecks,
 } from '@lightdash/common';
-import { ActionIcon, Badge, Button, Menu, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Menu, Text, Tooltip } from '@mantine/core';
 import { IconDots, IconExternalLink } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -15,12 +15,20 @@ import {
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
 import { ChangesSwitch } from '../../../../../features/semanticStudio/SemanticLayerDraft';
+import { useTryInExplore } from '../../../../../features/semanticStudio/useTryInExplore';
 import { useProject } from '../../../../../hooks/useProject';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../hooks/useMergePullRequest';
+import {
+    useElapsed,
+    useWritebackProgress,
+} from '../../hooks/useWritebackProgress';
 import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
-import classes from './SemanticStudioAgent.module.css';
-import { type StudioPullRequest } from './useStudioPullRequest';
+import { WRITEBACK_STEPS } from '../ChatElements/ToolCalls/writebackProgress';
+import {
+    type StudioPendingChange,
+    type StudioPullRequest,
+} from './useStudioPullRequest';
 
 /** Why an open pull request cannot be merged yet. */
 const getBlockedReason = (ciChecks: CiChecks | null): string => {
@@ -44,11 +52,6 @@ const getBlockedReason = (ciChecks: CiChecks | null): string => {
     }
 };
 
-const summarizeModels = (models: string[]) =>
-    models.length <= 2
-        ? models.join(', ')
-        : `${models.slice(0, 2).join(', ')} and ${models.length - 2} more`;
-
 /** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and merging it. */
 export const StudioDevelopmentBar: FC<{
     projectUuid: string;
@@ -64,6 +67,7 @@ export const StudioDevelopmentBar: FC<{
     const [merging, setMerging] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isTrying, setIsTrying] = useDevelopmentView();
+    const tryInExplore = useTryInExplore(projectUuid);
     const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
     const name = number ? `pull request #${number}` : 'the pull request';
     // The preview is the truer source once it is built, so a view switched on before then moves to it.
@@ -83,32 +87,14 @@ export const StudioDevelopmentBar: FC<{
     const canMerge = isMergeable(ciChecks);
     const destination = `${name}${branch ? ` into ${branch}` : ''}`;
     return (
-        <DevelopmentBar
-            status={
-                <Badge
-                    component="a"
-                    href={prUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    color="blue"
-                    flex="none"
-                    className={classes.statusLink}
-                >
-                    {number ? `Pull request #${number}` : 'Pull request'}
-                </Badge>
-            }
-            summary={
-                <Text fz="xs" c="dimmed" truncate>
-                    {changedModels.length > 0
-                        ? summarizeModels(changedModels)
-                        : 'Not live until it merges'}
-                </Text>
-            }
-        >
-            <ChangesSwitch
-                isOnMyChanges={isTrying}
-                onChange={(next) => setIsTrying(next, previewProjectUuid)}
-            />
+        <DevelopmentBar summary={null}>
+            {/* Once on, the dock says so on every page and holds the way back. */}
+            {isTrying ? null : (
+                <ChangesSwitch
+                    isOnMyChanges={false}
+                    onChange={(next) => setIsTrying(next, previewProjectUuid)}
+                />
+            )}
             <Tooltip
                 multiline
                 w={240}
@@ -140,6 +126,18 @@ export const StudioDevelopmentBar: FC<{
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {changedModels.length > 0 ? (
+                        <Menu.Item
+                            onClick={() =>
+                                tryInExplore(
+                                    changedModels[0],
+                                    previewProjectUuid,
+                                )
+                            }
+                        >
+                            Try in Explore
+                        </Menu.Item>
+                    ) : null}
                     {previewProjectUuid ? (
                         <Menu.Item
                             component={Link}
@@ -163,7 +161,7 @@ export const StudioDevelopmentBar: FC<{
                     </Menu.Item>
                     <Menu.Divider />
                     <Menu.Item color="red" onClick={() => setDiscarding(true)}>
-                        Close pull request
+                        Discard changes
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
@@ -187,9 +185,9 @@ export const StudioDevelopmentBar: FC<{
                 <MantineModal
                     opened
                     variant="delete"
-                    title="Close pull request"
-                    description={`This closes ${name} without merging it. Nothing live changes, and it can be reopened from the repository.`}
-                    confirmLabel="Close pull request"
+                    title="Discard changes"
+                    description={`This closes ${name} without merging it, so these changes never go live. The pull request can be reopened from the repository.`}
+                    confirmLabel="Discard changes"
                     confirmLoading={isClosing}
                     onClose={() => setDiscarding(false)}
                     onConfirm={() =>
@@ -205,6 +203,55 @@ export const StudioDevelopmentBar: FC<{
                     }
                 />
             ) : null}
+        </DevelopmentBar>
+    );
+};
+
+/** A dbt change still running in the background, in the toolbar: the step it is on and how long it has been. */
+export const StudioSavingBar: FC<{
+    projectUuid: string;
+    change: StudioPendingChange;
+    /** The open pull request this save adds to; null when the save opens the first one. */
+    pullRequest: StudioPullRequest | null;
+}> = ({ projectUuid, change, pullRequest }) => {
+    const { step, state } = useWritebackProgress(
+        projectUuid,
+        change.aiWritebackRunUuid,
+    );
+    const elapsed = useElapsed(change.startedAt);
+    const [isOnMyChanges, setIsOnMyChanges] = useDevelopmentView();
+    return (
+        <DevelopmentBar
+            summary={
+                <Text fz="xs" c="dimmed" truncate>
+                    {state === 'running'
+                        ? `${WRITEBACK_STEPS[step]}, step ${step + 1} of ${WRITEBACK_STEPS.length}`
+                        : state === 'done'
+                          ? 'Saved'
+                          : 'The change stopped'}
+                </Text>
+            }
+        >
+            {/* An earlier save can still be tried, and left, while this one runs. */}
+            <ChangesSwitch
+                isOnMyChanges={isOnMyChanges}
+                onChange={(next) =>
+                    setIsOnMyChanges(
+                        next,
+                        pullRequest?.previewProjectUuid ?? null,
+                    )
+                }
+                unavailableReason={
+                    pullRequest
+                        ? undefined
+                        : 'Available when the pull request opens.'
+                }
+            />
+            <Tooltip label="Usually takes 2 to 3 minutes. The pull request shows up here when it is ready.">
+                <Text fz="xs" c="dimmed" ff="monospace">
+                    {elapsed}
+                </Text>
+            </Tooltip>
         </DevelopmentBar>
     );
 };

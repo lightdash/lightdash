@@ -61,6 +61,7 @@ import type {
     ApiAiRouterRouteResponse,
     ApiAiSuggestChartTypeExploreResponse,
     ApiAiSuggestChartTypeFieldsResponse,
+    ApiAiWritebackRunStatusResponse,
     ApiAnnouncementResponse,
     ApiAnnouncementsResponse,
     ApiAppendInstructionResponse,
@@ -1607,6 +1608,7 @@ type ApiResults =
     | Array<LinearTeam>
     | Array<LinearProject>
     | CiChecks
+    | ApiAiWritebackRunStatusResponse['results']
     | MergePullRequestResult
     | ClosePullRequestResult
     | { diff: string }

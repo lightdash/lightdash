@@ -32,7 +32,6 @@ import {
     IconArrowUp,
     IconGitMerge,
     IconArrowsDiff,
-    IconInfoCircle,
     IconTable,
     IconTrash,
     IconUsers,
@@ -106,7 +105,7 @@ const KeepTheirsButton: FC<{
             loading={takeLive.isLoading}
             onClick={() => takeLive.mutate({ model, path })}
         >
-            Keep
+            Keep theirs
         </Button>
     );
 };
@@ -225,7 +224,7 @@ const ConflictOption: FC<{
     </Box>
 );
 
-/** One part two people changed: what it said before, then each person's version with the button that keeps it. */
+/** One part two people changed: each person's version, the words that differ marked, with the button that keeps it. */
 const ConflictSides: FC<{
     projectUuid: string;
     model: SemanticLayerDraftModel;
@@ -238,30 +237,7 @@ const ConflictSides: FC<{
     const publisher = model.publishedSince?.by ?? null;
     return (
         <Stack gap="xs" className={classes.conflict}>
-            <Box>
-                {isOneOfSeveral ? <PartName path={conflict.path} /> : null}
-                {conflict.base !== null && isYaml(conflict.base) ? (
-                    <>
-                        <Text fz="xs" c="dimmed">
-                            Originally
-                        </Text>
-                        <Box
-                            component="pre"
-                            className={classes.code}
-                            data-before
-                        >
-                            {conflict.base}
-                        </Box>
-                    </>
-                ) : (
-                    <Text fz="xs" c="dimmed">
-                        Originally:{' '}
-                        {conflict.base === null
-                            ? 'not set'
-                            : `“${conflict.base}”`}
-                    </Text>
-                )}
-            </Box>
+            {isOneOfSeveral ? <PartName path={conflict.path} /> : null}
             <Box className={classes.options}>
                 <ConflictOption
                     title={publisher ?? 'Someone else'}
@@ -299,7 +275,7 @@ const ConflictSides: FC<{
                             <KeepMineButton
                                 projectUuid={projectUuid}
                                 model={model}
-                                label="Keep"
+                                label="Keep mine"
                                 ariaLabel="Keep your version"
                             />
                         )
@@ -1110,50 +1086,5 @@ export const PublishSummary: FC<{
                 )}
             </Section>
         </>
-    );
-};
-
-const EXPLAINER_KEY = 'semantic-studio-draft-explainer-seen';
-
-const hasSeenExplainer = (): boolean => {
-    try {
-        return localStorage.getItem(EXPLAINER_KEY) !== null;
-    } catch {
-        return true;
-    }
-};
-
-/** Shown until dismissed, the first time someone has changes in development. */
-export const DraftExplainer: FC<{ asPullRequest: boolean }> = ({
-    asPullRequest,
-}) => {
-    const [isSeen, setIsSeen] = useState(hasSeenExplainer);
-    if (isSeen) return null;
-    return (
-        <Group className={classes.hint} gap="sm" wrap="nowrap">
-            <MantineIcon icon={IconInfoCircle} size={16} color="dimmed" />
-            <Text fz="xs" flex={1}>
-                Only you see these changes.{' '}
-                {asPullRequest
-                    ? 'Publishing opens a pull request, and nothing is live until it merges.'
-                    : 'Publishing makes them live for everyone on this project.'}{' '}
-                Switch to My changes above to try them on your charts first.
-            </Text>
-            <Button
-                size="compact-xs"
-                variant="subtle"
-                flex="none"
-                onClick={() => {
-                    try {
-                        localStorage.setItem(EXPLAINER_KEY, '1');
-                    } catch {
-                        // Without storage it shows again next time.
-                    }
-                    setIsSeen(true);
-                }}
-            >
-                Got it
-            </Button>
-        </Group>
     );
 };
