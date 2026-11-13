@@ -2,6 +2,7 @@ import { ActionIcon, Menu } from '@mantine/core';
 import { IconDots, IconFolderMinus, IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import editorClasses from './FilterEditor.module.css';
 import { MENU_TRANSITION } from './menuTransition';
 
 type MenuProps = {
@@ -36,7 +37,7 @@ export const SectionMenu: FC<MenuProps> = ({
                 <MantineIcon icon={IconDots} size={14} />
             </ActionIcon>
         </Menu.Target>
-        <Menu.Dropdown>
+        <Menu.Dropdown className={editorClasses.menu}>
             <Menu.Item
                 leftSection={<MantineIcon icon={IconPencil} size={14} />}
                 onClick={onRename}

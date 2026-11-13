@@ -3099,7 +3099,9 @@ describe('SectionedFilters', () => {
 
         describe('where an embed token leaves a kind out', () => {
             const removeItems = () =>
-                screen.queryAllByRole('menuitem', { name: /^Remove section/ });
+                screen.queryAllByRole('menuitem', {
+                    name: /^(Ungroup|Remove section)/,
+                });
             const openMenu = async (name: string) => {
                 await userEvent.click(
                     screen.getByRole('button', { name: `${name} menu` }),

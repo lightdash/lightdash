@@ -5,6 +5,7 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { formatPickedCount } from './barSelection';
+import editorClasses from './FilterEditor.module.css';
 import { MENU_TRANSITION } from './menuTransition';
 
 export type SelectionActionsProps = {
@@ -78,7 +79,7 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                         Move to
                     </Button>
                 </Menu.Target>
-                <Menu.Dropdown>
+                <Menu.Dropdown className={editorClasses.menu}>
                     <Menu.Item
                         leftSection={
                             <MantineIcon icon={IconFolderPlus} size={14} />
