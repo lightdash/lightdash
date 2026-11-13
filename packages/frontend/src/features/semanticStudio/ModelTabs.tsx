@@ -278,35 +278,52 @@ export const ModelTabs: FC<{
     projectUuid: string;
     modelName: string;
     fields: ReactNode;
-}> = ({ projectUuid, modelName, fields }) => {
+    /** The explore's join diagram; null where joins do not apply. */
+    joins?: ReactNode;
+}> = ({ projectUuid, modelName, fields, joins = null }) => {
     const { data: model } = useSemanticLayerModel(projectUuid, modelName);
     // A repository keeps its own history.
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const hasHistory = !!model && !asPullRequest;
+    const hasJoins = joins !== null;
     const [searchParams, setSearchParams] = useSearchParams();
+    const requested = searchParams.get(VIEW_PARAM);
     const view =
-        model && !asPullRequest && searchParams.get(VIEW_PARAM) === 'history'
+        hasHistory && requested === 'history'
             ? 'history'
-            : 'fields';
+            : hasJoins && requested === 'joins'
+              ? 'joins'
+              : 'fields';
     return (
         <Tabs
             className={classes.root}
             value={view}
             onChange={(next) =>
                 setSearchParams(
-                    next === 'history' ? { [VIEW_PARAM]: next } : {},
+                    next === 'history' || next === 'joins'
+                        ? { [VIEW_PARAM]: next }
+                        : {},
                     { replace: true },
                 )
             }
         >
-            {model && !asPullRequest ? (
+            {hasHistory || hasJoins ? (
                 <Tabs.List mb="md">
                     <Tabs.Tab value="fields">Fields</Tabs.Tab>
-                    <Tabs.Tab value="history">History</Tabs.Tab>
+                    {hasJoins ? <Tabs.Tab value="joins">Joins</Tabs.Tab> : null}
+                    {hasHistory ? (
+                        <Tabs.Tab value="history">History</Tabs.Tab>
+                    ) : null}
                 </Tabs.List>
             ) : null}
             <Tabs.Panel value="fields" className={classes.panel}>
                 {fields}
             </Tabs.Panel>
+            {view === 'joins' ? (
+                <Tabs.Panel value="joins" className={classes.panel}>
+                    {joins}
+                </Tabs.Panel>
+            ) : null}
             {model && view === 'history' ? (
                 <Tabs.Panel value="history" className={classes.panel}>
                     <HistoryPane

@@ -105,6 +105,7 @@ import {
     getModelCodeSearch,
     VIEW_PARAM,
 } from './modelCode';
+import { JoinDiagram } from './JoinDiagram';
 import { ModelCodeView, ModelTabs } from './ModelTabs';
 import {
     DraftDevelopmentBar,
@@ -765,6 +766,14 @@ const MainPane: FC<{
                         key={explore.id}
                         projectUuid={view.project.id}
                         modelName={explore.id}
+                        joins={
+                            source?.kind === 'modelled' ? (
+                                <JoinDiagram
+                                    projectUuid={view.project.id}
+                                    exploreName={explore.name}
+                                />
+                            ) : null
+                        }
                         fields={
                             <ExploreBody
                                 // Its live or in-development switch belongs to one model.
