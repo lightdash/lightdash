@@ -264,11 +264,16 @@ export const MobileSignInQr: FC<{
             </Box>
         );
     }
-    if (signIn.phase === 'showing' && !signIn.code && placeholder) {
-        return <Box className={classes.qrFrame}>{placeholder}</Box>;
-    }
     const isUsed = USED_CODE_PHASES.includes(signIn.phase);
-    if (signIn.code && (signIn.phase === 'showing' || (keepUsed && isUsed))) {
+    const isShown = signIn.phase === 'showing' || (keepUsed && isUsed);
+    if (isShown && !signIn.code && placeholder) {
+        return (
+            <Box className={classes.qrFrame} data-used={isUsed}>
+                {placeholder}
+            </Box>
+        );
+    }
+    if (signIn.code && isShown) {
         return (
             <Box className={classes.qrFrame} data-used={isUsed}>
                 <Suspense fallback={<Loader size="sm" />}>

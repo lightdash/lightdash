@@ -98,6 +98,9 @@
 .side {
     display: grid;
     min-width: 0;
+    margin: -4px;
+    padding: 4px;
+    overflow: hidden;
 }
 
 .side > * {
