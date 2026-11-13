@@ -6224,6 +6224,7 @@ const models: TsoaRoute.Models = {
             'loom',
             'heading',
             'data_app',
+            'composer_chart',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -9971,6 +9972,61 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DashboardTileTypes.COMPOSER_CHART': {
+        dataType: 'refEnum',
+        enums: ['composer_chart'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardComposerChartTileProperties: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                properties: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        chartName: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        composerChartUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        hideTitle: { dataType: 'boolean' },
+                        title: { dataType: 'string' },
+                    },
+                    required: true,
+                },
+                type: {
+                    ref: 'DashboardTileTypes.COMPOSER_CHART',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardComposerChartTile: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DashboardTileBase' },
+                { ref: 'DashboardComposerChartTileProperties' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardTile: {
         dataType: 'refAlias',
         type: {
@@ -9982,6 +10038,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'DashboardSqlChartTile' },
                 { ref: 'DashboardHeadingTile' },
                 { ref: 'DashboardDataAppTile' },
+                { ref: 'DashboardComposerChartTile' },
             ],
             validators: {},
         },
@@ -48071,6 +48128,7 @@ const models: TsoaRoute.Models = {
         enums: [
             'non_chart_tile',
             'sql_chart',
+            'composer_chart',
             'orphaned_chart',
             'explore_resolution_error',
         ],
@@ -68646,6 +68704,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateDashboardComposerChartTile: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'CreateDashboardTileBase' },
+                { ref: 'DashboardComposerChartTileProperties' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_UpdatedByUser.userUuid_': {
         dataType: 'refAlias',
         type: {
@@ -68701,6 +68771,7 @@ const models: TsoaRoute.Models = {
                             { ref: 'CreateDashboardSqlChartTile' },
                             { ref: 'CreateDashboardHeadingTile' },
                             { ref: 'CreateDashboardDataAppTile' },
+                            { ref: 'CreateDashboardComposerChartTile' },
                         ],
                     },
                     required: true,
@@ -80680,6 +80751,7 @@ const models: TsoaRoute.Models = {
                                 { ref: 'CreateDashboardSqlChartTile' },
                                 { ref: 'CreateDashboardHeadingTile' },
                                 { ref: 'CreateDashboardDataAppTile' },
+                                { ref: 'CreateDashboardComposerChartTile' },
                             ],
                         },
                         required: true,

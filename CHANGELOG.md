@@ -1,3 +1,10 @@
+# [3.245.0](https://github.com/lightdash/lightdash/compare/3.244.1...3.245.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** dashboards tolerate a composer chart tile ([#32548](https://github.com/lightdash/lightdash/issues/32548)) ([7072954](https://github.com/lightdash/lightdash/commit/70729541586200c15794079f8be30c82fbb12c6a))
+
 ## [3.244.1](https://github.com/lightdash/lightdash/compare/3.244.0...3.244.1) (2026-11-13)
 
 
