@@ -186,6 +186,32 @@ describe('getComposerRunQueryChart', () => {
         expect(result.pivotColumns).toEqual(['status']);
     });
 
+    test('names a dotted column by its column name and refuses one that shares its id', () => {
+        const dotted: ResultColumn = {
+            reference: 'orders.status',
+            type: DimensionType.STRING,
+        };
+        const build = (extra: ResultColumn[]) =>
+            getComposerRunQueryChart({
+                columns: [...columns, dotted, ...extra],
+                vizConfig: viz({
+                    type: 'bar',
+                    x: 'orders.status',
+                    y: ['revenue'],
+                }),
+                metadata: { title: '', description: '' },
+                customChartTypeSlots: [],
+            });
+        expect(build([]).metricQuery.dimensions).toEqual(['orders__status']);
+        expect(() =>
+            build([
+                { reference: 'orders__status', type: DimensionType.STRING },
+            ]),
+        ).toThrow(
+            'Columns "orders.status" and "orders__status" cannot be charted together',
+        );
+    });
+
     test('stacked bar sets stack on the series', () => {
         const { chartConfig } = chart(
             viz({

@@ -49,7 +49,7 @@ export const isNumericType = (
     return numericTypes.includes(type);
 };
 
-/** Table of fields synthesized from result columns; their field id is the column name. */
+/** Table of fields synthesized from query result columns, which have no explore table. */
 export const RESULT_COLUMN_TABLE = '<composer>';
 
 export const getItemId = (
