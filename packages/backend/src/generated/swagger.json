@@ -78056,6 +78056,15 @@
             },
             "ComposerChartRunResults": {
                 "properties": {
+                    "chartStageQueryUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The server-built series-split stage the chart draws from; null without a group-by."
+                    },
+                    "fields": {
+                        "$ref": "#/components/schemas/ItemsMap",
+                        "description": "The terminal node's fields map from its run; the tile draws a semantic-layer or merge result from it."
+                    },
                     "queries": {
                         "items": {
                             "properties": {
@@ -78075,7 +78084,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["queries"],
+                "required": ["chartStageQueryUuid", "fields", "queries"],
                 "type": "object"
             },
             "ApiComposerChartRunResponse": {
@@ -79255,7 +79264,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.258.2",
+        "version": "3.259.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
