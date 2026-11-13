@@ -265,6 +265,21 @@ describe('parseComposerStoredChart', () => {
         );
     });
 
+    test.each([
+        [
+            'series that is not a list',
+            { layout: {}, eChartsConfig: { series: {} } },
+        ],
+        ['an x field that is not a name', { layout: { xField: 1 } }],
+    ])('refuses a cartesian config with %s', (_, config) => {
+        refusal(() =>
+            parseComposerStoredChart({
+                ...chart,
+                chartConfig: { type: ChartType.CARTESIAN, config },
+            }),
+        );
+    });
+
     test('refuses a custom chart type, naming it', () => {
         expect(
             refusal(() =>

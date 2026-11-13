@@ -366,11 +366,24 @@ export const parseComposerStoredChart = (
         names.add(reference);
     });
 
+    let chartConfigNames: unknown;
+    try {
+        chartConfigNames = getChartConfigNames(
+            result.data.chartConfig as ChartConfig,
+        );
+    } catch (e) {
+        if (e instanceof ParameterError) throw e;
+        throw new ParameterError('Invalid composer chart chartConfig');
+    }
+    if (
+        !Array.isArray(chartConfigNames) ||
+        chartConfigNames.some((name) => typeof name !== 'string')
+    ) {
+        throw new ParameterError('Invalid composer chart chartConfig');
+    }
+    const checkedChartConfigNames: string[] = chartConfigNames.map(String);
     const used: [string, string[]][] = [
-        [
-            'chartConfig',
-            getChartConfigNames(result.data.chartConfig as ChartConfig),
-        ],
+        ['chartConfig', checkedChartConfigNames],
         ['pivotConfig', pivotConfig?.columns ?? []],
         ['tableConfig', tableConfig.columnOrder],
     ];
