@@ -336,6 +336,47 @@ describe('DashboardService.getTileParameterReferences', () => {
         });
     });
 
+    it("defines a short name by the project parameter, not the model's unprefixed copy", async () => {
+        const { service, projectService } = setup();
+        const projectRegion = { label: 'Project region', type: 'string' };
+        projectService.projectParametersModel.find.mockResolvedValue([
+            { name: 'region', config: projectRegion },
+        ]);
+        projectService.findExplores.mockImplementation(
+            async ({ exploreNames }) =>
+                Object.fromEntries(
+                    exploreNames.map((name) => [
+                        name,
+                        {
+                            ...exploreWithParameters(name, ['region', 'tier']),
+                            parameters: {
+                                region: {
+                                    label: 'Model region',
+                                    default: 'EU',
+                                },
+                                tier: { label: 'Model tier' },
+                            },
+                        },
+                    ]),
+                ),
+        );
+
+        const [result] = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            [chartTile('tile-1', 'plain')],
+        );
+
+        // Queries resolve a short name against the project first; a model-only name keeps its copy
+        expect(result).toMatchObject({
+            parameterReferences: ['region', 'tier'],
+            parameterDefinitions: {
+                region: projectRegion,
+                tier: { label: 'Model tier' },
+            },
+        });
+    });
+
     it('returns chart and virtual view saved values, empty for SQL charts', async () => {
         const { service, projectService } = setup();
         charts.withValues = savedChart({
