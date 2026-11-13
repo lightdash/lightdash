@@ -1,3 +1,4 @@
+import { derivePivotConfigurationFromChart } from '../pivot/derivePivotConfigFromChart';
 import {
     DimensionType,
     FieldType,
@@ -7,16 +8,16 @@ import {
     type ItemsMap,
     type Metric,
 } from '../types/field';
-import { type MetricQuery } from '../types/metricQuery';
+import { type MetricQuery, type SortField } from '../types/metricQuery';
 import {
     QuerySourceType,
     type DuckdbSourceQuery,
     type QueryNodeId,
 } from '../types/querySources';
 import { type ResultColumn } from '../types/results';
+import { type ChartConfig } from '../types/savedCharts';
 import { TimeFrames } from '../types/timeFrames';
 import { getItemId, RESULT_COLUMN_TABLE } from '../utils/item';
-import { VizAggregationOptions, VizIndexType } from '../visualizations/types';
 
 /** Synthetic explore of a composer node result; its fields are the result columns. */
 export const COMPOSER_RESULT_EXPLORE_NAME = 'composer_result';
@@ -162,49 +163,62 @@ const quoteIdentifier = (name: string) => `"${name.replaceAll('"', '""')}"`;
 
 const PIVOT_STAGE_SOURCE_NAME = 'node_result';
 
-/** The pivot stage for a series split: a DuckDB query over source (a node id or result query uuid) renaming columns to field ids, then pivoting. */
-export const getComposerPivotStage = ({
-    indexColumns,
+/**
+ * The series-split stage over source (a node id or result query uuid): a DuckDB
+ * query renaming columns to field ids, pivoted the way a classic chart pivots
+ * (source sorts, y values, stacked overflow folded). Null when no pivot derives.
+ */
+export const getComposerSplitStage = ({
+    chartConfig,
     pivotColumns,
-    valueColumns,
+    dimensions,
+    metrics,
+    sorts,
     nodeId,
     source,
 }: {
-    indexColumns: string[];
+    /** Classic chart config over field ids. */
+    chartConfig: ChartConfig;
+    /** Column references split into series, among the dimensions. */
     pivotColumns: string[];
-    valueColumns: string[];
+    dimensions: string[];
+    metrics: string[];
+    /** The source's sorts, by field id. */
+    sorts: SortField[];
     nodeId: QueryNodeId;
     source: string;
-}): DuckdbSourceQuery => {
+}): DuckdbSourceQuery | null => {
     const fieldId = getComposerResultFieldId;
+    const references = unique([...dimensions, ...metrics]);
+    // Types are unknown before the run: the axis type comes from the chart.
+    const { metricQuery, fields } = getComposerResultQuery(
+        new ComposerResultColumns(
+            references.map((reference) => ({
+                reference,
+                type: metrics.includes(reference)
+                    ? DimensionType.NUMBER
+                    : DimensionType.STRING,
+            })),
+        ),
+        dimensions.filter((reference) => !metrics.includes(reference)),
+        metrics,
+    );
+    const pivotConfiguration = derivePivotConfigurationFromChart(
+        { chartConfig, pivotConfig: { columns: pivotColumns.map(fieldId) } },
+        { ...metricQuery, sorts },
+        fields,
+    );
+    if (!pivotConfiguration) return null;
     return {
         sourceType: QuerySourceType.DUCKDB,
         nodeId,
-        sql: `SELECT ${unique([
-            ...indexColumns,
-            ...pivotColumns,
-            ...valueColumns,
-        ])
+        sql: `SELECT ${references
             .map(
                 (reference) =>
                     `${quoteIdentifier(reference)} AS ${quoteIdentifier(fieldId(reference))}`,
             )
             .join(', ')} FROM ${quoteIdentifier(PIVOT_STAGE_SOURCE_NAME)}`,
         references: { [PIVOT_STAGE_SOURCE_NAME]: source },
-        pivotConfiguration: {
-            // The pivot reads only the references; the axis type comes from the chart.
-            indexColumn: indexColumns.map((reference) => ({
-                reference: fieldId(reference),
-                type: VizIndexType.CATEGORY,
-            })),
-            groupByColumns: pivotColumns.map((reference) => ({
-                reference: fieldId(reference),
-            })),
-            valuesColumns: valueColumns.map((reference) => ({
-                reference: fieldId(reference),
-                aggregation: VizAggregationOptions.ANY,
-            })),
-            sortBy: undefined,
-        },
+        pivotConfiguration,
     };
 };

@@ -19,8 +19,8 @@ import {
 import {
     COMPOSER_RESULT_EXPLORE_NAME,
     ComposerResultColumns,
-    getComposerPivotStage,
     getComposerResultQuery,
+    getComposerSplitStage,
 } from './composerResultChart';
 
 /** What the classic chart builders draw a stored chart from; field ids are column names. */
@@ -208,7 +208,7 @@ const CHART_STAGE_NODE_ID = 'chart_stage';
 
 /**
  * The series-split stage the server runs after the terminal node, built from
- * the stored columns and pivotConfig alone; null without a drawable group-by.
+ * the stored chart and the terminal node's sorts; null without a drawable group-by.
  */
 export const getComposerChartPivotStage = (
     pipeline: ComposerChartPipeline,
@@ -216,18 +216,21 @@ export const getComposerChartPivotStage = (
 ): ComposerChartPipelineNode | null => {
     const split = getSplitColumns(chart);
     if (split.columns.length === 0 || !split.drawable) return null;
-    const pivotColumns = split.columns;
+    const node = getTerminalNode(pipeline);
     const nodeIds = new Set(pipeline.nodes.map(({ nodeId }) => nodeId));
     let nodeId = CHART_STAGE_NODE_ID;
     while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
-    const stage = getComposerPivotStage({
-        indexColumns: columnsWithRole(chart, FieldType.DIMENSION).filter(
-            (reference) => !pivotColumns.includes(reference),
-        ),
-        pivotColumns,
-        valueColumns: columnsWithRole(chart, FieldType.METRIC),
+    const stage = getComposerSplitStage({
+        chartConfig: chart.chartConfig,
+        pivotColumns: split.columns,
+        dimensions: columnsWithRole(chart, FieldType.DIMENSION),
+        metrics: columnsWithRole(chart, FieldType.METRIC),
+        sorts:
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                ? (node.sorts ?? [])
+                : [],
         nodeId,
         source: pipeline.terminalNodeId,
     });
-    return { ...stage, nodeId, title: 'Series split' };
+    return stage && { ...stage, nodeId, title: 'Series split' };
 };

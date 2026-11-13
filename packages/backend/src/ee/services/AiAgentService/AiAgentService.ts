@@ -10713,9 +10713,16 @@ export class AiAgentService extends BaseService {
             const nodeIds = new Set(queries.map(({ nodeId }) => nodeId));
             let nodeId = 'chart_stage';
             while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
+            const terminal = queries.find(
+                (query) => query.nodeId === terminalNodeId,
+            );
             const query = getComposerChartStage({
                 vizConfig,
                 customChartTypeSlots: slots ?? [],
+                sorts:
+                    terminal?.sourceType === QuerySourceType.SEMANTIC_LAYER
+                        ? (terminal.sorts ?? [])
+                        : [],
                 nodeId,
                 source: terminalNodeId,
             });

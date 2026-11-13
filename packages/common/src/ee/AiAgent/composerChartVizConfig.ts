@@ -1,14 +1,14 @@
 import {
     COMPOSER_RESULT_EXPLORE_NAME,
     ComposerResultColumns,
-    getComposerPivotStage,
     getComposerResultFieldId,
     getComposerResultQuery,
+    getComposerSplitStage,
     toComposerResultMetric,
     toComposerResultRows,
 } from '../../composer/composerResultChart';
 import { DimensionType, type ItemsMap } from '../../types/field';
-import { type MetricQuery } from '../../types/metricQuery';
+import { type MetricQuery, type SortField } from '../../types/metricQuery';
 import {
     type DuckdbSourceQuery,
     type QueryNodeId,
@@ -423,20 +423,41 @@ export const getComposerSlackRunQueryChart = ({
 };
 
 /** References of a series split, from the viz config alone; null without one. */
-const getSplitReferences = (
+/** The split as a classic chart over field ids, with its columns by role; null without a split. */
+const getSplitChart = (
     vizConfig: ComposerStoredChartVizConfig,
     customChartTypeSlots: ComposerCustomChartTypeSlot[],
-): { index: string[]; split: string[]; values: string[] } | null => {
+): {
+    chartConfig: ChartConfig;
+    split: string[];
+    dimensions: string[];
+    metrics: string[];
+} | null => {
+    const fieldIdOf = getComposerResultFieldId;
     if (vizConfig.type === 'custom') {
-        const references = getCustomChartTypeReferences(
+        const { index, split, values } = getCustomChartTypeReferences(
             vizConfig.fieldMapping,
             customChartTypeSlots,
         );
-        if (references.split.length === 0) return null;
-        if (references.values.length === 0) {
+        if (split.length === 0) return null;
+        if (values.length === 0) {
             throw new Error('A series split needs a column on a metric slot');
         }
-        return references;
+        return {
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: vizConfig.dataAppVizUuid,
+                    fieldMapping: mapFieldMapping(
+                        vizConfig.fieldMapping,
+                        fieldIdOf,
+                    ),
+                },
+            },
+            split,
+            dimensions: [...index, ...split],
+            metrics: values,
+        };
     }
     const { type } = vizConfig;
     switch (type) {
@@ -458,10 +479,25 @@ const getSplitReferences = (
                 );
             }
             const y2 = type === 'scatter' ? null : vizConfig.y2;
+            const values = unique([...y, ...(y2 ? [y2] : [])]);
             return {
-                index: [x],
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: {
+                            xField: fieldIdOf(x),
+                            yField: values.map(fieldIdOf),
+                            // Area always stacks, as the drawn chart does.
+                            stack:
+                                type === 'area' ||
+                                (type === 'bar' && !!vizConfig.stack),
+                        },
+                        eChartsConfig: { series: [] },
+                    },
+                },
                 split,
-                values: unique([...y, ...(y2 ? [y2] : [])]),
+                dimensions: unique([x, ...split]),
+                metrics: values,
             };
         }
         default:
@@ -473,20 +509,25 @@ const getSplitReferences = (
 export const getComposerChartStage = ({
     vizConfig,
     customChartTypeSlots,
+    sorts,
     nodeId,
     source,
 }: {
     vizConfig: ComposerStoredChartVizConfig;
     customChartTypeSlots: ComposerCustomChartTypeSlot[];
+    /** The source node's sorts, by field id. */
+    sorts: SortField[];
     nodeId: QueryNodeId;
     source: string;
 }): DuckdbSourceQuery | null => {
-    const references = getSplitReferences(vizConfig, customChartTypeSlots);
-    if (!references) return null;
-    return getComposerPivotStage({
-        indexColumns: references.index,
-        pivotColumns: references.split,
-        valueColumns: references.values,
+    const splitChart = getSplitChart(vizConfig, customChartTypeSlots);
+    if (!splitChart) return null;
+    return getComposerSplitStage({
+        chartConfig: splitChart.chartConfig,
+        pivotColumns: splitChart.split,
+        dimensions: splitChart.dimensions,
+        metrics: splitChart.metrics,
+        sorts,
         nodeId,
         source,
     });

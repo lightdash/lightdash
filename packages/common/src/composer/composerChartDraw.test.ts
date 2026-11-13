@@ -334,6 +334,48 @@ describe('getComposerChartPivotStage', () => {
         });
     });
 
+    test('derives the pivot like a classic chart: node sorts, y values, stacked groups past the limit folded', () => {
+        const pipeline: ComposerChartPipeline = {
+            ...semanticPipeline,
+            nodes: [
+                {
+                    nodeId: 'orders',
+                    title: 'Orders',
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    exploreName: 'orders',
+                    dimensions: ['month', 'method'],
+                    metrics: ['revenue', 'orders'],
+                    sorts: [{ fieldId: 'revenue', descending: true }],
+                },
+            ],
+        };
+        const stacked = barChart('month', 'revenue');
+        if (stacked.type !== ChartType.CARTESIAN || !stacked.config) {
+            throw new Error('bar chart is cartesian');
+        }
+        const stage = getComposerChartPivotStage(pipeline, {
+            ...splitChart,
+            columns: [
+                ...splitChart.columns,
+                { reference: 'orders', fieldType: FieldType.METRIC },
+            ],
+            chartConfig: {
+                ...stacked,
+                config: {
+                    ...stacked.config,
+                    layout: { ...stacked.config.layout, stack: true },
+                },
+            },
+        });
+        expect(stage).toMatchObject({ sourceType: QuerySourceType.DUCKDB });
+        if (stage?.sourceType !== QuerySourceType.DUCKDB) return;
+        expect(stage.pivotConfiguration).toMatchObject({
+            valuesColumns: [{ reference: 'revenue' }],
+            sortBy: [{ reference: 'revenue', direction: 'DESC' }],
+            foldOverflowGroups: true,
+        });
+    });
+
     test('takes a node id no stored node uses', () => {
         const pipeline: ComposerChartPipeline = {
             ...sqlPipeline,
