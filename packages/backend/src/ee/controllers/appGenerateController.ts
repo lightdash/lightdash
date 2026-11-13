@@ -591,7 +591,7 @@ export class AppGenerateController extends BaseController {
     async getComposerChartDataAppVizRenderMetadata(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
-        @Path() dataAppVizUuid: string,
+        @Path() dataAppVizUuid: UUID,
         @Path() composerChartUuid: UUID,
     ): Promise<ApiDataAppVizRenderMetadataResponse> {
         assertRegisteredAccount(req.account);
@@ -619,7 +619,7 @@ export class AppGenerateController extends BaseController {
     async getComposerChartDataAppVizPreviewToken(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
-        @Path() dataAppVizUuid: string,
+        @Path() dataAppVizUuid: UUID,
         @Path() composerChartUuid: UUID,
         @Path() version: number,
     ): Promise<ApiDataAppVizPreviewTokenResponse> {

@@ -134,7 +134,7 @@ export class ComposerChartService extends BaseService {
         }
     }
 
-    /** Resolves a custom chart type in the chart's project, pins a renderable version and validates the slots against it, as document save does. */
+    /** As document save: a missing pin takes the latest renderable version. */
     private async pinCustomChartType(
         projectUuid: string,
         chart: ComposerStoredChart,
@@ -241,11 +241,7 @@ export class ComposerChartService extends BaseService {
         );
     }
 
-    /**
-     * Pins `version` on every chart using the custom chart type by appending a
-     * version authored by `userUuid`. A copy of a stored pipeline, so no author
-     * checks; the caller authorizes the chart type upgrade.
-     */
+    /** Copies a stored pipeline, so no author checks; the caller authorizes the upgrade. */
     repinUsingDataAppViz(
         projectUuid: string,
         dataAppVizUuid: string,

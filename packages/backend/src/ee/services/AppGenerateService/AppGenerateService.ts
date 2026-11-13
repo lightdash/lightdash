@@ -10921,7 +10921,7 @@ export class AppGenerateService extends BaseService {
     }
 
     /** Moves saved charts in place and appends a version to composer charts; older composer versions keep their pin. */
-    private async repinChartsUsingDataAppViz(
+    private async repinConsumersOfDataAppViz(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
@@ -11018,7 +11018,7 @@ export class AppGenerateService extends BaseService {
             // With nothing new to install the sweep still applies: a
             // concurrent admin may have upgraded without moving charts.
             const upgradedChartCount = options.upgradeConsumingCharts
-                ? await this.repinChartsUsingDataAppViz(
+                ? await this.repinConsumersOfDataAppViz(
                       user,
                       projectUuid,
                       existing.app_id,
@@ -11177,7 +11177,7 @@ export class AppGenerateService extends BaseService {
         const action = existing && !revived ? 'upgraded' : 'installed';
         // Fresh installs have no consumers, so the sweep is a no-op there.
         const upgradedChartCount = options.upgradeConsumingCharts
-            ? await this.repinChartsUsingDataAppViz(
+            ? await this.repinConsumersOfDataAppViz(
                   user,
                   projectUuid,
                   appUuid,
