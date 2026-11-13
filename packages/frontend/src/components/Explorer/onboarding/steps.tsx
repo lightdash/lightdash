@@ -1,31 +1,14 @@
-import { Stack, Text, type FloatingPosition } from '@mantine/core';
-import { type ReactNode } from 'react';
-import ExploreIdleIllustration from '../ResultsCard/ExploreIdleIllustration';
+import { type FloatingPosition } from '@mantine/core';
 
 export type ExplorerTourStep = {
-    /** A CSS selector, or null for a card in the middle of the page. */
-    target: string | null;
+    target: string;
     title: string;
-    body: ReactNode;
+    body: string;
     position: FloatingPosition;
 };
 
 // Targets reuse markers the controls already carry, so the tour adds none
 export const EXPLORER_TOUR_STEPS: ExplorerTourStep[] = [
-    {
-        target: null,
-        title: 'Things look a bit different',
-        body: (
-            <Stack gap="xs" align="center">
-                <ExploreIdleIllustration variant="fields" loading />
-                <Text fz="sm" ta="center">
-                    Same data, tidier workspace. Here are three things worth
-                    knowing before you dive in.
-                </Text>
-            </Stack>
-        ),
-        position: 'bottom',
-    },
     {
         target: '[data-testid="virtualized-tree-scroll-container"]',
         title: 'Pick what to measure',

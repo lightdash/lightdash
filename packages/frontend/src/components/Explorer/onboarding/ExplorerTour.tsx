@@ -1,5 +1,6 @@
 import { Tour } from '@mantine/core';
 import { useEffect, useState, type FC } from 'react';
+import ExplorerWelcome from './ExplorerWelcome';
 import { EXPLORER_TOUR_STEPS, type ExplorerTourStep } from './steps';
 import { setExplorerTourOpen } from './storage';
 
@@ -8,9 +9,15 @@ type Props = {
     onClose: () => void;
 };
 
-/** A short first-visit walk through picking fields, dragging them and running. */
+/** A first-visit welcome, then a short walk through fields, dragging and running. */
 const ExplorerTour: FC<Props> = ({ opened, onClose }) => {
     const [steps, setSteps] = useState<ExplorerTourStep[]>([]);
+    // A welcome comes first; the pointers start only if the user asks for them
+    const [hasStarted, setHasStarted] = useState(false);
+    const handleClose = () => {
+        setHasStarted(false);
+        onClose();
+    };
     useEffect(() => {
         setExplorerTourOpen(opened);
         return () => setExplorerTourOpen(false);
@@ -21,9 +28,7 @@ const ExplorerTour: FC<Props> = ({ opened, onClose }) => {
         const sync = () =>
             setSteps((previous) => {
                 const next = EXPLORER_TOUR_STEPS.filter(
-                    ({ target }) =>
-                        target === null ||
-                        document.querySelector(target) !== null,
+                    ({ target }) => document.querySelector(target) !== null,
                 );
                 return next.length === previous.length &&
                     next.every((step, index) => step === previous[index])
@@ -37,23 +42,30 @@ const ExplorerTour: FC<Props> = ({ opened, onClose }) => {
     }, [opened]);
 
     return (
-        <Tour
-            active={opened && steps.length > 0}
-            onClose={onClose}
-            spotlightRadius={8}
-            labels={{ close: 'Done', skip: 'Skip tour' }}
-        >
-            {steps.map((step) => (
-                <Tour.Step
-                    key={step.title}
-                    target={step.target ?? undefined}
-                    title={step.title}
-                    position={step.position}
-                >
-                    {step.body}
-                </Tour.Step>
-            ))}
-        </Tour>
+        <>
+            <ExplorerWelcome
+                opened={opened && !hasStarted}
+                onStart={() => setHasStarted(true)}
+                onSkip={handleClose}
+            />
+            <Tour
+                active={opened && hasStarted && steps.length > 0}
+                onClose={handleClose}
+                spotlightRadius={8}
+                labels={{ close: 'Done', skip: 'Skip tour' }}
+            >
+                {steps.map((step) => (
+                    <Tour.Step
+                        key={step.title}
+                        target={step.target}
+                        title={step.title}
+                        position={step.position}
+                    >
+                        {step.body}
+                    </Tour.Step>
+                ))}
+            </Tour>
+        </>
     );
 };
 
