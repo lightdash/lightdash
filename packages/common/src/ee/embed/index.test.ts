@@ -12,6 +12,8 @@ import {
     isParameterAllowedInEmbed,
     isParameterControlLockedInEmbed,
     isParameterInteractivityVisible,
+    normalizeEmbedJwt,
+    type CreateEmbedJwt,
     type DashboardFilterInteractivityOptions,
 } from './index';
 
@@ -309,6 +311,84 @@ describe('canAddDashboardFiltersInEmbed', () => {
 
     it.each(cases)('$name -> $expected', ({ options, expected }) => {
         expect(canAddDashboardFiltersInEmbed(options)).toBe(expected);
+    });
+});
+
+describe('actor alias', () => {
+    const actor = {
+        serviceAccountUserUuid: '00000000-0000-4000-8000-000000000001',
+        writeSpaceUuids: ['00000000-0000-4000-8000-000000000002'],
+    };
+
+    it.each([undefined, 'default', 'roles'] as const)(
+        'preserves permissionsMode %s through the alias',
+        (permissionsMode) => {
+            const configuredActor = { ...actor, permissionsMode };
+            const token = { ...baseJwt, actor: configuredActor };
+            expect(EmbedJwtSchema.parse(token).actor).toEqual(configuredActor);
+            expect(normalizeEmbedJwt(token)).toEqual({
+                ...baseJwt,
+                writeActions: configuredActor,
+            });
+            expect(token.actor).toEqual(configuredActor);
+        },
+    );
+
+    it('preserves legacy tokens and tokens without either field', () => {
+        const legacy = {
+            ...baseJwt,
+            writeActions: { ...actor, permissionsMode: 'default' as const },
+        };
+        expect(normalizeEmbedJwt(legacy)).toBe(legacy);
+        expect(normalizeEmbedJwt(baseJwt)).toBe(baseJwt);
+    });
+
+    it('rejects both fields rather than choosing an actor', () => {
+        const token = { ...baseJwt, actor, writeActions: actor };
+        expect(EmbedJwtSchema.safeParse(token).success).toBe(false);
+        expect(() => normalizeEmbedJwt(token)).toThrow(
+            'Use either actor or writeActions',
+        );
+    });
+
+    it.each([
+        { permissionsMode: 'invalid' },
+        { permissionsMode: null },
+        { scopes: [] },
+        { scopes: ['view:EmbedCsvExport'] },
+        { type: 'serviceAccount', uuid: actor.serviceAccountUserUuid },
+        { spaces: [{ slug: 'reporting', access: 'manage' }] },
+        { serviceAccountUserUuid: 'invalid' },
+        { writeSpaceUuids: [] },
+        { sourceSpaceUuids: ['invalid'] },
+        { spaceUuid: actor.writeSpaceUuids[0] },
+    ])('rejects unsupported or invalid actor fields: %j', (extra) => {
+        const token = { ...baseJwt, actor: { ...actor, ...extra } };
+        expect(EmbedJwtSchema.safeParse(token).success).toBe(false);
+        expect(() =>
+            normalizeEmbedJwt(token as unknown as CreateEmbedJwt),
+        ).toThrow();
+    });
+
+    it('shares required identity validation', () => {
+        expect(() =>
+            normalizeEmbedJwt({
+                ...baseJwt,
+                actor: { writeSpaceUuids: actor.writeSpaceUuids },
+            }),
+        ).toThrow();
+    });
+
+    it('supports read-only AI source spaces through the alias', () => {
+        expect(
+            isEmbedReadOnlyAiAgentToken({
+                content: { type: 'aiAgent', agentUuid: 'agent' },
+                actor: {
+                    serviceAccountUserUuid: actor.serviceAccountUserUuid,
+                    sourceSpaceUuids: [],
+                },
+            }),
+        ).toBe(true);
     });
 });
 

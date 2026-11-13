@@ -2577,23 +2577,61 @@ export class AsyncQueryService extends ProjectService {
             : results;
     }
 
-    private assertEmbedAiAgentCanDownload(
+    private assertEmbedCanDownload(
         account: Account,
         organizationUuid: string,
         projectUuid: string,
+        dashboardExportUuid?: string,
     ): void {
-        if (
-            isAiAgentEmbedAccount(account) &&
-            this.createAuditedAbility(account).cannot(
-                'view',
-                subject('EmbedCsvExport', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
+        if (!isJwtUser(account)) return;
+
+        const ability = this.createAuditedAbility(account);
+        const target = { organizationUuid, projectUuid };
+        const { content } = account.authentication.data;
+        let canDownload: boolean;
+        switch (content.type) {
+            case 'aiAgent':
+                canDownload = ability.can(
+                    'view',
+                    subject('EmbedCsvExport', target),
+                );
+                break;
+            case 'chart':
+            case 'metricsCatalog':
+                canDownload = ability.can(
+                    'export',
+                    subject('SavedChart', { ...target, type: 'csv' }),
+                );
+                break;
+            case 'dashboard':
+                canDownload =
+                    ability.can(
+                        'export',
+                        subject('Dashboard', { ...target, type: 'csv' }),
+                    ) ||
+                    (dashboardExportUuid !== undefined &&
+                        dashboardExportUuid ===
+                            account.access.content.dashboardUuid &&
+                        ability.can(
+                            'manage',
+                            subject('ExportCsv', {
+                                ...target,
+                                metadata: {
+                                    dashboardUuid: dashboardExportUuid,
+                                },
+                            }),
+                        ));
+                break;
+            case 'dataApp':
+            case 'apiAccess':
+                canDownload = false;
+                break;
+            default:
+                return assertUnreachable(content, 'Unknown embed content type');
+        }
+        if (!canDownload) {
             throw new ForbiddenError(
-                'Embed token is not allowed to download AI agent results',
+                'Embed token is not allowed to download query results',
             );
         }
     }
@@ -3144,14 +3182,17 @@ export class AsyncQueryService extends ProjectService {
     async downloadSyncQueryResults(
         args: DownloadAsyncQueryResultsArgs,
         pollingOptions?: PollingOptions,
+        // Only server-side dashboard bulk exports supply this authorization context.
+        dashboardExportUuid?: string,
     ) {
         const { queryUuid, projectUuid, account } = args;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-        this.assertEmbedAiAgentCanDownload(
+        this.assertEmbedCanDownload(
             account,
             organizationUuid,
             projectUuid,
+            dashboardExportUuid,
         );
         await this.pollForQueryCompletion({
             account,
@@ -3159,7 +3200,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             ...pollingOptions,
         });
-        return this.downloadAsyncQueryResults(args);
+        return this.downloadAsyncQueryResults(args, dashboardExportUuid);
     }
 
     async download(
@@ -3234,7 +3275,7 @@ export class AsyncQueryService extends ProjectService {
         const project = await this.projectModel.getSummary(payload.projectUuid);
         await this.assertAnalyticsProjectAccess(account, project);
         this.assertAnalyticsDownloadSupported(project, payload.type);
-        this.assertEmbedAiAgentCanDownload(
+        this.assertEmbedCanDownload(
             account,
             project.organizationUuid,
             payload.projectUuid,
@@ -3495,35 +3536,39 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    private async downloadAsyncQueryResults({
-        account,
-        projectUuid,
-        queryUuid,
-        type,
-        onlyRaw = false,
-        showTableNames = false,
-        customLabels = {},
-        columnOrder = [],
-        hiddenFields = [],
-        pivotConfig,
-        exportPivotedData = true,
-        attachmentDownloadName,
-        expirationSecondsOverride,
-        conditionalFormattings,
-        showColumnTotals = false,
-        showSubtotals = false,
-        accessMode,
-    }: DownloadAsyncQueryResultsArgs): Promise<DownloadAsyncQueryResultsInternal> {
+    private async downloadAsyncQueryResults(
+        {
+            account,
+            projectUuid,
+            queryUuid,
+            type,
+            onlyRaw = false,
+            showTableNames = false,
+            customLabels = {},
+            columnOrder = [],
+            hiddenFields = [],
+            pivotConfig,
+            exportPivotedData = true,
+            attachmentDownloadName,
+            expirationSecondsOverride,
+            conditionalFormattings,
+            showColumnTotals = false,
+            showSubtotals = false,
+            accessMode,
+        }: DownloadAsyncQueryResultsArgs,
+        dashboardExportUuid?: string,
+    ): Promise<DownloadAsyncQueryResultsInternal> {
         assertIsAccountWithOrg(account);
 
         const project = await this.projectModel.getSummary(projectUuid);
         await this.assertAnalyticsProjectAccess(account, project);
         this.assertAnalyticsDownloadSupported(project, type);
         const { organizationUuid } = project;
-        this.assertEmbedAiAgentCanDownload(
+        this.assertEmbedCanDownload(
             account,
             organizationUuid,
             projectUuid,
+            dashboardExportUuid,
         );
 
         const queryHistory = await this.queryHistoryModel.get(
