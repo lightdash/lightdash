@@ -7,6 +7,8 @@ import {
     ApiAlertAsCodeListResponse,
     ApiAlertAsCodeUpsertResponse,
     ApiChartAsCodeListResponse,
+    ApiComposerChartAsCodeListResponse,
+    ApiComposerChartAsCodeUpsertResponse,
     ApiDashboardAsCodeListResponse,
     ApiGoogleSheetsSyncAsCodeListResponse,
     ApiGoogleSheetsSyncAsCodeUpsertResponse,
@@ -26,6 +28,8 @@ import {
     ChartScheduledDeliveryAsCode,
     ChartSummary,
     ChartType,
+    ComposerChart,
+    ComposerChartAsCode,
     ContentAsCodeType,
     ContentSlugRenameRequest,
     ContentType,
@@ -52,6 +56,7 @@ import {
     DirectAccessResourceType,
     Explore,
     ExploreType,
+    FeatureFlags,
     ForbiddenError,
     friendlyName,
     generateSlug,
@@ -64,6 +69,7 @@ import {
     hasChartsInDashboard,
     isChartScheduler,
     isDashboardChartTileType,
+    isDashboardComposerChartTile,
     isDashboardScheduler,
     isEmailTarget,
     isExploreError,
@@ -115,6 +121,7 @@ import {
     type GoogleSheetsSyncAsCode,
     type MetricQuery,
     type ParameterDefinitions,
+    type RegisteredAccount,
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import { isEqual, isPlainObject, omit } from 'es-toolkit/compat';
@@ -130,6 +137,7 @@ import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resour
 import { LightdashConfig } from '../../config/parseConfig';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { AppModel } from '../../models/AppModel';
+import type { ComposerChartModel } from '../../models/ComposerChartModel';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import {
     ContentAsCodeSnapshotModel,
@@ -169,6 +177,7 @@ import {
     recordAgentRefusal,
 } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
+import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import { getAvailableParameterDefinitions } from '../ProjectService/parameters';
@@ -187,8 +196,13 @@ import {
     type CurrentChartSqlItems,
 } from './chartPermissions';
 import {
-    assertNoComposerChartTilesToReplace,
+    isComposerChartAsCodeUnchanged,
+    toComposerChartAsCode,
+} from './composerChartsAsCode';
+import {
     isNotComposerChartTile,
+    resolveComposerChartTiles,
+    toComposerChartTileAsCode,
 } from './composerChartTiles';
 import {
     buildContentAsCodeSnapshot,
@@ -288,6 +302,14 @@ type CoderServiceArguments = {
         WarehouseConnectionModel,
         'getProject' | 'list'
     >;
+    composerChartModel: Pick<
+        ComposerChartModel,
+        'findForCode' | 'findBySlugs' | 'findIdentityBySlug' | 'get'
+    >;
+    composerChartService: Pick<
+        ComposerChartService,
+        'isEnabled' | 'writeFromCode'
+    >;
     // Lazy accessor (not the instance): AppGenerateService depends on
     // CoderService, so resolving it eagerly here would cycle. Only wired when
     // EE license is active; core builds resolve undefined and data-app slug
@@ -383,6 +405,10 @@ export class CoderService extends BaseService {
 
     private readonly virtualViewCoder: VirtualViewCoder;
 
+    private readonly composerChartModel: CoderServiceArguments['composerChartModel'];
+
+    private readonly composerChartService: CoderServiceArguments['composerChartService'];
+
     private readonly scheduledContentCoder: ScheduledContentCoder;
 
     static getChartContentAsCodePermissionChecks(
@@ -426,6 +452,8 @@ export class CoderService extends BaseService {
         userModel,
         directAccessService,
         warehouseConnectionModel,
+        composerChartModel,
+        composerChartService,
         getAppGenerateService,
     }: CoderServiceArguments) {
         super();
@@ -455,6 +483,8 @@ export class CoderService extends BaseService {
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.userModel = userModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
+        this.composerChartModel = composerChartModel;
+        this.composerChartService = composerChartService;
         this.getAppGenerateService = getAppGenerateService;
         this.virtualViewCoder = new VirtualViewCoder({
             projectModel,
@@ -2043,7 +2073,6 @@ export class CoderService extends BaseService {
                 }),
             ),
         );
-        // Composer chart tiles have no as-code shape yet; upload refuses them.
         const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles
             .filter(isNotComposerChartTile)
             .map((tile): DashboardTileAsCode => {
@@ -2149,6 +2178,17 @@ export class CoderService extends BaseService {
                     tabSlug,
                 };
             });
+        dashboard.tiles.filter(isDashboardComposerChartTile).forEach((tile) => {
+            const composerTile = toComposerChartTileAsCode(tile, {
+                tabSlug: tile.tabUuid
+                    ? getDashboardTabSlug(dashboardWithSortedTabs, tile.tabUuid)
+                    : null,
+                tileSlug:
+                    controlTileSlugs?.get(tile.uuid) ??
+                    CoderService.getTileSlugForTileUuid(dashboard, tile.uuid),
+            });
+            if (composerTile) tilesWithoutUuids.push(composerTile);
+        });
         tilesWithoutUuids.sort(
             (left, right) =>
                 left.y - right.y ||
@@ -3404,6 +3444,278 @@ export class CoderService extends BaseService {
         };
     }
 
+    private async getComposerChartsAsCode(
+        projectUuid: string,
+        charts: Array<
+            ComposerChart & { dashboardSlug: string; spaceSlug: string }
+        >,
+    ): Promise<ComposerChartAsCode[]> {
+        const dataAppVizUuids = charts.flatMap(({ chart }) =>
+            chart.chartConfig.type === ChartType.DATA_APP_VIZ &&
+            chart.chartConfig.config
+                ? [chart.chartConfig.config.dataAppVizUuid]
+                : [],
+        );
+        const dataAppVizRows =
+            dataAppVizUuids.length > 0
+                ? await this.appModel.findAppsByUuids(
+                      projectUuid,
+                      [...new Set(dataAppVizUuids)],
+                      { dataAppVizsFilter: 'only' },
+                  )
+                : [];
+        const dataAppVizSlugByUuid = new Map(
+            dataAppVizRows.map((row) => [row.app_id, row.slug]),
+        );
+        return charts.map((chart) =>
+            toComposerChartAsCode(chart, {
+                dashboardSlug: chart.dashboardSlug,
+                spaceSlug: chart.spaceSlug,
+                dataAppVizSlugByUuid,
+            }),
+        );
+    }
+
+    /** Download works with the composer-charts flag off, so an upload never drops tiles. */
+    async getComposerCharts(
+        user: SessionUser,
+        projectUuid: string,
+        slugs: string[] | undefined,
+        offset: number | undefined,
+    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
+        await this.assertCanDownloadContentAsCode(
+            user,
+            projectUuid,
+            'You are not allowed to download composer charts',
+        );
+        const project = await this.projectModel.get(projectUuid);
+        const charts = await this.composerChartModel.findForCode(
+            projectUuid,
+            slugs,
+        );
+        const spaces = await this.spaceModel.find({
+            spaceUuids: [...new Set(charts.map((chart) => chart.spaceUuid))],
+        });
+        // Viewing a composer chart follows its dashboard
+        const accessible = await this.filterPrivateContent(
+            user,
+            project,
+            charts.map((chart) => ({
+                uuid: chart.uuid,
+                name: chart.name,
+                spaceUuid: chart.spaceUuid,
+                description: chart.description ?? undefined,
+                slug: chart.slug,
+            })),
+            spaces,
+        );
+        const accessibleUuids = new Set(accessible.map(({ uuid }) => uuid));
+        const {
+            page,
+            total,
+            offset: nextOffset,
+        } = paginateAsCode({
+            items: charts.filter(({ uuid }) => accessibleUuids.has(uuid)),
+            offset,
+            pageSize: this.lightdashConfig.contentAsCode.maxDownloads,
+        });
+        const spacePathByUuid = new Map(
+            spaces.map((space) => [space.uuid, space.path]),
+        );
+        const found = new Set(charts.map((chart) => chart.slug));
+        return {
+            composerCharts: await this.getComposerChartsAsCode(
+                projectUuid,
+                page.map((chart) => ({
+                    ...chart,
+                    spaceSlug: getContentAsCodePathFromLtreePath(
+                        spacePathByUuid.get(chart.spaceUuid) ?? '',
+                    ),
+                })),
+            ),
+            missingIds: (slugs ?? []).filter((slug) => !found.has(slug)),
+            total,
+            offset: nextOffset,
+        };
+    }
+
+    /**
+     * An unchanged file writes nothing and needs only create:ContentAsCode. A
+     * new or changed one runs every composer chart write check.
+     */
+    async upsertComposerChart(
+        user: SessionUser,
+        account: RegisteredAccount,
+        projectUuid: string,
+        slug: string,
+        file: ComposerChartAsCode,
+        options: Pick<
+            UpsertContentAsCodeOptions,
+            'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames'
+        > = {},
+    ): Promise<ApiComposerChartAsCodeUpsertResponse['results']> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
+            { auditedAbility, project, slug },
+        );
+        if (file.contentType !== ContentAsCodeType.COMPOSER_CHART) {
+            throw new ParameterError(
+                `Composer chart "${slug}" must have contentType ${ContentAsCodeType.COMPOSER_CHART}`,
+            );
+        }
+
+        const existing = await this.composerChartModel.findIdentityBySlug(
+            projectUuid,
+            slug,
+        );
+        if (existing && !existing.deleted) {
+            const stored = await this.composerChartModel.get(existing.uuid);
+            const [current] = await this.getComposerChartsAsCode(projectUuid, [
+                { ...stored, dashboardSlug: file.dashboardSlug, spaceSlug: '' },
+            ]);
+            if (isComposerChartAsCodeUnchanged(file, current)) {
+                return {
+                    action: PromotionAction.NO_CHANGES,
+                    composerChartUuid: existing.uuid,
+                };
+            }
+        }
+        if (
+            !(await this.composerChartService.isEnabled({
+                userUuid: user.userUuid,
+                organizationUuid: project.organizationUuid,
+            }))
+        ) {
+            throw new ForbiddenError(
+                `Composer charts are not enabled for this organization, so composer chart "${slug}" cannot be created or changed`,
+                { featureFlagId: FeatureFlags.ComposerCharts },
+            );
+        }
+        const chart = {
+            ...file.chart,
+            chartConfig: await this.resolveDataAppVizBinding(
+                projectUuid,
+                file.chart.chartConfig,
+            ),
+        };
+
+        const [dashboard] =
+            existing && !existing.deleted
+                ? []
+                : await this.dashboardModel.find({
+                      projectUuid,
+                      slug: file.dashboardSlug,
+                  });
+        let dashboardUuid = dashboard?.uuid;
+        let placeholderUuid: string | null = null;
+        if (dashboardUuid === undefined && !(existing && !existing.deleted)) {
+            placeholderUuid = await this.createPlaceholderDashboard(
+                user,
+                projectUuid,
+                file,
+                { ...options, allowSpaceCreate },
+            );
+            dashboardUuid = placeholderUuid;
+        }
+        try {
+            const composerChartUuid =
+                await this.composerChartService.writeFromCode(
+                    account,
+                    projectUuid,
+                    {
+                        slug,
+                        dashboardUuid: dashboardUuid ?? null,
+                        name: file.name,
+                        description: file.description ?? null,
+                        pipeline: file.pipeline,
+                        chart,
+                    },
+                );
+            return {
+                action:
+                    existing && !existing.deleted
+                        ? PromotionAction.UPDATE
+                        : PromotionAction.CREATE,
+                composerChartUuid,
+            };
+        } catch (error) {
+            if (placeholderUuid) {
+                await this.dashboardModel.permanentDelete(placeholderUuid);
+            }
+            throw error;
+        }
+    }
+
+    /** As for a classic chart: a chart's dashboard missing from the project is created empty. */
+    private async createPlaceholderDashboard(
+        user: SessionUser,
+        projectUuid: string,
+        file: Pick<ComposerChartAsCode, 'dashboardSlug' | 'spaceSlug'>,
+        options: Pick<
+            UpsertContentAsCodeOptions,
+            'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames'
+        > & { allowSpaceCreate: boolean },
+    ): Promise<string> {
+        const auditedAbility = this.createAuditedAbility(user);
+        const errorMessage = `You don't have access to create dashboards in space "${file.spaceSlug}"`;
+        await this.assertContentAccessForMissingSpace({
+            user,
+            auditedAbility,
+            projectUuid,
+            spaceSlug: file.spaceSlug,
+            subjectType: 'Dashboard',
+            errorMessage,
+        });
+        const { space } = await this.getOrCreateSpace(
+            projectUuid,
+            file.spaceSlug,
+            user,
+            options.skipSpaceCreate,
+            options.publicSpaceCreate,
+            options.spaceNames,
+            options.allowSpaceCreate,
+        );
+        await this.assertSpaceContentAccess({
+            userUuid: user.userUuid,
+            auditedAbility,
+            action: 'create',
+            subjectType: 'Dashboard',
+            spaceUuids: [space.uuid],
+            errorMessage,
+        });
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid ?? null,
+        });
+        const dashboard = await this.dashboardModel.create(
+            space.uuid,
+            {
+                name: friendlyName(file.dashboardSlug),
+                tiles: [],
+                slug: file.dashboardSlug,
+                forceSlug: true,
+                tabs: [],
+                ownerUserUuid: DashboardService.getDefaultOwnerUserUuid(user),
+            },
+            user,
+            projectUuid,
+            agentIdentity,
+            (trx, versionUuid, objectUuid) =>
+                logAgentContentWrite({
+                    trx,
+                    model: this.agentActionLogModel,
+                    projectUuid,
+                    agentIdentity,
+                    objectType: 'dashboard',
+                    objectUuid,
+                    versionUuid,
+                    action: 'create',
+                }),
+        );
+        return dashboard.uuid;
+    }
+
     static getDashboardTabSlug = getDashboardTabSlug;
 
     static getDashboardTabUuid = getDashboardTabUuid;
@@ -4225,6 +4537,15 @@ export class CoderService extends BaseService {
         chartAsCode: ChartAsCode,
         options: UpsertContentAsCodeOptions = {},
     ) {
+        // A CLI predating composer charts sends their files here
+        if (
+            (chartAsCode as { contentType?: string }).contentType ===
+            ContentAsCodeType.COMPOSER_CHART
+        ) {
+            throw new ParameterError(
+                `Chart "${slug}" is a composer chart file. Upgrade your CLI to upload composer charts.`,
+            );
+        }
         await this.assertAgentUploadAllowed(
             options.account ?? null,
             user,
@@ -5771,6 +6092,42 @@ export class CoderService extends BaseService {
             );
     }
 
+    /** Composer tiles name charts by slug among composer charts only; see resolveComposerChartTiles. */
+    private async resolveUploadedComposerChartTiles(
+        user: SessionUser,
+        project: Pick<Project, 'projectUuid' | 'organizationUuid'>,
+        tiles: DashboardTileWithSlug[],
+        existingDashboard: DashboardDAO | undefined,
+    ): Promise<DashboardTileWithSlug[]> {
+        const slugs = tiles.flatMap((tile) =>
+            tile.type === DashboardTileTypes.COMPOSER_CHART &&
+            typeof tile.properties.chartSlug === 'string'
+                ? [tile.properties.chartSlug]
+                : [],
+        );
+        if (slugs.length === 0) return tiles;
+        const charts = await this.composerChartModel.findBySlugs(
+            project.projectUuid,
+            slugs,
+        );
+        return resolveComposerChartTiles(tiles, {
+            charts: new Map(charts.map((chart) => [chart.slug, chart])),
+            dashboardUuid: existingDashboard?.uuid ?? null,
+            flagEnabled: await this.composerChartService.isEnabled({
+                userUuid: user.userUuid,
+                organizationUuid: project.organizationUuid,
+            }),
+            shownChartUuids: new Set(
+                (existingDashboard?.tiles ?? []).flatMap((tile) =>
+                    isDashboardComposerChartTile(tile) &&
+                    tile.properties.composerChartUuid
+                        ? [tile.properties.composerChartUuid]
+                        : [],
+                ),
+            ),
+        });
+    }
+
     async upsertDashboard(
         user: SessionUser,
         projectUuid: string,
@@ -5905,12 +6262,13 @@ export class CoderService extends BaseService {
                 dashboardWithResolvedTabs.tiles,
                 tabUuidsBySlug,
             );
-        assertNoComposerChartTilesToReplace(
-            slug,
-            existingDashboard?.tiles ?? [],
-        );
         const tilesWithUuids = preserveDashboardTileUuids(
-            resolvedTiles,
+            await this.resolveUploadedComposerChartTiles(
+                user,
+                project,
+                resolvedTiles,
+                existingDashboard,
+            ),
             existingDashboard?.tiles ?? [],
         );
         await this.assertTileChartsViewAccess({

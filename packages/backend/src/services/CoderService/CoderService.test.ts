@@ -1617,6 +1617,8 @@ describe('CoderService', () => {
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
                 warehouseConnectionModel: {} as never,
+                composerChartModel: {} as never,
+                composerChartService: {} as never,
             });
 
             const { tiles: result } = await service.convertTileWithSlugsToUuids(
@@ -1710,6 +1712,8 @@ describe('CoderService', () => {
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
                 warehouseConnectionModel: {} as never,
+                composerChartModel: {} as never,
+                composerChartService: {} as never,
             });
 
             const { tiles, warnings } =
@@ -1780,6 +1784,8 @@ describe('CoderService', () => {
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
                 warehouseConnectionModel: {} as never,
+                composerChartModel: {} as never,
+                composerChartService: {} as never,
             });
 
             const { tiles: result } = await service.convertTileWithSlugsToUuids(
@@ -1846,6 +1852,8 @@ describe('CoderService', () => {
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
                 warehouseConnectionModel: {} as never,
+                composerChartModel: {} as never,
+                composerChartService: {} as never,
             });
         };
 
@@ -1984,6 +1992,8 @@ describe('CoderService', () => {
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
                 warehouseConnectionModel: {} as never,
+                composerChartModel: {} as never,
+                composerChartService: {} as never,
             });
 
             const { tiles, warnings } =
@@ -2065,6 +2075,8 @@ describe('CoderService', () => {
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
                 warehouseConnectionModel: {} as never,
+                composerChartModel: {} as never,
+                composerChartService: {} as never,
             });
 
             const { tiles, warnings } =
@@ -2153,7 +2165,7 @@ describe('CoderService', () => {
             ).toThrow('Space space-uuid not found');
         });
 
-        it('leaves composer chart tiles out of the file', () => {
+        it('writes a composer chart tile by its chart slug, and leaves out one whose chart is gone', () => {
             const exported = (
                 CoderService as unknown as {
                     transformDashboard: (...args: AnyType[]) => AnyType;
@@ -2191,7 +2203,25 @@ describe('CoderService', () => {
                             tabUuid: null,
                             properties: {
                                 title: 'Orders',
+                                hideTitle: false,
                                 composerChartUuid: 'composer-chart-1',
+                                chartName: 'Orders',
+                                chartSlug: 'orders',
+                            },
+                        },
+                        {
+                            uuid: 'chartless-tile',
+                            type: DashboardTileTypes.COMPOSER_CHART,
+                            x: 6,
+                            y: 1,
+                            h: 3,
+                            w: 6,
+                            tabUuid: null,
+                            properties: {
+                                title: 'Gone',
+                                composerChartUuid: 'composer-chart-2',
+                                chartName: null,
+                                chartSlug: null,
                             },
                         },
                     ],
@@ -2201,9 +2231,22 @@ describe('CoderService', () => {
                 [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
                 new Map(),
             );
-            expect(
-                exported.tiles.map((tile: { type: string }) => tile.type),
-            ).toEqual([DashboardTileTypes.HEADING]);
+            expect(exported.tiles[1]).toEqual({
+                uuid: undefined,
+                type: DashboardTileTypes.COMPOSER_CHART,
+                x: 0,
+                y: 1,
+                h: 3,
+                w: 6,
+                tabSlug: null,
+                tileSlug: 'orders',
+                properties: {
+                    title: 'Orders',
+                    hideTitle: false,
+                    chartSlug: 'orders',
+                },
+            });
+            expect(exported.tiles).toHaveLength(2);
         });
 
         it('leaves the control order out of the file with the flag off', () => {
@@ -2637,6 +2680,8 @@ describe('CoderService', () => {
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
                 warehouseConnectionModel: {} as never,
+                composerChartModel: {} as never,
+                composerChartService: {} as never,
             });
 
             const { tiles } = await service.convertTileWithSlugsToUuids(

@@ -71,6 +71,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
         );
         const composerChartUuid = await composerChartModel.create({
             uuid: null,
+            slug: null,
             projectUuid: owner.projectUuid,
             dashboardUuid: created.uuid,
             name: 'Orders by status',
@@ -95,6 +96,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
                             title: 'Orders',
                             composerChartUuid,
                             chartName: null,
+                            chartSlug: null,
                         },
                     },
                 ],
@@ -124,6 +126,7 @@ describe('composer charts follow their dashboard on the real schema', () => {
             await createDashboardWithChart();
         const deletedEarlier = await composerChartModel.create({
             uuid: null,
+            slug: null,
             projectUuid: fixture.projectUuid,
             dashboardUuid: dashboard.uuid,
             name: 'Deleted earlier',

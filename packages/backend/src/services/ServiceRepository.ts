@@ -1911,6 +1911,8 @@ export class ServiceRepository
                     directAccessService: this.getDirectAccessService(),
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
+                    composerChartModel: this.models.getComposerChartModel(),
+                    composerChartService: this.getComposerChartService(),
                     // Lazy accessor: AppGenerateService depends on
                     // CoderService, so resolving it eagerly here would cycle.
                     // Core builds resolve undefined and data-app slug renames

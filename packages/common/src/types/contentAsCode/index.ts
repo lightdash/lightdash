@@ -1,5 +1,6 @@
 export * from './base';
 export * from './charts';
+export * from './composerCharts';
 export * from './core';
 export * from './homepages';
 export * from './dashboards';

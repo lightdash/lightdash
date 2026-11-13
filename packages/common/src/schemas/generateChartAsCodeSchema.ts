@@ -21,6 +21,7 @@ const SCHEMA_REF_PREFIX = '#/components/schemas/';
 const DEFS_REF_PREFIX = '#/$defs/';
 const CHART_SCHEMA_NAME = 'ChartAsCode';
 const SQL_CHART_SCHEMA_NAME = 'SqlChartAsCode';
+const COMPOSER_CHART_SCHEMA_NAME = 'ComposerChartAsCode';
 
 export const getRepoRoot = (): string =>
     path.resolve(__dirname, '../../../../');
@@ -520,6 +521,12 @@ const buildSqlChartRoot = (
     return { swaggerRoot, root };
 };
 
+// A composer chart file is routed on its required contentType
+const COMPOSER_CHART_CONDITION: JsonObject = {
+    required: ['contentType'],
+    properties: { contentType: { const: 'composer_chart' } },
+};
+
 // An explicit contentType wins so a mislabelled file gets that shape's errors;
 // without one, fall back to the `isSqlChartContent` heuristic (sql, no tableName).
 const SQL_CHART_CONDITION: JsonObject = {
@@ -548,9 +555,13 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
 
     const chart = buildSemanticChartRoot(components);
     const sqlChart = buildSqlChartRoot(components);
+    const composerChartSwaggerRoot = resolveTopLevelAllOf(
+        getComponent(components, COMPOSER_CHART_SCHEMA_NAME),
+        components,
+    );
 
     const defs = collectTransitiveRefs(
-        [chart.swaggerRoot, sqlChart.swaggerRoot],
+        [chart.swaggerRoot, sqlChart.swaggerRoot, composerChartSwaggerRoot],
         components,
     ).reduce<Record<string, JsonObject>>((acc, schemaName) => {
         acc[schemaName] = convertOpenApiToDraft07(
@@ -558,7 +569,11 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
         ) as JsonObject;
         return acc;
     }, {});
-    [CHART_SCHEMA_NAME, SQL_CHART_SCHEMA_NAME].forEach((schemaName) => {
+    [
+        CHART_SCHEMA_NAME,
+        SQL_CHART_SCHEMA_NAME,
+        COMPOSER_CHART_SCHEMA_NAME,
+    ].forEach((schemaName) => {
         if (defs[schemaName]) {
             throw new Error(`$defs already contains ${schemaName}`);
         }
@@ -571,12 +586,17 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
         $id: 'https://schemas.lightdash.com/lightdash/chart-as-code.json',
         title: 'Lightdash Chart as Code',
         description:
-            'Schema for defining Lightdash charts (semantic layer charts and SQL charts) in YAML format for version control',
+            'Schema for defining Lightdash charts (semantic layer, SQL and composer charts) in YAML format for version control',
         type: 'object',
-        if: SQL_CHART_CONDITION,
+        if: COMPOSER_CHART_CONDITION,
         // oxlint-disable-next-line unicorn/no-thenable -- JSON Schema keyword
-        then: { $ref: `${DEFS_REF_PREFIX}${SQL_CHART_SCHEMA_NAME}` },
-        else: { $ref: `${DEFS_REF_PREFIX}${CHART_SCHEMA_NAME}` },
+        then: { $ref: `${DEFS_REF_PREFIX}${COMPOSER_CHART_SCHEMA_NAME}` },
+        else: {
+            if: SQL_CHART_CONDITION,
+            // oxlint-disable-next-line unicorn/no-thenable -- JSON Schema keyword
+            then: { $ref: `${DEFS_REF_PREFIX}${SQL_CHART_SCHEMA_NAME}` },
+            else: { $ref: `${DEFS_REF_PREFIX}${CHART_SCHEMA_NAME}` },
+        },
         $defs: {
             ...defs,
             [CHART_SCHEMA_NAME]: {
@@ -588,6 +608,14 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
                 ...sqlChart.root,
                 description:
                     'A SQL chart: runs the sql query and visualizes its results',
+            },
+            [COMPOSER_CHART_SCHEMA_NAME]: {
+                ...(convertOpenApiToDraft07(
+                    composerChartSwaggerRoot,
+                ) as JsonObject),
+                additionalProperties: false,
+                description:
+                    'A composer chart: a pipeline of nodes and a chart over its result columns, owned by a dashboard',
             },
         },
     };

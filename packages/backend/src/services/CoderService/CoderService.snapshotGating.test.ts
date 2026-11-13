@@ -86,6 +86,8 @@ const buildService = (
         organizationMemberProfileModel: {} as AnyType,
         userModel: {} as AnyType,
         warehouseConnectionModel: {} as never,
+        composerChartModel: {} as never,
+        composerChartService: {} as never,
     });
     return {
         service,

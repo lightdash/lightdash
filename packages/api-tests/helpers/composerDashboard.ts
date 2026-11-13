@@ -81,7 +81,12 @@ export const composerTile = (
     h: 9,
     w: 12,
     tabUuid: null,
-    properties: { title: 'Orders', composerChartUuid, chartName: null },
+    properties: {
+        title: 'Orders',
+        composerChartUuid,
+        chartName: null,
+        chartSlug: null,
+    },
 });
 
 /** Deleting the dashboard cascades to the composer charts it owns. */

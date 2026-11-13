@@ -1,23 +1,96 @@
 import {
-    isDashboardComposerChartTile,
+    DashboardTileTypes,
+    FeatureFlags,
+    ForbiddenError,
+    NotFoundError,
     ParameterError,
     type DashboardComposerChartTile,
+    type DashboardComposerChartTileAsCode,
     type DashboardTile,
+    type DashboardTileWithSlug,
 } from '@lightdash/common';
 
 export const isNotComposerChartTile = (
     tile: DashboardTile,
 ): tile is Exclude<DashboardTile, DashboardComposerChartTile> =>
-    !isDashboardComposerChartTile(tile);
+    tile.type !== DashboardTileTypes.COMPOSER_CHART;
 
-// Upload replaces every tile, so it would delete composer tiles it cannot express.
-export const assertNoComposerChartTilesToReplace = (
-    slug: string,
-    existingTiles: DashboardTile[],
-) => {
-    if (existingTiles.some(isDashboardComposerChartTile)) {
-        throw new ParameterError(
-            `Dashboard "${slug}" has composer chart tiles, which content as code does not support yet`,
-        );
-    }
-};
+/** Null for a tile whose chart is gone: it has no slug to write. */
+export const toComposerChartTileAsCode = (
+    { x, y, h, w, properties }: DashboardComposerChartTile,
+    slugs: Pick<DashboardComposerChartTileAsCode, 'tabSlug' | 'tileSlug'>,
+): DashboardComposerChartTileAsCode | null =>
+    properties.chartSlug === null
+        ? null
+        : {
+              uuid: undefined,
+              type: DashboardTileTypes.COMPOSER_CHART,
+              x,
+              y,
+              h,
+              w,
+              ...slugs,
+              properties: {
+                  title: properties.title,
+                  hideTitle: properties.hideTitle,
+                  chartSlug: properties.chartSlug,
+              },
+          };
+
+/**
+ * Points each uploaded composer tile at the composer chart named by its slug.
+ * Only composer charts are searched, and the dashboard must own the chart.
+ */
+export const resolveComposerChartTiles = (
+    tiles: DashboardTileWithSlug[],
+    {
+        charts,
+        dashboardUuid,
+        flagEnabled,
+        shownChartUuids,
+    }: {
+        charts: ReadonlyMap<string, { uuid: string; dashboardUuid: string }>;
+        /** Null when the upload creates the dashboard. */
+        dashboardUuid: string | null;
+        flagEnabled: boolean;
+        /** Charts the dashboard shows now; the only ones kept with the flag off. */
+        shownChartUuids: ReadonlySet<string>;
+    },
+): DashboardTileWithSlug[] =>
+    tiles.map((tile) => {
+        if (tile.type !== DashboardTileTypes.COMPOSER_CHART) return tile;
+        const { chartSlug } = tile.properties as unknown as Pick<
+            DashboardComposerChartTileAsCode['properties'],
+            'chartSlug'
+        >;
+        if (typeof chartSlug !== 'string') {
+            throw new ParameterError('A composer chart tile needs a chartSlug');
+        }
+        const chart = charts.get(chartSlug);
+        if (!chart) {
+            throw new NotFoundError(
+                `Composer chart "${chartSlug}" was not found in this project. Upload it first, then re-upload this dashboard.`,
+            );
+        }
+        if (chart.dashboardUuid !== dashboardUuid) {
+            throw new ParameterError(
+                `Composer chart "${chartSlug}" belongs to another dashboard`,
+            );
+        }
+        if (!flagEnabled && !shownChartUuids.has(chart.uuid)) {
+            throw new ForbiddenError(
+                `Composer charts are not enabled for this organization, so composer chart tile "${chartSlug}" cannot be added`,
+                { featureFlagId: FeatureFlags.ComposerCharts },
+            );
+        }
+        return {
+            ...tile,
+            properties: {
+                title: tile.properties.title,
+                hideTitle: tile.properties.hideTitle,
+                chartSlug,
+                composerChartUuid: chart.uuid,
+                chartName: null,
+            },
+        } as DashboardTileWithSlug;
+    });
