@@ -7,8 +7,7 @@
     flex-direction: column;
     overflow: hidden;
     background: var(--mantine-color-body);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
+    border-left: 1px solid var(--mantine-color-default-border);
 }
 
 .actions {

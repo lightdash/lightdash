@@ -1352,7 +1352,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             >
                                 <Group gap={6} wrap="nowrap" flex="none">
                                     <UnstyledButton
-                                        className={classes.crumb}
+                                        className={`${classes.crumb} ${classes.tab}`}
                                         aria-current={
                                             pane === 'browse'
                                                 ? 'page'
@@ -1364,7 +1364,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     </UnstyledButton>
                                     {hasWorkspaces ? (
                                         <UnstyledButton
-                                            className={classes.crumb}
+                                            className={`${classes.crumb} ${classes.tab}`}
                                             aria-current={
                                                 pane === 'workspaces'
                                                     ? 'page'
@@ -1381,9 +1381,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     ) : null}
                                     {shownWorkspace || workspace ? (
                                         <>
-                                            <Text fz="xs" c="dimmed">
-                                                /
-                                            </Text>
+                                            <span className={classes.divider} />
                                             <Tooltip
                                                 label={
                                                     workspace?.hint ??
