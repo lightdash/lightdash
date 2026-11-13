@@ -207,9 +207,29 @@ test.describe('Composer charts on dashboards', () => {
         });
         const url = `/projects/${dashboard.projectUuid}/dashboards/${dashboard.uuid}/view`;
 
+        const dateParameter = (value: string) => ({
+            date_custom_parameter: {
+                parameterName: 'date_custom_parameter',
+                value,
+            },
+        });
+        // After every order date, so each row reads "I feel less than..."
+        const late = await api.patch(`/api/v1/dashboards/${dashboard.uuid}`, {
+            data: {
+                tiles: dashboard.tiles,
+                tabs: dashboard.tabs,
+                filters: dashboard.filters,
+                parameters: dateParameter('2100-01-01'),
+            },
+        });
+        expect(late.status()).toBe(200);
+
         await page.goto(url);
         await expect(tile.getByText('shipped').first()).toBeVisible();
-        await expect(tile.getByText('I feel great!!!').first()).toBeHidden();
+        await expect(
+            tile.getByText('I feel less than...').first(),
+        ).toBeVisible();
+        await expect(tile.getByText('I feel great!!!')).toHaveCount(0);
 
         const updated = await api.patch(
             `/api/v1/dashboards/${dashboard.uuid}`,
@@ -233,12 +253,7 @@ test.describe('Composer charts on dashboards', () => {
                         metrics: [],
                         tableCalculations: [],
                     },
-                    parameters: {
-                        date_custom_parameter: {
-                            parameterName: 'date_custom_parameter',
-                            value: '2000-01-01',
-                        },
-                    },
+                    parameters: dateParameter('2000-01-01'),
                 },
             },
         );
@@ -248,5 +263,6 @@ test.describe('Composer charts on dashboards', () => {
         await expect(tile.getByText('completed').first()).toBeVisible();
         await expect(tile.getByText('I feel great!!!').first()).toBeVisible();
         await expect(tile.getByText('shipped')).toHaveCount(0);
+        await expect(tile.getByText('I feel less than...')).toHaveCount(0);
     });
 });
