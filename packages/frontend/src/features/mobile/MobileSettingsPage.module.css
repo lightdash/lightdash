@@ -91,6 +91,10 @@
     color: var(--mantine-color-text);
 }
 
+.signInButtonLabel {
+    overflow: revert;
+}
+
 @media ($navigation-compact <= width < $navigation-search-icon) {
     .headerButton {
         display: none;

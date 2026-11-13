@@ -3,6 +3,7 @@ import {
     Badge,
     Button,
     getDefaultZIndex,
+    Indicator,
     Popover,
     Title,
     Tooltip,
@@ -23,6 +24,7 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { getHost } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
+import { useMobileSignInSeen } from './mobileSignInSeen';
 import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
 import {
@@ -73,6 +75,7 @@ const MobileSignInPopover: FC<{
     const { data: health } = useHealth();
     const id = useId();
     const [opened, setOpened] = useState(false);
+    const { seen, markSeen } = useMobileSignInSeen();
     const preview = usePreviewSignInPhase();
     const liveSignIn = useMobileSignInCode({
         autoShow: opened && !preview.holdsMint,
@@ -83,6 +86,11 @@ const MobileSignInPopover: FC<{
     const dropdown = useRef<HTMLDivElement>(null);
     useKeepFocusInPopover(signIn.phase, dropdown);
 
+    const open = () => {
+        setOpened(true);
+        markSeen();
+    };
+
     const close = () => {
         setOpened(false);
         liveSignIn.hide();
@@ -92,7 +100,7 @@ const MobileSignInPopover: FC<{
         <Popover
             id={id}
             opened={opened}
-            onChange={(next) => (next ? setOpened(true) : close())}
+            onChange={(next) => (next ? open() : close())}
             position="bottom-end"
             arrowOffset={16}
             offset={-2}
@@ -121,9 +129,17 @@ const MobileSignInPopover: FC<{
                         variant="default"
                         size="xs"
                         className={withLabel ? undefined : classes.headerButton}
-                        onClick={() => (opened ? close() : setOpened(true))}
+                        classNames={{ label: classes.signInButtonLabel }}
+                        onClick={() => (opened ? close() : open())}
                     >
-                        <MantineIcon icon={IconDeviceMobile} />
+                        <Indicator
+                            size={12}
+                            color="red"
+                            offset={1}
+                            disabled={seen}
+                        >
+                            <MantineIcon icon={IconDeviceMobile} />
+                        </Indicator>
                         {withLabel && ` ${MOBILE_STRINGS.signInTitle}`}
                     </Button>
                 </Tooltip>
