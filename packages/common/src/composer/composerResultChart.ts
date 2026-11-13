@@ -173,6 +173,13 @@ export type ComposerSplitChart = {
     metrics: string[];
 };
 
+/** The chart stage's node id: "chart_stage", prefixed until no node uses it. */
+export const getComposerChartStageNodeId = (nodeIds: string[]): QueryNodeId => {
+    let nodeId = 'chart_stage';
+    while (nodeIds.includes(nodeId)) nodeId = `_${nodeId}`;
+    return nodeId;
+};
+
 /** The node's sorts by field id; only semantic-layer nodes declare them. */
 export const getComposerNodeSorts = (node: SourceQuery): SortField[] =>
     node.sourceType === QuerySourceType.SEMANTIC_LAYER

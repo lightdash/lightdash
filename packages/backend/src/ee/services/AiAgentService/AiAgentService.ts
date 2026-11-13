@@ -118,6 +118,7 @@ import {
     getAiAgentSkillListingText,
     getAppDisplayName,
     getComposerChartStage,
+    getComposerChartStageNodeId,
     getComposerNodeSorts,
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
@@ -10712,9 +10713,11 @@ export class AiAgentService extends BaseService {
                           vizConfig.dataAppVizVersion ?? undefined,
                       )
                     : null;
-            const nodeIds = new Set(queries.map(({ nodeId }) => nodeId));
-            let nodeId = 'chart_stage';
-            while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
+            const nodeId = getComposerChartStageNodeId(
+                queries.flatMap((query) =>
+                    query.nodeId ? [query.nodeId] : [],
+                ),
+            );
             const terminal = queries.find(
                 (query) => query.nodeId === terminalNodeId,
             );

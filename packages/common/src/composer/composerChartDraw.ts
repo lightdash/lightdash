@@ -19,6 +19,7 @@ import {
 import {
     COMPOSER_RESULT_EXPLORE_NAME,
     ComposerResultColumns,
+    getComposerChartStageNodeId,
     getComposerNodeSorts,
     getComposerResultQuery,
     getComposerSplitStage,
@@ -165,7 +166,7 @@ export const getComposerChartDraw = ({
             case QuerySourceType.SEMANTIC_LAYER:
                 return getItemsQuery(chart, columns, fields, {
                     exploreName: node.exploreName,
-                    sorts: node.sorts ?? [],
+                    sorts: getComposerNodeSorts(node),
                 });
             case QuerySourceType.MERGE:
                 return getItemsQuery(chart, columns, fields, {
@@ -205,8 +206,6 @@ export const pickComposerChartRows = (
     );
 };
 
-const CHART_STAGE_NODE_ID = 'chart_stage';
-
 /**
  * The series-split stage the server runs after the terminal node, built from
  * the stored chart and the terminal node's sorts; null without a drawable group-by.
@@ -217,9 +216,9 @@ export const getComposerChartPivotStage = (
 ): ComposerChartPipelineNode | null => {
     const split = getSplitColumns(chart);
     if (split.columns.length === 0 || !split.drawable) return null;
-    const nodeIds = new Set(pipeline.nodes.map(({ nodeId }) => nodeId));
-    let nodeId = CHART_STAGE_NODE_ID;
-    while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
+    const nodeId = getComposerChartStageNodeId(
+        pipeline.nodes.map((node) => node.nodeId),
+    );
     const stage = getComposerSplitStage({
         chartConfig: chart.chartConfig,
         pivotColumns: split.columns,

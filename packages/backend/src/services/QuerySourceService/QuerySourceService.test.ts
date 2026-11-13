@@ -1,6 +1,7 @@
 import {
     AgentActorSurface,
     AgentCapability,
+    ChartType,
     DimensionType,
     FeatureFlags,
     ForbiddenError,
@@ -1766,8 +1767,11 @@ describe('composer bound run', () => {
                     terminalNodeId: 'forecast',
                     nodes: storedNodes,
                 },
-                chart: { pivotConfig: null, chartConfig: { type: 'table' } },
-            } as unknown as ComposerChart,
+                chart: {
+                    pivotConfig: null,
+                    chartConfig: { type: ChartType.TABLE },
+                },
+            } as ComposerChart,
             tileUuid: 'tile-uuid',
         });
     const createBoundSources = () => {

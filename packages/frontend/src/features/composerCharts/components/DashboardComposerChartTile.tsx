@@ -149,7 +149,6 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
         run?.chartStageQueryUuid ?? undefined,
         title,
     );
-    // A group-by draws from the server-built stage; otherwise the terminal node's rows.
     const drawsFromStage = !!run?.chartStageQueryUuid;
     const results = drawsFromStage ? stage : terminal;
     useEffect(() => {
