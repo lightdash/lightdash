@@ -2516,6 +2516,45 @@ export class AiAgentController extends BaseController {
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.updateArtifactVersionSavedComposerChart',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/savedComposerChart',
+    )
+    @OperationId('updateArtifactVersionSavedComposerChart')
+    async updateArtifactVersionSavedComposerChart(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+        @Path() versionUuid: string,
+        @Body() body: { savedComposerChartUuid: string | null },
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        await this.getAiAgentService().updateArtifactVersion(
+            toSessionUser(req.account),
+            {
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                savedComposerChartUuid: body.savedComposerChartUuid,
+            },
+        );
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')

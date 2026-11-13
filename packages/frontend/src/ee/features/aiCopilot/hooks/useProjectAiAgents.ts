@@ -2184,6 +2184,48 @@ export const useUpdateArtifactVersionSavedSql = (
     });
 };
 
+export const useUpdateArtifactVersionSavedComposerChart = (
+    projectUuid: string,
+    agentUuid: string,
+    artifactUuid: string,
+    versionUuid: string,
+) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { savedComposerChartUuid: string }
+    >({
+        mutationFn: ({ savedComposerChartUuid }) =>
+            lightdashApi<ApiSuccessEmpty>({
+                url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/savedComposerChart`,
+                method: 'PATCH',
+                body: JSON.stringify({ savedComposerChartUuid }),
+            }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    AI_AGENT_ARTIFACT_KEY,
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    'version',
+                    versionUuid,
+                ],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Chart saved, but the answer could not link to it',
+                apiError: error,
+            });
+        },
+    });
+};
+
 // Artifact functionality
 const getAiAgentArtifactVizQuery = async (
     lightdashApi: LightdashApi,
