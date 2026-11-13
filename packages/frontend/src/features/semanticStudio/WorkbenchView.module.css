@@ -47,23 +47,119 @@
     font-weight: 500;
 }
 
-.tab[aria-current='page'] {
-    background: color-mix(in srgb, var(--mantine-color-text) 7%, transparent);
+/* Live and Changes: where you are, never what you have open. */
+.views {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--mantine-color-text) 5%, transparent);
 }
 
-.divider {
+.view {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 7px;
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-dimmed);
+    transition:
+        background-color 140ms var(--ease-out),
+        color 140ms var(--ease-out);
+}
+
+.view:hover {
+    color: var(--mantine-color-text);
+}
+
+.view[aria-selected='true'] {
+    background: var(--mantine-color-body);
+    color: var(--mantine-color-text);
+    font-weight: 500;
+    box-shadow:
+        0 0 0 1px var(--mantine-color-default-border),
+        0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.liveDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mantine-color-green-6);
+    transition: box-shadow 140ms var(--ease-out);
+}
+
+.view[aria-selected='true'] .liveDot {
+    box-shadow: 0 0 0 3px var(--mantine-color-green-light);
+}
+
+.count {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--mantine-color-text) 9%, transparent);
+    font-size: 11px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--mantine-color-text);
+}
+
+.busyDot {
+    position: relative;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--mantine-color-violet-6);
+}
+
+.busyDot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: inherit;
+    animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* The open change: its name, where it stands, and what you can do with it. */
+.changeBar {
     flex: none;
-    width: 1px;
-    height: 16px;
-    margin: 0 6px;
-    background: var(--mantine-color-default-border);
+    min-height: 46px;
+    padding: 6px var(--mantine-spacing-xs);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    background: color-mix(
+        in srgb,
+        var(--mantine-color-text) 2.5%,
+        var(--mantine-color-body)
+    );
 }
 
-.crumb[data-workspace] {
-    max-width: 280px;
+.changeName {
+    max-width: 360px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+}
+
+@keyframes ping {
+    75%,
+    100% {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .busyDot::after {
+        animation: none;
+    }
 }
 
 .stageLine {
