@@ -3,6 +3,7 @@ import {
     DashboardTileTypes,
     FeatureFlags,
     FieldType,
+    FilterOperator,
     QuerySourceType,
     SEED_PROJECT,
     type ComposerChart,
@@ -285,9 +286,39 @@ describe('Composer charts', () => {
 
     describe('dashboard lifecycle', () => {
         it('duplicates a dashboard with a copy of its chart', async () => {
-            const { dashboard, chart } = await createDashboardWithSqlChart();
+            const { dashboard: created, chart } =
+                await createDashboardWithSqlChart();
+            const [composerTile] = created.tiles;
+            const withFilter = await admin.patch<Body<Dashboard>>(
+                `/api/v1/dashboards/${created.uuid}`,
+                {
+                    tiles: created.tiles,
+                    tabs: created.tabs,
+                    filters: {
+                        dimensions: [
+                            {
+                                id: randomUUID(),
+                                target: {
+                                    fieldId: 'orders_status',
+                                    tableName: 'orders',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['completed'],
+                                tileTargets: { [composerTile.uuid]: false },
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                },
+            );
+            const dashboard = withFilter.body.results;
 
             const copy = await duplicate(dashboard);
+            const [copiedTile] = copy.tiles;
+            expect(copy.filters.dimensions[0].tileTargets).toEqual({
+                [copiedTile.uuid]: false,
+            });
 
             const [copiedChartUuid] = composerChartUuidsOn(copy);
             expect(copiedChartUuid).toEqual(expect.any(String));

@@ -2517,21 +2517,25 @@ export class DashboardService
             ): Record<string, DashboardTileTarget> | undefined =>
                 tileTargets && remapTileUuidKeys(tileTargets);
 
-            const remappedFilters: typeof newDashboard.filters = {
-                dimensions: newDashboard.filters.dimensions.map((filter) => ({
-                    ...filter,
-                    tileTargets: remapTileTargets(filter.tileTargets),
-                })),
-                metrics: newDashboard.filters.metrics.map((filter) => ({
-                    ...filter,
-                    tileTargets: remapTileTargets(filter.tileTargets),
-                })),
-                tableCalculations: newDashboard.filters.tableCalculations.map(
+            // From the source: the first version dropped the composer tiles' targets
+            const remappedFilters: typeof duplicatedDashboard.filters = {
+                dimensions: duplicatedDashboard.filters.dimensions.map(
                     (filter) => ({
                         ...filter,
                         tileTargets: remapTileTargets(filter.tileTargets),
                     }),
                 ),
+                metrics: duplicatedDashboard.filters.metrics.map((filter) => ({
+                    ...filter,
+                    tileTargets: remapTileTargets(filter.tileTargets),
+                })),
+                tableCalculations:
+                    duplicatedDashboard.filters.tableCalculations.map(
+                        (filter) => ({
+                            ...filter,
+                            tileTargets: remapTileTargets(filter.tileTargets),
+                        }),
+                    ),
             };
 
             await this.dashboardModel.addVersion(
@@ -2541,20 +2545,20 @@ export class DashboardService
                     filters: remappedFilters,
                     tabs: newTabs,
                     parameters: newDashboard.parameters,
-                    config: newDashboard.config && {
-                        ...newDashboard.config,
-                        ...(newDashboard.config.dateZoomConfig && {
+                    config: duplicatedDashboard.config && {
+                        ...duplicatedDashboard.config,
+                        ...(duplicatedDashboard.config.dateZoomConfig && {
                             dateZoomConfig: {
-                                ...newDashboard.config.dateZoomConfig,
+                                ...duplicatedDashboard.config.dateZoomConfig,
                                 tileTargets: remapTileUuidKeys(
-                                    newDashboard.config.dateZoomConfig
+                                    duplicatedDashboard.config.dateZoomConfig
                                         .tileTargets,
                                 ),
                             },
                         }),
-                        ...(newDashboard.config.parameterControls && {
+                        ...(duplicatedDashboard.config.parameterControls && {
                             parameterControls:
-                                newDashboard.config.parameterControls.map(
+                                duplicatedDashboard.config.parameterControls.map(
                                     (control) => ({
                                         ...control,
                                         parameters: Object.fromEntries(

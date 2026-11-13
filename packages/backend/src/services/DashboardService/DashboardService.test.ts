@@ -2639,6 +2639,9 @@ describe('DashboardService', () => {
                     },
                 },
             };
+            (
+                dashboardModel.getByIdOrSlug as import('vitest').Mock
+            ).mockResolvedValue(withConfig);
             (dashboardModel.create as import('vitest').Mock).mockResolvedValue(
                 withConfig,
             );
@@ -2693,6 +2696,9 @@ describe('DashboardService', () => {
                     parameterControls: [control],
                 },
             };
+            (
+                dashboardModel.getByIdOrSlug as import('vitest').Mock
+            ).mockResolvedValue(withControls);
             (dashboardModel.create as import('vitest').Mock).mockResolvedValue(
                 withControls,
             );
