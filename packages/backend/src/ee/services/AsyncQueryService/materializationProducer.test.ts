@@ -80,6 +80,7 @@ const fixture = () => {
             findMaterializationUrisForProject: vi.fn(async () => [
                 materialization.materializationUri,
             ]),
+            getMaterializationScopeVersion: vi.fn(async () => '1:1'),
         } as unknown as PreAggregateModel,
         projectModel: { getExploreFromCache },
         createDuckdbWarehouseClient,

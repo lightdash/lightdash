@@ -629,15 +629,45 @@ export class PreAggregateModel {
     }
 
     /**
-     * Every materialization file the project owns, active or superseded. A
-     * serve session's storage credentials are scoped to exactly these URIs.
+     * A cheap fingerprint of the project's materialization files. A
+     * materialization URI is written once, when a run is promoted, and rows
+     * are never deleted, so a new file always raises the count and any
+     * status change moves the latest update time.
+     */
+    async getMaterializationScopeVersion(projectUuid: string): Promise<string> {
+        const row = await this.database(PreAggregateMaterializationsTableName)
+            .where('project_uuid', projectUuid)
+            .whereNotNull('materialization_uri')
+            .first<{
+                file_count: string | number;
+                last_updated_at: Date | null;
+            }>(
+                this.database.raw('COUNT(*) AS file_count'),
+                this.database.raw('MAX(updated_at) AS last_updated_at'),
+            );
+        return `${Number(row?.file_count ?? 0)}:${
+            row?.last_updated_at?.getTime() ?? 'none'
+        }`;
+    }
+
+    /**
+     * The materialization files a serve session may read: every active file,
+     * plus superseded or failed files whose status changed since
+     * `retainedSince`. The grace window covers a query that resolved a file
+     * moments before a refresh superseded it.
      */
     async findMaterializationUrisForProject(
         projectUuid: string,
+        { retainedSince }: { retainedSince: Date },
     ): Promise<string[]> {
         const rows = await this.database(PreAggregateMaterializationsTableName)
             .where('project_uuid', projectUuid)
             .whereNotNull('materialization_uri')
+            .andWhere((qb) => {
+                void qb
+                    .where('status', 'active')
+                    .orWhere('updated_at', '>=', retainedSince);
+            })
             .select<
                 Pick<DbPreAggregateMaterialization, 'materialization_uri'>[]
             >('materialization_uri');
