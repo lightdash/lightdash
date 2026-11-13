@@ -15,6 +15,7 @@ import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
+import clsx from 'clsx';
 import {
     lazy,
     memo,
@@ -79,14 +80,14 @@ import {
     useFieldDrop,
     type DraggedField,
 } from '../fieldDrag';
-import StaleResultsNotice from '../StaleResultsNotice';
-import ChartTypeButton from './ChartTypeButton';
+import { useIsResultsStale } from '../useIsResultsStale';
 import DroppedFieldPlacer from './DroppedFieldPlacer';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import { useDirtyPivotConfiguration } from './useDirtyPivotConfiguration';
 import { useExplorerChartColorPalette } from './useExplorerChartColorPalette';
 import { useExplorerResultsData } from './useExplorerResultsData';
 import useVisualizationConfigPortalTarget from './useVisualizationConfigPortalTarget';
+import classes from './VisualizationCard.module.css';
 import VisualizationTimezone from './VisualizationTimezone';
 import VisualizationWarning from './VisualizationWarning';
 
@@ -272,6 +273,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
         if (wasClosed) toggleExpandedSection(ExplorerSection.VISUALIZATION);
         setDroppedField({ field, pickChartType: wasClosed });
     });
+
+    const isStale = useIsResultsStale();
 
     // A new chart starts on the gallery: try types first, then configure one
     const hasSavedChart = !!savedChart;
@@ -482,7 +485,6 @@ const VisualizationCard: FC<Props> = memo((props) => {
                             )
                         ) : (
                             <Group gap="xs" wrap="nowrap">
-                                <StaleResultsNotice />
                                 {sorts.length > 0 && (
                                     <SortButton
                                         sorts={sorts}
@@ -514,11 +516,6 @@ const VisualizationCard: FC<Props> = memo((props) => {
                         <>
                             {isOpen && (
                                 <>
-                                    {isEditMode && !chartTypeAuthoring && (
-                                        <ChartTypeButton
-                                            chartType={chartType}
-                                        />
-                                    )}
                                     {isEditMode ? (
                                         <Button
                                             ref={visualizationConfigButtonRef}
@@ -607,7 +604,10 @@ const VisualizationCard: FC<Props> = memo((props) => {
                             )}
                             <LightdashVisualization
                                 ref={measureRef}
-                                className="sentry-block ph-no-capture"
+                                className={clsx(
+                                    'sentry-block ph-no-capture',
+                                    isStale && classes.stale,
+                                )}
                                 data-testid="visualization"
                                 onScreenshotReady={onScreenshotReady}
                                 onScreenshotError={onScreenshotError}

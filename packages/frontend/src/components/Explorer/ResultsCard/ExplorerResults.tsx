@@ -31,6 +31,7 @@ import { SectionName } from '../../../types/Events';
 import PivotTable from '../../common/PivotTable';
 import RunningBar from '../../common/RunningBar';
 import Table from '../../common/Table';
+import { useIsResultsStale } from '../useIsResultsStale';
 import CellContextMenu from './CellContextMenu';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
 import classes from './ExplorerResults.module.css';
@@ -107,6 +108,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     // default disables totals for the results table
     const totalsEnabledByDefault = useColumnTotalsEnabledByDefault(projectUuid);
 
+    const isStale = useIsResultsStale();
     const dimensions = useExplorerSelector(selectDimensions);
     const metrics = useExplorerSelector(selectMetrics);
     const explorerColumnOrder = useExplorerSelector(selectColumnOrder);
@@ -584,6 +586,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         <TrackSection name={SectionName.RESULTS_TABLE}>
             <Box
                 className={classes.results}
+                data-stale={isStale || undefined}
                 mod={{ running: !!previous, grouped: showGroupedView }}
                 data-testid="results-table-container"
                 // Walkthrough result marker for manage:Explore: the rows a

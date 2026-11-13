@@ -1,0 +1,8 @@
+/* The chart on screen answers an earlier selection: step it back until re-run */
+.stale {
+    opacity: 0.35;
+    filter: grayscale(1);
+    transition:
+        opacity 160ms ease,
+        filter 160ms ease;
+}

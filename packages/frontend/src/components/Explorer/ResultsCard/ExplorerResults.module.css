@@ -181,3 +181,9 @@
     pointer-events: none;
     transition: opacity 160ms ease;
 }
+
+/* These rows answer an earlier selection: step them back until re-run */
+.results[data-stale] table tbody,
+.results[data-stale] table tfoot {
+    opacity: 0.35;
+}

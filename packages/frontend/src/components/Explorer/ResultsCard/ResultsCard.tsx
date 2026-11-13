@@ -36,7 +36,6 @@ import MantineIcon from '../../common/MantineIcon';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
 import { useAddDroppedFieldToQuery, useFieldDrop } from '../fieldDrag';
-import StaleResultsNotice from '../StaleResultsNotice';
 import { ExplorerResults } from './ExplorerResults';
 import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
@@ -132,7 +131,6 @@ const ResultsCard: FC = memo(() => {
                 // Hide header controls when in grouped view
                 isGroupedView ? null : (
                     <Group wrap="nowrap" gap="xs">
-                        {resultsIsOpen && <StaleResultsNotice />}
                         {tableName && sorts.length > 0 && (
                             <SortButton isEditMode={isEditMode} sorts={sorts} />
                         )}
