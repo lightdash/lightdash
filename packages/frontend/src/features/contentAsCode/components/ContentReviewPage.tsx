@@ -33,6 +33,7 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { USER_AVATAR_RADIUS } from '../../../components/Avatar.constants';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
@@ -153,7 +154,12 @@ const DraftRow: FC<{
         data-active={isActive}
     >
         <Group gap="sm" wrap="nowrap">
-            <Avatar size={26} radius="xl" color="gray" variant="light">
+            <Avatar
+                size={26}
+                radius={USER_AVATAR_RADIUS}
+                color="gray"
+                variant="light"
+            >
                 <Text size="10px" fw={600}>
                     {initials(draft.authorName)}
                 </Text>
