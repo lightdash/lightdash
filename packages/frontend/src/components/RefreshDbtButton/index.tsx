@@ -251,7 +251,7 @@ const RefreshDbtButton: FC<{
         <Tooltip w={320} position="bottom" label={modeCopy[activeMode].tooltip}>
             <Button
                 size="xs"
-                variant="default"
+                variant="subtle"
                 leftSection={leftIcon ?? <MantineIcon icon={IconRefresh} />}
                 loading={busy}
                 onClick={handleRefresh}
@@ -279,7 +279,7 @@ const RefreshDbtButton: FC<{
                             <Button
                                 size="xs"
                                 p={4}
-                                variant="default"
+                                variant="subtle"
                                 disabled={busy}
                                 aria-label="Change refresh mode"
                             >

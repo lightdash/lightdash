@@ -5,12 +5,12 @@ import {
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
-import { Group, Menu, Stack, Text, ActionIcon, HoverCard } from '@mantine/core';
+import { ActionIcon, Group, HoverCard, Menu, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconCode,
-    IconDots,
+    IconDotsVertical,
     IconGitMerge,
     IconPencil,
     IconTrash,
@@ -234,6 +234,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         <>
             <Stack
                 h="100%"
+                gap="xs"
                 className={classes.panel}
                 // Walkthrough look for manage:Explore: the table's fields,
                 // seen once the table is open and before any is picked.
@@ -257,10 +258,16 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     data-tour-return="none"
                     data-tour-resultdocs="semantic-layer/virtual-views.mdx#edit-or-delete-a-virtual-view:p2:1"
                     justify="space-between"
+                    pl={8}
+                    pr={1}
                     display={isGuidedMerge ? 'none' : undefined}
                 >
                     <Group gap="xs">
-                        <PageBreadcrumbs size="md" items={breadcrumbs} />
+                        <PageBreadcrumbs
+                            size="sm"
+                            separatorMargin={6}
+                            items={breadcrumbs}
+                        />
                         {explore.type === ExploreType.EXTERNAL_SOURCE &&
                             explore.externalSource && (
                                 <ExternalSourceBadge
@@ -293,7 +300,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         (canMergeAnotherQuery ||
                             hasVirtualViewActions ||
                             canClearCache) && (
-                            <Menu withArrow offset={-2}>
+                            <Menu position="bottom-end">
                                 <Menu.Target>
                                     {/* Two literal triggers: the tour generator reads anchors and hints from source. */}
                                     {isVirtualView ? (
@@ -303,14 +310,18 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             aria-label="Virtual view actions"
                                             variant="transparent"
                                         >
-                                            <MantineIcon icon={IconDots} />
+                                            <MantineIcon
+                                                icon={IconDotsVertical}
+                                            />
                                         </ActionIcon>
                                     ) : (
                                         <ActionIcon
                                             aria-label="Query options"
                                             variant="transparent"
                                         >
-                                            <MantineIcon icon={IconDots} />
+                                            <MantineIcon
+                                                icon={IconDotsVertical}
+                                            />
                                         </ActionIcon>
                                     )}
                                 </Menu.Target>
@@ -373,8 +384,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                     )}
                                     {canClearCache && (
                                         <>
-                                            {(canMergeAnotherQuery ||
-                                                hasVirtualViewActions) && (
+                                            {hasVirtualViewActions && (
                                                 <Menu.Divider />
                                             )}
                                             <ClearCachedResultsMenuItem
@@ -427,7 +437,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             />
                         )}
                 </Group>
-
                 {isGuidedMerge ? (
                     <MergeQuerySidebar
                         primaryExplore={explore}

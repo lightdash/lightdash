@@ -479,16 +479,17 @@ const GeneralSettings: FC = () => {
                         />
                     </Box>
                 </Tooltip>
-                <Checkbox
-                    size="xs"
-                    ml="lg"
-                    label="Expand subtotals by default"
-                    checked={showSubtotalsExpanded ?? false}
-                    onChange={() => {
-                        toggle('showSubtotalsExpanded');
-                    }}
-                    disabled={!canUseSubtotals || !showSubtotals}
-                />
+                {canUseSubtotals && showSubtotals && (
+                    <Checkbox
+                        size="xs"
+                        ml="lg"
+                        label="Expand subtotals by default"
+                        checked={showSubtotalsExpanded ?? false}
+                        onChange={() => {
+                            toggle('showSubtotalsExpanded');
+                        }}
+                    />
+                )}
                 <Tooltip
                     disabled={
                         canUseSubtotals && !showSubtotals && !metricsAsRows

@@ -134,7 +134,8 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
         () => (
             <MantineIcon
                 icon={IconChevronRight}
-                size={14}
+                size={12}
+                stroke={2}
                 className={classes.chevron}
                 data-open={isNavLinkOpen || undefined}
             />
@@ -146,8 +147,8 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
     // Non-virtualized mode uses NavLink's built-in nesting with childrenOffset
     const pl = useMemo(() => {
         if (isVirtualized) {
-            // Base padding is 12px, each nesting level adds 20px
-            return `${12 + (depth ?? 0) * 20}px`;
+            // Base padding is 8px, each nesting level adds 12px
+            return `${8 + (depth ?? 0) * 12}px`;
         }
         return undefined;
     }, [depth, isVirtualized]);
@@ -189,7 +190,8 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                         <HoverCard.Target>
                             <Text
                                 truncate
-                                fz="sm"
+                                fz={13}
+                                fw={600}
                                 ff="var(--mantine-font-family)"
                             >
                                 <Highlight
@@ -203,12 +205,12 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                         </HoverCard.Target>
                         <HoverCard.Dropdown
                             hidden={!isHover}
-                            p="md"
+                            p="sm"
                             /**
                              * Takes up space to the right, so it's OK to go fairly wide in the interest
                              * of readability.
                              */
-                            maw={500}
+                            maw={340}
                             className={previewClasses.previewDropdown}
                             onClick={handleDropdownClick}
                         >
