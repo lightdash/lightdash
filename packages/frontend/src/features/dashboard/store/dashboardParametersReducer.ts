@@ -43,8 +43,8 @@ export type DashboardParametersState = {
     tileVirtualViewSavedParameters: Record<string, ParametersValuesMap>;
     /** The last listing's virtual-view values, kept for tiles whose own report is partial */
     tileListedVirtualViewSavedParameters: Record<string, ParametersValuesMap>;
-    /** Tiles whose own report covers only part of their queries (a merged chart's primary explore) */
-    tilePartialVirtualViewReports: Record<string, true>;
+    /** Own reports that cover only part of a tile's queries (a merged chart's primary explore) */
+    tilePartialVirtualViewReports: Record<string, ParametersValuesMap>;
     /** Null until seeded, which happens only with the dashboard-controls flag on */
     parameterControls: DashboardParameterControl[] | null;
     /** The dashboard has a saved list; otherwise the list is filled from the tiles */
@@ -170,7 +170,7 @@ export const dashboardParametersActions = {
         tileUuid: string;
         values: ParametersValuesMap;
     }>('dashboardParameters/setTileChartSavedParameters'),
-    /** isPartial: the values cover only part of the tile's queries, so listed values win */
+    /** isPartial: the values cover only part of the tile's queries, so listed values go on top */
     setTileVirtualViewSavedParameters: createAction<{
         tileUuid: string;
         values: ParametersValuesMap;
@@ -544,13 +544,15 @@ export const dashboardParametersReducer = (
             });
         seed(tileChartSavedParameters, chartSavedValues);
         seed(tileVirtualViewSavedParameters, virtualViewSavedValues);
-        // A partial own report is only a fallback: the listing covers every query
-        Object.keys(virtualViewSavedValues)
-            .filter((tileUuid) => state.tilePartialVirtualViewReports[tileUuid])
-            .forEach((tileUuid) => {
-                tileVirtualViewSavedParameters[tileUuid] =
-                    virtualViewSavedValues[tileUuid];
-            });
+        // A partial own report sits under the listing, which covers every query
+        Object.entries(virtualViewSavedValues).forEach(([tileUuid, listed]) => {
+            const partial = state.tilePartialVirtualViewReports[tileUuid];
+            if (partial !== undefined)
+                tileVirtualViewSavedParameters[tileUuid] = {
+                    ...partial,
+                    ...listed,
+                };
+        });
         return {
             ...withListedReferences(
                 {
@@ -662,15 +664,18 @@ export const dashboardParametersReducer = (
             action,
         )
     ) {
-        const { tileUuid, isPartial } = action.payload;
-        const wasPartial =
-            state.tilePartialVirtualViewReports[tileUuid] === true;
+        const { tileUuid, isPartial, values: reported } = action.payload;
         const values = isPartial
-            ? (state.tileListedVirtualViewSavedParameters[tileUuid] ??
-              action.payload.values)
-            : action.payload.values;
+            ? {
+                  ...reported,
+                  ...state.tileListedVirtualViewSavedParameters[tileUuid],
+              }
+            : reported;
         if (
-            wasPartial === isPartial &&
+            isEqual(
+                state.tilePartialVirtualViewReports[tileUuid],
+                isPartial ? reported : undefined,
+            ) &&
             isEqual(state.tileVirtualViewSavedParameters[tileUuid], values)
         ) {
             return state;
@@ -682,7 +687,10 @@ export const dashboardParametersReducer = (
                 [tileUuid]: values,
             },
             tilePartialVirtualViewReports: isPartial
-                ? { ...state.tilePartialVirtualViewReports, [tileUuid]: true }
+                ? {
+                      ...state.tilePartialVirtualViewReports,
+                      [tileUuid]: reported,
+                  }
                 : omit(state.tilePartialVirtualViewReports, tileUuid),
         };
     }
@@ -787,6 +795,14 @@ export const dashboardParametersReducer = (
             state.tileVirtualViewSavedParameters,
             tileUuids,
         );
+        const tileListedVirtualViewSavedParameters = keepTiles(
+            state.tileListedVirtualViewSavedParameters,
+            tileUuids,
+        );
+        const tilePartialVirtualViewReports = keepTiles(
+            state.tilePartialVirtualViewReports,
+            tileUuids,
+        );
         return tileParameterReferences === state.tileParameterReferences &&
             tileQueryParameterReferences ===
                 state.tileQueryParameterReferences &&
@@ -797,7 +813,11 @@ export const dashboardParametersReducer = (
             tileParameterStateSources === state.tileParameterStateSources &&
             tileChartSavedParameters === state.tileChartSavedParameters &&
             tileVirtualViewSavedParameters ===
-                state.tileVirtualViewSavedParameters
+                state.tileVirtualViewSavedParameters &&
+            tileListedVirtualViewSavedParameters ===
+                state.tileListedVirtualViewSavedParameters &&
+            tilePartialVirtualViewReports ===
+                state.tilePartialVirtualViewReports
             ? state
             : {
                   ...state,
@@ -809,6 +829,8 @@ export const dashboardParametersReducer = (
                   tileParameterStateSources,
                   tileChartSavedParameters,
                   tileVirtualViewSavedParameters,
+                  tileListedVirtualViewSavedParameters,
+                  tilePartialVirtualViewReports,
               };
     }
     return state;

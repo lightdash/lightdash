@@ -733,6 +733,7 @@ describe('dashboardParametersReducer', () => {
                 | typeof report
                 | typeof listing
                 | typeof actions.resetChangedTileParameterSources
+                | typeof actions.keepTileParameterState
             >[],
         ) =>
             steps.reduce(reducer, stateWith()).tileVirtualViewSavedParameters[
@@ -820,6 +821,71 @@ describe('dashboardParametersReducer', () => {
                     report({ week: 'other primary' }, true),
                 ]),
             ).toEqual({ week: 'other primary' });
+        });
+
+        it.each([
+            ['the listing first', true],
+            ['the tile first', false],
+        ])(
+            "lays the listing over the primary explore's values with %s",
+            (_order, listingFirst) => {
+                const listed = listing({ 'tile-1': { week: 'listed' } });
+                const own = report({ week: 'primary', day: 'primary' }, true);
+                // A shared key takes the listing's value; a key only the primary has stays
+                expect(
+                    valuesAfter(listingFirst ? [listed, own] : [own, listed]),
+                ).toEqual({ week: 'listed', day: 'primary' });
+            },
+        );
+
+        it('drops a key the refetched listing no longer has', () => {
+            expect(
+                valuesAfter([
+                    report({ day: 'primary' }, true),
+                    listing({ 'tile-1': { week: 'listed' } }),
+                    listing({ 'tile-1': {} }),
+                ]),
+            ).toEqual({ day: 'primary' });
+        });
+
+        it("keeps the new primary explore's values when the listing refetch failed", () => {
+            expect(
+                valuesAfter([
+                    listing({ 'tile-1': {} }),
+                    report({}, false),
+                    // The chart became merged on a virtual view; no new listing arrived
+                    report({ week: 'new' }, true),
+                ]),
+            ).toEqual({ week: 'new' });
+        });
+
+        it("forgets a removed tile, so a restored one does not take another chart's listing", () => {
+            const steps = [
+                actions.resetChangedTileParameterSources({
+                    'tile-1': 'chart-a',
+                }),
+                // Chart A's listing failed
+                report({ week: 'A' }, true),
+                actions.resetChangedTileParameterSources({
+                    'tile-1': 'chart-b',
+                }),
+                listing({ 'tile-1': { week: 'B' } }, 'chart-b'),
+                report({}, true),
+                // The tile is deleted, then Cancel restores it on chart A
+                actions.keepTileParameterState([]),
+            ];
+            const removed = steps.reduce(reducer, stateWith());
+            expect(removed.tileListedVirtualViewSavedParameters).toEqual({});
+            expect(removed.tilePartialVirtualViewReports).toEqual({});
+            expect(
+                valuesAfter([
+                    ...steps,
+                    actions.resetChangedTileParameterSources({
+                        'tile-1': 'chart-a',
+                    }),
+                    report({ week: 'A' }, true),
+                ]),
+            ).toEqual({ week: 'A' });
         });
 
         it('no-ops on a repeated partial report', () => {
