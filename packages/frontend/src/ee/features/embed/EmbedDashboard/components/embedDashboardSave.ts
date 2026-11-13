@@ -1,4 +1,6 @@
 import {
+    FilterInteractivityValues,
+    getFilterInteractivityValue,
     type Dashboard,
     type DashboardConfig,
     type DashboardControlRef,
@@ -9,6 +11,7 @@ import {
     type DashboardTile,
     type DateGranularity,
     type DateZoomConfig,
+    type InteractivityOptions,
     type UpdateDashboard,
 } from '@lightdash/common';
 import {
@@ -75,6 +78,10 @@ export type EmbedTokenAllows = {
     filters: boolean;
 };
 
+export type EmbedFiltersInteractivity = NonNullable<
+    InteractivityOptions['dashboardFiltersInteractivity']
+>;
+
 type Args = {
     /** The dashboard as loaded */
     dashboard: Pick<Dashboard, 'filters' | 'config' | 'parameters'>;
@@ -84,6 +91,8 @@ type Args = {
     /** Saved and temporary rules, labels as shown */
     filters: DashboardFilters;
     filterLabelOverrides: DashboardFilterLabelOverrides;
+    /** The token's filter interactivity; null where it carries none */
+    filtersInteractivity: EmbedFiltersInteractivity | null;
     isAddFilterDisabled: boolean;
     /** The editor's choice; null where the store was not seeded with it: as loaded */
     isDateZoomDisabled: boolean | null;
@@ -164,6 +173,32 @@ export const haveEmbedControlsChanged = (
     (dashboard.config?.requiredFiltersNote || undefined) !==
         (drafts.requiredFiltersNote || undefined);
 
+// The store only holds the rules the token allows (`applyEmbedFilterInteractivity`):
+// the loaded rules it trimmed go back into the save, where they were
+const keepHiddenFilters = (
+    filters: DashboardFilters,
+    loaded: DashboardFilters,
+    interactivity: EmbedFiltersInteractivity | null,
+): DashboardFilters => {
+    const value = interactivity
+        ? getFilterInteractivityValue(interactivity.enabled)
+        : FilterInteractivityValues.none;
+    if (value === FilterInteractivityValues.none) return loaded;
+    if (value !== FilterInteractivityValues.some) return filters;
+
+    const isHidden = (id: string) =>
+        !interactivity?.allowedFilters?.includes(id);
+    const hiddenIds = new Set(
+        loaded.dimensions.map(({ id }) => id).filter(isHidden),
+    );
+    // The editor's rules fill the allowed rules' slots, in the editor's order
+    const edited = filters.dimensions.filter(({ id }) => !hiddenIds.has(id));
+    const slots = loaded.dimensions.flatMap((rule) =>
+        hiddenIds.has(rule.id) ? [rule] : edited.splice(0, 1),
+    );
+    return { ...filters, dimensions: [...slots, ...edited] };
+};
+
 /** What an embed editor's Save sends */
 export const buildEmbedDashboardUpdate = ({
     dashboard,
@@ -172,6 +207,7 @@ export const buildEmbedDashboardUpdate = ({
     tabs,
     filters,
     filterLabelOverrides,
+    filtersInteractivity,
     isAddFilterDisabled,
     isDateZoomDisabled: editedIsDateZoomDisabled,
     controlDrafts,
@@ -183,10 +219,14 @@ export const buildEmbedDashboardUpdate = ({
     if (controlDrafts === null) {
         return {
             tiles,
-            filters: restoreFilterLabelOverrides(
-                filters,
+            filters: keepHiddenFilters(
+                restoreFilterLabelOverrides(
+                    filters,
+                    dashboard.filters,
+                    filterLabelOverrides,
+                ),
                 dashboard.filters,
-                filterLabelOverrides,
+                filtersInteractivity,
             ),
             name,
             tabs,
@@ -227,19 +267,23 @@ export const buildEmbedDashboardUpdate = ({
 
     return {
         tiles,
-        filters: restoreFilterLabelOverrides(
-            {
-                // A reorder (another kind's move) never rearranges hidden rules
-                dimensions: controlDrafts.areFiltersShown
-                    ? controlsToSave.dimensions
-                    : filters.dimensions,
-                metrics: controlDrafts.areFiltersShown
-                    ? controlsToSave.metrics
-                    : filters.metrics,
-                tableCalculations: filters.tableCalculations,
-            },
+        filters: keepHiddenFilters(
+            restoreFilterLabelOverrides(
+                {
+                    // A reorder (another kind's move) never rearranges hidden rules
+                    dimensions: controlDrafts.areFiltersShown
+                        ? controlsToSave.dimensions
+                        : filters.dimensions,
+                    metrics: controlDrafts.areFiltersShown
+                        ? controlsToSave.metrics
+                        : filters.metrics,
+                    tableCalculations: filters.tableCalculations,
+                },
+                dashboard.filters,
+                filterLabelOverrides,
+            ),
             dashboard.filters,
-            filterLabelOverrides,
+            filtersInteractivity,
         ),
         name,
         tabs,
