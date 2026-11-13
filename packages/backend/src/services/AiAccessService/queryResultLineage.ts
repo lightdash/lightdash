@@ -70,6 +70,7 @@ export type TrustedQueryResultParameters = Pick<
     | 'resultEffectiveParameters'
     | 'cacheSourceQueryUuid'
     | 'externalSourceReferences'
+    | 'analyticsActivityWindow'
 >;
 
 export const getQueryResultRequestParameters = (
@@ -88,6 +89,7 @@ export const getQueryResultRequestParameters = (
     resultEffectiveParameters: undefined,
     cacheSourceQueryUuid: undefined,
     externalSourceReferences: undefined,
+    analyticsActivityWindow: undefined,
     ...trusted,
     agentConnectionExecution:
         agentExecutionContext.getStore()?.agentConnectionExecution ?? undefined,

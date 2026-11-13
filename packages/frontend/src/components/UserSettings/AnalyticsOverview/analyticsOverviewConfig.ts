@@ -152,20 +152,21 @@ const topDashboards = ranking(
     'qualifying_views',
     { content_type: ['dashboard'] },
 );
+const activityTotals = query('activity', [], ['unique_users', 'total_queries']);
 
 export const analyticsHeadlineMetrics = [
     {
         title: 'Active users',
         description: 'People with recorded activity',
         tab: 'people',
-        query: query('activity', [], ['unique_users', 'total_queries']),
+        query: activityTotals,
         metric: 'unique_users',
     },
     {
         title: 'Queries run',
         description: 'Recorded queries',
         tab: 'queries',
-        query: query('activity', [], ['unique_users', 'total_queries']),
+        query: activityTotals,
         metric: 'total_queries',
     },
     {
@@ -179,10 +180,13 @@ export const analyticsHeadlineMetrics = [
         title: 'AI agent requests',
         description: 'Questions sent to agents',
         tab: 'agents',
-        query: query('requests', [], ['total_requests']),
+        query: dailyRequests.query,
         metric: 'total_requests',
+        sumDailyCounts: true,
     },
 ];
+
+export const analyticsDateRangeDays = [7, 30, 90];
 
 // Settings has a small, independent selection; full dashboards remain managed by sync.
 export const analyticsTabs: {
@@ -469,7 +473,11 @@ export const buildAnalyticsQuery = (
                   },
               ]
             : [],
-        limit: spec.daily ? 90 : spec.dimensions.length ? 8 : 1,
+        limit: spec.daily
+            ? Math.max(...analyticsDateRangeDays)
+            : spec.dimensions.length
+              ? 8
+              : 1,
         tableCalculations: [],
         timezone: 'UTC',
     };

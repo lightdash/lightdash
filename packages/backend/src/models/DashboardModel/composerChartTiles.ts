@@ -97,3 +97,26 @@ export const insertComposerChartTiles = async (
     }
     await trx(DashboardTileComposerChartsTableName).insert(rows);
 };
+
+export const softDeleteDashboardComposerCharts = (
+    db: Knex,
+    dashboardUuid: string,
+    deletedBy: { at: Date; userUuid: string },
+) =>
+    db(ComposerChartsTableName)
+        .update({
+            deleted_at: deletedBy.at,
+            deleted_by_user_uuid: deletedBy.userUuid,
+        })
+        .where('dashboard_uuid', dashboardUuid)
+        .whereNull('deleted_at');
+
+export const restoreDashboardComposerCharts = (
+    db: Knex,
+    dashboardUuid: string,
+    deletedByUserUuid: string,
+) =>
+    db(ComposerChartsTableName)
+        .update({ deleted_at: null, deleted_by_user_uuid: null })
+        .where('dashboard_uuid', dashboardUuid)
+        .where('deleted_by_user_uuid', deletedByUserUuid);

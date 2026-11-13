@@ -1,6 +1,8 @@
 import { GetObjectCommand, type S3Client } from '@aws-sdk/client-s3';
 import { type Readable } from 'stream';
 
+export const MAX_ANALYTICS_CACHE_FILE_BYTES = 4 * 1024 * 1024;
+
 /** Small compressed files only; pending downloads count against both limits. */
 export class AnalyticsFileCache {
     private readonly entries = new Map<
@@ -29,7 +31,7 @@ export class AnalyticsFileCache {
             !size ||
             !Number.isSafeInteger(size) ||
             size < 0 ||
-            size > 1024 * 1024 ||
+            size > MAX_ANALYTICS_CACHE_FILE_BYTES ||
             size > this.maxBytes
         )
             return undefined;

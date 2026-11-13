@@ -1,13 +1,10 @@
+import { Button, Center, Group, Loader, Stack, Text } from '@mantine/core';
 import {
-    Anchor,
-    Button,
-    Center,
-    Group,
-    Loader,
-    Stack,
-    Text,
-} from '@mantine/core';
-import { IconExternalLink, IconFileCode, IconTable } from '@tabler/icons-react';
+    IconArrowUpRight,
+    IconFile,
+    IconFileCode,
+    IconTable,
+} from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
@@ -32,18 +29,25 @@ import { type StudioPullRequest } from './useStudioPullRequest';
 const getModelOfFile = ({ path }: DiffFile): string =>
     (path.split('/').pop() ?? path).replace(/\.[^.]+$/, '');
 
-const plural = (count: number, word: string) =>
-    `${count} ${word}${count === 1 ? '' : 's'}`;
+const LineCounts: FC<{ files: DiffFile[] }> = ({ files }) => {
+    const additions = files.reduce((sum, file) => sum + file.additions, 0);
+    const deletions = files.reduce((sum, file) => sum + file.deletions, 0);
+    return (
+        <span className={classes.lineCounts}>
+            {additions > 0 ? <span data-sign="add">+{additions}</span> : null}
+            {deletions > 0 ? <span data-sign="del">−{deletions}</span> : null}
+        </span>
+    );
+};
 
-const LineCounts: FC<{ files: DiffFile[] }> = ({ files }) => (
-    <span className={classes.lineCounts}>
-        <span data-sign="add">
-            +{files.reduce((sum, { additions }) => sum + additions, 0)}
+const FileBlock: FC<{ file: DiffFile }> = ({ file }) => (
+    <div className={classes.fileBlock}>
+        <span className={classes.fileName}>
+            <MantineIcon icon={IconFile} size={14} />
+            {file.path}
         </span>
-        <span data-sign="del">
-            −{files.reduce((sum, { deletions }) => sum + deletions, 0)}
-        </span>
-    </span>
+        <FileDiff patch={file.patch} />
+    </div>
 );
 
 /** Everything a dbt pull request changes, one model after another: what it does to the model's fields, then the code. */
@@ -80,28 +84,9 @@ export const PullRequestChanges: FC<{
     const others = files.filter(
         (file) => !changedModels.includes(getModelOfFile(file)),
     );
-    const pullRequestNumber = /\/(\d+)\/?$/.exec(prUrl)?.[1];
     return (
         <DiffWorkers>
             <>
-                <div className={classes.summary}>
-                    <span>{plural(changedModels.length, 'model')}</span>
-                    <span className={classes.summaryDot} />
-                    <span>{plural(files.length, 'file')}</span>
-                    <span className={classes.summaryDot} />
-                    <LineCounts files={files} />
-                    <Anchor
-                        href={prUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={classes.summaryLink}
-                    >
-                        {pullRequestNumber
-                            ? `Pull request #${pullRequestNumber}`
-                            : 'Pull request'}
-                        <MantineIcon icon={IconExternalLink} size={12} />
-                    </Anchor>
-                </div>
                 {changedModels.map((model) => {
                     const modelFiles = files.filter(
                         (file) => getModelOfFile(file) === model,
@@ -128,8 +113,15 @@ export const PullRequestChanges: FC<{
                                 <LineCounts files={modelFiles} />
                                 <Button
                                     size="compact-xs"
-                                    variant="default"
+                                    variant="subtle"
+                                    color="gray"
                                     ml="auto"
+                                    rightSection={
+                                        <MantineIcon
+                                            icon={IconArrowUpRight}
+                                            size={12}
+                                        />
+                                    }
                                     onClick={() =>
                                         tryInExplore(model, previewProjectUuid)
                                     }
@@ -143,17 +135,16 @@ export const PullRequestChanges: FC<{
                                     model={model}
                                     previewProjectUuid={previewProjectUuid}
                                 />
-                                <ModelTotals
-                                    projectUuid={projectUuid}
-                                    model={model}
-                                    previewProjectUuid={previewProjectUuid}
-                                    cacheKey={commitSha ?? prUrl}
-                                />
-                                {modelFiles.map((file) => (
-                                    <FileDiff
-                                        key={file.key}
-                                        patch={file.patch}
+                                <div className={classes.totals}>
+                                    <ModelTotals
+                                        projectUuid={projectUuid}
+                                        model={model}
+                                        previewProjectUuid={previewProjectUuid}
+                                        cacheKey={commitSha ?? prUrl}
                                     />
+                                </div>
+                                {modelFiles.map((file) => (
+                                    <FileBlock key={file.key} file={file} />
                                 ))}
                             </Stack>
                         </section>
@@ -185,7 +176,7 @@ export const PullRequestChanges: FC<{
                         </Group>
                         <Stack gap="sm" className={classes.modelBody}>
                             {others.map((file) => (
-                                <FileDiff key={file.key} patch={file.patch} />
+                                <FileBlock key={file.key} file={file} />
                             ))}
                         </Stack>
                     </section>

@@ -27,6 +27,7 @@ export type DbAiArtifactVersion = {
     saved_query_uuid: string | null;
     saved_sql_uuid: string | null;
     saved_dashboard_uuid: string | null;
+    saved_composer_chart_uuid: string | null;
     chart_config: Record<string, unknown> | null;
     dashboard_config: Record<string, unknown> | null;
     verified_by_user_uuid: string | null;
@@ -50,6 +51,7 @@ export type AiArtifactVersionsTable = Knex.CompositeTableType<
             | 'saved_query_uuid'
             | 'saved_sql_uuid'
             | 'saved_dashboard_uuid'
+            | 'saved_composer_chart_uuid'
             | 'chart_config'
             | 'dashboard_config'
             | 'verified_by_user_uuid'

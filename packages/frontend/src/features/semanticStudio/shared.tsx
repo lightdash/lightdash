@@ -37,6 +37,7 @@ import {
     IconFileSpreadsheet,
     IconFileTypeCsv,
     IconFolder,
+    IconGripVertical,
     IconLock,
     IconPlus,
     IconSearch,
@@ -56,6 +57,7 @@ import {
     useMemo,
     useRef,
     useState,
+    type DragEvent,
     type FC,
     type KeyboardEvent,
     type MouseEvent,
@@ -95,6 +97,7 @@ import {
 import { CHANGE_KIND_LABELS } from './modelCode';
 import { SemanticLayerPreview } from './SemanticLayerPreview';
 import classes from './shared.module.css';
+import { startStudioChatRefDrag, useAddToStudioChat } from './studioChatRefs';
 import { STUDIO_STARTERS } from './studioStarters';
 import { useCanEditSemanticLayer } from './useSemanticLayerModel';
 import {
@@ -512,71 +515,91 @@ const FieldRow = memo<{
     joined: boolean;
     unsaved: boolean;
     onOpen: (field: Field) => void;
-}>(({ field, index, top, selected, tabStop, joined, unsaved, onOpen }) => {
-    const summary = summaryOf(field.description);
-    return (
-        <Box className={classes.fieldItem} top={top}>
-            <Box
-                className={classes.fieldRow}
-                data-selected={selected}
-                data-off={!field.inUse || field.draftState === 'removed'}
-                data-field-index={index}
-                data-field-id={field.id}
-                role="row"
-                aria-selected={selected}
-                tabIndex={tabStop ? 0 : -1}
-                onClick={() => onOpen(field)}
-            >
-                <Group gap={8} wrap="nowrap" className={classes.fieldName}>
-                    <Box flex="none" display="flex">
-                        <FieldTypeIcon field={field} />
+    onDragStart: (event: DragEvent, field: Field) => void;
+}>(
+    ({
+        field,
+        index,
+        top,
+        selected,
+        tabStop,
+        joined,
+        unsaved,
+        onOpen,
+        onDragStart,
+    }) => {
+        const summary = summaryOf(field.description);
+        return (
+            <Box className={classes.fieldItem} top={top}>
+                <Box
+                    className={classes.fieldRow}
+                    data-selected={selected}
+                    data-off={!field.inUse || field.draftState === 'removed'}
+                    data-field-index={index}
+                    data-field-id={field.id}
+                    role="row"
+                    aria-selected={selected}
+                    tabIndex={tabStop ? 0 : -1}
+                    draggable
+                    onDragStart={(event) => onDragStart(event, field)}
+                    onClick={() => onOpen(field)}
+                >
+                    <Box className={classes.dragGrip} aria-hidden>
+                        <MantineIcon icon={IconGripVertical} size={12} />
                     </Box>
+                    <Group gap={8} wrap="nowrap" className={classes.fieldName}>
+                        <Box flex="none" display="flex">
+                            <FieldTypeIcon field={field} />
+                        </Box>
+                        <Text
+                            truncate
+                            className={classes.fieldLabel}
+                            title={field.label}
+                        >
+                            {field.label}
+                        </Text>
+                        {joined ? (
+                            <Text truncate className={classes.fieldTable}>
+                                {field.table}
+                            </Text>
+                        ) : null}
+                        {unsaved ? (
+                            <Text className={classes.fieldUnsaved}>
+                                Unsaved
+                            </Text>
+                        ) : null}
+                        {field.draftState ? (
+                            <Text className={classes.fieldUnsaved}>
+                                {CHANGE_KIND_LABELS[field.draftState]}
+                            </Text>
+                        ) : null}
+                        {field.visibleTo ? (
+                            <Tooltip
+                                label={`Only people with ${field.visibleTo}`}
+                                openDelay={300}
+                            >
+                                <Box flex="none" display="flex">
+                                    <MantineIcon
+                                        icon={IconLock}
+                                        size={12}
+                                        color="dimmed"
+                                    />
+                                </Box>
+                            </Tooltip>
+                        ) : null}
+                    </Group>
                     <Text
                         truncate
-                        className={classes.fieldLabel}
-                        title={field.label}
+                        className={classes.fieldDescription}
+                        title={summary || undefined}
                     >
-                        {field.label}
+                        {summary}
                     </Text>
-                    {joined ? (
-                        <Text truncate className={classes.fieldTable}>
-                            {field.table}
-                        </Text>
-                    ) : null}
-                    {unsaved ? (
-                        <Text className={classes.fieldUnsaved}>Unsaved</Text>
-                    ) : null}
-                    {field.draftState ? (
-                        <Text className={classes.fieldUnsaved}>
-                            {CHANGE_KIND_LABELS[field.draftState]}
-                        </Text>
-                    ) : null}
-                    {field.visibleTo ? (
-                        <Tooltip
-                            label={`Only people with ${field.visibleTo}`}
-                            openDelay={300}
-                        >
-                            <Box flex="none" display="flex">
-                                <MantineIcon
-                                    icon={IconLock}
-                                    size={12}
-                                    color="dimmed"
-                                />
-                            </Box>
-                        </Tooltip>
-                    ) : null}
-                </Group>
-                <Text
-                    truncate
-                    className={classes.fieldDescription}
-                    title={summary || undefined}
-                >
-                    {summary}
-                </Text>
+                </Box>
             </Box>
-        </Box>
-    );
-});
+        );
+    },
+);
 
 export const FieldList: FC<{
     view: ViewModel;
@@ -631,6 +654,16 @@ export const FieldList: FC<{
         setActiveFieldId(field.id);
         onOpenRef.current(field);
     }, []);
+    const dragRow = useCallback(
+        (event: DragEvent, field: Field) =>
+            startStudioChatRefDrag(event.dataTransfer, {
+                modelName: explore.id,
+                fieldName: field.id,
+                modelLabel: explore.label,
+                fieldLabel: field.label,
+            }),
+        [explore.id, explore.label],
+    );
     const selectedIndex = fields.findIndex(({ id }) => id === activeFieldId);
     const tabStop = selectedIndex < 0 ? 0 : selectedIndex;
     // Arriving on an open field (a link, back, reload): show its row.
@@ -784,6 +817,7 @@ export const FieldList: FC<{
                                     joined={field.table !== explore.name}
                                     unsaved={!!view.getDraft(explore, field)}
                                     onOpen={openRow}
+                                    onDragStart={dragRow}
                                 />
                             );
                         })}
@@ -1108,6 +1142,7 @@ export const FieldDetailModal: FC<{
     /** Opens the YAML that defines it; null when there is none to show. */
     onViewCode: (() => void) | null;
 }> = ({ view, explore, field, groups, onClose, onViewCode }) => {
+    const addToChat = useAddToStudioChat();
     const source = getSource(view.project, explore.sourceId);
     const saved = toFieldDraft(field);
     // Drafts live in the view, so closing without saving keeps them.
@@ -1148,16 +1183,39 @@ export const FieldDetailModal: FC<{
                     Only project admins can edit live data source fields
                 </Text>
             </Group>
-        ) : onViewCode ? (
-            <Button
-                size="xs"
-                variant="subtle"
-                color="gray"
-                className={classes.pressable}
-                onClick={onViewCode}
-            >
-                View code
-            </Button>
+        ) : onViewCode || addToChat ? (
+            <Group gap={4} wrap="nowrap">
+                {onViewCode ? (
+                    <Button
+                        size="xs"
+                        variant="subtle"
+                        color="gray"
+                        className={classes.pressable}
+                        onClick={onViewCode}
+                    >
+                        View code
+                    </Button>
+                ) : null}
+                {addToChat ? (
+                    <Button
+                        size="xs"
+                        variant="subtle"
+                        color="gray"
+                        className={classes.pressable}
+                        onClick={() => {
+                            addToChat({
+                                modelName: explore.id,
+                                fieldName: field.id,
+                                modelLabel: explore.label,
+                                fieldLabel: field.label,
+                            });
+                            onClose();
+                        }}
+                    >
+                        Ask in chat
+                    </Button>
+                ) : null}
+            </Group>
         ) : null;
 
     return (

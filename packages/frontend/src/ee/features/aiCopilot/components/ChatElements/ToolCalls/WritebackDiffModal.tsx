@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import {
     PatchDiff,
+    Virtualizer,
     WorkerPoolContextProvider,
     type WorkerInitializationRenderOptions,
     type WorkerPoolOptions,
@@ -209,17 +210,23 @@ export const FileDiff: FC<{ patch: string }> = ({ patch }) => {
             className={classes.stackFile}
             style={{ '--diff-color-scheme': colorScheme }}
         >
-            <PatchDiff
-                patch={patch}
-                className={classes.diffHost}
-                options={{
-                    diffStyle: 'unified',
-                    // A thin rule between hunks; the count of lines left out adds nothing here.
-                    hunkSeparators: 'simple',
-                    theme:
-                        colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light',
-                }}
-            />
+            {/* Without its header the diff only draws inside a virtualizer. */}
+            <Virtualizer>
+                <PatchDiff
+                    patch={patch}
+                    className={classes.diffHost}
+                    options={{
+                        diffStyle: 'unified',
+                        disableFileHeader: true,
+                        // A thin rule between hunks; the count of lines left out adds nothing here.
+                        hunkSeparators: 'simple',
+                        theme:
+                            colorScheme === 'dark'
+                                ? 'pierre-dark'
+                                : 'pierre-light',
+                    }}
+                />
+            </Virtualizer>
         </Box>
     );
 };

@@ -389,6 +389,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.updateArtifactVersionSavedSql': [
         AgentCapability.ContentWrite,
     ],
+    'AiAgentController.updateArtifactVersionSavedComposerChart': [
+        AgentCapability.ContentWrite,
+    ],
     'AiAgentController.updateArtifactVersionVizConfig': [
         AgentCapability.ContentWrite,
     ],

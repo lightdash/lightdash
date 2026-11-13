@@ -18,6 +18,7 @@ import {
     Menu,
     SegmentedControl,
     Stack,
+    Text,
 } from '@mantine/core';
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
 import {
@@ -30,11 +31,16 @@ import {
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC, type RefObject } from 'react';
+import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
+import {
+    SaveComposerChartModal,
+    type SavedComposerChartLink,
+} from '../../../../../features/composerCharts/components/SaveComposerChartModal';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -56,6 +62,7 @@ import {
     type AiComposerVizConfigPanelMode,
 } from './composerVizConfig/AiComposerVizConfigPanel';
 import { useArtifactResultRows } from './useArtifactResultRows';
+import { useComposerChartSaveAction } from './useComposerChartSaveAction';
 import { useComposerMergeChartActions } from './useComposerMergeChartActions';
 import {
     useComposerNodeResults,
@@ -88,6 +95,8 @@ type Props = {
     /** Null when this pipeline can't be pinned to the chat. */
     onAddToChat: ((node: { nodeId: string; title: string }) => void) | null;
     initialView: ArtifactView;
+    /** The composer chart this version was saved as; null when unsaved. */
+    savedComposerChart: SavedComposerChartLink | null;
 };
 
 type ArtifactView = 'chart' | 'lineage';
@@ -110,6 +119,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     chatNodeIds,
     onAddToChat,
     initialView,
+    savedComposerChart,
 }) => {
     const getUiString = useUiStrings();
     const { user } = useApp();
@@ -128,6 +138,10 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     ] = useDisclosure(false);
     const [saveModalOpened, { open: openSaveModal, close: closeSaveModal }] =
         useDisclosure(false);
+    const [
+        composerSaveModalOpened,
+        { open: openComposerSaveModal, close: closeComposerSaveModal },
+    ] = useDisclosure(false);
     const canExportData = user.data?.ability?.can(
         'manage',
         subject('ExportCsv', {
@@ -170,6 +184,16 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         columns,
         title,
         description,
+    });
+    const composerSave = useComposerChartSaveAction({
+        projectUuid,
+        agentUuid,
+        source,
+        config,
+        columns,
+        title,
+        description,
+        savedComposerChart,
     });
     const storedVizConfig =
         config.schemaVersion === 1 ? (config.vizConfig ?? null) : null;
@@ -287,7 +311,8 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 />
                 {(canExportImage ||
                     canDownloadResults ||
-                    !!mergeChartActions) && (
+                    !!mergeChartActions ||
+                    !!composerSave) && (
                     <Menu withArrow position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
@@ -350,6 +375,36 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                                     {mergeChartActions.quickSaveDashboard
                                         ? 'Save to…'
                                         : 'Save'}
+                                </Menu.Item>
+                            )}
+                            {composerSave?.kind === 'saved' && (
+                                <Menu.Item
+                                    component={Link}
+                                    to={`/projects/${projectUuid}/dashboards/${composerSave.dashboardUuid}`}
+                                    target="_blank"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconLayoutDashboard}
+                                        />
+                                    }
+                                >
+                                    View on dashboard
+                                </Menu.Item>
+                            )}
+                            {composerSave?.kind === 'save' && (
+                                <Menu.Item
+                                    disabled={!!composerSave.disabledReason}
+                                    onClick={openComposerSaveModal}
+                                    leftSection={
+                                        <MantineIcon icon={IconDeviceFloppy} />
+                                    }
+                                >
+                                    Save
+                                    {composerSave.disabledReason && (
+                                        <Text fz="xs" c="dimmed">
+                                            {composerSave.disabledReason}
+                                        </Text>
+                                    )}
                                 </Menu.Item>
                             )}
                             {mergeChartActions && (
@@ -482,6 +537,19 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                     />
                 </MantineModal>
             )}
+            {composerSaveModalOpened &&
+                composerSave?.kind === 'save' &&
+                composerSave.draft && (
+                    <SaveComposerChartModal
+                        projectUuid={projectUuid}
+                        onClose={closeComposerSaveModal}
+                        name={title}
+                        description={description ?? ''}
+                        pipeline={composerSave.draft.pipeline}
+                        chart={composerSave.draft.chart}
+                        onSaved={composerSave.link}
+                    />
+                )}
             {downloadQueryUuid && (
                 <ExportDataModal
                     isOpen={downloadModalOpened}

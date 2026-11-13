@@ -108,31 +108,6 @@
     margin-inline: auto;
 }
 
-.summary {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: var(--mantine-font-size-sm);
-    color: var(--mantine-color-dimmed);
-}
-
-.summaryDot {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: currentColor;
-    opacity: 0.6;
-}
-
-.summaryLink {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: var(--mantine-font-size-sm);
-    color: var(--mantine-color-text);
-}
-
 .lineCounts {
     display: inline-flex;
     gap: 6px;
@@ -189,6 +164,36 @@
     padding: 14px;
 }
 
+/* The code runs to the card's edges so its gutter lines up with the rows above. */
+.fileBlock {
+    margin-inline: -14px;
+    padding-top: 4px;
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.modelBody > .fileBlock:last-child {
+    margin-bottom: -14px;
+}
+
+.totals:empty {
+    display: none;
+}
+
+/* Totals share the card's left edge instead of their own inset. */
+.totals > * {
+    padding-inline: 0;
+}
+
+.fileName {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
+
 /* A change arrives from the chat's side, since that is where it was asked for. */
 .arrives {
     animation: arrive 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -205,4 +210,75 @@
     .arrives {
         animation: none;
     }
+}
+
+/* A model or field is being dragged: the chat offers itself, and firms up once the drag is over it. */
+.panel[data-dragging] {
+    outline: 1px dashed var(--mantine-color-default-border);
+    outline-offset: -8px;
+}
+
+.panel[data-dropping] {
+    outline: 2px dashed var(--mantine-color-dimmed);
+}
+
+.dropHint {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--mantine-color-body) 85%, transparent);
+    backdrop-filter: blur(2px);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+    transition: color 120ms ease;
+}
+
+.panel[data-dropping] .dropHint {
+    color: var(--mantine-color-text);
+}
+
+.refChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 12px 8px;
+}
+
+.refChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    height: 24px;
+    padding: 0 2px 0 8px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 999px;
+    background: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+    font-size: 12px;
+}
+
+.refModel {
+    font-size: inherit;
+    color: var(--mantine-color-dimmed);
+}
+
+.refModel::after {
+    content: '/';
+    margin-left: 4px;
+}
+
+.refName {
+    font-size: inherit;
+    font-weight: 500;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
