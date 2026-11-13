@@ -79,10 +79,10 @@ export const ParameterInteractivityOptionsSchema = z.object({
     // Parameters the viewer may change. Nullish (all) because python clients serialize None to null
     allowedParameters: z.array(z.string()).nullish(),
     // Apply the parameters but don't show them to the viewer
-    hidden: z.boolean().optional(),
+    hidden: z.boolean().nullish(),
     // Values applied on render, over the dashboard's saved values. They apply even when
     // `enabled` is false; a viewer can change one only when it is allowed.
-    values: z.record(z.string(), EmbedParameterValueSchema).optional(),
+    values: z.record(z.string(), EmbedParameterValueSchema).nullish(),
 });
 
 export type ParameterInteractivityOptions = z.infer<
@@ -309,9 +309,9 @@ export type CommonEmbedJwtContent = {
         // Parameters the viewer may change; omitted or null allows all
         allowedParameters?: string[] | null;
         // Apply the parameters but don't show them to the viewer
-        hidden?: boolean;
+        hidden?: boolean | null;
         // Values applied on render, over the dashboard's saved values
-        values?: ParametersValuesMap;
+        values?: ParametersValuesMap | null;
     };
     canExportCsv?: boolean;
     canExportDashboardCsv?: boolean;

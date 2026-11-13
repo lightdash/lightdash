@@ -337,6 +337,23 @@ describe('embed parameter interactivity', () => {
         expect(result.success).toBe(true);
     });
 
+    it('treats null hidden and values like absent ones', () => {
+        const options = {
+            enabled: true,
+            allowedParameters: null,
+            hidden: null,
+            values: null,
+        };
+        expect(
+            EmbedJwtSchema.safeParse(jwtWithParameters(options)).success,
+        ).toBe(true);
+        expect(isParameterInteractivityVisible(options)).toBe(true);
+        expect(getEmbedParameterValues(options, { region: 'EMEA' })).toEqual({
+            region: 'EMEA',
+        });
+        expect(canEmbedViewerResolveTileParameters(options)).toBe(true);
+    });
+
     it('rejects a value that is not a parameter value', () => {
         const result = EmbedJwtSchema.safeParse(
             jwtWithParameters({ enabled: true, values: { region: { a: 1 } } }),
