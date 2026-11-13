@@ -21,7 +21,7 @@ import {
 import {
     apiClientSend,
     composerChartBody,
-    composerTile,
+    composerTile as composerTileFor,
     createComposerDashboard,
 } from '../helpers/composerDashboard';
 import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
@@ -108,7 +108,7 @@ describe('Composer charts', () => {
         admin.patch<Body<Dashboard>>(
             `/api/v1/dashboards/${dashboard.uuid}`,
             {
-                tiles: [composerTile(composerChartUuid)],
+                tiles: [composerTileFor(composerChartUuid)],
                 filters: dashboard.filters,
                 tabs: dashboard.tabs,
             },

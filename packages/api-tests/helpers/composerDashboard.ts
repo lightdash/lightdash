@@ -93,6 +93,7 @@ export const deleteComposerDashboard = (
 /** A new dashboard in the seed project holding one composer chart tile. */
 export const createComposerDashboard = async (
     send: ComposerApiSend,
+    { pipeline }: Partial<Pick<CreateComposerChart, 'pipeline'>> = {},
 ): Promise<ComposerDashboard> => {
     const projectUuid = SEED_PROJECT.project_uuid;
     const name = `Composer test dashboard ${randomUUID().slice(0, 8)}`;
@@ -105,7 +106,10 @@ export const createComposerDashboard = async (
         const chart = await send<ComposerChart>(
             'POST',
             `/api/v2/projects/${projectUuid}/composer-charts`,
-            composerChartBody(created.uuid),
+            {
+                ...composerChartBody(created.uuid),
+                ...(pipeline && { pipeline }),
+            },
         );
         const dashboard = await send<Dashboard>(
             'PATCH',
