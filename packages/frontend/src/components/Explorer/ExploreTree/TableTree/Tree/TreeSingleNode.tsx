@@ -602,8 +602,8 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                     maw={260}
                                     label={
                                         fieldChange.kind === 'new'
-                                            ? 'New in your changes'
-                                            : `Changed in your changes: ${fieldChange.attributes.join(', ')}`
+                                            ? 'Added by your changes'
+                                            : `Your changes edit its ${fieldChange.attributes.join(', ')}`
                                     }
                                 >
                                     <Badge

@@ -63,6 +63,26 @@ describe('diffModelFields', () => {
     });
 });
 
+describe('diffModelFields equality', () => {
+    it('ignores key order and the ids each compile gives filters', () => {
+        const live = explore({
+            a: {
+                name: 'a',
+                spotlight: { categories: ['x'], visibility: 'show' },
+                filters: [{ id: '1', operator: 'equals', values: [1] }],
+            },
+        });
+        const mine = explore({
+            a: {
+                name: 'a',
+                spotlight: { visibility: 'show', categories: ['x'] },
+                filters: [{ values: [1], id: '2', operator: 'equals' }],
+            },
+        });
+        expect(diffModelFields(live, mine)).toEqual([]);
+    });
+});
+
 describe('findTouchedFields', () => {
     it('lists redefined and removed fields, not relabelled or new ones', () => {
         const field = (name: string, compiledSql: string, label = name) => ({

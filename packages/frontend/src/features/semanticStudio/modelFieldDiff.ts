@@ -5,6 +5,7 @@ import {
     type Explore,
     type SemanticLayerTouchedField,
 } from '@lightdash/common';
+import { isEqual, omit } from 'es-toolkit/compat';
 
 export type FieldChange = {
     /** `table.name`, stable across both versions. */
@@ -36,6 +37,12 @@ const getFields = (explore: Explore | null): Map<string, FieldLike> => {
     );
 };
 
+// Each compile gives a metric's filters new ids, so they are compared without them.
+const comparable = (name: string, value: unknown): unknown =>
+    name === 'filters' && Array.isArray(value)
+        ? value.map((filter: object) => omit(filter, 'id'))
+        : value;
+
 const toWords = (key: string): string =>
     key.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 
@@ -60,8 +67,10 @@ export const diffModelFields = (
             .filter(
                 (name) =>
                     !DERIVED.has(name) &&
-                    JSON.stringify(Reflect.get(field, name)) !==
-                        JSON.stringify(Reflect.get(old, name)),
+                    !isEqual(
+                        comparable(name, Reflect.get(field, name)),
+                        comparable(name, Reflect.get(old, name)),
+                    ),
             )
             .map(toWords);
         if (attributes.length > 0) {
