@@ -40828,6 +40828,15 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "savedComposerChartUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when unsaved or the composer chart was deleted."
+                    },
+                    "savedComposerChartDashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "versionCreatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -40855,6 +40864,8 @@
                     "savedQueryUuid",
                     "savedSqlUuid",
                     "savedDashboardUuid",
+                    "savedComposerChartUuid",
+                    "savedComposerChartDashboardUuid",
                     "versionCreatedAt",
                     "verifiedByUserUuid",
                     "verifiedAt"
@@ -79045,7 +79056,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.252.0",
+        "version": "3.253.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -92293,6 +92304,89 @@
                                     }
                                 },
                                 "required": ["savedSqlUuid"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/savedComposerChart": {
+            "patch": {
+                "operationId": "updateArtifactVersionSavedComposerChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "artifactUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "versionUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "savedComposerChartUuid": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/UUID"
+                                            }
+                                        ],
+                                        "nullable": true
+                                    }
+                                },
+                                "required": ["savedComposerChartUuid"],
                                 "type": "object"
                             }
                         }

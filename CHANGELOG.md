@@ -1,3 +1,17 @@
+# [3.253.0](https://github.com/lightdash/lightdash/compare/3.252.0...3.253.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **ai:** tidy the Studio change card and drop the Changes stat cards ([#32570](https://github.com/lightdash/lightdash/issues/32570)) ([57d69dc](https://github.com/lightdash/lightdash/commit/57d69dc788179347d574b201d812c218289fb7a3))
+
+
+### Features
+
+* **ai:** drag fields and models into the Studio chat ([#32568](https://github.com/lightdash/lightdash/issues/32568)) ([d9c31d0](https://github.com/lightdash/lightdash/commit/d9c31d0bddc99f7dd0a83e9d9f60a03ea702ba1f))
+* **composer:** save an AI answer to a dashboard ([#32571](https://github.com/lightdash/lightdash/issues/32571)) ([e599182](https://github.com/lightdash/lightdash/commit/e5991821e8a55bfc5a7d66dfba61c35b345de7ba))
+* **data-apps:** simpler app state modal with history on demand ([#32554](https://github.com/lightdash/lightdash/issues/32554)) ([7c9c2d6](https://github.com/lightdash/lightdash/commit/7c9c2d66480e895ec2ef388f8d48f9c9c3313bd6))
+
 # [3.252.0](https://github.com/lightdash/lightdash/compare/3.251.2...3.252.0) (2026-11-13)
 
 
