@@ -663,3 +663,200 @@ describe('embed control drafts', () => {
         });
     });
 });
+
+describe('the control order around filters the embed token hides', () => {
+    const filterRef = (id: string, newLine?: true) => ({
+        kind: DashboardControlRefKind.FILTER,
+        id,
+        ...(newLine && { newLine }),
+    });
+    const parameterRef = (id: string) => ({
+        kind: DashboardControlRefKind.PARAMETER,
+        id,
+    });
+    const sectionRef = { kind: DashboardControlRefKind.SECTION, id: 's' };
+    const controls = [
+        regionControl('emea'),
+        { ...regionControl('x'), id: 'other', parameters: { other: 'all' } },
+    ] as DashboardParameterControl[];
+    const some = {
+        enabled: FilterInteractivityValues.some,
+        allowedFilters: ['b'],
+    };
+    const none = { enabled: FilterInteractivityValues.none };
+    const emptyFilters = { dimensions: [], metrics: [], tableCalculations: [] };
+
+    // Loaded rules a, b, c; `some` shows b alone, `none` no rule at all
+    const savedOrder = ({
+        loadedOrder,
+        editorOrder,
+        filtersInteractivity = some,
+        hiddenSectionId,
+        storeDimensions = [rule('b')],
+    }: {
+        loadedOrder: ReturnType<typeof filterRef>[] | undefined;
+        editorOrder: ReturnType<typeof filterRef>[] | null;
+        filtersInteractivity?: typeof some | typeof none;
+        hiddenSectionId?: string;
+        storeDimensions?: DashboardFilterRule[];
+    }) => {
+        const controlSections =
+            hiddenSectionId === undefined
+                ? []
+                : [{ id: hiddenSectionId, name: 'Dates' }];
+        const isShown = filtersInteractivity === some;
+        const update = buildEmbedDashboardUpdate({
+            ...base,
+            dashboard: {
+                filters: {
+                    ...emptyFilters,
+                    dimensions: [
+                        rule('a', { sectionId: hiddenSectionId }),
+                        rule('b'),
+                        rule('c'),
+                    ],
+                },
+                config: {
+                    isDateZoomDisabled: true,
+                    parameterControls: controls,
+                    controlSections,
+                    controlOrder: loadedOrder,
+                },
+                parameters: {},
+            },
+            filters: isShown
+                ? { ...emptyFilters, dimensions: storeDimensions }
+                : emptyFilters,
+            filtersInteractivity,
+            controlDrafts: {
+                ...unchangedDrafts,
+                controlSections,
+                parameterControls: controls,
+                controlOrder: editorOrder ?? loadedOrder,
+                hasControlOrderChanged: editorOrder !== null,
+                areFiltersShown: isShown,
+            },
+        });
+        if (!('config' in update)) {
+            throw new Error('Expected a versioned update');
+        }
+        return update.config?.controlOrder;
+    };
+    const loadedOrder = [
+        filterRef('a'),
+        filterRef('b'),
+        parameterRef('region-control'),
+        filterRef('c'),
+    ];
+
+    it("keeps the refs 'some' hides in their loaded slots through a reorder", () => {
+        expect(
+            savedOrder({
+                loadedOrder,
+                editorOrder: [parameterRef('region-control'), filterRef('b')],
+            }),
+        ).toEqual([
+            filterRef('a'),
+            parameterRef('region-control'),
+            filterRef('b'),
+            filterRef('c'),
+            parameterRef('other'),
+        ]);
+    });
+
+    it("keeps every filter ref under 'none' when a parameter moves", () => {
+        expect(
+            savedOrder({
+                loadedOrder: [...loadedOrder, parameterRef('other')],
+                editorOrder: [
+                    parameterRef('other'),
+                    parameterRef('region-control'),
+                ],
+                filtersInteractivity: none,
+            }),
+        ).toEqual([
+            filterRef('a'),
+            filterRef('b'),
+            parameterRef('other'),
+            filterRef('c'),
+            parameterRef('region-control'),
+        ]);
+    });
+
+    it("keeps a hidden ref's line start", () => {
+        expect(
+            savedOrder({
+                loadedOrder: [
+                    filterRef('b'),
+                    filterRef('a', true),
+                    parameterRef('region-control'),
+                    parameterRef('other'),
+                ],
+                editorOrder: [
+                    parameterRef('other'),
+                    parameterRef('region-control'),
+                    filterRef('b'),
+                ],
+            }),
+        ).toEqual([
+            parameterRef('other'),
+            filterRef('a', true),
+            parameterRef('region-control'),
+            filterRef('b'),
+        ]);
+    });
+
+    it('keeps a hidden section member at its loaded slot when its section moves', () => {
+        // Membership is the rule's `sectionId`: read back, a is still in s
+        expect(
+            savedOrder({
+                loadedOrder: [
+                    filterRef('b'),
+                    sectionRef,
+                    filterRef('a'),
+                    parameterRef('region-control'),
+                    parameterRef('other'),
+                ],
+                editorOrder: [
+                    sectionRef,
+                    filterRef('b'),
+                    parameterRef('region-control'),
+                    parameterRef('other'),
+                ],
+                hiddenSectionId: 's',
+            }),
+        ).toEqual([
+            sectionRef,
+            filterRef('b'),
+            filterRef('a'),
+            parameterRef('region-control'),
+            parameterRef('other'),
+        ]);
+    });
+
+    it('writes a hidden ref once when the store still holds its rule', () => {
+        expect(
+            savedOrder({
+                loadedOrder,
+                editorOrder: [
+                    parameterRef('region-control'),
+                    filterRef('b'),
+                    filterRef('a'),
+                ],
+                storeDimensions: [rule('b'), rule('a')],
+            })?.filter(({ id }) => id === 'a'),
+        ).toEqual([filterRef('a')]);
+    });
+
+    it('carries the loaded order forward when the editor reordered nothing', () => {
+        expect(savedOrder({ loadedOrder, editorOrder: null })).toEqual(
+            loadedOrder,
+        );
+    });
+
+    it('writes no order where none was saved and nothing was reordered', () => {
+        expect(
+            savedOrder({ loadedOrder: undefined, editorOrder: null }),
+        ).toBeUndefined();
+    });
+});

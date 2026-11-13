@@ -121,7 +121,8 @@ Openings (optional props, defaults are today's behaviour):
   `isEditMode` too it is the app's editor bar: always `SectionedFilters`,
   `DefaultZoomButton` in the shipped Default zoom's place.
 - `SectionedFilters`: `editorActions` (default `AddControl`; the embed
-  passes one with its class contract). `AddControl`: `withParameters` and
+  passes one with its class contract) and `hiddenFilters` (default none;
+  the embed passes the saved rules its token hides). `AddControl`: `withParameters` and
   `withDateZooms` (default `true`; the embed passes what its token shows,
   so an editor cannot add a control the bar hides). `FilterBarMenu`:
   `withDateZooms` (default `true`: both date zoom items; `AddControl`
@@ -256,9 +257,11 @@ Each one has broken before or would break silently.
   zoom, parameters) has no control on the bar, so `getEmbedControlDrafts`
   reads it as saved: its drafts never enable Save and its keys (and
   `parameters`) are sent as loaded, list order included; hidden filter
-  rules keep their loaded order too. A section holding a member of such a
-  kind has no remove item (`SectionedFilters` passes `onRemove: null` to
-  `SectionMenu`), so the member is never stranded. A host turning `isEditMode` off without
+  rules keep their loaded order too, and their refs their loaded slots in
+  a written `controlOrder` (`keepHiddenRefs`). A section holding a member of such a
+  kind, or a filter rule the token hides (`getEmbedHiddenFilters`, passed as
+  `hiddenFilters`), has no remove item (`SectionedFilters` passes
+  `onRemove: null` to `SectionMenu`), so the member is never stranded. A host turning `isEditMode` off without
   Cancel drops the control drafts (what an open editor applies on the way
   out included) but keeps filter rule drafts, as before the controls. The embed resolves the flag for the JWT's
   organisation (`FeatureFlagService.getForAccount`). A language map's

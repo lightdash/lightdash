@@ -1,6 +1,8 @@
 import {
+    DashboardControlRefKind,
     FilterInteractivityValues,
     getFilterInteractivityValue,
+    isDashboardControlOrder,
     type Dashboard,
     type DashboardConfig,
     type DashboardControlRef,
@@ -173,30 +175,68 @@ export const haveEmbedControlsChanged = (
     (dashboard.config?.requiredFiltersNote || undefined) !==
         (drafts.requiredFiltersNote || undefined);
 
-// The store only holds the rules the token allows (`applyEmbedFilterInteractivity`):
-// the loaded rules it trimmed go back into the save, where they were
+const getInteractivityValue = (
+    interactivity: EmbedFiltersInteractivity | null,
+): FilterInteractivityValues =>
+    interactivity
+        ? getFilterInteractivityValue(interactivity.enabled)
+        : FilterInteractivityValues.none;
+
+// The loaded rules the token keeps out of the store (`applyEmbedFilterInteractivity`)
+const getHiddenFilterIds = (
+    loaded: DashboardFilters,
+    interactivity: EmbedFiltersInteractivity | null,
+): Set<string> => {
+    const value = getInteractivityValue(interactivity);
+    if (value === FilterInteractivityValues.all) return new Set();
+    const rules =
+        value === FilterInteractivityValues.none
+            ? [
+                  ...loaded.dimensions,
+                  ...loaded.metrics,
+                  ...loaded.tableCalculations,
+              ]
+            : loaded.dimensions.filter(
+                  ({ id }) => !interactivity?.allowedFilters?.includes(id),
+              );
+    return new Set(rules.map(({ id }) => id));
+};
+
+// The store only holds the rules the token allows: the loaded rules it
+// trimmed go back into the save, where they were
 const keepHiddenFilters = (
     filters: DashboardFilters,
     loaded: DashboardFilters,
     interactivity: EmbedFiltersInteractivity | null,
 ): DashboardFilters => {
-    const value = interactivity
-        ? getFilterInteractivityValue(interactivity.enabled)
-        : FilterInteractivityValues.none;
+    const value = getInteractivityValue(interactivity);
     if (value === FilterInteractivityValues.none) return loaded;
     if (value !== FilterInteractivityValues.some) return filters;
 
-    const isHidden = (id: string) =>
-        !interactivity?.allowedFilters?.includes(id);
-    const hiddenIds = new Set(
-        loaded.dimensions.map(({ id }) => id).filter(isHidden),
-    );
+    const hiddenIds = getHiddenFilterIds(loaded, interactivity);
     // The editor's rules fill the allowed rules' slots, in the editor's order
     const edited = filters.dimensions.filter(({ id }) => !hiddenIds.has(id));
     const slots = loaded.dimensions.flatMap((rule) =>
         hiddenIds.has(rule.id) ? [rule] : edited.splice(0, 1),
     );
     return { ...filters, dimensions: [...slots, ...edited] };
+};
+
+// A written order holds only the controls the editor sees: the hidden rules'
+// refs go back at their loaded slots, the editor's refs fill the others
+const keepHiddenRefs = (
+    order: DashboardControlRef[] | null,
+    loadedOrder: unknown,
+    hiddenIds: Set<string>,
+): DashboardControlRef[] | null => {
+    if (order === null || !isDashboardControlOrder(loadedOrder)) return order;
+    const isHidden = ({ kind, id }: DashboardControlRef) =>
+        kind === DashboardControlRefKind.FILTER && hiddenIds.has(id);
+    const edited = order.filter((ref) => !isHidden(ref));
+    const slots = loadedOrder.flatMap((ref) =>
+        isHidden(ref) ? [ref] : edited.splice(0, 1),
+    );
+    return [...slots, ...edited];
 };
 
 /** What an embed editor's Save sends */
@@ -314,7 +354,11 @@ export const buildEmbedDashboardUpdate = ({
                 parameterControlsToSave: controlDrafts.areParametersAllowed
                     ? controlsToSave.parameterControlsToSave
                     : null,
-                controlOrderToSave: controlsToSave.controlOrderToSave,
+                controlOrderToSave: keepHiddenRefs(
+                    controlsToSave.controlOrderToSave,
+                    dashboard.config?.controlOrder,
+                    getHiddenFilterIds(dashboard.filters, filtersInteractivity),
+                ),
             }),
             // Never seeded in the embed's store: as loaded
             pinnedParameters: dashboard.config?.pinnedParameters,
