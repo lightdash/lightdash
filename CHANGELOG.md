@@ -1,3 +1,15 @@
+# [3.255.0](https://github.com/lightdash/lightdash/compare/3.254.1...3.255.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* polish analytics settings layout and chart consistency ([#32550](https://github.com/lightdash/lightdash/issues/32550)) ([a14c74a](https://github.com/lightdash/lightdash/commit/a14c74af3707597babd8b6b475ea7b273c5b098e))
+
+
+### Features
+
+* **embed:** emit contentStateChanged with current filters, parameters and query ([#32421](https://github.com/lightdash/lightdash/issues/32421)) ([aba3e68](https://github.com/lightdash/lightdash/commit/aba3e68a2cb06b0dea681b86ba3700d37e115cc1))
+
 ## [3.254.1](https://github.com/lightdash/lightdash/compare/3.254.0...3.254.1) (2026-11-13)
 
 
