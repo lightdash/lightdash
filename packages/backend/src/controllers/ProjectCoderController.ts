@@ -86,6 +86,7 @@ import {
     CODE_READ_MIDDLEWARES,
     CODE_WRITE_MIDDLEWARES,
     codeSuccess,
+    refuseComposerChartFile,
     toDraftSummary,
     toWritebackSummary,
 } from './CoderControllerUtils';
@@ -1070,7 +1071,7 @@ export class ProjectCoderController extends BaseController {
      * @summary Upsert chart as code
      */
     @Tags('Projects')
-    @Middlewares(CODE_READ_MIDDLEWARES)
+    @Middlewares([...CODE_READ_MIDDLEWARES, refuseComposerChartFile])
     @SuccessResponse('200', 'Success')
     @Post('/code/charts/{slug}')
     @OperationId('upsertCodeChart')
