@@ -1,5 +1,6 @@
 import {
     DashboardControlRefKind,
+    FilterInteractivityValues,
     FilterOperator,
     type Dashboard,
     type DashboardFilterRule,
@@ -82,6 +83,7 @@ const base = {
     filterLabelOverrides: { labels: { Status: 'Estado' } },
     isAddFilterDisabled: true,
     isDateZoomDisabled: null,
+    filtersInteractivity: { enabled: FilterInteractivityValues.all },
 } as unknown as Omit<
     Parameters<typeof buildEmbedDashboardUpdate>[0],
     'controlDrafts'
@@ -280,6 +282,173 @@ describe('buildEmbedDashboardUpdate', () => {
         expect(update.filters?.dimensions[1]).toMatchObject({
             label: 'Status',
             values: ['x'],
+        });
+    });
+});
+
+describe('filters the embed token hides', () => {
+    const loadedFilters = {
+        dimensions: [
+            rule('a', { sectionId: 'a' }),
+            rule('b'),
+            rule('c', { label: 'Status' }),
+        ],
+        metrics: [rule('m')],
+        tableCalculations: [rule('t')],
+    };
+    const loaded = { ...dashboard, filters: loadedFilters } as typeof dashboard;
+    const editedB = rule('b', { values: ['edited'] });
+    const some = {
+        enabled: FilterInteractivityValues.some,
+        allowedFilters: ['b'],
+    };
+    // What `some` leaves in the store: the allowed rule, every metric and calc
+    const storeWith = (dimensions: DashboardFilterRule[]) => ({
+        dimensions,
+        metrics: loadedFilters.metrics,
+        tableCalculations: loadedFilters.tableCalculations,
+    });
+    const emptyStore = { dimensions: [], metrics: [], tableCalculations: [] };
+
+    describe.each([
+        ['with the controls off', null],
+        ['with the controls on', unchangedDrafts],
+    ])('%s', (_name, drafts) => {
+        const save = (
+            args: Pick<
+                Parameters<typeof buildEmbedDashboardUpdate>[0],
+                'filters' | 'filtersInteractivity'
+            >,
+        ) => {
+            const update = buildEmbedDashboardUpdate({
+                ...base,
+                dashboard: loaded,
+                ...args,
+                // The bar shows no filter area unless the token allows some
+                controlDrafts: drafts && {
+                    ...drafts,
+                    areFiltersShown: args.filters !== emptyStore,
+                },
+            });
+            if (!('filters' in update)) {
+                throw new Error('Expected a versioned update');
+            }
+            return update.filters;
+        };
+
+        it.each([
+            ['none', { enabled: FilterInteractivityValues.none }],
+            ['a false flag', { enabled: false }],
+            ['no interactivity', null],
+        ])('saves the filters as loaded under %s', (_case, interactivity) => {
+            expect(
+                save({
+                    filters: emptyStore,
+                    filtersInteractivity: interactivity,
+                }),
+            ).toEqual(loadedFilters);
+        });
+
+        it("keeps the rules 'some' hides in place around the editor's edit", () => {
+            expect(
+                save({
+                    filters: storeWith([editedB]),
+                    filtersInteractivity: some,
+                }),
+            ).toEqual(
+                storeWith([
+                    rule('a', { sectionId: 'a' }),
+                    editedB,
+                    rule('c', { label: 'Status' }),
+                ]),
+            );
+        });
+
+        it("keeps the rules 'some' hides when the editor removes the allowed one", () => {
+            expect(
+                save({ filters: storeWith([]), filtersInteractivity: some })
+                    ?.dimensions,
+            ).toEqual([
+                loadedFilters.dimensions[0],
+                loadedFilters.dimensions[2],
+            ]);
+        });
+
+        it("keeps the rules 'some' hides when the editor adds one", () => {
+            expect(
+                save({
+                    filters: storeWith([editedB, rule('new')]),
+                    filtersInteractivity: some,
+                })?.dimensions.map(({ id }) => id),
+            ).toEqual(['a', 'b', 'c', 'new']);
+        });
+
+        it.each([
+            ['no allowed filters', { allowedFilters: [] }],
+            ['a null allowed list', { allowedFilters: null }],
+        ])(
+            "keeps every dimension rule under 'some' with %s",
+            (_case, allowed) => {
+                expect(
+                    save({
+                        filters: storeWith([]),
+                        filtersInteractivity: {
+                            enabled: FilterInteractivityValues.some,
+                            ...allowed,
+                        },
+                    })?.dimensions,
+                ).toEqual(loadedFilters.dimensions);
+            },
+        );
+
+        it("keeps the rules 'some' hides when the token also hides the bar", () => {
+            expect(
+                save({
+                    filters: storeWith([editedB]),
+                    filtersInteractivity: { ...some, hidden: true },
+                })?.dimensions.map(({ id }) => id),
+            ).toEqual(['a', 'b', 'c']);
+        });
+
+        it('saves a hidden rule once, as loaded, when the store still holds it', () => {
+            expect(
+                save({
+                    filters: storeWith([
+                        rule('a', { values: ['edited'] }),
+                        editedB,
+                    ]),
+                    filtersInteractivity: some,
+                })?.dimensions,
+            ).toEqual([
+                loadedFilters.dimensions[0],
+                editedB,
+                loadedFilters.dimensions[2],
+            ]);
+        });
+
+        it("saves the editor's metric and calculation rules under 'some'", () => {
+            expect(
+                save({
+                    filters: {
+                        dimensions: [editedB],
+                        metrics: [],
+                        tableCalculations: [rule('t2')],
+                    },
+                    filtersInteractivity: some,
+                }),
+            ).toMatchObject({ metrics: [], tableCalculations: [rule('t2')] });
+        });
+
+        it.each([
+            ['all', { enabled: FilterInteractivityValues.all }],
+            ['hidden', { enabled: true, hidden: true }],
+        ])("saves the editor's filters under %s", (_case, interactivity) => {
+            expect(
+                save({
+                    filters: storeWith([editedB]),
+                    filtersInteractivity: interactivity,
+                }),
+            ).toEqual(storeWith([editedB]));
         });
     });
 });

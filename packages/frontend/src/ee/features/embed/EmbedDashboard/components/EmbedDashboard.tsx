@@ -1104,6 +1104,8 @@ const EmbedDashboard: FC<{
                     ],
                 },
                 filterLabelOverrides,
+                filtersInteractivity:
+                    dashboard.dashboardFiltersInteractivity ?? null,
                 isAddFilterDisabled,
                 isDateZoomDisabled: ownsDateZoomVisibility
                     ? isDateZoomDisabled

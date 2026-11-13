@@ -243,8 +243,11 @@ Each one has broken before or would break silently.
   `ld-dashboard-add-filter-dropdown` on lists); keep them on the equivalent
   element. An embed editor's Save is `buildEmbedDashboardUpdate`
   (`embedDashboardSave.ts`): flag off, the loaded `dashboard.config` and
-  the store's rules, exactly as before; flag on, the app's save helpers
-  spread over the loaded config. Keys the embed's store is never seeded
+  the store's rules; flag on, the app's save helpers
+  spread over the loaded config. Either way the saved rules the token keeps
+  out of the store (`applyEmbedFilterInteractivity`) go back into the save
+  from the loaded dashboard (`keepHiddenFilters`): all of them under `none`,
+  the dimension rules outside `allowedFilters` under `some`. Keys the embed's store is never seeded
   with are sent as loaded, never from a store default: `pinnedParameters`,
   `parameterOrder`, and `isDateZoomDisabled` unless the token allows date
   zoom, where an editor's edit mode seeds it from the saved config, tiles
