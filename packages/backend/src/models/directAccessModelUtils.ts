@@ -101,10 +101,13 @@ export const hasDirectAccessGrants = async ({
  * grants inert unless the principal still has a current project access path.
  */
 export const getActiveProjectMemberPredicate =
-    (trx: Knex) =>
+    (trx: Knex, { includePendingUser = false } = {}) =>
     (predicate: Knex.QueryBuilder): void => {
         void predicate
-            .where(`${UserTableName}.is_active`, true)
+            .modify((query) => {
+                if (!includePendingUser)
+                    void query.where(`${UserTableName}.is_active`, true);
+            })
             .andWhere((accessPath) => {
                 void accessPath
                     .whereNot(

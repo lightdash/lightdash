@@ -30,9 +30,11 @@ export class SavedSqlAccessModel {
         {
             trx = this.database,
             organizationUuid,
+            includePendingUser = false,
         }: {
             trx?: Knex;
             organizationUuid: string;
+            includePendingUser?: boolean;
         },
     ): Promise<Record<string, SavedSqlDirectAccess>> {
         const uniqueUuids = [...new Set(savedSqlUuids)];
@@ -106,7 +108,7 @@ export class SavedSqlAccessModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .where(getActiveProjectMemberPredicate(trx))
+            .where(getActiveProjectMemberPredicate(trx, { includePendingUser }))
             .where(
                 `${SavedSqlTableName}.project_uuid`,
                 trx.ref(`${ProjectTableName}.project_uuid`),
@@ -175,7 +177,11 @@ export class SavedSqlAccessModel {
                         `${OrganizationTableName}.organization_uuid`,
                         organizationUuid,
                     )
-                    .where(getActiveProjectMemberPredicate(trx))
+                    .where(
+                        getActiveProjectMemberPredicate(trx, {
+                            includePendingUser,
+                        }),
+                    )
                     .where(
                         `${GroupMembershipTableName}.organization_id`,
                         trx.ref(`${ProjectTableName}.organization_id`),

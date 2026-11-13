@@ -68,6 +68,7 @@ import { GroupsService } from './GroupService';
 import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
 import { InstanceBrandService } from './InstanceBrandService/InstanceBrandService';
+import { InviteRenewalAuthorization } from './InviteRenewalAuthorization';
 import { JiraAppService } from './JiraAppService/JiraAppService';
 import { LearnSandboxService } from './LearnSandboxService/LearnSandboxService';
 import { LicenseService } from './LicenseService/LicenseService';
@@ -1800,6 +1801,16 @@ export class ServiceRepository
                     userLearnProgressModel:
                         this.models.getUserLearnProgressModel(),
                     rolesModel: this.models.getRolesModel(),
+                    inviteRenewalAuthorization: new InviteRenewalAuthorization({
+                        rolesModel: this.models.getRolesModel(),
+                        userModel: this.models.getUserModel(),
+                        projectModel: this.models.getProjectModel(),
+                        spacePermissionModel:
+                            this.models.getSpacePermissionModel(),
+                        spacePermissionService:
+                            this.getSpacePermissionService(),
+                        directAccessService: this.getDirectAccessService(),
+                    }),
                 }),
         );
     }

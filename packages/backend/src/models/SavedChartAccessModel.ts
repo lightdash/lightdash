@@ -36,9 +36,11 @@ export class SavedChartAccessModel {
         {
             trx = this.database,
             organizationUuid,
+            includePendingUser = false,
         }: {
             trx?: Knex;
             organizationUuid: string;
+            includePendingUser?: boolean;
         },
     ): Promise<Record<string, SavedChartDirectAccess>> {
         const uniqueUuids = [...new Set(savedChartUuids)];
@@ -112,7 +114,7 @@ export class SavedChartAccessModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
-            .where(getActiveProjectMemberPredicate(trx))
+            .where(getActiveProjectMemberPredicate(trx, { includePendingUser }))
             .where(
                 `${SavedChartsTableName}.project_uuid`,
                 trx.ref(`${ProjectTableName}.project_uuid`),
@@ -181,7 +183,11 @@ export class SavedChartAccessModel {
                         `${OrganizationTableName}.organization_uuid`,
                         organizationUuid,
                     )
-                    .where(getActiveProjectMemberPredicate(trx))
+                    .where(
+                        getActiveProjectMemberPredicate(trx, {
+                            includePendingUser,
+                        }),
+                    )
                     .where(
                         `${GroupMembershipTableName}.organization_id`,
                         trx.ref(`${ProjectTableName}.organization_id`),
