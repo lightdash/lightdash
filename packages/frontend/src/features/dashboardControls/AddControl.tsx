@@ -109,6 +109,10 @@ type Props = {
     triggerClassName?: string;
     /** The viewer bar's tooltip (default: the shipped app wording). */
     unsavedFiltersTooltip?: string;
+    /** Offers parameters (default true; off in an embed without parameter interactivity). */
+    withParameters?: boolean;
+    /** Offers "Date zoom" (default true; off in an embed without date zoom). */
+    withDateZooms?: boolean;
     section?: {
         id: string;
         name: string;
@@ -125,6 +129,8 @@ type Props = {
 export const AddControl: FC<Props> = ({
     triggerClassName,
     unsavedFiltersTooltip,
+    withParameters = true,
+    withDateZooms = true,
     section,
 }) => {
     const openNew = useControlsSidebarSelector((c) => c.openNew);
@@ -149,7 +155,7 @@ export const AddControl: FC<Props> = ({
     const parameterValues = useDashboardSelector(selectParameterValues);
     const parameterControls = useDashboardSelector(selectParameterControls);
     const parameters = useParameterOptions(
-        isViewer || section?.allowParameters === false,
+        isViewer || !withParameters || section?.allowParameters === false,
     );
     const referencesReady = useDashboardSelector((state) => {
         const tiles = selectDashboardTiles(state);
@@ -167,7 +173,7 @@ export const AddControl: FC<Props> = ({
     const [step, setStep] = useState<Step>('closed');
     const anchorRef = useRef<HTMLDivElement>(null);
     const canAddParameter = referencesReady && parameters.length > 0;
-    const canAddDateZoom = !isViewer && hasTiles;
+    const canAddDateZoom = !isViewer && hasTiles && withDateZooms;
     // Nothing but filters: "Add filter", straight to the field search
     const hasChoice =
         parameterControls !== null && (canAddParameter || canAddDateZoom);
@@ -244,7 +250,9 @@ export const AddControl: FC<Props> = ({
                         triggerClassName={triggerClassName}
                         unsavedFiltersTooltip={unsavedFiltersTooltip}
                         editModeAction={
-                            isViewer ? undefined : <FilterBarMenu />
+                            isViewer ? undefined : (
+                                <FilterBarMenu withDateZooms={withDateZooms} />
+                            )
                         }
                         label={
                             hasChoice ? getUiString('controls.add') : undefined

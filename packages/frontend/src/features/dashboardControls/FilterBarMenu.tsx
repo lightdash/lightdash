@@ -96,7 +96,10 @@ const DateZoomItems: FC = () => {
 // The editor's "..." joined to "Add filter", in the shipped eye's place:
 // showing "Add filter" and date zoom to viewers or not, date zoom's grains,
 // and the shipped "Filter rules" popover, anchored here instead of on its own button
-export const FilterBarMenu: FC = () => {
+export const FilterBarMenu: FC<{
+    /** Offers the date zoom items (default true; off in an embed whose token allows no date zoom). */
+    withDateZooms?: boolean;
+}> = ({ withDateZooms = true }) => {
     const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
     const setIsAddFilterDisabled = useDashboardContext(
         (c) => c.setIsAddFilterDisabled,
@@ -162,7 +165,7 @@ export const FilterBarMenu: FC = () => {
                                     ? 'Show Add filter for viewers'
                                     : 'Hide Add filter for viewers'}
                             </Menu.Item>
-                            {hasTiles && <DateZoomItems />}
+                            {hasTiles && withDateZooms && <DateZoomItems />}
                             <Menu.Divider />
                             <Menu.Item
                                 leftSection={

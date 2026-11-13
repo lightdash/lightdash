@@ -83,7 +83,12 @@ const setters = {
 const render = ({
     tiles = [tile],
     isDateZoomDisabled = false,
-}: { tiles?: DashboardTile[]; isDateZoomDisabled?: boolean } = {}) => {
+    withDateZooms,
+}: {
+    tiles?: DashboardTile[];
+    isDateZoomDisabled?: boolean;
+    withDateZooms?: boolean;
+} = {}) => {
     const store = createDashboardTestStore();
     seedDashboardEditState(store, {
         dashboard: { config },
@@ -97,7 +102,7 @@ const render = ({
     };
     renderWithProviders(
         <DashboardStoreTestProvider store={store}>
-            <FilterBarMenu />
+            <FilterBarMenu withDateZooms={withDateZooms} />
         </DashboardStoreTestProvider>,
     );
     return userEvent.click(
@@ -107,6 +112,38 @@ const render = ({
 
 describe('FilterBarMenu', () => {
     beforeEach(() => vi.clearAllMocks());
+
+    it('lists nothing about date zoom where an embed token allows none, keeping the rest', async () => {
+        await render({ withDateZooms: false });
+        expect(
+            screen.queryByRole('menuitem', {
+                name: 'Hide date zoom for viewers',
+            }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('menuitem', {
+                name: 'Hide Add filter for viewers',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('menuitem', { name: /date zoom/i }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('menuitem', { name: 'Filter rules' }),
+        ).toBeInTheDocument();
+    });
+
+    it('lists both date zoom items where date zoom is allowed', async () => {
+        await render();
+        expect(
+            screen.getByRole('menuitem', {
+                name: 'Hide date zoom for viewers',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('menuitem', { name: 'Date zoom grains' }),
+        ).toBeInTheDocument();
+    });
 
     it('hides date zoom from viewers', async () => {
         await render();

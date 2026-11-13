@@ -77,6 +77,7 @@ import {
     selectParameterControls,
     selectDashboardFilters,
     selectSavedFilterOverrides,
+    useDashboardDateZoomConfig,
     useDashboardDispatch,
     useDashboardSelector,
     useDashboardStore,
@@ -170,7 +171,8 @@ type CapsuleActions = {
     /** Alt with an arrow on the name: along the bar, or to the line above or below */
     onMove: (direction: MoveDirection) => void;
     onRename: (name: string) => void;
-    onRemove: () => void;
+    /** Null where the section holds controls this bar does not show (an embed token's limits) */
+    onRemove: (() => void) | null;
 };
 
 type CapsuleProps = {
@@ -362,6 +364,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     isEditorOpen: isEditorOnAdd,
                     allowParameters: withParameters,
                 }}
+                withDateZooms={withDateZooms}
             />
             <SectionMenu
                 label={`${section.name} menu`}
@@ -571,6 +574,8 @@ type Props = {
     activeTabUuid: string | undefined;
     /** A viewer's bar before the pills (default: `AddControl`); an embed passes its own. */
     viewerActions?: ReactNode;
+    /** An editor's bar before the pills (default: `AddControl`); an embed passes its own. */
+    editorActions?: ReactNode;
     /** An embed's class contract hook on each pill (default none). */
     triggerClassName?: string;
     /** Parameter controls after the filters in each pass (default true; an embed may hide them). */
@@ -590,6 +595,7 @@ type Props = {
 export const SectionedFilters: FC<Props> = ({
     activeTabUuid,
     viewerActions = <AddControl />,
+    editorActions = <AddControl />,
     triggerClassName,
     withParameters = true,
     withDateZooms = true,
@@ -738,6 +744,17 @@ export const SectionedFilters: FC<Props> = ({
     const dateZoomEntries = withDateZooms
         ? zoomBar.filter(({ isNew }) => !isNew)
         : [];
+    // Members of a kind this bar leaves out (an embed token's limits), on any
+    // tab: removing their section here would strand them elsewhere
+    const zoomControls = useDashboardDateZoomConfig().controls;
+    const hasUnshownMembers = (sectionId: string) =>
+        (!withParameters &&
+            (parameterControls?.some(
+                (control) => control.sectionId === sectionId,
+            ) ??
+                false)) ||
+        (!withDateZooms &&
+            zoomControls.some((control) => control.sectionId === sectionId));
     const dateZoomCountOf = (sectionId: string | null) =>
         dateZoomEntries.filter((entry) => entry.sectionId === sectionId).length;
     const setZoomSection = useDateZoomEditorSelector((c) => c.setSection);
@@ -1106,26 +1123,28 @@ export const SectionedFilters: FC<Props> = ({
                                       name,
                                   }),
                               ),
-                          onRemove: () => {
-                              // The menu leaves with its capsule
-                              focusAfter.current = [ADD_FILTER_SELECTOR];
-                              const before = store.getState();
-                              dispatch(
-                                  dashboardEditActions.removeControlSection(
-                                      section.id,
-                                  ),
-                              );
-                              if (rules.length > 0) {
-                                  setDashboardFilters((filters) =>
-                                      removeSectionFromRules(
-                                          filters,
-                                          section.id,
-                                      ),
-                                  );
-                                  setHaveFiltersChanged(true);
-                              }
-                              orderSectionChanges(before);
-                          },
+                          onRemove: hasUnshownMembers(section.id)
+                              ? null
+                              : () => {
+                                    // The menu leaves with its capsule
+                                    focusAfter.current = [ADD_FILTER_SELECTOR];
+                                    const before = store.getState();
+                                    dispatch(
+                                        dashboardEditActions.removeControlSection(
+                                            section.id,
+                                        ),
+                                    );
+                                    if (rules.length > 0) {
+                                        setDashboardFilters((filters) =>
+                                            removeSectionFromRules(
+                                                filters,
+                                                section.id,
+                                            ),
+                                        );
+                                        setHaveFiltersChanged(true);
+                                    }
+                                    orderSectionChanges(before);
+                                },
                       }
             }
         />
@@ -1976,7 +1995,7 @@ export const SectionedFilters: FC<Props> = ({
                                 <>
                                     {renderOrderLines(
                                         <UnsectionTarget>
-                                            <AddControl />
+                                            {editorActions}
                                         </UnsectionTarget>,
                                         barEnd,
                                     )}
@@ -1992,7 +2011,7 @@ export const SectionedFilters: FC<Props> = ({
                                         />
                                     )}
                                     <UnsectionTarget>
-                                        <AddControl />
+                                        {editorActions}
                                     </UnsectionTarget>
                                     {pills}
                                     {/* A first section is named inline, where its capsule lands */}

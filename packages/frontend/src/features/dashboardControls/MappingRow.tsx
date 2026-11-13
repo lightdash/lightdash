@@ -33,6 +33,7 @@ import {
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
 import FilterFieldSelect from '../dashboardFilters/FilterConfiguration/FilterFieldSelect';
+import { useControlContractClasses } from './controlContractClasses';
 import { MappingRowFrame } from './ControlMappingRow';
 import { DropdownClass } from './DropdownClass';
 import { getFieldCandidates } from './fieldCandidates';
@@ -56,7 +57,6 @@ import {
     getTileField,
     isTileInRow,
 } from './peers';
-import { useRailContractClasses } from './railContractClasses';
 import { useApplyBlockedReason } from './useApplyBlockedReason';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFieldTileActions } from './useFieldTileActions';
@@ -124,7 +124,7 @@ const AddFieldMenu: FC<{
     onPicked: (fieldId: string) => void;
 }> = ({ rule, onPicked }) => {
     const getUiString = useUiStrings();
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     const [isOpen, setIsOpen] = useState(false);
     const applyWithUndo = useControlsSidebarSelector((c) => c.applyWithUndo);
     const setHighlightedFieldId = useControlsSidebarSelector(

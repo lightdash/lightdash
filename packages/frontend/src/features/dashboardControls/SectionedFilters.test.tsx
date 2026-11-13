@@ -3097,6 +3097,96 @@ describe('SectionedFilters', () => {
             ).not.toBeInTheDocument();
         });
 
+        describe('where an embed token leaves a kind out', () => {
+            const removeItems = () =>
+                screen.queryAllByRole('menuitem', { name: /^Remove section/ });
+            const openMenu = async (name: string) => {
+                await userEvent.click(
+                    screen.getByRole('button', { name: `${name} menu` }),
+                );
+                await screen.findByRole('menuitem', { name: 'Rename' });
+            };
+            const parameterIn = (sectionId: string) =>
+                dashboardParametersActions.syncParameterControls({
+                    controls: [
+                        {
+                            id: 'region-control',
+                            sectionId,
+                            label: 'Region',
+                            value: 'emea',
+                            valueType: { type: 'string', multiple: false },
+                            parameters: { region: 'all' },
+                        },
+                    ],
+                    isSaved: true,
+                });
+
+            it('cannot remove a section holding only controls it does not show', async () => {
+                const { store } = renderSectioned(
+                    [rule('one', 'a')],
+                    'tab-1',
+                    undefined,
+                    [],
+                    { withParameters: false },
+                );
+                act(() => {
+                    store.dispatch(parameterIn('c'));
+                });
+                await openMenu('Empty');
+                expect(removeItems()).toHaveLength(0);
+            });
+
+            it('cannot remove a section mixing shown filters with a date zoom it does not show', async () => {
+                mockDashboardContext.current = {
+                    ...mockDashboardContext.current,
+                    dashboard: {
+                        config: {
+                            isDateZoomDisabled: false,
+                            dateZoomConfig: {
+                                controls: [
+                                    {
+                                        uuid: 'z1',
+                                        name: 'Order grain',
+                                        granularity: 'Month',
+                                        sectionId: 'a',
+                                    },
+                                ],
+                                tileTargets: {},
+                            },
+                        },
+                    },
+                };
+                renderSectioned([rule('one', 'a')], 'tab-1', undefined, [], {
+                    withDateZooms: false,
+                });
+                await openMenu('Dates');
+                expect(removeItems()).toHaveLength(0);
+            });
+
+            it('removes a section whose members are all shown, as anywhere', async () => {
+                const { store } = renderSectioned(
+                    [rule('one', 'a'), rule('three', 'b')],
+                    'tab-1',
+                    undefined,
+                    [],
+                    { withParameters: false, withDateZooms: false },
+                );
+                act(() => {
+                    store.dispatch(parameterIn('c'));
+                });
+                await openMenu('Dates');
+                await userEvent.click(
+                    screen.getByRole('menuitem', {
+                        name: 'Remove section, keep controls',
+                    }),
+                );
+                expect(sectionsOf(store).map(({ id }) => id)).toEqual([
+                    'b',
+                    'c',
+                ]);
+            });
+        });
+
         it('removes a section with members in one click, keeping them on the bar in one write', async () => {
             const { store } = renderSectioned(
                 [rule('one', 'a'), rule('two', 'a'), rule('three', 'b')],
