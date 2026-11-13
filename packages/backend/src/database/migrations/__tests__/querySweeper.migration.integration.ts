@@ -10,7 +10,7 @@ import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
-import { down, up } from '../20261112150000_add_query_creation_clock';
+import { down, up } from '../20261113170000_add_query_creation_clock';
 
 vi.mock('../../../config/lightdashConfig', async () => ({
     lightdashConfig: (await import('../../../config/lightdashConfig.mock'))
