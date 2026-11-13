@@ -11,6 +11,7 @@ import {
     Tooltip,
     type ButtonProps,
 } from '@mantine/core';
+import { useHotkeys } from '@mantine/hooks';
 import {
     IconAppWindow,
     IconChartBar,
@@ -36,6 +37,10 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    toHotkeyItems,
+    type EditShortcut,
+} from '../common/Dashboard/editShortcuts';
 import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { TileAddModal } from './TileForms/TileAddModal';
@@ -54,6 +59,8 @@ type Props = {
     // Overrides the default "New chart" navigation (which leaves for the
     // project's table picker). Embeds use this to build the chart in place.
     onNewChart?: () => void;
+    /** Opens the menu from the keyboard; omitted where the button has no shortcut */
+    shortcut?: EditShortcut;
 } & Pick<ButtonProps, 'disabled' | 'radius'>;
 
 const AddTileButton: FC<Props> = ({
@@ -66,7 +73,14 @@ const AddTileButton: FC<Props> = ({
     allowedTileTypes,
     chartSpaceUuids,
     onNewChart,
+    shortcut,
 }) => {
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    useHotkeys(
+        shortcut && !disabled
+            ? toHotkeyItems(shortcut, () => setIsMenuOpen((open) => !open))
+            : [],
+    );
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -137,7 +151,13 @@ const AddTileButton: FC<Props> = ({
     return (
         <>
             {canAddTile ? (
-                <Menu position="bottom" withArrow width={200}>
+                <Menu
+                    position="bottom"
+                    withArrow
+                    width={200}
+                    opened={isMenuOpen}
+                    onChange={setIsMenuOpen}
+                >
                     <Menu.Target>
                         <Button
                             size="xs"
