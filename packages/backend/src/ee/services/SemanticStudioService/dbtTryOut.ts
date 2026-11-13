@@ -129,5 +129,10 @@ export type DbtTryOut = {
     explores: (Explore | ExploreError)[];
 };
 
-export const dbtTryOutFileId = (projectUuid: string, userUuid: string) =>
-    `semantic-studio-dbt-try-out/${projectUuid}/${userUuid}`;
+/** One try-out per conversation, so each workspace keeps its own; null is where one was kept before workspaces. */
+export const dbtTryOutFileId = (
+    projectUuid: string,
+    userUuid: string,
+    threadUuid: string | null,
+) =>
+    `semantic-studio-dbt-try-out/${projectUuid}/${userUuid}${threadUuid ? `/${threadUuid}` : ''}`;

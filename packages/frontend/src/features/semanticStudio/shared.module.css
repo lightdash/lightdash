@@ -484,6 +484,18 @@
     padding: var(--mantine-spacing-xl);
 }
 
+.firstRequest {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+    text-align: left;
+}
+
+.firstRequest:focus-within {
+    border-color: var(--mantine-color-ldGray-5);
+}
+
 .starterWindow {
     position: relative;
     width: 300px;

@@ -9,6 +9,7 @@ import {
     type SemanticLayerDraft,
     type SemanticLayerDraftConflict,
     type SemanticLayerDraftModel,
+    type SemanticLayerDraftUsage,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -570,6 +571,14 @@ const MAX_LISTED_CHARTS = 5;
 /** Saved charts that read what the draft redefines or removes: nothing breaks, but their numbers move. */
 export const DraftUsage: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data } = useSemanticLayerDraftUsage(projectUuid);
+    return <FieldUsage projectUuid={projectUuid} usage={data} />;
+};
+
+/** Saved charts that read what a change redefines or removes. */
+export const FieldUsage: FC<{
+    projectUuid: string;
+    usage: SemanticLayerDraftUsage | undefined;
+}> = ({ projectUuid, usage: data }) => {
     if (!data || data.fields.length === 0) return null;
     return (
         <Paper className={classes.section}>
@@ -649,10 +658,10 @@ const useTotals = (
     projectUuid: string,
     exploreName: string,
     metricIds: string[],
-    side: 'live' | 'development',
+    headers: Record<string, string>,
     enabled: boolean,
-    /** What the draft holds, so totals are read again when it changes. */
-    draftKey: string,
+    /** What the changes hold, so totals are read again when they change. */
+    cacheKey: string,
 ) => {
     const lightdashApi = useLightdashApi();
     return useQuery<Totals, ApiError>({
@@ -660,21 +669,16 @@ const useTotals = (
             'semantic-layer-draft-totals',
             projectUuid,
             exploreName,
-            side,
+            headers,
             metricIds,
-            draftKey,
+            cacheKey,
         ],
         queryFn: async () => {
             const results = await lightdashApi<ApiQueryResults>({
                 url: `/projects/${projectUuid}/explores/${exploreName}/runQuery`,
                 method: 'POST',
                 // Each side says which models it reads, whatever the app is switched to.
-                headers: {
-                    [DEVELOPMENT_VIEW_HEADER]:
-                        side === 'development' ? 'true' : 'false',
-                    // A draft is read from the draft itself, never from another project's preview.
-                    [DEVELOPMENT_PREVIEW_HEADER]: '',
-                },
+                headers,
                 body: JSON.stringify({
                     exploreName,
                     dimensions: [],
@@ -700,51 +704,52 @@ const useTotals = (
     });
 };
 
-/** A drafted model's metrics as totals, live against in development, run only when asked for since each side is a warehouse query. */
-export const MetricComparison: FC<{
+const LIVE_HEADERS = {
+    [DEVELOPMENT_VIEW_HEADER]: 'false',
+    [DEVELOPMENT_PREVIEW_HEADER]: '',
+};
+
+const DRAFT_HEADERS = {
+    [DEVELOPMENT_VIEW_HEADER]: 'true',
+    [DEVELOPMENT_PREVIEW_HEADER]: '',
+};
+
+/** A model's metrics as totals, live against in development, run only when asked for since each side is a warehouse query. */
+export const CompareTotals: FC<{
     projectUuid: string;
-    draft: SemanticLayerDraft;
-    model: SemanticLayerDraftModel;
-}> = ({ projectUuid, draft, model }) => {
+    exploreName: string;
+    metrics: Metric[];
+    /** The metrics that exist live too; asking live for a new one fails the whole query. */
+    liveMetricIds: string[];
+    isNewModel: boolean;
+    developmentHeaders: Record<string, string>;
+    cacheKey: string;
+}> = ({
+    projectUuid,
+    exploreName,
+    metrics,
+    liveMetricIds,
+    isNewModel,
+    developmentHeaders,
+    cacheKey,
+}) => {
     const [isAsked, setIsAsked] = useState(false);
-    const metrics = findComparedMetrics(draft, model);
     const ids = metrics.map((metric) => getItemId(metric));
-    const isNewModel = model.contentBefore === null;
-    const draftKey = draft.changes
-        .map(({ draftChangeUuid }) => draftChangeUuid)
-        .join();
     const development = useTotals(
         projectUuid,
-        model.model,
+        exploreName,
         ids,
-        'development',
+        developmentHeaders,
         isAsked && ids.length > 0,
-        draftKey,
+        cacheKey,
     );
-    // A metric the draft adds does not exist live, and asking for it there fails the whole query.
-    const added = diffModelDocuments(model.contentBefore, model.contentAfter)
-        .filter(({ kind }) => kind === 'added')
-        .map(({ path }) => path);
-    const liveIds = metrics
-        .filter(
-            ({ name }) =>
-                !added.some(
-                    (path) =>
-                        path.endsWith(`metrics.${name}`) ||
-                        readModelPart(
-                            model.contentAfter,
-                            `${path}.metrics.${name}`,
-                        ) !== null,
-                ),
-        )
-        .map((metric) => getItemId(metric));
     const live = useTotals(
         projectUuid,
-        model.model,
-        liveIds,
-        'live',
-        isAsked && liveIds.length > 0 && !isNewModel,
-        draftKey,
+        exploreName,
+        liveMetricIds,
+        LIVE_HEADERS,
+        isAsked && liveMetricIds.length > 0 && !isNewModel,
+        cacheKey,
     );
     if (metrics.length === 0) return null;
     if (!isAsked) {
@@ -832,6 +837,46 @@ export const MetricComparison: FC<{
                 </Text>
             ) : null}
         </Box>
+    );
+};
+
+/** A drafted model's metrics as totals, live against in development. */
+export const MetricComparison: FC<{
+    projectUuid: string;
+    draft: SemanticLayerDraft;
+    model: SemanticLayerDraftModel;
+}> = ({ projectUuid, draft, model }) => {
+    const metrics = findComparedMetrics(draft, model);
+    // A metric the draft adds does not exist live.
+    const added = diffModelDocuments(model.contentBefore, model.contentAfter)
+        .filter(({ kind }) => kind === 'added')
+        .map(({ path }) => path);
+    const liveMetricIds = metrics
+        .filter(
+            ({ name }) =>
+                !added.some(
+                    (path) =>
+                        path.endsWith(`metrics.${name}`) ||
+                        readModelPart(
+                            model.contentAfter,
+                            `${path}.metrics.${name}`,
+                        ) !== null,
+                ),
+        )
+        .map((metric) => getItemId(metric));
+    return (
+        <CompareTotals
+            projectUuid={projectUuid}
+            exploreName={model.model}
+            metrics={metrics}
+            liveMetricIds={liveMetricIds}
+            isNewModel={model.contentBefore === null}
+            // A draft is read from the draft itself, never from another project's preview.
+            developmentHeaders={DRAFT_HEADERS}
+            cacheKey={draft.changes
+                .map(({ draftChangeUuid }) => draftChangeUuid)
+                .join()}
+        />
     );
 };
 

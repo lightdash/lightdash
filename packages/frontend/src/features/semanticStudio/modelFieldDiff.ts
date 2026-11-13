@@ -1,4 +1,11 @@
-import { type Explore } from '@lightdash/common';
+import {
+    getItemId,
+    type CompiledDimension,
+    type CompiledMetric,
+    type Explore,
+    type SemanticLayerTouchedField,
+} from '@lightdash/common';
+import { isEqual, omit } from 'es-toolkit/compat';
 
 export type FieldChange = {
     /** `table.name`, stable across both versions. */
@@ -30,6 +37,12 @@ const getFields = (explore: Explore | null): Map<string, FieldLike> => {
     );
 };
 
+// Each compile gives a metric's filters new ids, so they are compared without them.
+const comparable = (name: string, value: unknown): unknown =>
+    name === 'filters' && Array.isArray(value)
+        ? value.map((filter: object) => omit(filter, 'id'))
+        : value;
+
 const toWords = (key: string): string =>
     key.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 
@@ -54,8 +67,10 @@ export const diffModelFields = (
             .filter(
                 (name) =>
                     !DERIVED.has(name) &&
-                    JSON.stringify(Reflect.get(field, name)) !==
-                        JSON.stringify(Reflect.get(old, name)),
+                    !isEqual(
+                        comparable(name, Reflect.get(field, name)),
+                        comparable(name, Reflect.get(old, name)),
+                    ),
             )
             .map(toWords);
         if (attributes.length > 0) {
@@ -73,4 +88,34 @@ export const diffModelFields = (
         }
     });
     return changes;
+};
+
+/** Fields saved content may read that a version redefines or removes: the same SQL under a new label moves no number. */
+export const findTouchedFields = (
+    live: Explore | null,
+    mine: Explore | null,
+): SemanticLayerTouchedField[] => {
+    const fieldsOf = (explore: Explore | null) => {
+        const table = explore?.tables[explore.baseTable];
+        const fields: (CompiledDimension | CompiledMetric)[] = table
+            ? [
+                  ...Object.values(table.dimensions),
+                  ...Object.values(table.metrics),
+              ]
+            : [];
+        return new Map(fields.map((field) => [getItemId(field), field]));
+    };
+    const after = fieldsOf(mine);
+    return [...fieldsOf(live)].flatMap(([fieldId, field]) => {
+        const next = after.get(fieldId);
+        if (next && next.compiledSql === field.compiledSql) return [];
+        return [
+            {
+                model: live?.name ?? field.table,
+                fieldId,
+                label: field.label,
+                kind: next ? ('changed' as const) : ('removed' as const),
+            },
+        ];
+    });
 };

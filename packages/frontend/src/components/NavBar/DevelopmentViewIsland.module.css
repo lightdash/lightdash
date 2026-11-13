@@ -67,6 +67,20 @@
     transition-delay: 80ms, 0ms;
 }
 
+.workspace {
+    max-width: 268px;
+    padding: 10px 10px 0;
+    overflow: hidden;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    text-overflow: ellipsis;
+}
+
+.workspace + .intro {
+    padding-top: 2px;
+    color: var(--mantine-color-dark-1);
+}
+
 .intro {
     max-width: 268px;
     padding: 10px 10px 2px;

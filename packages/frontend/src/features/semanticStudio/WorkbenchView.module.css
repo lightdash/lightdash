@@ -57,6 +57,19 @@
     font-weight: 500;
 }
 
+.crumb[data-workspace] {
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stageLine {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
 .workspaceBody {
     flex: 1;
     min-height: 0;

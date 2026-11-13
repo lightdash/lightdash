@@ -66,6 +66,10 @@ import {
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
+import {
+    useActiveStudioWorkspace,
+    useStudioWorkspaceAction,
+} from './useStudioWorkspaces';
 import { useTryInExplore } from './useTryInExplore';
 
 const KIND_NOUNS: [ChangeKind, string][] = [
@@ -473,6 +477,8 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const tryInExplore = useTryInExplore(projectUuid);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const activeWorkspace = useActiveStudioWorkspace(projectUuid);
+    const workspaceAction = useStudioWorkspaceAction(projectUuid);
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
@@ -596,7 +602,16 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     onClose={() => setDiscarding(false)}
                     onConfirm={() =>
                         discard.mutate(null, {
-                            onSuccess: () => setDiscarding(false),
+                            onSuccess: () => {
+                                setDiscarding(false);
+                                if (activeWorkspace) {
+                                    workspaceAction.mutate({
+                                        kind: 'finish',
+                                        workspaceUuid:
+                                            activeWorkspace.workspaceUuid,
+                                    });
+                                }
+                            },
                         })
                     }
                 />

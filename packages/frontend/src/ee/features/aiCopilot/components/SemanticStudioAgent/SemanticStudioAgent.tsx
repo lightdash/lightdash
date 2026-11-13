@@ -24,6 +24,7 @@ import { useEffect, useEffectEvent, useRef, type FC } from 'react';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SidebarPosition } from '../../../../../components/common/Page/types';
+import { STUDIO_STARTERS } from '../../../../../features/semanticStudio/studioStarters';
 import { useKeepsSemanticLayerDraft } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import useSidebarResize from '../../../../../hooks/useSidebarResize';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
@@ -125,22 +126,6 @@ const useAskedPrompt = (
     }, [prompt]);
 };
 
-// Worded for any warehouse: a starter must not assume what the data is about.
-const STARTERS = [
-    {
-        label: "See what's in my warehouse",
-        prompt: 'Look through my warehouse and tell me what is worth modelling first.',
-    },
-    {
-        label: 'Model a table',
-        prompt: 'Pick the table most worth modelling first and model it.',
-    },
-    {
-        label: 'Suggest my first metrics',
-        prompt: 'Look at my data and suggest the first few metrics to define.',
-    },
-];
-
 const NewThread: FC<
     OpenModel &
         AskedPrompt & {
@@ -170,7 +155,7 @@ const NewThread: FC<
             <StudioChatEmptyState keepsDraft={keepsDraft}>
                 {showStarters ? (
                     <Group gap="xs" justify="center">
-                        {STARTERS.map(({ label, prompt: starter }) => (
+                        {STUDIO_STARTERS.map(({ label, prompt: starter }) => (
                             <Button
                                 key={label}
                                 size="xs"
