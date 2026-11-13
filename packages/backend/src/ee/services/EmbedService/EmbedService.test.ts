@@ -5,10 +5,12 @@ import {
     buildAbilityFromScopes,
     buildAgentIdentityClaim,
     DashboardTileTypes,
+    DimensionType,
     FeatureFlags,
     FilterInteractivityValues,
     FilterOperator,
     ForbiddenError,
+    getDashboardFiltersForTile,
     getItemId,
     ProjectType,
     QueryExecutionContext,
@@ -28,8 +30,10 @@ import {
     type SavedChartDAO,
     type SessionUser,
 } from '@lightdash/common';
+import { buildAccount } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
+import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
 import {
     connectionContextFromUser,
@@ -37,6 +41,10 @@ import {
 } from '../../../services/WarehouseClientFactory/ConnectionContext';
 import type { WarehouseClientFactory } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
 import { warehouseClientMock } from '../../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import {
+    SQL_QUERY_MOCK_EXPLORER_NAME,
+    SqlQueryComposer,
+} from '../../../utils/QueryBuilder/SqlQueryComposer';
 import { EmbedService } from './EmbedService';
 import {
     EmbedServiceArgumentsMock,
@@ -159,6 +167,236 @@ describe('EmbedService', () => {
                 metrics: [],
                 tableCalculations: [],
             });
+        });
+    });
+
+    describe('embedded dashboard SQL chart filters', () => {
+        const tileUuid = 'sql-tile';
+        const tabUuid = 'sales-tab';
+        const emptyFilters: DashboardFilters = {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const sqlFilter = (
+            field: string,
+            value: string,
+        ): DashboardFilterRule => ({
+            id: field,
+            target: { fieldId: `sales_${field}`, tableName: 'sales' },
+            operator: FilterOperator.EQUALS,
+            values: [value],
+            label: undefined,
+            tileTargets: {
+                [tileUuid]: {
+                    fieldId: field,
+                    tableName: SQL_QUERY_MOCK_EXPLORER_NAME,
+                    isSqlColumn: true,
+                    fallbackType: DimensionType.STRING,
+                },
+            },
+        });
+        const lockedFilter = {
+            ...sqlFilter('region', 'North'),
+            lockedTabUuids: [tabUuid],
+        };
+        const editableFilter = sqlFilter('category', 'Hardware');
+        const savedFilters = {
+            ...emptyFilters,
+            dimensions: [lockedFilter, editableFilter],
+        };
+
+        const getQueryFilters = async (
+            enabled: FilterInteractivityValues,
+            dashboardFilters: DashboardFilters,
+            {
+                embeddedRoute = false,
+                requestedTileUuid = tileUuid,
+                storedFilters = savedFilters,
+            }: {
+                embeddedRoute?: boolean;
+                requestedTileUuid?: string;
+                storedFilters?: DashboardFilters;
+            } = {},
+        ) => {
+            const jwtAccount = buildAccount({ accountType: 'jwt' });
+            const account = {
+                ...jwtAccount,
+                access: {
+                    ...jwtAccount.access,
+                    filtering: { enabled },
+                },
+            };
+            const dashboardUuid = 'test-dashboard-uuid';
+            const savedSqlUuid = 'sql-chart';
+            const dashboardModel = {
+                getByIdOrSlug: vi.fn().mockResolvedValue({
+                    uuid: dashboardUuid,
+                    organizationUuid: mockOrganizationUuid,
+                    filters: storedFilters,
+                    tabs: [{ uuid: tabUuid }],
+                    tiles: [
+                        {
+                            uuid: tileUuid,
+                            tabUuid,
+                            type: DashboardTileTypes.SQL_CHART,
+                            properties: { savedSqlUuid },
+                        },
+                    ],
+                }),
+                getDashboardParameterStateByIdOrSlug: vi
+                    .fn()
+                    .mockResolvedValue({}),
+            };
+            const permissionsService = {
+                checkEmbedSqlChartPermissions: vi.fn(),
+            };
+            const queryService = new AsyncQueryService({
+                ...EmbedServiceArgumentsMock,
+                dashboardModel,
+                permissionsService,
+                projectModel: {
+                    findExploreContainingTable: vi.fn().mockResolvedValue(null),
+                },
+                savedSqlModel: {
+                    getByUuid: vi.fn().mockResolvedValue({
+                        savedSqlUuid,
+                        organization: {
+                            organizationUuid: mockOrganizationUuid,
+                        },
+                        project: { projectUuid: mockProjectUuid },
+                        space: { uuid: 'space' },
+                    }),
+                },
+                projectParametersModel: { find: vi.fn().mockResolvedValue([]) },
+            } as unknown as ConstructorParameters<typeof AsyncQueryService>[0]);
+            const prepareQuery = vi.fn(
+                async (_args: { dashboardFilters: DashboardFilters }) => ({}),
+            );
+            Object.assign(queryService, {
+                prepareSqlChartAsyncQueryArgs: prepareQuery,
+            });
+            vi.spyOn(queryService, 'combineParameters').mockResolvedValue({});
+            vi.spyOn(queryService, 'executeAsyncQuery').mockResolvedValue({
+                queryUuid: 'query',
+                cacheMetadata: { cacheHit: false },
+            });
+            const queryArgs = {
+                account,
+                projectUuid: mockProjectUuid,
+                tileUuid: requestedTileUuid,
+                dashboardFilters,
+                dashboardSorts: [],
+            };
+            if (embeddedRoute) {
+                const embedService = new EmbedService({
+                    ...EmbedServiceArgumentsMock,
+                    analytics: { trackAccount: vi.fn() },
+                    embedModel: { get: vi.fn().mockResolvedValue({}) },
+                    dashboardModel,
+                    permissionsService,
+                    asyncQueryService: queryService,
+                } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+                await embedService.executeAsyncDashboardSqlChartTileQuery(
+                    queryArgs,
+                );
+            } else {
+                await queryService.executeAsyncDashboardSqlChartQuery({
+                    ...queryArgs,
+                    dashboardUuid,
+                    savedSqlUuid,
+                    context: QueryExecutionContext.EMBED,
+                });
+            }
+            expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledTimes(1);
+            expect(prepareQuery).toHaveBeenCalledTimes(1);
+            return prepareQuery.mock.calls[0][0].dashboardFilters;
+        };
+
+        it.each([
+            emptyFilters,
+            {
+                ...emptyFilters,
+                dimensions: [sqlFilter('category', 'Supplies')],
+            },
+        ])(
+            'applies the mapped saved filters when interactivity is disabled',
+            async (requestFilters) => {
+                const dashboardFilters = await getQueryFilters(
+                    FilterInteractivityValues.none,
+                    requestFilters,
+                    { embeddedRoute: true },
+                );
+                expect(dashboardFilters).toEqual(
+                    getDashboardFiltersForTile(tileUuid, savedFilters),
+                );
+                const composer = new SqlQueryComposer({
+                    userSql: 'SELECT region, category FROM sales',
+                    columns: [
+                        { name: 'region', type: DimensionType.STRING },
+                        { name: 'category', type: DimensionType.STRING },
+                    ],
+                    warehouseClient: warehouseClientMock,
+                    pivotConfiguration: undefined,
+                    limit: undefined,
+                    parameters: undefined,
+                    dashboardFilters,
+                    tileUuid,
+                    dashboardSorts: undefined,
+                });
+                const { query } = composer.compile();
+                expect(query).toContain('("region") IN (\'North\')');
+                expect(query).toContain('("category") IN (\'Hardware\')');
+            },
+        );
+
+        it('keeps the tab lock and applies an interactive filter change', async () => {
+            const refinement = sqlFilter('category', 'Supplies');
+            await expect(
+                getQueryFilters(FilterInteractivityValues.all, {
+                    ...emptyFilters,
+                    dimensions: [sqlFilter('region', 'South'), refinement],
+                }),
+            ).resolves.toEqual(
+                getDashboardFiltersForTile(tileUuid, {
+                    ...emptyFilters,
+                    dimensions: [lockedFilter, refinement],
+                }),
+            );
+        });
+
+        it('lets an interactive snapshot clear an unlocked filter', async () => {
+            await expect(
+                getQueryFilters(FilterInteractivityValues.all, emptyFilters),
+            ).resolves.toEqual(
+                getDashboardFiltersForTile(tileUuid, {
+                    ...emptyFilters,
+                    dimensions: [lockedFilter],
+                }),
+            );
+        });
+
+        it('uses the single matching tile when an internal caller omits its ID', async () => {
+            await expect(
+                getQueryFilters(FilterInteractivityValues.none, emptyFilters, {
+                    requestedTileUuid: '',
+                }),
+            ).resolves.toEqual(
+                getDashboardFiltersForTile(tileUuid, savedFilters),
+            );
+        });
+
+        it('keeps an empty dashboard unfiltered when interactivity is disabled', async () => {
+            await expect(
+                getQueryFilters(
+                    FilterInteractivityValues.none,
+                    { ...emptyFilters, dimensions: [editableFilter] },
+                    {
+                        requestedTileUuid: 'legacy-tile',
+                        storedFilters: emptyFilters,
+                    },
+                ),
+            ).resolves.toEqual(emptyFilters);
         });
     });
 
