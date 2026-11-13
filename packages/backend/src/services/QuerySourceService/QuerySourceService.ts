@@ -509,13 +509,10 @@ export class QuerySourceService extends BaseService {
      */
     async submitQueries(
         args: SubmitQueriesArgs & {
-            authority?: RequestAuthority | DocumentAuthority;
+            authority: RequestAuthority | DocumentAuthority;
         },
     ): Promise<{ queries: InternalSourceQuerySubmission[] }> {
-        return this.submit({
-            ...args,
-            authority: args.authority ?? REQUEST_AUTHORITY,
-        });
+        return this.submit(args);
     }
 
     private async submit({

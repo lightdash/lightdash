@@ -9917,7 +9917,6 @@ export class ProjectService
 
     async compileQuery(
         args: {
-            /** Absent means the caller's own query, under every write gate. */
             authority?: QueryRunAuthority;
             account: Account;
             // ! TODO: we need to fix this type
@@ -10279,7 +10278,6 @@ export class ProjectService
      * explorer shows them against the offending query row.
      */
     async compileMergeQuery(args: {
-        /** Absent means the caller's own query, under every write gate. */
         authority?: QueryRunAuthority;
         account: Account;
         projectUuid: string;

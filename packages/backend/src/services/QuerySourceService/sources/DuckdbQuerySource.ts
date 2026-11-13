@@ -15,7 +15,7 @@ import type {
     SourceQuerySubmissionResult,
     SubmitSourceQueryArgs,
 } from '../types';
-import { getNodeAuthority } from './nodeAuthority';
+import { withoutDocumentAuthority } from './withoutDocumentAuthority';
 
 type DuckdbQuerySourceArguments = {
     asyncQueryService: AsyncQueryService;
@@ -152,7 +152,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
             : undefined;
 
         const args = {
-            authority: getNodeAuthority(authority),
+            authority: withoutDocumentAuthority(authority),
             account,
             projectUuid,
             sql: sourceQuery.sql,

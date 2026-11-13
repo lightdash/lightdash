@@ -518,6 +518,7 @@ import {
     EstimateAsyncSqlQueryArgs,
     ExecuteAsyncSqlQueryArgs,
     getComposerChartSource,
+    getDocumentQueryContext,
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
     REQUEST_AUTHORITY,
@@ -8037,8 +8038,7 @@ export class AsyncQueryService extends ProjectService {
         dataAppSource?: ExecuteAsyncQueryRequestParams['dataAppSource'],
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
-        const documentQueryContext =
-            authority.kind === 'document' ? authority.context : undefined;
+        const documentQueryContext = getDocumentQueryContext(authority);
 
         const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
@@ -8632,6 +8632,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides: {},
             invalidateCache: invalidateCache ?? false,
             plans: { [totalsNodeId]: plan },
+            authority: REQUEST_AUTHORITY,
             aiAttribution: null,
         });
         const totals = queries.find((query) => query.nodeId === totalsNodeId);
@@ -11695,21 +11696,12 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         authority = REQUEST_AUTHORITY,
     }: ExecuteAsyncComposeSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
-        switch (authority.kind) {
-            case 'composer':
-                // The author's Explore access was checked at save; per-source switches still apply
-                authority.binding.assertExecution(account, projectUuid);
-                break;
-            case 'request':
-                await this.assertCanRunComposeQueries(
-                    account,
-                    projectUuid,
-                    'Compose SQL queries are not enabled',
-                );
-                break;
-            default:
-                return assertUnreachable(authority, 'Unknown query authority');
-        }
+        await this.assertCanRunComposeQueries(
+            account,
+            projectUuid,
+            authority,
+            'Compose SQL queries are not enabled',
+        );
 
         // User SQL runs on a session whose credentials reach only the results
         // it references, so a query that references nothing has nothing to
@@ -11752,9 +11744,20 @@ export class AsyncQueryService extends ProjectService {
     private async assertCanRunComposeQueries(
         account: Account,
         projectUuid: string,
+        authority: RequestAuthority | ComposerAuthority,
         disabledMessage: string,
     ): Promise<void> {
         assertIsAccountWithOrg(account);
+        switch (authority.kind) {
+            case 'composer':
+                // The author's Explore access was checked at save; per-source switches still apply
+                authority.binding.assertExecution(account, projectUuid);
+                return;
+            case 'request':
+                break;
+            default:
+                assertUnreachable(authority, 'Unknown query authority');
+        }
         const { enabled } = await this.featureFlagModel.get({
             user: {
                 userUuid: account.user.id,
@@ -11829,21 +11832,12 @@ export class AsyncQueryService extends ProjectService {
     }: ExecuteAsyncPythonQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
-        switch (authority.kind) {
-            case 'composer':
-                // The author's Explore access was checked at save; per-source switches still apply
-                authority.binding.assertExecution(account, projectUuid);
-                break;
-            case 'request':
-                await this.assertCanRunComposeQueries(
-                    account,
-                    projectUuid,
-                    'Python queries are not enabled',
-                );
-                break;
-            default:
-                return assertUnreachable(authority, 'Unknown query authority');
-        }
+        await this.assertCanRunComposeQueries(
+            account,
+            projectUuid,
+            authority,
+            'Python queries are not enabled',
+        );
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
