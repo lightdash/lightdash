@@ -6,16 +6,6 @@ body {
     background-color: var(--ld-color-page);
 }
 
-/* Native scrollbars match the themed ScrollArea: thin, quiet thumb, no track */
-* {
-    scrollbar-width: thin;
-    scrollbar-color: light-dark(
-            var(--mantine-color-gray-3),
-            var(--mantine-color-ldGray-3)
-        )
-        transparent;
-}
-
 body {
     font-size: var(--mantine-font-size-sm);
     line-height: var(--mantine-line-height-sm);

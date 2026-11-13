@@ -5,7 +5,7 @@ import {
 } from '@mantine/core';
 
 export const COLLAPSABLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {
-    variant: 'subtle',
+    variant: 'default',
     size: 'xs',
 };
 
@@ -13,7 +13,7 @@ export const COLLAPSABLE_CARD_ACTION_ICON_PROPS: Pick<
     ActionIconProps,
     'variant' | 'size'
 > = {
-    variant: 'subtle',
+    variant: 'default',
     size: 'md',
 };
 

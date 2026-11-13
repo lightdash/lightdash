@@ -8,23 +8,9 @@ import {
     type CSSProperties,
     type FC,
 } from 'react';
-import type { FlattenedItem, FlattenedTreeData } from './types';
+import type { FlattenedTreeData } from './types';
 import classes from './VirtualizedTreeList.module.css';
 import VirtualTreeItem from './VirtualTreeItem';
-
-// Which field kind a row belongs to, so styles can colour whole sections
-const getItemKind = (
-    item: FlattenedItem,
-): 'dimension' | 'metric' | undefined => {
-    const section =
-        item.type === 'section-header'
-            ? item.data.treeSection
-            : item.type === 'tree-node'
-              ? item.data.sectionKey
-              : undefined;
-    if (!section || section.endsWith('missing-fields')) return undefined;
-    return section.endsWith('metrics') ? 'metric' : 'dimension';
-};
 
 interface VirtualizedTreeListProps {
     data: FlattenedTreeData;
@@ -129,8 +115,6 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
                         <div
                             key={item.id}
                             data-index={virtualItem.index}
-                            data-item-type={item.type}
-                            data-kind={getItemKind(item)}
                             data-sticky-header={isStickyItem || undefined}
                             data-active-sticky={isActiveStickyItem || undefined}
                             className={classes.item}

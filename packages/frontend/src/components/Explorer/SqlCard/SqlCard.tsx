@@ -5,9 +5,9 @@ import {
     isCustomSqlDimension,
     isSqlTableCalculation,
 } from '@lightdash/common';
-import { Box, Divider, Group, SegmentedControl, Skeleton } from '@mantine/core';
+import { Box, Group, Skeleton, SegmentedControl } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
-import { IconCopy } from '@tabler/icons-react';
+import { IconClipboard } from '@tabler/icons-react';
 import {
     lazy,
     memo,
@@ -144,11 +144,25 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
                 'data-tour-resultdocs':
                     'get-started/explore-your-data.mdx#3-run-your-own-query:1',
             }}
-            rightHeaderElement={
+            headerElement={
+                !cannotViewSqlAuthoredFields &&
                 (hovered || sqlIsOpen) &&
+                data &&
+                isSuccess ? (
+                    <CopyActionIcon
+                        value={formattedSql}
+                        icon={IconClipboard}
+                        copyLabel="Copy SQL"
+                        copiedLabel="Copied to clipboard"
+                        tooltipPosition="right"
+                    />
+                ) : undefined
+            }
+            rightHeaderElement={
+                sqlIsOpen &&
                 !cannotViewSqlAuthoredFields && (
-                    <Group gap="xxs">
-                        {sqlIsOpen && hasPivotQuery && (
+                    <Group gap="xs">
+                        {hasPivotQuery && (
                             <SegmentedControl
                                 size="xs"
                                 data={[
@@ -164,15 +178,6 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
                                 }
                             />
                         )}
-                        {data && isSuccess && (
-                            <CopyActionIcon
-                                value={formattedSql}
-                                icon={IconCopy}
-                                copyLabel="Copy SQL"
-                                copiedLabel="Copied to clipboard"
-                                tooltipPosition="bottom"
-                            />
-                        )}
                         <Can
                             I="manage"
                             this={subject('SqlRunner', {
@@ -180,26 +185,20 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
                                 projectUuid,
                             })}
                         >
-                            {sqlIsOpen && (
-                                <>
-                                    <Divider orientation="vertical" my={6} />
-                                    <OpenInSqlRunnerButton
-                                        projectUuid={projectUuid}
-                                        sql={formattedSql}
-                                        warehouseConnectionUuid={
-                                            warehouseConnectionUuid
-                                        }
-                                        connectionRoute={
-                                            project
-                                                ? (project.connectionRoute ??
-                                                  'single')
-                                                : undefined
-                                        }
-                                        project={project}
-                                        disabled={isInitialLoading || !!error}
-                                    />
-                                </>
-                            )}
+                            <OpenInSqlRunnerButton
+                                projectUuid={projectUuid}
+                                sql={formattedSql}
+                                warehouseConnectionUuid={
+                                    warehouseConnectionUuid
+                                }
+                                connectionRoute={
+                                    project
+                                        ? (project.connectionRoute ?? 'single')
+                                        : undefined
+                                }
+                                project={project}
+                                disabled={isInitialLoading || !!error}
+                            />
                         </Can>
                     </Group>
                 )

@@ -44,7 +44,7 @@ const ShareShortLinkButton: FC<{
     return (
         <ActionIcon
             aria-label={copied ? 'Link copied' : 'Copy share link'}
-            variant="subtle"
+            variant="default"
             onClick={handleCopy}
             disabled={isDisabled}
             color="gray"

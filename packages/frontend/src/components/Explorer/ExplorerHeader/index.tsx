@@ -266,18 +266,8 @@ const ExplorerHeader: FC = memo(() => {
                         <QueryWarnings queryWarnings={queryWarnings} />
                     )}
 
-                <Can
-                    I="update"
-                    this={subject('Explore', {
-                        organizationUuid: user.data?.organizationUuid,
-                        projectUuid,
-                    })}
-                >
-                    <ShareShortLinkButton
-                        disabled={!isValidQuery}
-                        url={urlToShare}
-                    />
-                </Can>
+                <RefreshButton size="xs" />
+
                 {/* Saved charts save from the page header (SavedChartsHeader)
                     or the editor modal's header actions. Embeds have no such
                     header, so they keep the button ("Save changes") here */}
@@ -298,7 +288,18 @@ const ExplorerHeader: FC = memo(() => {
                             </div>
                         </Tooltip>
                     )}
-                <RefreshButton size="xs" />
+                <Can
+                    I="update"
+                    this={subject('Explore', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid,
+                    })}
+                >
+                    <ShareShortLinkButton
+                        disabled={!isValidQuery}
+                        url={urlToShare}
+                    />
+                </Can>
             </Group>
         </Group>
     );

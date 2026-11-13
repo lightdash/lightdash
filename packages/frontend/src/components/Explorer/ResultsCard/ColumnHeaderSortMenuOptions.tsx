@@ -3,14 +3,15 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Menu, Text } from '@mantine/core';
+import { Menu, Text } from '@mantine/core';
+import { IconCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     getSortDirectionOrder,
     getSortLabel,
     type SortDirection,
 } from '../../../utils/sortUtils';
-import classes from './ColumnHeaderSortMenuOptions.module.css';
+import MantineIcon from '../../common/MantineIcon';
 
 type Props = {
     item: Field | TableCalculation | CustomDimension;
@@ -28,31 +29,27 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({
 }) => {
     return (
         <>
-            <Box className={classes.row}>
-                <Text fz="xs" c="dimmed">
-                    Sort
-                </Text>
-                <Box className={classes.segments}>
-                    {getSortDirectionOrder(item).map((direction) => {
-                        const label = getSortLabel(item, direction);
-                        const isActive = selectedDirection === direction;
-                        return (
-                            <Menu.Item
-                                key={direction}
-                                className={classes.segment}
-                                aria-label={`Sort ${label}`}
-                                aria-current={isActive || undefined}
-                                data-active={isActive || undefined}
-                                onClick={() => {
-                                    if (!isActive) onSelect(direction);
-                                }}
-                            >
-                                {label}
-                            </Menu.Item>
-                        );
-                    })}
-                </Box>
-            </Box>
+            <Menu.Label>Sorting</Menu.Label>
+            {getSortDirectionOrder(item).map((direction) => {
+                const isActive = selectedDirection === direction;
+                return (
+                    <Menu.Item
+                        key={direction}
+                        leftSection={
+                            isActive ? (
+                                <MantineIcon icon={IconCheck} />
+                            ) : undefined
+                        }
+                        disabled={isActive}
+                        onClick={() => onSelect(direction)}
+                    >
+                        Sort{' '}
+                        <Text span fw="bold">
+                            {getSortLabel(item, direction)}
+                        </Text>
+                    </Menu.Item>
+                );
+            })}
             {onRemove && selectedDirection !== undefined && (
                 <>
                     <Menu.Divider />

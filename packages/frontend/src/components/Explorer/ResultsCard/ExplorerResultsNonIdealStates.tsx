@@ -11,6 +11,7 @@ import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
+import NoTableIcon from '../../../svgs/emptystate-no-table.svg?react';
 import { LD_FIELD_COLORS } from '../../../theme';
 import { SectionName } from '../../../types/Events';
 import { EmptyState } from '../../common/EmptyState';
@@ -18,7 +19,6 @@ import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { RefreshButton } from '../../RefreshButton';
-import ExploreIdleIllustration from './ExploreIdleIllustration';
 import classes from './ExplorerResultsNonIdealStates.module.css';
 import { getQueryLoadingStateCopy } from './queryLoadingState';
 
@@ -28,11 +28,6 @@ const ExploreDocumentationUrl =
 export const EmptyStateNoColumns = () => {
     return (
         <EmptyState
-            gap="xs"
-            py="xl"
-            icon={<ExploreIdleIllustration variant="fields" />}
-            titleProps={{ fz: 'sm' }}
-            descriptionProps={{ fz: 'xs' }}
             title={
                 <>
                     Pick a metric & select its dimensions{' '}
@@ -40,6 +35,7 @@ export const EmptyStateNoColumns = () => {
                         href={ExploreDocumentationUrl}
                         pos="relative"
                         top={2}
+                        iconProps={{ size: 'lg' }}
                     />
                 </>
             }
@@ -57,7 +53,7 @@ export const EmptyStateNoColumns = () => {
                 </>
             }
         >
-            <Text className={classes.animatedTextRoot} c="dimmed" fz="xs">
+            <Text className={classes.animatedTextRoot} c="dimmed">
                 <Text span>
                     eg. How many{' '}
                     <Text span c={LD_FIELD_COLORS.metric.color}>
@@ -116,10 +112,6 @@ export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <EmptyState
             maw={500}
-            gap="xs"
-            py="xl"
-            icon={<ExploreIdleIllustration variant="table" />}
-            descriptionProps={{ fz: 'xs' }}
             description={
                 <>
                     {description}{' '}
@@ -139,11 +131,8 @@ export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
 export const NoTableSelected = () => (
     <EmptyState
         maw={520}
-        gap="xs"
-        icon={<ExploreIdleIllustration variant="tables" />}
+        icon={<NoTableIcon />}
         title="Select a table"
-        titleProps={{ fz: 'sm' }}
-        descriptionProps={{ fz: 'xs' }}
         description={
             <>
                 To run a query, first select the table that you would like to
@@ -163,14 +152,7 @@ export const EmptyStateExploreLoading = () => (
 );
 
 export const ExploreIdleState = () => (
-    <EmptyState
-        gap="xs"
-        icon={<ExploreIdleIllustration variant="chart" />}
-        title="No results yet"
-        titleProps={{ fz: 'sm' }}
-        description="Run the query to see them here."
-        descriptionProps={{ fz: 'xs' }}
-    />
+    <EmptyState title="Run query to see your results" />
 );
 
 export const ExploreEmptyQueryState = () => (
@@ -188,15 +170,9 @@ export const ExploreLoadingState = ({
     const { title, description } = getQueryLoadingStateCopy(queryStatus);
 
     return (
-        <EmptyState
-            gap="xs"
-            py="xl"
-            icon={<ExploreIdleIllustration variant="chart" loading />}
+        <EmptyStateLoader
             title={title}
-            titleProps={{ fz: 'sm' }}
             description={description}
-            descriptionProps={{ fz: 'xs' }}
-            role="status"
             data-testid="results-table-loading"
         />
     );

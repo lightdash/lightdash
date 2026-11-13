@@ -1,6 +1,6 @@
 import { type ConnectionRoute, type Project } from '@lightdash/common';
 import { Button } from '@mantine/core';
-import { IconArrowUpRight } from '@tabler/icons-react';
+import { IconTerminal2 } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import { Link } from 'react-router';
 import useApp from '../../../providers/App/useApp';
@@ -63,7 +63,7 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
 
         return (
             <Button
-                variant="subtle"
+                variant="default"
                 size="xs"
                 component={Link}
                 to={{
@@ -74,7 +74,9 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
                     ...(carriesConnection ? { warehouseConnectionUuid } : {}),
                 }}
                 onClick={handleClick}
-                rightSection={<MantineIcon icon={IconArrowUpRight} />}
+                leftSection={
+                    <MantineIcon icon={IconTerminal2} color="ldGray.7" />
+                }
                 disabled={
                     disabled ||
                     !sql ||

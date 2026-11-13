@@ -145,8 +145,13 @@ test.describe('Download CSV on Explore', () => {
         // wait for the chart to finish loading
         await expect(page.getByText('Loading chart')).toHaveCount(0);
         await expect(page.getByText('Loading results')).toHaveCount(0);
-        // Click the results card's export button (opens popover)
-        await page.getByTestId('export-results-button').click();
+        if ((await page.getByTestId('export-csv-button').count()) > 1) {
+            // close chart section
+            await page.getByTestId('Chart-card-expand').click();
+        }
+
+        // Click export button (opens popover)
+        await page.getByTestId('export-csv-button').click();
 
         // Wait for popover to open and ensure download button is ready
         const exportButton = page.getByTestId('chart-export-results-button');

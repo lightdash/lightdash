@@ -120,18 +120,9 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
     return (
         <Box pos="relative" className={classes.raised}>
             {!isOpen ? (
-                <Group
-                    align="center"
-                    justify={totalFilterRules > 0 ? 'space-between' : 'center'}
-                    flex={1}
-                >
+                <Group align="center" justify="space-between" flex={1}>
                     <Button
-                        variant={totalFilterRules > 0 ? 'light' : 'subtle'}
-                        className={
-                            totalFilterRules > 0
-                                ? undefined
-                                : classes.addFirstFilter
-                        }
+                        variant="light"
                         size="xs"
                         leftSection={<MantineIcon icon={IconPlus} />}
                         disabled={fields.length <= 0}
@@ -160,7 +151,6 @@ const AddFilterSection: FC<AddFilterSectionProps> = ({
                     size="xs"
                     maw={300}
                     hasGrouping
-                    focusOnRender
                     baseTable={baseTable}
                     items={fields}
                     onChange={(field) => {

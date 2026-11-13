@@ -8,7 +8,7 @@ import {
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Button, Group } from '@mantine/core';
+import { Button } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
@@ -62,7 +62,6 @@ import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
-import RunningBar from '../../common/RunningBar';
 import LightdashVisualization from '../../LightdashVisualization';
 import { useEditedChartConfig } from '../../LightdashVisualization/useVisualizationContext';
 import VisualizationProvider, {
@@ -425,7 +424,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     onToggle={toggleSection}
                     headerElement={
                         isOpen && (
-                            <Group gap="xs" wrap="nowrap">
+                            <>
                                 {sorts.length > 0 && (
                                     <SortButton
                                         sorts={sorts}
@@ -442,6 +441,12 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                         health.data?.pivotTable?.maxColumnLimit
                                     }
                                 />
+                            </>
+                        )
+                    }
+                    rightHeaderElement={
+                        isOpen && (
+                            <>
                                 <VisualizationTimezone
                                     resolvedTimezone={
                                         query.data?.resolvedTimezone
@@ -450,91 +455,74 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                         query.data?.metricQuery?.timezone
                                     }
                                 />
-                            </Group>
-                        )
-                    }
-                    rightHeaderElement={
-                        <>
-                            {isOpen && (
-                                <>
-                                    {isEditMode ? (
-                                        <Button
-                                            ref={visualizationConfigButtonRef}
-                                            {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                                            variant={
-                                                isVisualizationConfigOpen
-                                                    ? 'light'
-                                                    : 'subtle'
-                                            }
-                                            aria-pressed={
-                                                isVisualizationConfigOpen
-                                            }
-                                            onClick={
-                                                isVisualizationConfigOpen
-                                                    ? closeVisualizationConfig
-                                                    : openVisualizationConfig
-                                            }
-                                            rightSection={
-                                                <MantineIcon
-                                                    icon={
-                                                        isVisualizationConfigOpen
-                                                            ? IconLayoutSidebarLeftCollapse
-                                                            : IconLayoutSidebarLeftExpand
-                                                    }
-                                                />
-                                            }
-                                        >
-                                            Configure
-                                        </Button>
-                                    ) : null}
-
-                                    {/*
-                                     * NOTE: not using Mantine Portal because this page lacks a MantineProvider
-                                     * TODO: use Mantine Portal with reuseTargetNode flag to avoid rendering additional divs
-                                     */}
-                                    {portalTarget &&
-                                        // The modal owns the config while a type
-                                        // is authored; a second mount in the
-                                        // sidebar would echo its state.
-                                        !chartTypeAuthoring &&
-                                        createPortal(
-                                            <ExplorerChartSidebar
-                                                chartType={chartType}
-                                                onClose={
-                                                    closeVisualizationConfig
+                                {isEditMode ? (
+                                    <Button
+                                        ref={visualizationConfigButtonRef}
+                                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                                        onClick={
+                                            isVisualizationConfigOpen
+                                                ? closeVisualizationConfig
+                                                : openVisualizationConfig
+                                        }
+                                        rightSection={
+                                            <MantineIcon
+                                                icon={
+                                                    isVisualizationConfigOpen
+                                                        ? IconLayoutSidebarLeftCollapse
+                                                        : IconLayoutSidebarLeftExpand
                                                 }
-                                            />,
-                                            portalTarget,
-                                        )}
-                                </>
-                            )}
+                                            />
+                                        }
+                                    >
+                                        {isVisualizationConfigOpen
+                                            ? 'Close configure'
+                                            : 'Configure'}
+                                    </Button>
+                                ) : null}
 
-                            {!!projectUuid && (
-                                <ChartDownloadMenu
-                                    getDownloadQueryUuid={
-                                        mergeResults && merge
-                                            ? merge.getDownloadQueryUuid
-                                            : getDownloadQueryUuid
-                                    }
-                                    projectUuid={projectUuid}
-                                    chartName={savedChart?.name}
-                                    getGsheetLink={
-                                        mergeResults ? undefined : getGsheetLink
-                                    }
-                                />
-                            )}
+                                {/*
+                                 * NOTE: not using Mantine Portal because this page lacks a MantineProvider
+                                 * TODO: use Mantine Portal with reuseTargetNode flag to avoid rendering additional divs
+                                 */}
+                                {portalTarget &&
+                                    // The modal owns the config while a type
+                                    // is authored; a second mount in the
+                                    // sidebar would echo its state.
+                                    !chartTypeAuthoring &&
+                                    createPortal(
+                                        <ExplorerChartSidebar
+                                            chartType={chartType}
+                                            onClose={closeVisualizationConfig}
+                                        />,
+                                        portalTarget,
+                                    )}
 
-                            {isOpen && import.meta.env.DEV && (
-                                <DevCopyChartDebugData />
-                            )}
-                        </>
+                                {!!projectUuid && (
+                                    <ChartDownloadMenu
+                                        getDownloadQueryUuid={
+                                            mergeResults && merge
+                                                ? merge.getDownloadQueryUuid
+                                                : getDownloadQueryUuid
+                                        }
+                                        projectUuid={projectUuid}
+                                        chartName={savedChart?.name}
+                                        getGsheetLink={
+                                            mergeResults
+                                                ? undefined
+                                                : getGsheetLink
+                                        }
+                                    />
+                                )}
+
+                                {import.meta.env.DEV && (
+                                    <DevCopyChartDebugData />
+                                )}
+                            </>
+                        )
                     }
                 >
                     {renderVisualization && (
                         <>
-                            {isLoadingQueryResults && (
-                                <RunningBar label="Running query" />
-                            )}
                             <LightdashVisualization
                                 ref={measureRef}
                                 className="sentry-block ph-no-capture"

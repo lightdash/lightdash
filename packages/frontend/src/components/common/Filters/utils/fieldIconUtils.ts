@@ -4,10 +4,10 @@ import {
     TableCalculationType,
 } from '@lightdash/common';
 import {
+    IconNumber123,
+    IconAbc,
     IconCalendar,
     IconClockHour4,
-    IconHash,
-    IconLetterT,
     IconMathFunction,
     IconTag,
     IconToggleLeft,
@@ -43,8 +43,8 @@ export const getItemIconName = (
 };
 
 export const FIELD_ICONS = {
-    citation: IconLetterT,
-    numerical: IconHash,
+    citation: IconAbc,
+    numerical: IconNumber123,
     calendar: IconCalendar,
     time: IconClockHour4,
     'segmented-control': IconToggleLeft,

@@ -1,7 +1,5 @@
-/* Pulls the panel into the sidebar's 16px gutter; rows carry their own inset */
 .panel {
     flex-grow: 1;
-    margin: -8px -8px 0;
 }
 
 .panel[data-hidden='true'] {

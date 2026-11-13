@@ -1,11 +1,9 @@
 import {
-    friendlyName,
     type SummaryExplore,
     type WarehouseConnectionForUserCredentials,
 } from '@lightdash/common';
-import { Box, Divider, Text } from '@mantine/core';
+import { Box, Divider } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { groupBy } from 'es-toolkit/compat';
 import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { useModelsInDevelopment } from '../../../features/semanticStudio/useModelsInDevelopment';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -42,10 +40,8 @@ export type VirtualListItem =
           type: 'section-header';
           id: string;
           label: string;
-          count: number;
           isExpanded: boolean;
-      }
-    | { type: 'source-label'; id: string; label: string };
+      };
 
 interface VirtualizedExploreListProps {
     groupedExploreTree: ExploreNode[];
@@ -62,12 +58,6 @@ const ITEM_HEIGHT = 40;
 const GROUP_HEADER_HEIGHT = 40;
 const SECTION_HEADER_HEIGHT = 32;
 const DIVIDER_HEIGHT = 16;
-const SOURCE_LABEL_HEIGHT = 26;
-
-const getPreAggregateSourceName = (explore: SummaryExplore) =>
-    ('preAggregateSource' in explore
-        ? explore.preAggregateSource?.sourceExploreName
-        : undefined) ?? '';
 
 const collectExploreNamesInTree = (
     nodes: ExploreNode[],
@@ -193,7 +183,6 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                 type: 'section-header',
                 id: `section-${itemId++}`,
                 label: 'External sources',
-                count: externalSourceExplores.length,
                 isExpanded: isExternalSourcesExpanded,
             });
             if (isExternalSourcesExpanded) {
@@ -210,13 +199,12 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
 
         if (customUngroupedExplores.length > 0) {
             const isVirtualViewsExpanded =
-                expandedSections.has('Virtual Views') || !!searchQuery;
+                expandedSections.has('Virtual Views');
             items.push({ type: 'divider', id: `divider-${itemId++}` });
             items.push({
                 type: 'section-header',
                 id: `section-${itemId++}`,
                 label: 'Virtual Views',
-                count: customUngroupedExplores.length,
                 isExpanded: isVirtualViewsExpanded,
             });
             if (isVirtualViewsExpanded) {
@@ -233,37 +221,22 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
 
         if (preAggregateExplores.length > 0) {
             const isPreAggregatesExpanded =
-                expandedSections.has('Pre-aggregates') || !!searchQuery;
+                expandedSections.has('Pre-aggregates');
             items.push({ type: 'divider', id: `divider-${itemId++}` });
             items.push({
                 type: 'section-header',
                 id: `section-${itemId++}`,
                 label: 'Pre-aggregates',
-                count: preAggregateExplores.length,
                 isExpanded: isPreAggregatesExpanded,
             });
             if (isPreAggregatesExpanded) {
-                // Pre-aggregates sit under the table they were built from
-                const bySource = groupBy(
-                    preAggregateExplores,
-                    getPreAggregateSourceName,
-                );
-                for (const sourceName of Object.keys(bySource).sort()) {
-                    if (sourceName) {
-                        items.push({
-                            type: 'source-label',
-                            id: `source-${itemId++}`,
-                            label: friendlyName(sourceName),
-                        });
-                    }
-                    for (const explore of bySource[sourceName]) {
-                        items.push({
-                            type: 'explore',
-                            id: `pre-aggregate-${itemId++}`,
-                            explore,
-                            depth: 0,
-                        });
-                    }
+                for (const explore of preAggregateExplores) {
+                    items.push({
+                        type: 'explore',
+                        id: `pre-aggregate-${itemId++}`,
+                        explore,
+                        depth: 0,
+                    });
                 }
             }
         }
@@ -291,8 +264,6 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                     return SECTION_HEADER_HEIGHT;
                 case 'divider':
                     return DIVIDER_HEIGHT;
-                case 'source-label':
-                    return SOURCE_LABEL_HEIGHT;
                 case 'explore':
                     return ITEM_HEIGHT;
                 default:
@@ -341,30 +312,22 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                         </Box>
                     );
                 case 'divider':
-                    return <Divider key={item.id} my="xs" />;
+                    return (
+                        <Divider
+                            key={item.id}
+                            size={0.5}
+                            color="ldGray.5"
+                            my="xs"
+                        />
+                    );
                 case 'section-header':
                     return (
                         <SectionHeader
                             key={item.id}
                             label={item.label}
-                            count={item.count}
                             isExpanded={item.isExpanded}
                             onToggle={() => toggleSection(item.label)}
                         />
-                    );
-                case 'source-label':
-                    return (
-                        <Text
-                            key={item.id}
-                            fz={11}
-                            fw={500}
-                            c="dimmed"
-                            px="sm"
-                            pt={8}
-                            truncate
-                        >
-                            {item.label}
-                        </Text>
                     );
                 default:
                     return null;
