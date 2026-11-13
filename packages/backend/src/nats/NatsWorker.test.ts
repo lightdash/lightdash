@@ -39,6 +39,7 @@ describe('NatsWorker subject dispatch', () => {
         runAsyncPreAggregateQueryFromHistory: vi.fn(async () => true),
     };
     const queryHistoryModel = {
+        releaseQueryExecution: vi.fn(async () => undefined),
         failUnfinishedQueryDelivery: vi.fn(async () => 1),
         getByQueryUuid: vi.fn<() => Promise<QueryHistory | undefined>>(
             async () => undefined,

@@ -36,6 +36,7 @@ import {
 import crypto from 'crypto';
 import { Knex } from 'knex';
 import { customAlphabet } from 'nanoid';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { setTimeout as abortableSleep } from 'node:timers/promises';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { ProjectTableName } from '../../database/entities/projects';
@@ -64,6 +65,16 @@ import {
 export type QueryHistoryWithLineage = QueryHistory & {
     duckdbExecutionReferences?: Record<string, string> | null;
 };
+
+export type QueryExecutionOwnership = {
+    queryUuid: string;
+    signal: AbortSignal;
+    claimedAt: Date | null;
+    pendingClaim: Promise<number> | null;
+};
+
+const queryExecutionOwnership =
+    new AsyncLocalStorage<QueryExecutionOwnership>();
 
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
@@ -177,6 +188,72 @@ export class QueryHistoryModel {
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
+    }
+
+    static createQueryExecution(
+        queryUuid: string,
+        signal: AbortSignal,
+    ): QueryExecutionOwnership {
+        return { queryUuid, signal, claimedAt: null, pendingClaim: null };
+    }
+
+    static withQueryExecution<T>(
+        ownership: QueryExecutionOwnership,
+        run: () => Promise<T>,
+    ): Promise<T> {
+        return queryExecutionOwnership.run(ownership, run);
+    }
+
+    static getQueryExecution(
+        queryUuid: string,
+    ): QueryExecutionOwnership | null {
+        const ownership = queryExecutionOwnership.getStore();
+        return ownership?.queryUuid === queryUuid ? ownership : null;
+    }
+
+    static assertQueryExecutionActive(queryUuid: string): void {
+        QueryHistoryModel.getQueryExecution(queryUuid)?.signal.throwIfAborted();
+    }
+
+    private executionScopedQuery(queryUuid: string) {
+        QueryHistoryModel.assertQueryExecutionActive(queryUuid);
+        const query = this.database(QueryHistoryTableName).where(
+            'query_uuid',
+            queryUuid,
+        );
+        const ownership = QueryHistoryModel.getQueryExecution(queryUuid);
+        if (ownership?.claimedAt) {
+            void query
+                .andWhere('status', QueryHistoryStatus.EXECUTING)
+                .andWhere('processing_started_at', ownership.claimedAt);
+        }
+        return query;
+    }
+
+    private async executeOwnedUpdate(
+        queryUuid: string,
+        query: PromiseLike<number>,
+    ): Promise<number> {
+        const updated = await query;
+        if (
+            updated === 0 &&
+            QueryHistoryModel.getQueryExecution(queryUuid)?.claimedAt
+        ) {
+            throw new Error('Query execution ownership lost');
+        }
+        return updated;
+    }
+
+    async releaseQueryExecution(
+        ownership: QueryExecutionOwnership,
+    ): Promise<void> {
+        await ownership.pendingClaim?.catch(() => undefined);
+        if (ownership.claimedAt === null) return;
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', ownership.queryUuid)
+            .andWhere('status', QueryHistoryStatus.EXECUTING)
+            .andWhere('processing_started_at', ownership.claimedAt)
+            .update({ status: QueryHistoryStatus.QUEUED });
     }
 
     static getCacheKey(
@@ -363,21 +440,23 @@ export class QueryHistoryModel {
             QueryHistory['requestParameters']['resultProducer']
         >,
     ): Promise<void> {
-        await this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid)
-            .andWhere((query) => {
-                void query
-                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
-                    .orWhere('created_by_account', accountId);
-            })
-            .update(
-                'request_parameters',
-                this.database.raw(
-                    "jsonb_set(request_parameters, '{resultProducer}', ?::jsonb, true)",
-                    [JSON.stringify(producer)],
+        await this.executeOwnedUpdate(
+            queryUuid,
+            this.executionScopedQuery(queryUuid)
+                .andWhere('project_uuid', projectUuid)
+                .andWhere((query) => {
+                    void query
+                        .whereRaw('created_by_user_uuid::text = ?', [accountId])
+                        .orWhere('created_by_account', accountId);
+                })
+                .update(
+                    'request_parameters',
+                    this.database.raw(
+                        "jsonb_set(request_parameters, '{resultProducer}', ?::jsonb, true)",
+                        [JSON.stringify(producer)],
+                    ),
                 ),
-            );
+        );
     }
 
     async recordResultArtifact(
@@ -388,21 +467,23 @@ export class QueryHistoryModel {
             QueryHistory['requestParameters']['resultArtifact']
         >,
     ): Promise<void> {
-        await this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid)
-            .andWhere((query) => {
-                void query
-                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
-                    .orWhere('created_by_account', accountId);
-            })
-            .update(
-                'request_parameters',
-                this.database.raw(
-                    "jsonb_set(request_parameters, '{resultArtifact}', ?::jsonb, true)",
-                    [JSON.stringify(artifact)],
+        await this.executeOwnedUpdate(
+            queryUuid,
+            this.executionScopedQuery(queryUuid)
+                .andWhere('project_uuid', projectUuid)
+                .andWhere((query) => {
+                    void query
+                        .whereRaw('created_by_user_uuid::text = ?', [accountId])
+                        .orWhere('created_by_account', accountId);
+                })
+                .update(
+                    'request_parameters',
+                    this.database.raw(
+                        "jsonb_set(request_parameters, '{resultArtifact}', ?::jsonb, true)",
+                        [JSON.stringify(artifact)],
+                    ),
                 ),
-            );
+        );
     }
 
     async recordResultMessageQuery(
@@ -413,21 +494,23 @@ export class QueryHistoryModel {
             QueryHistory['requestParameters']['resultMessageQuery']
         >,
     ): Promise<void> {
-        await this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid)
-            .andWhere((query) => {
-                void query
-                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
-                    .orWhere('created_by_account', accountId);
-            })
-            .update(
-                'request_parameters',
-                this.database.raw(
-                    "jsonb_set(request_parameters, '{resultMessageQuery}', ?::jsonb, true)",
-                    [JSON.stringify(messageQuery)],
+        await this.executeOwnedUpdate(
+            queryUuid,
+            this.executionScopedQuery(queryUuid)
+                .andWhere('project_uuid', projectUuid)
+                .andWhere((query) => {
+                    void query
+                        .whereRaw('created_by_user_uuid::text = ?', [accountId])
+                        .orWhere('created_by_account', accountId);
+                })
+                .update(
+                    'request_parameters',
+                    this.database.raw(
+                        "jsonb_set(request_parameters, '{resultMessageQuery}', ?::jsonb, true)",
+                        [JSON.stringify(messageQuery)],
+                    ),
                 ),
-            );
+        );
     }
 
     async recordResultResearchRun(
@@ -436,21 +519,23 @@ export class QueryHistoryModel {
         accountId: string,
         runUuid: string,
     ): Promise<void> {
-        await this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid)
-            .andWhere((query) => {
-                void query
-                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
-                    .orWhere('created_by_account', accountId);
-            })
-            .update(
-                'request_parameters',
-                this.database.raw(
-                    "jsonb_set(request_parameters, '{resultResearchRunUuid}', ?::jsonb, true)",
-                    [JSON.stringify(runUuid)],
+        await this.executeOwnedUpdate(
+            queryUuid,
+            this.executionScopedQuery(queryUuid)
+                .andWhere('project_uuid', projectUuid)
+                .andWhere((query) => {
+                    void query
+                        .whereRaw('created_by_user_uuid::text = ?', [accountId])
+                        .orWhere('created_by_account', accountId);
+                })
+                .update(
+                    'request_parameters',
+                    this.database.raw(
+                        "jsonb_set(request_parameters, '{resultResearchRunUuid}', ?::jsonb, true)",
+                        [JSON.stringify(runUuid)],
+                    ),
                 ),
-            );
+        );
     }
 
     async recordAiSignInCredential(
@@ -459,17 +544,19 @@ export class QueryHistoryModel {
         userUuid: string,
         aiSignInCredentialUuid: string,
     ): Promise<void> {
-        await this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid)
-            .andWhere('created_by_user_uuid', userUuid)
-            .update(
-                'request_parameters',
-                this.database.raw(
-                    "jsonb_set(request_parameters, '{aiSignInCredentialUuid}', to_jsonb(?::text), true)",
-                    [aiSignInCredentialUuid],
+        await this.executeOwnedUpdate(
+            queryUuid,
+            this.executionScopedQuery(queryUuid)
+                .andWhere('project_uuid', projectUuid)
+                .andWhere('created_by_user_uuid', userUuid)
+                .update(
+                    'request_parameters',
+                    this.database.raw(
+                        "jsonb_set(request_parameters, '{aiSignInCredentialUuid}', to_jsonb(?::text), true)",
+                        [aiSignInCredentialUuid],
+                    ),
                 ),
-            );
+        );
     }
 
     async update(
@@ -480,8 +567,7 @@ export class QueryHistoryModel {
             user: Pick<Account['user'], 'id'>;
         },
     ) {
-        const query = this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
+        const query = this.executionScopedQuery(queryUuid)
             .andWhere('project_uuid', projectUuid)
             .update({
                 ...update,
@@ -517,12 +603,11 @@ export class QueryHistoryModel {
         if (update.status === QueryHistoryStatus.ERROR) {
             void query.whereNot('status', QueryHistoryStatus.CANCELLED);
         }
-        return query;
+        return this.executeOwnedUpdate(queryUuid, query);
     }
 
     async updateStatusToQueued(queryUuid: string): Promise<number> {
-        return this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
+        return this.executionScopedQuery(queryUuid)
             .andWhere('status', QueryHistoryStatus.PENDING)
             .update({
                 status: QueryHistoryStatus.QUEUED,
@@ -530,8 +615,35 @@ export class QueryHistoryModel {
     }
 
     async updateStatusToExecuting(queryUuid: string): Promise<number> {
-        return this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
+        QueryHistoryModel.assertQueryExecutionActive(queryUuid);
+        const ownership = QueryHistoryModel.getQueryExecution(queryUuid);
+        if (ownership) {
+            if (ownership.pendingClaim) return ownership.pendingClaim;
+            const claim = this.database(QueryHistoryTableName)
+                .where('query_uuid', queryUuid)
+                .whereIn('status', [
+                    QueryHistoryStatus.PENDING,
+                    QueryHistoryStatus.QUEUED,
+                ])
+                .update({
+                    status: QueryHistoryStatus.EXECUTING,
+                })
+                .update(
+                    'processing_started_at',
+                    this.database.raw(
+                        "greatest(date_trunc('milliseconds', clock_timestamp()), date_trunc('milliseconds', processing_started_at) + interval '1 millisecond')",
+                    ),
+                )
+                .returning('processing_started_at')
+                .then((rows) => {
+                    ownership.claimedAt =
+                        rows[0]?.processing_started_at ?? null;
+                    return rows.length;
+                });
+            ownership.pendingClaim = claim;
+            return claim;
+        }
+        return this.executionScopedQuery(queryUuid)
             .whereIn('status', [
                 QueryHistoryStatus.PENDING,
                 QueryHistoryStatus.QUEUED,
@@ -546,8 +658,7 @@ export class QueryHistoryModel {
         queryUuid: string,
         error: string,
     ): Promise<number> {
-        return this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
+        return this.executionScopedQuery(queryUuid)
             .whereIn('status', [
                 QueryHistoryStatus.PENDING,
                 QueryHistoryStatus.QUEUED,
@@ -581,14 +692,16 @@ export class QueryHistoryModel {
         queryUuid: string,
         error: string,
     ): Promise<number> {
-        return this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .andWhere('status', QueryHistoryStatus.EXECUTING)
-            .update({
-                status: QueryHistoryStatus.ERROR,
-                error,
-                errored_at: new Date(),
-            });
+        return this.executeOwnedUpdate(
+            queryUuid,
+            this.executionScopedQuery(queryUuid)
+                .andWhere('status', QueryHistoryStatus.EXECUTING)
+                .update({
+                    status: QueryHistoryStatus.ERROR,
+                    error,
+                    errored_at: new Date(),
+                }),
+        );
     }
 
     async updateStatusToError(
@@ -724,13 +837,15 @@ export class QueryHistoryModel {
         projectUuid: string,
         outcome: QueryHistoryCacheOutcome,
     ): Promise<void> {
-        await this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid)
-            .update({
-                cache_miss_reason: outcome.missReason,
-                cache_refresh_requested: outcome.refreshRequested,
-            });
+        await this.executeOwnedUpdate(
+            queryUuid,
+            this.executionScopedQuery(queryUuid)
+                .andWhere('project_uuid', projectUuid)
+                .update({
+                    cache_miss_reason: outcome.missReason,
+                    cache_refresh_requested: outcome.refreshRequested,
+                }),
+        );
     }
 
     async hasClearedResultsForCacheKey(
@@ -822,8 +937,7 @@ export class QueryHistoryModel {
         sourceQueryUuid: string,
         projectUuid: string,
     ): Promise<void> {
-        await this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
+        await this.executionScopedQuery(queryUuid)
             .andWhere('project_uuid', projectUuid)
             .whereNull('cache_invalidated_at')
             .update({
@@ -904,9 +1018,12 @@ export class QueryHistoryModel {
         queryUuid: string,
         spec: DuckdbExecutionSpec,
     ): Promise<void> {
-        await this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .update({ duckdb_execution: spec });
+        await this.executeOwnedUpdate(
+            queryUuid,
+            this.executionScopedQuery(queryUuid).update({
+                duckdb_execution: spec,
+            }),
+        );
     }
 
     async getDuckdbExecution(
@@ -995,11 +1112,14 @@ export class QueryHistoryModel {
 
     /** Records that a DuckDB source query was served from another run's results. */
     async markDuckdbCacheHit(queryUuid: string): Promise<void> {
-        await this.database.raw(
-            `UPDATE ${QueryHistoryTableName}
-             SET duckdb_execution = jsonb_set(COALESCE(duckdb_execution, '{}'::jsonb), '{cacheHit}', 'true'::jsonb)
-             WHERE query_uuid = ?`,
-            [queryUuid],
+        await this.executeOwnedUpdate(
+            queryUuid,
+            this.executionScopedQuery(queryUuid).update(
+                'duckdb_execution',
+                this.database.raw(
+                    "jsonb_set(COALESCE(duckdb_execution, '{}'::jsonb), '{cacheHit}', 'true'::jsonb)",
+                ),
+            ),
         );
     }
 
@@ -1020,20 +1140,24 @@ export class QueryHistoryModel {
         const createdByColumn = account.isRegisteredUser()
             ? 'created_by_user_uuid'
             : 'created_by_account';
-        await this.database.raw(
-            `UPDATE ${QueryHistoryTableName}
-             SET status = ?, error = ?, errored_at = NOW(),
-                 duckdb_execution = jsonb_set(COALESCE(duckdb_execution, '{}'::jsonb), '{refusal}', ?::jsonb)
-             WHERE query_uuid = ? AND project_uuid = ? AND ${createdByColumn} = ? AND status <> ?`,
-            [
-                QueryHistoryStatus.ERROR,
-                error,
-                JSON.stringify(refusal),
-                queryUuid,
-                projectUuid,
-                account.user.id,
-                QueryHistoryStatus.CANCELLED,
-            ],
+        await this.executeOwnedUpdate(
+            queryUuid,
+            this.executionScopedQuery(queryUuid)
+                .andWhere('project_uuid', projectUuid)
+                .andWhere(createdByColumn, account.user.id)
+                .whereNot('status', QueryHistoryStatus.CANCELLED)
+                .update({
+                    status: QueryHistoryStatus.ERROR,
+                    error,
+                })
+                .update('errored_at', this.database.fn.now())
+                .update(
+                    'duckdb_execution',
+                    this.database.raw(
+                        "jsonb_set(COALESCE(duckdb_execution, '{}'::jsonb), '{refusal}', ?::jsonb)",
+                        [JSON.stringify(refusal)],
+                    ),
+                ),
         );
     }
 

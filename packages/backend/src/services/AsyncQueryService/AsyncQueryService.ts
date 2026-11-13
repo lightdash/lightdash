@@ -5037,6 +5037,7 @@ export class AsyncQueryService extends ProjectService {
         queueTimeoutMs: number = this.lightdashConfig.natsWorker.queueTimeoutMs,
         onConnectionClaimed?: () => void,
     ): Promise<boolean> {
+        QueryHistoryModel.assertQueryExecutionActive(queryUuid);
         const queryHistory =
             await this.queryHistoryModel.getByQueryUuid(queryUuid);
 
@@ -5061,7 +5062,10 @@ export class AsyncQueryService extends ProjectService {
         const timeInQueueMs =
             Date.now() - new Date(queryHistory.createdAt).getTime();
 
-        if (timeInQueueMs > queueTimeoutMs) {
+        if (
+            timeInQueueMs > queueTimeoutMs &&
+            !queryHistory.processingStartedAt
+        ) {
             await this.expireQueuedQuery(
                 queryHistory,
                 timeInQueueMs,
@@ -5079,6 +5083,8 @@ export class AsyncQueryService extends ProjectService {
             );
             return false;
         }
+
+        QueryHistoryModel.assertQueryExecutionActive(queryUuid);
 
         try {
             if (isConnectionProducedQuery(queryHistory)) {
@@ -5512,6 +5518,9 @@ export class AsyncQueryService extends ProjectService {
                                 queryTags: warehouseQueryTags,
                                 write: resultsStream
                                     ? (rows) => {
+                                          QueryHistoryModel.assertQueryExecutionActive(
+                                              queryUuid,
+                                          );
                                           hasWrittenRows = true;
                                           return resultsStream.write(rows);
                                       }
@@ -5534,6 +5543,7 @@ export class AsyncQueryService extends ProjectService {
                 queryResults: Awaited<ReturnType<typeof runWarehouseQuery>>,
                 completedClient: WarehouseClient,
             ) => {
+                QueryHistoryModel.assertQueryExecutionActive(queryUuid);
                 const {
                     warehouseResults: {
                         durationMs,
@@ -5664,6 +5674,7 @@ export class AsyncQueryService extends ProjectService {
                 }
 
                 const dbUpdateStart = Date.now();
+                QueryHistoryModel.assertQueryExecutionActive(queryUuid);
                 await this.queryHistoryModel.update(
                     queryUuid,
                     projectUuid,
@@ -5830,6 +5841,7 @@ export class AsyncQueryService extends ProjectService {
                 }
             }
         } catch (e) {
+            QueryHistoryModel.assertQueryExecutionActive(queryUuid);
             if (warehouseQueryCompletedBeforeCleanup) {
                 await this.queryHistoryModel.updateStatusToError(
                     queryUuid,
@@ -5919,6 +5931,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         try {
+            QueryHistoryModel.assertQueryExecutionActive(queryUuid);
             // await for the cleanup functions so that the error is thrown if they fail
             await stream?.close();
         } catch (e) {

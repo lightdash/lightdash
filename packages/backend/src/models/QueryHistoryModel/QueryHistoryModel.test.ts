@@ -43,6 +43,133 @@ describe('QueryHistoryModel connection attribution', () => {
 });
 
 describe('QueryHistoryModel', () => {
+    test('waits for an in-flight claim before releasing it on shutdown', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        const model = new QueryHistoryModel({ database });
+        const controller = new AbortController();
+        const ownership = QueryHistoryModel.createQueryExecution(
+            'query',
+            controller.signal,
+        );
+        let finishClaim!: () => void;
+        const claimed = new Promise<void>((resolve) => {
+            finishClaim = resolve;
+        });
+        tracker.on.update('query_history').responseOnce(async () => {
+            await claimed;
+            return [{ processing_started_at: new Date() }];
+        });
+        tracker.on.update('query_history').responseOnce(1);
+        try {
+            const claiming = QueryHistoryModel.withQueryExecution(
+                ownership,
+                () => model.updateStatusToExecuting('query'),
+            );
+            await vi.waitFor(() =>
+                expect(tracker.history.update).toHaveLength(1),
+            );
+            controller.abort();
+            const releasing = model.releaseQueryExecution(ownership);
+            expect(tracker.history.update).toHaveLength(1);
+            finishClaim();
+            await claiming;
+            await releasing;
+            expect(tracker.history.update).toHaveLength(2);
+            await expect(
+                QueryHistoryModel.withQueryExecution(ownership, () =>
+                    model.updateClaimedQueryToError('query', 'late'),
+                ),
+            ).rejects.toThrow();
+            expect(tracker.history.update).toHaveLength(2);
+        } finally {
+            finishClaim();
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+
+    test('reclaims a handed-off executing row and rejects its previous owner writes', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        const model = new QueryHistoryModel({ database });
+        const account = buildAccount();
+        const first = QueryHistoryModel.createQueryExecution(
+            'query',
+            new AbortController().signal,
+        );
+        const replacement = QueryHistoryModel.createQueryExecution(
+            'query',
+            new AbortController().signal,
+        );
+        const firstStartedAt = new Date('2026-11-13T12:00:00.000Z');
+        const replacementStartedAt = new Date('2026-11-13T12:00:00.001Z');
+        tracker.on
+            .update('query_history')
+            .responseOnce([{ processing_started_at: firstStartedAt }]);
+        tracker.on.update('query_history').responseOnce(1);
+        tracker.on
+            .update('query_history')
+            .responseOnce([{ processing_started_at: replacementStartedAt }]);
+        tracker.on.update('query_history').responseOnce(0);
+        tracker.on.update('query_history').responseOnce(0);
+        tracker.on.update('query_history').responseOnce(1);
+        try {
+            await QueryHistoryModel.withQueryExecution(first, () =>
+                model.updateStatusToExecuting('query'),
+            );
+            await model.releaseQueryExecution(first);
+            await QueryHistoryModel.withQueryExecution(replacement, () =>
+                model.updateStatusToExecuting('query'),
+            );
+            await expect(
+                QueryHistoryModel.withQueryExecution(first, () =>
+                    model.update(
+                        'query',
+                        'project',
+                        {
+                            status: QueryHistoryStatus.READY,
+                            results_file_name: 'old.jsonl',
+                        },
+                        account,
+                    ),
+                ),
+            ).rejects.toThrow('Query execution ownership lost');
+            await expect(
+                QueryHistoryModel.withQueryExecution(first, () =>
+                    model.updateClaimedQueryToError('query', 'late failure'),
+                ),
+            ).rejects.toThrow('Query execution ownership lost');
+            await QueryHistoryModel.withQueryExecution(replacement, () =>
+                model.update(
+                    'query',
+                    'project',
+                    {
+                        status: QueryHistoryStatus.READY,
+                        results_file_name: 'new.jsonl',
+                    },
+                    account,
+                ),
+            );
+            const [claim, release, reclaim, lateReady, lateError, ready] =
+                tracker.history.update;
+            expect(claim.sql).toContain("interval '1 millisecond'");
+            expect(reclaim.sql).toContain("interval '1 millisecond'");
+            expect(release.bindings).toContain(QueryHistoryStatus.QUEUED);
+            for (const update of [release, lateReady, lateError]) {
+                expect(update.sql).toMatch(/"processing_started_at" = \$\d+/);
+                expect(update.bindings).toContainEqual(firstStartedAt);
+                expect(update.bindings).toContain(QueryHistoryStatus.EXECUTING);
+            }
+            expect(ready.bindings).toContainEqual(replacementStartedAt);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+
     test.each([
         {
             excludeAgentProduced: true,
@@ -964,7 +1091,7 @@ describe('status transition guards', () => {
                 account,
             ),
         );
-        expect(query.sql).toMatch(/AND status <> \$7$/);
+        expect(query.sql).toMatch(/and not "status" = \$7$/);
         expect(query.bindings.at(-1)).toBe(QueryHistoryStatus.CANCELLED);
     });
 

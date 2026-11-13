@@ -34,6 +34,7 @@ const setup = () => {
         return true;
     });
     const healthy = vi.fn(async () => true);
+    const releaseQueryExecution = vi.fn(async (): Promise<void> => {});
     let delivered = false;
     let pending = deferred();
     const close = vi.fn(async () => {
@@ -56,6 +57,7 @@ const setup = () => {
             jetstream: () => ({ consumers: { get: async () => ({ fetch }) } }),
         } as unknown as NatsClient,
         queryHistoryModel: {
+            releaseQueryExecution,
             getByQueryUuid: async () => undefined,
         } as unknown as QueryHistoryModel,
         asyncQueryService: {
@@ -65,12 +67,63 @@ const setup = () => {
         workerConcurrency: 1,
         isDatabaseHealthy: healthy,
     });
-    return { worker, message, fetch, close, finish, runQuery, healthy };
+    return {
+        worker,
+        message,
+        fetch,
+        close,
+        finish,
+        runQuery,
+        healthy,
+        releaseQueryExecution,
+    };
 };
 
 afterEach(() => vi.useRealTimers());
 
 describe('NatsWorker lifecycle', () => {
+    it('releases the persisted claim before returning the delivery', async () => {
+        vi.useFakeTimers();
+        const state = setup();
+        const released = deferred();
+        state.releaseQueryExecution.mockImplementationOnce(
+            () => released.promise,
+        );
+        await state.worker.run();
+        await flush();
+        const stopping = state.worker.stop();
+        await vi.advanceTimersByTimeAsync(SHUTDOWN_GRACE_MS);
+        expect(state.releaseQueryExecution).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                queryUuid: 'query',
+                signal: expect.objectContaining({ aborted: true }),
+            }),
+        );
+        expect(state.message.nak).not.toHaveBeenCalled();
+        released.resolve();
+        await stopping;
+        expect(state.message.nak).toHaveBeenCalledOnce();
+        state.finish.resolve();
+        await flush();
+    });
+
+    it('does not return the delivery when the persisted claim cannot be released', async () => {
+        vi.useFakeTimers();
+        const state = setup();
+        state.releaseQueryExecution.mockRejectedValueOnce(
+            new Error('database unavailable'),
+        );
+        await state.worker.run();
+        await flush();
+        const stopping = state.worker.stop();
+        await vi.advanceTimersByTimeAsync(SHUTDOWN_GRACE_MS);
+        await stopping;
+        expect(state.message.nak).not.toHaveBeenCalled();
+        state.finish.resolve();
+        await flush();
+        expect(state.message.ack).not.toHaveBeenCalled();
+    });
+
     it('closes fetch at once, naks unfinished work after the grace and suppresses late ack', async () => {
         vi.useFakeTimers();
         const state = setup();

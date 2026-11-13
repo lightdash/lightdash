@@ -14,7 +14,10 @@ import {
 import { z } from 'zod';
 import { type NatsClient } from '../clients/NatsClient';
 import Logger from '../logging/logger';
-import { type QueryHistoryModel } from '../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    QueryHistoryModel,
+    type QueryExecutionOwnership,
+} from '../models/QueryHistoryModel/QueryHistoryModel';
 import {
     noopOrganizationNameResolver,
     type OrganizationNameResolver,
@@ -96,7 +99,10 @@ export class NatsWorker {
 
     private readonly fetches = new Set<ConsumerMessages>();
 
-    private readonly inFlight = new Map<JsMsg, AbortController>();
+    private readonly inFlight = new Map<
+        JsMsg,
+        { controller: AbortController; ownership: QueryExecutionOwnership }
+    >();
 
     private readonly isDatabaseHealthy: () => Promise<boolean>;
 
@@ -189,16 +195,34 @@ export class NatsWorker {
             }),
         ]);
         clearTimeout(timer);
-        this.inFlight.forEach((controller, message) => {
+        const unfinished = [...this.inFlight.entries()];
+        unfinished.forEach(([, { controller }]) => {
             controller.abort();
-            NatsWorker.logMessageAction(
-                message,
-                this.parseMessage(message)?.payload.queryUuid ?? null,
-                'nak',
-                'shutdown',
-            );
-            message.nak();
         });
+        await Promise.all(
+            unfinished.map(async ([message, { ownership }]) => {
+                try {
+                    await this.queryHistoryModel.releaseQueryExecution(
+                        ownership,
+                    );
+                    NatsWorker.logMessageAction(
+                        message,
+                        ownership.queryUuid || null,
+                        'nak',
+                        'shutdown',
+                    );
+                    message.nak();
+                } catch (error) {
+                    Logger.error(
+                        'Failed to release query execution during shutdown',
+                        {
+                            queryUuid: ownership.queryUuid,
+                            error,
+                        },
+                    );
+                }
+            }),
+        );
     }
 
     private async databaseAvailable(): Promise<boolean> {
@@ -240,7 +264,11 @@ export class NatsWorker {
     ): Promise<void> {
         const controller = new AbortController();
         const originalMessage = message;
-        this.inFlight.set(originalMessage, controller);
+        const ownership = QueryHistoryModel.createQueryExecution(
+            this.parseMessage(message)?.payload.queryUuid ?? '',
+            controller.signal,
+        );
+        this.inFlight.set(originalMessage, { controller, ownership });
         const trackedMessage = new Proxy(message, {
             get(target, property, receiver) {
                 if (
@@ -261,10 +289,12 @@ export class NatsWorker {
             },
         });
         try {
-            await this.processMessage(
-                trackedMessage,
-                workerId,
-                controller.signal,
+            await QueryHistoryModel.withQueryExecution(ownership, () =>
+                this.processMessage(
+                    trackedMessage,
+                    workerId,
+                    controller.signal,
+                ),
             );
         } finally {
             this.inFlight.delete(originalMessage);
@@ -359,8 +389,16 @@ export class NatsWorker {
             message.term();
             return;
         }
+        await this.releaseQueryExecution(queryUuid);
+        if (signal.aborted) return;
         NatsWorker.logMessageAction(message, queryUuid, 'nak', reason);
         message.nak(QUERY_REDELIVERY_DELAY_MS);
+    }
+
+    private async releaseQueryExecution(queryUuid: string): Promise<void> {
+        const ownership = QueryHistoryModel.getQueryExecution(queryUuid);
+        if (ownership)
+            await this.queryHistoryModel.releaseQueryExecution(ownership);
     }
 
     private async persistExhaustedDelivery(
@@ -596,6 +634,8 @@ export class NatsWorker {
                     signal,
                 );
                 if (!signal.aborted) {
+                    await this.releaseQueryExecution(parsed.payload.queryUuid);
+                    if (signal.aborted) return;
                     NatsWorker.logMessageAction(
                         message,
                         parsed.payload.queryUuid,

@@ -95,7 +95,7 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
     beforeEach(async () => {
         tx = await database.transaction();
         await tx.raw(
-            `CREATE TEMP TABLE query_history (query_uuid uuid, project_uuid uuid, status text, created_by_user_uuid text, created_by_account text, context text, created_at timestamptz DEFAULT clock_timestamp(), duckdb_execution jsonb, request_parameters jsonb, metric_query jsonb, cache_key text, agent_identity jsonb, results_file_name text, results_created_at timestamptz, results_updated_at timestamptz, results_expires_at timestamptz, total_row_count bigint, columns jsonb, cache_generation integer NOT NULL DEFAULT 0, cache_invalidated_at timestamptz, request_chart_uuid text, request_saved_sql_uuid text, request_dashboard_uuid text, metric_query_explore_name text) ON COMMIT DROP`,
+            `CREATE TEMP TABLE query_history (query_uuid uuid, project_uuid uuid, status text, processing_started_at timestamptz, error text, errored_at timestamptz, created_by_user_uuid text, created_by_account text, context text, created_at timestamptz DEFAULT clock_timestamp(), duckdb_execution jsonb, request_parameters jsonb, metric_query jsonb, cache_key text, agent_identity jsonb, results_file_name text, results_created_at timestamptz, results_updated_at timestamptz, results_expires_at timestamptz, total_row_count bigint, columns jsonb, cache_generation integer NOT NULL DEFAULT 0, cache_invalidated_at timestamptz, request_chart_uuid text, request_saved_sql_uuid text, request_dashboard_uuid text, metric_query_explore_name text) ON COMMIT DROP`,
         );
         await tx.raw(
             `CREATE TEMP TABLE projects (project_uuid uuid, results_cache_generation integer NOT NULL DEFAULT 0) ON COMMIT DROP`,
@@ -110,6 +110,101 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
     });
     afterAll(async () => {
         await database?.destroy();
+    });
+
+    it('hands off an executing query and fences every previous owner write', async () => {
+        const queryUuid = await insert({ status: QueryHistoryStatus.QUEUED });
+        const oldOwner = QueryHistoryModel.createQueryExecution(
+            queryUuid,
+            new AbortController().signal,
+        );
+        const newOwner = QueryHistoryModel.createQueryExecution(
+            queryUuid,
+            new AbortController().signal,
+        );
+        await tx('query_history')
+            .where('query_uuid', queryUuid)
+            .update({ processing_started_at: new Date('2099-01-01') });
+        expect(
+            await QueryHistoryModel.withQueryExecution(oldOwner, () =>
+                model.updateStatusToExecuting(queryUuid),
+            ),
+        ).toBe(1);
+        expect(await statusOf(queryUuid)).toBe(QueryHistoryStatus.EXECUTING);
+        expect(
+            await QueryHistoryModel.withQueryExecution(newOwner, () =>
+                model.updateStatusToExecuting(queryUuid),
+            ),
+        ).toBe(0);
+        await model.releaseQueryExecution(oldOwner);
+        expect(await statusOf(queryUuid)).toBe(QueryHistoryStatus.QUEUED);
+        const replacement = QueryHistoryModel.createQueryExecution(
+            queryUuid,
+            new AbortController().signal,
+        );
+        expect(
+            await QueryHistoryModel.withQueryExecution(replacement, () =>
+                model.updateStatusToExecuting(queryUuid),
+            ),
+        ).toBe(1);
+        expect(replacement.claimedAt!.getTime()).toBe(
+            oldOwner.claimedAt!.getTime() + 1,
+        );
+        await model.releaseQueryExecution(oldOwner);
+        expect(await statusOf(queryUuid)).toBe(QueryHistoryStatus.EXECUTING);
+        await expect(
+            QueryHistoryModel.withQueryExecution(oldOwner, () =>
+                model.update(
+                    queryUuid,
+                    projectUuid,
+                    {
+                        status: QueryHistoryStatus.READY,
+                        results_file_name: 'stale.jsonl',
+                    },
+                    account,
+                ),
+            ),
+        ).rejects.toThrow('Query execution ownership lost');
+        await expect(
+            QueryHistoryModel.withQueryExecution(oldOwner, () =>
+                model.updateClaimedQueryToError(queryUuid, 'stale error'),
+            ),
+        ).rejects.toThrow('Query execution ownership lost');
+        await expect(
+            QueryHistoryModel.withQueryExecution(oldOwner, () =>
+                model.markDuckdbCacheHit(queryUuid),
+            ),
+        ).rejects.toThrow('Query execution ownership lost');
+        await expect(
+            QueryHistoryModel.withQueryExecution(oldOwner, () =>
+                model.recordDuckdbRefusal(
+                    queryUuid,
+                    projectUuid,
+                    { kind: 'row_cap' },
+                    'stale refusal',
+                    account,
+                ),
+            ),
+        ).rejects.toThrow('Query execution ownership lost');
+        await QueryHistoryModel.withQueryExecution(replacement, () =>
+            model.update(
+                queryUuid,
+                projectUuid,
+                {
+                    status: QueryHistoryStatus.READY,
+                    results_file_name: 'current.jsonl',
+                },
+                account,
+            ),
+        );
+        expect(
+            await tx('query_history').where('query_uuid', queryUuid).first(),
+        ).toMatchObject({
+            status: QueryHistoryStatus.READY,
+            results_file_name: 'current.jsonl',
+            error: null,
+            duckdb_execution: null,
+        });
     });
 
     it('cancels running legs and leaves finished ones', async () => {
