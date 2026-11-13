@@ -90,18 +90,12 @@ export const deleteComposerDashboard = (
     dashboardUuid: string,
 ) => send<undefined>('DELETE', `/api/v1/dashboards/${dashboardUuid}`);
 
-/**
- * A new dashboard holding one composer chart tile. Never reuse a seeded
- * dashboard: upload and promotion refuse dashboards with composer tiles.
- * Remove it with `deleteComposerDashboard`.
- */
+/** A new dashboard in the seed project holding one composer chart tile. */
 export const createComposerDashboard = async (
     send: ComposerApiSend,
-    {
-        projectUuid = SEED_PROJECT.project_uuid,
-        name = `Composer test dashboard ${randomUUID().slice(0, 8)}`,
-    }: { projectUuid?: string; name?: string } = {},
 ): Promise<ComposerDashboard> => {
+    const projectUuid = SEED_PROJECT.project_uuid;
+    const name = `Composer test dashboard ${randomUUID().slice(0, 8)}`;
     const created = await send<Dashboard>(
         'POST',
         `/api/v1/projects/${projectUuid}/dashboards`,
@@ -136,14 +130,22 @@ export const apiClientSend =
             options: { method: string; body?: unknown },
         ): Promise<{ body: R }>;
     }): ComposerApiSend =>
-    async <T>(method: string, path: string, body?: unknown): Promise<T> =>
+    async <T>(
+        method: 'POST' | 'PATCH' | 'DELETE',
+        path: string,
+        body?: unknown,
+    ): Promise<T> =>
         (await client.request<{ results: T }>(path, { method, body })).body
             .results;
 
 /** A `send` over plain fetch, e.g. with `{ Authorization: 'ApiKey <pat>' }`. */
 export const fetchSend =
     (siteUrl: string, headers: Record<string, string>): ComposerApiSend =>
-    async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+    async <T>(
+        method: 'POST' | 'PATCH' | 'DELETE',
+        path: string,
+        body?: unknown,
+    ): Promise<T> => {
         const response = await fetch(`${siteUrl}${path}`, {
             method,
             headers: { 'Content-Type': 'application/json', ...headers },

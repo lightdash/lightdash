@@ -1,6 +1,4 @@
-// Creates or deletes a dashboard holding one composer chart tile, for proofs:
-//   SITE_URL=... LDPAT=... pnpm -F api-tests composer-dashboard create
-//   SITE_URL=... LDPAT=... pnpm -F api-tests composer-dashboard delete <dashboardUuid>
+// Usage: SITE_URL=... LDPAT=... pnpm -F api-tests composer-dashboard create | delete <dashboardUuid>
 /* eslint-disable no-console */
 import {
     createComposerDashboard,
@@ -35,4 +33,7 @@ const run = async () => {
     }
 };
 
-void run();
+run().catch((error: Error) => {
+    console.error(error.message);
+    process.exit(1);
+});

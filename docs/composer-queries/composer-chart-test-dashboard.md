@@ -27,6 +27,6 @@ In tests:
 const { dashboard, chart } = await createComposerDashboard(apiClientSend(admin));
 tracker.trackDashboard(dashboard.uuid);
 
-// packages/e2e (also deleted by support/cleanup.ts when the worker exits)
+// packages/e2e (support/cleanup.ts deletes it when the worker exits)
 const { dashboard, chart } = await createComposerDashboard(api);
 ```

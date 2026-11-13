@@ -9,7 +9,7 @@ import type { TrackedApi } from './test';
 
 export type { ComposerDashboard };
 
-// Through the tracked `api`, so cleanup.ts also deletes the dashboard when the worker exits.
+// Through the tracked `api`, so cleanup.ts still deletes the dashboard if a test skips deleting it.
 const trackedApiSend =
     (api: TrackedApi): ComposerApiSend =>
     async <T>(
@@ -34,6 +34,7 @@ const trackedApiSend =
 export const createComposerDashboard = (api: TrackedApi) =>
     createVia(trackedApiSend(api));
 
+// Delete right after the test: content-as-code CLI specs on the same preview refuse composer tiles.
 export const deleteComposerDashboard = (
     api: TrackedApi,
     dashboardUuid: string,
