@@ -69,7 +69,7 @@ import type {
     SpaceAccessContextForCasl,
     SpacePermissionService,
 } from '../SpaceService/SpacePermissionService';
-import { assertNoComposerChartTiles } from './composerChartTiles';
+import { assertDashboardIsPromotable } from './composerChartTiles';
 
 export type PromotedChart = {
     projectUuid: string;
@@ -2910,7 +2910,7 @@ export class PromoteService extends BaseService {
             space: upstreamSpace,
             spaceAccessContext: upstreamCtx,
         };
-        assertNoComposerChartTiles(dashboard);
+        assertDashboardIsPromotable(dashboard);
 
         return { promotedDashboard, upstreamDashboard };
     }

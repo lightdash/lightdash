@@ -275,7 +275,7 @@ export enum FeatureFlags {
     DashboardFitToScreenDefault = 'dashboard-fit-to-screen-default',
     /**
      * Organization-scoped, off by default: composer charts, saved composer
-     * pipelines shown as dashboard tiles. Only composer chart code reads it.
+     * pipelines shown as dashboard tiles.
      */
     ComposerCharts = 'composer-charts',
 }

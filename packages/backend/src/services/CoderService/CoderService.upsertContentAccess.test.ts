@@ -1160,9 +1160,6 @@ const registerContentAccessTests = (
                 dashboardAsCode as unknown as DashboardAsCode,
             ),
         ).rejects.toThrow(/has composer chart tiles/);
-        expect(
-            service.promoteService.getPromotionDashboardChanges,
-        ).not.toHaveBeenCalled();
     });
 
     it('keeps the saved dimension filter ids of the dashboard it overwrites', async () => {

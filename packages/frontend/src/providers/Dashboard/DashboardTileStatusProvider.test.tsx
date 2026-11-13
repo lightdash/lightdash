@@ -216,7 +216,11 @@ describe('dashboard screenshots with composer chart tiles', () => {
         w: 12,
         h: 6,
         tabUuid,
-        properties: { title: uuid, composerChartUuid: `chart-${uuid}` },
+        properties: {
+            title: uuid,
+            composerChartUuid: `chart-${uuid}`,
+            chartName: null,
+        },
     });
 
     it.each([

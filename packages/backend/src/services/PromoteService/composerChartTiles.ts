@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 
 // Promotion copies tiles by chart uuid; composer charts have no copy path yet.
-export const assertNoComposerChartTiles = (
+export const assertDashboardIsPromotable = (
     dashboard: Pick<DashboardDAO, 'tiles'>,
 ) => {
     if (dashboard.tiles.some(isDashboardComposerChartTile)) {

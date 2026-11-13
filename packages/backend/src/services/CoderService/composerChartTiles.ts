@@ -11,7 +11,7 @@ export const isNotComposerChartTile = (
     !isDashboardComposerChartTile(tile);
 
 // Upload replaces every tile, so it would delete composer tiles it cannot express.
-export const assertNoComposerChartTiles = (
+export const assertNoComposerChartTilesToReplace = (
     slug: string,
     existingTiles: DashboardTile[],
 ) => {

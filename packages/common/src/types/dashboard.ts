@@ -130,7 +130,7 @@ export type DashboardComposerChartTileProperties = {
         // Null only when a tile lost its chart link, e.g. a preview copy.
         composerChartUuid: string | null;
         // Set by the backend on read.
-        chartName?: string | null;
+        chartName: string | null;
     };
 };
 

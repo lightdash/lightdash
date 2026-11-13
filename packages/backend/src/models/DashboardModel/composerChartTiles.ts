@@ -11,12 +11,6 @@ import {
 } from '../../database/entities/composerCharts';
 import { DashboardTilesTableName } from '../../database/entities/dashboards';
 
-export const composerChartTile = {
-    tableName: DashboardTileComposerChartsTableName,
-    chartsTableName: ComposerChartsTableName,
-    chartUuidColumn: `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
-} as const;
-
 export function onComposerChartTile(this: Knex.JoinClause) {
     this.on(
         `${DashboardTileComposerChartsTableName}.dashboard_tile_uuid`,

@@ -123,7 +123,11 @@ describe('composer chart tiles in DashboardModel on the real schema', () => {
                     h: 3,
                     w: 6,
                     tabUuid: null,
-                    properties: { title: 'Orders', composerChartUuid },
+                    properties: {
+                        title: 'Orders',
+                        composerChartUuid,
+                        chartName: null,
+                    },
                 },
             ]),
             { userUuid: fixture.userUuid },

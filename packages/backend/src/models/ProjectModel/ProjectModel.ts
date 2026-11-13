@@ -105,6 +105,7 @@ import {
     MetricsTreesTableName,
 } from '../../database/entities/catalog';
 import { DashboardTileCommentsTableName } from '../../database/entities/comments';
+import { DashboardTileComposerChartsTableName } from '../../database/entities/composerCharts';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -2292,6 +2293,7 @@ export class ProjectModel {
                 DashboardTileLoomsTableName,
                 DashboardTileHeadingsTableName,
                 DashboardTileDataAppsTableName,
+                DashboardTileComposerChartsTableName,
             ];
             // Child rows reference the tile by (version, uuid) without ON
             // UPDATE, so the tile is re-inserted under the new uuid, the

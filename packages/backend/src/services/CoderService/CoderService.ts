@@ -187,7 +187,7 @@ import {
     type CurrentChartSqlItems,
 } from './chartPermissions';
 import {
-    assertNoComposerChartTiles,
+    assertNoComposerChartTilesToReplace,
     isNotComposerChartTile,
 } from './composerChartTiles';
 import {
@@ -2148,7 +2148,7 @@ export class CoderService extends BaseService {
                     tabUuid: undefined,
                     tabSlug,
                 };
-            }, []);
+            });
         tilesWithoutUuids.sort(
             (left, right) =>
                 left.y - right.y ||
@@ -5905,7 +5905,10 @@ export class CoderService extends BaseService {
                 dashboardWithResolvedTabs.tiles,
                 tabUuidsBySlug,
             );
-        assertNoComposerChartTiles(slug, existingDashboard?.tiles ?? []);
+        assertNoComposerChartTilesToReplace(
+            slug,
+            existingDashboard?.tiles ?? [],
+        );
         const tilesWithUuids = preserveDashboardTileUuids(
             resolvedTiles,
             existingDashboard?.tiles ?? [],
