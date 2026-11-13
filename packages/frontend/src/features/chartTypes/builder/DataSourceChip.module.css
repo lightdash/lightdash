@@ -8,6 +8,7 @@
     border: 1px dashed var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-xl);
     color: var(--mantine-color-ldGray-7);
+    white-space: nowrap;
 }
 
 .emptyChip:hover:not(:disabled) {

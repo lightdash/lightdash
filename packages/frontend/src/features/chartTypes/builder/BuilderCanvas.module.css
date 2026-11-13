@@ -126,6 +126,16 @@
     }
 }
 
+@container chart-type-workspace (max-width: 40rem) {
+    .canvas {
+        padding-inline: var(--mantine-spacing-md);
+    }
+
+    .card {
+        flex-direction: column;
+    }
+}
+
 /* The second way in. The divider sits at the same distance from the examples
    above and from the offers or attached card below. */
 .sourceGroup {
