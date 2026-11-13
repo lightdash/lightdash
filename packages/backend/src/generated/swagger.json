@@ -27106,6 +27106,42 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AnalyticsProjectView": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "projectUuid": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/UUID"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "source": {
+                                "type": "string",
+                                "enum": ["settings"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["projectUuid", "source"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "projectUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            },
+                            "source": {
+                                "type": "string",
+                                "enum": ["homepage", "project"]
+                            }
+                        },
+                        "required": ["projectUuid", "source"],
+                        "type": "object"
+                    }
+                ]
+            },
             "EnsureAnalyticsProjectResult": {
                 "properties": {
                     "created": {
@@ -41706,6 +41742,179 @@
             "ApiSemanticLayerStoredModelsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerStoredModels_"
             },
+            "SemanticStudioWorkspacePullRequestState": {
+                "type": "string",
+                "enum": ["open", "merged", "closed"]
+            },
+            "SemanticStudioWorkspace": {
+                "properties": {
+                    "finishedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "pullRequest": {
+                        "properties": {
+                            "state": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/SemanticStudioWorkspacePullRequestState"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "url": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["state", "url"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "The latest pull request its conversation opened, with its state when last checked."
+                    },
+                    "isActive": {
+                        "type": "boolean",
+                        "description": "The one your chat writes to and your development view reads."
+                    },
+                    "isMine": {
+                        "type": "boolean"
+                    },
+                    "owner": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "userUuid"],
+                        "type": "object"
+                    },
+                    "agentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "workspaceUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "finishedAt",
+                    "updatedAt",
+                    "createdAt",
+                    "pullRequest",
+                    "isActive",
+                    "isMine",
+                    "owner",
+                    "agentUuid",
+                    "threadUuid",
+                    "name",
+                    "projectUuid",
+                    "workspaceUuid"
+                ],
+                "type": "object",
+                "description": "One piece of Studio work from its first proposed change until it is live or discarded."
+            },
+            "SemanticStudioWorkspaces": {
+                "properties": {
+                    "recent": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticStudioWorkspace"
+                        },
+                        "type": "array",
+                        "description": "Your workspaces finished in the last two weeks, newest first."
+                    },
+                    "others": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticStudioWorkspace"
+                        },
+                        "type": "array",
+                        "description": "Others' unfinished workspaces in this project, to be aware of."
+                    },
+                    "mine": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticStudioWorkspace"
+                        },
+                        "type": "array",
+                        "description": "Your unfinished workspaces, the active one first."
+                    }
+                },
+                "required": ["recent", "others", "mine"],
+                "type": "object"
+            },
+            "ApiSuccess_SemanticStudioWorkspaces_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticStudioWorkspaces"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioWorkspacesResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioWorkspaces_"
+            },
+            "ApiSuccess_SemanticStudioWorkspace_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticStudioWorkspace"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioWorkspaceResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioWorkspace_"
+            },
+            "SemanticStudioWorkspaceStartBody": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "threadUuid"],
+                "type": "object"
+            },
+            "SemanticStudioWorkspaceRenameBody": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object"
+            },
             "SemanticLayerChangeSource": {
                 "type": "string",
                 "enum": ["draft", "undo"]
@@ -42379,6 +42588,38 @@
             },
             "ApiSemanticLayerDraftUsageResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftUsage_"
+            },
+            "SemanticLayerTouchedField": {
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": ["changed", "removed"]
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    }
+                },
+                "required": ["kind", "label", "fieldId", "model"],
+                "type": "object",
+                "description": "A field a change redefines or removes, to look up in saved content."
+            },
+            "SemanticLayerFieldUsageBody": {
+                "properties": {
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerTouchedField"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["fields"],
+                "type": "object"
             },
             "SemanticLayerDraftApplyResult": {
                 "properties": {
@@ -78320,7 +78561,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.242.0",
+        "version": "3.243.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -84988,6 +85229,48 @@
                 "tags": ["Analytics project"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/org/analytics-project/view": {
+            "post": {
+                "operationId": "TrackAnalyticsProjectView",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Record an authenticated analytics visit and its source.",
+                "summary": "Track analytics visit",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AnalyticsProjectView"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/org/analytics-project/sample-content": {
@@ -92341,6 +92624,341 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/semantic-studio/workspaces": {
+            "get": {
+                "operationId": "listSemanticStudioWorkspaces",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioWorkspacesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Studio work in this project: yours in flight, others' in flight, and yours finished lately.",
+                "summary": "List Semantic Studio workspaces",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "startSemanticStudioWorkspace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioWorkspaceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Makes a Studio conversation's workspace your active one, starting it when it has none.",
+                "summary": "Start a Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SemanticStudioWorkspaceStartBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/workspaces/leave": {
+            "post": {
+                "operationId": "leaveSemanticStudioWorkspace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Leaves your active workspace, so your next conversation starts a new one.",
+                "summary": "Leave my Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}": {
+            "get": {
+                "operationId": "getSemanticStudioWorkspace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioWorkspaceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "One workspace in this project.",
+                "summary": "Get a Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "workspaceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "renameSemanticStudioWorkspace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioWorkspaceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Renames one of your workspaces.",
+                "summary": "Rename a Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "workspaceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SemanticStudioWorkspaceRenameBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}/activate": {
+            "post": {
+                "operationId": "activateSemanticStudioWorkspace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioWorkspaceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Makes one of your workspaces the active one.",
+                "summary": "Switch to a Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "workspaceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}/finish": {
+            "post": {
+                "operationId": "finishSemanticStudioWorkspace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Ends one of your workspaces after its changes were discarded; it stays as history.",
+                "summary": "Finish a Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "workspaceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/semantic-studio/models/{modelName}": {
             "get": {
                 "operationId": "getSemanticLayerModel",
@@ -92638,6 +93256,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/field-usage": {
+            "post": {
+                "operationId": "getSemanticLayerFieldUsage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerDraftUsageResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Saved charts and dashboards that read any of the given fields, which a pull request defines differently or removes.",
+                "summary": "Get the saved content that reads changed fields",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SemanticLayerFieldUsageBody"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/semantic-studio/draft/usage": {

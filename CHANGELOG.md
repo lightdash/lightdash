@@ -1,3 +1,18 @@
+# [3.243.0](https://github.com/lightdash/lightdash/compare/3.242.0...3.243.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** match bar menu arrows and say Ungroup ([#32538](https://github.com/lightdash/lightdash/issues/32538)) ([377f1c7](https://github.com/lightdash/lightdash/commit/377f1c7335865d5ad3d70884307bc980a0d9b59b))
+* **previews:** add flag to inherit parent settings across Snowflake warehouses ([#32471](https://github.com/lightdash/lightdash/issues/32471)) ([217eee9](https://github.com/lightdash/lightdash/commit/217eee95a6cb4089da3ecb31eab5ac2a46c4f76d))
+* **storybook:** repair the colour scheme toggle ([#32539](https://github.com/lightdash/lightdash/issues/32539)) ([4c21e05](https://github.com/lightdash/lightdash/commit/4c21e052e5a9870f75e226bc5ee9c2f5c49bf001))
+
+
+### Features
+
+* add an Analytics overview and scoped AI chat to settings ([#32529](https://github.com/lightdash/lightdash/issues/32529)) ([5929858](https://github.com/lightdash/lightdash/commit/5929858a1645e7c17f2adc053d38934d30fc0ac1))
+* **ai:** keep Semantic Studio work as server-side workspaces ([#32533](https://github.com/lightdash/lightdash/issues/32533)) ([4329310](https://github.com/lightdash/lightdash/commit/4329310f234a95d3279445fe20b3c09a0fa4ea3a))
+
 # [3.242.0](https://github.com/lightdash/lightdash/compare/3.241.0...3.242.0) (2026-11-13)
 
 
