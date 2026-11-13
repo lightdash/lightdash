@@ -12,3 +12,10 @@
         width: calc(50vw - 12.5rem - 2 * var(--mantine-spacing-md));
     }
 }
+
+@media (max-height: 30em) and (min-width: 30.0625em) and (max-width: 48.9375em) {
+    .notificationsRoot.signedOut[data-position^='bottom'] {
+        top: auto;
+        bottom: var(--mantine-spacing-md);
+    }
+}
