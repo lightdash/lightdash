@@ -108,31 +108,6 @@
     margin-inline: auto;
 }
 
-.summary {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: var(--mantine-font-size-sm);
-    color: var(--mantine-color-dimmed);
-}
-
-.summaryDot {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: currentColor;
-    opacity: 0.6;
-}
-
-.summaryLink {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: var(--mantine-font-size-sm);
-    color: var(--mantine-color-text);
-}
-
 .lineCounts {
     display: inline-flex;
     gap: 6px;
@@ -187,6 +162,36 @@
 
 .modelBody {
     padding: 14px;
+}
+
+/* The code runs to the card's edges so its gutter lines up with the rows above. */
+.fileBlock {
+    margin-inline: -14px;
+    padding-top: 4px;
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.modelBody > .fileBlock:last-child {
+    margin-bottom: -14px;
+}
+
+.totals:empty {
+    display: none;
+}
+
+/* Totals share the card's left edge instead of their own inset. */
+.totals > * {
+    padding-inline: 0;
+}
+
+.fileName {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
 }
 
 /* A change arrives from the chat's side, since that is where it was asked for. */

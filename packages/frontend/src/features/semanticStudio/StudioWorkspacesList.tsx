@@ -170,23 +170,6 @@ export const StudioWorkspacesList: FC<{
                     Each change runs from its first proposal until it is live.
                 </Text>
             </header>
-            <div className={classes.stats}>
-                <div className={classes.stat}>
-                    <span className={classes.statValue}>{rows.length}</span>
-                    <span className={classes.statLabel}>In flight</span>
-                </div>
-                <div
-                    className={classes.stat}
-                    data-tone={waiting.length > 0 ? 'attention' : undefined}
-                >
-                    <span className={classes.statValue}>{waiting.length}</span>
-                    <span className={classes.statLabel}>Waiting on you</span>
-                </div>
-                <div className={classes.stat}>
-                    <span className={classes.statValue}>{recent.length}</span>
-                    <span className={classes.statLabel}>Live lately</span>
-                </div>
-            </div>
             {rows.length === 0 ? (
                 <div className={classes.empty}>
                     <Text fz="sm" fw={500}>

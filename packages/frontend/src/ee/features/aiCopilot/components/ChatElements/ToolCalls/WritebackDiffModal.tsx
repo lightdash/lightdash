@@ -214,6 +214,7 @@ export const FileDiff: FC<{ patch: string }> = ({ patch }) => {
                 className={classes.diffHost}
                 options={{
                     diffStyle: 'unified',
+                    disableFileHeader: true,
                     // A thin rule between hunks; the count of lines left out adds nothing here.
                     hunkSeparators: 'simple',
                     theme:

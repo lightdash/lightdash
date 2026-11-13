@@ -23,45 +23,6 @@
     color: var(--mantine-color-dimmed);
 }
 
-.stats {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    margin-bottom: 28px;
-}
-
-.stat {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 12px 14px;
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-lg);
-}
-
-.stat[data-tone='attention'] {
-    border-color: transparent;
-    background: var(--mantine-color-orange-light);
-    color: var(--mantine-color-orange-light-color);
-}
-
-.statValue {
-    font-size: 24px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    font-variant-numeric: tabular-nums;
-    line-height: 1.1;
-}
-
-.statLabel {
-    font-size: var(--mantine-font-size-xs);
-    color: var(--mantine-color-dimmed);
-}
-
-.stat[data-tone='attention'] .statLabel {
-    color: inherit;
-}
-
 .empty {
     padding: 28px;
     border: 1px dashed var(--mantine-color-default-border);

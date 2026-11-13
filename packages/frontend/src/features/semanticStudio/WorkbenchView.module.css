@@ -207,6 +207,18 @@
     gap: 6px 14px;
 }
 
+.changeLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
+
+.changeLink:hover {
+    color: var(--mantine-color-text);
+}
+
 .changeName {
     max-width: 360px;
     overflow: hidden;
