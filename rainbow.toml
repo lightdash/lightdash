@@ -3,18 +3,12 @@
 # kernel, network, guest access, paint/warm harnesses and per-env origin and
 # secret values are the platform's, not this file's.
 
-# One process: `pnpm dev` runs the common, visualization and warehouses tsc
-# watchers, the backend (tsx watch, :8080) and the Vite dev server (:3000).
-# The browser hits 8080: the backend serves the production bundle the
-# `frontend-build` tier writes to packages/frontend/build, as the release
-# image does. The dev server stays up but nothing routes to it — the
-# bundle is ~180 requests per page against the dev server's ~1,200, and
-# that gap is what put the Cypress suites over their ten-second waits
-# (SRE-100).
+# Run the backend directly so duplicate shutdown signals cannot make a watch
+# supervisor kill it before scheduler jobs release their locks.
 [[app.service]]
 name = "dev"
-command = "pnpm dev"
-ports = [8080, 3000]
+command = "cd packages/backend && exec node --import tsx src/index.ts"
+ports = [8080]
 serve_port = 8080
 restart_on_inject = true           # re-exec on fork to read the injected SITE_URL (see [origin])
 
@@ -40,8 +34,7 @@ max_memory = "16gb"                # headroom the migrate rung and the pnpm inst
 # build step bakes common and warehouses dist into the image so the backend can
 # import them; the `frontend-build` rung below bakes formula, visualization and
 # the bundle the same way, before the migrate rung imports them. These steps
-# run before the ladder's first run rung. From then on the `pnpm dev` watchers
-# keep them current. The
+# run before the ladder's first run rung; the tiers rebuild changed packages. The
 # second is the dbt venv the seed's project compile shells out to (`dbt1.12`).
 # Its adapters match the release image's dbt1.12 venv: the API and app tests
 # compile Snowflake, BigQuery, Databricks and Trino projects with it too.
@@ -74,9 +67,7 @@ HOME = "/root"                     # the service unit sets no HOME; DuckDB refus
 NODE_ENV = "development"
 # PR mode is what previews run as: the preview flag set and its
 # management API, a fixed 000000 email passcode, the relaxed cross-origin
-# opener policy, /api/docs. Hot reload is unaffected: it belongs to the dev
-# processes, not the mode. packages/backend's dev script defers to a mode
-# already set in the environment, so this value reaches the backend.
+# opener policy, /api/docs. The app tier restarts the backend on source changes.
 LIGHTDASH_MODE = "pr"
 LIGHTDASH_LOG_LEVEL = "info"
 LIGHTDASH_LOG_FORMAT = "json"
@@ -225,7 +216,7 @@ preset = "pnpm"                    # lockfile globs; egress and memory headroom 
 # same rung bakes the dist that `migrate` and `tsoa` import, which the
 # old formula-build and common-build rungs did by hand (2026-09-08: both
 # died reading a watcher's half-written barrel; a run rung executes with
-# the app's units stopped, before any watcher has caught up). Fires on any
+# the app's units stopped). Fires on any
 # package the bundle contains.
 [[tier]]
 name = "frontend-build"
@@ -234,9 +225,7 @@ run = "rm -rf .turbo/cache packages/frontend/build && pnpm turbo run build --fil
 env = { NODE_ENV = "production", TURBO_TELEMETRY_DISABLED = "1", TURBO_NO_UPDATE_NOTIFIER = "1" }
 memory = "12gb"                    # the common barrel is large; the same headroom migrate takes
 
-# `pnpm dev` runs a tsc watcher over warehouses, so a change to it is a hot
-# reload for a serving environment; the backend imports its `dist`, and the
-# rungs below run before the watcher has caught up (see frontend-build).
+# The backend imports warehouses from dist, so rebuild it before restarting.
 [[tier]]
 name = "warehouses-build"
 files = ["packages/warehouses/**"]
@@ -267,12 +256,13 @@ memory = "12gb"
 [[tier]]
 name = "api-routes"
 files = ["packages/backend/src/controllers/**", "packages/backend/src/ee/controllers/**"]
-run = "pnpm -F backend generate-api"   # tsx watch restarts on the regenerated routes.ts
+run = "pnpm -F backend generate-api"
 env = { NODE_OPTIONS = "--max-old-space-size=8192" }  # tsoa exceeds the default V8 heap (same as CI)
 
 [[tier]]
 name = "app"
-watch = ["**"]                     # tsx watch and the tsc watchers notice the write
+files = ["**"]
+run = "true"                        # run tiers stop/start services, including for backend-only changes
 
 # Outbound access, exactly these flows and nothing else (the platform builds
 # the uplink and a default-deny policy around them). The backend validates its
