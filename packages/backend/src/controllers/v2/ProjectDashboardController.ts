@@ -8,6 +8,7 @@ import {
     type ApiSuccessEmpty,
     type DashboardTileParameterReferencesRequest,
     type UpdateDashboard,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import {
     Body,
@@ -126,7 +127,7 @@ export class ProjectDashboardControllerV2 extends BaseController {
     @OperationId('getProjectDashboardParameters')
     async getParameters(
         @Path() projectUuid: string,
-        @Path() dashboardUuidOrSlug: string,
+        @Path() dashboardUuidOrSlug: UuidOrSlug,
         @Request() req: express.Request,
     ): Promise<ApiDashboardParametersResponse> {
         assertRegisteredAccount(req.account);

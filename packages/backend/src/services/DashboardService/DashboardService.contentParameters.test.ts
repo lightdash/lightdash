@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     DashboardTileTypes,
     DimensionType,
@@ -5,6 +6,7 @@ import {
     ForbiddenError,
     type Dashboard,
     type Explore,
+    type PossibleAbilities,
     type RegisteredAccount,
     type SavedChartDAO,
 } from '@lightdash/common';
@@ -63,6 +65,9 @@ const charts: Record<string, SavedChartDAO> = {
 
 const dashboard = {
     uuid: 'dashboard',
+    name: 'Dashboard',
+    organizationUuid: user.organizationUuid,
+    spaceUuid: 'space',
     projectUuid,
     parameters: { region: { parameterName: 'region', value: 'APAC' } },
     tiles: [
@@ -94,7 +99,13 @@ const dashboard = {
     ],
 } as unknown as Dashboard;
 
-const setup = () => {
+const setup = ({
+    exploreOverride = explore,
+    projectParameters = [],
+}: {
+    exploreOverride?: Explore;
+    projectParameters?: { name: string; config: object }[];
+} = {}) => {
     const savedChartModel = {
         get: vi.fn(async (uuid: string) => charts[uuid]),
     };
@@ -106,6 +117,12 @@ const setup = () => {
         })),
     };
     const spacePermissionService = {
+        resolveAccess: vi.fn(async () => ({
+            organizationUuid: user.organizationUuid!,
+            projectUuid,
+            inheritsFromOrgOrProject: true,
+            access: [],
+        })),
         resolveAccessBatch: vi.fn(
             async (_userUuid: string, targets: AccessTarget[]) =>
                 targets.map((target) => ({
@@ -135,10 +152,16 @@ const setup = () => {
                     },
                 },
                 { name: 'unused', config: { label: 'Unused' } },
+                ...projectParameters,
             ]),
         },
-        findExplores: vi.fn(async () => ({ [chart.tableName]: explore })),
+        findExplores: vi.fn(async () => ({
+            [chart.tableName]: exploreOverride,
+        })),
+        getQueryTimezoneForProject: vi.fn(async () => 'Pacific/Kiritimati'),
     };
+    const analyticsModel = { addDashboardViewEvent: vi.fn() };
+    const analytics = { track: vi.fn() };
     const service = new DashboardService({
         lightdashConfig: lightdashConfigMock,
         savedChartModel,
@@ -146,10 +169,28 @@ const setup = () => {
         spacePermissionService,
         projectService,
         featureFlagModel: { get: vi.fn() },
+        dashboardModel: { getByIdOrSlug: vi.fn(async () => dashboard) },
+        analyticsModel,
+        analytics,
     } as unknown as ConstructorParameters<typeof DashboardService>[0]);
-    vi.spyOn(service, 'getByIdOrSlug').mockResolvedValue(dashboard);
-    return { service };
+    return { service, projectService, analyticsModel, analytics };
 };
+
+// The explore as a virtual view with saved values, its table referencing the given parameters
+const withReferences = (
+    parameterReferences: string[],
+    savedParameterValues: object,
+) =>
+    ({
+        ...explore,
+        savedParameterValues,
+        tables: {
+            [chart.tableName]: {
+                ...explore.tables[chart.tableName],
+                parameterReferences,
+            },
+        },
+    }) as unknown as Explore;
 
 describe('DashboardService.getChartParameters', () => {
     it('lists the parameters the chart uses with its saved values', async () => {
@@ -171,6 +212,77 @@ describe('DashboardService.getChartParameters', () => {
                 source: 'model',
             },
         ]);
+    });
+
+    it('falls back to the virtual view value, under the chart value', async () => {
+        const { service } = setup({
+            exploreOverride: withReferences(['orders.min_amount', 'region'], {
+                'orders.min_amount': 20,
+                region: 'APAC',
+            }),
+        });
+        const result = await service.getChartParameters(
+            account,
+            projectUuid,
+            'orders',
+        );
+        expect(
+            Object.fromEntries(
+                result.map(({ name, currentValue }) => [name, currentValue]),
+            ),
+        ).toEqual({ 'orders.min_amount': 50, region: 'APAC' });
+    });
+
+    it('skips a virtual view value outside the fixed options', async () => {
+        const { service } = setup({
+            exploreOverride: withReferences(['region'], { region: 'LATAM' }),
+        });
+        const [region] = await service.getChartParameters(
+            account,
+            projectUuid,
+            'orders',
+        );
+        expect(region).toMatchObject({ name: 'region', currentValue: 'EMEA' });
+    });
+
+    it("resolves a today default in the project's query timezone", async () => {
+        vi.useFakeTimers({ now: new Date('2026-01-01T23:00:00Z') });
+        try {
+            const { service, projectService } = setup({
+                projectParameters: [
+                    {
+                        name: 'as_of',
+                        config: {
+                            label: 'As of',
+                            type: 'date',
+                            default: 'today',
+                        },
+                    },
+                ],
+                exploreOverride: withReferences(['as_of'], {}),
+            });
+            const [asOf] = await service.getChartParameters(
+                account,
+                projectUuid,
+                'orders',
+            );
+            // Kiritimati is UTC+14, already on the next day
+            expect(asOf.currentValue).toBe('2026-01-02');
+            const [dashboardAsOf] = await service.getDashboardParameters(
+                account,
+                projectUuid,
+                'dashboard',
+            );
+            expect(dashboardAsOf).toMatchObject({
+                name: 'as_of',
+                currentValue: '2026-01-02',
+            });
+            expect(
+                projectService.getQueryTimezoneForProject,
+            ).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it("refuses a chart the user can't view", async () => {
@@ -214,5 +326,33 @@ describe('DashboardService.getDashboardParameters', () => {
                 tileUuids: ['sql-tile', 'other-sql-tile'],
             },
         ]);
+    });
+
+    it('does not record a dashboard view', async () => {
+        const { service, projectService, analyticsModel, analytics } = setup();
+        await service.getDashboardParameters(account, projectUuid, 'dashboard');
+        expect(analyticsModel.addDashboardViewEvent).not.toHaveBeenCalled();
+        expect(analytics.track).not.toHaveBeenCalled();
+        expect(
+            projectService.getQueryTimezoneForProject,
+        ).not.toHaveBeenCalled();
+    });
+
+    it("refuses a dashboard the user can't view", async () => {
+        const { service, analyticsModel } = setup();
+        const chartOnlyAccount = fromSession({
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: ['view'] },
+            ]),
+        }) as RegisteredAccount;
+        await expect(
+            service.getDashboardParameters(
+                chartOnlyAccount,
+                projectUuid,
+                'dashboard',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(analyticsModel.addDashboardViewEvent).not.toHaveBeenCalled();
     });
 });

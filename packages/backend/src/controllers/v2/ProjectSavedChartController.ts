@@ -4,6 +4,7 @@ import {
     type ApiErrorPayload,
     type ApiSavedChartResponse,
     type ApiSuccessEmpty,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import {
     Delete,
@@ -85,7 +86,7 @@ export class ProjectSavedChartControllerV2 extends BaseController {
     @OperationId('getProjectSavedChartParameters')
     async getParameters(
         @Path() projectUuid: string,
-        @Path() chartUuidOrSlug: string,
+        @Path() chartUuidOrSlug: UuidOrSlug,
         @Request() req: express.Request,
     ): Promise<ApiChartParametersResponse> {
         assertRegisteredAccount(req.account);

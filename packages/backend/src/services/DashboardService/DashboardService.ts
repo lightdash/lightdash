@@ -46,6 +46,7 @@ import {
     isExploreError,
     isJwtUser,
     isMergeMetricSource,
+    isTodayParameterDefault,
     isUserWithOrg,
     isValidDashboardTilePositions,
     isValidFrequency,
@@ -53,6 +54,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
+    omitDisallowedParameterValues,
     ParameterError,
     PossibleAbilities,
     ProjectType,
@@ -201,7 +203,7 @@ type DashboardServiceArguments = {
     contentVerificationModel: ContentVerificationModel;
     projectService: Pick<
         ProjectService,
-        'findExplores' | 'projectParametersModel'
+        'findExplores' | 'projectParametersModel' | 'getQueryTimezoneForProject'
     >;
 };
 
@@ -1136,7 +1138,7 @@ export class DashboardService
     async getChartParameters(
         account: Account,
         projectUuid: string,
-        chartUuidOrSlug: string,
+        chartUuidOrSlug: UuidOrSlug,
     ): Promise<ContentParameter[]> {
         const chart = await this.savedChartModel.get(
             chartUuidOrSlug,
@@ -1169,7 +1171,21 @@ export class DashboardService
             parameterReferences: result.parameterReferences,
             definitions: result.parameterDefinitions,
             projectDefinitions,
-            savedValues: chart.parameters ?? {},
+            // Chart values over virtual-view values; one outside the fixed options falls through
+            savedValues: {
+                ...omitDisallowedParameterValues(
+                    result.virtualViewSavedValues,
+                    result.parameterDefinitions,
+                ),
+                ...omitDisallowedParameterValues(
+                    result.chartSavedValues,
+                    result.parameterDefinitions,
+                ),
+            },
+            timezone: await this.getTodayDefaultTimezone(
+                projectUuid,
+                result.parameterDefinitions,
+            ),
         });
     }
 
@@ -1181,13 +1197,41 @@ export class DashboardService
     async getDashboardParameters(
         account: RegisteredAccount,
         projectUuid: string,
-        dashboardUuidOrSlug: string,
+        dashboardUuidOrSlug: UuidOrSlug,
     ): Promise<DashboardContentParameter[]> {
-        const dashboard = await this.getByIdOrSlug(
-            toSessionUser(account),
+        // Not getByIdOrSlug: listing parameters must not count as a dashboard view
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
             { projectUuid },
         );
+        const user = toSessionUser(account);
+        const spaceContext = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            },
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('Dashboard', {
+                    ...dashboard,
+                    inheritsFromOrgOrProject:
+                        spaceContext.inheritsFromOrgOrProject,
+                    access: spaceContext.access,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
         const tiles =
             dashboard.tiles.flatMap<DashboardTileParameterReferencesTile>(
                 (tile) => {
@@ -1245,10 +1289,24 @@ export class DashboardService
             savedValues:
                 convertDashboardParametersToValuesMap(dashboard.parameters) ??
                 {},
+            timezone: await this.getTodayDefaultTimezone(
+                projectUuid,
+                definitions,
+            ),
         }).map((parameter) => ({
             ...parameter,
             tileUuids: uniq(tileUuidsByName.get(parameter.name) ?? []),
         }));
+    }
+
+    // A `today` default resolves in the project's query timezone; only looked up when needed
+    private async getTodayDefaultTimezone(
+        projectUuid: string,
+        definitions: ParameterDefinitions,
+    ): Promise<string | undefined> {
+        return Object.values(definitions).some(isTodayParameterDefault)
+            ? this.projectService.getQueryTimezoneForProject(projectUuid)
+            : undefined;
     }
 
     private async getProjectParameterDefinitions(
