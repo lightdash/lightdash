@@ -14,7 +14,7 @@ import {
 
 type SignIn = ReturnType<typeof useMobileSignInCode>;
 
-export const PREVIEW_SIGN_IN_PARAM = 'mobileSignInState';
+const PREVIEW_SIGN_IN_PARAM = 'mobileSignInState';
 
 export const PREVIEW_SIGN_IN_PHASES = [
     'claimed',
