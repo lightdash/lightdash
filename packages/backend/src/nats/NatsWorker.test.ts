@@ -7,7 +7,10 @@ import { StringCodec, type JsMsg } from 'nats';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type NatsClient } from '../clients/NatsClient';
 import Logger from '../logging/logger';
-import { type QueryHistoryModel } from '../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    QueryExecutionOwnershipLostError,
+    type QueryHistoryModel,
+} from '../models/QueryHistoryModel/QueryHistoryModel';
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { registerPreAggregateStream, STREAM_CONFIGS } from './natsConfig';
 import { NatsWorker } from './NatsWorker';
@@ -39,6 +42,8 @@ describe('NatsWorker subject dispatch', () => {
         runAsyncPreAggregateQueryFromHistory: vi.fn(async () => true),
     };
     const queryHistoryModel = {
+        releaseQueryExecution: vi.fn(async () => undefined),
+        failUnfinishedQueryDelivery: vi.fn(async () => 1),
         getByQueryUuid: vi.fn<() => Promise<QueryHistory | undefined>>(
             async () => undefined,
         ),
@@ -71,7 +76,7 @@ describe('NatsWorker subject dispatch', () => {
             {
                 queryUuid: 'query-1',
                 deliveryCount: 2,
-                reason: 'unknown',
+                reason: 'acknowledgement not received',
             },
         );
         expect(message.ack).toHaveBeenCalledOnce();
@@ -337,7 +342,7 @@ describe('NatsWorker subject dispatch', () => {
                     reason: error.name,
                 },
             );
-            expect(message.nak).toHaveBeenCalledOnce();
+            expect(message.nak).toHaveBeenCalledWith(30_000);
             expect(message.term).not.toHaveBeenCalled();
             expect(queryHistoryModel.getByQueryUuid).toHaveBeenCalledOnce();
         },
@@ -352,5 +357,214 @@ describe('NatsWorker subject dispatch', () => {
             asyncQueryService.runAsyncDuckdbQueryFromHistory,
         ).not.toHaveBeenCalled();
         expect(message.term).toHaveBeenCalled();
+    });
+    it.each([QueryHistoryStatus.QUEUED, QueryHistoryStatus.EXECUTING])(
+        'retries an unclaimed %s row without terminating it',
+        async (status) => {
+            const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+            Object.assign(message.info, { deliveryCount: 2 });
+            asyncQueryService.runAsyncWarehouseQueryFromHistory.mockResolvedValueOnce(
+                false,
+            );
+            queryHistoryModel.getByQueryUuid.mockResolvedValue({
+                status,
+            } as QueryHistory);
+            await buildWorker().handleMessage(message);
+            expect(message.nak).toHaveBeenCalledWith(30_000);
+            expect(message.term).not.toHaveBeenCalled();
+            expect(
+                queryHistoryModel.failUnfinishedQueryDelivery,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([QueryHistoryStatus.QUEUED, QueryHistoryStatus.EXECUTING])(
+        'fails an unfinished %s row on the last delivery',
+        async (status) => {
+            const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+            Object.assign(message.info, { deliveryCount: 5 });
+            asyncQueryService.runAsyncWarehouseQueryFromHistory.mockResolvedValueOnce(
+                false,
+            );
+            queryHistoryModel.getByQueryUuid.mockResolvedValue({
+                status,
+            } as QueryHistory);
+            await buildWorker().handleMessage(message);
+            expect(
+                queryHistoryModel.failUnfinishedQueryDelivery,
+            ).toHaveBeenCalledWith(
+                'query-1',
+                expect.stringContaining('Completion could not be confirmed'),
+            );
+            expect(message.term).toHaveBeenCalledOnce();
+            expect(message.nak).not.toHaveBeenCalled();
+        },
+    );
+
+    it('keeps the last delivery alive until the terminal write succeeds', async () => {
+        vi.useFakeTimers();
+        try {
+            const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+            Object.assign(message.info, { deliveryCount: 5 });
+            asyncQueryService.runAsyncWarehouseQueryFromHistory.mockResolvedValueOnce(
+                false,
+            );
+            queryHistoryModel.getByQueryUuid.mockResolvedValue({
+                status: QueryHistoryStatus.EXECUTING,
+            } as QueryHistory);
+            queryHistoryModel.failUnfinishedQueryDelivery.mockRejectedValueOnce(
+                new Error('proxy down'),
+            );
+            const handling = buildWorker().handleMessage(message);
+            await vi.advanceTimersByTimeAsync(5_000);
+            expect(message.working).toHaveBeenCalled();
+            expect(message.term).not.toHaveBeenCalled();
+            await vi.advanceTimersByTimeAsync(25_000);
+            await handling;
+            expect(message.term).toHaveBeenCalledOnce();
+            expect(
+                queryHistoryModel.failUnfinishedQueryDelivery,
+            ).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('terminates the last delivery when cancellation fences the exhaustion write', async () => {
+        vi.useFakeTimers();
+        try {
+            const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+            Object.assign(message.info, { deliveryCount: 5 });
+            asyncQueryService.runAsyncWarehouseQueryFromHistory.mockRejectedValueOnce(
+                new Error('result write failed'),
+            );
+            queryHistoryModel.failUnfinishedQueryDelivery.mockRejectedValueOnce(
+                new QueryExecutionOwnershipLostError(),
+            );
+            const handling = buildWorker().handleMessage(message);
+            await vi.advanceTimersByTimeAsync(60_000);
+            await handling;
+            expect(message.term).toHaveBeenCalledOnce();
+            expect(message.nak).not.toHaveBeenCalled();
+            expect(message.working).not.toHaveBeenCalled();
+            expect(
+                queryHistoryModel.failUnfinishedQueryDelivery,
+            ).toHaveBeenCalledOnce();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('terminates ownership loss without retrying a cancelled query', async () => {
+        const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        asyncQueryService.runAsyncWarehouseQueryFromHistory.mockRejectedValueOnce(
+            new QueryExecutionOwnershipLostError(),
+        );
+        await buildWorker().handleMessage(message);
+        expect(message.term).toHaveBeenCalledOnce();
+        expect(message.nak).not.toHaveBeenCalled();
+        expect(queryHistoryModel.releaseQueryExecution).not.toHaveBeenCalled();
+        expect(
+            queryHistoryModel.failUnfinishedQueryDelivery,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('fails the row after a handler error on the last attempt', async () => {
+        const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        Object.assign(message.info, { deliveryCount: 5 });
+        asyncQueryService.runAsyncWarehouseQueryFromHistory.mockRejectedValueOnce(
+            new Error('proxy unavailable'),
+        );
+        await buildWorker().handleMessage(message);
+        expect(
+            queryHistoryModel.failUnfinishedQueryDelivery,
+        ).toHaveBeenCalledOnce();
+        expect(message.term).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+        undefined,
+        null,
+        {},
+        { deliveryCount: NaN },
+        { deliveryCount: -1 },
+    ])('handles invalid delivery info %s', async (info) => {
+        const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        Object.defineProperty(message, 'info', { value: info });
+        message.data = codec.encode('{');
+        await buildWorker().handleMessage(message);
+        expect(message.term).toHaveBeenCalledOnce();
+    });
+
+    it('handles a throwing delivery info getter', async () => {
+        const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        Object.defineProperty(message, 'info', {
+            get: () => {
+                throw new Error('bad reply');
+            },
+        });
+        await buildWorker().handleMessage(message);
+        expect(message.ack).toHaveBeenCalledOnce();
+    });
+
+    it('runs a never-started redelivery and skips its later duplicate', async () => {
+        const worker = buildWorker();
+        const redelivery = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        Object.assign(redelivery.info, { deliveryCount: 2 });
+        asyncQueryService.runAsyncWarehouseQueryFromHistory.mockResolvedValueOnce(
+            true,
+        );
+        await worker.handleMessage(redelivery);
+        expect(redelivery.ack).toHaveBeenCalledOnce();
+        const duplicate = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        Object.assign(duplicate.info, { deliveryCount: 3 });
+        asyncQueryService.runAsyncWarehouseQueryFromHistory.mockResolvedValueOnce(
+            false,
+        );
+        queryHistoryModel.getByQueryUuid.mockResolvedValue({
+            status: QueryHistoryStatus.READY,
+        } as QueryHistory);
+        await worker.handleMessage(duplicate);
+        expect(duplicate.term).toHaveBeenCalledOnce();
+        expect(duplicate.nak).not.toHaveBeenCalled();
+        expect(
+            queryHistoryModel.failUnfinishedQueryDelivery,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('does not run a live query twice when its acknowledgement expires', async () => {
+        let finish: () => void = () => {};
+        const active = new Promise<void>((resolve) => {
+            finish = resolve;
+        });
+        let claimed = false;
+        let executions = 0;
+        asyncQueryService.runAsyncWarehouseQueryFromHistory.mockImplementation(
+            async () => {
+                if (claimed) return false;
+                claimed = true;
+                executions += 1;
+                await active;
+                return true;
+            },
+        );
+        queryHistoryModel.getByQueryUuid.mockResolvedValue({
+            status: QueryHistoryStatus.EXECUTING,
+        } as QueryHistory);
+        const worker = buildWorker();
+        const first = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        const second = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        Object.assign(second.info, { deliveryCount: 2 });
+        const firstRun = worker.handleMessage(first);
+        await vi.waitFor(() => expect(claimed).toBe(true));
+        await worker.handleMessage(second);
+        expect(executions).toBe(1);
+        expect(second.nak).toHaveBeenCalledWith(30_000);
+        finish();
+        await firstRun;
+        expect(first.ack).toHaveBeenCalledOnce();
+        asyncQueryService.runAsyncWarehouseQueryFromHistory.mockResolvedValue(
+            true,
+        );
     });
 });

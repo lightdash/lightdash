@@ -70,9 +70,14 @@ const natsWorkerFactory = (context: {
     serviceRepository: ServiceRepository;
     modelRepository: ModelRepository;
     streams: NatsWorkerStream[];
+    database: Knex;
 }) =>
     new NatsWorker({
         natsClient: context.natsClient,
+        isDatabaseHealthy: async () => {
+            await context.database.raw('SELECT 1').timeout(1000);
+            return true;
+        },
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
         queryHistoryModel: context.modelRepository.getQueryHistoryModel(),
         streams: context.streams,
@@ -260,6 +265,7 @@ export default class NatsWorkerApp {
             serviceRepository: this.serviceRepository,
             modelRepository: this.modelRepository,
             streams: this.streams,
+            database: this.database,
         });
         await worker.run();
         return { worker, natsClient };
@@ -276,6 +282,7 @@ export default class NatsWorkerApp {
         server.keepAliveTimeout =
             this.lightdashConfig.httpServer.keepAliveTimeoutMs;
 
+        let shutdownTimeout: NodeJS.Timeout | undefined;
         createTerminus(server, {
             signals: ['SIGUSR2', 'SIGTERM', 'SIGINT', 'SIGHUP', 'SIGABRT'],
             healthChecks: {
@@ -291,8 +298,11 @@ export default class NatsWorkerApp {
                 '/api/v1/livez': () => Promise.resolve(),
             },
             beforeShutdown: async () => {
-                Logger.debug('Shutdown signal received');
+                shutdownTimeout = setTimeout(() => process.exit(0), 25_000);
+                shutdownTimeout.unref();
                 Logger.info('Shutting down NATS worker gracefully');
+                await worker.stop();
+                await natsClient.drain();
             },
             onSignal: async () => {
                 if (this.eventStreamWriter) {
@@ -303,11 +313,9 @@ export default class NatsWorkerApp {
                 Logger.info('Stopping Prometheus metrics');
                 await this.prometheusMetrics.stop();
                 await shutdownOtelTracing();
-                Logger.info('Stopping NATS worker');
-                await worker.stop();
-                await natsClient.drain();
             },
             onShutdown: async () => {
+                clearTimeout(shutdownTimeout);
                 Logger.info('NATS worker shutdown complete');
             },
             useExit0: true,

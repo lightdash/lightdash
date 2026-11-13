@@ -11012,6 +11012,51 @@ describe('AsyncQueryService', () => {
             },
         );
 
+        test('only one concurrent delivery claims a queued query', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue(
+                createMockQueryHistory(QueryHistoryStatus.QUEUED),
+            );
+            vi.mocked(service.queryHistoryModel.updateStatusToExecuting)
+                .mockResolvedValueOnce(1)
+                .mockResolvedValueOnce(0);
+            const claims = await Promise.all([
+                service.prepareQueuedQueryForExecution(
+                    'test-query-uuid',
+                    'worker-1',
+                ),
+                service.prepareQueuedQueryForExecution(
+                    'test-query-uuid',
+                    'worker-2',
+                ),
+            ]);
+            expect(claims).toEqual([true, false]);
+        });
+
+        test('reclaims a handed-off query after its original queue timeout', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue({
+                ...createMockQueryHistory(
+                    QueryHistoryStatus.QUEUED,
+                    new Date(0),
+                ),
+                processingStartedAt: new Date(),
+            });
+            await expect(
+                service.prepareQueuedQueryForExecution(
+                    'test-query-uuid',
+                    'replacement',
+                ),
+            ).resolves.toBe(true);
+            expect(
+                service.queryHistoryModel.updateStatusToExpired,
+            ).not.toHaveBeenCalled();
+        });
+
         test('transitions queued queries to executing', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             (
@@ -11651,6 +11696,69 @@ describe('AsyncQueryService', () => {
                 scheduler: { scheduler_uuid: 'schedule', job_id: 'job' },
             },
         );
+    });
+
+    test('does not publish a delayed upload after the worker hands off its claim', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            projectModel: {
+                ...projectModel,
+                ...singleRouteProjectModelMethods,
+                getWarehouseCredentialsForProject: vi.fn(
+                    async () => warehouseClientMock.credentials,
+                ),
+                getWarehouseClientFromCredentials: vi.fn(() => ({
+                    ...warehouseClientMock,
+                    runQuery: vi.fn(async () => resultsWith1Row),
+                })),
+            } as unknown as ProjectModel,
+        });
+        const controller = new AbortController();
+        const ownership = QueryHistoryModel.createQueryExecution(
+            'query',
+            controller.signal,
+        );
+        let finishUpload!: () => void;
+        const uploading = new Promise<void>((resolve) => {
+            finishUpload = resolve;
+        });
+        const stream = {
+            write: vi.fn(),
+            close: vi.fn(() => uploading),
+        };
+        vi.spyOn(
+            service.resultsStorageClient,
+            'createUploadStream',
+        ).mockReturnValue(stream as never);
+        const run = QueryHistoryModel.withQueryExecution(ownership, () =>
+            service.runAsyncWarehouseQuery({
+                userUuid: sessionAccount.user.id,
+                organizationUuid: 'org',
+                isPreviewProject: false,
+                isRegisteredUser: true,
+                onboardingFlow: 'legacy',
+                projectUuid,
+                query: 'SELECT 1',
+                fieldsMap: {},
+                usedParameters: null,
+                queryTags: { query_context: QueryExecutionContext.EXPLORE },
+                queryUuid: 'query',
+                cacheKey: 'cache',
+                queryCreatedAt: new Date(),
+                displayTimezone: null,
+            }),
+        );
+        const result = run.catch((error: unknown) => error);
+        try {
+            await vi.waitFor(() => expect(stream.close).toHaveBeenCalledOnce());
+            controller.abort();
+        } finally {
+            finishUpload();
+        }
+        await expect(result).resolves.toMatchObject({ name: 'AbortError' });
+        expect(service.queryHistoryModel.update).not.toHaveBeenCalled();
+        expect(
+            service.queryHistoryModel.updateStatusToError,
+        ).not.toHaveBeenCalled();
     });
 
     test.each([false, true])(
