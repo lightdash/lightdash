@@ -71,10 +71,9 @@
     margin-inline: -8px;
     padding: 12px 8px;
     container: sign-in / inline-size;
-    border: 1px solid rgb(139 127 255 / 0.45);
+    border: 1px solid transparent;
     border-radius: var(--mantine-radius-lg);
     background: rgb(94 76 255 / 0.08);
-    box-shadow: var(--ld-ring);
 }
 
 .signInTitle {
