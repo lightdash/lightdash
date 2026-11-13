@@ -154,12 +154,18 @@ describe('composer charts follow their dashboard on the real schema', () => {
         );
     });
 
-    it('rolls a chart back to its version at a moment, as a new version', async () => {
-        const { composerChartUuid } = await createDashboardWithChart();
-        const anHourAgo = new Date(Date.now() - 3_600_000);
-        await database('composer_chart_versions')
-            .where('composer_chart_uuid', composerChartUuid)
-            .update({ created_at: anHourAgo });
+    it('rolls a chart back to its version as of a dashboard version, to the microsecond', async () => {
+        const { dashboard, composerChartUuid } =
+            await createDashboardWithChart();
+        // The chart version precedes the dashboard version by under a millisecond
+        await database.raw(
+            `UPDATE dashboard_versions SET created_at = '2026-01-01 00:00:00.123456+00' WHERE dashboard_version_uuid = ?`,
+            [dashboard.versionUuid],
+        );
+        await database.raw(
+            `UPDATE composer_chart_versions SET created_at = '2026-01-01 00:00:00.123400+00' WHERE composer_chart_uuid = ?`,
+            [composerChartUuid],
+        );
         const original = await composerChartModel.get(composerChartUuid);
         await database('composer_chart_versions').insert({
             composer_chart_uuid: composerChartUuid,
@@ -170,9 +176,9 @@ describe('composer charts follow their dashboard on the real schema', () => {
         const someoneElse = await createFixture(database);
 
         await database.transaction((trx) =>
-            composerChartModel.rollbackToVersionAt(
+            composerChartModel.rollbackToDashboardVersion(
                 composerChartUuid,
-                new Date(anHourAgo.getTime() + 1_000),
+                dashboard.versionUuid,
                 someoneElse.userUuid,
                 trx,
             ),

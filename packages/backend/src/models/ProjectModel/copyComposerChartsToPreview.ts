@@ -2,23 +2,25 @@ import { Knex } from 'knex';
 import {
     ComposerChartsTableName,
     ComposerChartVersionsTableName,
+    DashboardTileComposerChartsTableName,
 } from '../../database/entities/composerCharts';
 
 /**
  * Clones each composer chart of a copied dashboard with its latest version,
- * keeping slug and author. Returns the preview chart uuid by source uuid.
+ * keeping slug and author, and its tile rows (tile uuids are kept on preview copy).
  */
 export const copyComposerChartsToPreview = async (
     trx: Knex.Transaction,
     previewProjectUuid: string,
     previewDashboardUuidBySource: Map<string, string>,
-): Promise<Map<string, string>> => {
+    previewDashboardVersionIdBySource: Map<number, number>,
+): Promise<void> => {
     const sources = await trx(ComposerChartsTableName)
         .whereIn('dashboard_uuid', [...previewDashboardUuidBySource.keys()])
         .whereNull('deleted_at')
         .select('*');
     const previewUuidBySource = new Map<string, string>();
-    if (sources.length === 0) return previewUuidBySource;
+    if (sources.length === 0) return;
 
     // Row by row so each copy is paired with its source without relying on RETURNING order.
     await sources.reduce(async (previous, source) => {
@@ -60,5 +62,24 @@ export const copyComposerChartsToPreview = async (
             created_by_user_uuid: version.created_by_user_uuid,
         })),
     );
-    return previewUuidBySource;
+
+    // A tile row of a deleted chart has no copy to point at
+    const tiles = await trx(DashboardTileComposerChartsTableName)
+        .whereIn('dashboard_version_id', [
+            ...previewDashboardVersionIdBySource.keys(),
+        ])
+        .whereIn('composer_chart_uuid', [...previewUuidBySource.keys()])
+        .select('*');
+    if (tiles.length === 0) return;
+    await trx(DashboardTileComposerChartsTableName).insert(
+        tiles.map((tile) => ({
+            ...tile,
+            dashboard_version_id: previewDashboardVersionIdBySource.get(
+                tile.dashboard_version_id,
+            )!,
+            composer_chart_uuid: previewUuidBySource.get(
+                tile.composer_chart_uuid,
+            )!,
+        })),
+    );
 };

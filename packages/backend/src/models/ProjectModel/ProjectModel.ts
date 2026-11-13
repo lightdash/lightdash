@@ -8135,13 +8135,6 @@ export class ProjectModel {
                 dashboardTilesMapping.map((m) => [m.id, m.newId]),
             );
 
-            const previewComposerChartUuidBySource =
-                await copyComposerChartsToPreview(
-                    trx,
-                    previewProjectUuid,
-                    previewDashboardUuidBySource,
-                );
-
             const copyDashboardTileContent = async (table: string) => {
                 const content = await trx(table)
                     .whereRaw('?? = ANY(?::uuid[])', [
@@ -8153,30 +8146,15 @@ export class ProjectModel {
                         dashboardVersionIds,
                     ]);
 
-                // A tile row of a deleted composer chart has no copy to point at
-                const copied = content.filter(
-                    (d) =>
-                        !d.composer_chart_uuid ||
-                        previewComposerChartUuidBySource.has(
-                            d.composer_chart_uuid,
-                        ),
-                );
-                if (copied.length === 0) return undefined;
+                if (content.length === 0) return undefined;
 
                 const newContent = await chunkedInsertReturning<
                     (typeof content)[number]
                 >(
                     trx,
                     table,
-                    copied.map((d) => ({
+                    content.map((d) => ({
                         ...d,
-
-                        ...(d.composer_chart_uuid && {
-                            composer_chart_uuid:
-                                previewComposerChartUuidBySource.get(
-                                    d.composer_chart_uuid,
-                                ),
-                        }),
 
                         // only applied to tile charts
                         ...(d.saved_chart_id && {
@@ -8214,8 +8192,11 @@ export class ProjectModel {
             // source project's app — the preview project gets no `apps` row of
             // its own. See `docs/data-apps.md` Limitations.
             await copyDashboardTileContent('dashboard_tile_data_apps');
-            await copyDashboardTileContent(
-                DashboardTileComposerChartsTableName,
+            await copyComposerChartsToPreview(
+                trx,
+                previewProjectUuid,
+                previewDashboardUuidBySource,
+                previewDashboardVersionIdBySource,
             );
 
             // Get AI Agents from the source project

@@ -176,17 +176,24 @@ export class ComposerChartModel {
             .then((rows) => rows.map((row) => row.composer_chart_uuid));
     }
 
-    /** Appends a copy of the version current at `at`, if there was one. */
-    async rollbackToVersionAt(
+    /** Appends a copy of the version current when the dashboard version was saved, if any. */
+    async rollbackToDashboardVersion(
         uuid: string,
-        at: Date,
+        dashboardVersionUuid: string,
         userUuid: string,
         trx: Knex.Transaction,
     ): Promise<void> {
+        // Compared in Postgres: a JS Date would drop the microseconds
         const version = await trx(ComposerChartVersionsTableName)
             .select('pipeline', 'chart')
             .where('composer_chart_uuid', uuid)
-            .where('created_at', '<=', at)
+            .where(
+                'created_at',
+                '<=',
+                trx(DashboardVersionsTableName)
+                    .select('created_at')
+                    .where('dashboard_version_uuid', dashboardVersionUuid),
+            )
             .orderBy('created_at', 'desc')
             .first();
         if (!version) return;

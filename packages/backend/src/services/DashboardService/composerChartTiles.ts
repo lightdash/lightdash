@@ -40,9 +40,9 @@ export const duplicateComposerChartTiles = async (
 };
 
 export const rollbackComposerCharts = async (
-    composerChartModel: Pick<ComposerChartModel, 'rollbackToVersionAt'>,
+    composerChartModel: Pick<ComposerChartModel, 'rollbackToDashboardVersion'>,
     tiles: DashboardTile[],
-    at: Date,
+    dashboardVersionUuid: string,
     userUuid: string,
     trx: Knex.Transaction,
 ) => {
@@ -53,9 +53,9 @@ export const rollbackComposerCharts = async (
     );
     for (const chartUuid of chartUuids) {
         // eslint-disable-next-line no-await-in-loop
-        await composerChartModel.rollbackToVersionAt(
+        await composerChartModel.rollbackToDashboardVersion(
             chartUuid,
-            at,
+            dashboardVersionUuid,
             userUuid,
             trx,
         );

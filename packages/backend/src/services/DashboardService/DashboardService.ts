@@ -4804,7 +4804,7 @@ export class DashboardService
             await rollbackComposerCharts(
                 this.composerChartModel,
                 targetVersion.tiles,
-                targetVersion.updatedAt,
+                targetVersion.versionUuid,
                 user.userUuid,
                 tx,
             );
