@@ -1047,6 +1047,7 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
+    showSubtotals?: boolean;
     encodedJwt?: string;
     /**
      * Access mode for the persistent URL of the exported file. Set to SIGNED

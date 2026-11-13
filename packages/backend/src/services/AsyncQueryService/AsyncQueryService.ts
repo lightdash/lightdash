@@ -77,6 +77,7 @@ import {
     getMetricsWithValidParameters,
     getPivotValueColumnName,
     getQueryCostEstimateSettings,
+    getSubtotalDimensionGroups,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isAiAccessQueryContext,
@@ -340,6 +341,7 @@ import {
     personaliseStoredSharedSignInError,
 } from '../../utils/sharedSignInExpiry';
 import { splitJsonlStream } from '../../utils/streamUtils';
+import { type SubtotalExportLevel } from '../../utils/subtotalExport';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 import {
@@ -3320,6 +3322,80 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    // Subtotal rows are regrouped in memory, so larger exports go without them
+    private static readonly SUBTOTALS_EXPORT_MAX_ROWS = 100_000;
+
+    /**
+     * Subtotals for an unpivoted table export: one `calculate-total` query per
+     * group level, like the table chart runs. A level whose query fails is
+     * left out so the export still succeeds.
+     */
+    private async getExportSubtotalLevels({
+        account,
+        projectUuid,
+        queryHistory,
+        columnOrder,
+        hiddenFields,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryHistory: QueryHistory;
+        columnOrder: string[];
+        hiddenFields: string[];
+    }): Promise<SubtotalExportLevel[]> {
+        const { queryUuid: sourceQueryUuid, metricQuery } = queryHistory;
+        if (
+            metricQuery.exploreName === SQL_QUERY_MOCK_EXPLORER_NAME ||
+            'mergeQuery' in queryHistory.requestParameters
+        ) {
+            return [];
+        }
+        const dimensionGroups = getSubtotalDimensionGroups(
+            metricQuery.dimensions.filter((id) => !hiddenFields.includes(id)),
+            columnOrder,
+            [],
+        );
+        if (dimensionGroups.length === 0) {
+            return [];
+        }
+        if (
+            (queryHistory.totalRowCount ?? 0) >
+            AsyncQueryService.SUBTOTALS_EXPORT_MAX_ROWS
+        ) {
+            this.logger.warn('Too many rows to export with subtotals', {
+                projectUuid,
+                sourceQueryUuid,
+                totalRowCount: queryHistory.totalRowCount,
+            });
+            return [];
+        }
+
+        const levels = await Promise.all(
+            dimensionGroups.map(async (dimensions) => {
+                try {
+                    const { rows } =
+                        await this.executeCalculateTotalAndGetResults({
+                            account,
+                            projectUuid,
+                            queryUuid: sourceQueryUuid,
+                            kind: 'columnSubtotal',
+                            subtotalDimensions: dimensions,
+                        });
+                    return { dimensions, rows };
+                } catch (error) {
+                    this.logger.warn('Failed to compute subtotals for export', {
+                        projectUuid,
+                        sourceQueryUuid,
+                        dimensions,
+                        error: getErrorMessage(error),
+                    });
+                    return undefined;
+                }
+            }),
+        );
+        return levels.filter((level) => level !== undefined);
+    }
+
     /**
      * Pivot totals are exclusively warehouse-computed — the export renderer has
      * no client-side fallback, so without this they come out blank. Mirrors the
@@ -3435,6 +3511,7 @@ export class AsyncQueryService extends ProjectService {
         expirationSecondsOverride,
         conditionalFormattings,
         showColumnTotals = false,
+        showSubtotals = false,
         accessMode,
     }: DownloadAsyncQueryResultsArgs): Promise<DownloadAsyncQueryResultsInternal> {
         assertIsAccountWithOrg(account);
@@ -3798,6 +3875,16 @@ export class AsyncQueryService extends ProjectService {
                                             : 'columnTotal',
                                     })
                                   : undefined,
+                              subtotalLevels:
+                                  showSubtotals && !pivotDetails
+                                      ? await this.getExportSubtotalLevels({
+                                            account,
+                                            projectUuid,
+                                            queryHistory,
+                                            columnOrder: validColumnOrder,
+                                            hiddenFields,
+                                        })
+                                      : undefined,
                           },
                           displayTimezone ?? undefined,
                       );

@@ -49,6 +49,7 @@ import {
     getSchedulerResourceTypeAndId,
     getSchedulerUuid,
     getShowColumnTotalsFromChartConfig,
+    getShowSubtotalsFromChartConfig,
     getSourceSchedulerUuid,
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
@@ -1673,6 +1674,10 @@ export default class SchedulerTask {
                                         getShowColumnTotalsFromChartConfig(
                                             chart.chartConfig.config,
                                         ),
+                                    showSubtotals:
+                                        getShowSubtotalsFromChartConfig(
+                                            chart.chartConfig.config,
+                                        ),
                                     expirationSecondsOverride,
                                 },
                                 this.schedulerPollingOptions,
@@ -1943,6 +1948,10 @@ export default class SchedulerTask {
                                             ),
                                         showColumnTotals:
                                             getShowColumnTotalsFromChartConfig(
+                                                chart.chartConfig.config,
+                                            ),
+                                        showSubtotals:
+                                            getShowSubtotalsFromChartConfig(
                                                 chart.chartConfig.config,
                                             ),
                                         expirationSecondsOverride,
