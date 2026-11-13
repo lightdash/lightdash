@@ -112,9 +112,12 @@ export const applyDashboardParametersToComposerNodes = ({
                 }),
             };
         }),
-        // No shared values are stored; project definitions only, so no explore's options narrow other tiers
+        // No explore's options narrow the values other tiers read
         parameters: getDashboardTileParameterOverrides({
-            definitions: definitionsFor([]),
+            definitions: getEffectiveParameterDefinitions({
+                projectDefinitions,
+                exploreDefinitions: {},
+            }),
             dashboardValues,
             chartSavedValues: {},
             excludedKeys,

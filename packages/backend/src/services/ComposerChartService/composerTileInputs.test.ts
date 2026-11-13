@@ -339,10 +339,8 @@ describe('applyDashboardParametersToComposerNodes', () => {
         });
         expect(result.parameters).toEqual({});
     });
-});
 
-describe('applyDashboardParametersToComposerNodes shared map', () => {
-    it('is not narrowed by a semantic-layer explore', () => {
+    it('does not narrow the shared map by a semantic-layer explore', () => {
         const restricted = buildExplore('orders', ['status'], {
             parameters: { region: { label: 'Region', options: ['eu'] } },
         });
