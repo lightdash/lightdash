@@ -4,8 +4,7 @@ import {
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
-    isCustomSqlDimension,
-    isSqlTableCalculation,
+    getComposerPipelineWriteDeniedReason,
     NotFoundError,
     parseComposerPipeline,
     parseComposerStoredChart,
@@ -75,61 +74,15 @@ export class ComposerChartService extends BaseService {
         pipeline: ComposerChartPipeline,
     ) {
         const ability = this.createAuditedAbility(account);
-        const cannot = (subjectName: CaslSubjectNames) =>
-            ability.cannot(
-                'manage',
-                subject(subjectName, { organizationUuid, projectUuid }),
-            );
-        const kinds = new Set(pipeline.nodes.map((node) => node.sourceType));
-        const semanticNodes = pipeline.nodes.filter(
-            (node) => node.sourceType === QuerySourceType.SEMANTIC_LAYER,
+        const deniedReason = getComposerPipelineWriteDeniedReason(
+            pipeline,
+            (subjectName: CaslSubjectNames) =>
+                ability.cannot(
+                    'manage',
+                    subject(subjectName, { organizationUuid, projectUuid }),
+                ),
         );
-
-        if (cannot('ComposerChart')) {
-            throw new ForbiddenError(
-                'You do not have permission to save composer charts',
-            );
-        }
-        if (kinds.has(QuerySourceType.SQL) && cannot('SqlRunner')) {
-            throw new ForbiddenError(
-                'Saving a composer chart with a sql node requires SQL runner access',
-            );
-        }
-        if (
-            (kinds.has(QuerySourceType.DUCKDB) ||
-                kinds.has(QuerySourceType.PYTHON) ||
-                kinds.has(QuerySourceType.MERGE)) &&
-            cannot('Explore')
-        ) {
-            throw new ForbiddenError(
-                'Saving a composer chart with a duckdb, python or merge node requires Explore access',
-            );
-        }
-        if (kinds.has(QuerySourceType.MERGE) && cannot('MergeQuery')) {
-            throw new ForbiddenError(
-                'Saving a composer chart with a merge node requires permission to merge queries',
-            );
-        }
-        if (
-            semanticNodes.some((node) =>
-                (node.customDimensions ?? []).some(isCustomSqlDimension),
-            ) &&
-            cannot('CustomFields')
-        ) {
-            throw new ForbiddenError(
-                'Saving a composer chart with a custom SQL dimension requires permission to manage custom fields',
-            );
-        }
-        if (
-            semanticNodes.some((node) =>
-                (node.tableCalculations ?? []).some(isSqlTableCalculation),
-            ) &&
-            cannot('CustomSqlTableCalculations')
-        ) {
-            throw new ForbiddenError(
-                'Saving a composer chart with a SQL table calculation requires permission to manage SQL table calculations',
-            );
-        }
+        if (deniedReason) throw new ForbiddenError(deniedReason);
 
         const grant =
             account.authentication.type === 'oauth'
@@ -137,7 +90,9 @@ export class ComposerChartService extends BaseService {
                 : null;
         if (
             grant &&
-            kinds.has(QuerySourceType.SQL) &&
+            pipeline.nodes.some(
+                (node) => node.sourceType === QuerySourceType.SQL,
+            ) &&
             !grantAllowsCapabilities(
                 grant,
                 [projectUuid],

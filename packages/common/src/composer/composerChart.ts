@@ -1,6 +1,11 @@
 import { z } from 'zod';
+import { type CaslSubjectNames } from '../authorization/types';
 import { ParameterError } from '../types/errors';
-import { FieldType } from '../types/field';
+import {
+    FieldType,
+    isCustomSqlDimension,
+    isSqlTableCalculation,
+} from '../types/field';
 import { MergeJoinType } from '../types/mergeQuery';
 import {
     getSourceQueryResultReferences,
@@ -405,6 +410,55 @@ export const parseComposerStoredChart = (
         });
     });
     return result.data as ComposerStoredChart;
+};
+
+/**
+ * Why the author may not write this pipeline, null when they may. The server
+ * refuses with it and the client disables Save with it.
+ */
+export const getComposerPipelineWriteDeniedReason = (
+    pipeline: ComposerChartPipeline,
+    cannotManage: (subjectName: CaslSubjectNames) => boolean,
+): string | null => {
+    const kinds = new Set(pipeline.nodes.map((node) => node.sourceType));
+    const semanticNodes = pipeline.nodes.filter(
+        (node) => node.sourceType === QuerySourceType.SEMANTIC_LAYER,
+    );
+
+    if (cannotManage('ComposerChart')) {
+        return 'You do not have permission to save composer charts';
+    }
+    if (kinds.has(QuerySourceType.SQL) && cannotManage('SqlRunner')) {
+        return 'Saving a composer chart with a sql node requires SQL runner access';
+    }
+    if (
+        (kinds.has(QuerySourceType.DUCKDB) ||
+            kinds.has(QuerySourceType.PYTHON) ||
+            kinds.has(QuerySourceType.MERGE)) &&
+        cannotManage('Explore')
+    ) {
+        return 'Saving a composer chart with a duckdb, python or merge node requires Explore access';
+    }
+    if (kinds.has(QuerySourceType.MERGE) && cannotManage('MergeQuery')) {
+        return 'Saving a composer chart with a merge node requires permission to merge queries';
+    }
+    if (
+        semanticNodes.some((node) =>
+            (node.customDimensions ?? []).some(isCustomSqlDimension),
+        ) &&
+        cannotManage('CustomFields')
+    ) {
+        return 'Saving a composer chart with a custom SQL dimension requires permission to manage custom fields';
+    }
+    if (
+        semanticNodes.some((node) =>
+            (node.tableCalculations ?? []).some(isSqlTableCalculation),
+        ) &&
+        cannotManage('CustomSqlTableCalculations')
+    ) {
+        return 'Saving a composer chart with a SQL table calculation requires permission to manage SQL table calculations';
+    }
+    return null;
 };
 
 export type CreateComposerChart = {
