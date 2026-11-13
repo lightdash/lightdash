@@ -1,3 +1,10 @@
+## [3.255.2](https://github.com/lightdash/lightdash/compare/3.255.1...3.255.2) (2026-11-13)
+
+
+### Bug Fixes
+
+* **dashboards:** keep merged chart parameter controls stable ([#32578](https://github.com/lightdash/lightdash/issues/32578)) ([63f5c41](https://github.com/lightdash/lightdash/commit/63f5c41456c08cf0472f68fc781b343a65fbf010))
+
 ## [3.255.1](https://github.com/lightdash/lightdash/compare/3.255.0...3.255.1) (2026-11-13)
 
 
