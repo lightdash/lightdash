@@ -3722,6 +3722,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             expect(host).toMatch(/^[a-z0-9.-]+\.[a-z]{2,}$/i); // a real hostname
         });
         expect(allow).toContain('api.anthropic.com');
+        expect(allow).toContain('hub.getdbt.com');
     });
 
     it('runs claude with the data-apps Anthropic key', async () => {

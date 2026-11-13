@@ -1482,6 +1482,10 @@ export class AiWritebackService extends BaseService {
                     'github.com',
                     'gitlab.com',
                     'bitbucket.org',
+                    // `dbt deps`: the package index, then its tarball hosts.
+                    'hub.getdbt.com',
+                    'public.cdn.getdbt.com',
+                    'codeload.github.com',
                 ],
             },
         };
