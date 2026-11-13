@@ -4,3 +4,11 @@
         bottom: auto;
     }
 }
+
+/* Short landscape screens: keep the signed-out toast in the free space
+   beside the centred sign-in card (25rem wide), not over the form. */
+@media (max-height: 30em) and (min-width: 49em) {
+    .notificationsRoot.signedOut[data-position^='bottom'] {
+        width: calc(50vw - 12.5rem - 2 * var(--mantine-spacing-md));
+    }
+}
