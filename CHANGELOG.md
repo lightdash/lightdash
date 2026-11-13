@@ -1,3 +1,10 @@
+# [3.252.0](https://github.com/lightdash/lightdash/compare/3.251.2...3.252.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** dashboard copy, delete, restore and rollback carry composer charts ([#32569](https://github.com/lightdash/lightdash/issues/32569)) ([e50467c](https://github.com/lightdash/lightdash/commit/e50467cf4755854df759ef995e1e8594587fa485))
+
 ## [3.251.2](https://github.com/lightdash/lightdash/compare/3.251.1...3.251.2) (2026-11-13)
 
 
