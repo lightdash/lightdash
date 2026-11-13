@@ -38,6 +38,7 @@ import {
     selectColumnOrder,
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
+    selectHasSelectedFields,
     selectIsVisualizationExpanded,
     selectMetricQuery,
     selectParameters,
@@ -211,6 +212,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const isVisualizationExpanded = useExplorerSelector(
         selectIsVisualizationExpanded,
     );
+    const hasSelectedFields = useExplorerSelector(selectHasSelectedFields);
     // Without the heading there is no way to expand the card, so force it open
     const isOpen = minimal || isVisualizationExpanded || isFullscreen;
     const isEditMode = useExplorerSelector(selectIsEditMode);
@@ -407,6 +409,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 <CollapsableCard
                     title="Chart"
                     isOpen={isOpen}
+                    disabled={!hasSelectedFields}
                     isVisualizationCard
                     // Walkthrough look for view:SavedChart: the chart is
                     // the first thing to read on a saved chart. See

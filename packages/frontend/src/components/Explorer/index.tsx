@@ -19,6 +19,7 @@ import {
     selectColumnOrder,
     selectDimensions,
     selectFormatModal,
+    selectHasSelectedFields,
     selectIsChartTypeAuthoring,
     selectIsEditMode,
     selectMetricQuery,
@@ -59,7 +60,10 @@ import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
 import ParametersCard from './ParametersCard/ParametersCard';
 import { PeriodOverPeriodComparisonModal } from './PeriodOverPeriodComparisonModal/PeriodOverPeriodComparisonModal';
-import { NoTableSelected } from './ResultsCard/ExplorerResultsNonIdealStates';
+import {
+    EmptyStateNoColumns,
+    NoTableSelected,
+} from './ResultsCard/ExplorerResultsNonIdealStates';
 import ResultsCard from './ResultsCard/ResultsCard';
 import SqlCard from './SqlCard/SqlCard';
 import VisualizationCard from './VisualizationCard/VisualizationCard';
@@ -75,6 +79,7 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
         const columnOrder = useExplorerSelector(selectColumnOrder);
         const sorts = useExplorerSelector(selectSorts);
         const metricQuery = useExplorerSelector(selectMetricQuery);
+        const hasSelectedFields = useExplorerSelector(selectHasSelectedFields);
         const isEditMode = useExplorerSelector(selectIsEditMode);
         const showQueryBuilder = isEditMode || !chartView;
         const showMinimalChart = chartView && !isEditMode;
@@ -272,6 +277,13 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
             !savedChart &&
             !isAuthoring;
 
+        // One prompt for the whole page until a field is selected
+        const showPickFields =
+            !hasSelectedFields &&
+            showQueryBuilder &&
+            !isFullscreen &&
+            !isAuthoring;
+
         return (
             <MetricQueryDataProvider
                 tableName={tableName}
@@ -351,6 +363,15 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                                         )}
                                     </Can>
                                 </>
+                            )}
+
+                            {showPickFields && (
+                                <Group
+                                    className={classes.landing}
+                                    justify="center"
+                                >
+                                    <EmptyStateNoColumns />
+                                </Group>
                             )}
                         </>
                     )}

@@ -19,6 +19,7 @@ import {
 } from 'react';
 import {
     explorerActions,
+    selectHasSelectedFields,
     selectIsSqlExpanded,
     selectMetricQuery,
     selectTableName,
@@ -57,6 +58,7 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
     const [selectedView, setSelectedView] = useState<SqlViewType>('query');
 
     const sqlIsOpen = useExplorerSelector(selectIsSqlExpanded);
+    const hasSelectedFields = useExplorerSelector(selectHasSelectedFields);
     const dispatch = useExplorerDispatch();
 
     const unsavedChartVersionTableName = useExplorerSelector(selectTableName);
@@ -116,7 +118,7 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
             title="SQL"
             isOpen={sqlIsOpen}
             onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
-            disabled={!unsavedChartVersionTableName}
+            disabled={!unsavedChartVersionTableName || !hasSelectedFields}
             // Walkthrough markers for view:CompiledSql: the heading's click
             // unfolds the SQL Lightdash wrote; the card is the result. See
             // scripts/scope-tours.

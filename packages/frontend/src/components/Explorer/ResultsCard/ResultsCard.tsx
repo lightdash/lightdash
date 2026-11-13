@@ -11,6 +11,7 @@ import { memo, useCallback, useEffect, useState, type FC } from 'react';
 import {
     explorerActions,
     selectIsEditMode,
+    selectHasSelectedFields,
     selectIsResultsExpanded,
     selectSorts,
     selectTableName,
@@ -49,6 +50,7 @@ const ResultsCard: FC = memo(() => {
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const resultsIsOpen = useExplorerSelector(selectIsResultsExpanded);
+    const hasSelectedFields = useExplorerSelector(selectHasSelectedFields);
     const dispatch = useExplorerDispatch();
     const tableName = useExplorerSelector(selectTableName);
     const isTableCalculationRefused = useIsRefusedOnLiveSource(
@@ -87,7 +89,7 @@ const ResultsCard: FC = memo(() => {
             title="Results"
             isOpen={resultsIsOpen}
             onToggle={toggleCard}
-            disabled={!tableName}
+            disabled={!tableName || !hasSelectedFields}
             // Walkthrough markers for view:SavedChart: reading a chart means
             // opening it from Browse and unfolding the rows behind it. The
             // heading's click is the action; the card is the result. See
