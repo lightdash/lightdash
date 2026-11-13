@@ -84,6 +84,7 @@ export * from './compiler/writebackColumn';
 export * from './composer/composerChart';
 export * from './composer/composerChartDraw';
 export * from './composer/composerResultChart';
+export * from './parameters/contentParameters';
 export * from './parameters/dashboardParameterControls';
 export * from './parameters/dashboardTileParameters';
 export * from './parameters/parameterDefaults';

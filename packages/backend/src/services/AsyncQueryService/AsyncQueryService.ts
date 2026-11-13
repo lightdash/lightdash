@@ -22,6 +22,7 @@ import {
     buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
+    canEmbedViewerResolveTileParameters,
     ChartType,
     CompiledDimension,
     CreateWarehouseCredentials,
@@ -61,6 +62,8 @@ import {
     getDimensions,
     getDimensionsWithValidParameters,
     getDocumentRuntimeChartConfig,
+    getEmbedExcludedParameterKeys,
+    getEmbedParameterValues,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
     getExecutableFilterFieldIds,
@@ -74,6 +77,7 @@ import {
     getMetricsWithValidParameters,
     getPivotValueColumnName,
     getQueryCostEstimateSettings,
+    getSubtotalDimensionGroups,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isAiAccessQueryContext,
@@ -91,7 +95,6 @@ import {
     isMergeMetricSource,
     isMergeResultSource,
     isMetric,
-    isParameterInteractivityEnabled,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -339,6 +342,7 @@ import {
     personaliseStoredSharedSignInError,
 } from '../../utils/sharedSignInExpiry';
 import { splitJsonlStream } from '../../utils/streamUtils';
+import { type SubtotalExportLevel } from '../../utils/subtotalExport';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 import {
@@ -3358,6 +3362,80 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    // Subtotal rows are regrouped in memory, so larger exports go without them
+    private static readonly SUBTOTALS_EXPORT_MAX_ROWS = 100_000;
+
+    /**
+     * Subtotals for an unpivoted table export: one `calculate-total` query per
+     * group level, like the table chart runs. A level whose query fails is
+     * left out so the export still succeeds.
+     */
+    private async getExportSubtotalLevels({
+        account,
+        projectUuid,
+        queryHistory,
+        columnOrder,
+        hiddenFields,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryHistory: QueryHistory;
+        columnOrder: string[];
+        hiddenFields: string[];
+    }): Promise<SubtotalExportLevel[]> {
+        const { queryUuid: sourceQueryUuid, metricQuery } = queryHistory;
+        if (
+            metricQuery.exploreName === SQL_QUERY_MOCK_EXPLORER_NAME ||
+            'mergeQuery' in queryHistory.requestParameters
+        ) {
+            return [];
+        }
+        const dimensionGroups = getSubtotalDimensionGroups(
+            metricQuery.dimensions.filter((id) => !hiddenFields.includes(id)),
+            columnOrder,
+            [],
+        );
+        if (dimensionGroups.length === 0) {
+            return [];
+        }
+        if (
+            (queryHistory.totalRowCount ?? 0) >
+            AsyncQueryService.SUBTOTALS_EXPORT_MAX_ROWS
+        ) {
+            this.logger.warn('Too many rows to export with subtotals', {
+                projectUuid,
+                sourceQueryUuid,
+                totalRowCount: queryHistory.totalRowCount,
+            });
+            return [];
+        }
+
+        const levels = await Promise.all(
+            dimensionGroups.map(async (dimensions) => {
+                try {
+                    const { rows } =
+                        await this.executeCalculateTotalAndGetResults({
+                            account,
+                            projectUuid,
+                            queryUuid: sourceQueryUuid,
+                            kind: 'columnSubtotal',
+                            subtotalDimensions: dimensions,
+                        });
+                    return { dimensions, rows };
+                } catch (error) {
+                    this.logger.warn('Failed to compute subtotals for export', {
+                        projectUuid,
+                        sourceQueryUuid,
+                        dimensions,
+                        error: getErrorMessage(error),
+                    });
+                    return undefined;
+                }
+            }),
+        );
+        return levels.filter((level) => level !== undefined);
+    }
+
     /**
      * Pivot totals are exclusively warehouse-computed — the export renderer has
      * no client-side fallback, so without this they come out blank. Mirrors the
@@ -3473,6 +3551,7 @@ export class AsyncQueryService extends ProjectService {
         expirationSecondsOverride,
         conditionalFormattings,
         showColumnTotals = false,
+        showSubtotals = false,
         accessMode,
     }: DownloadAsyncQueryResultsArgs): Promise<DownloadAsyncQueryResultsInternal> {
         assertIsAccountWithOrg(account);
@@ -3836,6 +3915,16 @@ export class AsyncQueryService extends ProjectService {
                                             : 'columnTotal',
                                     })
                                   : undefined,
+                              subtotalLevels:
+                                  showSubtotals && !pivotDetails
+                                      ? await this.getExportSubtotalLevels({
+                                            account,
+                                            projectUuid,
+                                            queryHistory,
+                                            columnOrder: validColumnOrder,
+                                            hiddenFields,
+                                        })
+                                      : undefined,
                           },
                           displayTimezone ?? undefined,
                       );
@@ -7898,9 +7987,17 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async executeAsyncMetricQuery(
-        args: ExecuteAsyncMetricQueryArgs,
+        requestArgs: ExecuteAsyncMetricQueryArgs,
         reuseQueryUuid?: string,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
+        // Explore and data app tiles reach this with a dashboard embed token; its fixed values must hold
+        const args = {
+            ...requestArgs,
+            parameters: AsyncQueryService.lockEmbedParameterValues(
+                requestArgs.account,
+                requestArgs.parameters,
+            ),
+        };
         const {
             account,
             projectUuid,
@@ -8783,11 +8880,10 @@ export class AsyncQueryService extends ProjectService {
             // Viewer-supplied parameters are only trusted when the JWT
             // grants parameter interactivity — parity with the embed
             // search endpoint.
-            acceptedParameters = isParameterInteractivityEnabled(
+            acceptedParameters = getEmbedParameterValues(
                 account.access.parameters,
-            )
-                ? parameters
-                : {};
+                parameters,
+            );
         }
 
         const context = QueryExecutionContext.FILTER_AUTOCOMPLETE;
@@ -10083,7 +10179,7 @@ export class AsyncQueryService extends ProjectService {
             appResolved.excludedParameterKeys !== undefined &&
             (appResolved.account.isRegisteredUser() ||
                 (isJwtUser(appResolved.account) &&
-                    isParameterInteractivityEnabled(
+                    canEmbedViewerResolveTileParameters(
                         appResolved.account.access.parameters,
                     )))
         ) {
@@ -10239,6 +10335,41 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /** A viewer's parameter values and per-tile exclusions, as an embed token allows them */
+    static getAccountParameterInputs(
+        account: Account,
+        parameters: ParametersValuesMap | undefined,
+        excludedParameterKeys: string[] | undefined,
+    ): {
+        parameters: ParametersValuesMap | undefined;
+        excludedParameterKeys: string[] | undefined;
+    } {
+        if (!isJwtUser(account)) return { parameters, excludedParameterKeys };
+        return {
+            parameters: getEmbedParameterValues(
+                account.access.parameters,
+                parameters,
+            ),
+            excludedParameterKeys: getEmbedExcludedParameterKeys(
+                account.access.parameters,
+                excludedParameterKeys,
+            ),
+        };
+    }
+
+    // Keeps the given values but a dashboard embed token's fixed values win, unless the viewer may change them
+    static lockEmbedParameterValues(
+        account: Account,
+        parameters: ParametersValuesMap | undefined,
+    ): ParametersValuesMap | undefined {
+        if (!isJwtUser(account) || account.access.content.type !== 'dashboard')
+            return parameters;
+        return {
+            ...parameters,
+            ...getEmbedParameterValues(account.access.parameters, parameters),
+        };
+    }
+
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
@@ -10252,8 +10383,8 @@ export class AsyncQueryService extends ProjectService {
         querySurface,
         invalidateCache,
         limit,
-        parameters,
-        excludedParameterKeys,
+        parameters: requestedParameters,
+        excludedParameterKeys: requestedExcludedParameterKeys,
         pivotResults,
         includeUnpublishedDraft,
         sessionTimezone,
@@ -10262,6 +10393,13 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
+        // An embed token can call this route directly, so its parameter rules apply here too
+        const { parameters, excludedParameterKeys } =
+            AsyncQueryService.getAccountParameterInputs(
+                account,
+                requestedParameters,
+                requestedExcludedParameterKeys,
+            );
 
         const publishedChart =
             preloadedSavedChart ??
@@ -10663,7 +10801,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         dateZoom,
         limit,
-        parameters,
+        parameters: requestedParameters,
         sorts,
     }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
@@ -10698,6 +10836,15 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
+        // A dashboard embed drill-down runs with its source query's values, under the token's fixed values
+        const parameters =
+            isJwtUser(account) && account.access.content.type === 'dashboard'
+                ? AsyncQueryService.lockEmbedParameterValues(
+                      account,
+                      source.requestParameters?.parameters ??
+                          requestedParameters,
+                  )
+                : requestedParameters;
 
         const {
             warehouseCredentials,
@@ -16247,6 +16394,13 @@ export class AsyncQueryService extends ProjectService {
     async executeAsyncDashboardSqlChartQuery(
         args: ExecuteAsyncDashboardSqlChartArgs,
     ): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
+        // An embed token can call this route directly, so its parameter rules apply here too
+        const { parameters, excludedParameterKeys } =
+            AsyncQueryService.getAccountParameterInputs(
+                args.account,
+                args.parameters,
+                args.excludedParameterKeys,
+            );
         const savedChart = isExecuteAsyncDashboardSqlChartByUuid(args)
             ? await this.savedSqlModel.getByUuid(args.savedSqlUuid, {
                   projectUuid: args.projectUuid,
@@ -16332,8 +16486,8 @@ export class AsyncQueryService extends ProjectService {
                 requestParameters: undefined,
                 appResolved: {
                     account,
-                    parameters: args.parameters,
-                    excludedParameterKeys: args.excludedParameterKeys,
+                    parameters,
+                    excludedParameterKeys,
                 },
             }),
             this.projectParametersModel.find(projectUuid),
@@ -16343,7 +16497,7 @@ export class AsyncQueryService extends ProjectService {
         const combinedParameters = await this.combineParameters(
             projectUuid,
             undefined,
-            omit(args.parameters, tileParameterLayer.excludedKeys),
+            omit(parameters, tileParameterLayer.excludedKeys),
             tileParameterLayer.dashboardValues,
             projectParameters,
         );

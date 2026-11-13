@@ -10,7 +10,7 @@ import {
     canAddDashboardFiltersInEmbed,
     getDefaultChartTileSize,
     isFilterInteractivityEnabled,
-    isParameterInteractivityEnabled,
+    isParameterInteractivityVisible,
     isTileInEmbedExport,
     translateDashboardControlNames,
     type DashboardFilters,
@@ -628,7 +628,11 @@ const EmbedDashboard: FC<{
         }
     }, [dashboard, setDashboardTiles]);
 
-    useEmbedSavedParameters(dashboard);
+    useEmbedSavedParameters(
+        dashboard,
+        isEditMode,
+        isMinimal ? exportParameters : undefined,
+    );
 
     useEffect(() => {
         if (!dashboard || isEditMode) return;
@@ -842,7 +846,7 @@ const EmbedDashboard: FC<{
         isDateZoomDisabled !== savedIsDateZoomDisabled;
     // As the bar decides which kinds it shows
     const canDateZoom = dashboard?.canDateZoom === true;
-    const areParametersAllowed = isParameterInteractivityEnabled(
+    const areParametersAllowed = isParameterInteractivityVisible(
         dashboard?.parameterInteractivity,
     );
     const filtersInteractivity = dashboard?.dashboardFiltersInteractivity;

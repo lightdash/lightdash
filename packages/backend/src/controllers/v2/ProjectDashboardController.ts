@@ -1,5 +1,6 @@
 import {
     assertRegisteredAccount,
+    type ApiDashboardParametersResponse,
     type ApiDashboardResponse,
     type ApiDashboardTileParameterReferencesResponse,
     type ApiErrorPayload,
@@ -7,6 +8,7 @@ import {
     type ApiSuccessEmpty,
     type DashboardTileParameterReferencesRequest,
     type UpdateDashboard,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import {
     Body,
@@ -104,6 +106,40 @@ export class ProjectDashboardControllerV2 extends BaseController {
                     req.account!,
                     projectUuid,
                     body.tiles,
+                ),
+        };
+    }
+
+    /**
+     * List the parameters a dashboard's tiles use: each one's definition
+     * (label, type, options, default), its current value (saved on the
+     * dashboard, else the default), whether it is defined in the project or a
+     * model, and which tiles use it. Read from the saved queries without
+     * running them; tiles the user can't view are left out.
+     *
+     * Run the dashboard's charts with other values by passing `parameters` to
+     * the v2 query endpoints.
+     * @summary Get dashboard parameters
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{dashboardUuidOrSlug}/parameters')
+    @OperationId('getProjectDashboardParameters')
+    async getParameters(
+        @Path() projectUuid: string,
+        @Path() dashboardUuidOrSlug: UuidOrSlug,
+        @Request() req: express.Request,
+    ): Promise<ApiDashboardParametersResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .getDashboardParameters(
+                    req.account,
+                    projectUuid,
+                    dashboardUuidOrSlug,
                 ),
         };
     }
