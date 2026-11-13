@@ -1,3 +1,11 @@
+# [3.257.0](https://github.com/lightdash/lightdash/compare/3.256.0...3.257.0) (2026-11-13)
+
+
+### Features
+
+* **exports:** include subtotal rows in XLSX exports of table charts ([#32491](https://github.com/lightdash/lightdash/issues/32491)) ([c090ca3](https://github.com/lightdash/lightdash/commit/c090ca39fd8995b6c1ef7f7f77dd5820552db012))
+* **exports:** include subtotal rows in XLSX exports of table charts ([#32491](https://github.com/lightdash/lightdash/issues/32491)) ([92ebb87](https://github.com/lightdash/lightdash/commit/92ebb8765ff63e9dfcfdc7a2eb179d25a647f134))
+
 # [3.256.0](https://github.com/lightdash/lightdash/compare/3.255.2...3.256.0) (2026-11-13)
 
 
