@@ -65,6 +65,8 @@ import {
     RequestReviewModal,
     useContentReviewEligibility,
 } from '../../../ee/features/contentReview';
+import EmbedCodeModal from '../../../ee/features/embed/EmbedCode/EmbedCodeModal';
+import { useCanShowEmbedCode } from '../../../ee/features/embed/EmbedCode/useCanShowEmbedCode';
 import {
     DashboardCommentsPanel,
     useDashboardCommentsSummary,
@@ -300,6 +302,8 @@ const DashboardHeader = memo(
             useDisclosure(false);
         const [isDashboardAsCodeModalOpen, dashboardAsCodeModalHandlers] =
             useDisclosure(false);
+        const [isEmbedCodeOpen, embedCodeHandlers] = useDisclosure(false);
+        const canShowEmbedCode = useCanShowEmbedCode(projectUuid);
 
         const uniquePreAggregateNames = useMemo(() => {
             if (!preAggregateStatuses) return [];
@@ -1476,6 +1480,17 @@ const DashboardHeader = memo(
                                         </Menu.Item>
                                     )}
 
+                                    {canShowEmbedCode && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconCode} />
+                                            }
+                                            onClick={embedCodeHandlers.open}
+                                        >
+                                            Embed code
+                                        </Menu.Item>
+                                    )}
+
                                     {(userCanViewContentAsCode ||
                                         canAuthorDashboard ||
                                         canUploadContentAsCode) && (
@@ -1617,6 +1632,18 @@ const DashboardHeader = memo(
                                     toggleScheduledDeliveriesModal(false)
                                 }
                                 initialSchedulerUuid={initialSchedulerUuid}
+                            />
+                        )}
+                        {isEmbedCodeOpen && projectUuid && (
+                            <EmbedCodeModal
+                                projectUuid={projectUuid}
+                                target={{
+                                    type: 'dashboard',
+                                    uuid: dashboard.uuid,
+                                    name: dashboard.name,
+                                    spaceUuid: dashboard.spaceUuid ?? null,
+                                }}
+                                onClose={embedCodeHandlers.close}
                             />
                         )}
                         {projectUuid && (
