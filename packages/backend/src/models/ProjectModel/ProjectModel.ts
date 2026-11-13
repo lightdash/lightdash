@@ -60,7 +60,6 @@ import {
     SnowflakeAuthenticationType,
     SpaceMemberRole,
     SpaceSummary,
-    stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedDatabaseError,
@@ -2914,31 +2913,13 @@ export class ProjectModel {
         ) as DbtProjectConfig;
 
         const nonSensitiveCredentials = sensitiveCredentials
-            ? (Object.fromEntries(
-                  Object.entries(sensitiveCredentials).filter(
-                      ([key]) =>
-                          !sensitiveCredentialsFieldNames.includes(
-                              key as AnyType,
-                          ),
-                  ),
-              ) as WarehouseCredentials)
+            ? stripSensitiveWarehouseCredentials(sensitiveCredentials)
             : undefined;
-
-        const scrubbedCredentials =
-            nonSensitiveCredentials &&
-            sensitiveCredentials &&
-            sensitiveCredentials.type === WarehouseTypes.DUCKDB &&
-            sensitiveCredentials.connectionType ===
-                DuckdbConnectionType.DUCKLAKE
-                ? (stripDucklakeNestedSensitive(
-                      sensitiveCredentials,
-                  ) as WarehouseCredentials)
-                : nonSensitiveCredentials;
 
         const nonSensitiveCredentialsWithDefaults =
             ProjectModel.getConnectionWithDefaults(
                 sensitiveCredentials,
-                scrubbedCredentials,
+                nonSensitiveCredentials,
             );
 
         return {
