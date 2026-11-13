@@ -2,7 +2,10 @@ import {
     DashboardControlRefKind,
     FilterInteractivityValues,
     FilterOperator,
+    reconcileDashboardControlOrder,
     type Dashboard,
+    type DashboardControlRef,
+    type DashboardControlSection,
     type DashboardFilterRule,
     type DashboardParameterControl,
 } from '@lightdash/common';
@@ -11,6 +14,12 @@ import {
     dashboardEditActions,
     dashboardParametersActions,
 } from '../../../../../features/dashboard/store';
+import {
+    placeControl,
+    toControlRefs,
+    type BarControl,
+    type ControlPlacement,
+} from '../../../../../features/dashboardControls/controlOrder';
 import { createDashboardTestStore } from '../../../../../testing/dashboardStore';
 import {
     buildEmbedDashboardUpdate,
@@ -783,29 +792,6 @@ describe('the control order around filters the embed token hides', () => {
         ]);
     });
 
-    it("keeps a hidden ref's line start", () => {
-        expect(
-            savedOrder({
-                loadedOrder: [
-                    filterRef('b'),
-                    filterRef('a', true),
-                    parameterRef('region-control'),
-                    parameterRef('other'),
-                ],
-                editorOrder: [
-                    parameterRef('other'),
-                    parameterRef('region-control'),
-                    filterRef('b'),
-                ],
-            }),
-        ).toEqual([
-            parameterRef('other'),
-            filterRef('a', true),
-            parameterRef('region-control'),
-            filterRef('b'),
-        ]);
-    });
-
     it('keeps a hidden section member at its loaded slot when its section moves', () => {
         // Membership is the rule's `sectionId`: read back, a is still in s
         expect(
@@ -858,5 +844,210 @@ describe('the control order around filters the embed token hides', () => {
         expect(
             savedOrder({ loadedOrder: undefined, editorOrder: null }),
         ).toBeUndefined();
+    });
+
+    describe("a hidden ref's line start", () => {
+        const section = { id: 's', name: 'Dates' };
+        // The bar as the reader lays the order out: "/" starts a line
+        const layout = (
+            controlOrder: DashboardControlRef[] | undefined,
+            dimensions: DashboardFilterRule[],
+            sections: DashboardControlSection[],
+        ) =>
+            reconcileDashboardControlOrder({
+                controlOrder,
+                filters: { dimensions, metrics: [] },
+                parameterControls: [],
+                sections,
+            })
+                .map(({ id, sectionId, newLine }) =>
+                    sectionId === null
+                        ? `${newLine ? '/ ' : ''}${id}`
+                        : `${sectionId}:${id}`,
+                )
+                .join(' ');
+
+        // The token shows x, y and z; the editor's order is the store's (the
+        // loaded order read without the hidden rules) after one move
+        const reorder = ({
+            hidden,
+            loadedOrder: loaded,
+            move: [id, placement],
+            sections = [],
+        }: {
+            hidden: DashboardFilterRule[];
+            loadedOrder: DashboardControlRef[];
+            move: [string, ControlPlacement];
+            sections?: DashboardControlSection[];
+        }) => {
+            const shown = [rule('x'), rule('y'), rule('z')];
+            const rules = [...hidden, ...shown];
+            const bar: BarControl[] = reconcileDashboardControlOrder({
+                controlOrder: loaded,
+                filters: { dimensions: shown, metrics: [] },
+                parameterControls: [],
+                sections,
+            });
+            const editorOrder = toControlRefs(placeControl(bar, id, placement));
+            const update = buildEmbedDashboardUpdate({
+                ...base,
+                dashboard: {
+                    filters: { ...emptyFilters, dimensions: rules },
+                    config: {
+                        isDateZoomDisabled: true,
+                        parameterControls: [],
+                        controlSections: sections,
+                        controlOrder: loaded,
+                    },
+                    parameters: {},
+                },
+                filters: { ...emptyFilters, dimensions: shown },
+                filtersInteractivity: {
+                    enabled: FilterInteractivityValues.some,
+                    allowedFilters: ['x', 'y', 'z'],
+                },
+                controlDrafts: {
+                    ...unchangedDrafts,
+                    controlSections: sections,
+                    parameterControls: [],
+                    controlOrder: editorOrder,
+                    hasControlOrderChanged: true,
+                },
+            });
+            if (!('config' in update)) {
+                throw new Error('Expected a versioned update');
+            }
+            const written = update.config?.controlOrder;
+            return {
+                before: layout(loaded, rules, sections),
+                arranged: layout(editorOrder, shown, sections),
+                editor: layout(written, shown, sections),
+                viewer: layout(written, rules, sections),
+            };
+        };
+        const a = rule('a');
+        const after = (overId: string): ControlPlacement => ({
+            overId,
+            side: 'after',
+        });
+
+        it.each([
+            {
+                name: 'the hidden ref starts the line the editor reordered before',
+                hidden: [a],
+                loadedOrder: [
+                    filterRef('x'),
+                    filterRef('y'),
+                    filterRef('a', true),
+                    filterRef('z'),
+                ],
+                move: ['x', after('y')] as [string, ControlPlacement],
+                before: 'x y / a z',
+                arranged: 'y x / z',
+                viewer: 'y x / a z',
+            },
+            {
+                name: 'the editor reorders the line the hidden ref starts',
+                hidden: [a],
+                loadedOrder: [
+                    filterRef('x'),
+                    filterRef('a', true),
+                    filterRef('y'),
+                    filterRef('z'),
+                ],
+                move: ['y', after('z')] as [string, ControlPlacement],
+                before: 'x / a y z',
+                arranged: 'x / z y',
+                viewer: 'x / a z y',
+            },
+            {
+                name: 'the hidden ref is first',
+                hidden: [a],
+                loadedOrder: [
+                    filterRef('a', true),
+                    filterRef('x'),
+                    filterRef('y'),
+                    filterRef('z'),
+                ],
+                move: ['x', after('y')] as [string, ControlPlacement],
+                before: '/ a x y z',
+                arranged: '/ y x z',
+                viewer: '/ a y x z',
+            },
+            {
+                name: 'two hidden refs in a row, the first starting the line',
+                hidden: [a, rule('b')],
+                loadedOrder: [
+                    filterRef('x'),
+                    filterRef('a', true),
+                    filterRef('b'),
+                    filterRef('y'),
+                    filterRef('z'),
+                ],
+                move: ['y', after('z')] as [string, ControlPlacement],
+                before: 'x / a b y z',
+                arranged: 'x / z y',
+                viewer: 'x / a b z y',
+            },
+            {
+                // A member's line start is the next bar control's, for both readers
+                name: 'the hidden ref is a section member',
+                hidden: [rule('a', { sectionId: 's' })],
+                sections: [section],
+                loadedOrder: [
+                    filterRef('x'),
+                    { kind: DashboardControlRefKind.SECTION, id: 's' },
+                    filterRef('a', true),
+                    filterRef('y'),
+                    filterRef('z'),
+                ],
+                move: ['y', after('z')] as [string, ControlPlacement],
+                before: 'x s s:a / y z',
+                arranged: 'x s / z y',
+                viewer: 'x s s:a / z y',
+            },
+            {
+                // The break is where the editor put it; the hidden ref stays on its line
+                name: 'the editor breaks the line after a hidden ref with no line start',
+                hidden: [a],
+                loadedOrder: [
+                    filterRef('x'),
+                    filterRef('a'),
+                    filterRef('y'),
+                    filterRef('z'),
+                ],
+                move: ['y', { lineStartId: 'z' }] as [string, ControlPlacement],
+                before: 'x a y z',
+                arranged: 'x / y z',
+                viewer: 'x a / y z',
+            },
+            {
+                // The editor's layout wins: the hidden ref joins the line too
+                name: 'the editor joins the line the hidden ref started to the one before',
+                hidden: [a],
+                loadedOrder: [
+                    filterRef('x'),
+                    filterRef('a', true),
+                    filterRef('y'),
+                    filterRef('z'),
+                ],
+                move: ['y', after('x')] as [string, ControlPlacement],
+                before: 'x / a y z',
+                arranged: 'x y / z',
+                viewer: 'x a y / z',
+            },
+        ])(
+            'is written once where $name',
+            ({ name: _name, before, arranged, viewer, ...input }) => {
+                const result = reorder(input);
+                expect(result).toEqual({
+                    before,
+                    arranged,
+                    // The editor reads back exactly what they arranged
+                    editor: arranged,
+                    viewer,
+                });
+            },
+        );
     });
 });

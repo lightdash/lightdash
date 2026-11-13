@@ -258,7 +258,10 @@ Each one has broken before or would break silently.
   reads it as saved: its drafts never enable Save and its keys (and
   `parameters`) are sent as loaded, list order included; hidden filter
   rules keep their loaded order too, and their refs their loaded slots in
-  a written `controlOrder` (`keepHiddenRefs`). A section holding a member of such a
+  a written `controlOrder` (`keepHiddenRefs`). The editor's bar reads a
+  hidden ref's `newLine` on the next bar control, so that control's own is
+  not written twice; where the editor gave it none, the hidden ref's is
+  dropped instead: the editor reads back the lines they arranged. A section holding a member of such a
   kind, or a filter rule the token hides (`getEmbedHiddenFilters`, passed as
   `hiddenFilters`), has no remove item (`SectionedFilters` passes
   `onRemove: null` to `SectionMenu`), so the member is never stranded. A host turning `isEditMode` off without

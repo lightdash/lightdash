@@ -3,6 +3,7 @@ import {
     FilterInteractivityValues,
     getFilterInteractivityValue,
     isDashboardControlOrder,
+    reconcileDashboardControlOrder,
     type Dashboard,
     type DashboardConfig,
     type DashboardControlRef,
@@ -39,6 +40,7 @@ import {
 } from '../../../../../features/dashboard/store/dashboardEditSelectors';
 import { type ParameterPicks } from '../../../../../features/dashboard/store/parameterControls';
 import { getDimensionFiltersToSave } from '../../../../../features/dashboardFilters/FilterConfiguration/utils';
+import { getEmbedHiddenFilters } from '../../../../../providers/Dashboard/embedFilterInteractivity';
 import {
     buildDashboardConfig,
     getControlsToSave,
@@ -175,41 +177,28 @@ export const haveEmbedControlsChanged = (
     (dashboard.config?.requiredFiltersNote || undefined) !==
         (drafts.requiredFiltersNote || undefined);
 
-const getInteractivityValue = (
-    interactivity: EmbedFiltersInteractivity | null,
-): FilterInteractivityValues =>
-    interactivity
-        ? getFilterInteractivityValue(interactivity.enabled)
-        : FilterInteractivityValues.none;
-
-// The loaded rules the token keeps out of the store (`applyEmbedFilterInteractivity`)
+// The ids of the loaded rules the token keeps out of the store
 const getHiddenFilterIds = (
     loaded: DashboardFilters,
     interactivity: EmbedFiltersInteractivity | null,
-): Set<string> => {
-    const value = getInteractivityValue(interactivity);
-    if (value === FilterInteractivityValues.all) return new Set();
-    const rules =
-        value === FilterInteractivityValues.none
-            ? [
-                  ...loaded.dimensions,
-                  ...loaded.metrics,
-                  ...loaded.tableCalculations,
-              ]
-            : loaded.dimensions.filter(
-                  ({ id }) => !interactivity?.allowedFilters?.includes(id),
-              );
-    return new Set(rules.map(({ id }) => id));
-};
+): Set<string> =>
+    new Set(
+        getEmbedHiddenFilters({
+            filters: loaded,
+            dashboardFiltersInteractivity: interactivity ?? undefined,
+        }).map(({ id }) => id),
+    );
 
-// The store only holds the rules the token allows: the loaded rules it
-// trimmed go back into the save, where they were
+// The store only holds the rules the token allows (`applyEmbedFilterInteractivity`):
+// the loaded rules it trimmed go back into the save, where they were
 const keepHiddenFilters = (
     filters: DashboardFilters,
     loaded: DashboardFilters,
     interactivity: EmbedFiltersInteractivity | null,
 ): DashboardFilters => {
-    const value = getInteractivityValue(interactivity);
+    const value = interactivity
+        ? getFilterInteractivityValue(interactivity.enabled)
+        : FilterInteractivityValues.none;
     if (value === FilterInteractivityValues.none) return loaded;
     if (value !== FilterInteractivityValues.some) return filters;
 
@@ -222,21 +211,44 @@ const keepHiddenFilters = (
     return { ...filters, dimensions: [...slots, ...edited] };
 };
 
+const withoutNewLine = ({ kind, id }: DashboardControlRef) => ({ kind, id });
+
 // A written order holds only the controls the editor sees: the hidden rules'
 // refs go back at their loaded slots, the editor's refs fill the others
 const keepHiddenRefs = (
     order: DashboardControlRef[] | null,
     loadedOrder: unknown,
     hiddenIds: Set<string>,
+    isOnBar: (ref: DashboardControlRef) => boolean,
 ): DashboardControlRef[] | null => {
     if (order === null || !isDashboardControlOrder(loadedOrder)) return order;
     const isHidden = ({ kind, id }: DashboardControlRef) =>
         kind === DashboardControlRefKind.FILTER && hiddenIds.has(id);
     const edited = order.filter((ref) => !isHidden(ref));
-    const slots = loadedOrder.flatMap((ref) =>
-        isHidden(ref) ? [ref] : edited.splice(0, 1),
-    );
-    return [...slots, ...edited];
+    const refs = [
+        ...loadedOrder.flatMap((ref) =>
+            isHidden(ref) ? [ref] : edited.splice(0, 1),
+        ),
+        ...edited,
+    ];
+    // The editor's bar reads a hidden ref's line start on the next bar control:
+    // that control's own is dropped, or the hidden one's where it has none
+    let lineStarts: number[] = [];
+    refs.forEach((ref, index) => {
+        if (isHidden(ref)) {
+            if (ref.newLine) lineStarts.push(index);
+        } else if (isOnBar(ref)) {
+            if (ref.newLine && lineStarts.length > 0) {
+                refs[index] = withoutNewLine(ref);
+            } else {
+                lineStarts.forEach((hiddenIndex) => {
+                    refs[hiddenIndex] = withoutNewLine(refs[hiddenIndex]);
+                });
+            }
+            lineStarts = [];
+        }
+    });
+    return refs;
 };
 
 /** What an embed editor's Save sends */
@@ -279,6 +291,11 @@ export const buildEmbedDashboardUpdate = ({
         };
     }
 
+    const dateZoomConfigToSave = getDateZoomConfigToSave({
+        existingConfig: dashboard.config,
+        dateZoomConfig: controlDrafts.dateZoomConfig,
+        hasDateZoomConfigChanged: controlDrafts.hasDateZoomConfigChanged,
+    });
     const controlsToSave = getControlsToSave({
         controlOrder: controlDrafts.controlOrder,
         hasControlOrderChanged: controlDrafts.hasControlOrderChanged,
@@ -286,11 +303,7 @@ export const buildEmbedDashboardUpdate = ({
         metrics: filters.metrics,
         controlSections: controlDrafts.controlSections,
         haveControlSectionsChanged: controlDrafts.haveControlSectionsChanged,
-        dateZoomConfigToSave: getDateZoomConfigToSave({
-            existingConfig: dashboard.config,
-            dateZoomConfig: controlDrafts.dateZoomConfig,
-            hasDateZoomConfigChanged: controlDrafts.hasDateZoomConfigChanged,
-        }),
+        dateZoomConfigToSave,
         parameterInputs: {
             parameterControls: controlDrafts.parameterControls,
             areParameterControlsSaved: controlDrafts.areParameterControlsSaved,
@@ -304,6 +317,22 @@ export const buildEmbedDashboardUpdate = ({
             savedParameters: dashboard.parameters ?? {},
         },
     });
+
+    // The controls the written order places outside every section
+    const barKeys = new Set(
+        reconcileDashboardControlOrder({
+            controlOrder: controlsToSave.controlOrderToSave ?? undefined,
+            filters: {
+                dimensions: controlsToSave.dimensions,
+                metrics: controlsToSave.metrics,
+            },
+            parameterControls: controlDrafts.parameterControls ?? [],
+            sections: controlsToSave.controlSections,
+            dateZoomControls: dateZoomConfigToSave?.controls ?? [],
+        })
+            .filter(({ sectionId }) => sectionId === null)
+            .map(({ kind, id }) => `${kind}:${id}`),
+    );
 
     return {
         tiles,
@@ -358,6 +387,7 @@ export const buildEmbedDashboardUpdate = ({
                     controlsToSave.controlOrderToSave,
                     dashboard.config?.controlOrder,
                     getHiddenFilterIds(dashboard.filters, filtersInteractivity),
+                    ({ kind, id }) => barKeys.has(`${kind}:${id}`),
                 ),
             }),
             // Never seeded in the embed's store: as loaded

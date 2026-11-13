@@ -8,10 +8,13 @@ import {
 } from '@lightdash/common';
 import { emptyDashboardFilters } from '../../features/dashboard/store';
 
+type EmbedFilterInteractivity = Pick<Dashboard, 'filters'> &
+    Pick<InteractivityOptions, 'dashboardFiltersInteractivity'>;
+
 /** Limits filters to what an embedded dashboard lets viewers interact with */
 export const applyEmbedFilterInteractivity = (
     filters: DashboardFilters,
-    embedDashboard: (Dashboard & InteractivityOptions) | undefined,
+    embedDashboard: EmbedFilterInteractivity | undefined,
 ): DashboardFilters => {
     if (!embedDashboard) {
         return filters;
@@ -51,7 +54,7 @@ const allRules = (filters: DashboardFilters): DashboardFilterRule[] => [
 
 /** The saved rules an embedded dashboard's token keeps out of the store */
 export const getEmbedHiddenFilters = (
-    embedDashboard: Dashboard & InteractivityOptions,
+    embedDashboard: EmbedFilterInteractivity,
 ): DashboardFilterRule[] => {
     const shownIds = new Set(
         allRules(
