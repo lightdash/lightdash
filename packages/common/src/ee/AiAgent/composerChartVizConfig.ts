@@ -23,7 +23,7 @@ import {
 import { TimeFrames } from '../../types/timeFrames';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { formatItemValue } from '../../utils/formatting';
-import { getItemId } from '../../utils/item';
+import { getItemId, RESULT_COLUMN_TABLE } from '../../utils/item';
 import {
     VizAggregationOptions,
     VizIndexType,
@@ -43,10 +43,10 @@ import {
 } from './schemas';
 
 /** Synthetic explore of a composer node result; its fields are the result columns. */
-export const COMPOSER_RESULT_TABLE_NAME = 'composer_result';
+export const COMPOSER_RESULT_EXPLORE_NAME = 'composer_result';
 
 export const getComposerResultFieldId = (reference: string): string =>
-    getItemId({ table: COMPOSER_RESULT_TABLE_NAME, name: reference });
+    getItemId({ table: RESULT_COLUMN_TABLE, name: reference });
 
 export type ComposerRunQueryChart = {
     metricQuery: MetricQuery;
@@ -82,7 +82,7 @@ const toDimensionType = (column: ResultColumn): DimensionType =>
         : column.type;
 
 const toFieldBase = (column: ResultColumn) => ({
-    table: COMPOSER_RESULT_TABLE_NAME,
+    table: RESULT_COLUMN_TABLE,
     name: column.reference,
     label: column.label ?? friendlyName(column.reference),
     tableLabel: '',
@@ -163,7 +163,7 @@ const toQuery = (
     });
     return {
         metricQuery: {
-            exploreName: COMPOSER_RESULT_TABLE_NAME,
+            exploreName: COMPOSER_RESULT_EXPLORE_NAME,
             dimensions: dimensions.map(getComposerResultFieldId),
             metrics: metrics.map(getComposerResultFieldId),
             filters: {},
@@ -537,7 +537,7 @@ export const getComposerSlackRunQueryChart = ({
         tool: {
             ...metadata,
             queryConfig: {
-                exploreName: COMPOSER_RESULT_TABLE_NAME,
+                exploreName: COMPOSER_RESULT_EXPLORE_NAME,
                 dimensions: metricQuery.dimensions,
                 metrics: metricQuery.metrics,
                 sorts: [],

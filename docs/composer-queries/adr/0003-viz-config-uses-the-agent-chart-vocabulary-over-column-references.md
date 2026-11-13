@@ -20,8 +20,8 @@ not explore fields, and a DuckDB or Python node has no field ids. The choice
 gives one chart engine for classic, composer and Slack, makes custom chart
 types work on pipelines, and keeps a composer chart convertible to a saved
 chart later. The cost is accepted: fields are synthesized, so labels and
-formats are only as good as the result columns, and field ids are minted
-under a synthetic `composer_result` table rather than derived by splitting
+formats are only as good as the result columns, and a field's id is its
+column name under a marker table rather than derived by splitting
 references, so the chart reads the node result with its rows renamed to field
 ids in memory. Only a series split (groupBy or a custom chart type series slot)
 adds a stage: a DuckDB query renaming and pivoting the node result, derived from
