@@ -147,6 +147,7 @@ export * from './types/apiSourceExplore';
 export * from './types/liveSourceErrors';
 export * from './types/auth';
 export * from './types/bigQuerySSO';
+export * from './types/billing';
 export * from './types/catalog';
 export * from './types/coder';
 export * from './types/comments';
