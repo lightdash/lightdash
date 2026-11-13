@@ -211,37 +211,29 @@ describe('internal Parquet projects', () => {
         let cancelled = false;
         const isQueuedQueryCancelled = vi.fn(async () => cancelled);
         const staleRows = vi.fn();
-        const stale = client.executeAsyncQuery(
-            {
-                sql: 'SELECT 1',
-                tags: {},
-                isQueuedQueryCancelled,
-            },
+        const stale = client['withEphemeralQuerySession'](
             staleRows,
+            undefined,
+            isQueuedQueryCancelled,
         );
-        const staleAssertion = await expect(stale).rejects.toBeInstanceOf(
-            AnalyticsQueryCancelledError,
-        );
-        const current = client.executeAsyncQuery({
-            sql: 'SELECT 2',
-            tags: {},
-        });
+        const currentRows = vi.fn(async () => {});
+        const current = client['withEphemeralQuerySession'](currentRows);
         try {
-            await vi.waitFor(() =>
-                expect(activeCallback).toHaveBeenCalledTimes(2),
-            );
             expect(isQueuedQueryCancelled).not.toHaveBeenCalled();
             cancelled = true;
         } finally {
             releaseActive.resolve();
         }
-        await Promise.all([...active, staleAssertion, current]);
+        await expect(stale).rejects.toBeInstanceOf(
+            AnalyticsQueryCancelledError,
+        );
+        await Promise.all([...active, current]);
 
         expect(isQueuedQueryCancelled).toHaveBeenCalledOnce();
-        // Two held sessions, then one session and its SQL dependency parser.
-        expect(createInstanceMock).toHaveBeenCalledTimes(4);
+        expect(createInstanceMock).toHaveBeenCalledTimes(3);
         expect(resolveSource).toHaveBeenCalledTimes(3);
         expect(staleRows).not.toHaveBeenCalled();
+        expect(currentRows).toHaveBeenCalledOnce();
         expect(logger.info).toHaveBeenCalledWith(
             'DuckDB Parquet skipped cancelled query',
             {
