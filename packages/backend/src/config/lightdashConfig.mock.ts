@@ -230,6 +230,7 @@ export const lightdashConfigMock: LightdashConfig = {
             resumeRampPeriod: 180_000,
         },
         queryHistory: {
+            stuckTimeoutSeconds: 86400,
             cleanup: {
                 enabled: true,
                 retentionDays: 30,

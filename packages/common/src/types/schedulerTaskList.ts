@@ -284,6 +284,7 @@ export const SCHEDULER_TASKS = {
     EXPORT_DOCUMENT_PDF: 'exportDocumentPdf',
     RENAME_RESOURCES: 'renameResources',
     MATERIALIZE_PRE_AGGREGATE: 'materializePreAggregate',
+    SWEEP_STUCK_QUERIES: 'sweepStuckQueries',
     CLEAN_QUERY_HISTORY: 'cleanQueryHistory',
     CLEAN_AI_USAGE_LEDGER: 'cleanAiUsageLedger',
     DOWNLOAD_ASYNC_QUERY_RESULTS: 'downloadAsyncQueryResults',
@@ -348,6 +349,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES]: TraceTaskBase;
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
     [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: MaterializePreAggregatePayload;
+    [SCHEDULER_TASKS.SWEEP_STUCK_QUERIES]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_AI_USAGE_LEDGER]: TraceTaskBase;
     [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: DownloadAsyncQueryResultsPayload;

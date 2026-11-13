@@ -3347,3 +3347,38 @@ describe('dbt source disk configuration', () => {
         });
     });
 });
+
+describe('stuck query timeout', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it('defaults to one day', () => {
+        vi.stubEnv('LIGHTDASH_QUERY_STUCK_TIMEOUT_SECONDS', undefined);
+        expect(parseConfig().scheduler.queryHistory.stuckTimeoutSeconds).toBe(
+            86400,
+        );
+    });
+
+    it('accepts a configured timeout', () => {
+        vi.stubEnv('LIGHTDASH_QUERY_STUCK_TIMEOUT_SECONDS', '7200');
+        expect(parseConfig().scheduler.queryHistory.stuckTimeoutSeconds).toBe(
+            7200,
+        );
+    });
+
+    it.each([
+        '',
+        '0',
+        '-1',
+        '899',
+        '900.1',
+        '900s',
+        'NaN',
+        'Infinity',
+        '9007199254740992',
+    ])('rejects %s at startup', (value) => {
+        vi.stubEnv('LIGHTDASH_QUERY_STUCK_TIMEOUT_SECONDS', value);
+        expect(() => parseConfig()).toThrow(
+            'LIGHTDASH_QUERY_STUCK_TIMEOUT_SECONDS',
+        );
+    });
+});

@@ -144,6 +144,23 @@ const getNonNegativeIntegerFromEnvironmentVariable = (
     return value;
 };
 
+export const getQueryStuckTimeoutSeconds = (): number => {
+    const raw = process.env.LIGHTDASH_QUERY_STUCK_TIMEOUT_SECONDS;
+    if (raw === undefined) return 86400;
+    const value = Number(raw);
+    if (
+        !/^\d+$/.test(raw) ||
+        !Number.isSafeInteger(value) ||
+        value < 900 ||
+        value > 2147483647
+    ) {
+        throw new ParseError(
+            'LIGHTDASH_QUERY_STUCK_TIMEOUT_SECONDS must be an integer between 900 and 2147483647',
+        );
+    }
+    return value;
+};
+
 export const getFloatFromEnvironmentVariable = (
     name: string,
 ): number | undefined => {
@@ -1839,6 +1856,7 @@ export type LightdashConfig = {
             resumeRampPeriod: number;
         };
         queryHistory: {
+            stuckTimeoutSeconds: number;
             cleanup: {
                 enabled: boolean;
                 retentionDays: number;
@@ -4005,6 +4023,7 @@ export const parseConfig = (): LightdashConfig => {
                     ) ?? 180_000,
             },
             queryHistory: {
+                stuckTimeoutSeconds: getQueryStuckTimeoutSeconds(),
                 cleanup: {
                     enabled: queryHistoryCleanupEnabled,
                     retentionDays: queryHistoryRetentionDays,

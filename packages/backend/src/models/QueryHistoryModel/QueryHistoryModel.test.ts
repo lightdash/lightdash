@@ -1326,3 +1326,19 @@ describe('exhausted query deliveries', () => {
         }
     });
 });
+
+describe('stuck query batch loop', () => {
+    it.each([0, 12, 500])(
+        'stops bounded work for batches of %s rows',
+        async (count) => {
+            const database = knex({ client: MockClient, dialect: 'pg' });
+            const model = new QueryHistoryModel({ database });
+            const batch = vi
+                .spyOn(model, 'failStuckQueriesBatch')
+                .mockResolvedValue(count);
+            await model.failStuckQueries(86400);
+            expect(batch).toHaveBeenCalledTimes(count === 500 ? 50 : 1);
+            await database.destroy();
+        },
+    );
+});

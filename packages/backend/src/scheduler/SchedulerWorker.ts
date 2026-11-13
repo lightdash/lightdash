@@ -867,6 +867,11 @@ export class SchedulerWorker extends SchedulerTask {
                 },
             },
             {
+                task: SCHEDULER_TASKS.SWEEP_STUCK_QUERIES,
+                pattern: '* * * * *',
+                options: { backfillPeriod: 60_000, maxAttempts: 3 },
+            },
+            {
                 task: SCHEDULER_TASKS.CLEAN_QUERY_HISTORY,
                 pattern:
                     this.lightdashConfig.scheduler.queryHistory.cleanup
@@ -2088,6 +2093,12 @@ export class SchedulerWorker extends SchedulerTask {
                             },
                         });
                     },
+                );
+            },
+            [SCHEDULER_TASKS.SWEEP_STUCK_QUERIES]: async () => {
+                await this.asyncQueryService.queryHistoryModel.failStuckQueries(
+                    this.lightdashConfig.scheduler.queryHistory
+                        .stuckTimeoutSeconds,
                 );
             },
             [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: async () => {
