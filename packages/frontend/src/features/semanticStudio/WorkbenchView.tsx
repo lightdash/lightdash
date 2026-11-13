@@ -1253,6 +1253,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 return (
                     <StudioWorkspacesList
                         projectUuid={view.project.id}
+                        saving={saving}
                         onOpen={(target) =>
                             openWorkspace(target, { navigateTo: true })
                         }

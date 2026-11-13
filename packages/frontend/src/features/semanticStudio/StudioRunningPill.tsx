@@ -18,26 +18,19 @@ import {
     IconPencil,
     type Icon,
 } from '@tabler/icons-react';
-import { useQueries } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { WRITEBACK_STEPS } from '../../ee/features/aiCopilot/components/ChatElements/ToolCalls/writebackProgress';
 import { type StudioPendingChange } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
-import { pullRequestCiChecksQuery } from '../../ee/features/aiCopilot/hooks/usePullRequestCiChecks';
-import {
-    useElapsed,
-    useWritebackProgress,
-} from '../../ee/features/aiCopilot/hooks/useWritebackProgress';
-import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { useElapsed } from '../../ee/features/aiCopilot/hooks/useWritebackProgress';
 import classes from './StudioRunningPill.module.css';
 import {
-    isInFlight,
     needsYou,
     studioRunProgress,
     summarizeStudioRuns,
-    toStudioRun,
     type StudioRun,
 } from './studioRuns';
+import { useStudioRuns, type StudioRunRow } from './useStudioRuns';
 
 const LOOK: Record<StudioRun['kind'], { color: string; icon: Icon }> = {
     draft: { color: 'gray', icon: IconPencil },
@@ -52,7 +45,7 @@ const Elapsed: FC<{ startedAt: string }> = ({ startedAt }) => {
     return elapsed ? <span className={classes.clock}>{elapsed}</span> : null;
 };
 
-const RunMeta: FC<{ run: StudioRun; startedAt: string | null }> = ({
+export const RunMeta: FC<{ run: StudioRun; startedAt: string | null }> = ({
     run,
     startedAt,
 }) => {
@@ -97,32 +90,43 @@ const RunMeta: FC<{ run: StudioRun; startedAt: string | null }> = ({
     }
 };
 
-type Row = { workspace: SemanticStudioWorkspace; run: StudioRun };
+type Row = StudioRunRow;
+
+/** A ring that fills on the way to live, with what the change is doing in the middle. */
+export const RunRing: FC<{ run: StudioRun; size?: number }> = ({
+    run,
+    size = 34,
+}) => {
+    const { color, icon } = LOOK[run.kind];
+    return (
+        <RingProgress
+            size={size}
+            thickness={size > 34 ? 3.5 : 3}
+            roundCaps
+            rootColor="var(--mantine-color-default-border)"
+            sections={[{ value: studioRunProgress(run), color }]}
+            label={
+                <span className={classes.ringIcon} data-kind={run.kind}>
+                    <MantineIcon icon={icon} size={size > 34 ? 16 : 14} />
+                </span>
+            }
+        />
+    );
+};
 
 const RunRow: FC<{
     row: Row;
     startedAt: string | null;
     onOpen: () => void;
 }> = ({ row: { workspace, run }, startedAt, onOpen }) => {
-    const { color, icon } = LOOK[run.kind];
+    const { color } = LOOK[run.kind];
     return (
         <UnstyledButton
             className={classes.row}
             data-current={workspace.isActive || undefined}
             onClick={onOpen}
         >
-            <RingProgress
-                size={34}
-                thickness={3}
-                roundCaps
-                rootColor="var(--mantine-color-default-border)"
-                sections={[{ value: studioRunProgress(run), color }]}
-                label={
-                    <span className={classes.ringIcon} data-kind={run.kind}>
-                        <MantineIcon icon={icon} size={14} />
-                    </span>
-                }
-            />
+            <RunRing run={run} />
             <span className={classes.rowText}>
                 <Text component="span" className={classes.name}>
                     {workspace.name}
@@ -162,32 +166,7 @@ export const StudioRunningPill: FC<{
     onOpen: (workspace: SemanticStudioWorkspace) => void;
 }> = ({ projectUuid, workspaces, saving, onOpen }) => {
     const [opened, setOpened] = useState(false);
-    const lightdashApi = useLightdashApi();
-    const inFlight = workspaces.filter(isInFlight);
-    const ciChecks = useQueries({
-        queries: inFlight.map((workspace) =>
-            pullRequestCiChecksQuery(
-                lightdashApi,
-                projectUuid,
-                workspace.pullRequest?.url,
-                null,
-            ),
-        ),
-    });
-    const progress = useWritebackProgress(
-        projectUuid,
-        saving?.aiWritebackRunUuid ?? null,
-    );
-    const rows: Row[] = inFlight.map((workspace, index) => ({
-        workspace,
-        run: toStudioRun(workspace, {
-            savingStep:
-                saving && workspace.isActive && progress.state === 'running'
-                    ? progress.step
-                    : null,
-            ciChecks: ciChecks[index]?.data ?? null,
-        }),
-    }));
+    const rows = useStudioRuns(projectUuid, workspaces, saving);
     if (rows.length === 0) return null;
     const runs = rows.map(({ run }) => run);
     const waiting = rows.filter(({ run }) => needsYou(run));
