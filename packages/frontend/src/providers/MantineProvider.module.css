@@ -1,0 +1,3 @@
+.notificationsRoot[data-position^='bottom'] {
+    bottom: calc(var(--mantine-spacing-md) + env(safe-area-inset-bottom, 0px));
+}

@@ -9,6 +9,7 @@ import {
 } from '../theme';
 import { ColorSchemeContext } from './ColorSchemeContext';
 import MantineBaseProvider from './MantineBaseProvider';
+import styles from './MantineProvider.module.css';
 import { useResolvedColorScheme } from './useResolvedColorScheme';
 
 // Older builds read `color-scheme` and only understand light|dark, so the
@@ -100,6 +101,7 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
                 <Notifications
                     limit={notificationsLimit}
                     notificationMaxHeight={480}
+                    classNames={{ root: styles.notificationsRoot }}
                 />
             </MantineBaseProvider>
         </ColorSchemeContext.Provider>
