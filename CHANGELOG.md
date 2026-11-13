@@ -1,3 +1,15 @@
+# [3.244.0](https://github.com/lightdash/lightdash/compare/3.243.0...3.244.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **embed:** keep the filters an embed token hides on save ([#32541](https://github.com/lightdash/lightdash/issues/32541)) ([7561b71](https://github.com/lightdash/lightdash/commit/7561b71a8d94f21e2eef4a1356718418fc86dbbc))
+
+
+### Features
+
+* **dashboards:** add column guides to the editing canvas backgrounds ([#32544](https://github.com/lightdash/lightdash/issues/32544)) ([50b9b11](https://github.com/lightdash/lightdash/commit/50b9b116025afcb60a20b865bb880c26e96e79d0))
+
 # [3.243.0](https://github.com/lightdash/lightdash/compare/3.242.0...3.243.0) (2026-11-13)
 
 
