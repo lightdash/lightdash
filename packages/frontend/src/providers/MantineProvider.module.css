@@ -1,5 +1,5 @@
 @media (max-width: $mantine-breakpoint-sm) {
-    .notificationsRoot[data-position^='bottom'] {
+    .notificationsRoot.signedOut[data-position^='bottom'] {
         top: var(--mantine-spacing-md);
         bottom: auto;
     }

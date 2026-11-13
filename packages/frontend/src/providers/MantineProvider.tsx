@@ -1,7 +1,16 @@
+import { type HealthState } from '@lightdash/common';
 import { type MantineThemeOverride } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { Notifications } from '@mantine/notifications';
-import { useEffect, useMemo, type FC } from 'react';
+import { defaultContext } from '@tanstack/react-query';
+import {
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useSyncExternalStore,
+    type FC,
+} from 'react';
 import {
     isColorSchemePreference,
     type ColorScheme,
@@ -28,6 +37,39 @@ type Props = {
     getRootElement?: () => HTMLElement | undefined;
     /** Off for the SDK, which renders inside a host page it must not tag. */
     syncBodyColorMode?: boolean;
+};
+
+const noopUnsubscribe = () => {};
+
+const useIsSignedOut = () => {
+    const queryClient = useContext(defaultContext);
+    const subscribe = useCallback(
+        (onStoreChange: () => void) => {
+            if (!queryClient) return noopUnsubscribe;
+            return queryClient.getQueryCache().subscribe(onStoreChange);
+        },
+        [queryClient],
+    );
+    const getSnapshot = () => {
+        const health = queryClient?.getQueryData<HealthState>(['health']);
+        return health?.isAuthenticated === false;
+    };
+    return useSyncExternalStore(subscribe, getSnapshot);
+};
+
+const AppNotifications: FC<{ limit?: number }> = ({ limit }) => {
+    const isSignedOut = useIsSignedOut();
+    return (
+        <Notifications
+            limit={limit}
+            notificationMaxHeight={480}
+            classNames={{
+                root: isSignedOut
+                    ? `${styles.notificationsRoot} ${styles.signedOut}`
+                    : styles.notificationsRoot,
+            }}
+        />
+    );
 };
 
 const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -98,11 +140,7 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
                 getRootElement={getRootElement}
             >
                 {children}
-                <Notifications
-                    limit={notificationsLimit}
-                    notificationMaxHeight={480}
-                    classNames={{ root: styles.notificationsRoot }}
-                />
+                <AppNotifications limit={notificationsLimit} />
             </MantineBaseProvider>
         </ColorSchemeContext.Provider>
     );
