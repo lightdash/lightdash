@@ -2,8 +2,51 @@
     padding: var(--mantine-spacing-xs);
     border: 1px dashed var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-sm);
+    transition:
+        border-color 120ms ease,
+        background-color 120ms ease,
+        opacity 120ms ease;
 }
 
-.hiddenItem {
-    visibility: hidden;
+/* While dragging: lists that take the field invite it, the rest step back */
+.droppableList[data-drop-target] {
+    border-color: var(--mantine-color-ldGray-5);
+}
+
+.droppableList[data-drop-over] {
+    border-style: solid;
+    border-color: var(--mantine-color-text);
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.droppableList[data-drop-blocked] {
+    opacity: 0.45;
+}
+
+.item {
+    position: relative;
+}
+
+/* The dragged field leaves a faint copy where it started */
+.ghostItem {
+    opacity: 0.35;
+}
+
+/* A line where a field from another list would be inserted */
+.item[data-drop-hint]::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    left: 0;
+    height: 2px;
+    border-radius: 1px;
+    background-color: var(--mantine-color-text);
+}
+
+.item[data-drop-hint='before']::before {
+    top: -5px;
+}
+
+.item[data-drop-hint='after']::before {
+    bottom: -5px;
 }

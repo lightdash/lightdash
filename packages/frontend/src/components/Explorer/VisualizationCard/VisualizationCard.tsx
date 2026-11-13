@@ -4,11 +4,11 @@ import {
     NotFoundError,
     type ApiErrorDetail,
     type ChartConfig,
-    type ChartType,
+    ChartType,
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Box, Button, Group, Stack } from '@mantine/core';
+import { Box, Button, Group, Stack, Text } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import {
     IconChartBar,
@@ -276,6 +276,15 @@ const VisualizationCard: FC<Props> = memo((props) => {
     });
 
     const isStale = useIsResultsStale();
+    // Bars, lines and pivoted tables need a number: with only dimensions
+    // they draw blank
+    const isPivotedTable =
+        chartType === ChartType.TABLE && (pivotConfig?.columns.length ?? 0) > 0;
+    const hasNothingToPlot =
+        (chartType === ChartType.CARTESIAN || isPivotedTable) &&
+        metricQuery.metrics.length === 0 &&
+        metricQuery.tableCalculations.length === 0 &&
+        (resultsData?.rows.length ?? 0) > 0;
 
     // A new chart starts on the gallery: try types first, then configure one
     const hasSavedChart = !!savedChart;
@@ -603,13 +612,29 @@ const VisualizationCard: FC<Props> = memo((props) => {
                             {isLoadingQueryResults && (
                                 <RunningBar label="Running query" />
                             )}
-                            {isStale && (
+                            {isStale ? (
                                 <Box className={classes.staleCover}>
                                     <Stack gap="xs" align="center">
                                         <ExploreIdleIllustration variant="chart" />
                                         <StaleResultsPrompt subject="your chart" />
                                     </Stack>
                                 </Box>
+                            ) : (
+                                hasNothingToPlot && (
+                                    <Box className={classes.staleCover}>
+                                        <Stack gap={2} align="center">
+                                            <ExploreIdleIllustration variant="chart" />
+                                            <Text fz="sm" fw={500} mt="xs">
+                                                Add a metric to see a chart
+                                            </Text>
+                                            <Text fz="xs" c="dimmed">
+                                                {isPivotedTable
+                                                    ? 'A pivoted table needs a metric to fill its cells.'
+                                                    : 'This chart type needs a number to plot. Pick a metric, or switch to a table.'}
+                                            </Text>
+                                        </Stack>
+                                    </Box>
+                                )
                             )}
                             <LightdashVisualization
                                 ref={measureRef}
