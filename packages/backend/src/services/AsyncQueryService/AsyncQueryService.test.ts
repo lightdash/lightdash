@@ -1187,15 +1187,15 @@ const buildEmbedAccount = () => {
 describe('underlying data parameters', () => {
     const runUnderlyingData = async (
         account: Account,
-        usedParameters: ParametersValuesMap | null,
+        sourceParameters: ParametersValuesMap | undefined,
     ) => {
         const service = getMockedAsyncQueryService(lightdashConfigMock);
         vi.mocked(service.queryHistoryModel.get).mockResolvedValue({
             queryUuid: 'source-query',
             metricQuery: metricQueryMock,
             fields: {},
-            requestParameters: {},
-            usedParameters,
+            requestParameters: { parameters: sourceParameters },
+            usedParameters: null,
         } as unknown as QueryHistory);
         // Stops the run once the parameters are resolved
         const combineParameters = vi
@@ -1214,17 +1214,25 @@ describe('underlying data parameters', () => {
         return combineParameters.mock.calls[0][2];
     };
 
-    it('runs an embed drill-down with the values its source query ran with', async () => {
+    it('runs an embed drill-down with its source values under the token fixed values', async () => {
         expect(
-            await runUnderlyingData(buildEmbedAccount(), { region: 'UK' }),
-        ).toEqual({ region: 'UK' });
+            await runUnderlyingData(buildEmbedAccount(), {
+                region: 'UK',
+                currency: 'USD',
+            }),
+        ).toEqual({ region: 'UK', currency: 'GBP' });
     });
 
-    it('applies the embed token rules when the source query has no recorded values', async () => {
-        expect(await runUnderlyingData(buildEmbedAccount(), null)).toEqual({
-            region: 'APAC',
-            currency: 'GBP',
-        });
+    it('adds a token fixed value the source query did not record', async () => {
+        expect(
+            await runUnderlyingData(buildEmbedAccount(), { region: 'UK' }),
+        ).toEqual({ region: 'UK', currency: 'GBP' });
+    });
+
+    it('applies the token fixed values to the request when the source recorded none', async () => {
+        expect(await runUnderlyingData(buildEmbedAccount(), undefined)).toEqual(
+            { region: 'APAC', currency: 'GBP' },
+        );
     });
 
     it('leaves the parameters of a data app token as sent', async () => {
@@ -1301,7 +1309,7 @@ describe('Explore metric query parameters', () => {
         ).toEqual({ region: 'APAC', currency: 'GBP' });
     });
 
-    it('drops viewer values when parameter interactivity is off', async () => {
+    it('keeps values the token does not fix when parameter interactivity is off', async () => {
         const account = buildEmbedAccount();
         account.access.parameters = {
             enabled: false,
@@ -1309,7 +1317,15 @@ describe('Explore metric query parameters', () => {
         };
         expect(
             await runMetricQuery(account, { region: 'APAC', currency: 'USD' }),
-        ).toEqual({ currency: 'GBP' });
+        ).toEqual({ region: 'APAC', currency: 'GBP' });
+    });
+
+    it('leaves the values of a token without parameter rules as sent', async () => {
+        const account = buildEmbedAccount();
+        account.access.parameters = undefined;
+        expect(
+            await runMetricQuery(account, { region: 'APAC', currency: 'USD' }),
+        ).toEqual({ region: 'APAC', currency: 'USD' });
     });
 
     it('leaves the parameters of a signed-in user as sent', async () => {

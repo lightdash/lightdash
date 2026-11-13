@@ -7856,18 +7856,14 @@ export class AsyncQueryService extends ProjectService {
         requestArgs: ExecuteAsyncMetricQueryArgs,
         reuseQueryUuid?: string,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
-        // A dashboard embed token can run Explore queries, so its parameter rules apply here too
-        const args =
-            isJwtUser(requestArgs.account) &&
-            requestArgs.account.access.content.type === 'dashboard'
-                ? {
-                      ...requestArgs,
-                      parameters: getEmbedParameterValues(
-                          requestArgs.account.access.parameters,
-                          requestArgs.parameters,
-                      ),
-                  }
-                : requestArgs;
+        // Explore and data app tiles reach this with a dashboard embed token; its fixed values must hold
+        const args = {
+            ...requestArgs,
+            parameters: AsyncQueryService.lockEmbedParameterValues(
+                requestArgs.account,
+                requestArgs.parameters,
+            ),
+        };
         const {
             account,
             projectUuid,
@@ -10212,6 +10208,19 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    // Keeps the given values but a dashboard embed token's fixed values win, unless the viewer may change them
+    static lockEmbedParameterValues(
+        account: Account,
+        parameters: ParametersValuesMap | undefined,
+    ): ParametersValuesMap | undefined {
+        if (!isJwtUser(account) || account.access.content.type !== 'dashboard')
+            return parameters;
+        return {
+            ...parameters,
+            ...getEmbedParameterValues(account.access.parameters, parameters),
+        };
+    }
+
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
@@ -10678,15 +10687,14 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
-        // A dashboard embed token can call this route directly, so it runs with the values its source query ran with
+        // A dashboard embed drill-down runs with its source query's values, under the token's fixed values
         const parameters =
             isJwtUser(account) && account.access.content.type === 'dashboard'
-                ? (source.usedParameters ??
-                  AsyncQueryService.getAccountParameterInputs(
+                ? AsyncQueryService.lockEmbedParameterValues(
                       account,
-                      requestedParameters,
-                      undefined,
-                  ).parameters)
+                      source.requestParameters?.parameters ??
+                          requestedParameters,
+                  )
                 : requestedParameters;
 
         const {
