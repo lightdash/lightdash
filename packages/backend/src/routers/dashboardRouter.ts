@@ -128,9 +128,17 @@ dashboardRouter.post(
     isAuthenticated,
     async (req, res, next) => {
         try {
+            const account = req.account!;
+            const composerSources = await req.services
+                .getComposerChartService()
+                .getAvailableFilterSources(account, req.body);
             const results = await req.services
                 .getProjectService()
-                .getAvailableFiltersForSavedQueries(req.account!, req.body);
+                .getAvailableFiltersForSavedQueries(
+                    account,
+                    req.body,
+                    composerSources,
+                );
 
             res.json({
                 status: 'ok',

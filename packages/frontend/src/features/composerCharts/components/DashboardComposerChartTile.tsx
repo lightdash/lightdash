@@ -136,6 +136,12 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
     });
     const chart = chartQuery.data;
     const run = runQuery.data;
+    const addParameterReferences = useDashboardContext(
+        (c) => c.addParameterReferences,
+    );
+    useEffect(() => {
+        if (run) addParameterReferences(tile.uuid, run.parameterReferences);
+    }, [addParameterReferences, tile.uuid, run]);
     const title = getTitle(tile);
     const terminal = useInfiniteQueryResults(
         projectUuid,

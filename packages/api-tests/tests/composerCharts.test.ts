@@ -702,4 +702,313 @@ describe('Composer charts', () => {
             }
         });
     });
+
+    describe('dashboard filters and parameters', () => {
+        const rawValues = (rows: unknown[], column: string) =>
+            [
+                ...new Set(
+                    (rows as Record<string, { value: { raw: unknown } }>[]).map(
+                        (row) => row[column]?.value.raw,
+                    ),
+                ),
+            ].sort();
+
+        const queryOf = (results: ComposerChartRunResults, nodeId: string) => {
+            const query = results.queries.find((q) => q.nodeId === nodeId);
+            if (!query) throw new Error(`Node ${nodeId} did not run`);
+            return query.queryUuid;
+        };
+
+        const statusRule = (
+            id: string,
+            values: string[],
+            tileTargets?: Record<string, false>,
+        ) => ({
+            id,
+            label: undefined,
+            target: { fieldId: 'orders_status', tableName: 'orders' },
+            operator: FilterOperator.EQUALS,
+            values,
+            ...(tileTargets && { tileTargets }),
+        });
+
+        it('a dashboard parameter reaches a semantic-layer node and a DuckDB node', async () => {
+            const { dashboard, chart } = await createComposerDashboard(
+                apiClientSend(admin),
+                {
+                    pipeline: {
+                        schemaVersion: 1,
+                        terminalNodeId: 'tagged',
+                        nodes: [
+                            {
+                                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                                nodeId: 'dates',
+                                title: 'Dates',
+                                exploreName: 'orders',
+                                dimensions: ['orders_date_custom_param_test'],
+                                metrics: ['orders_unique_order_count'],
+                            },
+                            {
+                                sourceType: QuerySourceType.DUCKDB,
+                                nodeId: 'tagged',
+                                title: 'Tagged',
+                                // eslint-disable-next-line no-template-curly-in-string
+                                sql: 'SELECT ${lightdash.parameters.currency} AS currency, count(*) AS n FROM dates',
+                                references: ['dates'],
+                            },
+                        ],
+                    },
+                    chart: {
+                        schemaVersion: 1,
+                        columns: [
+                            {
+                                reference: 'currency',
+                                fieldType: FieldType.DIMENSION,
+                            },
+                            { reference: 'n', fieldType: FieldType.METRIC },
+                        ],
+                        chartConfig: {
+                            type: ChartType.CARTESIAN,
+                            config: {
+                                layout: { xField: 'currency', yField: ['n'] },
+                                eChartsConfig: {},
+                            },
+                        },
+                        pivotConfig: null,
+                        tableConfig: { columnOrder: [] },
+                    },
+                },
+            );
+            tracker.trackDashboard(dashboard.uuid);
+            const viewer = await loginAsViewer();
+            const runWith = async (parameters: Record<string, string>) => {
+                const run = await viewer.post<Body<ComposerChartRunResults>>(
+                    runUrl(chart.uuid),
+                    {
+                        ...runRequest(dashboard.uuid, dashboard.tiles[0].uuid),
+                        parameters,
+                    },
+                );
+                expect(run.status).toBe(200);
+                return {
+                    results: run.body.results,
+                    dates: rawValues(
+                        await pollRows(
+                            viewer,
+                            queryOf(run.body.results, 'dates'),
+                        ),
+                        'orders_date_custom_param_test',
+                    ),
+                    currency: rawValues(
+                        await pollRows(
+                            viewer,
+                            queryOf(run.body.results, 'tagged'),
+                        ),
+                        'currency',
+                    ),
+                };
+            };
+
+            const early = await runWith({
+                date_custom_parameter: '2000-01-01',
+                currency: 'usd',
+            });
+            const late = await runWith({
+                date_custom_parameter: '2100-01-01',
+                currency: 'eur',
+            });
+
+            expect(early.dates).toEqual(['I feel great!!!']);
+            expect(late.dates).toEqual(['I feel less than...']);
+            expect(early.currency).toEqual(['usd']);
+            expect(late.currency).toEqual(['eur']);
+            expect([...early.results.parameterReferences].sort()).toEqual([
+                'currency',
+                'date_custom_parameter',
+            ]);
+        });
+
+        it('a dashboard filter reaches every semantic-layer node with the field and replaces a node rule on it', async () => {
+            const [amounts, counts, ...rest] = everyKindPipeline.nodes;
+            if (amounts.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
+                throw new Error('Expected a semantic-layer node');
+            }
+            const { dashboard, chart } = await createComposerDashboard(
+                apiClientSend(admin),
+                {
+                    pipeline: {
+                        ...everyKindPipeline,
+                        nodes: [
+                            {
+                                ...amounts,
+                                filters: {
+                                    dimensions: {
+                                        id: 'node-group',
+                                        and: [
+                                            {
+                                                id: 'node-status',
+                                                target: {
+                                                    fieldId: 'orders_status',
+                                                },
+                                                operator: FilterOperator.EQUALS,
+                                                values: ['completed'],
+                                            },
+                                        ],
+                                    },
+                                },
+                            },
+                            counts,
+                            ...rest,
+                        ],
+                    },
+                },
+            );
+            tracker.trackDashboard(dashboard.uuid);
+            const tileUuid = dashboard.tiles[0].uuid;
+            const viewer = await loginAsViewer();
+            const runWith = async (
+                dimensions: ReturnType<typeof statusRule>[],
+            ) => {
+                const run = await viewer.post<Body<ComposerChartRunResults>>(
+                    runUrl(chart.uuid),
+                    {
+                        ...runRequest(dashboard.uuid, tileUuid),
+                        dashboardFilters: {
+                            dimensions,
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                    },
+                );
+                expect(run.status).toBe(200);
+                return run.body.results;
+            };
+            const statusesOf = async (
+                results: ComposerChartRunResults,
+                nodeId: string,
+            ) =>
+                rawValues(
+                    await pollRows(viewer, queryOf(results, nodeId)),
+                    'orders_status',
+                );
+
+            const filtered = await runWith([statusRule('dash', ['shipped'])]);
+            expect(
+                Object.keys(filtered.appliedDashboardFiltersByNodeId).sort(),
+            ).toEqual(['amounts', 'counts']);
+            expect(
+                filtered.appliedDashboardFilters.dimensions.map((r) => r.id),
+            ).toEqual(['dash']);
+            expect(await statusesOf(filtered, 'amounts')).toEqual(['shipped']);
+            expect(await statusesOf(filtered, 'counts')).toEqual(['shipped']);
+
+            const unfiltered = await runWith([]);
+            expect(await statusesOf(unfiltered, 'amounts')).toEqual([
+                'completed',
+            ]);
+            expect(
+                (await statusesOf(unfiltered, 'counts')).length,
+            ).toBeGreaterThan(1);
+        });
+
+        it('leaves the tile unchanged for a filter no node has, or one switched off for the tile', async () => {
+            const { dashboard, chart, tileUuid } =
+                await createRunnableDashboard();
+            for (const rule of [
+                {
+                    ...statusRule('missing', ['x']),
+                    target: { fieldId: 'nowhere_field', tableName: 'nowhere' },
+                },
+                statusRule('off', ['shipped'], { [tileUuid]: false }),
+            ]) {
+                // eslint-disable-next-line no-await-in-loop
+                const run = await admin.post<Body<ComposerChartRunResults>>(
+                    runUrl(chart.uuid),
+                    {
+                        ...runRequest(dashboard.uuid, tileUuid),
+                        dashboardFilters: {
+                            dimensions: [rule],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                    },
+                );
+                expect(run.status).toBe(200);
+                expect(run.body.results.appliedDashboardFilters).toEqual({
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                });
+                expect(
+                    run.body.results.appliedDashboardFiltersByNodeId,
+                ).toEqual({});
+            }
+        });
+
+        it('offers the fields of every semantic-layer node in the filter picker', async () => {
+            const { dashboard, chart } = await createComposerDashboard(
+                apiClientSend(admin),
+                {
+                    pipeline: {
+                        schemaVersion: 1,
+                        terminalNodeId: 'joined',
+                        nodes: [
+                            {
+                                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                                nodeId: 'orders',
+                                title: 'Orders',
+                                exploreName: 'orders',
+                                dimensions: ['orders_status'],
+                                metrics: ['orders_total_order_amount'],
+                            },
+                            {
+                                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                                nodeId: 'payments',
+                                title: 'Payments',
+                                exploreName: 'payments',
+                                dimensions: ['payments_payment_method'],
+                                metrics: [],
+                            },
+                            {
+                                sourceType: QuerySourceType.DUCKDB,
+                                nodeId: 'joined',
+                                title: 'Joined',
+                                sql: 'SELECT * FROM orders, payments',
+                                references: ['orders', 'payments'],
+                            },
+                        ],
+                    },
+                },
+            );
+            tracker.trackDashboard(dashboard.uuid);
+            const tileUuid = dashboard.tiles[0].uuid;
+            const viewer = await loginAsViewer();
+            const resp = await viewer.post<
+                Body<{
+                    savedQueryFilters: Record<string, number[]>;
+                    allFilterableFields: { table: string; name: string }[];
+                }>
+            >('/api/v1/dashboards/availableFilters', [
+                { tileUuid, composerChartUuid: chart.uuid },
+            ]);
+            expect(resp.status).toBe(200);
+            const { savedQueryFilters, allFilterableFields } =
+                resp.body.results;
+            const tables = new Set(
+                (savedQueryFilters[tileUuid] ?? []).map(
+                    (index) => allFilterableFields[index].table,
+                ),
+            );
+            expect(tables).toContain('orders');
+            expect(tables).toContain('payments');
+
+            const outsider = await anotherLogin();
+            const refused = await outsider.post<
+                Body<{ savedQueryFilters: Record<string, number[]> }>
+            >('/api/v1/dashboards/availableFilters', [
+                { tileUuid, composerChartUuid: chart.uuid },
+            ]);
+            expect(refused.body.results.savedQueryFilters).toEqual({});
+        });
+    });
 });

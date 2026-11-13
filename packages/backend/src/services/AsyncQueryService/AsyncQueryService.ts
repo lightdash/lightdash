@@ -165,6 +165,7 @@ import {
     type CompiledMetric,
     type ComposerChartRunSource,
     type CustomDimension,
+    type DashboardTileParameterInputs,
     type DocumentQueryReference,
     type DocumentSqlChart,
     type DuckdbSourceQuery,
@@ -10203,6 +10204,67 @@ export class AsyncQueryService extends ProjectService {
                           ({ name }) => name,
                       ),
         });
+    }
+
+    /** A composer tile's date-resolved dashboard filters and parameter layer, resolved as for any tile, and the project's parameter definitions. */
+    async getComposerTileContext({
+        account,
+        projectUuid,
+        organizationUuid,
+        dashboardUuid,
+        tileUuid,
+        dashboardFilters,
+        chartSavedValues,
+        parameters,
+        excludedParameterKeys,
+    }: {
+        account: RegisteredAccount;
+        projectUuid: string;
+        organizationUuid: string;
+        dashboardUuid: string;
+        tileUuid: string;
+        dashboardFilters: DashboardFilters;
+        chartSavedValues: ParametersValuesMap;
+        parameters: ParametersValuesMap;
+        excludedParameterKeys: string[];
+    }): Promise<
+        Pick<
+            DashboardTileParameterInputs,
+            'dashboardValues' | 'excludedKeys'
+        > & {
+            dashboardFilters: DashboardFilters;
+            projectDefinitions: ParameterDefinitions;
+        }
+    > {
+        const [resolvedFilters, layer, projectParameters] = await Promise.all([
+            resolveDashboardDateFilters({
+                tileUuid,
+                dashboardFilters,
+                findExploreContainingTable: (tableName) =>
+                    this.projectModel.findExploreContainingTable(
+                        projectUuid,
+                        tableName,
+                    ),
+            }),
+            this.getDashboardTileParameterLayer({
+                dashboardUuid,
+                projectUuid,
+                organizationUuid,
+                flagUser: { organizationUuid, userUuid: account.user.id },
+                tileUuid,
+                chartSavedValues,
+                requestParameters: parameters,
+                appResolved: { account, parameters, excludedParameterKeys },
+            }),
+            this.projectParametersModel.find(projectUuid),
+        ]);
+        return {
+            ...layer,
+            dashboardFilters: resolvedFilters,
+            projectDefinitions: Object.fromEntries(
+                projectParameters.map(({ name, config }) => [name, config]),
+            ),
+        };
     }
 
     /**

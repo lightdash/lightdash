@@ -1773,6 +1773,7 @@ describe('composer bound run', () => {
                 },
             } as ComposerChart,
             tileUuid: 'tile-uuid',
+            resolved: { nodes: storedNodes, parameters: {} },
         });
     const createBoundSources = () => {
         const queryUuid = (nodeId: string) => ({
@@ -1857,6 +1858,46 @@ describe('composer bound run', () => {
                 authority: { kind: 'composer', binding },
             }),
         );
+    });
+
+    it("hands the binding's shared parameters to SQL, DuckDB and Python nodes", async () => {
+        const { registry, asyncQueryService } = createBoundSources();
+        const { service } = createService(registry);
+        const binding = ComposerRunBinding.forAuthorizedViewer({
+            account,
+            chart: {
+                uuid: 'composer-chart-uuid',
+                projectUuid,
+                dashboardUuid: 'dashboard-uuid',
+                pipeline: {
+                    schemaVersion: 1,
+                    terminalNodeId: 'forecast',
+                    nodes: storedNodes,
+                },
+                chart: { pivotConfig: null, chartConfig: { type: 'table' } },
+            } as unknown as ComposerChart,
+            tileUuid: 'tile-uuid',
+            resolved: { nodes: storedNodes, parameters: { region: 'EU' } },
+        });
+
+        await service.submitComposerRun({
+            account,
+            projectUuid,
+            binding,
+            invalidateCache: false,
+        });
+
+        for (const execute of [
+            asyncQueryService.executeAsyncSqlQuery,
+            asyncQueryService.executeAsyncComposeSqlQuery,
+            asyncQueryService.executeAsyncPythonQuery,
+        ]) {
+            expect(execute).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    parameters: expect.objectContaining({ region: 'EU' }),
+                }),
+            );
+        }
     });
 
     it("refuses a binding carried into another account's run", async () => {

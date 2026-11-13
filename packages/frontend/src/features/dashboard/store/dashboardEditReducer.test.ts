@@ -247,6 +247,28 @@ describe('tile selectors', () => {
         ]);
     });
 
+    it('lists composer chart tiles for the filter pickers outside embeds only', () => {
+        const composer = {
+            ...tile('c'),
+            type: DashboardTileTypes.COMPOSER_CHART,
+            properties: { composerChartUuid: 'composer-c', chartName: null },
+        } as Dashboard['tiles'][number];
+        const state = storeWith(
+            reducer(undefined, actions.setTiles([tile('a'), composer])),
+        );
+        expect(selectSavedChartUuidsAndTileUuids(state)).toEqual([
+            { tileUuid: 'a', savedChartUuid: 'chart-a' },
+            { tileUuid: 'c', composerChartUuid: 'composer-c' },
+        ]);
+        expect(selectHasTilesThatSupportFilters(state)).toBe(true);
+        expect(
+            selectSavedChartUuidsAndTileUuids({
+                ...state,
+                source: { ...state.source, embedToken: 'token' },
+            }),
+        ).toEqual([{ tileUuid: 'a', savedChartUuid: 'chart-a' }]);
+    });
+
     it('reports whether any tile supports filters', () => {
         expect(selectHasTilesThatSupportFilters(storeWith())).toBe(false);
         const markdown = {

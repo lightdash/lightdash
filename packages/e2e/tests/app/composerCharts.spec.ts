@@ -1,5 +1,8 @@
 import {
+    ChartType,
     DashboardTileTypes,
+    FieldType,
+    FilterOperator,
     QuerySourceType,
     SCREENSHOT_READY_INDICATOR_ID,
     type CreateChartInDashboard,
@@ -154,5 +157,96 @@ test.describe('Composer charts on dashboards', () => {
             expect(drawing.texts).toContain('completed');
             expect(drawing).toEqual(await drawingOf('Classic'));
         }).toPass({ timeout: 30_000 });
+    });
+
+    test('a dashboard filter and a parameter change the chart', async ({
+        page,
+        api,
+    }) => {
+        await deleteComposerDashboard(api, composer!.dashboard.uuid);
+        composer = await createComposerDashboard(api, {
+            pipeline: {
+                schemaVersion: 1,
+                terminalNodeId: 'orders',
+                nodes: [
+                    {
+                        ...node,
+                        dimensions: [
+                            'orders_status',
+                            'orders_date_custom_param_test',
+                        ],
+                        metrics: ['orders_unique_order_count'],
+                        sorts,
+                    },
+                ],
+            },
+            chart: {
+                schemaVersion: 1,
+                columns: [
+                    {
+                        reference: 'orders_status',
+                        fieldType: FieldType.DIMENSION,
+                    },
+                    {
+                        reference: 'orders_date_custom_param_test',
+                        fieldType: FieldType.DIMENSION,
+                    },
+                    {
+                        reference: 'orders_unique_order_count',
+                        fieldType: FieldType.METRIC,
+                    },
+                ],
+                chartConfig: { type: ChartType.TABLE, config: {} },
+                pivotConfig: null,
+                tableConfig: { columnOrder: [] },
+            },
+        });
+        const { dashboard } = composer;
+        const tile = page.locator('.react-grid-item').filter({
+            has: page.getByText('Orders', { exact: true }),
+        });
+        const url = `/projects/${dashboard.projectUuid}/dashboards/${dashboard.uuid}/view`;
+
+        await page.goto(url);
+        await expect(tile.getByText('shipped').first()).toBeVisible();
+        await expect(tile.getByText('I feel great!!!').first()).toBeHidden();
+
+        const updated = await api.patch(
+            `/api/v1/dashboards/${dashboard.uuid}`,
+            {
+                data: {
+                    tiles: dashboard.tiles,
+                    tabs: dashboard.tabs,
+                    filters: {
+                        dimensions: [
+                            {
+                                id: 'status-filter',
+                                label: undefined,
+                                target: {
+                                    fieldId: 'orders_status',
+                                    tableName: 'orders',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['completed'],
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    parameters: {
+                        date_custom_parameter: {
+                            parameterName: 'date_custom_parameter',
+                            value: '2000-01-01',
+                        },
+                    },
+                },
+            },
+        );
+        expect(updated.status()).toBe(200);
+
+        await page.goto(url);
+        await expect(tile.getByText('completed').first()).toBeVisible();
+        await expect(tile.getByText('I feel great!!!').first()).toBeVisible();
+        await expect(tile.getByText('shipped')).toHaveCount(0);
     });
 });

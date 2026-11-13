@@ -60,7 +60,7 @@ const uniqueRules = (rules: DashboardFilterRule[]): DashboardFilterRule[] =>
         (rule, index) => rules.findIndex((r) => r.id === rule.id) === index,
     );
 
-const unionDashboardFilters = (
+export const unionDashboardFilters = (
     bySourceId: Record<string, DashboardFilters>,
 ): DashboardFilters => {
     const all = Object.values(bySourceId);
@@ -71,7 +71,7 @@ const unionDashboardFilters = (
     };
 };
 
-const filtersForExplore = (
+export const filtersForExplore = (
     explore: Explore,
     rules: DashboardFilters,
 ): DashboardFilters => {

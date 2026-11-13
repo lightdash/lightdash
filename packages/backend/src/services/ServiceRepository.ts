@@ -2013,6 +2013,7 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     getQuerySourceService: () => this.getQuerySourceService(),
+                    getAsyncQueryService: () => this.getAsyncQueryService(),
                 }),
         );
     }

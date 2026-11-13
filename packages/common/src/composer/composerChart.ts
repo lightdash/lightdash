@@ -533,6 +533,12 @@ export type ComposerChartRunResults = {
     fields: ItemsMap;
     /** The server-built series-split stage the chart draws from; null without a group-by. */
     chartStageQueryUuid: string | null;
+    /** Dashboard filter rules that reached at least one node. */
+    appliedDashboardFilters: DashboardFilters;
+    /** The same rules, keyed by the semantic-layer node they were pushed into. */
+    appliedDashboardFiltersByNodeId: Record<string, DashboardFilters>;
+    /** The parameters the tile reports to its dashboard: its non-Python nodes' references. */
+    parameterReferences: string[];
 };
 
 export type ApiComposerChartRunResponse = {
