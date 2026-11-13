@@ -1,3 +1,10 @@
+## [3.255.1](https://github.com/lightdash/lightdash/compare/3.255.0...3.255.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **project-access:** stay on the current page after changing a user's role ([#32577](https://github.com/lightdash/lightdash/issues/32577)) ([0b64daa](https://github.com/lightdash/lightdash/commit/0b64daaec9fac2d57925275839358a612a3d848f))
+
 # [3.255.0](https://github.com/lightdash/lightdash/compare/3.254.1...3.255.0) (2026-11-13)
 
 
