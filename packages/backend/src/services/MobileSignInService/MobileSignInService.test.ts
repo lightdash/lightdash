@@ -2,14 +2,19 @@ import {
     ConflictError,
     ForbiddenError,
     LightdashMode,
+    MOBILE_SIGN_IN_PATH,
     MobileSignInCodeStatus,
     MobileSignInRefusal,
     NotFoundError,
     TooManyRequestsError,
     type SessionUser,
 } from '@lightdash/common';
+import { randomBytes } from 'crypto';
 import { hashMobileAppLinkKey } from '../../models/MobileAppLinkModel';
-import type { MobileSignInCodeModel } from '../../models/MobileSignInCodeModel';
+import {
+    isMobileSignInCode,
+    type MobileSignInCodeModel,
+} from '../../models/MobileSignInCodeModel';
 import { MobileSignInOAuthError } from './MobileSignInOAuthError';
 import { maskDisplayName, MobileSignInService } from './MobileSignInService';
 
@@ -194,6 +199,68 @@ describe('MobileSignInService.mint', () => {
             organizationUuid,
             sessionId: 'session-0000',
         });
+    });
+
+    it.each(
+        Array.from({ length: 20 }, (_, sample): [number, string] => [
+            sample,
+            randomBytes(32).toString('base64url'),
+        ]),
+    )(
+        'builds <siteUrl>/m/sign-in#c=<43 base64url chars> from a model-format code (sample %i)',
+        async (_sample, generatedCode) => {
+            expect(isMobileSignInCode(generatedCode)).toBe(true);
+            const { service } = createService({
+                model: {
+                    mint: vi.fn(async () => ({
+                        codeUuid: 'code-0000-test',
+                        code: generatedCode,
+                        approvalNonce: 'nonce-0000-test',
+                        expiresAt: new Date(Date.now() + 120_000),
+                    })),
+                },
+            });
+            const minted = await service.mint(
+                sessionUser,
+                'session-0000',
+                'show',
+            );
+            const url = new URL(minted.signInUrl);
+            expect(url.origin).toBe('https://app.example.test');
+            expect(url.pathname).toBe(MOBILE_SIGN_IN_PATH);
+            expect(url.search).toBe('');
+            expect(url.hash).toMatch(/^#c=[A-Za-z0-9_-]{43}$/);
+            expect(url.hash).toBe(`#c=${generatedCode}`);
+        },
+    );
+
+    it.each([LightdashMode.CLOUD_BETA, LightdashMode.PR])(
+        'mints a code in %s mode',
+        async (mode) => {
+            const { service, mobileSignInCodeModel } = createService({ mode });
+            await expect(
+                service.mint(sessionUser, 'session-0000', 'show'),
+            ).resolves.toMatchObject({ codeUuid: 'code-0000-test' });
+            expect(mobileSignInCodeModel.mint).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it.each(
+        Object.values(LightdashMode).filter(
+            (mode) =>
+                mode !== LightdashMode.CLOUD_BETA && mode !== LightdashMode.PR,
+        ),
+    )('refuses to mint with 403 feature_disabled in %s mode', async (mode) => {
+        const { service, mobileSignInCodeModel } = createService({ mode });
+        const error = await service
+            .mint(sessionUser, 'session-0000', 'show')
+            .catch((caught: unknown) => caught);
+        expect(error).toBeInstanceOf(ForbiddenError);
+        expect((error as ForbiddenError).statusCode).toBe(403);
+        expect((error as ForbiddenError).data).toEqual({
+            reason: MobileSignInRefusal.FEATURE_DISABLED,
+        });
+        expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
     });
 
     it('refuses a user with no organization', async () => {
