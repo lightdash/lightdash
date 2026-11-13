@@ -94,24 +94,6 @@ export const isFanOut = (relationship: JoinRelationship | null): boolean =>
     relationship === JoinRelationship.ONE_TO_MANY ||
     relationship === JoinRelationship.MANY_TO_MANY;
 
-/** Each side's cardinality, `[source, target]`. */
-export const cardinalityOf = (
-    relationship: JoinRelationship | null,
-): [string, string] | null => {
-    switch (relationship) {
-        case JoinRelationship.ONE_TO_ONE:
-            return ['1', '1'];
-        case JoinRelationship.ONE_TO_MANY:
-            return ['1', 'N'];
-        case JoinRelationship.MANY_TO_ONE:
-            return ['N', '1'];
-        case JoinRelationship.MANY_TO_MANY:
-            return ['N', 'N'];
-        default:
-            return null;
-    }
-};
-
 const JOIN_NODE_WIDTH = 240;
 const JOIN_NODE_HEIGHT = 76;
 

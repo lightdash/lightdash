@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
-    cardinalityOf,
     formatJoinKeys,
     isFanOut,
     layoutJoinGraph,
@@ -196,11 +195,6 @@ describe('relationships', () => {
         expect(isFanOut(JoinRelationship.MANY_TO_MANY)).toBe(true);
         expect(isFanOut(JoinRelationship.MANY_TO_ONE)).toBe(false);
         expect(isFanOut(null)).toBe(false);
-    });
-
-    it('gives each side its cardinality', () => {
-        expect(cardinalityOf(JoinRelationship.MANY_TO_ONE)).toEqual(['N', '1']);
-        expect(cardinalityOf(null)).toBeNull();
     });
 });
 

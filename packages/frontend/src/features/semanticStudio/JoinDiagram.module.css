@@ -38,23 +38,6 @@
     text-transform: none;
 }
 
-.sourceCardinality,
-.targetCardinality {
-    position: absolute;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--mantine-color-dimmed);
-}
-
-.sourceCardinality {
-    transform: translate(4px, -100%) translate(var(--x), calc(var(--y) - 2px));
-}
-
-.targetCardinality {
-    transform: translate(-100%, -100%)
-        translate(calc(var(--x) - 6px), calc(var(--y) - 2px));
-}
-
 .fanOutEdge {
     stroke: var(--mantine-color-orange-5) !important;
 }

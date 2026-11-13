@@ -24,7 +24,6 @@ import reactFlowStyles from '../../components/common/ReactFlow/reactFlow.module.
 import { useExploreByProjectUuid } from '../../hooks/useExplore';
 import classes from './JoinDiagram.module.css';
 import {
-    cardinalityOf,
     isFanOut,
     layoutJoinGraph,
     toJoinGraph,
@@ -105,7 +104,6 @@ const JoinEdge: FC<EdgeProps<JoinFlowEdge>> = ({
         targetPosition,
     });
     const relationship = data?.relationship ?? null;
-    const cardinality = cardinalityOf(relationship);
     const fanOut = isFanOut(relationship);
     return (
         <>
@@ -115,30 +113,6 @@ const JoinEdge: FC<EdgeProps<JoinFlowEdge>> = ({
                 className={clsx(fanOut && classes.fanOutEdge)}
             />
             <EdgeLabelRenderer>
-                {cardinality ? (
-                    <>
-                        <Box
-                            component="span"
-                            className={classes.sourceCardinality}
-                            style={{
-                                '--x': `${sourceX}px`,
-                                '--y': `${sourceY}px`,
-                            }}
-                        >
-                            {cardinality[0]}
-                        </Box>
-                        <Box
-                            component="span"
-                            className={classes.targetCardinality}
-                            style={{
-                                '--x': `${targetX}px`,
-                                '--y': `${targetY}px`,
-                            }}
-                        >
-                            {cardinality[1]}
-                        </Box>
-                    </>
-                ) : null}
                 <Tooltip
                     label={
                         fanOut
