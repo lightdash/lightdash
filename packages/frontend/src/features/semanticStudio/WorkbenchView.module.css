@@ -108,6 +108,55 @@
     );
 }
 
+.changeHeader {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.back {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+    transition: color 140ms var(--ease-out);
+}
+
+.back:hover {
+    color: var(--mantine-color-text);
+}
+
+.changeTitleRow {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--mantine-spacing-md);
+}
+
+.changeTitleRow > :last-child {
+    flex: none;
+    margin-left: auto;
+}
+
+.changeTitle {
+    min-width: 0;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+}
+
+.changeMeta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+}
+
 .changeName {
     max-width: 360px;
     overflow: hidden;

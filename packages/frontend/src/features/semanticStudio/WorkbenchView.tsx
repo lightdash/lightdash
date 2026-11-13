@@ -31,6 +31,8 @@ import {
     IconSearch,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import {
     useCallback,
     useEffect,
@@ -149,6 +151,8 @@ import {
     useStudioWorkspaces,
 } from './useStudioWorkspaces';
 import classes from './WorkbenchView.module.css';
+
+dayjs.extend(relativeTime);
 
 const ROW_HEIGHT = 28;
 
@@ -1239,11 +1243,77 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         setAskedPrompt(prompt);
     };
 
+    const changeActions = (
+        <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
+            {saving ? (
+                <StudioSavingBar
+                    projectUuid={view.project.id}
+                    change={saving}
+                    pullRequest={development}
+                />
+            ) : development ? (
+                <StudioDevelopmentBar
+                    projectUuid={view.project.id}
+                    pullRequest={development}
+                />
+            ) : null}
+            {keepsDraft && !isBuildingFirstModel ? (
+                <DraftDevelopmentBar projectUuid={view.project.id} />
+            ) : null}
+            {chat.isAvailable && !isChatOpen && !keepsDraft ? (
+                <Button
+                    size="xs"
+                    variant="default"
+                    flex="none"
+                    leftSection={<MantineIcon icon={IconMessage} size={14} />}
+                    onClick={() => setIsChatOpen(true)}
+                >
+                    Chat
+                </Button>
+            ) : null}
+        </Group>
+    );
+    const changeName = shownWorkspace?.name ?? workspace?.name;
+    const goBack = hasWorkspaces ? showChanges : showLive;
+    // The open change heads its own column, so its name, progress and diff share one edge.
+    const changeHeader = (
+        <header className={classes.changeHeader}>
+            <UnstyledButton className={classes.back} onClick={goBack}>
+                <MantineIcon icon={IconArrowLeft} size={14} />
+                {hasWorkspaces ? 'All changes' : 'Back to live'}
+            </UnstyledButton>
+            <div className={classes.changeTitleRow}>
+                <Tooltip
+                    label={workspace?.hint ?? 'What this change does'}
+                    disabled={!workspace?.hint}
+                >
+                    <Title
+                        order={1}
+                        lineClamp={2}
+                        className={classes.changeTitle}
+                    >
+                        {changeName}
+                    </Title>
+                </Tooltip>
+                {changeActions}
+            </div>
+            <div className={classes.changeMeta}>
+                {stage ? <StudioStageLine stage={stage} /> : null}
+                {shownWorkspace ? (
+                    <Text component="span" fz="xs" c="dimmed">
+                        Updated {dayjs(shownWorkspace.updatedAt).fromNow()}
+                    </Text>
+                ) : null}
+            </div>
+        </header>
+    );
+
     const renderPane = () => {
         switch (pane) {
             case 'changes':
                 return (
                     <StudioChanges
+                        header={isChangeOpen ? changeHeader : null}
                         projectUuid={view.project.id}
                         pullRequest={development}
                         proposal={hasProposal ? proposal : []}
@@ -1481,7 +1551,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         )}
                                     </Group>
                                 </Group>
-                                {isChangeOpen ? (
+                                {isChangeOpen && pane === 'review' ? (
                                     <Group
                                         className={classes.changeBar}
                                         wrap="nowrap"
@@ -1534,57 +1604,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 />
                                             </Box>
                                         ) : null}
-                                        <Group
-                                            gap="xs"
-                                            wrap="nowrap"
-                                            miw={0}
-                                            ml="auto"
-                                        >
-                                            {saving ? (
-                                                <StudioSavingBar
-                                                    projectUuid={
-                                                        view.project.id
-                                                    }
-                                                    change={saving}
-                                                    pullRequest={development}
-                                                />
-                                            ) : development ? (
-                                                <StudioDevelopmentBar
-                                                    projectUuid={
-                                                        view.project.id
-                                                    }
-                                                    pullRequest={development}
-                                                />
-                                            ) : null}
-                                            {keepsDraft &&
-                                            !isBuildingFirstModel ? (
-                                                <DraftDevelopmentBar
-                                                    projectUuid={
-                                                        view.project.id
-                                                    }
-                                                />
-                                            ) : null}
-                                            {chat.isAvailable &&
-                                            !isChatOpen &&
-                                            !keepsDraft ? (
-                                                <Button
-                                                    size="xs"
-                                                    variant="default"
-                                                    flex="none"
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconMessage}
-                                                            size={14}
-                                                        />
-                                                    }
-                                                    onClick={() =>
-                                                        setIsChatOpen(true)
-                                                    }
-                                                >
-                                                    Chat
-                                                </Button>
-                                            ) : null}
-                                        </Group>
+                                        {changeActions}
                                     </Group>
                                 ) : null}
                             </>

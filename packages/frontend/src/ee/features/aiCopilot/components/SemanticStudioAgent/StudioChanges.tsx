@@ -1,5 +1,5 @@
 import { Badge, Box, Group, Stack, Text } from '@mantine/core';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { DiffMarkdownCodeBlock } from '../ChatElements/DiffMarkdownCodeBlock';
 import { PullRequestChanges } from './PullRequestChanges';
 import classes from './SemanticStudioAgent.module.css';
@@ -7,12 +7,15 @@ import { type StudioPullRequest } from './useStudioPullRequest';
 
 /** Everything a dbt project's conversation has changed and not made live: what it proposes now, then what its pull request holds. */
 export const StudioChanges: FC<{
+    /** What heads the column: the change's name, progress and actions. */
+    header: ReactNode;
     projectUuid: string;
     pullRequest: StudioPullRequest | null;
     /** The diffs the latest reply proposes and has not saved, one per file. */
     proposal: string[];
-}> = ({ projectUuid, pullRequest, proposal }) => (
+}> = ({ header, projectUuid, pullRequest, proposal }) => (
     <Box className={classes.changes}>
+        {header}
         {proposal.length > 0 ? (
             // Keyed by what is proposed, so a new proposal arrives again.
             <Stack
