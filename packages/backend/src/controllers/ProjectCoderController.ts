@@ -732,6 +732,7 @@ export class ProjectCoderController extends BaseController {
                 .getCoderService()
                 .getComposerCharts(
                     toSessionUser(req.account),
+                    req.account,
                     projectUuid,
                     ids,
                     offset,

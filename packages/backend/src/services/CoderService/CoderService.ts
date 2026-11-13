@@ -309,7 +309,7 @@ type CoderServiceArguments = {
     >;
     composerChartService: Pick<
         ComposerChartService,
-        'isEnabled' | 'writeFromCode'
+        'isEnabled' | 'writeFromCode' | 'preflightWrite' | 'assertCanView'
     >;
     // Lazy accessor (not the instance): AppGenerateService depends on
     // CoderService, so resolving it eagerly here would cycle. Only wired when
@@ -3480,6 +3480,7 @@ export class CoderService extends BaseService {
     /** Download works with the composer-charts flag off, so an upload never drops tiles. */
     async getComposerCharts(
         user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         slugs: string[] | undefined,
         offset: number | undefined,
@@ -3489,7 +3490,6 @@ export class CoderService extends BaseService {
             projectUuid,
             'You are not allowed to download composer charts',
         );
-        const project = await this.projectModel.get(projectUuid);
         const charts = await this.composerChartModel.findForCode(
             projectUuid,
             slugs,
@@ -3497,26 +3497,26 @@ export class CoderService extends BaseService {
         const spaces = await this.spaceModel.find({
             spaceUuids: [...new Set(charts.map((chart) => chart.spaceUuid))],
         });
-        // Viewing a composer chart follows its dashboard
-        const accessible = await this.filterPrivateContent(
-            user,
-            project,
-            charts.map((chart) => ({
-                uuid: chart.uuid,
-                name: chart.name,
-                spaceUuid: chart.spaceUuid,
-                description: chart.description ?? undefined,
-                slug: chart.slug,
-            })),
-            spaces,
+        // Viewing a composer chart follows its dashboard, as on every other read
+        const viewable = await Promise.all(
+            charts.map((chart) =>
+                this.composerChartService
+                    .assertCanView(account, projectUuid, chart.uuid)
+                    .then(
+                        () => true,
+                        (error) => {
+                            if (error instanceof ForbiddenError) return false;
+                            throw error;
+                        },
+                    ),
+            ),
         );
-        const accessibleUuids = new Set(accessible.map(({ uuid }) => uuid));
         const {
             page,
             total,
             offset: nextOffset,
         } = paginateAsCode({
-            items: charts.filter(({ uuid }) => accessibleUuids.has(uuid)),
+            items: charts.filter((_, index) => viewable[index]),
             offset,
             pageSize: this.lightdashConfig.contentAsCode.maxDownloads,
         });
@@ -3610,16 +3610,21 @@ export class CoderService extends BaseService {
               });
         let dashboardUuid = dashboard?.uuid;
         let placeholderUuid: string | null = null;
-        if (dashboardUuid === undefined && !live) {
-            placeholderUuid = await this.createPlaceholderDashboard(
-                user,
-                projectUuid,
-                file,
-                { ...options, allowSpaceCreate },
-            );
-            dashboardUuid = placeholderUuid;
-        }
         try {
+            if (dashboardUuid === undefined && !live) {
+                await this.composerChartService.preflightWrite(
+                    account,
+                    project,
+                    { pipeline: file.pipeline, chart },
+                );
+                placeholderUuid = await this.createPlaceholderDashboard(
+                    user,
+                    projectUuid,
+                    file,
+                    { ...options, allowSpaceCreate },
+                );
+                dashboardUuid = placeholderUuid;
+            }
             const composerChartUuid =
                 await this.composerChartService.writeFromCode(
                     account,
@@ -6107,13 +6112,17 @@ export class CoderService extends BaseService {
                 userUuid: user.userUuid,
                 organizationUuid: project.organizationUuid,
             }),
-            shownChartUuids: new Set(
-                (existingDashboard?.tiles ?? []).flatMap((tile) =>
+            shownTilesByChartUuid: (existingDashboard?.tiles ?? []).reduce(
+                (counts, tile) =>
                     isDashboardComposerChartTile(tile) &&
                     tile.properties.composerChartUuid
-                        ? [tile.properties.composerChartUuid]
-                        : [],
-                ),
+                        ? counts.set(
+                              tile.properties.composerChartUuid,
+                              (counts.get(tile.properties.composerChartUuid) ??
+                                  0) + 1,
+                          )
+                        : counts,
+                new Map<string, number>(),
             ),
         });
     }

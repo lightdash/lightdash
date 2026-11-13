@@ -231,6 +231,26 @@ export class ComposerChartService extends BaseService {
         return { pipeline, chart };
     }
 
+    /** The checks that need no dashboard, so an upload can refuse before creating one. */
+    async preflightWrite(
+        account: RegisteredAccount,
+        project: ProjectSubject,
+        data: Pick<CreateComposerChart, 'pipeline' | 'chart'>,
+    ): Promise<void> {
+        const pipeline = parseComposerPipeline(data.pipeline);
+        const input = parseComposerChartInput(data.chart);
+        if (
+            !(await this.isEnabled({
+                userUuid: account.user.userUuid,
+                organizationUuid: project.organizationUuid,
+            }))
+        ) {
+            throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
+        }
+        this.assertCanWritePipeline(account, project, pipeline);
+        await this.pinCustomChartType(project.projectUuid, input);
+    }
+
     async create(
         account: RegisteredAccount,
         projectUuid: string,

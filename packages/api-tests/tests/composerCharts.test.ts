@@ -1142,6 +1142,22 @@ describe('Composer charts', () => {
                 );
                 expect(merge.status).toBe(403);
                 expect(merge.body.error.message).toContain('merge');
+
+                // Refused before any write: no placeholder dashboard is left
+                const placeholderSlug = `${chart.slug}-never-created`;
+                const refusedNew = await uploadChart(
+                    {
+                        ...file,
+                        slug: `${placeholderSlug}-chart`,
+                        dashboardSlug: placeholderSlug,
+                    },
+                    { post },
+                );
+                expect(refusedNew.status).toBe(403);
+                const leftovers = await admin.get<
+                    Body<{ dashboards: unknown[] }>
+                >(`${codeUrl}/dashboards?ids=${placeholderSlug}`);
+                expect(leftovers.body.results.dashboards).toEqual([]);
             } finally {
                 await admin.delete(
                     `/api/v1/service-accounts/${account.body.results.uuid}`,
