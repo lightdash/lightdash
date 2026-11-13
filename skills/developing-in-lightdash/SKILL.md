@@ -77,6 +77,10 @@ lightdash config list-projects      # List available projects
 lightdash config set-project --name "My Project"  # Switch project
 ```
 
+For ordinary business analysis, use a DEFAULT (production) project. A stored active PREVIEW is not evidence that the user wants development data. With MCP, call `get_context` and check project types before analysis; if the appropriate production project is ambiguous, ask which to use rather than substituting an unrelated project. Analyze a preview only when explicitly requested or confirmed. If the connection is pinned to a preview, identify it and ask for confirmation before analysis; keep the pinned scope.
+
+Previews remain appropriate for intentional development and testing workflows, including the preview-first workflow below.
+
 ### Detect Your Project Type
 
 **The YAML syntax differs significantly between project types.**
