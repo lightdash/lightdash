@@ -906,9 +906,12 @@ export type EditDbtProjectFn = (args: {
     /** Open a new PR instead of continuing the thread's existing one. */
     startNewPullRequest: boolean | null;
     progressId?: string;
-}) => Promise<{
-    aiWritebackRunUuid: string;
-}>;
+    /** A code mode script; null runs the change in the sandbox. */
+    script: string | null;
+}) => Promise<
+    | { status: 'started'; aiWritebackRunUuid: string }
+    | { status: 'script_failed'; error: string; logs: string[] }
+>;
 
 // Starts a personal data app build; the worker patches the tool result
 // (keyed by toolCallId) when the build ends.

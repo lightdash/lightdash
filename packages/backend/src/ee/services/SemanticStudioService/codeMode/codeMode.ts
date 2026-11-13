@@ -1,4 +1,9 @@
-import { getErrorMessage } from '@lightdash/common';
+import {
+    DbtSchemaEditor,
+    getErrorMessage,
+    LightdashModelEditor,
+    type SupportedDbtVersions,
+} from '@lightdash/common';
 import {
     newAsyncContext,
     shouldInterruptAfterDeadline,
@@ -301,6 +306,13 @@ export const runCodeMode = async (
     const logs: string[] = [];
 
     const load = async (path: string) => {
+        if (
+            path.startsWith('/') ||
+            path.includes('\\') ||
+            path.split('/').some((part) => ['', '.', '..'].includes(part))
+        ) {
+            throw new Error(`${path} is not a path inside the project`);
+        }
         let file = files.get(path);
         if (!file) {
             const before = await repo.read(path);
@@ -427,4 +439,52 @@ export const runCodeMode = async (
     return invalid.length > 0
         ? { edits: [], logs, error: invalid.join('\n') }
         : { edits, logs, error: null };
+};
+
+/** Checks a semantic layer file against its schema; other YAML, such as dbt_project.yml, only has to parse. */
+export const validateSemanticLayerYaml = (
+    path: string,
+    text: string,
+    {
+        isNative,
+        dbtVersion,
+    }: { isNative: boolean; dbtVersion: SupportedDbtVersions },
+): string | null => {
+    const doc = parseDocument(text);
+    if (doc.errors.length > 0) return `${path}: ${doc.errors[0].message}`;
+    try {
+        if (isNative && doc.get('type') === 'model') {
+            // eslint-disable-next-line no-new
+            new LightdashModelEditor(text, path);
+        } else if (!isNative && isSeq(doc.get('models'))) {
+            // eslint-disable-next-line no-new
+            new DbtSchemaEditor(text, path, dbtVersion);
+        }
+        return null;
+    } catch (e) {
+        return getErrorMessage(e);
+    }
+};
+
+/** Lines added and removed, counted as a multiset; close to git's numbers for YAML edits. */
+export const diffLineCounts = (
+    before: string | null,
+    after: string | null,
+): { additions: number; deletions: number } => {
+    const remaining = new Map<string, number>();
+    const beforeLines = before === null ? [] : before.split('\n');
+    beforeLines.forEach((line) =>
+        remaining.set(line, (remaining.get(line) ?? 0) + 1),
+    );
+    let additions = 0;
+    (after === null ? [] : after.split('\n')).forEach((line) => {
+        const left = remaining.get(line) ?? 0;
+        if (left > 0) remaining.set(line, left - 1);
+        else additions += 1;
+    });
+    let deletions = 0;
+    remaining.forEach((count) => {
+        deletions += count;
+    });
+    return { additions, deletions };
 };

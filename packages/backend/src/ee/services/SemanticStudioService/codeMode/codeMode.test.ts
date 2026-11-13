@@ -1,6 +1,11 @@
 import { DbtSchemaEditor, getErrorMessage } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { runCodeMode, type CodeModeRepo } from './codeMode';
+import {
+    diffLineCounts,
+    runCodeMode,
+    validateSemanticLayerYaml,
+    type CodeModeRepo,
+} from './codeMode';
 
 const ORDERS = `version: 2
 models:
@@ -189,5 +194,51 @@ describe('runCodeMode', () => {
             timeoutMs: 100,
         });
         expect(error).toMatch(/interrupted/i);
+    });
+
+    it('refuses paths outside the project', async () => {
+        const { error } = await run(`repo.write('../secrets.yml', 'a: 1')`);
+        expect(error).toBe('../secrets.yml is not a path inside the project');
+    });
+});
+
+describe('validateSemanticLayerYaml', () => {
+    const dbt = { isNative: false, dbtVersion: undefined as never };
+
+    it('checks schema files and lets other YAML through', () => {
+        expect(
+            validateSemanticLayerYaml(
+                'dbt_project.yml',
+                'name: shop\nmodels:\n  shop:\n    +materialized: view\n',
+                dbt,
+            ),
+        ).toBeNull();
+        expect(
+            validateSemanticLayerYaml(
+                'models/orders.yml',
+                'version: 2\nmodels:\n  - name: orders\n    meta:\n      metrics:\n        n:\n          type: nope\n',
+                dbt,
+            ),
+        ).toMatch(/Invalid schema file/);
+        expect(validateSemanticLayerYaml('a.yml', 'a: [', dbt)).toMatch(
+            /^a\.yml: /,
+        );
+    });
+});
+
+describe('diffLineCounts', () => {
+    it('counts added and removed lines', () => {
+        expect(diffLineCounts('a\nb\nc', 'a\nB\nc\nd')).toEqual({
+            additions: 2,
+            deletions: 1,
+        });
+        expect(diffLineCounts(null, 'a\nb')).toEqual({
+            additions: 2,
+            deletions: 0,
+        });
+        expect(diffLineCounts('a', null)).toEqual({
+            additions: 0,
+            deletions: 1,
+        });
     });
 });

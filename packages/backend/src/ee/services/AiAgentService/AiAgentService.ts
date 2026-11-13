@@ -13917,13 +13917,31 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 result = await wrapSentryTransaction(
                     'AiAgent.editDbtProject',
                     {},
-                    () =>
-                        writebackGuard
+                    async () => {
+                        if (payload.script) {
+                            const saved =
+                                await this.aiWritebackService.saveWithScript(
+                                    runArgs,
+                                    payload.script,
+                                    { dryRun: false, assertPublishAllowed },
+                                );
+                            if (saved?.status === 'saved') {
+                                changedModels = saved.changedModels;
+                                return saved.result;
+                            }
+                            if (saved?.status === 'script_failed') {
+                                throw new ParameterError(
+                                    `The script did not run, so nothing was saved: ${saved.error}`,
+                                );
+                            }
+                        }
+                        return writebackGuard
                             ? this.aiWritebackService.run(
                                   runArgs,
                                   writebackGuard.assert,
                               )
-                            : this.aiWritebackService.run(runArgs),
+                            : this.aiWritebackService.run(runArgs);
+                    },
                 );
             } catch (error) {
                 if (writebackGuard?.getFailure()) {
@@ -14983,6 +15001,27 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     'editDbtProject requires a tool call id (progressId)',
                 );
             }
+            let { script } = args;
+            if (script) {
+                // Run it once now so a broken script goes back to the model instead of failing in the background.
+                const checked = await this.aiWritebackService.saveWithScript(
+                    {
+                        agentPermissionsApply: true,
+                        user,
+                        projectUuid,
+                        prompt: writebackPrompt,
+                        dbtSourceUuid: options?.dbtSourceUuid,
+                        prUrl: args.prUrl,
+                        startNewPullRequest: args.startNewPullRequest ?? false,
+                        aiThreadUuid: prompt.threadUuid,
+                        source,
+                    },
+                    script,
+                    { dryRun: true, assertPublishAllowed: null },
+                );
+                if (checked?.status === 'script_failed') return checked;
+                if (checked === null) script = null;
+            }
             const { aiWritebackRunUuid } =
                 await this.aiWritebackService.createPendingRun({
                     user,
@@ -15016,9 +15055,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 prUrl: args.prUrl,
                 startNewPullRequest: args.startNewPullRequest ?? null,
                 suppressWritebackPreview: options?.suppressWritebackPreview,
+                script,
             });
 
-            return { aiWritebackRunUuid };
+            return { status: 'started', aiWritebackRunUuid };
         };
 
         // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
@@ -17625,6 +17665,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                           promptProject.projectUuid,
                       )
                     : null;
+                const semanticStudioCodeMode =
+                    semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
+                    (
+                        await this.featureFlagService.get({
+                            user,
+                            featureFlagId: FeatureFlags.SemanticStudioCodeMode,
+                        })
+                    ).enabled;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
@@ -18128,6 +18176,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread,
                     semanticStudioDrafts,
+                    semanticStudioCodeMode,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,

@@ -5,6 +5,8 @@ const REPLY_RULES = `- Ask at most one question at a time, the one that most cha
 /** How a dbt project's Studio thread changes things: it proposes a diff, and opens the pull request only on the turn the person asks for it. */
 export type SemanticStudioDbtTurn = {
     opensPullRequest: boolean;
+    /** The pull request is saved from a script rather than a sandbox run. */
+    codeMode: boolean;
     /** The repository sections that apply to this turn. */
     sections: string[];
 };
@@ -23,9 +25,22 @@ const DBT_PULL_REQUEST = `- The person asked for the pull request. Call editDbtP
 - To try it before merging: when the repository builds a preview project for the pull request, "Try my changes" above this chat lets only them explore with it. Otherwise it can be tried once merged.
 - After starting it, write one short sentence. The card shows the pull request.`;
 
+const DBT_PULL_REQUEST_CODE_MODE = `- The person asked for the pull request. Call editDbtProject once with a script that makes the change as it was last proposed in this thread, and a prompt that says the same change in words: the files, the models and fields, and what each becomes. Do not propose again and do not widen the change. Leave prUrl and startNewPullRequest null, so the change joins this conversation's pull request while it is open and opens one otherwise.
+- Write the script from the files as you read them: use yaml.set and yaml.push for YAML, so the rest of each file stays as it is, and repo.write only for a whole new file such as a new model's SQL. Put each field where that file already keeps its kind. If the tool says the script failed, fix it from the error and call again; tell the person only if it still fails.
+- Pass a null script only when the change needs dbt itself to run, such as checking new SQL against the warehouse; the slower sandbox makes that change instead.
+- Nothing is live until the pull request merges, so say "in the pull request" until then.
+- To try it before merging: when the repository builds a preview project for the pull request, "Try my changes" above this chat lets only them explore with it. Otherwise it can be tried once merged.
+- After starting it, write one short sentence. The card shows the pull request.`;
+
 /** Semantic Studio on a dbt project: no draft, the agent reads the repository and the change lands as a pull request. */
+const getDbtChangeRules = (opensPullRequest: boolean, codeMode: boolean) => {
+    if (!opensPullRequest) return DBT_PROPOSAL;
+    return codeMode ? DBT_PULL_REQUEST_CODE_MODE : DBT_PULL_REQUEST;
+};
+
 const getDbtSections = ({
     opensPullRequest,
+    codeMode,
     sections,
 }: SemanticStudioDbtTurn): string[] => [
     `## What the person sees
@@ -34,7 +49,7 @@ The person sees your text, so write it in their terms and name fields by their l
 
 ## How to change the layer
 
-${opensPullRequest ? DBT_PULL_REQUEST : DBT_PROPOSAL}
+${getDbtChangeRules(opensPullRequest, codeMode)}
 ${REPLY_RULES}
 
 ## Modelling

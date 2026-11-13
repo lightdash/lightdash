@@ -30,6 +30,25 @@ export const toolEditDbtProjectArgsSchema = z.object({
         ),
 });
 
+/** Semantic Studio's variant: the change can come as a script, saved in seconds without a sandbox. */
+export const toolEditDbtProjectCodeModeArgsSchema =
+    toolEditDbtProjectArgsSchema.extend({
+        script: z
+            .string()
+            .nullable()
+            .describe(
+                [
+                    'JavaScript that makes the change, run against the repository before the pull request is opened. Paths are relative to the dbt project. Nothing is written unless the whole script succeeds and every changed YAML file passes the semantic layer schema; on failure the tool returns the error, so fix the script and call again.',
+                    'API (synchronous, values are plain JSON): dbt.model(name) -> { yml, sql, keys } | null, where keys is the YAML path of that model;',
+                    'yaml.get(path, keys), yaml.set(path, keys, value), yaml.push(path, keys, value) to append to a list, yaml.remove(path, keys);',
+                    "keys is a list of mapping keys, list indexes, or { name } to pick the list item with that name, e.g. [...m.keys, 'columns', { name: 'amount' }, 'config', 'meta', 'metrics', 'total_amount'];",
+                    'set creates missing mappings, and edits keep comments and the rest of the file as it is;',
+                    'repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors.',
+                    'Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse.',
+                ].join(' '),
+            ),
+    });
+
 export const toolEditDbtProjectStructuredContentSchema = z.object({
     status: z
         .literal('pending')
