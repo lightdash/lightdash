@@ -758,9 +758,7 @@ export class DashboardService
     }
 
     // Draft payloads are untrusted JSON, so narrow instead of casting.
-    private static collectDraftSavedChartUuids(
-        drafts: ContentDraft[],
-    ): Set<string> {
+    private static collectDraftChartUuids(drafts: ContentDraft[]): Set<string> {
         const chartUuids = new Set<string>();
         drafts.forEach(({ draft }) => {
             const { tiles } = draft as { tiles?: unknown };
@@ -797,7 +795,7 @@ export class DashboardService
         // that references it. When the author's save was held back as a draft,
         // no version references the chart, so the next published save would
         // permanently delete a chart the draft still points at.
-        const draftChartUuids = DashboardService.collectDraftSavedChartUuids(
+        const draftChartUuids = DashboardService.collectDraftChartUuids(
             await this.contentDraftModel.listOpenForContent(
                 projectUuid,
                 'dashboard',

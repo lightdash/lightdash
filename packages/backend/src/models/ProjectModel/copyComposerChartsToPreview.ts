@@ -5,10 +5,7 @@ import {
     DashboardTileComposerChartsTableName,
 } from '../../database/entities/composerCharts';
 
-/**
- * Clones each composer chart of a copied dashboard with its latest version,
- * keeping slug and author, and its tile rows (tile uuids are kept on preview copy).
- */
+/** Clones the composer charts of copied dashboards, their latest versions and tile rows. */
 export const copyComposerChartsToPreview = async (
     trx: Knex.Transaction,
     previewProjectUuid: string,
@@ -19,12 +16,12 @@ export const copyComposerChartsToPreview = async (
         .whereIn('dashboard_uuid', [...previewDashboardUuidBySource.keys()])
         .whereNull('deleted_at')
         .select('*');
-    const previewUuidBySource = new Map<string, string>();
     if (sources.length === 0) return;
 
     // Row by row so each copy is paired with its source without relying on RETURNING order.
-    await sources.reduce(async (previous, source) => {
-        await previous;
+    const previewUuidBySource = new Map<string, string>();
+    for (const source of sources) {
+        // eslint-disable-next-line no-await-in-loop
         const [{ composer_chart_uuid: previewUuid }] = await trx(
             ComposerChartsTableName,
         )
@@ -41,7 +38,7 @@ export const copyComposerChartsToPreview = async (
             })
             .returning('composer_chart_uuid');
         previewUuidBySource.set(source.composer_chart_uuid, previewUuid);
-    }, Promise.resolve());
+    }
 
     const latestVersions = await trx(ComposerChartVersionsTableName)
         .distinctOn('composer_chart_uuid')

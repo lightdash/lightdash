@@ -150,7 +150,7 @@ export class ComposerChartModel {
     async deleteOrphans(
         dashboardUuid: string,
         keep: ReadonlySet<string>,
-    ): Promise<string[]> {
+    ): Promise<void> {
         const shown = this.database(DashboardTileComposerChartsTableName)
             .innerJoin(
                 DashboardVersionsTableName,
@@ -166,14 +166,12 @@ export class ComposerChartModel {
             .select(
                 `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
             );
-        return this.database(ComposerChartsTableName)
+        await this.database(ComposerChartsTableName)
             .where('dashboard_uuid', dashboardUuid)
             .whereNull('deleted_at')
             .whereNotIn('composer_chart_uuid', shown)
             .whereNotIn('composer_chart_uuid', [...keep])
-            .delete()
-            .returning('composer_chart_uuid')
-            .then((rows) => rows.map((row) => row.composer_chart_uuid));
+            .delete();
     }
 
     /** Appends a copy of the version current when the dashboard version was saved, if any. */

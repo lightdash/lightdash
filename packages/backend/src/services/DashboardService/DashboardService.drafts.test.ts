@@ -131,7 +131,7 @@ const buildService = (overrides: Overrides = {}) => {
         savedChartModel: { permanentDelete } as AnyType,
         savedSqlModel: {} as AnyType,
         composerChartModel: {
-            deleteOrphans: vi.fn(async () => []),
+            deleteOrphans: vi.fn(async () => {}),
         } as unknown as ComposerChartModel,
         savedChartService: {} as AnyType,
         projectModel: {

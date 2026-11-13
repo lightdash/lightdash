@@ -276,7 +276,7 @@ describe('DashboardService', () => {
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         composerChartModel: {
-            deleteOrphans: vi.fn(async () => []),
+            deleteOrphans: vi.fn(async () => {}),
         } as unknown as ComposerChartModel,
         savedChartService: {} as SavedChartService, // Mock for test
         projectModel: projectModel as unknown as ProjectModel,

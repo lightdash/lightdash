@@ -111,7 +111,7 @@ describe('DashboardService - Content Verification', () => {
         } as unknown as SavedChartModel,
         savedSqlModel: {} as unknown as SavedSqlModel,
         composerChartModel: {
-            deleteOrphans: vi.fn(async () => []),
+            deleteOrphans: vi.fn(async () => {}),
         } as unknown as ComposerChartModel,
         savedChartService: {} as unknown as SavedChartService,
         projectModel: {
