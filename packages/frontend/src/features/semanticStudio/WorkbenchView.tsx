@@ -1376,7 +1376,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 })
                                             }
                                         >
-                                            Workspaces
+                                            Changes
                                         </UnstyledButton>
                                     ) : null}
                                     {shownWorkspace || workspace ? (
@@ -1387,7 +1387,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                             <Tooltip
                                                 label={
                                                     workspace?.hint ??
-                                                    'Open what this workspace changed'
+                                                    'Open what this change does'
                                                 }
                                             >
                                                 <UnstyledButton

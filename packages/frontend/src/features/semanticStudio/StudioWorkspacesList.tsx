@@ -76,7 +76,7 @@ export const StudioWorkspacesList: FC<{
     if (error || !data) {
         return (
             <Text fz="sm" c="dimmed" ta="center" py="xl">
-                Workspaces could not be loaded.
+                Changes could not be loaded.
             </Text>
         );
     }
@@ -84,11 +84,11 @@ export const StudioWorkspacesList: FC<{
     return (
         <Box className={classes.page}>
             <Text fz="lg" fw={600}>
-                Workspaces
+                Changes
             </Text>
             <Text fz="sm" c="dimmed">
-                Each one holds a change from the first proposal until it is
-                live. Ask for a change in the chat and one starts for you.
+                Each change runs from its first proposal until it is live. Ask
+                for one in the chat to start.
             </Text>
             <Text className={classes.section}>Yours</Text>
             {mine.length === 0 ? (
