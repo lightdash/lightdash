@@ -113,6 +113,8 @@ import {
     insertComposerChartTiles,
     onComposerChartTile,
     onNonDeletedComposerChart,
+    restoreDashboardComposerCharts,
+    softDeleteDashboardComposerCharts,
     toComposerChartTile,
 } from './composerChartTiles';
 import Transaction = Knex.Transaction;
@@ -1892,6 +1894,11 @@ export class DashboardModel {
                     'deleted_by_user_uuid',
                     deletedDashboard.deleted_by_user_uuid,
                 );
+            await restoreDashboardComposerCharts(
+                trx,
+                deletedDashboard.dashboard_uuid,
+                deletedDashboard.deleted_by_user_uuid,
+            );
         }
 
         const versionUuid = await DashboardModel.createVersion(
@@ -2285,6 +2292,10 @@ export class DashboardModel {
             .where('dashboard_uuid', dashboardUuid)
             .whereNull('space_id')
             .whereNull('deleted_at');
+        await softDeleteDashboardComposerCharts(this.database, dashboardUuid, {
+            at: now,
+            userUuid,
+        });
         await this.dismissContentDrafts(
             dashboardUuid,
             await this.getDashboardScopedChartUuids(dashboardUuid),
@@ -2325,6 +2336,11 @@ export class DashboardModel {
                     'deleted_by_user_uuid',
                     dashboardRow.deleted_by_user_uuid,
                 );
+            await restoreDashboardComposerCharts(
+                this.database,
+                dashboardUuid,
+                dashboardRow.deleted_by_user_uuid,
+            );
         }
     }
 

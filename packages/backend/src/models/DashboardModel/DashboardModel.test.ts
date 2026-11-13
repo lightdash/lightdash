@@ -10,6 +10,7 @@ import {
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
+import { ComposerChartsTableName } from '../../database/entities/composerCharts';
 import { ContentDraftsTableName } from '../../database/entities/contentDrafts';
 import { ContentReviewRequestsTableName } from '../../database/entities/contentReviewRequests';
 import {
@@ -694,6 +695,7 @@ describe('DashboardModel', () => {
             },
         ]);
         tracker.on.update(SavedChartsTableName).responseOnce(1);
+        tracker.on.update(ComposerChartsTableName).responseOnce(1);
         tracker.on
             .insert(DashboardVersionsTableName)
             .responseOnce([dashboardVersionEntry]);
@@ -744,6 +746,10 @@ describe('DashboardModel', () => {
             query.sql.includes(`update "${SavedChartsTableName}"`),
         );
         expect(chartRevive?.bindings).toContain('deleter-user-uuid');
+        const composerChartRevive = tracker.history.update.find((query) =>
+            query.sql.includes(`update "${ComposerChartsTableName}"`),
+        );
+        expect(composerChartRevive?.bindings).toContain('deleter-user-uuid');
         expect(tracker.history.insert[0].sql).toContain(
             DashboardVersionsTableName,
         );
