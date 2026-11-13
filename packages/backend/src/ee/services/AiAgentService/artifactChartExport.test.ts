@@ -167,6 +167,7 @@ describe('artifact export access', () => {
             threadScope: {
                 type: 'writeSpaces',
                 writeSpaceUuids: ['other-space'],
+                externalUserId: null,
             },
             spaceAccess: ['other-space'],
             readOnlySpaceUuids: [],

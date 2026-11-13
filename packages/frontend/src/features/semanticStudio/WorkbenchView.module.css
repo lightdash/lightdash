@@ -40,6 +40,36 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
+/* Where the person is in the workspace: the models, or the changes the conversation made. */
+.crumb {
+    padding: 4px 6px;
+    border-radius: 6px;
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-sm);
+}
+
+.crumb:hover {
+    background: color-mix(in srgb, var(--mantine-color-text) 5%, transparent);
+}
+
+.crumb[aria-current='page'] {
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+.crumb[data-workspace] {
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stageLine {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
 .workspaceBody {
     flex: 1;
     min-height: 0;

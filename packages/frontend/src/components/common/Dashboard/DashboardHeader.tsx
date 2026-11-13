@@ -135,18 +135,12 @@ import headerClasses from './DashboardHeader.module.css';
 import { DashboardPerformanceWarning } from './DashboardPerformanceWarning';
 import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
+import { EDIT_BAR_POSITION } from './editBarPosition';
 import { PendingChangesButton } from './PendingChangesButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
 import { TidyTilesButton } from './TidyTilesButton';
 import { TileLayoutHistoryButtons } from './TileLayoutHistoryButtons';
 import { useDashboardManageAccess } from './useDashboardManageAccess';
-
-// The dashboard controls' floating bars sit this far from the bottom too
-const EDIT_BAR_POSITION = {
-    bottom: 'md',
-    left: 0,
-    right: 0,
-};
 
 type DashboardHeaderProps = {
     dashboard: Dashboard;

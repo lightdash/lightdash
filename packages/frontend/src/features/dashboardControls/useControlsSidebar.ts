@@ -43,7 +43,7 @@ export type ControlsSidebarContextValue = {
     /** The edited filter's set: its draft while a filter is open. */
     editorFilters: DashboardFilters;
     /**
-     * A filter is being edited, so the rail is on screen: false as soon as
+     * A filter is being edited, so the editor is on screen: false as soon as
      * the edited filter is no longer in the dashboard.
      */
     isSidebarOpen: boolean;

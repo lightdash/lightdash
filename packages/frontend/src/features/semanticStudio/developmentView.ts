@@ -34,6 +34,21 @@ export const clearDevelopmentView = () => {
     }
 };
 
+let switchedOnAt = 0;
+
+/** Whether the view was switched on a moment ago, as opposed to found on when the page loaded. */
+export const wasJustSwitchedOn = (): boolean =>
+    Date.now() - switchedOnAt < 1000;
+
+/** The preview project the view reads, or null when it reads the person's latest change directly. */
+export const getDevelopmentPreview = (): string | null => {
+    try {
+        return localStorage.getItem(PREVIEW_STORAGE_KEY);
+    } catch {
+        return null;
+    }
+};
+
 /** The headers that put a request in the development view; none when it is off. Read outside React by the API client. */
 export const getDevelopmentViewHeaders = (): Record<string, string> => {
     try {
@@ -73,6 +88,7 @@ export const useDevelopmentView = (): [
     const set = useCallback(
         (next: boolean, previewProjectUuid: string | null = null) => {
             const here = findProjectInPath(pathname);
+            if (next) switchedOnAt = Date.now();
             try {
                 if (next && here && previewProjectUuid) {
                     localStorage.setItem(

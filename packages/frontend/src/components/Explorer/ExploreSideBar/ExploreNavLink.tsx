@@ -123,7 +123,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
         );
     } else if (isInDevelopment) {
         rightSection = (
-            <Tooltip label="In development: only you see this version">
+            <Tooltip label="Your changes: only you see this version">
                 <Badge color="orange" size="xs">
                     Dev
                 </Badge>

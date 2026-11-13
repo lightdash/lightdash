@@ -1,6 +1,5 @@
 import {
     type AiAgentSummary,
-    type AiAgentThread,
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
@@ -25,6 +24,7 @@ import { useEffect, useEffectEvent, useRef, type FC } from 'react';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SidebarPosition } from '../../../../../components/common/Page/types';
+import { STUDIO_STARTERS } from '../../../../../features/semanticStudio/studioStarters';
 import { useKeepsSemanticLayerDraft } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import useSidebarResize from '../../../../../hooks/useSidebarResize';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
@@ -41,6 +41,7 @@ import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import { QuietCardsContext } from '../ChatElements/ToolCalls/quietCards';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
+import { getOpenProposal } from './studioProposal';
 import {
     useChatOpen,
     useStudioAgent,
@@ -74,16 +75,6 @@ const withOpenModel = (
 
 const PANEL_WIDTH = 360;
 const PANEL_MIN_WIDTH = 300;
-
-/** Whether the agent's latest reply proposes a change that no pull request carries yet. */
-const hasOpenProposal = (messages: AiAgentThread['messages']): boolean => {
-    const last = messages.findLast(({ role }) => role === 'assistant');
-    return (
-        last?.role === 'assistant' &&
-        (last.message ?? '').includes('```diff') &&
-        !last.toolCalls.some(({ toolName }) => toolName === 'editDbtProject')
-    );
-};
 
 const useStartThread = (
     projectUuid: string,
@@ -135,22 +126,6 @@ const useAskedPrompt = (
     }, [prompt]);
 };
 
-// Worded for any warehouse: a starter must not assume what the data is about.
-const STARTERS = [
-    {
-        label: "See what's in my warehouse",
-        prompt: 'Look through my warehouse and tell me what is worth modelling first.',
-    },
-    {
-        label: 'Model a table',
-        prompt: 'Pick the table most worth modelling first and model it.',
-    },
-    {
-        label: 'Suggest my first metrics',
-        prompt: 'Look at my data and suggest the first few metrics to define.',
-    },
-];
-
 const NewThread: FC<
     OpenModel &
         AskedPrompt & {
@@ -180,7 +155,7 @@ const NewThread: FC<
             <StudioChatEmptyState keepsDraft={keepsDraft}>
                 {showStarters ? (
                     <Group gap="xs" justify="center">
-                        {STARTERS.map(({ label, prompt: starter }) => (
+                        {STUDIO_STARTERS.map(({ label, prompt: starter }) => (
                             <Button
                                 key={label}
                                 size="xs"
@@ -250,6 +225,8 @@ const ExistingThread: FC<
     );
     const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     const pullRequest = useStudioPullRequest(projectUuid);
+    // Unknown counts as open, so a slow or unavailable status check never offers a second pull request.
+    const isClosed = !!pullRequest?.ciChecks && !pullRequest.isOpen;
     const isRequestingPullRequest = useRef(false);
     if (isLoading || !thread) {
         return (
@@ -268,7 +245,9 @@ const ExistingThread: FC<
             agentUuid={agent.uuid}
             renderArtifactsInline
         >
-            {!keepsDraft && !isBusy && hasOpenProposal(thread.messages) ? (
+            {!keepsDraft &&
+            !isBusy &&
+            getOpenProposal(thread.messages).length > 0 ? (
                 <div className={classes.pullRequestPrompt}>
                     <Stack className={classes.pullRequestCard} gap="sm">
                         <Group gap="sm" wrap="nowrap">
@@ -280,14 +259,16 @@ const ExistingThread: FC<
                             </span>
                             <Stack gap={0} flex={1} miw={0}>
                                 <Text fz="sm" fw={500}>
-                                    {pullRequest?.isOpen
+                                    {pullRequest && !isClosed
                                         ? 'Add this to your pull request?'
                                         : 'Happy with this change?'}
                                 </Text>
                                 <Text fz="xs" c="dimmed">
-                                    {pullRequest?.isOpen
-                                        ? 'Commits it to the same pull request.'
-                                        : 'You can try it once its preview builds.'}
+                                    {!pullRequest
+                                        ? 'You can try it once its pull request opens.'
+                                        : isClosed
+                                          ? 'Your last pull request is closed, so this opens a new one.'
+                                          : 'Commits it to the same pull request.'}
                                 </Text>
                             </Stack>
                         </Group>
@@ -299,9 +280,11 @@ const ExistingThread: FC<
                                 isRequestingPullRequest.current = true;
                                 void sendMessage({
                                     enableSqlMode: sqlMode,
-                                    prompt: pullRequest?.isOpen
-                                        ? 'Save this to the pull request.'
-                                        : 'Open the pull request.',
+                                    prompt: !pullRequest
+                                        ? 'Open the pull request.'
+                                        : isClosed
+                                          ? 'Open a new pull request.'
+                                          : 'Save this to the pull request.',
                                     // The pull request tools only join a turn that carries this hint.
                                     toolHints: ['editDbtProject'],
                                 }).finally(() => {
@@ -309,9 +292,11 @@ const ExistingThread: FC<
                                 });
                             }}
                         >
-                            {pullRequest?.isOpen
-                                ? 'Save to pull request'
-                                : 'Open pull request'}
+                            {!pullRequest
+                                ? 'Open pull request'
+                                : isClosed
+                                  ? 'Open new pull request'
+                                  : 'Save to pull request'}
                         </Button>
                     </Stack>
                 </div>

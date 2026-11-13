@@ -352,6 +352,9 @@ export class HealthService extends BaseService {
             dashboardComments: {
                 enabled: this.lightdashConfig.dashboardComments.enabled,
             },
+            mergeQueryAuthoring: {
+                enabled: this.lightdashConfig.mergeQueryAuthoring.enabled,
+            },
             preAggregates: {
                 enabled: preAggregatesEnabled,
             },

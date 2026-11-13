@@ -1,4 +1,11 @@
 import { DashboardTileTypes, type DashboardTile } from '@lightdash/common';
+import { type Layout } from 'react-grid-layout';
+import {
+    dashboardEditActions as actions,
+    initialDashboardEditState,
+    dashboardEditReducer as reducer,
+    type DashboardEditState,
+} from '../dashboard/store/dashboardEditReducer';
 import {
     AUTO_FIT_MAX_SCALE,
     AUTO_FIT_MIN_SCALE,
@@ -13,6 +20,7 @@ import {
     getBreakpointForWidth,
     getFitToScreenRowHeight,
     getGridHeight,
+    getLayoutToSaveAfterEdit,
     getGridTotalRows,
     getViewModeActiveTabTiles,
     hasGridItemMoved,
@@ -28,6 +36,9 @@ import {
     getResponsiveGridLayoutProps,
     getRowHeightForScale,
     GRID_MARGIN,
+    keepResizedTileCorner,
+    matchesSavedLayout,
+    settleLayoutAfterEdit,
 } from './gridUtils';
 
 const chart = (uuid: string, x: number, y: number, h = 6): DashboardTile => ({
@@ -380,6 +391,17 @@ describe('dropping a tile that was dragged over others', () => {
         );
         expect(overlaps).toEqual([]);
     });
+
+    it('moves a covered tile to a whole stored row on the fine edit grid', () => {
+        const layout = [item('a', 0, 0), item('dropped', 0, 3)];
+        const result = resolveDropOverlaps(
+            layout,
+            ['dropped'],
+            FINE_GRID_SCALE,
+        );
+        expect(position(result, 'dropped')).toEqual({ x: 0, y: 3 });
+        expect(position(result, 'a')).toEqual({ x: 0, y: 8 });
+    });
 });
 
 describe('dropping a tile beside another one', () => {
@@ -729,6 +751,473 @@ describe('saving after a drag or resize', () => {
     });
 });
 
+describe('tiles after a drag or resize', () => {
+    type Rect = { x: number; y: number; w: number; h: number };
+    const START: Record<string, Rect> = {
+        A: { x: 0, y: 0, w: 18, h: 6 },
+        B: { x: 18, y: 0, w: 18, h: 6 },
+        C: { x: 0, y: 6, w: 18, h: 6 },
+        D: { x: 18, y: 6, w: 18, h: 6 },
+        E: { x: 0, y: 14, w: 36, h: 6 },
+        M: { x: 0, y: 20, w: 36, h: 3 },
+    };
+
+    const toLayout = (rects: Record<string, Rect>): Layout[] =>
+        Object.entries(rects).map(([i, rect]) => ({ i, ...rect }));
+
+    const positions = (layout: Layout[]): Record<string, Rect> =>
+        Object.fromEntries(
+            layout.map(({ i, x, y, w, h }) => [i, { x, y, w, h }]),
+        );
+
+    const createSession = (initial: Record<string, Rect>) => {
+        let saved = { ...initial };
+        const home = new Map(
+            Object.entries(initial).map(([i, rect]) => [i, rect.y]),
+        );
+        return {
+            drop: (gridLayout: Record<string, Rect>, editedTileId: string) => {
+                const settled = settleLayoutAfterEdit({
+                    layout: toLayout(gridLayout),
+                    editedTileId,
+                    previous: new Map(
+                        Object.entries(saved).map(([i, rect]) => [
+                            i,
+                            { i, ...rect },
+                        ]),
+                    ),
+                    home,
+                });
+                saved = positions(settled);
+                home.set(editedTileId, saved[editedTileId].y);
+                return saved;
+            },
+            addTile: (i: string, rect: Rect) => {
+                saved = { ...saved, [i]: rect };
+                home.set(i, rect.y);
+                return saved;
+            },
+            get saved() {
+                return saved;
+            },
+        };
+    };
+
+    const overlapping = (rects: Record<string, Rect>) =>
+        Object.entries(rects).flatMap(([a, ra]) =>
+            Object.entries(rects)
+                .filter(
+                    ([b, rb]) =>
+                        a < b &&
+                        ra.x < rb.x + rb.w &&
+                        rb.x < ra.x + ra.w &&
+                        ra.y < rb.y + rb.h &&
+                        rb.y < ra.y + ra.h,
+                )
+                .map(([b]) => `${a}/${b}`),
+        );
+
+    const hasWholeRows = (rects: Record<string, Rect>) =>
+        Object.values(rects).every(
+            ({ y, h }) => Number.isInteger(y) && Number.isInteger(h),
+        );
+
+    it('resizing a tile taller moves the tile below just enough and keeps the gap above E', () => {
+        const session = createSession(START);
+        const saved = session.drop(
+            { ...START, A: { ...START.A, h: 8 }, C: { ...START.C, y: 8 } },
+            'A',
+        );
+        expect(saved.A.h).toBe(8);
+        expect(saved.C.y).toBe(8);
+        expect(saved.E.y).toBe(14);
+        expect(saved.M.y).toBe(20);
+    });
+
+    it('dragging a tile down and back brings the pushed tiles back to their rows', () => {
+        const session = createSession(START);
+        session.drop(
+            {
+                ...START,
+                A: { ...START.A, y: 3 },
+                C: { ...START.C, y: 9 },
+                E: { ...START.E, y: 15 },
+                M: { ...START.M, y: 21 },
+            },
+            'A',
+        );
+        expect(session.saved.E.y).toBe(15);
+        const saved = session.drop(
+            {
+                ...session.saved,
+                A: { ...START.A, y: 0 },
+            },
+            'A',
+        );
+        expect(saved).toEqual(START);
+    });
+
+    it('repeated drag rounds do not ratchet untouched tiles down', () => {
+        const session = createSession(START);
+        for (let round = 0; round < 3; round += 1) {
+            session.drop(
+                {
+                    ...session.saved,
+                    A: { ...START.A, y: 1 },
+                    C: { ...START.C, y: 7 },
+                },
+                'A',
+            );
+            session.drop(
+                {
+                    ...session.saved,
+                    A: { ...START.A, y: 0 },
+                    C: { ...START.C, y: 7 },
+                },
+                'A',
+            );
+            expect(session.saved).toEqual(START);
+        }
+    });
+
+    it('dragging a tile up over others never saves an overlap or a half row on tiles the user did not place', () => {
+        const session = createSession(START);
+        const saved = session.drop(
+            {
+                ...START,
+                E: { ...START.E, y: 10 },
+                C: { ...START.C, y: 9.5 },
+                D: { ...START.D, y: 9.5 },
+                M: { ...START.M, y: 21 },
+            },
+            'E',
+        );
+        expect(overlapping(saved)).toEqual([]);
+        expect(hasWholeRows(saved)).toBe(true);
+        expect(saved.E.y).toBe(10);
+        expect(saved.C.y).toBe(16);
+        expect(saved.D.y).toBe(16);
+        expect(saved.M.y).toBe(22);
+        expect(saved.A).toEqual(START.A);
+        expect(saved.B).toEqual(START.B);
+    });
+
+    it('a later small drag does not move tiles that the user did not touch', () => {
+        const session = createSession(START);
+        session.drop(
+            {
+                ...START,
+                E: { ...START.E, y: 10 },
+                C: { ...START.C, y: 9.5 },
+                D: { ...START.D, y: 9.5 },
+                M: { ...START.M, y: 21 },
+            },
+            'E',
+        );
+        const afterDrop = session.saved;
+        const saved = session.drop(
+            {
+                ...afterDrop,
+                A: { ...START.A, y: 0 },
+                E: { ...afterDrop.E, y: 15.5 },
+                M: { ...afterDrop.M, y: 21.5 },
+            },
+            'A',
+        );
+        expect(saved).toEqual(afterDrop);
+    });
+
+    it('a drag after adding a tile keeps the new tile and the gaps', () => {
+        const session = createSession(START);
+        session.addTile('N', { x: 0, y: 23, w: 15, h: 9 });
+        expect(overlapping(session.saved)).toEqual([]);
+        const saved = session.drop(
+            {
+                ...session.saved,
+                B: { ...START.B, h: 7 },
+                D: { ...START.D, y: 7 },
+            },
+            'B',
+        );
+        expect(saved.N).toEqual({ x: 0, y: 23, w: 15, h: 9 });
+        expect(saved.D.y).toBe(7);
+        expect(saved.E.y).toBe(14);
+    });
+
+    it('the edited tile keeps the position the user gave it', () => {
+        expect(
+            settleLayoutAfterEdit({
+                layout: [{ i: 'X', x: 0, y: 3, w: 4, h: 2 }],
+                editedTileId: 'X',
+                previous: new Map([['X', { i: 'X', x: 0, y: 0, w: 4, h: 2 }]]),
+                home: new Map([['X', 0]]),
+            }),
+        ).toEqual([{ i: 'X', x: 0, y: 3, w: 4, h: 2 }]);
+    });
+
+    it('a saved layout reloads to the same positions and a no-op drop keeps them', () => {
+        const session = createSession(START);
+        session.drop(
+            { ...START, A: { ...START.A, h: 8 }, C: { ...START.C, y: 8 } },
+            'A',
+        );
+        const reloaded = createSession(session.saved);
+        expect(reloaded.drop(reloaded.saved, 'C')).toEqual(session.saved);
+    });
+
+    it('keeps the swap the grid showed when a tile is dragged down past another', () => {
+        const session = createSession(START);
+        const saved = session.drop(
+            {
+                ...START,
+                A: { ...START.A, y: 7 },
+                C: { ...START.C, y: 1 },
+                E: { ...START.E, y: 17 },
+                M: { ...START.M, y: 23 },
+            },
+            'A',
+        );
+        expect(saved.A.y).toBe(7);
+        expect(saved.C.y).toBe(1);
+        expect(saved.E.y).toBe(14);
+        expect(saved.M.y).toBe(20);
+        expect(overlapping(saved)).toEqual([]);
+    });
+
+    it('a resized tile keeps its top-left corner when the grid pushed it', () => {
+        const before = { i: 'C', ...START.C };
+        const gridLayout = toLayout({
+            ...START,
+            C: { ...START.C, y: 12, h: 9 },
+        });
+        const layout = keepResizedTileCorner(gridLayout, before);
+        expect(layout.find((item) => item.i === 'C')).toEqual({
+            i: 'C',
+            x: 0,
+            y: 6,
+            w: 18,
+            h: 9,
+        });
+        const session = createSession(START);
+        const saved = session.drop(positions(layout), 'C');
+        expect(saved.C).toEqual({ x: 0, y: 6, w: 18, h: 9 });
+        expect(saved.E.y).toBe(15);
+        expect(overlapping(saved)).toEqual([]);
+    });
+
+    it('keeps the fine-grid position of the tile the user placed and puts pushed tiles on whole rows', () => {
+        const session = createSession(START);
+        const saved = session.drop(
+            { ...START, B: { ...START.B, y: 0.5 }, D: { ...START.D, y: 6.5 } },
+            'B',
+        );
+        expect(saved.B.y).toBe(0.5);
+        expect(saved.D.y).toBe(7);
+        expect(overlapping(saved)).toEqual([]);
+    });
+
+    it('step ii: a tile dropped at a half row pushes the tiles below it to whole rows', () => {
+        const session = createSession(START);
+        const saved = session.drop(
+            {
+                ...START,
+                A: { ...START.A, y: 4.5 },
+                C: { ...START.C, y: 10.5 },
+                E: { ...START.E, y: 16.5 },
+                M: { ...START.M, y: 22.5 },
+            },
+            'A',
+        );
+        expect(saved.A.y).toBe(4.5);
+        expect(saved.C.y).toBe(11);
+        expect(saved.E.y).toBe(17);
+        expect(saved.M.y).toBe(23);
+        expect(saved.B).toEqual(START.B);
+        expect(saved.D).toEqual(START.D);
+        const { A: _placed, ...untouched } = saved;
+        expect(hasWholeRows(untouched)).toBe(true);
+        expect(overlapping(saved)).toEqual([]);
+    });
+
+    it('a tile swapped above a tile dropped at a half row lands on a whole row', () => {
+        const session = createSession(START);
+        const saved = session.drop(
+            {
+                ...START,
+                A: { ...START.A, y: 7.5 },
+                C: { ...START.C, y: 1.5 },
+            },
+            'A',
+        );
+        expect(saved.C.y).toBe(1);
+        expect(saved.E.y).toBe(14);
+        expect(overlapping(saved)).toEqual([]);
+    });
+
+    describe('on the dashboard store', () => {
+        const scaled = (rects: Record<string, Rect>): Layout[] =>
+            toLayout(rects).map((item) => ({
+                ...item,
+                x: item.x * FINE_GRID_SCALE,
+                y: item.y * FINE_GRID_SCALE,
+                w: item.w * FINE_GRID_SCALE,
+                h: item.h * FINE_GRID_SCALE,
+            }));
+
+        const editing = (rects: Record<string, Rect>) =>
+            reducer(
+                initialDashboardEditState,
+                actions.setTiles(
+                    Object.entries(rects).map(([i, { x, y, w, h }]) => ({
+                        ...chart(i, x, y, h),
+                        w,
+                    })),
+                ),
+            );
+
+        const placements = (state: DashboardEditState) =>
+            Object.fromEntries(
+                (state.tiles ?? []).map(({ uuid, x, y, w, h }) => [
+                    uuid,
+                    { x, y, w, h },
+                ]),
+            );
+
+        const savedRects = (state: DashboardEditState) =>
+            new Map(
+                Object.entries(placements(state)).map(([i, rect]) => [
+                    i,
+                    { i, ...rect },
+                ]),
+            );
+
+        const drop = (
+            state: DashboardEditState,
+            drawn: Record<string, Rect>,
+            tileId: string,
+        ) => {
+            const [before] = scaled({ [tileId]: placements(state)[tileId] });
+            const [after] = scaled({ [tileId]: drawn[tileId] });
+            const layout = getLayoutToSaveAfterEdit({
+                layout: scaled(drawn),
+                before,
+                after,
+                gridScale: FINE_GRID_SCALE,
+                previous: savedRects(state),
+                home: new Map(
+                    Object.entries(START).map(([i, rect]) => [i, rect.y]),
+                ),
+            });
+            return layout
+                ? reducer(
+                      state,
+                      actions.moveTiles(
+                          layout.map(({ i, x, y, w, h }) => ({
+                              uuid: i,
+                              x,
+                              y,
+                              w,
+                              h,
+                          })),
+                      ),
+                  )
+                : state;
+        };
+
+        it('saves a drag that pushes several tiles as one undo step, and undo puts every tile back', () => {
+            const start = editing(START);
+            const moved = drop(
+                start,
+                {
+                    ...START,
+                    A: { ...START.A, y: 3 },
+                    C: { ...START.C, y: 9 },
+                    E: { ...START.E, y: 15 },
+                    M: { ...START.M, y: 21 },
+                },
+                'A',
+            );
+            expect(placements(moved)).toMatchObject({
+                A: { y: 3 },
+                C: { y: 9 },
+                E: { y: 15 },
+                M: { y: 21 },
+            });
+            expect(moved.tileLayoutHistory.past).toHaveLength(1);
+            expect(
+                placements(reducer(moved, actions.undoTileLayout())),
+            ).toEqual(START);
+        });
+
+        it('a drop that moves nothing adds no undo step, while the grid still shows the tile it pushed', () => {
+            const start = editing(START);
+            const drawn = { ...START, C: { ...START.C, y: 9 } };
+            expect(drop(start, drawn, 'A')).toBe(start);
+            expect(
+                matchesSavedLayout(
+                    convertLayoutToBaseCoordinates(
+                        scaled(drawn),
+                        FINE_GRID_SCALE,
+                    ),
+                    savedRects(start),
+                ),
+            ).toBe(false);
+            const savedLayout = Object.entries(START).map(([uuid, rect]) => ({
+                uuid,
+                ...rect,
+            }));
+            expect(reducer(start, actions.moveTiles(savedLayout))).toBe(start);
+            expect(start.tileLayoutHistory.past).toHaveLength(0);
+        });
+
+        it('puts pushed and pulled-up tiles on whole rows', () => {
+            const pushed = drop(
+                editing(START),
+                {
+                    ...START,
+                    A: { ...START.A, y: 4.5 },
+                    C: { ...START.C, y: 10.5 },
+                    E: { ...START.E, y: 16.5 },
+                    M: { ...START.M, y: 22.5 },
+                },
+                'A',
+            );
+            expect(placements(pushed)).toMatchObject({
+                A: { y: 4.5 },
+                C: { y: 11 },
+                E: { y: 17 },
+                M: { y: 23 },
+            });
+            const pulledUp = drop(
+                pushed,
+                { ...placements(pushed), A: { ...START.A, y: 0.5 } },
+                'A',
+            );
+            expect(placements(pulledUp)).toMatchObject({
+                A: { y: 0.5 },
+                C: { y: 7 },
+                E: { y: 14 },
+                M: { y: 20 },
+            });
+            const { A: _placed, ...others } = placements(pulledUp);
+            expect(hasWholeRows(others)).toBe(true);
+            expect(pulledUp.tileLayoutHistory.past).toHaveLength(2);
+        });
+
+        it('a resize keeps the top-left corner of the tile when the grid pushed it', () => {
+            const resized = drop(
+                editing(START),
+                { ...START, C: { ...START.C, y: 12, h: 9 } },
+                'C',
+            );
+            expect(placements(resized)).toMatchObject({
+                C: { x: 0, y: 6, w: 18, h: 9 },
+                E: { y: 15 },
+            });
+        });
+    });
+});
+
 describe('closing the gaps between tiles', () => {
     const at = (uuid: string, x: number, y: number, w = 12, h = 6) => ({
         uuid,
@@ -830,7 +1319,7 @@ describe('tidying tiles', () => {
         ).toEqual([at('a', 0, 0, 12), at('b', 12, 0, 12), at('c', 24, 0, 12)]);
     });
 
-    it('moves a tile stacked under another into the next row', () => {
+    it('keeps tiles stacked beside a taller tile in its row', () => {
         expect(
             tidyTiles([
                 at('tall', 0, 0, 12, 12),
@@ -839,9 +1328,109 @@ describe('tidying tiles', () => {
             ]),
         ).toEqual([
             at('tall', 0, 0, 18, 12),
-            at('top', 18, 0, 18, 12),
-            at('bottom', 0, 12, 36, 6),
+            at('top', 18, 0, 18),
+            at('bottom', 18, 6, 18),
         ]);
+    });
+
+    it('stretches a short stack to the row height in its proportions', () => {
+        expect(
+            tidyTiles([
+                at('kpi1', 0, 0, 8, 2),
+                at('kpi2', 0, 2, 8, 2),
+                at('kpi3', 0, 4, 8, 2),
+                at('chart', 8, 0, 16, 12),
+                at('map', 24, 0, 12, 10),
+            ]),
+        ).toEqual([
+            at('kpi1', 0, 0, 8, 4),
+            at('kpi2', 0, 4, 8, 4),
+            at('kpi3', 0, 8, 8, 4),
+            at('chart', 8, 0, 16, 12),
+            at('map', 24, 0, 12, 12),
+        ]);
+    });
+
+    it('moves a tile under a row of equal heights into the next row', () => {
+        expect(
+            tidyTiles([
+                at('a', 0, 0, 18),
+                at('b', 18, 0, 18),
+                at('under', 0, 6, 12),
+            ]),
+        ).toEqual([
+            at('a', 0, 0, 18),
+            at('b', 18, 0, 18),
+            at('under', 0, 6, 36),
+        ]);
+    });
+
+    it('moves a tile that mostly hangs below the row into the next row', () => {
+        expect(
+            tidyTiles([
+                at('tall', 0, 0, 18, 8),
+                at('top', 18, 0, 18, 6),
+                at('long', 18, 6, 18, 20),
+            ]),
+        ).toEqual([
+            at('tall', 0, 0, 18, 8),
+            at('top', 18, 0, 18, 8),
+            at('long', 0, 8, 36, 20),
+        ]);
+    });
+
+    it('keeps a row of tiles over a wide tile beside a taller tile', () => {
+        const tidy = [
+            at('text', 0, 0, 9, 10),
+            at('kpi1', 9, 0, 9, 4),
+            at('kpi2', 18, 0, 9, 4),
+            at('kpi3', 27, 0, 9, 4),
+            at('table', 9, 4, 27, 6),
+        ];
+        expect(tidyTiles(tidy)).toEqual(tidy);
+    });
+
+    it('stretches nested rows to fill the height beside a taller tile', () => {
+        expect(
+            tidyTiles([
+                at('text', 0, 0, 9, 10),
+                at('kpi1', 9, 0, 9, 4),
+                at('kpi2', 18, 0, 9, 3),
+                at('table', 9, 4, 18, 4),
+            ]),
+        ).toEqual([
+            at('text', 0, 0, 12, 10),
+            at('kpi1', 12, 0, 12, 5),
+            at('kpi2', 24, 0, 12, 5),
+            at('table', 12, 5, 24, 5),
+        ]);
+    });
+
+    it('falls back to plain rows when tiles interlock', () => {
+        expect(
+            tidyTiles([
+                at('a', 0, 0, 24, 6),
+                at('b', 24, 0, 12, 12),
+                at('c', 0, 6, 12, 12),
+                at('e', 12, 6, 12, 6),
+                at('d', 12, 12, 24, 6),
+            ]),
+        ).toEqual([
+            at('a', 0, 0, 24, 12),
+            at('b', 24, 0, 12, 12),
+            at('c', 0, 12, 18, 12),
+            at('e', 18, 12, 18, 12),
+            at('d', 0, 24, 36, 6),
+        ]);
+    });
+
+    it('leaves a tidy layout with a stack as it is', () => {
+        const tidy = [
+            at('kpi1', 0, 0, 12, 4),
+            at('kpi2', 0, 4, 12, 4),
+            at('chart', 12, 0, 24, 8),
+        ];
+        expect(tidyTiles(tidy)).toEqual(tidy);
     });
 
     it('lands uneven splits on half steps that still span the grid', () => {

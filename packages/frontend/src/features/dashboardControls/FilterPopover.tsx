@@ -51,6 +51,7 @@ import {
 } from '../dashboardFilters/FilterConfiguration/utils';
 import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/useDashboardFilterField';
 import { getDashboardFilterRuleLabel } from '../dashboardFilters/FilterRequirements/utils';
+import { useControlContractClasses } from './controlContractClasses';
 import { DropdownClass } from './DropdownClass';
 import {
     focusAnswerOnMount,
@@ -63,7 +64,6 @@ import { FilterValueSettings, LockedRequiredNote } from './FilterValueSettings';
 import { focusOnMount } from './mappingFocus';
 import { useRefocusAfter } from './nameFocus';
 import { NameInput } from './NameInput';
-import { useRailContractClasses } from './railContractClasses';
 import { SectionSetting } from './SectionSetting';
 import { getSettingsSummary } from './settingsSummary';
 import { withFilterRuleLabel } from './sidebarState';
@@ -234,7 +234,7 @@ const OperatorMenu: FC<{
     const multipleDescriptionId = useId();
     const multipleLabelId = useId();
     // Mantine's menu sets its own dropdown class over `DropdownClass`'s
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     const allowsMultiple = !rule.singleValue;
     const options = useMemo(
         () =>
@@ -409,7 +409,7 @@ export const FilterPopover: FC<Props> = ({
     onResolvePending,
 }) => {
     const getUiString = useUiStrings();
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     const tabs = useDashboardSelector(selectDashboardTabs);
     const sections = useDashboardSelector(selectControlSections);
     const getField = useDashboardFilterField();

@@ -13,6 +13,21 @@
                     "Order period": "შეკვეთის პერიოდი"
                 }
             },
+            "sections": {
+                "names": {
+                    "Orders": "შეკვეთები"
+                }
+            },
+            "parameterControls": {
+                "labels": {
+                    "Metric type": "მეტრიკის ტიპი"
+                }
+            },
+            "dateZooms": {
+                "names": {
+                    "Revenue zoom": "შემოსავლის ზუმი"
+                }
+            },
             "tiles": [
                 {
                     "type": "loom",

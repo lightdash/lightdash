@@ -40,6 +40,7 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
+import { type SemanticStudioService } from '../services/SemanticStudioService/SemanticStudioService';
 
 // The target repo (owner/repo) and dbt sub-folder are resolved server-side from
 // the chosen dbt source. `dbtSourceUuid` selects it when the project has more
@@ -155,14 +156,20 @@ export class AiWritebackController extends BaseController {
     ): Promise<ApiCiChecksResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
+        const user = toSessionUser(req.account);
         const results = await this.services
             .getCiService()
-            .getPullRequestChecks({
-                user: toSessionUser(req.account),
-                projectUuid,
-                prUrl,
-                commitSha,
-            });
+            .getPullRequestChecks({ user, projectUuid, prUrl, commitSha });
+        if (results) {
+            const studio =
+                this.services.getSemanticStudioService<SemanticStudioService>();
+            const openOrClosed = results.state === 'open' ? 'open' : 'closed';
+            const state = results.merged ? 'merged' : openOrClosed;
+            await studio.recordPullRequestState(projectUuid, prUrl, state);
+            if (state !== 'open') {
+                await studio.retireDbtTryOut(user, projectUuid, prUrl);
+            }
+        }
         return {
             status: 'ok',
             results,

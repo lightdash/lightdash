@@ -9,6 +9,7 @@ import {
     type SemanticLayerDraft,
     type SemanticLayerDraftConflict,
     type SemanticLayerDraftModel,
+    type SemanticLayerDraftUsage,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -32,7 +33,6 @@ import {
     IconArrowUp,
     IconGitMerge,
     IconArrowsDiff,
-    IconInfoCircle,
     IconTable,
     IconTrash,
     IconUsers,
@@ -106,7 +106,7 @@ const KeepTheirsButton: FC<{
             loading={takeLive.isLoading}
             onClick={() => takeLive.mutate({ model, path })}
         >
-            Keep
+            Keep theirs
         </Button>
     );
 };
@@ -225,7 +225,7 @@ const ConflictOption: FC<{
     </Box>
 );
 
-/** One part two people changed: what it said before, then each person's version with the button that keeps it. */
+/** One part two people changed: each person's version, the words that differ marked, with the button that keeps it. */
 const ConflictSides: FC<{
     projectUuid: string;
     model: SemanticLayerDraftModel;
@@ -238,30 +238,7 @@ const ConflictSides: FC<{
     const publisher = model.publishedSince?.by ?? null;
     return (
         <Stack gap="xs" className={classes.conflict}>
-            <Box>
-                {isOneOfSeveral ? <PartName path={conflict.path} /> : null}
-                {conflict.base !== null && isYaml(conflict.base) ? (
-                    <>
-                        <Text fz="xs" c="dimmed">
-                            Originally
-                        </Text>
-                        <Box
-                            component="pre"
-                            className={classes.code}
-                            data-before
-                        >
-                            {conflict.base}
-                        </Box>
-                    </>
-                ) : (
-                    <Text fz="xs" c="dimmed">
-                        Originally:{' '}
-                        {conflict.base === null
-                            ? 'not set'
-                            : `“${conflict.base}”`}
-                    </Text>
-                )}
-            </Box>
+            {isOneOfSeveral ? <PartName path={conflict.path} /> : null}
             <Box className={classes.options}>
                 <ConflictOption
                     title={publisher ?? 'Someone else'}
@@ -299,7 +276,7 @@ const ConflictSides: FC<{
                             <KeepMineButton
                                 projectUuid={projectUuid}
                                 model={model}
-                                label="Keep"
+                                label="Keep mine"
                                 ariaLabel="Keep your version"
                             />
                         )
@@ -594,6 +571,14 @@ const MAX_LISTED_CHARTS = 5;
 /** Saved charts that read what the draft redefines or removes: nothing breaks, but their numbers move. */
 export const DraftUsage: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data } = useSemanticLayerDraftUsage(projectUuid);
+    return <FieldUsage projectUuid={projectUuid} usage={data} />;
+};
+
+/** Saved charts that read what a change redefines or removes. */
+export const FieldUsage: FC<{
+    projectUuid: string;
+    usage: SemanticLayerDraftUsage | undefined;
+}> = ({ projectUuid, usage: data }) => {
     if (!data || data.fields.length === 0) return null;
     return (
         <Paper className={classes.section}>
@@ -673,10 +658,10 @@ const useTotals = (
     projectUuid: string,
     exploreName: string,
     metricIds: string[],
-    side: 'live' | 'development',
+    headers: Record<string, string>,
     enabled: boolean,
-    /** What the draft holds, so totals are read again when it changes. */
-    draftKey: string,
+    /** What the changes hold, so totals are read again when they change. */
+    cacheKey: string,
 ) => {
     const lightdashApi = useLightdashApi();
     return useQuery<Totals, ApiError>({
@@ -684,21 +669,16 @@ const useTotals = (
             'semantic-layer-draft-totals',
             projectUuid,
             exploreName,
-            side,
+            headers,
             metricIds,
-            draftKey,
+            cacheKey,
         ],
         queryFn: async () => {
             const results = await lightdashApi<ApiQueryResults>({
                 url: `/projects/${projectUuid}/explores/${exploreName}/runQuery`,
                 method: 'POST',
                 // Each side says which models it reads, whatever the app is switched to.
-                headers: {
-                    [DEVELOPMENT_VIEW_HEADER]:
-                        side === 'development' ? 'true' : 'false',
-                    // A draft is read from the draft itself, never from another project's preview.
-                    [DEVELOPMENT_PREVIEW_HEADER]: '',
-                },
+                headers,
                 body: JSON.stringify({
                     exploreName,
                     dimensions: [],
@@ -724,51 +704,52 @@ const useTotals = (
     });
 };
 
-/** A drafted model's metrics as totals, live against in development, run only when asked for since each side is a warehouse query. */
-export const MetricComparison: FC<{
+const LIVE_HEADERS = {
+    [DEVELOPMENT_VIEW_HEADER]: 'false',
+    [DEVELOPMENT_PREVIEW_HEADER]: '',
+};
+
+const DRAFT_HEADERS = {
+    [DEVELOPMENT_VIEW_HEADER]: 'true',
+    [DEVELOPMENT_PREVIEW_HEADER]: '',
+};
+
+/** A model's metrics as totals, live against in development, run only when asked for since each side is a warehouse query. */
+export const CompareTotals: FC<{
     projectUuid: string;
-    draft: SemanticLayerDraft;
-    model: SemanticLayerDraftModel;
-}> = ({ projectUuid, draft, model }) => {
+    exploreName: string;
+    metrics: Metric[];
+    /** The metrics that exist live too; asking live for a new one fails the whole query. */
+    liveMetricIds: string[];
+    isNewModel: boolean;
+    developmentHeaders: Record<string, string>;
+    cacheKey: string;
+}> = ({
+    projectUuid,
+    exploreName,
+    metrics,
+    liveMetricIds,
+    isNewModel,
+    developmentHeaders,
+    cacheKey,
+}) => {
     const [isAsked, setIsAsked] = useState(false);
-    const metrics = findComparedMetrics(draft, model);
     const ids = metrics.map((metric) => getItemId(metric));
-    const isNewModel = model.contentBefore === null;
-    const draftKey = draft.changes
-        .map(({ draftChangeUuid }) => draftChangeUuid)
-        .join();
     const development = useTotals(
         projectUuid,
-        model.model,
+        exploreName,
         ids,
-        'development',
+        developmentHeaders,
         isAsked && ids.length > 0,
-        draftKey,
+        cacheKey,
     );
-    // A metric the draft adds does not exist live, and asking for it there fails the whole query.
-    const added = diffModelDocuments(model.contentBefore, model.contentAfter)
-        .filter(({ kind }) => kind === 'added')
-        .map(({ path }) => path);
-    const liveIds = metrics
-        .filter(
-            ({ name }) =>
-                !added.some(
-                    (path) =>
-                        path.endsWith(`metrics.${name}`) ||
-                        readModelPart(
-                            model.contentAfter,
-                            `${path}.metrics.${name}`,
-                        ) !== null,
-                ),
-        )
-        .map((metric) => getItemId(metric));
     const live = useTotals(
         projectUuid,
-        model.model,
-        liveIds,
-        'live',
-        isAsked && liveIds.length > 0 && !isNewModel,
-        draftKey,
+        exploreName,
+        liveMetricIds,
+        LIVE_HEADERS,
+        isAsked && liveMetricIds.length > 0 && !isNewModel,
+        cacheKey,
     );
     if (metrics.length === 0) return null;
     if (!isAsked) {
@@ -802,7 +783,7 @@ export const MetricComparison: FC<{
                         {isNewModel ? null : (
                             <Table.Th ta="right">Live</Table.Th>
                         )}
-                        <Table.Th ta="right">In development</Table.Th>
+                        <Table.Th ta="right">My changes</Table.Th>
                         {isNewModel ? null : <Table.Th ta="right" />}
                     </Table.Tr>
                 </Table.Thead>
@@ -856,6 +837,46 @@ export const MetricComparison: FC<{
                 </Text>
             ) : null}
         </Box>
+    );
+};
+
+/** A drafted model's metrics as totals, live against in development. */
+export const MetricComparison: FC<{
+    projectUuid: string;
+    draft: SemanticLayerDraft;
+    model: SemanticLayerDraftModel;
+}> = ({ projectUuid, draft, model }) => {
+    const metrics = findComparedMetrics(draft, model);
+    // A metric the draft adds does not exist live.
+    const added = diffModelDocuments(model.contentBefore, model.contentAfter)
+        .filter(({ kind }) => kind === 'added')
+        .map(({ path }) => path);
+    const liveMetricIds = metrics
+        .filter(
+            ({ name }) =>
+                !added.some(
+                    (path) =>
+                        path.endsWith(`metrics.${name}`) ||
+                        readModelPart(
+                            model.contentAfter,
+                            `${path}.metrics.${name}`,
+                        ) !== null,
+                ),
+        )
+        .map((metric) => getItemId(metric));
+    return (
+        <CompareTotals
+            projectUuid={projectUuid}
+            exploreName={model.model}
+            metrics={metrics}
+            liveMetricIds={liveMetricIds}
+            isNewModel={model.contentBefore === null}
+            // A draft is read from the draft itself, never from another project's preview.
+            developmentHeaders={DRAFT_HEADERS}
+            cacheKey={draft.changes
+                .map(({ draftChangeUuid }) => draftChangeUuid)
+                .join()}
+        />
     );
 };
 
@@ -1110,50 +1131,5 @@ export const PublishSummary: FC<{
                 )}
             </Section>
         </>
-    );
-};
-
-const EXPLAINER_KEY = 'semantic-studio-draft-explainer-seen';
-
-const hasSeenExplainer = (): boolean => {
-    try {
-        return localStorage.getItem(EXPLAINER_KEY) !== null;
-    } catch {
-        return true;
-    }
-};
-
-/** Shown until dismissed, the first time someone has changes in development. */
-export const DraftExplainer: FC<{ asPullRequest: boolean }> = ({
-    asPullRequest,
-}) => {
-    const [isSeen, setIsSeen] = useState(hasSeenExplainer);
-    if (isSeen) return null;
-    return (
-        <Group className={classes.hint} gap="sm" wrap="nowrap">
-            <MantineIcon icon={IconInfoCircle} size={16} color="dimmed" />
-            <Text fz="xs" flex={1}>
-                Only you see these changes.{' '}
-                {asPullRequest
-                    ? 'Publishing opens a pull request, and nothing is live until it merges.'
-                    : 'Publishing makes them live for everyone on this project.'}{' '}
-                Try them on your charts first with the eye button above.
-            </Text>
-            <Button
-                size="compact-xs"
-                variant="subtle"
-                flex="none"
-                onClick={() => {
-                    try {
-                        localStorage.setItem(EXPLAINER_KEY, '1');
-                    } catch {
-                        // Without storage it shows again next time.
-                    }
-                    setIsSeen(true);
-                }}
-            >
-                Got it
-            </Button>
-        </Group>
     );
 };

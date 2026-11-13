@@ -229,11 +229,7 @@ export const SemanticLayerProposalCard: FC<{
     );
     const settledLabel =
         settled && (pullRequestUrl ? 'Pull request' : STATUS_LABELS[settled]);
-    const status = settledLabel
-        ? settledLabel
-        : inDraft
-          ? 'In development'
-          : null;
+    const status = settledLabel ? settledLabel : inDraft ? 'Draft' : null;
     const getActions = (model: string) => {
         if (inDraft && draftChangeUuid) {
             return (

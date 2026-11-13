@@ -9,8 +9,10 @@ import {
     type SemanticLayerDraftImpact,
     type SemanticLayerDraftMoveDirection,
     type SemanticLayerDraftUsage,
+    type SemanticLayerTouchedField,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
+    type SemanticLayerStoredModels,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
@@ -81,6 +83,18 @@ export const useKeepsSemanticLayerDraft = (projectUuid: string): boolean =>
 /** Whether applying a draft opens a pull request on the project's repository instead of going live. */
 export const useAppliesAsPullRequest = (projectUuid: string): boolean =>
     useStatus(projectUuid)?.appliesAs === 'pull_request';
+
+/** The models whose YAML the project keeps; empty for someone who cannot change the project. */
+export const useSemanticLayerStoredModels = (
+    projectUuid: string,
+    enabled: boolean,
+) =>
+    useGet<SemanticLayerStoredModels>(
+        [MODEL_KEY, projectUuid],
+        projectUuid,
+        '/models',
+        enabled,
+    );
 
 /** A model's YAML and history; null when the project keeps no such model or this person cannot change it. */
 export const useSemanticLayerModel = (projectUuid: string, modelName: string) =>
@@ -168,6 +182,26 @@ export const useSemanticLayerDraftUsage = (projectUuid: string) =>
         '/draft/usage',
         true,
     );
+
+/** Saved content that reads fields a pull request redefines or removes. */
+export const useSemanticLayerFieldUsage = (
+    projectUuid: string,
+    fields: SemanticLayerTouchedField[],
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<SemanticLayerDraftUsage, ApiError>({
+        queryKey: ['semantic-layer-field-usage', projectUuid, fields],
+        queryFn: () =>
+            lightdashApi<SemanticLayerDraftUsage>({
+                url: toUrl(projectUuid, '/field-usage'),
+                method: 'POST',
+                body: JSON.stringify({ fields }),
+            }),
+        enabled: fields.length > 0,
+        retry: false,
+        staleTime: 60_000,
+    });
+};
 
 export const useRefreshSemanticLayerDraft = (projectUuid: string) => {
     const queryClient = useQueryClient();

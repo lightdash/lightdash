@@ -529,7 +529,7 @@ const AssistantBubbleContent: FC<{
     const editDbtProjectResult: {
         metadata: ToolEditDbtProjectOutput['metadata'];
     } | null = (() => {
-        const writebackResult = message.toolResults.find(
+        const writebackResult = message.toolResults.findLast(
             isToolEditDbtProjectResult,
         );
         if (writebackResult) return { metadata: writebackResult.metadata };
@@ -981,6 +981,7 @@ const AssistantBubbleContent: FC<{
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}
+                    startedAt={message.createdAt}
                 />
             )}
             {editRepoMetadata && (

@@ -100,7 +100,7 @@ export const ModelCodeView: FC<{
     if (!model && draftContent === undefined) {
         return (
             <Text fz="sm" c="dimmed" ta="center" py="xl">
-                This model has no YAML here. It comes from a connected project.
+                This model was deployed from elsewhere, so its YAML is not here.
             </Text>
         );
     }

@@ -352,7 +352,7 @@ export class AppStateService extends BaseService {
             viewer.kind === 'user' ? viewer.user.userUuid : null,
         );
         if (viewer.kind === 'user' && !(await this.canUseSharedState(viewer))) {
-            return { ...snapshot, shared: {} };
+            return { ...snapshot, shared: {}, sharedAccess: 'none' };
         }
         return snapshot;
     }

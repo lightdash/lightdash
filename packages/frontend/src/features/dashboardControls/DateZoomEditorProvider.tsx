@@ -115,7 +115,8 @@ export const DateZoomEditorProvider: FC<{
         (c) => c.setDefaultDateZoomGranularity,
     );
     // As the shipped bar: edit mode starts from the default, with no viewer's pick.
-    // Embeds keep the shipped date zoom, which never clears it.
+    // Embeds keep the shipped date zoom, which never clears it; with the
+    // controls on, `EmbedDashboard` clears it for its editor.
     const isEmbedded = useIsEmbedded();
     useEffect(() => {
         if (!isViewer && !isEmbedded) setDateZoomGranularity(undefined);

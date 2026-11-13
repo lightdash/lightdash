@@ -7151,22 +7151,22 @@
                 ],
                 "type": "object"
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -9814,7 +9814,7 @@
                 "properties": {
                     "collapsed": {
                         "type": "boolean",
-                        "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section"
+                        "description": "Starts folded in the editor and on the bar; absent, the bar folds only a dense section"
                     },
                     "name": {
                         "type": "string"
@@ -18020,7 +18020,7 @@
                         "properties": {
                             "externalId": {
                                 "type": "string",
-                                "description": "Must be unique per viewer within the organization: it owns the threads of read-only AI agent tokens."
+                                "description": "Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts."
                             },
                             "email": {
                                 "type": "string"
@@ -23687,6 +23687,12 @@
             },
             "AppStateSnapshot": {
                 "properties": {
+                    "sharedAccess": {
+                        "type": "string",
+                        "enum": ["none"],
+                        "nullable": false,
+                        "description": "`none` when this viewer can neither read nor write shared values.\nAbsent means full access."
+                    },
                     "shared": {
                         "$ref": "#/components/schemas/Record_string.AppStateSharedEntry_"
                     },
@@ -27506,8 +27512,85 @@
                 "required": ["tableCalculations", "metrics", "dimensions"],
                 "type": "object"
             },
+            "AiDashboardTileRef": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
+            "AiDashboardDateZoomControl": {
+                "properties": {
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardTileRef"
+                        },
+                        "type": "array"
+                    },
+                    "isViewerPick": {
+                        "type": "boolean",
+                        "description": "False: the saved grain when the context was attached, which the saved config supersedes"
+                    },
+                    "granularity": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "description": "The viewer's pick, else the control's saved grain"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "tiles",
+                    "isViewerPick",
+                    "granularity",
+                    "name",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "AiDashboardTileParameters": {
+                "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "tile": {
+                        "$ref": "#/components/schemas/AiDashboardTileRef"
+                    }
+                },
+                "required": ["parameters", "tile"],
+                "type": "object"
+            },
             "AiDashboardRuntimeOverrides": {
                 "properties": {
+                    "tileParameters": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardTileParameters"
+                        },
+                        "type": "array",
+                        "description": "The values each tile runs with; present only when the viewer's picks on parameter controls change them"
+                    },
+                    "dateZoomControls": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardDateZoomControl"
+                        },
+                        "type": "array",
+                        "description": "Every named date zoom on the dashboard; absent when it has none"
+                    },
                     "dateZoom": {
                         "allOf": [
                             {
@@ -37832,6 +37915,13 @@
                                                                 "type": "boolean",
                                                                 "nullable": true
                                                             },
+                                                            "changedModels": {
+                                                                "items": {
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "array",
+                                                                "nullable": true
+                                                            },
                                                             "steps": {
                                                                 "items": {
                                                                     "properties": {
@@ -41585,6 +41675,36 @@
             },
             "ApiSemanticLayerStatusResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerStatus_"
+            },
+            "SemanticLayerStoredModels": {
+                "properties": {
+                    "models": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["models"],
+                "type": "object",
+                "description": "The models whose YAML the project keeps, as opposed to ones deployed from elsewhere."
+            },
+            "ApiSuccess_SemanticLayerStoredModels_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerStoredModels"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerStoredModelsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerStoredModels_"
             },
             "SemanticLayerChangeSource": {
                 "type": "string",
@@ -46591,22 +46711,6 @@
                         "nullable": true,
                         "description": "Null until the report is published as a Document."
                     },
-                    "isReportExpired": {
-                        "type": "boolean"
-                    },
-                    "reportExpiredAt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "reportExpiresAt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "resultMarkdown": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "The report narrative with compact <chart> references."
-                    },
                     "terminalReason": {
                         "allOf": [
                             {
@@ -46655,10 +46759,6 @@
                     "executionContextSnapshot",
                     "budget",
                     "document",
-                    "isReportExpired",
-                    "reportExpiredAt",
-                    "reportExpiresAt",
-                    "resultMarkdown",
                     "terminalReason",
                     "status",
                     "prompt",
@@ -46743,141 +46843,6 @@
             },
             "ApiAiDeepResearchRunListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun-Array_"
-            },
-            "AiDeepResearchChartConfig": {
-                "properties": {
-                    "secondaryYAxisLabel": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "secondaryYAxisMetric": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "yAxisLabel": {
-                        "type": "string"
-                    },
-                    "xAxisLabel": {
-                        "type": "string"
-                    },
-                    "funnelDataInput": {
-                        "type": "string",
-                        "enum": ["row", "column", null],
-                        "nullable": true
-                    },
-                    "lineType": {
-                        "type": "string",
-                        "enum": ["line", "area", null],
-                        "nullable": true
-                    },
-                    "stackBars": {
-                        "type": "boolean",
-                        "nullable": true
-                    },
-                    "xAxisType": {
-                        "type": "string",
-                        "enum": ["category", "time", null],
-                        "nullable": true
-                    },
-                    "groupBy": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "yAxisMetrics": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "xAxisDimension": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "defaultVizType": {
-                        "type": "string",
-                        "enum": [
-                            "table",
-                            "bar",
-                            "horizontal",
-                            "line",
-                            "scatter",
-                            "pie",
-                            "funnel"
-                        ]
-                    }
-                },
-                "required": [
-                    "secondaryYAxisLabel",
-                    "secondaryYAxisMetric",
-                    "yAxisLabel",
-                    "xAxisLabel",
-                    "funnelDataInput",
-                    "lineType",
-                    "stackBars",
-                    "xAxisType",
-                    "groupBy",
-                    "yAxisMetrics",
-                    "xAxisDimension",
-                    "defaultVizType"
-                ],
-                "type": "object"
-            },
-            "AiDeepResearchChartData": {
-                "properties": {
-                    "fields": {
-                        "$ref": "#/components/schemas/ItemsMap",
-                        "description": "Selected + filter fields; drives labels and value formatting."
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
-                    },
-                    "queryUuid": {
-                        "type": "string",
-                        "description": "The verified execution this chart is evidence of."
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/AiDeepResearchChartConfig"
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "type": "string",
-                        "enum": ["warehouse"],
-                        "nullable": false
-                    }
-                },
-                "required": [
-                    "fields",
-                    "metricQuery",
-                    "queryUuid",
-                    "chartConfig",
-                    "title",
-                    "source"
-                ],
-                "type": "object",
-                "description": "Everything the UI needs to render one report chart. Derived on demand from\nthe execution the chart references; the markdown only carries compact\n<chart> references."
-            },
-            "ApiSuccess_AiDeepResearchChartData_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AiDeepResearchChartData"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiDeepResearchChartResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchChartData_"
             },
             "Record_string.never_": {
                 "properties": {},
@@ -59624,7 +59589,6 @@
                     "cleanRateCounters",
                     "rebuildOutdatedApiSourceExplores",
                     "cleanDataAppAnalyses",
-                    "cleanAiDeepResearchReports",
                     "cleanAiAgentThreads",
                     "cleanScimRequestLogs",
                     "cleanAppStateHistory",
@@ -78356,7 +78320,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.234.6",
+        "version": "3.242.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -92336,6 +92300,47 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/semantic-studio/models": {
+            "get": {
+                "operationId": "getSemanticLayerStoredModels",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerStoredModelsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The names of the models whose YAML the project keeps.",
+                "summary": "List stored semantic layer models",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/semantic-studio/models/{modelName}": {
             "get": {
                 "operationId": "getSemanticLayerModel",
@@ -96339,190 +96344,6 @@
                     {
                         "in": "path",
                         "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{chartKey}/refresh": {
-            "post": {
-                "operationId": "refreshAiDeepResearchChart",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentThreadMessageVizQueryResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Re-execute the metric query behind a warehouse-backed report chart to\nload its live results.",
-                "summary": "Refresh Deep Research chart",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "chartKey",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/queries/{queryUuid}/results": {
-            "get": {
-                "operationId": "getDeepResearchChartQueryResults",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiGetAsyncQueryResultsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "queryUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "page",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "pageSize",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{queryUuid}": {
-            "get": {
-                "operationId": "getAiDeepResearchChart",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiDeepResearchChartResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Load the retained query metadata behind a report chart.",
-                "summary": "Get Deep Research chart",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "queryUuid",
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"

@@ -1,8 +1,6 @@
 import {
     assertRegisteredAccount,
     type AiDeepResearchRequestBody,
-    type ApiAiAgentThreadMessageVizQueryResponse,
-    type ApiAiDeepResearchChartResponse,
     type ApiAiDeepResearchEventsResponse,
     type ApiAiDeepResearchRunListResponse,
     type ApiAiDeepResearchRunResponse,
@@ -31,7 +29,6 @@ import {
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
-import { type ApiGetAsyncQueryResultsResponse } from '../../controllers/v2/QueryController';
 import { AiDeepResearchService } from '../services/AiDeepResearchService/AiDeepResearchService';
 
 @Route('/api/v1/ee/projects/{projectUuid}/ai-deep-research')
@@ -122,96 +119,6 @@ export class AiDeepResearchController extends BaseController {
                 projectUuid,
                 aiDeepResearchRunUuid,
             ),
-        };
-    }
-
-    /**
-     * Re-execute the metric query behind a warehouse-backed report chart to
-     * load its live results.
-     * @summary Refresh Deep Research chart
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        requireOAuthScopeOperation('AiDeepResearchController.refreshChart'),
-    ])
-    @SuccessResponse('200', 'Success')
-    @Post('/{aiDeepResearchRunUuid}/charts/{chartKey}/refresh')
-    @OperationId('refreshAiDeepResearchChart')
-    async refreshChart(
-        @Request() req: express.Request,
-        @Path() projectUuid: UUID,
-        @Path() aiDeepResearchRunUuid: UUID,
-        @Path() chartKey: string,
-    ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiDeepResearchService().refreshChart({
-                account: req.account,
-                user: toSessionUser(req.account),
-                projectUuid,
-                aiDeepResearchRunUuid,
-                chartKey,
-            }),
-        };
-    }
-
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/{aiDeepResearchRunUuid}/queries/{queryUuid}/results')
-    @OperationId('getDeepResearchChartQueryResults')
-    async getChartQueryResults(
-        @Request() req: express.Request,
-        @Path() projectUuid: UUID,
-        @Path() aiDeepResearchRunUuid: UUID,
-        @Path() queryUuid: UUID,
-        @Query() page?: number,
-        @Query() pageSize?: number,
-    ): Promise<ApiGetAsyncQueryResultsResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiDeepResearchService().getChartQueryResults(
-                {
-                    account: req.account,
-                    user: toSessionUser(req.account),
-                    projectUuid,
-                    aiDeepResearchRunUuid,
-                    queryUuid,
-                    page,
-                    pageSize,
-                },
-            ),
-        };
-    }
-
-    /**
-     * Load the retained query metadata behind a report chart.
-     * @summary Get Deep Research chart
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('/{aiDeepResearchRunUuid}/charts/{queryUuid}')
-    @OperationId('getAiDeepResearchChart')
-    async getChart(
-        @Request() req: express.Request,
-        @Path() projectUuid: UUID,
-        @Path() aiDeepResearchRunUuid: UUID,
-        @Path() queryUuid: UUID,
-    ): Promise<ApiAiDeepResearchChartResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.getAiDeepResearchService().getChart({
-                user: toSessionUser(req.account),
-                projectUuid,
-                aiDeepResearchRunUuid,
-                queryUuid,
-            }),
         };
     }
 

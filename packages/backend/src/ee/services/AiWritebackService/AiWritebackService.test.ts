@@ -3483,6 +3483,35 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         },
     );
 
+    it('hands over the project a dbt change parses to only when asked', async () => {
+        const sandbox = fakeSandbox(0, true);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+        const onDbtProject = vi.fn().mockResolvedValue(undefined);
+
+        await runService(sandbox, { onDbtProject });
+
+        expect(onDbtProject).toHaveBeenCalledWith({
+            manifestJson: 'model contents',
+            lightdashConfigYaml: 'model contents',
+            changedFiles: expect.any(Array),
+            prUrl: expect.any(String),
+        });
+        const parse = (sandbox.commands.run as import('vitest').Mock).mock.calls
+            .map((call) => String(call[0]))
+            .find((command) => command.includes('dbt parse'));
+        expect(parse).toContain('-u ANTHROPIC_API_KEY');
+        expect(parse).toContain('--target-path /tmp/ld-try-out-target');
+
+        const quiet = fakeSandbox(0, true);
+        fakeSandboxProvider.create.mockResolvedValue(quiet);
+        await runService(quiet);
+        expect(
+            (quiet.commands.run as import('vitest').Mock).mock.calls.some(
+                (call) => String(call[0]).includes('dbt parse'),
+            ),
+        ).toBe(false);
+    });
+
     it('opens a PR and kills the sandbox for a one-shot run with changes', async () => {
         const sandbox = fakeSandbox(0, true);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);

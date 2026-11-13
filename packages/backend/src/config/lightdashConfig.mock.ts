@@ -473,6 +473,9 @@ export const lightdashConfigMock: LightdashConfig = {
     dashboardComments: {
         enabled: true,
     },
+    mergeQueryAuthoring: {
+        enabled: true,
+    },
     externalSources: {
         maxFileSizeBytes: 100 * 1024 * 1024,
         maxRows: 1_000_000,

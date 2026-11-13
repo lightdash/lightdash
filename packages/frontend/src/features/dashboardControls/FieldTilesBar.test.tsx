@@ -46,6 +46,15 @@ vi.mock('./useControlsSidebar', () => ({
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
 }));
+const mockEmbedMode = vi.hoisted(() => ({
+    current: 'direct' as 'direct' | 'sdk',
+}));
+vi.mock('../../ee/providers/Embed/useEmbed', async (importOriginal) => {
+    const actual = await importOriginal<{ default: () => object }>();
+    return {
+        default: () => ({ ...actual.default(), mode: mockEmbedMode.current }),
+    };
+});
 vi.mock('./useSqlColumnsByTile', () => ({
     useSqlColumnsByTile: () => mockSqlColumnsByTile.current,
 }));
@@ -234,19 +243,35 @@ describe('FieldTilesBar', () => {
             expect(queryBar()).not.toBeInTheDocument();
         });
 
-        it('sits right after the tile grid and leaves when the field is unclicked', () => {
+        it('floats off the grid, with room after it, and leaves when the field is unclicked', () => {
             setSidebar(rule('orders_status'));
             const { rerender } = renderWithProviders(<Dashboard />);
 
             const grid = screen.getByTestId('grid');
-            // After the grid, so it takes no space above the tiles
-            expect(grid.nextElementSibling).toBe(bar().parentElement);
+            // Room after the grid, so the bar never covers the last tile row
+            // (Mantine's test env draws the fixed bar in place, in its Affix)
+            expect(grid.nextElementSibling).toContainElement(bar());
+            expect(grid.nextElementSibling).not.toBe(bar().parentElement);
             expect(grid.previousElementSibling).toBeNull();
+            expect(bar()).toHaveAttribute('data-dashboard-floating-bar');
 
             setSidebar(rule('orders_status'), { highlightedFieldId: null });
             rerender(<Dashboard />);
             expect(queryBar()).not.toBeInTheDocument();
             expect(grid.nextElementSibling).toBeNull();
+        });
+
+        it('sits right after the tile grid in an SDK embed', () => {
+            mockEmbedMode.current = 'sdk';
+            try {
+                setSidebar(rule('orders_status'));
+                renderWithProviders(<Dashboard />);
+                expect(screen.getByTestId('grid').nextElementSibling).toBe(
+                    bar().parentElement,
+                );
+            } finally {
+                mockEmbedMode.current = 'direct';
+            }
         });
 
         it('is one field only: the clicked one', () => {
@@ -499,9 +524,9 @@ describe('FieldTilesBar', () => {
             );
             renderWithProviders(<TabbedDashboard />);
 
-            expect(screen.getByTestId('grid-1').nextElementSibling).toBe(
-                bar().parentElement,
-            );
+            expect(
+                screen.getByTestId('grid-1').nextElementSibling,
+            ).toContainElement(bar());
             // The total stays over every tab
             expect(countOf()).toHaveTextContent(/^1 of 3 tiles$/);
             expect(buttonTexts()).toEqual(['Filter 1 more', 'Clear 1']);
@@ -603,9 +628,9 @@ describe('FieldTilesBar', () => {
                 activeTab: TAB_2,
             };
             rerender(<TabbedDashboard />);
-            expect(screen.getByTestId('grid-2').nextElementSibling).toBe(
-                bar().parentElement,
-            );
+            expect(
+                screen.getByTestId('grid-2').nextElementSibling,
+            ).toContainElement(bar());
             expect(bar()).not.toHaveAttribute('data-arrive');
 
             // Unselected and selected again: it arrives again

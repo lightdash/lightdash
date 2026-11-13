@@ -24,7 +24,6 @@ import {
     IconGitPullRequest,
     IconTable,
     IconWorldUpload,
-    IconX,
 } from '@tabler/icons-react';
 import { countBy, sortBy, uniqBy } from 'es-toolkit/compat';
 import { useEffect, useRef, useState, type FC } from 'react';
@@ -45,7 +44,6 @@ import {
     DraftUsage,
     MetricComparison,
     ModelNotices,
-    DraftExplainer,
     PublishChecklist,
     PublishSummary,
 } from './DraftInsights';
@@ -68,6 +66,11 @@ import {
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
+import {
+    useActiveStudioWorkspace,
+    useStudioWorkspaceAction,
+} from './useStudioWorkspaces';
+import { useTryInExplore } from './useTryInExplore';
 
 const KIND_NOUNS: [ChangeKind, string][] = [
     ['new', 'new model'],
@@ -327,6 +330,7 @@ const DraftActions: FC<{
     model: string | null;
 }> = ({ projectUuid, draft, model }) => {
     const discard = useDiscardSemanticLayerDraft(projectUuid);
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const [applying, setApplying] = useState(false);
     const isAll = model === null && draft.models.length > 1;
     const hasConflict = countConflicts(draft, model) > 0;
@@ -357,7 +361,11 @@ const DraftActions: FC<{
                             if (!blocked) setApplying(true);
                         }}
                     >
-                        {isAll ? 'Publish all' : 'Publish'}
+                        {asPullRequest
+                            ? 'Open pull request'
+                            : isAll
+                              ? 'Publish all'
+                              : 'Publish'}
                     </Button>
                 </Tooltip>
             ) : null}
@@ -373,30 +381,37 @@ const DraftActions: FC<{
     );
 };
 
-/** Switches the person's own queries between the live models and their changes in development. */
-const PreviewToggle: FC<{
-    isPreviewing: boolean;
+/** Switches what the person's own queries read: the live models, or those with their changes on top. */
+export const ChangesSwitch: FC<{
+    isOnMyChanges: boolean;
     onChange: (next: boolean) => void;
-}> = ({ isPreviewing, onChange }) => (
+    /** Why it cannot be switched right now; shown disabled with this as its tooltip. */
+    unavailableReason?: string;
+}> = ({ isOnMyChanges, onChange, unavailableReason }) => (
     <Tooltip
         multiline
         w={240}
         label={
-            isPreviewing
-                ? 'Back to live. Explore and your charts are reading your changes.'
-                : 'Try my changes. Explore and your charts read them, and only you see it.'
+            unavailableReason ??
+            (isOnMyChanges
+                ? 'Explore, charts and dashboards are reading your changes. Only you see this. Click to go back to live.'
+                : 'Try your changes in Explore, charts and dashboards. Only you see it.')
         }
     >
-        <ActionIcon
-            size="md"
-            variant={isPreviewing ? 'light' : 'default'}
-            color={isPreviewing ? 'orange' : undefined}
-            aria-label={isPreviewing ? 'Back to live' : 'Try my changes'}
-            aria-pressed={isPreviewing}
-            onClick={() => onChange(!isPreviewing)}
+        <Button
+            size="xs"
+            flex="none"
+            variant={isOnMyChanges ? 'light' : 'default'}
+            color={isOnMyChanges ? 'orange' : undefined}
+            aria-pressed={isOnMyChanges}
+            data-disabled={unavailableReason !== undefined || undefined}
+            aria-disabled={unavailableReason !== undefined}
+            onClick={() => {
+                if (unavailableReason === undefined) onChange(!isOnMyChanges);
+            }}
         >
-            <MantineIcon icon={IconEye} />
-        </ActionIcon>
+            {isOnMyChanges ? 'Viewing my changes' : 'View my changes'}
+        </Button>
     </Tooltip>
 );
 
@@ -459,7 +474,11 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
+    const tryInExplore = useTryInExplore(projectUuid);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const activeWorkspace = useActiveStudioWorkspace(projectUuid);
+    const workspaceAction = useStudioWorkspaceAction(projectUuid);
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     const check = useCheckSemanticLayerDraftImpact(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
@@ -472,30 +491,25 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const reviewing = searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW;
     const blocked = cannotApply(draft, null);
     const conflicts = countConflicts(draft, null);
+    // A removed model has nothing to open.
+    const tryModel =
+        draft.models.find((entry) => getChangeKind(entry) !== 'removed')
+            ?.model ?? null;
     return (
         <DevelopmentBar
             summary={
-                <Text fz="xs" c="dimmed" truncate>
-                    {draft.models.length > 0
-                        ? summarizeDraftModels(draft)
-                        : 'Nothing new to publish'}
-                </Text>
+                draft.models.length > 0 ? null : (
+                    <Text fz="xs" c="dimmed" truncate>
+                        Nothing new to publish
+                    </Text>
+                )
             }
         >
-            <PreviewToggle
-                isPreviewing={isPreviewing}
-                onChange={setIsPreviewing}
-            />
-            {reviewing ? null : (
-                <Button
-                    size="xs"
-                    variant="default"
-                    onClick={() =>
-                        setSearchParams({ [DRAFT_PARAM]: DRAFT_REVIEW })
-                    }
-                >
-                    Review
-                </Button>
+            {isPreviewing ? null : (
+                <ChangesSwitch
+                    isOnMyChanges={false}
+                    onChange={setIsPreviewing}
+                />
             )}
             {conflicts > 0 ? (
                 <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
@@ -539,7 +553,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                             if (!blocked) setPublishing(true);
                         }}
                     >
-                        Publish
+                        {asPullRequest ? 'Open pull request' : 'Publish'}
                     </Button>
                 </Tooltip>
             ) : null}
@@ -554,6 +568,11 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {tryModel ? (
+                        <Menu.Item onClick={() => tryInExplore(tryModel, null)}>
+                            Try in Explore
+                        </Menu.Item>
+                    ) : null}
                     <Menu.Item
                         disabled={
                             check.isLoading ||
@@ -568,33 +587,31 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     </Menu.Item>
                     <Menu.Divider />
                     <Menu.Item color="red" onClick={() => setDiscarding(true)}>
-                        Discard all changes
+                        Discard draft
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
-            {reviewing ? (
-                <Tooltip label="Close review">
-                    <ActionIcon
-                        size="md"
-                        aria-label="Close review"
-                        onClick={() => setSearchParams({})}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
-            ) : null}
             {discarding ? (
                 <MantineModal
                     opened
                     variant="delete"
-                    title="Discard all changes"
+                    title="Discard draft"
                     description={`${count(draft.changes.length, 'change')} in development will be removed. Nothing live changes, and this cannot be undone.`}
                     confirmLabel="Discard"
                     confirmLoading={discard.isLoading}
                     onClose={() => setDiscarding(false)}
                     onConfirm={() =>
                         discard.mutate(null, {
-                            onSuccess: () => setDiscarding(false),
+                            onSuccess: () => {
+                                setDiscarding(false);
+                                if (activeWorkspace) {
+                                    workspaceAction.mutate({
+                                        kind: 'finish',
+                                        workspaceUuid:
+                                            activeWorkspace.workspaceUuid,
+                                    });
+                                }
+                            },
                         })
                     }
                 />
@@ -649,7 +666,7 @@ export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
     return (
         <Group className={classes.heading} gap="xs" wrap="nowrap">
             <Badge color="orange" flex="none">
-                In development
+                Draft
             </Badge>
             <Text fz="sm" fw={500} truncate flex={1}>
                 {draft.models.length > 0
@@ -657,8 +674,8 @@ export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
                     : 'Already live, nothing to publish'}
             </Text>
             {draft.models.length > 0 ? (
-                <PreviewToggle
-                    isPreviewing={isPreviewing}
+                <ChangesSwitch
+                    isOnMyChanges={isPreviewing}
                     onChange={setIsPreviewing}
                 />
             ) : null}
@@ -676,7 +693,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
     draft,
     onAskAgent,
 }) => {
-    const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const impact = useSemanticLayerDraftImpact(projectUuid, null);
     // A check that is running or found something is worth reading; one not yet run is asked for from the menu.
     const showsImpact =
@@ -692,7 +708,6 @@ export const DraftReview: FC<DraftReviewProps> = ({
     );
     return (
         <Stack gap="md" className={classes.review}>
-            <DraftExplainer asPullRequest={asPullRequest} />
             <MessageList
                 variant="danger"
                 title="This cannot be applied yet"
@@ -769,11 +784,20 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                 projectUuid={projectUuid}
                                 model={modelChange}
                             />
-                            <ChangeDiff
-                                modelName={modelChange.model}
-                                change={modelChange}
-                                variant="full"
-                            />
+                            {/* Until the choice is made the diff would only repeat both versions. */}
+                            {modelChange.reconciliation?.state ===
+                            'conflict' ? (
+                                <Text fz="xs" c="dimmed" p="sm">
+                                    The code shows once you choose which version
+                                    to keep.
+                                </Text>
+                            ) : (
+                                <ChangeDiff
+                                    modelName={modelChange.model}
+                                    change={modelChange}
+                                    variant="full"
+                                />
+                            )}
                             <MetricComparison
                                 projectUuid={projectUuid}
                                 draft={draft}

@@ -11,3 +11,9 @@
     overflow-x: hidden;
     overflow-y: auto;
 }
+
+.stackFile {
+    flex: none;
+    overflow: hidden;
+    color-scheme: var(--diff-color-scheme);
+}
