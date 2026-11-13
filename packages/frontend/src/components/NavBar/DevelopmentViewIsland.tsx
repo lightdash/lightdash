@@ -12,7 +12,9 @@ import {
     useDevelopmentView,
     wasJustSwitchedOn,
 } from '../../features/semanticStudio/developmentView';
+import { getSemanticStudioWorkspaceUrl } from '../../features/semanticStudio/urls';
 import { useModelsInDevelopment } from '../../features/semanticStudio/useModelsInDevelopment';
+import { useActiveStudioWorkspace } from '../../features/semanticStudio/useStudioWorkspaces';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import MantineIcon from '../common/MantineIcon';
 import classes from './DevelopmentViewIsland.module.css';
@@ -30,6 +32,7 @@ const ChangesPanel: FC<{
 }> = ({ projectUuid, project, isInStudio, onNavigate }) => {
     const drafted = useModelsInDevelopment(projectUuid);
     const pullRequest = useStudioPullRequest(projectUuid);
+    const workspace = useActiveStudioWorkspace(projectUuid);
     const openPullRequest = pullRequest?.isOpen ? pullRequest : null;
     const models = openPullRequest
         ? openPullRequest.changedModels
@@ -37,6 +40,11 @@ const ChangesPanel: FC<{
     const number = /\/(\d+)\/?$/.exec(openPullRequest?.prUrl ?? '')?.[1];
     return (
         <>
+            {workspace ? (
+                <Box className={classes.workspace} title={workspace.name}>
+                    {workspace.name}
+                </Box>
+            ) : null}
             <Box className={classes.intro}>
                 Explore, charts and dashboards now read your changes. Open a
                 model to try them.
@@ -70,13 +78,22 @@ const ChangesPanel: FC<{
             {isInStudio ? null : (
                 <UnstyledButton
                     component={Link}
-                    to={`/projects/${project}/semantic-layer`}
+                    to={
+                        workspace
+                            ? getSemanticStudioWorkspaceUrl(
+                                  project,
+                                  workspace.workspaceUuid,
+                              )
+                            : `/projects/${project}/semantic-layer`
+                    }
                     className={classes.row}
                     data-footer
                     onClick={onNavigate}
                 >
                     <MantineIcon icon={IconArrowUpRight} size={14} />
-                    <Box className={classes.rowLabel}>Review changes</Box>
+                    <Box className={classes.rowLabel}>
+                        {workspace ? 'Back to workspace' : 'Review changes'}
+                    </Box>
                 </UnstyledButton>
             )}
         </>

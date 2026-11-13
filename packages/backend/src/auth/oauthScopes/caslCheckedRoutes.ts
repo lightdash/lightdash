@@ -302,6 +302,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'SemanticStudioController.takeLiveDraftPart',
     'SemanticStudioController.getDraftImpact',
     'SemanticStudioController.getDraftUsage',
+    'SemanticStudioController.getFieldUsage',
     'SemanticStudioController.getModel',
     'SemanticStudioController.getStoredModels',
     'SemanticStudioController.listWorkspaces',

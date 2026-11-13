@@ -1208,6 +1208,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         setHasStarted(true);
         setIsChatOpen(true);
     };
+    const askFirst = (prompt: string) => {
+        openChat();
+        setAskedPrompt(prompt);
+    };
 
     const renderPane = () => {
         switch (pane) {
@@ -1282,12 +1286,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     />
                 );
             case 'intro':
-                return <BuildFirstModel view={view} onGetStarted={openChat} />;
+                return <BuildFirstModel view={view} onAsk={askFirst} />;
             case 'buildFirst':
                 return (
                     <BuildFirstModel
                         view={view}
-                        onGetStarted={isChatOpen ? null : openChat}
+                        onAsk={isChatOpen ? null : askFirst}
                     />
                 );
             case 'empty':

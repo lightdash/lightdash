@@ -50,8 +50,10 @@ import {
     useExplorerSelector,
     type ExplorerStoreState,
 } from '../../../../../features/explorer/store';
+import { useFieldChangeInDevelopment } from '../../../../../features/semanticStudio/useFieldChangesInDevelopment';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { useAddFilter } from '../../../../../hooks/useFilters';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -310,6 +312,12 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         (dashboardMetricIds?.has(getItemId(item)) ?? false);
     // The '=' badge marks provenance: dashboard-local from creation. The ids
     // set is only provided when the shared-metrics layer is enabled.
+    const fieldChange = useFieldChangeInDevelopment(
+        useProjectUuid(),
+        isField(item) ? item.table : '',
+        isField(item) ? item.name : '',
+    );
+
     const isDashboardMetric =
         isRegistryMetric ||
         (dashboardMetricIds !== undefined && isAdditionalMetric(item));
@@ -587,6 +595,33 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 >
                                     {node.source.label}
                                 </Text>
+                            )}
+                            {fieldChange && fieldChange.kind !== 'removed' && (
+                                <Tooltip
+                                    multiline
+                                    maw={260}
+                                    label={
+                                        fieldChange.kind === 'new'
+                                            ? 'New in your changes'
+                                            : `Changed in your changes: ${fieldChange.attributes.join(', ')}`
+                                    }
+                                >
+                                    <Badge
+                                        size="xs"
+                                        radius="sm"
+                                        variant="light"
+                                        color={
+                                            fieldChange.kind === 'new'
+                                                ? 'green'
+                                                : 'orange'
+                                        }
+                                        flex="0 0 auto"
+                                    >
+                                        {fieldChange.kind === 'new'
+                                            ? 'New'
+                                            : 'Changed'}
+                                    </Badge>
+                                </Tooltip>
                             )}
                             {isDashboardMetric && (
                                 <Tooltip label="Only available in this dashboard">

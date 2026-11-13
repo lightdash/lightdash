@@ -231,6 +231,18 @@ export type SemanticLayerDraftFieldUsage = {
     scheduledDeliveries: number;
 };
 
+/** A field a change redefines or removes, to look up in saved content. */
+export type SemanticLayerTouchedField = {
+    model: string;
+    fieldId: string;
+    label: string;
+    kind: 'changed' | 'removed';
+};
+
+export type SemanticLayerFieldUsageBody = {
+    fields: SemanticLayerTouchedField[];
+};
+
 /** Saved content that reads what the draft changes: what to look at before publishing, whether or not anything breaks. */
 export type SemanticLayerDraftUsage = {
     fields: SemanticLayerDraftFieldUsage[];

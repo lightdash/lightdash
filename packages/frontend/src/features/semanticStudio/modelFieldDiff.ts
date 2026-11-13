@@ -1,4 +1,10 @@
-import { type Explore } from '@lightdash/common';
+import {
+    getItemId,
+    type CompiledDimension,
+    type CompiledMetric,
+    type Explore,
+    type SemanticLayerTouchedField,
+} from '@lightdash/common';
 
 export type FieldChange = {
     /** `table.name`, stable across both versions. */
@@ -73,4 +79,34 @@ export const diffModelFields = (
         }
     });
     return changes;
+};
+
+/** Fields saved content may read that a version redefines or removes: the same SQL under a new label moves no number. */
+export const findTouchedFields = (
+    live: Explore | null,
+    mine: Explore | null,
+): SemanticLayerTouchedField[] => {
+    const fieldsOf = (explore: Explore | null) => {
+        const table = explore?.tables[explore.baseTable];
+        const fields: (CompiledDimension | CompiledMetric)[] = table
+            ? [
+                  ...Object.values(table.dimensions),
+                  ...Object.values(table.metrics),
+              ]
+            : [];
+        return new Map(fields.map((field) => [getItemId(field), field]));
+    };
+    const after = fieldsOf(mine);
+    return [...fieldsOf(live)].flatMap(([fieldId, field]) => {
+        const next = after.get(fieldId);
+        if (next && next.compiledSql === field.compiledSql) return [];
+        return [
+            {
+                model: live?.name ?? field.table,
+                fieldId,
+                label: field.label,
+                kind: next ? ('changed' as const) : ('removed' as const),
+            },
+        ];
+    });
 };

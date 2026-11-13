@@ -1056,6 +1056,7 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'SemanticStudioController.getDraftImpact': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getDraftUsage': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getFieldUsage': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getStoredModels': [AgentCapability.DbtWriteback],
     'SemanticStudioController.listWorkspaces': [AgentCapability.ReadDiscover],

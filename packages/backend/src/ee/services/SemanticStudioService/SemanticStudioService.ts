@@ -36,6 +36,7 @@ import {
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
     type SemanticLayerStoredModels,
+    type SemanticLayerTouchedField,
     type SemanticStudioWorkspace,
     type SemanticStudioWorkspacePullRequestState,
     type SemanticStudioWorkspaces,
@@ -1246,6 +1247,25 @@ export class SemanticStudioService extends BaseService {
                 ];
             });
         });
+        return this.findFieldUsage(projectUuid, touched);
+    }
+
+    /** Saved content that reads fields a pull request redefines or removes; empty for someone who cannot change the project. */
+    async getFieldUsage(
+        user: SessionUser,
+        projectUuid: string,
+        fields: SemanticLayerTouchedField[],
+    ): Promise<SemanticLayerDraftUsage> {
+        if (!(await this.canEditModels(user, projectUuid))) {
+            return { fields: [], checkedFields: 0 };
+        }
+        return this.findFieldUsage(projectUuid, fields);
+    }
+
+    private async findFieldUsage(
+        projectUuid: string,
+        touched: SemanticLayerTouchedField[],
+    ): Promise<SemanticLayerDraftUsage> {
         const checked = touched.slice(0, MAX_USAGE_FIELDS);
         const reports = await runWithConcurrency(checked, 4, ({ fieldId }) =>
             this.savedChartModel.analyzeFieldImpact(projectUuid, fieldId),

@@ -2,7 +2,11 @@ import { Button, Center, Group, Loader, Stack, Text } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { ModelFieldChanges } from '../../../../../features/semanticStudio/ModelFieldChanges';
+import {
+    ModelFieldChanges,
+    ModelTotals,
+    PullRequestUsage,
+} from '../../../../../features/semanticStudio/ModelFieldChanges';
 import { useTryInExplore } from '../../../../../features/semanticStudio/useTryInExplore';
 import { usePullRequestDiff } from '../../hooks/usePullRequestDiff';
 import {
@@ -83,6 +87,12 @@ export const PullRequestChanges: FC<{
                             model={model}
                             previewProjectUuid={previewProjectUuid}
                         />
+                        <ModelTotals
+                            projectUuid={projectUuid}
+                            model={model}
+                            previewProjectUuid={previewProjectUuid}
+                            cacheKey={commitSha ?? prUrl}
+                        />
                         {files
                             .filter((file) => getModelOfFile(file) === model)
                             .map((file) => (
@@ -90,6 +100,11 @@ export const PullRequestChanges: FC<{
                             ))}
                     </Stack>
                 ))}
+                <PullRequestUsage
+                    projectUuid={projectUuid}
+                    models={changedModels}
+                    previewProjectUuid={previewProjectUuid}
+                />
                 {others.length > 0 ? (
                     <Stack gap="xs" className={classes.arrives}>
                         <Text component="h3" fz="sm" fw={600}>

@@ -1,6 +1,6 @@
 import { type Explore } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { diffModelFields } from './modelFieldDiff';
+import { diffModelFields, findTouchedFields } from './modelFieldDiff';
 
 const explore = (dimensions: Record<string, object>): Explore =>
     ({
@@ -60,5 +60,42 @@ describe('diffModelFields', () => {
             a: { name: 'a', label: 'A', compiledSql: 'y' },
         });
         expect(diffModelFields(live, mine)).toEqual([]);
+    });
+});
+
+describe('findTouchedFields', () => {
+    it('lists redefined and removed fields, not relabelled or new ones', () => {
+        const field = (name: string, compiledSql: string, label = name) => ({
+            name,
+            label,
+            table: 'customers',
+            compiledSql,
+        });
+        const live = explore({
+            same: field('same', 'a'),
+            relabelled: field('relabelled', 'b'),
+            redefined: field('redefined', 'c'),
+            gone: field('gone', 'd'),
+        });
+        const mine = explore({
+            same: field('same', 'a'),
+            relabelled: field('relabelled', 'b', 'New label'),
+            redefined: field('redefined', 'c2'),
+            added: field('added', 'e'),
+        });
+        expect(findTouchedFields(live, mine)).toEqual([
+            {
+                model: 'customers',
+                fieldId: 'customers_redefined',
+                label: 'redefined',
+                kind: 'changed',
+            },
+            {
+                model: 'customers',
+                fieldId: 'customers_gone',
+                label: 'gone',
+                kind: 'removed',
+            },
+        ]);
     });
 });

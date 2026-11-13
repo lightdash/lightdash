@@ -17,6 +17,7 @@ import {
     type ApiSemanticStudioWorkspaceResponse,
     type ApiSemanticStudioWorkspacesResponse,
     type ApiSuccessEmpty,
+    type SemanticLayerFieldUsageBody,
     type SemanticLayerUndoRequest,
     type SemanticStudioWorkspaceRenameBody,
     type SemanticStudioWorkspaceStartBody,
@@ -371,6 +372,30 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 model ?? null,
+            ),
+        };
+    }
+
+    /**
+     * Saved charts and dashboards that read any of the given fields, which a pull request defines differently or removes.
+     * @summary Get the saved content that reads changed fields
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/field-usage')
+    @OperationId('getSemanticLayerFieldUsage')
+    async getFieldUsage(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: SemanticLayerFieldUsageBody,
+    ): Promise<ApiSemanticLayerDraftUsageResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getFieldUsage(
+                toSessionUser(req.account),
+                projectUuid,
+                body.fields,
             ),
         };
     }
