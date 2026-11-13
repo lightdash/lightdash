@@ -66,7 +66,6 @@ export class ComposerChartModel {
         });
     }
 
-    /** Where a chart lives, read without parsing its documents. */
     async getOwner(
         uuid: string,
     ): Promise<{ projectUuid: string; dashboardUuid: string }> {

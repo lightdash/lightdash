@@ -161,6 +161,7 @@ import {
     getVerificationAfterUpdate,
 } from '../verifiedContentGuards';
 import { withVersionAgentIdentity } from '../VersionAgentIdentity';
+import { assertDashboardIsDuplicable } from './composerChartTiles';
 
 type DashboardServiceArguments = {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
@@ -2322,6 +2323,7 @@ export class DashboardService
             dashboardUuidOrSlug,
             { projectUuid },
         );
+        assertDashboardIsDuplicable(dashboardDao);
         const embedWriteSpaceUuids = options?.embedWriteSpaceUuids;
         if (
             embedWriteSpaceUuids &&

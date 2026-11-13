@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AgentCapability,
     FeatureFlags,
+    FeatureNotEnabledError,
     ForbiddenError,
     isCustomSqlDimension,
     isSqlTableCalculation,
@@ -48,7 +49,7 @@ export class ComposerChartService extends BaseService {
         this.spacePermissionService = args.spacePermissionService;
     }
 
-    private async getOwningDashboard(
+    private async getDashboardAccess(
         account: RegisteredAccount,
         projectUuid: string,
         dashboardUuid: string,
@@ -68,7 +69,6 @@ export class ComposerChartService extends BaseService {
         );
     }
 
-    /** Checks a submitted pipeline against what its author may write. */
     private assertCanWritePipeline(
         account: RegisteredAccount,
         { organizationUuid, projectUuid }: ProjectSubject,
@@ -150,7 +150,7 @@ export class ComposerChartService extends BaseService {
         }
     }
 
-    /** The shared create: both documents parsed, the flag and author checks, then one write. Adds no tile. */
+    /** Shared by the create endpoint and, later, content-as-code upload. */
     async create(
         account: RegisteredAccount,
         projectUuid: string,
@@ -159,7 +159,7 @@ export class ComposerChartService extends BaseService {
         const pipeline = parseComposerPipeline(data.pipeline);
         const chart = parseComposerStoredChart(data.chart);
 
-        const dashboardAccess = await this.getOwningDashboard(
+        const dashboardAccess = await this.getDashboardAccess(
             account,
             projectUuid,
             data.dashboardUuid,
@@ -172,7 +172,7 @@ export class ComposerChartService extends BaseService {
             featureFlagId: FeatureFlags.ComposerCharts,
         });
         if (!enabled) {
-            throw new ForbiddenError('Composer charts are not enabled');
+            throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
         if (
             this.createAuditedAbility(account).cannot(
@@ -202,7 +202,7 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.get(uuid);
     }
 
-    /** Anyone who can view the owning dashboard reads the chart; the flag is not checked. */
+    /** Answers with the flag off, so a chart stays readable (spec 5). */
     async get(
         account: RegisteredAccount,
         projectUuid: string,
@@ -212,7 +212,7 @@ export class ComposerChartService extends BaseService {
         if (owner.projectUuid !== projectUuid) {
             throw new NotFoundError('Composer chart not found');
         }
-        const dashboardAccess = await this.getOwningDashboard(
+        const dashboardAccess = await this.getDashboardAccess(
             account,
             projectUuid,
             owner.dashboardUuid,

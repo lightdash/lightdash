@@ -3,6 +3,7 @@ import {
     AgentCapability,
     ChartType,
     CustomDimensionType,
+    FeatureNotEnabledError,
     FieldType,
     ForbiddenError,
     MergeJoinType,
@@ -199,9 +200,7 @@ describe('ComposerChartService.create', () => {
                 projectUuid,
                 createBody(PIPELINES.sql),
             ),
-        ).rejects.toThrow(
-            new ForbiddenError('Composer charts are not enabled'),
-        );
+        ).rejects.toThrow(FeatureNotEnabledError);
         expect(composerChartModel.create).not.toHaveBeenCalled();
     });
 

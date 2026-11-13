@@ -16,10 +16,12 @@ import {
     ChartType,
     type BigNumberConfig,
     type CartesianChartConfig,
+    type ChartConfig,
     type FunnelChartConfig,
     type PieChartConfig,
     type TableChartConfig,
 } from '../types/savedCharts';
+import assertUnreachable from '../utils/assertUnreachable';
 
 type StoredNode<T> = T & {
     /** @pattern ^[a-zA-Z_][a-zA-Z0-9_]{0,62}$ */
@@ -288,7 +290,8 @@ const storedChartSchema = z.strictObject({
 const compact = (names: (string | undefined)[]): string[] =>
     names.filter((name): name is string => name !== undefined);
 
-const getChartConfigNames = (chartConfig: ComposerChartConfig): string[] => {
+/** Column names the chart config uses; refuses types whose names it cannot check. */
+const getChartConfigNames = (chartConfig: ChartConfig): string[] => {
     switch (chartConfig.type) {
         case ChartType.CARTESIAN: {
             const { config } = chartConfig;
@@ -323,18 +326,22 @@ const getChartConfigNames = (chartConfig: ComposerChartConfig): string[] => {
             ]);
         case ChartType.FUNNEL:
             return compact([chartConfig.config?.fieldId]);
+        case ChartType.DATA_APP_VIZ:
+            throw new ParameterError(
+                'Composer charts do not support custom chart types yet',
+            );
+        case ChartType.TREEMAP:
+        case ChartType.GAUGE:
+        case ChartType.CUSTOM:
+        case ChartType.MAP:
+        case ChartType.SANKEY:
+            throw new ParameterError(
+                `Composer charts do not support the "${chartConfig.type}" chart type`,
+            );
         default:
-            throw new ParameterError('Unknown composer chart type');
+            return assertUnreachable(chartConfig, 'Unknown chart type');
     }
 };
-
-const CHECKED_CHART_TYPES: ChartType[] = [
-    ChartType.CARTESIAN,
-    ChartType.TABLE,
-    ChartType.BIG_NUMBER,
-    ChartType.PIE,
-    ChartType.FUNNEL,
-];
 
 /** Strict parse of a stored chart; every name a config uses must be a column. */
 export const parseComposerStoredChart = (
@@ -342,7 +349,7 @@ export const parseComposerStoredChart = (
 ): ComposerStoredChart => {
     const result = storedChartSchema.safeParse(document);
     if (!result.success) throw toParameterError('chart', result.error);
-    const { columns, chartConfig, pivotConfig, tableConfig } = result.data;
+    const { columns, pivotConfig, tableConfig } = result.data;
 
     const names = new Set<string>();
     columns.forEach(({ reference }) => {
@@ -359,24 +366,16 @@ export const parseComposerStoredChart = (
         names.add(reference);
     });
 
-    if (chartConfig.type === ChartType.DATA_APP_VIZ) {
-        throw new ParameterError(
-            'Composer charts do not support custom chart types yet',
-        );
-    }
-    if (!CHECKED_CHART_TYPES.includes(chartConfig.type)) {
-        throw new ParameterError(
-            `Composer charts do not support the "${chartConfig.type}" chart type`,
-        );
-    }
-    const chart = result.data as ComposerStoredChart;
-
-    [
-        ['chartConfig', getChartConfigNames(chart.chartConfig)],
+    const used: [string, string[]][] = [
+        [
+            'chartConfig',
+            getChartConfigNames(result.data.chartConfig as ChartConfig),
+        ],
         ['pivotConfig', pivotConfig?.columns ?? []],
         ['tableConfig', tableConfig.columnOrder],
-    ].forEach(([config, used]) => {
-        (used as string[]).forEach((name) => {
+    ];
+    used.forEach(([config, configNames]) => {
+        configNames.forEach((name) => {
             if (!names.has(name)) {
                 throw new ParameterError(
                     `Composer chart ${config} uses "${name}", which is not one of its columns`,
@@ -384,7 +383,7 @@ export const parseComposerStoredChart = (
             }
         });
     });
-    return chart;
+    return result.data as ComposerStoredChart;
 };
 
 export type CreateComposerChart = {

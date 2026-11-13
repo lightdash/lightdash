@@ -3,6 +3,7 @@ import {
     type ApiComposerChartResponse,
     type ApiErrorPayload,
     type CreateComposerChart,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -44,7 +45,7 @@ export class ComposerChartController extends BaseController {
     @Post('/')
     @OperationId('createComposerChart')
     async create(
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Body() body: CreateComposerChart,
         @Request() req: express.Request,
     ): Promise<ApiComposerChartResponse> {
@@ -66,8 +67,8 @@ export class ComposerChartController extends BaseController {
     @Get('/{composerChartUuid}')
     @OperationId('getComposerChart')
     async get(
-        @Path() projectUuid: string,
-        @Path() composerChartUuid: string,
+        @Path() projectUuid: UUID,
+        @Path() composerChartUuid: UUID,
         @Request() req: express.Request,
     ): Promise<ApiComposerChartResponse> {
         assertRegisteredAccount(req.account);

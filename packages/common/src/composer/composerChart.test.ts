@@ -265,6 +265,20 @@ describe('parseComposerStoredChart', () => {
         );
     });
 
+    test('refuses a custom chart type, naming it', () => {
+        expect(
+            refusal(() =>
+                parseComposerStoredChart({
+                    ...chart,
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: { dataAppVizUuid: 'viz', fieldMapping: {} },
+                    },
+                }),
+            ),
+        ).toContain('custom chart types');
+    });
+
     test('refuses a chart type it cannot check', () => {
         refusal(() =>
             parseComposerStoredChart({
