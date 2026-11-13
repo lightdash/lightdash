@@ -186,7 +186,7 @@ const ResultsCard: FC = memo(() => {
                                 <Popover.Target>
                                     <Tooltip label="Export results">
                                         <ActionIcon
-                                            data-testid="export-csv-button"
+                                            data-testid="export-results-button"
                                             aria-label="Export results"
                                             {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
                                             disabled={resultsExport.disabled}
