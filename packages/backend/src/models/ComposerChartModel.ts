@@ -176,27 +176,26 @@ export class ComposerChartModel {
             .then((rows) => rows.map((row) => row.composer_chart_uuid));
     }
 
-    /** Appends a copy of the version current at `at`; false when none existed then. */
+    /** Appends a copy of the version current at `at`, if there was one. */
     async rollbackToVersionAt(
         uuid: string,
         at: Date,
         userUuid: string,
         trx: Knex.Transaction,
-    ): Promise<boolean> {
+    ): Promise<void> {
         const version = await trx(ComposerChartVersionsTableName)
             .select('pipeline', 'chart')
             .where('composer_chart_uuid', uuid)
             .where('created_at', '<=', at)
             .orderBy('created_at', 'desc')
             .first();
-        if (!version) return false;
+        if (!version) return;
         await trx(ComposerChartVersionsTableName).insert({
             composer_chart_uuid: uuid,
             pipeline: JSON.stringify(version.pipeline),
             chart: JSON.stringify(version.chart),
             created_by_user_uuid: userUuid,
         });
-        return true;
     }
 
     /** The chart and its latest version; its documents parsed strictly. */

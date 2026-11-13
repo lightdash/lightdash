@@ -111,7 +111,6 @@ export const softDeleteDashboardComposerCharts = (
         .where('dashboard_uuid', dashboardUuid)
         .whereNull('deleted_at');
 
-// Only charts deleted by whoever deleted the dashboard come back with it.
 export const restoreDashboardComposerCharts = (
     db: Knex,
     dashboardUuid: string,
