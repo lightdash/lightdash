@@ -25,6 +25,7 @@ import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resour
 import { ComposerChartModel } from '../../models/ComposerChartModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { traceSpan } from '../../tracing/tracing';
 import { BaseService } from '../BaseService';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
@@ -36,6 +37,7 @@ type ComposerChartServiceArguments = {
     dashboardModel: DashboardModel;
     featureFlagModel: FeatureFlagModel;
     spacePermissionService: SpacePermissionService;
+    queryHistoryModel: Pick<QueryHistoryModel, 'getByQueryUuid'>;
     getQuerySourceService: () => Pick<QuerySourceService, 'submitComposerRun'>;
 };
 
@@ -50,6 +52,8 @@ export class ComposerChartService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly queryHistoryModel: ComposerChartServiceArguments['queryHistoryModel'];
+
     private readonly getQuerySourceService: ComposerChartServiceArguments['getQuerySourceService'];
 
     constructor(args: ComposerChartServiceArguments) {
@@ -58,6 +62,7 @@ export class ComposerChartService extends BaseService {
         this.dashboardModel = args.dashboardModel;
         this.featureFlagModel = args.featureFlagModel;
         this.spacePermissionService = args.spacePermissionService;
+        this.queryHistoryModel = args.queryHistoryModel;
         this.getQuerySourceService = args.getQuerySourceService;
     }
 
@@ -250,9 +255,10 @@ export class ComposerChartService extends BaseService {
                 'This composer chart is not on that dashboard tile',
             );
         }
+        const chart = await this.composerChartModel.get(composerChartUuid);
         const binding = ComposerRunBinding.forAuthorizedViewer({
             account,
-            chart: await this.composerChartModel.get(composerChartUuid),
+            chart,
             tileUuid: request.tileUuid,
         });
         const { queries } = await traceSpan(
@@ -278,12 +284,20 @@ export class ComposerChartService extends BaseService {
                     invalidateCache: request.invalidateCache,
                 }),
         );
+        const queryUuidOf = (nodeId: string | null) =>
+            queries.find((query) => query.nodeId === nodeId)?.queryUuid ?? null;
+        const terminalQueryUuid = queryUuidOf(chart.pipeline.terminalNodeId);
+        const terminalQuery = terminalQueryUuid
+            ? await this.queryHistoryModel.getByQueryUuid(terminalQueryUuid)
+            : undefined;
         return {
             queries: queries.map(({ nodeId, sourceType, queryUuid }) => ({
                 nodeId,
                 sourceType,
                 queryUuid,
             })),
+            fields: terminalQuery?.fields ?? {},
+            chartStageQueryUuid: queryUuidOf(binding.chartStageNodeId),
         };
     }
 }

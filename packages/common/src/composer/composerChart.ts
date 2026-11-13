@@ -5,6 +5,7 @@ import {
     FieldType,
     isCustomSqlDimension,
     isSqlTableCalculation,
+    type ItemsMap,
 } from '../types/field';
 import { type DashboardFilters } from '../types/filter';
 import { MergeJoinType } from '../types/mergeQuery';
@@ -528,6 +529,10 @@ export type ComposerChartRunResults = {
         sourceType: QuerySourceType;
         queryUuid: string;
     }>;
+    /** The terminal node's fields map from its run; the tile draws a semantic-layer or merge result from it. */
+    fields: ItemsMap;
+    /** The server-built series-split stage the chart draws from; null without a group-by. */
+    chartStageQueryUuid: string | null;
 };
 
 export type ApiComposerChartRunResponse = {

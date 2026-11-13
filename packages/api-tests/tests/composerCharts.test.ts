@@ -2,6 +2,7 @@ import {
     ChartType,
     DashboardTileTypes,
     FeatureFlags,
+    FieldType,
     FilterOperator,
     MergeJoinType,
     QuerySourceType,
@@ -514,6 +515,152 @@ describe('Composer charts', () => {
                 { failOnStatusCode: false },
             );
             expect(refused.status).toBe(403);
+        });
+
+        it('returns a semantic-layer chart’s own fields, so the tile draws the project’s labels and formats', async () => {
+            const { dashboard, chart } = await createComposerDashboard(
+                apiClientSend(admin),
+            );
+            tracker.trackDashboard(dashboard.uuid);
+            const viewer = await loginAsViewer();
+            const run = await viewer.post<Body<ComposerChartRunResults>>(
+                runUrl(chart.uuid),
+                runRequest(dashboard.uuid, dashboard.tiles[0].uuid),
+            );
+            expect(run.status).toBe(200);
+            expect(run.body.results.chartStageQueryUuid).toBeNull();
+            expect(run.body.results.fields).toMatchObject({
+                orders_status: {
+                    table: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                },
+                orders_total_order_amount: {
+                    table: 'orders',
+                    fieldType: FieldType.METRIC,
+                },
+            });
+        });
+
+        it('runs a one-node semantic-layer chart to the same rows as the classic query', async () => {
+            const { dashboard, chart } = await createComposerDashboard(
+                apiClientSend(admin),
+            );
+            tracker.trackDashboard(dashboard.uuid);
+            const run = await admin.post<Body<ComposerChartRunResults>>(
+                runUrl(chart.uuid),
+                runRequest(dashboard.uuid, dashboard.tiles[0].uuid),
+            );
+            expect(run.status).toBe(200);
+            const [node] = chart.pipeline.nodes;
+            if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
+                throw new Error('Expected a semantic-layer node');
+            }
+            const classic = await admin.post<Body<{ queryUuid: string }>>(
+                `/api/v2/projects/${projectUuid}/query/metric-query`,
+                {
+                    context: 'exploreView',
+                    query: {
+                        exploreName: node.exploreName,
+                        dimensions: node.dimensions,
+                        metrics: node.metrics,
+                        filters: {},
+                        sorts: [],
+                        limit: 500,
+                        tableCalculations: [],
+                    },
+                },
+            );
+            expect(classic.status).toBe(200);
+            const sortedRaw = (rows: unknown[]) =>
+                JSON.stringify(
+                    (rows as Record<string, { value: { raw: unknown } }>[])
+                        .map((row) =>
+                            Object.fromEntries(
+                                Object.entries(row).map(([id, { value }]) => [
+                                    id,
+                                    value.raw,
+                                ]),
+                            ),
+                        )
+                        .sort((a, b) =>
+                            JSON.stringify(a).localeCompare(JSON.stringify(b)),
+                        ),
+                );
+            expect(
+                sortedRaw(
+                    await pollRows(
+                        admin,
+                        run.body.results.queries[0].queryUuid,
+                    ),
+                ),
+            ).toBe(
+                sortedRaw(
+                    await pollRows(admin, classic.body.results.queryUuid),
+                ),
+            );
+        });
+
+        it('runs a group-by as a server-built pivot stage whose rows a viewer can read', async () => {
+            const { dashboard, chart } = await createComposerDashboard(
+                apiClientSend(admin),
+                {
+                    pipeline: {
+                        schemaVersion: 1,
+                        terminalNodeId: 'orders',
+                        nodes: [
+                            {
+                                sourceType: QuerySourceType.SQL,
+                                nodeId: 'orders',
+                                title: 'Orders by status and size',
+                                sql: "SELECT status, CASE WHEN amount > 10 THEN 'big' ELSE 'small' END AS size, sum(amount) AS total FROM postgres.jaffle.orders GROUP BY 1, 2",
+                            },
+                        ],
+                    },
+                    chart: {
+                        schemaVersion: 1,
+                        columns: [
+                            {
+                                reference: 'status',
+                                fieldType: FieldType.DIMENSION,
+                            },
+                            {
+                                reference: 'size',
+                                fieldType: FieldType.DIMENSION,
+                            },
+                            { reference: 'total', fieldType: FieldType.METRIC },
+                        ],
+                        chartConfig: {
+                            type: ChartType.CARTESIAN,
+                            config: {
+                                layout: {
+                                    xField: 'status',
+                                    yField: ['total'],
+                                },
+                                eChartsConfig: {},
+                            },
+                        },
+                        pivotConfig: { columns: ['size'] },
+                        tableConfig: { columnOrder: [] },
+                    },
+                },
+            );
+            tracker.trackDashboard(dashboard.uuid);
+            const viewer = await loginAsViewer();
+            const run = await viewer.post<Body<ComposerChartRunResults>>(
+                runUrl(chart.uuid),
+                runRequest(dashboard.uuid, dashboard.tiles[0].uuid),
+            );
+            expect(run.status).toBe(200);
+            const { chartStageQueryUuid, queries } = run.body.results;
+            if (!chartStageQueryUuid) {
+                throw new Error('No series-split stage ran');
+            }
+            expect(queries.map(({ queryUuid }) => queryUuid)).toContain(
+                chartStageQueryUuid,
+            );
+            expect(
+                (await pollRows(viewer, chartStageQueryUuid)).length,
+            ).toBeGreaterThan(0);
         });
 
         it('refuses a run with the flag off while classic queries still run', async () => {

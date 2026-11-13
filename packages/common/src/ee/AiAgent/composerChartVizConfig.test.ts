@@ -1,5 +1,6 @@
 import { toComposerResultRows } from '../../composer/composerResultChart';
 import { DimensionType } from '../../types/field';
+import { type SortField } from '../../types/metricQuery';
 import { QuerySourceType } from '../../types/querySources';
 import { type ResultColumn } from '../../types/results';
 import { ChartType } from '../../types/savedCharts';
@@ -520,10 +521,12 @@ describe('getComposerChartStage', () => {
             name: string;
             type: DataAppVizFieldType;
         }[] = [],
+        sorts: SortField[] = [],
     ) =>
         getComposerChartStage({
             vizConfig: config,
             customChartTypeSlots,
+            sorts: { sorts, sortedMeasures: [] },
             nodeId: 'chart_stage',
             source: 'orders',
         });
@@ -582,6 +585,29 @@ describe('getComposerChartStage', () => {
                 sortBy: undefined,
             },
         });
+    });
+
+    test('pivots like a classic chart: source sorts kept, stacked groups past the limit folded', () => {
+        const split = (type: 'bar' | 'area', stack: boolean | null) =>
+            stage(
+                viz({
+                    type,
+                    x: 'orders_month',
+                    y: ['revenue'],
+                    groupBy: ['status'],
+                    stack,
+                }),
+                [],
+                [{ fieldId: 'revenue', descending: true }],
+            )?.pivotConfiguration;
+        expect(split('bar', true)).toMatchObject({
+            sortBy: [{ reference: 'revenue', direction: 'DESC' }],
+            foldOverflowGroups: true,
+        });
+        expect(split('area', null)).toMatchObject({
+            foldOverflowGroups: true,
+        });
+        expect(split('bar', null)?.foldOverflowGroups).toBeUndefined();
     });
 
     test('a split without explicit x or y is rejected', () => {

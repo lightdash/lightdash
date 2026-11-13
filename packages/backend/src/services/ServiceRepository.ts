@@ -2011,6 +2011,7 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    queryHistoryModel: this.models.getQueryHistoryModel(),
                     getQuerySourceService: () => this.getQuerySourceService(),
                 }),
         );

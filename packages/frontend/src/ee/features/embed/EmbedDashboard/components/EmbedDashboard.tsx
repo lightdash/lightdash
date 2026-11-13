@@ -48,7 +48,7 @@ import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../../../../components/DashboardTiles/UnmetRequirementsPlaceholder';
-import DashboardComposerChartTile from '../../../../../features/composerCharts/components/DashboardComposerChartTile';
+import { ComposerChartNotAvailableTile } from '../../../../../features/composerCharts/components/DashboardComposerChartTile';
 import {
     selectActiveTab,
     selectDashboardFilters,
@@ -406,7 +406,7 @@ const EmbedDashboardGrid: FC<{
                                 />
                             ) : tile.type ===
                               DashboardTileTypes.COMPOSER_CHART ? (
-                                <DashboardComposerChartTile
+                                <ComposerChartNotAvailableTile
                                     key={tile.uuid}
                                     minimal
                                     tile={tile}

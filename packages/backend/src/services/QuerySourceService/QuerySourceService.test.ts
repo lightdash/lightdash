@@ -1,6 +1,7 @@
 import {
     AgentActorSurface,
     AgentCapability,
+    ChartType,
     DimensionType,
     FeatureFlags,
     ForbiddenError,
@@ -1765,6 +1766,10 @@ describe('composer bound run', () => {
                     schemaVersion: 1,
                     terminalNodeId: 'forecast',
                     nodes: storedNodes,
+                },
+                chart: {
+                    pivotConfig: null,
+                    chartConfig: { type: ChartType.TABLE },
                 },
             } as ComposerChart,
             tileUuid: 'tile-uuid',
