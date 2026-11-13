@@ -170,11 +170,7 @@ const AnalyticsOverview = ({
         [projects.data],
     );
     const projectOptions = (projects.data ?? [])
-        .filter(
-            (project) =>
-                project.projectUuid !== projectUuid &&
-                project.type !== ProjectType.PREVIEW,
-        )
+        .filter((project) => project.type !== ProjectType.PREVIEW)
         .map((project) => ({
             value: project.projectUuid,
             label: project.name,

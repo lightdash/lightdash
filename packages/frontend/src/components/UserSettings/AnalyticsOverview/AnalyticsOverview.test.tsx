@@ -92,8 +92,8 @@ describe('Analytics settings overview', () => {
             screen.getByRole('combobox', { name: 'Project' }),
         );
         expect(
-            screen.queryByRole('option', { name: 'Analytics' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('option', { name: 'Analytics' }),
+        ).toBeInTheDocument();
         expect(
             screen.queryByRole('option', { name: 'Preview' }),
         ).not.toBeInTheDocument();
