@@ -43,7 +43,7 @@ const resolve = (
         charts,
         dashboardUuid: 'dashboard-uuid',
         flagEnabled: true,
-        shownChartUuids: new Set(),
+        shownTilesByChartUuid: new Map(),
         ...options,
     });
 
@@ -86,9 +86,18 @@ describe('composer chart tiles uploaded as code', () => {
         expect(
             resolve([uploaded('mine')], {
                 flagEnabled: false,
-                shownChartUuids: new Set(['mine-uuid']),
+                shownTilesByChartUuid: new Map([['mine-uuid', 1]]),
             })[0].properties,
         ).toMatchObject({ composerChartUuid: 'mine-uuid' });
+    });
+
+    it('refuses a second tile for a shown chart when composer charts are off', () => {
+        expect(() =>
+            resolve([uploaded('mine'), uploaded('mine')], {
+                flagEnabled: false,
+                shownTilesByChartUuid: new Map([['mine-uuid', 1]]),
+            }),
+        ).toThrow(/not enabled.*"mine"/);
     });
 
     it('refuses a new tile when composer charts are off, naming the slug', () => {

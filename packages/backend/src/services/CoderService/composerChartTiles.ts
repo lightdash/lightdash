@@ -47,17 +47,18 @@ export const resolveComposerChartTiles = (
         charts,
         dashboardUuid,
         flagEnabled,
-        shownChartUuids,
+        shownTilesByChartUuid,
     }: {
         charts: ReadonlyMap<string, { uuid: string; dashboardUuid: string }>;
         /** Null when the upload creates the dashboard. */
         dashboardUuid: string | null;
         flagEnabled: boolean;
-        /** Charts the dashboard shows now; the only ones kept with the flag off. */
-        shownChartUuids: ReadonlySet<string>;
+        /** Tiles per chart the dashboard shows now; the most kept with the flag off. */
+        shownTilesByChartUuid: ReadonlyMap<string, number>;
     },
-): DashboardTileWithSlug[] =>
-    tiles.map((tile) => {
+): DashboardTileWithSlug[] => {
+    const keepable = new Map(shownTilesByChartUuid);
+    return tiles.map((tile) => {
         if (tile.type !== DashboardTileTypes.COMPOSER_CHART) return tile;
         const { chartSlug } = tile.properties as unknown as Pick<
             DashboardComposerChartTileAsCode['properties'],
@@ -77,11 +78,15 @@ export const resolveComposerChartTiles = (
                 `Composer chart "${chartSlug}" belongs to another dashboard`,
             );
         }
-        if (!flagEnabled && !shownChartUuids.has(chart.uuid)) {
-            throw new ForbiddenError(
-                `Composer charts are not enabled for this organization, so composer chart tile "${chartSlug}" cannot be added`,
-                { featureFlagId: FeatureFlags.ComposerCharts },
-            );
+        if (!flagEnabled) {
+            const left = keepable.get(chart.uuid) ?? 0;
+            if (left === 0) {
+                throw new ForbiddenError(
+                    `Composer charts are not enabled for this organization, so composer chart tile "${chartSlug}" cannot be added`,
+                    { featureFlagId: FeatureFlags.ComposerCharts },
+                );
+            }
+            keepable.set(chart.uuid, left - 1);
         }
         return {
             ...tile,
@@ -94,3 +99,4 @@ export const resolveComposerChartTiles = (
             },
         } as DashboardTileWithSlug;
     });
+};
