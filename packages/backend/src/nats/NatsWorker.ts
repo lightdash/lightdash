@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { type NatsClient } from '../clients/NatsClient';
 import Logger from '../logging/logger';
 import {
+    QueryExecutionOwnershipLostError,
     QueryHistoryModel,
     type QueryExecutionOwnership,
 } from '../models/QueryHistoryModel/QueryHistoryModel';
@@ -77,6 +78,8 @@ const FETCH_EXPIRES_MS = 1000;
 export const SHUTDOWN_GRACE_MS = 5000;
 const DATABASE_RETRY_MS = 1000;
 const ACK_PROGRESS_INTERVAL_MS = 5 * 1000;
+const EXHAUSTED_DELIVERY_ERROR =
+    'Query delivery attempts exhausted. Completion could not be confirmed. Please retry the query.';
 
 export class NatsWorker {
     private readonly asyncQueryService: AsyncQueryService;
@@ -202,19 +205,10 @@ export class NatsWorker {
         await Promise.all(
             unfinished.map(async ([message, { ownership }]) => {
                 try {
-                    await this.queryHistoryModel.releaseQueryExecution(
-                        ownership,
-                    );
-                    NatsWorker.logMessageAction(
-                        message,
-                        ownership.queryUuid || null,
-                        'nak',
-                        'shutdown',
-                    );
-                    message.nak();
+                    await this.returnShutdownDelivery(message, ownership);
                 } catch (error) {
                     Logger.error(
-                        'Failed to release query execution during shutdown',
+                        'Failed to settle query execution during shutdown',
                         {
                             queryUuid: ownership.queryUuid,
                             error,
@@ -223,6 +217,40 @@ export class NatsWorker {
                 }
             }),
         );
+    }
+
+    private async returnShutdownDelivery(
+        message: JsMsg,
+        ownership: QueryExecutionOwnership,
+    ): Promise<void> {
+        if (NatsWorker.deliveryCount(message) >= QUERY_MAX_DELIVERIES) {
+            await ownership.pendingClaim?.catch(() => undefined);
+            if (ownership.queryUuid) {
+                await QueryHistoryModel.withQueryExecution(
+                    {
+                        ...ownership,
+                        signal: new AbortController().signal,
+                    },
+                    () => this.failExhaustedDelivery(ownership.queryUuid),
+                );
+            }
+            NatsWorker.logMessageAction(
+                message,
+                ownership.queryUuid || null,
+                'term',
+                'delivery attempts exhausted during shutdown',
+            );
+            message.term();
+            return;
+        }
+        await this.queryHistoryModel.releaseQueryExecution(ownership);
+        NatsWorker.logMessageAction(
+            message,
+            ownership.queryUuid || null,
+            'nak',
+            'shutdown',
+        );
+        message.nak();
     }
 
     private async databaseAvailable(): Promise<boolean> {
@@ -407,10 +435,7 @@ export class NatsWorker {
     ): Promise<void> {
         if (signal.aborted) return;
         try {
-            await this.queryHistoryModel.failUnfinishedQueryDelivery(
-                queryUuid,
-                'Query delivery attempts exhausted. Completion could not be confirmed. Please retry the query.',
-            );
+            await this.failExhaustedDelivery(queryUuid);
         } catch (error) {
             Logger.error('Failed to persist exhausted query delivery', {
                 queryUuid,
@@ -418,6 +443,18 @@ export class NatsWorker {
             });
             await NatsWorker.wait(QUERY_REDELIVERY_DELAY_MS, signal);
             await this.persistExhaustedDelivery(queryUuid, signal);
+        }
+    }
+
+    private async failExhaustedDelivery(queryUuid: string): Promise<void> {
+        try {
+            await this.queryHistoryModel.failUnfinishedQueryDelivery(
+                queryUuid,
+                EXHAUSTED_DELIVERY_ERROR,
+            );
+        } catch (error) {
+            if (!(error instanceof QueryExecutionOwnershipLostError))
+                throw error;
         }
     }
 
@@ -627,6 +664,16 @@ export class NatsWorker {
             );
         } catch (error) {
             if (signal.aborted) return;
+            if (error instanceof QueryExecutionOwnershipLostError) {
+                NatsWorker.logMessageAction(
+                    message,
+                    parsed.payload.queryUuid,
+                    'term',
+                    'query execution ownership lost',
+                );
+                message.term();
+                return;
+            }
             if (!(await this.databaseAvailable())) {
                 await NatsWorker.runWithAckProgress(
                     message,
@@ -634,6 +681,18 @@ export class NatsWorker {
                     signal,
                 );
                 if (!signal.aborted) {
+                    if (
+                        NatsWorker.deliveryCount(message) >=
+                        QUERY_MAX_DELIVERIES
+                    ) {
+                        await this.retryUnfinished(
+                            message,
+                            parsed.payload.queryUuid,
+                            'db unavailable',
+                            signal,
+                        );
+                        return;
+                    }
                     await this.releaseQueryExecution(parsed.payload.queryUuid);
                     if (signal.aborted) return;
                     NatsWorker.logMessageAction(
@@ -708,14 +767,14 @@ export class NatsWorker {
             try {
                 for await (const message of messages) {
                     if (!this.isRunning) {
-                        NatsWorker.logMessageAction(
+                        await this.returnShutdownDelivery(
                             message,
-                            this.parseMessage(message)?.payload.queryUuid ??
-                                null,
-                            'nak',
-                            'shutdown',
+                            QueryHistoryModel.createQueryExecution(
+                                this.parseMessage(message)?.payload.queryUuid ??
+                                    '',
+                                this.shutdown.signal,
+                            ),
                         );
-                        message.nak();
                         break;
                     }
                     await this.handleMessage(message, workerId); // eslint-disable-line no-await-in-loop

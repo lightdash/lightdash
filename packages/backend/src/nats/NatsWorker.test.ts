@@ -7,7 +7,10 @@ import { StringCodec, type JsMsg } from 'nats';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type NatsClient } from '../clients/NatsClient';
 import Logger from '../logging/logger';
-import { type QueryHistoryModel } from '../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    QueryExecutionOwnershipLostError,
+    type QueryHistoryModel,
+} from '../models/QueryHistoryModel/QueryHistoryModel';
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { registerPreAggregateStream, STREAM_CONFIGS } from './natsConfig';
 import { NatsWorker } from './NatsWorker';
@@ -425,6 +428,45 @@ describe('NatsWorker subject dispatch', () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+
+    it('terminates the last delivery when cancellation fences the exhaustion write', async () => {
+        vi.useFakeTimers();
+        try {
+            const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+            Object.assign(message.info, { deliveryCount: 5 });
+            asyncQueryService.runAsyncWarehouseQueryFromHistory.mockRejectedValueOnce(
+                new Error('result write failed'),
+            );
+            queryHistoryModel.failUnfinishedQueryDelivery.mockRejectedValueOnce(
+                new QueryExecutionOwnershipLostError(),
+            );
+            const handling = buildWorker().handleMessage(message);
+            await vi.advanceTimersByTimeAsync(60_000);
+            await handling;
+            expect(message.term).toHaveBeenCalledOnce();
+            expect(message.nak).not.toHaveBeenCalled();
+            expect(message.working).not.toHaveBeenCalled();
+            expect(
+                queryHistoryModel.failUnfinishedQueryDelivery,
+            ).toHaveBeenCalledOnce();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('terminates ownership loss without retrying a cancelled query', async () => {
+        const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+        asyncQueryService.runAsyncWarehouseQueryFromHistory.mockRejectedValueOnce(
+            new QueryExecutionOwnershipLostError(),
+        );
+        await buildWorker().handleMessage(message);
+        expect(message.term).toHaveBeenCalledOnce();
+        expect(message.nak).not.toHaveBeenCalled();
+        expect(queryHistoryModel.releaseQueryExecution).not.toHaveBeenCalled();
+        expect(
+            queryHistoryModel.failUnfinishedQueryDelivery,
+        ).not.toHaveBeenCalled();
     });
 
     it('fails the row after a handler error on the last attempt', async () => {

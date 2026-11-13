@@ -1,7 +1,10 @@
 import { StringCodec, type JsMsg } from 'nats';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type NatsClient } from '../clients/NatsClient';
-import { type QueryHistoryModel } from '../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    QueryExecutionOwnershipLostError,
+    QueryHistoryModel,
+} from '../models/QueryHistoryModel/QueryHistoryModel';
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { STREAM_CONFIGS } from './natsConfig';
 import { NatsWorker, SHUTDOWN_GRACE_MS } from './NatsWorker';
@@ -35,6 +38,7 @@ const setup = () => {
     });
     const healthy = vi.fn(async () => true);
     const releaseQueryExecution = vi.fn(async (): Promise<void> => {});
+    const failUnfinishedQueryDelivery = vi.fn(async () => 1);
     let delivered = false;
     let pending = deferred();
     const close = vi.fn(async () => {
@@ -58,6 +62,7 @@ const setup = () => {
         } as unknown as NatsClient,
         queryHistoryModel: {
             releaseQueryExecution,
+            failUnfinishedQueryDelivery,
             getByQueryUuid: async () => undefined,
         } as unknown as QueryHistoryModel,
         asyncQueryService: {
@@ -76,12 +81,160 @@ const setup = () => {
         runQuery,
         healthy,
         releaseQueryExecution,
+        failUnfinishedQueryDelivery,
     };
 };
 
 afterEach(() => vi.useRealTimers());
 
 describe('NatsWorker lifecycle', () => {
+    it('fails the last delivery on shutdown with its claim fence before terminating', async () => {
+        vi.useFakeTimers();
+        const state = setup();
+        Object.assign(state.message.info, { deliveryCount: 5 });
+        const claim = deferred();
+        const terminalWrite = deferred();
+        const claimedAt = new Date();
+        state.runQuery.mockImplementationOnce(async () => {
+            const ownership = QueryHistoryModel.getQueryExecution('query')!;
+            ownership.pendingClaim = claim.promise.then(() => {
+                ownership.claimedAt = claimedAt;
+                return 1;
+            });
+            await state.finish.promise;
+            return true;
+        });
+        state.failUnfinishedQueryDelivery.mockImplementationOnce(async () => {
+            const ownership = QueryHistoryModel.getQueryExecution('query')!;
+            expect(ownership.claimedAt).toEqual(claimedAt);
+            expect(ownership.signal.aborted).toBe(false);
+            await terminalWrite.promise;
+            return 1;
+        });
+        await state.worker.run();
+        await flush();
+        const stopping = state.worker.stop();
+        await vi.advanceTimersByTimeAsync(SHUTDOWN_GRACE_MS);
+        expect(state.failUnfinishedQueryDelivery).not.toHaveBeenCalled();
+        claim.resolve();
+        await flush();
+        expect(
+            state.failUnfinishedQueryDelivery,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'query',
+            expect.stringContaining('attempts exhausted'),
+        );
+        expect(state.message.term).not.toHaveBeenCalled();
+        terminalWrite.resolve();
+        await stopping;
+        expect(state.message.term).toHaveBeenCalledOnce();
+        expect(state.message.nak).not.toHaveBeenCalled();
+        expect(state.releaseQueryExecution).not.toHaveBeenCalled();
+        state.finish.resolve();
+        await flush();
+        expect(state.message.ack).not.toHaveBeenCalled();
+    });
+
+    it('terminates an exhausted shutdown delivery when the row was cancelled', async () => {
+        vi.useFakeTimers();
+        const state = setup();
+        Object.assign(state.message.info, { deliveryCount: 5 });
+        state.failUnfinishedQueryDelivery.mockRejectedValueOnce(
+            new QueryExecutionOwnershipLostError(),
+        );
+        await state.worker.run();
+        await flush();
+        const stopping = state.worker.stop();
+        await vi.advanceTimersByTimeAsync(SHUTDOWN_GRACE_MS);
+        await stopping;
+        expect(state.message.term).toHaveBeenCalledOnce();
+        expect(state.message.nak).not.toHaveBeenCalled();
+        expect(state.releaseQueryExecution).not.toHaveBeenCalled();
+        state.finish.resolve();
+        await flush();
+    });
+
+    it('keeps the last shutdown delivery unsettled if its error cannot be stored', async () => {
+        vi.useFakeTimers();
+        const state = setup();
+        Object.assign(state.message.info, { deliveryCount: 5 });
+        state.failUnfinishedQueryDelivery.mockRejectedValueOnce(
+            new Error('database unavailable'),
+        );
+        await state.worker.run();
+        await flush();
+        const stopping = state.worker.stop();
+        await vi.advanceTimersByTimeAsync(SHUTDOWN_GRACE_MS);
+        await stopping;
+        expect(state.message.term).not.toHaveBeenCalled();
+        expect(state.message.nak).not.toHaveBeenCalled();
+        expect(state.releaseQueryExecution).not.toHaveBeenCalled();
+        state.finish.resolve();
+        await flush();
+        expect(state.message.ack).not.toHaveBeenCalled();
+    });
+
+    it('fails a last delivery from a pull that resolves after shutdown', async () => {
+        vi.useFakeTimers();
+        const state = setup();
+        Object.assign(state.message.info, { deliveryCount: 5 });
+        const delivered = deferred();
+        state.fetch.mockImplementationOnce(async () => {
+            await delivered.promise;
+            return {
+                close: state.close,
+                async *[Symbol.asyncIterator]() {
+                    yield state.message;
+                },
+            };
+        });
+        await state.worker.run();
+        await flush();
+        const stopping = state.worker.stop();
+        await vi.advanceTimersByTimeAsync(SHUTDOWN_GRACE_MS);
+        await stopping;
+        delivered.resolve();
+        await flush();
+        expect(
+            state.failUnfinishedQueryDelivery,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'query',
+            expect.stringContaining('attempts exhausted'),
+        );
+        expect(state.message.term).toHaveBeenCalledOnce();
+        expect(state.message.nak).not.toHaveBeenCalled();
+        expect(state.runQuery).not.toHaveBeenCalled();
+    });
+
+    it('fails the last delivery after database recovery before terminating', async () => {
+        vi.useFakeTimers();
+        const state = setup();
+        Object.assign(state.message.info, { deliveryCount: 5 });
+        state.runQuery.mockImplementationOnce(async () => {
+            state.healthy.mockResolvedValue(false);
+            throw new Error('connection closed');
+        });
+        await state.worker.run();
+        await flush();
+        await vi.advanceTimersByTimeAsync(60_000);
+        expect(state.message.working).toHaveBeenCalled();
+        expect(state.failUnfinishedQueryDelivery).not.toHaveBeenCalled();
+        expect(state.message.nak).not.toHaveBeenCalled();
+        state.healthy.mockResolvedValue(true);
+        await vi.advanceTimersByTimeAsync(1000);
+        await flush();
+        expect(
+            state.failUnfinishedQueryDelivery,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'query',
+            expect.stringContaining('attempts exhausted'),
+        );
+        expect(state.message.term).toHaveBeenCalledOnce();
+        expect(state.message.nak).not.toHaveBeenCalled();
+        expect(state.releaseQueryExecution).not.toHaveBeenCalled();
+        await state.worker.stop();
+    });
+
     it('releases the persisted claim before returning the delivery', async () => {
         vi.useFakeTimers();
         const state = setup();

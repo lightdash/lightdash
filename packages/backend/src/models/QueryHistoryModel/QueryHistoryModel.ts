@@ -73,6 +73,13 @@ export type QueryExecutionOwnership = {
     pendingClaim: Promise<number> | null;
 };
 
+export class QueryExecutionOwnershipLostError extends Error {
+    constructor() {
+        super('Query execution ownership lost');
+        this.name = 'QueryExecutionOwnershipLostError';
+    }
+}
+
 const queryExecutionOwnership =
     new AsyncLocalStorage<QueryExecutionOwnership>();
 
@@ -239,7 +246,7 @@ export class QueryHistoryModel {
             updated === 0 &&
             QueryHistoryModel.getQueryExecution(queryUuid)?.claimedAt
         ) {
-            throw new Error('Query execution ownership lost');
+            throw new QueryExecutionOwnershipLostError();
         }
         return updated;
     }

@@ -5,12 +5,20 @@ import {
     type QueryResultProducer,
 } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
+import { StringCodec, type JsMsg } from 'nats';
 import { randomUUID } from 'node:crypto';
 import { buildAccount } from '../../auth/account/account.mock';
+import { type NatsClient } from '../../clients/NatsClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type DbQueryHistory } from '../../database/entities/queryHistory';
 import { CommercialCacheService } from '../../ee/services/CommercialCacheService';
-import { QueryHistoryModel } from './QueryHistoryModel';
+import { STREAM_CONFIGS } from '../../nats/natsConfig';
+import { NatsWorker } from '../../nats/NatsWorker';
+import { type AsyncQueryService } from '../../services/AsyncQueryService/AsyncQueryService';
+import {
+    QueryExecutionOwnershipLostError,
+    QueryHistoryModel,
+} from './QueryHistoryModel';
 
 describe('QueryHistoryModel (PostgreSQL)', () => {
     let database: Knex;
@@ -220,6 +228,124 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
             duckdb_execution: null,
         });
     });
+
+    it('rejects an exhausted owner write after cancellation without changing the stored row', async () => {
+        const queryUuid = await insert({ status: QueryHistoryStatus.QUEUED });
+        const ownership = QueryHistoryModel.createQueryExecution(
+            queryUuid,
+            new AbortController().signal,
+        );
+        await QueryHistoryModel.withQueryExecution(ownership, () =>
+            model.updateStatusToExecuting(queryUuid),
+        );
+        await tx('query_history')
+            .where('query_uuid', queryUuid)
+            .update({ status: QueryHistoryStatus.CANCELLED });
+        const cancelledRow = await tx('query_history')
+            .where('query_uuid', queryUuid)
+            .first();
+        await expect(
+            QueryHistoryModel.withQueryExecution(ownership, () =>
+                model.failUnfinishedQueryDelivery(queryUuid, 'exhausted'),
+            ),
+        ).rejects.toBeInstanceOf(QueryExecutionOwnershipLostError);
+        expect(
+            await tx('query_history').where('query_uuid', queryUuid).first(),
+        ).toEqual(cancelledRow);
+    });
+
+    it.each(['shutdown', 'database recovery'])(
+        'stores ERROR on the last delivery during %s without releasing the claim',
+        async (reason) => {
+            const queryUuid = await insert({
+                status: QueryHistoryStatus.QUEUED,
+            });
+            const message = {
+                subject: STREAM_CONFIGS.warehouse.subjects.query,
+                data: StringCodec().encode(
+                    JSON.stringify({ jobId: 'job', payload: { queryUuid } }),
+                ),
+                info: { deliveryCount: 5 },
+                ack: vi.fn(),
+                nak: vi.fn(),
+                term: vi.fn(),
+                working: vi.fn(),
+            } as unknown as JsMsg;
+            let claimFinished!: () => void;
+            const claimed = new Promise<void>((resolve) => {
+                claimFinished = resolve;
+            });
+            let finishRunner!: () => void;
+            const finished = new Promise<void>((resolve) => {
+                finishRunner = resolve;
+            });
+            const healthy = vi.fn().mockResolvedValue(true);
+            if (reason === 'database recovery') {
+                healthy
+                    .mockResolvedValueOnce(true)
+                    .mockResolvedValueOnce(false);
+            }
+            const read = vi
+                .spyOn(model, 'getByQueryUuid')
+                .mockResolvedValue(undefined);
+            const release = vi.spyOn(model, 'releaseQueryExecution');
+            const worker = new NatsWorker({
+                natsClient: {} as NatsClient,
+                queryHistoryModel: model,
+                asyncQueryService: {
+                    runAsyncWarehouseQueryFromHistory: async () => {
+                        expect(
+                            await model.updateStatusToExecuting(queryUuid),
+                        ).toBe(1);
+                        claimFinished();
+                        if (reason === 'database recovery')
+                            throw new Error('connection closed');
+                        await finished;
+                        await model.updateClaimedQueryToError(
+                            queryUuid,
+                            'late runner',
+                        );
+                        return true;
+                    },
+                } as unknown as AsyncQueryService,
+                streams: [],
+                workerConcurrency: 1,
+                isDatabaseHealthy: healthy,
+            });
+            const handling = worker.handleMessage(message);
+            try {
+                await claimed;
+                if (reason === 'shutdown') await worker.stop();
+                else await handling;
+                const failedRow = await tx('query_history')
+                    .where('query_uuid', queryUuid)
+                    .first();
+                expect(failedRow).toMatchObject({
+                    status: QueryHistoryStatus.ERROR,
+                    error: expect.stringContaining('attempts exhausted'),
+                    processing_started_at: expect.any(Date),
+                    errored_at: expect.any(Date),
+                });
+                expect(message.term).toHaveBeenCalledOnce();
+                expect(message.nak).not.toHaveBeenCalled();
+                expect(release).not.toHaveBeenCalled();
+                finishRunner();
+                await handling;
+                expect(
+                    await tx('query_history')
+                        .where('query_uuid', queryUuid)
+                        .first(),
+                ).toEqual(failedRow);
+                expect(message.ack).not.toHaveBeenCalled();
+            } finally {
+                finishRunner();
+                await handling;
+                await worker.stop();
+                read.mockRestore();
+                release.mockRestore();
+            }
+        },
+    );
 
     it('cancels running legs and leaves finished ones', async () => {
         const executing = await insert();
