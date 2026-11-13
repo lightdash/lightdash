@@ -10,7 +10,9 @@ import {
     Code,
     Group,
     Loader,
+    Popover,
     Progress,
+    RingProgress,
     ScrollArea,
     Stack,
     Table,
@@ -18,7 +20,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { IconDatabase, IconTrash } from '@tabler/icons-react';
+import { IconDatabase, IconHistory, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -107,8 +109,20 @@ const KeyDetail: FC<{
     projectUuid: string;
     appUuid: string;
     entry: AppStateAdminSharedKey;
-    onClear: () => void;
-}> = ({ projectUuid, appUuid, entry, onClear }) => {
+    isClearing: boolean;
+    onClear: (onDone: () => void) => void;
+    showHistory: boolean;
+    onToggleHistory: () => void;
+}> = ({
+    projectUuid,
+    appUuid,
+    entry,
+    isClearing,
+    onClear,
+    showHistory,
+    onToggleHistory,
+}) => {
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const {
         data,
         isInitialLoading,
@@ -122,75 +136,158 @@ const KeyDetail: FC<{
 
     const versions = data?.pages.flatMap((page) => page.versions) ?? [];
     const selected =
-        versions.find((v) => v.version === selectedVersion) ?? versions[0];
+        (showHistory
+            ? versions.find((v) => v.version === selectedVersion)
+            : undefined) ?? versions[0];
 
     return (
         <Stack gap={0} className={classes.detail}>
             <Group justify="space-between" p="xs" wrap="nowrap">
-                <Stack gap={2} miw={0}>
-                    <Text size="sm" ff="monospace" fw={600} truncate="end">
-                        {entry.key}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                        {formatBytes(entry.valueBytes)} of{' '}
-                        {formatBytes(APP_STATE_MAX_VALUE_BYTES)} max · last
-                        updated by {entry.updatedBy?.name ?? 'Unknown'}{' '}
-                        <TimeAgo date={entry.updatedAt} />
-                    </Text>
-                </Stack>
-                <Button
-                    size="compact-xs"
-                    color="red"
-                    variant="subtle"
-                    className={classes.clearButton}
-                    leftSection={<MantineIcon icon={IconTrash} size={12} />}
-                    onClick={onClear}
-                >
-                    Clear
-                </Button>
+                <Group gap="xs" wrap="nowrap" miw={0}>
+                    <Tooltip
+                        label={`${formatBytes(entry.valueBytes)} of ${formatBytes(
+                            APP_STATE_MAX_VALUE_BYTES,
+                        )} max`}
+                    >
+                        <RingProgress
+                            size={36}
+                            thickness={4}
+                            roundCaps
+                            className={classes.sizeRing}
+                            sections={[
+                                {
+                                    value: Math.min(
+                                        (entry.valueBytes /
+                                            APP_STATE_MAX_VALUE_BYTES) *
+                                            100,
+                                        100,
+                                    ),
+                                    color: 'violet',
+                                },
+                            ]}
+                        />
+                    </Tooltip>
+                    <Stack gap={2} miw={0}>
+                        <Text size="sm" ff="monospace" fw={600} truncate="end">
+                            {entry.key}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                            Last updated by {entry.updatedBy?.name ?? 'Unknown'}{' '}
+                            <TimeAgo date={entry.updatedAt} />
+                        </Text>
+                    </Stack>
+                </Group>
+                <Group gap={4} wrap="nowrap" className={classes.headerActions}>
+                    <Button
+                        size="compact-xs"
+                        color="gray"
+                        variant="subtle"
+                        leftSection={
+                            <MantineIcon icon={IconHistory} size={12} />
+                        }
+                        onClick={onToggleHistory}
+                    >
+                        {showHistory ? 'Hide history' : 'Show history'}
+                    </Button>
+                    <Popover
+                        opened={isConfirmOpen}
+                        onChange={setIsConfirmOpen}
+                        position="bottom-end"
+                        width={240}
+                        withArrow
+                        shadow="md"
+                    >
+                        <Popover.Target>
+                            <Button
+                                size="compact-xs"
+                                color="red"
+                                variant="subtle"
+                                leftSection={
+                                    <MantineIcon icon={IconTrash} size={12} />
+                                }
+                                onClick={() => setIsConfirmOpen((o) => !o)}
+                            >
+                                Clear
+                            </Button>
+                        </Popover.Target>
+                        <Popover.Dropdown p="sm">
+                            <Stack gap="sm">
+                                <Text size="xs">
+                                    Clear this value for every viewer? History
+                                    is kept.
+                                </Text>
+                                <Group gap="xs" justify="flex-end">
+                                    <Button
+                                        size="compact-xs"
+                                        variant="default"
+                                        onClick={() => setIsConfirmOpen(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        size="compact-xs"
+                                        color="red"
+                                        loading={isClearing}
+                                        onClick={() =>
+                                            onClear(() =>
+                                                setIsConfirmOpen(false),
+                                            )
+                                        }
+                                    >
+                                        Clear
+                                    </Button>
+                                </Group>
+                            </Stack>
+                        </Popover.Dropdown>
+                    </Popover>
+                </Group>
             </Group>
             <div className={classes.detailBody}>
-                <ScrollArea className={classes.versionList}>
-                    {versions.map((version) => (
-                        <UnstyledButton
-                            key={version.version}
-                            className={
-                                version.version === selected?.version
-                                    ? `${classes.versionItem} ${classes.versionItemSelected}`
-                                    : classes.versionItem
-                            }
-                            onClick={() => setSelectedVersion(version.version)}
-                        >
-                            <Group gap={4}>
-                                <Text size="xs" fw={600}>
-                                    v{version.version}
-                                </Text>
-                                {version.version === entry.version && (
-                                    <Text size="xs" c="violet">
-                                        current
+                {showHistory && (
+                    <ScrollArea className={classes.versionList}>
+                        {versions.map((version) => (
+                            <UnstyledButton
+                                key={version.version}
+                                className={
+                                    version.version === selected?.version
+                                        ? `${classes.versionItem} ${classes.versionItemSelected}`
+                                        : classes.versionItem
+                                }
+                                onClick={() =>
+                                    setSelectedVersion(version.version)
+                                }
+                            >
+                                <Group gap={4}>
+                                    <Text size="xs" fw={600}>
+                                        v{version.version}
                                     </Text>
-                                )}
-                            </Group>
-                            <Text size="xs" c="dimmed" truncate="end">
-                                {historyAuthorName(version)}
-                            </Text>
-                            <TimeAgo date={version.createdAt} />
-                        </UnstyledButton>
-                    ))}
-                    {hasNextPage && (
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            color="gray"
-                            fullWidth
-                            my={4}
-                            loading={isFetchingNextPage}
-                            onClick={() => fetchNextPage()}
-                        >
-                            Load older
-                        </Button>
-                    )}
-                </ScrollArea>
+                                    {version.version === entry.version && (
+                                        <Text size="xs" c="violet">
+                                            current
+                                        </Text>
+                                    )}
+                                </Group>
+                                <Text size="xs" c="dimmed" truncate="end">
+                                    {historyAuthorName(version)}
+                                </Text>
+                                <TimeAgo date={version.createdAt} />
+                            </UnstyledButton>
+                        ))}
+                        {hasNextPage && (
+                            <Button
+                                size="compact-xs"
+                                variant="subtle"
+                                color="gray"
+                                fullWidth
+                                my={4}
+                                loading={isFetchingNextPage}
+                                onClick={() => fetchNextPage()}
+                            >
+                                Load older
+                            </Button>
+                        )}
+                    </ScrollArea>
+                )}
                 <ScrollArea className={classes.valuePane} p="xs">
                     {isInitialLoading && (
                         <Group justify="center" py="md">
@@ -212,7 +309,6 @@ const KeyDetail: FC<{
 type Props = {
     projectUuid: string;
     appUuid: string;
-    appName: string;
     opened: boolean;
     onClose: () => void;
 };
@@ -221,12 +317,11 @@ type Props = {
  * The "App state" panel of the app's manage surface: a browser over the
  * values the app has saved. Shared values (one per key, visible to every
  * viewer) are listed with their version history; per-user values are private
- * to each person, so only their volume is shown.
+ * to each person and never shown.
  */
 export const AppStateModal: FC<Props> = ({
     projectUuid,
     appUuid,
-    appName,
     opened,
     onClose,
 }) => {
@@ -240,7 +335,7 @@ export const AppStateModal: FC<Props> = ({
         appUuid,
     );
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
-    const [clearCandidate, setClearCandidate] = useState<string | null>(null);
+    const [showHistory, setShowHistory] = useState(false);
 
     const isEmpty =
         data && data.shared.length === 0 && data.user.keyCount === 0;
@@ -252,192 +347,141 @@ export const AppStateModal: FC<Props> = ({
         data?.shared.reduce((sum, entry) => sum + entry.valueBytes, 0) ?? 0;
 
     return (
-        <>
-            <MantineModal
-                opened={opened}
-                onClose={onClose}
-                title="App state"
-                subtitle={
-                    <>
-                        Values this app has saved. Shared values are visible to
-                        every viewer; per-user values are private to each
-                        person.{' '}
-                        <Anchor
-                            href="https://docs.lightdash.com/data-apps/saved-app-state"
-                            target="_blank"
-                            fz="inherit"
-                        >
-                            Learn more
-                        </Anchor>
-                    </>
-                }
-                icon={IconDatabase}
-                size={960}
-                cancelLabel={false}
-            >
-                {isInitialLoading && (
-                    <Group justify="center" py="md">
-                        <Loader size="sm" />
-                    </Group>
-                )}
-                {error && (
-                    <Text size="sm" c="red">
-                        {error.error.message}
-                    </Text>
-                )}
-                {isEmpty && (
-                    <Text size="sm" c="dimmed">
-                        This app hasn't saved any state yet. When it does,
-                        shared values and their history show up here.
-                    </Text>
-                )}
-                {data && !isEmpty && (
-                    <Stack gap="sm">
-                        {data.shared.length > 0 ? (
-                            <div className={classes.browser}>
-                                <ScrollArea className={classes.keyList}>
-                                    {data.shared.map((entry) => {
-                                        const isSelected =
-                                            entry.key === selectedEntry?.key;
-                                        return (
-                                            <UnstyledButton
-                                                key={entry.key}
-                                                className={
-                                                    isSelected
-                                                        ? `${classes.keyItem} ${classes.keyItemSelected}`
-                                                        : classes.keyItem
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title="App state"
+            subtitle={
+                <>
+                    Values this app has saved. Shared values are visible to
+                    every viewer; per-user values are private to each person.{' '}
+                    <Anchor
+                        href="https://docs.lightdash.com/data-apps/saved-app-state"
+                        target="_blank"
+                        fz="inherit"
+                    >
+                        Learn more
+                    </Anchor>
+                </>
+            }
+            icon={IconDatabase}
+            size={960}
+            cancelLabel={false}
+        >
+            {isInitialLoading && (
+                <Group justify="center" py="md">
+                    <Loader size="sm" />
+                </Group>
+            )}
+            {error && (
+                <Text size="sm" c="red">
+                    {error.error.message}
+                </Text>
+            )}
+            {isEmpty && (
+                <Text size="sm" c="dimmed">
+                    This app hasn't saved any state yet. When it does, shared
+                    values and their history show up here.
+                </Text>
+            )}
+            {data && !isEmpty && (
+                <Stack gap="sm">
+                    {data.shared.length > 0 ? (
+                        <div className={classes.browser}>
+                            <ScrollArea className={classes.keyList}>
+                                {data.shared.map((entry) => {
+                                    const isSelected =
+                                        entry.key === selectedEntry?.key;
+                                    return (
+                                        <UnstyledButton
+                                            key={entry.key}
+                                            className={
+                                                isSelected
+                                                    ? `${classes.keyItem} ${classes.keyItemSelected}`
+                                                    : classes.keyItem
+                                            }
+                                            onClick={() =>
+                                                setSelectedKey(entry.key)
+                                            }
+                                        >
+                                            <Text
+                                                size="xs"
+                                                ff="monospace"
+                                                fw={
+                                                    isSelected ? 600 : undefined
                                                 }
-                                                onClick={() =>
-                                                    setSelectedKey(entry.key)
-                                                }
+                                                truncate="end"
                                             >
-                                                <Text
-                                                    size="xs"
-                                                    ff="monospace"
-                                                    fw={
-                                                        isSelected
-                                                            ? 600
-                                                            : undefined
-                                                    }
-                                                    truncate="end"
-                                                >
-                                                    {entry.key}
-                                                </Text>
-                                                <Text size="xs" c="dimmed">
-                                                    {formatBytes(
-                                                        entry.valueBytes,
-                                                    )}{' '}
-                                                    · v{entry.version} ·{' '}
-                                                    <TimeAgo
-                                                        date={entry.updatedAt}
-                                                    />
-                                                </Text>
-                                            </UnstyledButton>
-                                        );
-                                    })}
-                                </ScrollArea>
-                                {selectedEntry && (
-                                    <KeyDetail
-                                        key={selectedEntry.key}
-                                        projectUuid={projectUuid}
-                                        appUuid={appUuid}
-                                        entry={selectedEntry}
-                                        onClear={() =>
-                                            setClearCandidate(selectedEntry.key)
-                                        }
-                                    />
-                                )}
-                            </div>
-                        ) : (
-                            <Text size="sm" c="dimmed">
-                                No shared values saved yet.
-                            </Text>
-                        )}
-                        <Group gap="xl" align="flex-start">
-                            <Stack gap={2} flex={1}>
-                                <Group justify="space-between">
-                                    <Text size="xs" fw={500}>
-                                        Shared storage
-                                    </Text>
-                                    <Text size="xs" c="dimmed">
-                                        {data.shared.length} of{' '}
-                                        {APP_STATE_MAX_KEYS_PER_SCOPE} keys ·{' '}
-                                        {formatBytes(totalSharedBytes)}
-                                    </Text>
-                                </Group>
-                                <Progress
-                                    size="xs"
-                                    color="violet"
-                                    value={
-                                        (data.shared.length /
-                                            APP_STATE_MAX_KEYS_PER_SCOPE) *
-                                        100
+                                                {entry.key}
+                                            </Text>
+                                            <Text size="xs" c="dimmed">
+                                                {formatBytes(entry.valueBytes)}{' '}
+                                                · v{entry.version} ·{' '}
+                                                <TimeAgo
+                                                    date={entry.updatedAt}
+                                                />
+                                            </Text>
+                                        </UnstyledButton>
+                                    );
+                                })}
+                            </ScrollArea>
+                            {selectedEntry && (
+                                <KeyDetail
+                                    key={selectedEntry.key}
+                                    projectUuid={projectUuid}
+                                    appUuid={appUuid}
+                                    entry={selectedEntry}
+                                    isClearing={isClearing}
+                                    showHistory={showHistory}
+                                    onToggleHistory={() =>
+                                        setShowHistory((v) => !v)
+                                    }
+                                    onClear={(onDone) =>
+                                        clearKey(
+                                            { key: selectedEntry.key },
+                                            {
+                                                onSuccess: () => {
+                                                    onDone();
+                                                    setSelectedKey(null);
+                                                },
+                                            },
+                                        )
                                     }
                                 />
-                                <Text size="xs" c="dimmed">
-                                    Each value can hold up to{' '}
-                                    {formatBytes(APP_STATE_MAX_VALUE_BYTES)}.
-                                </Text>
-                            </Stack>
-                            <Stack gap={2} flex={1}>
-                                <Text size="xs" fw={500}>
-                                    Per-user storage
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                    {data.user.keyCount === 0
-                                        ? 'No per-user values saved yet.'
-                                        : `${data.user.keyCount} ${
-                                              data.user.keyCount === 1
-                                                  ? 'value'
-                                                  : 'values'
-                                          } across ${data.user.userCount} ${
-                                              data.user.userCount === 1
-                                                  ? 'person'
-                                                  : 'people'
-                                          }, up to ${APP_STATE_MAX_KEYS_PER_SCOPE} keys each.`}{' '}
-                                    Per-user values are private and never shown
-                                    here.
-                                </Text>
-                            </Stack>
+                            )}
+                        </div>
+                    ) : (
+                        <Text size="sm" c="dimmed">
+                            No shared values saved yet.
+                        </Text>
+                    )}
+                    <Stack gap={2}>
+                        <Group justify="space-between">
+                            <Text size="xs" fw={500}>
+                                Shared storage
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                                {data.shared.length} of{' '}
+                                {APP_STATE_MAX_KEYS_PER_SCOPE} keys ·{' '}
+                                {formatBytes(totalSharedBytes)}
+                            </Text>
                         </Group>
+                        <Progress
+                            size="xs"
+                            color="violet"
+                            value={
+                                (data.shared.length /
+                                    APP_STATE_MAX_KEYS_PER_SCOPE) *
+                                100
+                            }
+                        />
+                        <Text size="xs" c="dimmed">
+                            Each value can hold up to{' '}
+                            {formatBytes(APP_STATE_MAX_VALUE_BYTES)}.
+                        </Text>
                     </Stack>
-                )}
-            </MantineModal>
-            {clearCandidate !== null && (
-                <MantineModal
-                    opened
-                    onClose={() => setClearCandidate(null)}
-                    title="Clear shared key"
-                    icon={IconTrash}
-                    variant="delete"
-                    size="sm"
-                    confirmLabel="Clear"
-                    confirmLoading={isClearing}
-                    onConfirm={() =>
-                        clearKey(
-                            { key: clearCandidate },
-                            {
-                                onSuccess: () => {
-                                    setClearCandidate(null);
-                                    setSelectedKey((prev) =>
-                                        prev === clearCandidate ? null : prev,
-                                    );
-                                },
-                            },
-                        )
-                    }
-                >
-                    <Text size="sm">
-                        Clear{' '}
-                        <Text span ff="monospace" fw={600}>
-                            {clearCandidate}
-                        </Text>{' '}
-                        from {appName}? Every viewer loses this value. Its
-                        history is kept, so versions keep counting if the app
-                        recreates it.
-                    </Text>
-                </MantineModal>
+                </Stack>
             )}
-        </>
+        </MantineModal>
     );
 };
