@@ -1,6 +1,7 @@
 import { DefaultSupportedDbtVersion, ProjectType } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
+import { down as downSavedComposerChartLink } from '../../../ee/database/migrations/20261113150000_add_saved_composer_chart_to_ai_artifact_versions';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
@@ -277,6 +278,8 @@ describe('composer charts migration on the real schema', () => {
                 width: 6,
             });
 
+            // Later migrations roll back first; this one drops the AI answer link's FK.
+            await downSavedComposerChartLink(trx);
             await down(trx);
 
             expect(
