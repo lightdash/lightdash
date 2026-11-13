@@ -33,28 +33,23 @@ export const semanticUsageColumns: CompactedStreamColumn[] = [
     { name: 'cache_hit', type: 'BOOLEAN' },
 ];
 
-// Rank only duplicate identities so unique events stream their wide JSON.
-// Inline the key lookup so joined charts can prune unused lineage columns.
-// Null-field rows retain unavailable lineage; distinct metrics stay non-additive.
+// Keep deduplication joins key-only and rank duplicates; distinct metrics stay non-additive.
+// Side-by-side unnest pads only empty/null lineage to one row without parsing JSON twice.
 export const semanticUsageSql = `(WITH duplicate_query_ids AS NOT MATERIALIZED (
     SELECT org_id, query_id FROM query_events
     GROUP BY org_id, query_id HAVING COUNT(*) > 1
 ), queries AS (
-    SELECT * FROM query_events q
-    WHERE NOT EXISTS (
-        SELECT 1 FROM duplicate_query_ids d
-        WHERE d.org_id IS NOT DISTINCT FROM q.org_id
-          AND d.query_id IS NOT DISTINCT FROM q.query_id
-    )
+    SELECT q.* FROM query_events q
+    ANTI JOIN duplicate_query_ids d
+        ON d.org_id IS NOT DISTINCT FROM q.org_id
+       AND d.query_id IS NOT DISTINCT FROM q.query_id
     UNION ALL
-    SELECT * FROM query_events q
-    WHERE EXISTS (
-        SELECT 1 FROM duplicate_query_ids d
-        WHERE d.org_id IS NOT DISTINCT FROM q.org_id
-          AND d.query_id IS NOT DISTINCT FROM q.query_id
-    )
+    SELECT q.* FROM query_events q
+    SEMI JOIN duplicate_query_ids d
+        ON d.org_id IS NOT DISTINCT FROM q.org_id
+       AND d.query_id IS NOT DISTINCT FROM q.query_id
     QUALIFY ROW_NUMBER() OVER (
-        PARTITION BY org_id, query_id ORDER BY event_ts DESC
+        PARTITION BY q.org_id, q.query_id ORDER BY q.event_ts DESC
     ) = 1
 ), field_references AS (
     SELECT q.org_id, q.project_id, q.user_id, q.query_id, q.event_ts,
@@ -71,10 +66,11 @@ export const semanticUsageSql = `(WITH duplicate_query_ids AS NOT MATERIALIZED (
         q.field_reference.definitionHash AS definition_hash,
         q.field_reference.role AS role
     FROM (
-        SELECT *, unnest(COALESCE(NULLIF(TRY(from_json(semantic_field_references,
+        SELECT *, unnest(TRY(from_json(semantic_field_references,
             '[{"fieldId":"VARCHAR","fieldName":"VARCHAR","fieldLabel":"VARCHAR",
               "tableName":"VARCHAR","fieldKind":"VARCHAR","fieldOrigin":"VARCHAR",
-              "definitionHash":"VARCHAR","role":"VARCHAR"}]')), []), [NULL])) AS field_reference
+              "definitionHash":"VARCHAR","role":"VARCHAR"}]'))) AS field_reference,
+            unnest([NULL]) AS retain_query
         FROM queries
     ) q
 )
