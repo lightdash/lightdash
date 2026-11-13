@@ -1,3 +1,10 @@
+## [3.240.5](https://github.com/lightdash/lightdash/compare/3.240.4...3.240.5) (2026-11-13)
+
+
+### Bug Fixes
+
+* retry initial analytics processing when recreating a project ([#32532](https://github.com/lightdash/lightdash/issues/32532)) ([5430f6e](https://github.com/lightdash/lightdash/commit/5430f6eb82c1469b7bd537868776a18db641af4a))
+
 ## [3.240.4](https://github.com/lightdash/lightdash/compare/3.240.3...3.240.4) (2026-11-13)
 
 

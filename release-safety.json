@@ -1,31 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.240.4",
-  "previousVersion": "3.240.3",
-  "releaseDate": "2026-11-13T09:40:43.489Z",
+  "version": "3.240.5",
+  "previousVersion": "3.240.4",
+  "releaseDate": "2026-11-13T09:48:19.063Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261111120000_backfill_embed_external_user_id_on_write_space_threads.ts",
-        "edition": "ee",
-        "tables": [
-          "LATERAL",
-          "ai_prompt",
-          "ai_web_app_prompt",
-          "ai_web_app_thread",
-          "batch"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": true,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
