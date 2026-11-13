@@ -27,6 +27,7 @@ import {
     resolveDropOverlaps,
     getRowInsertion,
     getGapFill,
+    getAddTileSlot,
     getPointerCell,
     getPointerPosition,
     hasLayoutChanged,
@@ -1453,5 +1454,61 @@ describe('tidying tiles', () => {
             at('a', 0, 0, 18),
             at('b', 18, 0, 18),
         ]);
+    });
+});
+
+describe('add tile slot', () => {
+    const tile = (x: number, y: number, w: number, h: number) => ({
+        x,
+        y,
+        w,
+        h,
+    });
+    const defaultSize = { w: 15, h: 9 };
+    const slotAt = (items: ReturnType<typeof tile>[], x: number, y: number) =>
+        getAddTileSlot({
+            items,
+            cell: { x, y },
+            cols: 36,
+            minWidth: 4,
+            defaultSize,
+        });
+
+    it('takes the space left in the last row, as tall as the tiles beside it', () => {
+        const items = [tile(0, 0, 36, 4), tile(0, 4, 18, 9)];
+        expect(slotAt(items, 30, 8)).toEqual({ x: 18, y: 4, w: 18, h: 9 });
+    });
+
+    it('offers the last row gap when the pointer is under the last row', () => {
+        const items = [tile(0, 0, 36, 4), tile(0, 4, 18, 9)];
+        expect(slotAt(items, 2, 20)).toEqual({ x: 18, y: 4, w: 18, h: 9 });
+    });
+
+    it('offers the widest gap when the last row has more than one', () => {
+        const items = [tile(6, 0, 10, 6)];
+        expect(slotAt(items, 0, 12)).toEqual({ x: 16, y: 0, w: 20, h: 6 });
+    });
+
+    it('lands a default tile under a full last row, centred on the pointer and kept on the grid', () => {
+        const items = [tile(0, 0, 18, 9), tile(18, 0, 18, 9)];
+        expect(slotAt(items, 20, 12)).toEqual({ x: 13, y: 9, w: 15, h: 9 });
+        expect(slotAt(items, 2, 12)).toEqual({ x: 0, y: 9, w: 15, h: 9 });
+        expect(slotAt(items, 35, 12)).toEqual({ x: 21, y: 9, w: 15, h: 9 });
+    });
+
+    it('skips a last row gap too narrow for a tile', () => {
+        const items = [tile(0, 0, 34, 9)];
+        expect(slotAt(items, 35, 3)).toBeNull();
+        expect(slotAt(items, 35, 12)).toEqual({ x: 21, y: 9, w: 15, h: 9 });
+    });
+
+    it('leaves gaps above the last row alone', () => {
+        const items = [tile(0, 0, 12, 4), tile(0, 4, 36, 6)];
+        expect(slotAt(items, 20, 2)).toBeNull();
+    });
+
+    it('offers nothing over a tile or on an empty canvas', () => {
+        expect(slotAt([tile(0, 0, 18, 9)], 3, 3)).toBeNull();
+        expect(slotAt([], 3, 3)).toBeNull();
     });
 });

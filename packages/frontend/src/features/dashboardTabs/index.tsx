@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     copyDateZoomTileTargets,
+    DashboardTileTypes,
     FeatureFlags,
     getDefaultStartOfWeek,
     type DashboardFilterRule,
@@ -77,6 +78,7 @@ import GuidedFilterSetupOverlay from '../dashboardFilters/FilterRequirements/Gui
 import { getDateZoomSummaryLabel } from '../dateZoom/utils';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
+import { CanvasAddTile } from './CanvasAddTile';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
@@ -93,6 +95,7 @@ import {
     countResizedItems,
     withGridItem,
     getSnapTarget,
+    type GridSlot,
     GRID_DESKTOP_COLS,
     EDIT_RESIZE_HANDLES,
     DEFAULT_RESIZE_HANDLES,
@@ -797,6 +800,27 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                       gridScale,
                   ),
         [visibleTiles, isEditMode, gridScale, gridRedraw, tabsEnabled],
+    );
+
+    const activeLayout =
+        (tabsEnabled
+            ? activeTab && layoutsByTab.get(activeTab.uuid)
+            : allTilesLayouts
+        )?.lg ?? EMPTY_LAYOUTS.lg;
+
+    const handleAddTilesToSlot = useCallback(
+        (tiles: IDashboard['tiles'][number][], slot: GridSlot) => {
+            void handleAddTiles(tiles);
+            const [first] = tiles;
+            // A heading keeps its full width, so it goes under the last row
+            if (!first || first.type === DashboardTileTypes.HEADING) return;
+            setDashboardTiles((current) =>
+                current?.map((tile) =>
+                    tile.uuid === first.uuid ? { ...tile, ...slot } : tile,
+                ),
+            );
+        },
+        [handleAddTiles, setDashboardTiles],
     );
 
     const gridLineStyles = useGridStyles({
@@ -1643,6 +1667,20 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                           </ResponsiveGridLayout>
                                       </ErrorBoundary>
                                   )}
+                            {isCanvasFilled && (
+                                <CanvasAddTile
+                                    canvasRef={gridWrapperRef}
+                                    layout={activeLayout}
+                                    gridScale={gridScale}
+                                    isEnabled={
+                                        !isInteracting && settleMode === null
+                                    }
+                                    activeTabUuid={activeTab?.uuid}
+                                    dashboardTabs={dashboardTabs}
+                                    onNewChart={onNewChart}
+                                    onAddTilesToSlot={handleAddTilesToSlot}
+                                />
+                            )}
                         </div>
                     </Group>
                     {(!hasDashboardTiles || !currentTabHasTiles) && (

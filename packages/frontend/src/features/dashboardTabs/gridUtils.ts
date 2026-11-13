@@ -17,7 +17,7 @@ import { type Layout } from 'react-grid-layout';
 export const GRID_DESKTOP_COLS = 36;
 
 /** The narrowest a tile can be resized to, in stored columns */
-const MIN_TILE_COLS = 4;
+export const MIN_TILE_COLS = 4;
 
 export const GRID_BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 0 };
 type GridBreakpoint = keyof typeof GRID_BREAKPOINTS;
@@ -521,38 +521,34 @@ export const getPointerCell = ({
         ),
 });
 
+export type GridSlot = Pick<Layout, 'x' | 'y' | 'w' | 'h'>;
+
+const isOnCell = (item: GridSlot, cell: GridCell): boolean =>
+    item.x <= cell.x &&
+    cell.x < item.x + item.w &&
+    item.y <= cell.y &&
+    cell.y < item.y + item.h;
+
 /**
- * Dropping a tile on empty space fills that space: the tile stretches to the
- * tiles and grid edges around the cell. Space with nothing below it ends where
- * the tiles beside it end; with none beside it either there is no gap to fill.
+ * The empty space around a cell, out to the tiles and grid edges around it.
+ * Space with nothing below it ends where the tiles beside it end; with none
+ * beside it either there is no space to measure.
  */
-export const getGapFill = ({
-    layout,
-    draggedId,
+const getEmptySpaceAtCell = ({
+    items,
     cell,
     cols,
 }: {
-    layout: Layout[];
-    draggedId: string;
+    items: GridSlot[];
     cell: GridCell;
     cols: number;
-}): SnapPlacement | null => {
-    const dragged = layout.find((item) => item.i === draggedId);
-    if (!dragged || cell.x < 0 || cell.x >= cols || cell.y < 0) return null;
+}): GridSlot | null => {
+    if (cell.x < 0 || cell.x >= cols || cell.y < 0) return null;
+    if (items.some((item) => isOnCell(item, cell))) return null;
 
-    const isOnCell = (item: Layout) =>
-        item.x <= cell.x &&
-        cell.x < item.x + item.w &&
-        item.y <= cell.y &&
-        cell.y < item.y + item.h;
-    // Over its own place the tile is being nudged, not sent to a gap
-    if (layout.some(isOnCell)) return null;
-
-    const others = layout.filter((item) => item.i !== draggedId);
-    const onLine = others.filter(
+    const onLine = items.filter(
         (item) => item.y <= cell.y && cell.y < item.y + item.h,
     );
-
     const left = Math.max(
         0,
         ...onLine
@@ -563,7 +559,7 @@ export const getGapFill = ({
         cols,
         ...onLine.filter((item) => item.x > cell.x).map((item) => item.x),
     );
-    const inColumn = others.filter(
+    const inColumn = items.filter(
         (item) => item.x < right && item.x + item.w > left,
     );
     const top = Math.max(
@@ -580,13 +576,33 @@ export const getGapFill = ({
     ];
     if (floors.length === 0) return null;
 
-    const slot = {
-        ...dragged,
-        x: left,
-        y: top,
-        w: right - left,
-        h: Math.min(...floors) - top,
-    };
+    return { x: left, y: top, w: right - left, h: Math.min(...floors) - top };
+};
+
+/** Dropping a tile on empty space fills that space */
+export const getGapFill = ({
+    layout,
+    draggedId,
+    cell,
+    cols,
+}: {
+    layout: Layout[];
+    draggedId: string;
+    cell: GridCell;
+    cols: number;
+}): SnapPlacement | null => {
+    const dragged = layout.find((item) => item.i === draggedId);
+    // Over its own place the tile is being nudged, not sent to a gap
+    if (!dragged || isOnCell(dragged, cell)) return null;
+
+    const space = getEmptySpaceAtCell({
+        items: layout.filter((item) => item.i !== draggedId),
+        cell,
+        cols,
+    });
+    if (!space) return null;
+
+    const slot = { ...dragged, ...space };
     if (slot.w < (dragged.minW ?? 1) || slot.h < (dragged.minH ?? 1))
         return null;
 
@@ -594,6 +610,64 @@ export const getGapFill = ({
         slot,
         layout: layout.map((item) => (item.i === draggedId ? slot : item)),
     };
+};
+
+/**
+ * Where a tile added from the empty canvas under the pointer would land: the
+ * space left in the last row, as tall as the tiles beside it, else a tile of
+ * the default size under the last row, centred on the pointer.
+ */
+export const getAddTileSlot = ({
+    items,
+    cell,
+    cols,
+    minWidth,
+    defaultSize,
+}: {
+    items: GridSlot[];
+    cell: GridCell;
+    cols: number;
+    minWidth: number;
+    defaultSize: Pick<GridSlot, 'w' | 'h'>;
+}): GridSlot | null => {
+    if (items.length === 0 || cell.x < 0 || cell.x >= cols || cell.y < 0)
+        return null;
+    const bottom = Math.max(...items.map((item) => item.y + item.h));
+    const lastRow = bottom - 1;
+    const isLastRowGap = (space: GridSlot | null): space is GridSlot =>
+        space !== null && space.y + space.h === bottom && space.w >= minWidth;
+
+    if (cell.y < bottom) {
+        const space = getEmptySpaceAtCell({ items, cell, cols });
+        return isLastRowGap(space) ? space : null;
+    }
+
+    const lastRowEdges = items
+        .filter((item) => isOnCell(item, { x: item.x, y: lastRow }))
+        .map((item) => item.x + item.w);
+    const widestGap = [0, ...lastRowEdges]
+        .map((x) =>
+            getEmptySpaceAtCell({ items, cell: { x, y: lastRow }, cols }),
+        )
+        .filter(isLastRowGap)
+        .reduce<GridSlot | null>(
+            (widest, space) =>
+                widest === null || space.w > widest.w ? space : widest,
+            null,
+        );
+    return (
+        widestGap ?? {
+            x: Math.max(
+                0,
+                Math.min(
+                    cols - defaultSize.w,
+                    cell.x - Math.floor(defaultSize.w / 2),
+                ),
+            ),
+            y: bottom,
+            ...defaultSize,
+        }
+    );
 };
 
 /** The tile under the pointer, when the pointer is in one of its side zones */
