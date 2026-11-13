@@ -3,8 +3,8 @@ import {
     type ApiErrorDetail,
     type QueryHistoryStatus,
 } from '@lightdash/common';
-import { Anchor, Text } from '@mantine/core';
-import { IconTableOff } from '@tabler/icons-react';
+import { Anchor, Button, Text } from '@mantine/core';
+import { IconArrowNarrowLeft, IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
 import { Link } from 'react-router';
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
@@ -141,13 +141,13 @@ export const NoTableSelected = () => (
         maw={520}
         gap="xs"
         icon={<ExploreIdleIllustration variant="tables" />}
-        title="Select a table"
+        title="Pick a table to start"
         titleProps={{ fz: 'sm' }}
         descriptionProps={{ fz: 'xs' }}
         description={
             <>
-                To run a query, first select the table that you would like to
-                explore.{' '}
+                Choose a table from the list on the left to see its dimensions
+                and metrics.{' '}
                 <DocumentationHelpButton
                     href={ExploreDocumentationUrl}
                     pos="relative"
@@ -155,7 +155,22 @@ export const NoTableSelected = () => (
                 />
             </>
         }
-    />
+    >
+        <Button
+            size="xs"
+            variant="default"
+            leftSection={<MantineIcon icon={IconArrowNarrowLeft} />}
+            onClick={() =>
+                document
+                    .querySelector<HTMLInputElement>(
+                        '[data-tour-anchor="explore-search"]',
+                    )
+                    ?.focus()
+            }
+        >
+            Search tables
+        </Button>
+    </EmptyState>
 );
 
 export const EmptyStateExploreLoading = () => (

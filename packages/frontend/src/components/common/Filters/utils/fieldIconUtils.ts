@@ -7,7 +7,7 @@ import {
     IconCalendar,
     IconClockHour4,
     IconHash,
-    IconLetterT,
+    IconLetterCase,
     IconMathFunction,
     IconTag,
     IconToggleLeft,
@@ -43,7 +43,7 @@ export const getItemIconName = (
 };
 
 export const FIELD_ICONS = {
-    citation: IconLetterT,
+    citation: IconLetterCase,
     numerical: IconHash,
     calendar: IconCalendar,
     time: IconClockHour4,

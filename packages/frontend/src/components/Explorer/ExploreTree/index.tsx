@@ -404,6 +404,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
 
                 <VirtualizedTreeList
                     data={virtualizedTreeData}
+                    baseTableName={explore.baseTable}
                     onToggleTable={toggleTable}
                     onToggleGroup={toggleGroup}
                     onSelectedFieldChange={onSelectedFieldChange}

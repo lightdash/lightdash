@@ -1,12 +1,15 @@
 import { NavLink, Text } from '@mantine/core';
+import { IconArrowsJoin, IconTable } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
+import MantineIcon from '../../../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ItemDetailPreview';
 import type { TableHeaderItem } from './types';
 import classes from './VirtualTableHeader.module.css';
 
 interface VirtualTableHeaderProps {
     item: TableHeaderItem;
+    isJoined: boolean;
     onToggle: () => void;
 }
 
@@ -15,6 +18,7 @@ interface VirtualTableHeaderProps {
  */
 const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
     item,
+    isJoined,
     onToggle,
 }) => {
     const { table, isExpanded } = item.data;
@@ -58,6 +62,11 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
         >
             <Text truncate fz={13} fw={600}>
                 {table.label}
+                {isJoined && (
+                    <Text span fz={11} fw={400} c="dimmed" ml={6}>
+                        Joined
+                    </Text>
+                )}
             </Text>
         </TableItemDetailPreview>
     );
@@ -71,6 +80,13 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             label={label}
+            leftSection={
+                <MantineIcon
+                    icon={isJoined ? IconArrowsJoin : IconTable}
+                    size={14}
+                    color="ldGray.6"
+                />
+            }
             className={classes.stickyHeader}
         >
             {[]}

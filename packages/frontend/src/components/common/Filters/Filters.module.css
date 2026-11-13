@@ -1,7 +1,6 @@
 /* With no filters yet, the button reads as an empty slot to fill */
 .addFirstFilter {
     border: 1px dashed var(--mantine-color-ldGray-3);
-    border-radius: var(--mantine-radius-xl);
 }
 
 .raised {

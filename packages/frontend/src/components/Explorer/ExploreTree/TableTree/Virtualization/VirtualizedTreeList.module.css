@@ -1,6 +1,38 @@
-.scrollContainer {
+.root {
+    display: flex;
+    flex-direction: column;
     height: 100%;
+    min-height: 0;
+}
+
+.scrollContainer {
+    flex: 1;
+    min-height: 0;
     overflow: auto;
+}
+
+/* Joined tables sit below the base table's fields, so this row surfaces them */
+.joinedTables {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    height: 24px;
+    padding-inline: 6px;
+    margin-bottom: 2px;
+    border-radius: var(--mantine-radius-sm);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-7);
+
+    &:hover {
+        background-color: var(--mantine-color-ldGray-1);
+    }
+}
+
+.joinedTablesMenu {
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 /* The virtualizer allocates 26px per tree row. Keep v8 NavLinks inside that

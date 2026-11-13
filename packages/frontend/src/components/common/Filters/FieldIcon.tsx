@@ -25,10 +25,9 @@ const getFieldIcon = (
     if (isCustomSqlDimension(field)) {
         return getItemIconName(field.dimensionType);
     }
-    if (
-        (isField(field) && (isDimension(field) || isMetric(field))) ||
-        isTableCalculation(field)
-    ) {
+    // Table calculations keep one icon so they read apart from dimensions
+    if (isTableCalculation(field)) return 'function';
+    if (isField(field) && (isDimension(field) || isMetric(field))) {
         if (field.type) return getItemIconName(field.type);
     }
 

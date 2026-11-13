@@ -6,6 +6,8 @@ import {
     selectAdditionalMetrics,
     selectChartConfig,
     selectColumnOrder,
+    selectDimensions,
+    selectMetrics,
     selectCustomDimensions,
     selectIsEditMode,
     selectParameters,
@@ -105,8 +107,8 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     // default disables totals for the results table
     const totalsEnabledByDefault = useColumnTotalsEnabledByDefault(projectUuid);
 
-    const dimensions = query.data?.metricQuery?.dimensions ?? [];
-    const metrics = query.data?.metricQuery?.metrics ?? [];
+    const dimensions = useExplorerSelector(selectDimensions);
+    const metrics = useExplorerSelector(selectMetrics);
     const explorerColumnOrder = useExplorerSelector(selectColumnOrder);
     const resultsColumnOrder = mergeResults
         ? resolveMergeColumnOrder(mergeResults.columnOrder, explorerColumnOrder)
@@ -450,7 +452,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                     <Text span c="blue.9" fw="bold">
                         dimensions
                     </Text>{' '}
-                    to split your selected metric by.
+                    to split your selected metrics by.
                 </>
             ) : metrics.length <= 0 ? (
                 <>

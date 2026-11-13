@@ -8,6 +8,7 @@ import VirtualTreeNode from './VirtualTreeNode';
 
 interface VirtualTreeItemProps {
     item: FlattenedItem;
+    isJoinedTable: boolean;
     sectionContexts: Map<string, SectionContext>;
     onToggleTable: (tableName: string) => void;
     onToggleGroup: (groupKey: string) => void;
@@ -20,6 +21,7 @@ interface VirtualTreeItemProps {
  */
 const VirtualTreeItemComponent: FC<VirtualTreeItemProps> = ({
     item,
+    isJoinedTable,
     sectionContexts,
     onToggleTable,
     onToggleGroup,
@@ -30,6 +32,7 @@ const VirtualTreeItemComponent: FC<VirtualTreeItemProps> = ({
             return (
                 <VirtualTableHeader
                     item={item}
+                    isJoined={isJoinedTable}
                     onToggle={() => onToggleTable(item.data.table.name)}
                 />
             );
