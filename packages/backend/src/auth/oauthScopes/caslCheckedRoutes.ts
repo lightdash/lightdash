@@ -177,6 +177,8 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'CommentsController.createComment',
     'CommentsController.getComments',
     'CommentsController.resolveComment',
+    'ComposerChartController.create',
+    'ComposerChartController.get',
     'ContentController.listDeletedContent',
     'ContentReviewRequestController.findSimilar',
     'ContentReviewRequestController.get',

@@ -16,6 +16,7 @@ import { AppModel } from './AppModel';
 import { AwsWebIdentityAudienceModel } from './AwsWebIdentityAudienceModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
+import { ComposerChartModel } from './ComposerChartModel';
 import { ContentAsCodeProjectSettingsModel } from './ContentAsCodeProjectSettingsModel';
 import { ContentAsCodeSnapshotModel } from './ContentAsCodeSnapshotModel';
 import { ContentAsCodeWritebackModel } from './ContentAsCodeWritebackModel';
@@ -214,6 +215,7 @@ export type ModelManifest = {
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
+    composerChartModel: ComposerChartModel;
     contentModel: ContentModel;
     contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
@@ -1174,6 +1176,13 @@ export class ModelRepository
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
                 }),
+        );
+    }
+
+    public getComposerChartModel(): ComposerChartModel {
+        return this.getModel(
+            'composerChartModel',
+            () => new ComposerChartModel({ database: this.database }),
         );
     }
 

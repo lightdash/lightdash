@@ -37,6 +37,7 @@ export const OAUTH_OPERATIONS: Partial<
     ChangeCsvResults: OAUTH_ACTIONS,
     CompileProject: OAUTH_ACTIONS,
     CompiledSql: ['view'],
+    ComposerChart: OAUTH_ACTIONS,
     ContentAsCode: OAUTH_ACTIONS,
     ContentVerification: OAUTH_ACTIONS,
     CustomFields: OAUTH_ACTIONS,

@@ -7,6 +7,7 @@ import {
 import { Knex } from 'knex';
 import { AppsTableName } from '../database/entities/apps';
 import { AppSlugMappingsTableName } from '../database/entities/appSlugMappings';
+import { ComposerChartsTableName } from '../database/entities/composerCharts';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { DashboardSlugMappingsTableName } from '../database/entities/dashboardSlugMappings';
 import { DocumentsTableName } from '../database/entities/documents';
@@ -21,7 +22,8 @@ type ProjectUuidSlugTable =
     | typeof AppsTableName
     | typeof SavedChartsTableName
     | typeof SavedSqlTableName
-    | typeof DashboardsTableName;
+    | typeof DashboardsTableName
+    | typeof ComposerChartsTableName;
 
 type SlugTable = ProjectUuidSlugTable | typeof SpaceTableName;
 
@@ -52,6 +54,7 @@ const getSlugCandidate = (
         case DashboardsTableName:
         case DocumentsTableName:
         case SavedSqlTableName:
+        case ComposerChartsTableName:
         case SpaceTableName:
             return `${truncateSlug(
                 baseSlug,

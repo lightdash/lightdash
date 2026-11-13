@@ -83,6 +83,8 @@ import {
 import {
     ComposerChartsTable,
     ComposerChartsTableName,
+    ComposerChartVersionsTable,
+    ComposerChartVersionsTableName,
     DashboardTileComposerChartsTable,
     DashboardTileComposerChartsTableName,
 } from '../database/entities/composerCharts';
@@ -911,6 +913,7 @@ declare module 'knex/types/tables' {
         [DashboardTileDataAppsTableName]: DashboardTileDataAppsTable;
         [DashboardTileComposerChartsTableName]: DashboardTileComposerChartsTable;
         [ComposerChartsTableName]: ComposerChartsTable;
+        [ComposerChartVersionsTableName]: ComposerChartVersionsTable;
         [OnboardingTableName]: OnboardingTable;
         [OpenIdIdentitiesTableName]: OpenIdIdentitiesTable;
         [OrganizationMembershipsTableName]: OrganizationMembershipsTable;

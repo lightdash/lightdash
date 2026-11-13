@@ -84,14 +84,16 @@ export const insertComposerChartTiles = async (
         .whereIn('composer_chart_uuid', chartUuids)
         .whereNull('deleted_at')
         .whereIn(
-            'project_uuid',
+            'dashboard_uuid',
             trx(DashboardsTableName)
-                .select('project_uuid')
+                .select('dashboard_uuid')
                 .where('dashboard_id', dashboardId),
         )
         .pluck('composer_chart_uuid');
     if (foundUuids.length !== chartUuids.length) {
-        throw new NotFoundError('Composer chart not found');
+        throw new NotFoundError(
+            'Composer chart not found, or owned by another dashboard',
+        );
     }
     await trx(DashboardTileComposerChartsTableName).insert(rows);
 };

@@ -211,6 +211,7 @@ const applyServiceAccountStaticAbilities: Record<
             builder: { can },
         });
         can('manage', 'Document', { organizationUuid });
+        can('manage', 'ComposerChart', { organizationUuid });
         can('manage', 'Space', {
             organizationUuid,
             inheritsFromOrgOrProject: true,
