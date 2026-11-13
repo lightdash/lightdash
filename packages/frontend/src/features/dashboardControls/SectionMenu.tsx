@@ -2,6 +2,7 @@ import { ActionIcon, Menu } from '@mantine/core';
 import { IconDots, IconFolderMinus, IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { MENU_TRANSITION } from './menuTransition';
 
 type MenuProps = {
     /** The "..." button's accessible name. */
@@ -15,14 +16,21 @@ type MenuProps = {
 };
 
 // A bar capsule's "..." menu: rename, and the remove item, one click:
-// "Remove section, keep controls" moves the members out, deleting nothing
+// "Ungroup" moves the members out, deleting nothing
 export const SectionMenu: FC<MenuProps> = ({
     label,
     hasMembers,
     onRename,
     onRemove,
 }) => (
-    <Menu position="bottom-start" returnFocus={false}>
+    <Menu
+        position="bottom-start"
+        withArrow
+        arrowOffset={14}
+        offset={1}
+        returnFocus={false}
+        transitionProps={MENU_TRANSITION}
+    >
         <Menu.Target>
             <ActionIcon size="sm" radius="xl" aria-label={label}>
                 <MantineIcon icon={IconDots} size={14} />
@@ -42,9 +50,7 @@ export const SectionMenu: FC<MenuProps> = ({
                     }
                     onClick={onRemove}
                 >
-                    {hasMembers
-                        ? 'Remove section, keep controls'
-                        : 'Remove section'}
+                    {hasMembers ? 'Ungroup' : 'Remove section'}
                 </Menu.Item>
             )}
         </Menu.Dropdown>

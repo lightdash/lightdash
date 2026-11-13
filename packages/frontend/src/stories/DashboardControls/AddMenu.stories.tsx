@@ -273,3 +273,29 @@ export const Viewer: Story = {
         await expect(page.queryByRole('button', { name: 'Back' })).toBeNull();
     },
 };
+
+/** The bar's other "..." menus point at their button as "Add" does; a section's ungroups without deleting. */
+export const BarMenus: Story = {
+    name: 'Bar "..." menus',
+    play: async ({ canvas, canvasElement, userEvent }) => {
+        const page = onPage(canvasElement);
+        await userEvent.click(
+            canvas.getByRole('button', { name: 'Filter bar settings' }),
+        );
+        await expect(
+            (await page.findByRole('menu')).querySelector(
+                '.mantine-Menu-arrow',
+            ),
+        ).not.toBeNull();
+        await userEvent.keyboard('{Escape}');
+        await waitFor(() => expect(page.queryByRole('menu')).toBeNull());
+        await userEvent.click(
+            await canvas.findByRole('button', { name: 'Orders menu' }),
+        );
+        const ungroup = await page.findByRole('menuitem', { name: 'Ungroup' });
+        await waitFor(() => expect(ungroup).toBeVisible());
+        await expect(
+            page.getByRole('menu').querySelector('.mantine-Menu-arrow'),
+        ).not.toBeNull();
+    },
+};

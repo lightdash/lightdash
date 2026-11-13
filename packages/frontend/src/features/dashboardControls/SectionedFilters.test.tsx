@@ -1391,7 +1391,7 @@ describe('SectionedFilters', () => {
             );
             await userEvent.click(
                 await screen.findByRole('menuitem', {
-                    name: 'Remove section, keep controls',
+                    name: 'Ungroup',
                 }),
             );
             expect(selectHasControlOrderChanged(store.getState())).toBe(true);
@@ -3177,7 +3177,7 @@ describe('SectionedFilters', () => {
                 await openMenu('Dates');
                 await userEvent.click(
                     screen.getByRole('menuitem', {
-                        name: 'Remove section, keep controls',
+                        name: 'Ungroup',
                     }),
                 );
                 expect(sectionsOf(store).map(({ id }) => id)).toEqual([
@@ -3199,7 +3199,7 @@ describe('SectionedFilters', () => {
                 screen.queryByRole('menuitem', { name: 'Remove section' }),
             ).not.toBeInTheDocument();
             const item = await screen.findByRole('menuitem', {
-                name: 'Remove section, keep controls',
+                name: 'Ungroup',
             });
             // Neutral: it deletes nothing
             expect(item.getAttribute('style') ?? '').not.toContain('red');
@@ -3663,7 +3663,7 @@ describe('SectionedFilters', () => {
             );
             expect(
                 await screen.findByRole('menuitem', {
-                    name: 'Remove section, keep controls',
+                    name: 'Ungroup',
                 }),
             ).toBeEnabled();
         });
@@ -3683,7 +3683,7 @@ describe('SectionedFilters', () => {
             );
             await userEvent.click(
                 await screen.findByRole('menuitem', {
-                    name: 'Remove section, keep controls',
+                    name: 'Ungroup',
                 }),
             );
             expect(
