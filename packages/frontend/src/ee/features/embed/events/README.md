@@ -42,11 +42,20 @@ const response = await fetch(
     `${instanceUrl}/api/v2/dashboards/${dashboardUuid}/exports?projectUuid=${projectUuid}`,
     {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Lightdash-Embed-Token': token },
-        body: JSON.stringify({ ...exportRequest, format: 'pdf', selectedTabs: [activeTabUuid] }),
+        headers: {
+            'Content-Type': 'application/json',
+            'Lightdash-Embed-Token': token,
+        },
+        body: JSON.stringify({
+            ...exportRequest,
+            format: 'pdf',
+            selectedTabs: [activeTabUuid],
+        }),
     },
 );
-const { results: { jobId } } = await response.json();
+const {
+    results: { jobId },
+} = await response.json();
 ```
 
 Charts and Explore: `POST /api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download` with the remaining options and a `type`:
@@ -57,11 +66,16 @@ const response = await fetch(
     `${instanceUrl}/api/v2/projects/${projectUuid}/query/${queryUuid}/schedule-download`,
     {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Lightdash-Embed-Token': token },
+        headers: {
+            'Content-Type': 'application/json',
+            'Lightdash-Embed-Token': token,
+        },
         body: JSON.stringify({ ...options, type: 'xlsx' }),
     },
 );
-const { results: { jobId } } = await response.json();
+const {
+    results: { jobId },
+} = await response.json();
 ```
 
 For other row limits, run `chart.metricQuery` with `chart.parameters` through `POST /api/v2/projects/{projectUuid}/query/metric-query` and use the returned `queryUuid`. Stored results are only readable by the same embed user, so the host's token needs the same `user.externalId`.
