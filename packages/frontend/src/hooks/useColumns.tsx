@@ -714,6 +714,15 @@ export const useColumns = (): TableColumn[] => {
                 item.table === MERGE_TABLE_NAME &&
                 isDimension(item);
             const showTablePrefix = hasJoins || !!mergeResults;
+            // Inline with the name, so it wraps with it and never drifts away
+            const typeIcon = (
+                <FieldIcon
+                    item={item}
+                    size={12}
+                    stroke={2}
+                    color={fieldColors.color}
+                />
+            );
             const column: TableColumn = columnHelper.accessor(
                 (row) => row[fieldId],
                 {
@@ -727,12 +736,6 @@ export const useColumns = (): TableColumn[] => {
                                     : undefined
                             }
                         >
-                            <FieldIcon
-                                item={item}
-                                size={12}
-                                stroke={2}
-                                color={fieldColors.color}
-                            />
                             {isField(item) ? (
                                 <>
                                     {isMergeJoinKey && (
@@ -759,15 +762,18 @@ export const useColumns = (): TableColumn[] => {
                                     )}
 
                                     <TableHeaderBoldLabel>
+                                        {typeIcon}
                                         {item.label}
                                     </TableHeaderBoldLabel>
                                 </>
                             ) : isCustomDimension(item) ? (
                                 <TableHeaderBoldLabel>
+                                    {typeIcon}
                                     {item.name}
                                 </TableHeaderBoldLabel>
                             ) : (
                                 <TableHeaderBoldLabel>
+                                    {typeIcon}
                                     {item && 'displayName' in item
                                         ? item.displayName
                                         : 'Undefined'}

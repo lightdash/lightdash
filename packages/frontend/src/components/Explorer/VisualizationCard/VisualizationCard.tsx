@@ -34,6 +34,7 @@ import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
     explorerActions,
     selectChartConfig,
+    selectChartSidebarStep,
     selectChartType,
     selectChartTypeAuthoring,
     selectColumnOrder,
@@ -61,6 +62,7 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 import useFullscreen from '../../../providers/Fullscreen/useFullscreen';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
+import { CHART_GALLERY_SIDEBAR_TITLE_ID } from '../../common/ChartGallery/ChartGalleryContext';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
@@ -79,6 +81,7 @@ import {
     useFieldDrop,
     type DraggedField,
 } from '../fieldDrag';
+import { ExplorerHint } from '../onboarding';
 import ExploreIdleIllustration from '../ResultsCard/ExploreIdleIllustration';
 import StaleResultsPrompt from '../StaleResultsPrompt';
 import { useIsResultsStale } from '../useIsResultsStale';
@@ -276,6 +279,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
     });
 
     const isStale = useIsResultsStale();
+    const isChoosingChartType =
+        useExplorerSelector(selectChartSidebarStep) === 'choose';
     // Bars, lines and pivoted tables need a number: with only dimensions
     // they draw blank
     const isPivotedTable =
@@ -479,19 +484,29 @@ const VisualizationCard: FC<Props> = memo((props) => {
                             // Results alone are not a chart yet: point at the next step
                             isEditMode &&
                             (resultsData?.rows.length ?? 0) > 0 && (
-                                <Button
-                                    size="compact-xs"
-                                    variant="light"
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconChartBar}
-                                            size={12}
-                                        />
-                                    }
-                                    onClick={toggleSection}
-                                >
-                                    Visualize results
-                                </Button>
+                                <>
+                                    <Button
+                                        size="compact-xs"
+                                        variant="light"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconChartBar}
+                                                size={12}
+                                            />
+                                        }
+                                        data-tour="explorer-visualize"
+                                        onClick={toggleSection}
+                                    >
+                                        Visualize results
+                                    </Button>
+                                    <ExplorerHint
+                                        name="visualize"
+                                        target='[data-tour="explorer-visualize"]'
+                                        title="Turn this into a chart"
+                                        body="Your results are ready. Open the chart to see them visualised."
+                                        position="bottom-start"
+                                    />
+                                </>
                             )
                         ) : (
                             <Group gap="xs" wrap="nowrap">
@@ -599,6 +614,15 @@ const VisualizationCard: FC<Props> = memo((props) => {
                         </>
                     }
                 >
+                    {isVisualizationConfigOpen && isChoosingChartType && (
+                        <ExplorerHint
+                            name="chart-types"
+                            target={`#${CHART_GALLERY_SIDEBAR_TITLE_ID}`}
+                            title="Try a few chart types"
+                            body="Click through the types to see your data each way, then configure the one you like."
+                            position="left-start"
+                        />
+                    )}
                     {droppedField && (
                         <DroppedFieldPlacer
                             key={droppedField.field.fieldId}

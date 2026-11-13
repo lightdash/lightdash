@@ -39,14 +39,17 @@
     align-items: center;
 }
 
-/* Header label: type icon in the field kind's colour, field name in ink,
-   then its table in grey. */
+/* Header label: the field name in ink, led by its type icon in the field
+   kind's colour, with its table in grey underneath. Long names wrap inside
+   the column, so it stays as wide as its values, and every line ends at the
+   column's right edge. */
 .results:not([data-grouped]) [class*='tableHeaderLabelContainer'] {
     display: flex;
-    gap: 6px;
-    align-items: baseline;
+    flex-direction: column;
+    align-items: flex-end;
     font-size: 12px;
-    white-space: nowrap;
+    text-align: right;
+    white-space: normal;
 }
 
 .results:not([data-grouped]) [class*='tableHeaderBoldLabel'] {
@@ -54,9 +57,11 @@
     font-weight: 500;
 }
 
-.results:not([data-grouped]) [class*='tableHeaderLabelContainer'] > svg {
-    flex-shrink: 0;
-    align-self: center;
+/* The icon flows with the name's first word */
+.results:not([data-grouped]) [class*='tableHeaderBoldLabel'] > svg {
+    display: inline-block !important;
+    margin-right: 6px;
+    vertical-align: -1px;
 }
 
 .results:not([data-grouped]) [class*='tableHeaderRegularLabel'] {

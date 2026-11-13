@@ -37,6 +37,7 @@ import {
     lockToAxis,
     useSortableSensors,
 } from '../../common/Sortable/sortableUtils';
+import { ExplorerHint } from '../../Explorer/onboarding';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
@@ -306,6 +307,13 @@ const PivotLayout: FC = () => {
             onDragEnd={onDragEnd}
             onDragCancel={endDrag}
         >
+            <ExplorerHint
+                name="pivot-lists"
+                target={`[data-pivot-list="${DroppableIds.COLUMNS}"]`}
+                title="Drag to pivot"
+                body="Move a dimension into Columns to pivot the table. Metrics can move into Rows."
+                position="left"
+            />
             <Config>
                 <Config.Section>
                     <Config.Heading>Columns</Config.Heading>

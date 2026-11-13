@@ -1,6 +1,7 @@
 import { Anchor, Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useAutoFetch } from '../RunQuerySettings/useAutoFetch';
+import { ExplorerHint } from './onboarding';
 
 type Props = {
     /** What running the query brings back, e.g. "your chart" */
@@ -26,10 +27,18 @@ const StaleResultsPrompt: FC<Props> = ({ subject }) => {
                 component="button"
                 fz="xs"
                 mt={6}
+                data-tour="explorer-auto-rerun"
                 onClick={enableForSession}
             >
                 Re-run automatically for this session
             </Anchor>
+            <ExplorerHint
+                name="auto-rerun"
+                target='[data-tour="explorer-auto-rerun"]'
+                title="Tired of re-running?"
+                body="Turn this on and the query re-runs every time you change a field, until you close this tab."
+                position="bottom"
+            />
         </Stack>
     );
 };
