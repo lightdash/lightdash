@@ -122,7 +122,7 @@ import {
     SemanticLayerNudge,
     SettingsLink,
 } from './shared';
-import { StudioRunningPill } from './StudioRunningPill';
+import { needsYou } from './studioRuns';
 import { StudioStageLine, type StudioStage } from './StudioStageLine';
 import { StudioWorkspacesList } from './StudioWorkspacesList';
 import {
@@ -146,6 +146,7 @@ import {
     type SemanticStudioProps,
     type ViewModel,
 } from './useSemanticStudio';
+import { useStudioRuns } from './useStudioRuns';
 import {
     useStudioWorkspaceAction,
     useStudioWorkspaces,
@@ -1210,6 +1211,23 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         (pane === 'changes' || pane === 'review') &&
         !!(shownWorkspace || workspace);
     const hasChangesTab = hasWorkspaces || hasChanges || !!saving;
+    const runs = useStudioRuns(view.project.id, workspaces?.mine ?? [], saving);
+    const waitingOnYou = runs.filter(({ run }) => needsYou(run)).length;
+    // What waits on you wins, then a save under way, then how many are in flight.
+    const changesBadge =
+        waitingOnYou > 0 ? (
+            <span
+                className={classes.count}
+                data-tone="attention"
+                aria-label={`${waitingOnYou} need you`}
+            >
+                {waitingOnYou}
+            </span>
+        ) : saving ? (
+            <span className={classes.busyDot} aria-label="Saving" />
+        ) : runs.length > 0 ? (
+            <span className={classes.count}>{runs.length}</span>
+        ) : null;
     const showLive = () => {
         setIsTryingChanges(false);
         switchView('models');
@@ -1470,6 +1488,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 onClick={showChanges}
                                             >
                                                 Changes
+                                                {changesBadge}
                                             </UnstyledButton>
                                         ) : null}
                                     </div>
@@ -1479,16 +1498,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         miw={0}
                                         ml="auto"
                                     >
-                                        <StudioRunningPill
-                                            projectUuid={view.project.id}
-                                            workspaces={workspaces?.mine ?? []}
-                                            saving={saving}
-                                            onOpen={(target) =>
-                                                openWorkspace(target, {
-                                                    navigateTo: true,
-                                                })
-                                            }
-                                        />
                                         {keepsDraft && !isChangeOpen ? (
                                             <Tooltip
                                                 label={

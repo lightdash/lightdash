@@ -95,6 +95,56 @@
     box-shadow: 0 0 0 3px var(--mantine-color-green-light);
 }
 
+.count {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--mantine-color-text) 9%, transparent);
+    font-size: 11px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--mantine-color-text);
+}
+
+.count[data-tone='attention'] {
+    background: var(--mantine-color-orange-6);
+    color: var(--mantine-color-white);
+}
+
+.busyDot {
+    position: relative;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--mantine-color-violet-6);
+}
+
+.busyDot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: inherit;
+    animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping {
+    75%,
+    100% {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .busyDot::after {
+        animation: none;
+    }
+}
+
 /* The open change: its name, where it stands, and what you can do with it. */
 .changeBar {
     flex: none;

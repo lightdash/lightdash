@@ -58,22 +58,6 @@ export const toStudioRun = (
 export const needsYou = (run: StudioRun): boolean =>
     run.kind === 'ready' || run.kind === 'failing';
 
-/** "1 saving · 2 in review · 1 needs you", leaving out what is zero. */
-export const summarizeStudioRuns = (runs: StudioRun[]): string => {
-    const count = (kinds: StudioRun['kind'][]) =>
-        runs.filter((run) => kinds.includes(run.kind)).length;
-    const parts: [number, string][] = [
-        [count(['saving']), 'saving'],
-        [count(['in_review']), 'in review'],
-        [count(['draft']), 'not saved'],
-        [count(['ready', 'failing']), 'needs you'],
-    ];
-    return parts
-        .filter(([n]) => n > 0)
-        .map(([n, label]) => `${n} ${label}`)
-        .join(' · ');
-};
-
 /** How far along the way to live, out of 100, for the ring. */
 export const studioRunProgress = (run: StudioRun): number => {
     switch (run.kind) {

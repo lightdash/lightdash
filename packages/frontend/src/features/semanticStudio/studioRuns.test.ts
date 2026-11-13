@@ -6,12 +6,7 @@ import {
     type SemanticStudioWorkspace,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import {
-    isInFlight,
-    summarizeStudioRuns,
-    toStudioRun,
-    type StudioRun,
-} from './studioRuns';
+import { isInFlight, toStudioRun } from './studioRuns';
 
 const workspace = (
     overrides: Partial<SemanticStudioWorkspace> = {},
@@ -102,20 +97,5 @@ describe('isInFlight', () => {
                 }),
             ),
         ).toBe(false);
-    });
-});
-
-describe('summarizeStudioRuns', () => {
-    it('leaves out what is zero', () => {
-        const runs: StudioRun[] = [
-            { kind: 'saving', step: 0 },
-            { kind: 'ready', pullRequestNumber: '1' },
-            {
-                kind: 'failing',
-                pullRequestNumber: '2',
-                reason: 'Has conflicts',
-            },
-        ];
-        expect(summarizeStudioRuns(runs)).toBe('1 saving · 2 needs you');
     });
 });

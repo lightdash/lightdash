@@ -10,7 +10,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { type StudioPendingChange } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
-import { RunMeta, RunRing } from './StudioRunningPill';
+import { RunMeta, RunRing } from './StudioRunRing';
 import { needsYou, toStudioRun, type StudioRun } from './studioRuns';
 import classes from './StudioWorkspacesList.module.css';
 import { pullRequestNumberOf } from './urls';
