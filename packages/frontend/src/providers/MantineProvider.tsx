@@ -1,7 +1,11 @@
 import { type HealthState } from '@lightdash/common';
 import { type MantineThemeOverride } from '@mantine/core';
-import { useLocalStorage } from '@mantine/hooks';
-import { Notifications } from '@mantine/notifications';
+import { useLocalStorage, useMediaQuery } from '@mantine/hooks';
+import {
+    Notifications,
+    notifications,
+    notificationsStore,
+} from '@mantine/notifications';
 import { defaultContext } from '@tanstack/react-query';
 import {
     useCallback,
@@ -57,11 +61,26 @@ const useIsSignedOut = () => {
     return useSyncExternalStore(subscribe, getSnapshot);
 };
 
+const SMALL_PORTRAIT_QUERY = '(max-width: 48em) and (min-height: 30.0625em)';
+const SIGNED_OUT_SMALL_PORTRAIT_LIMIT = 1;
+
 const AppNotifications: FC<{ limit?: number }> = ({ limit }) => {
     const isSignedOut = useIsSignedOut();
+    const isSmallPortrait = useMediaQuery(SMALL_PORTRAIT_QUERY, undefined, {
+        getInitialValueInEffect: false,
+    });
+    const visibleLimit =
+        isSignedOut && isSmallPortrait
+            ? SIGNED_OUT_SMALL_PORTRAIT_LIMIT
+            : limit;
+
+    useEffect(() => {
+        notifications.updateState(notificationsStore, (items) => items);
+    }, [visibleLimit]);
+
     return (
         <Notifications
-            limit={limit}
+            limit={visibleLimit}
             notificationMaxHeight={480}
             classNames={{
                 root: isSignedOut
