@@ -674,18 +674,20 @@ export class QueryHistoryModel {
         queryUuid: string,
         error: string,
     ): Promise<number> {
-        return this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .whereIn('status', [
-                QueryHistoryStatus.PENDING,
-                QueryHistoryStatus.QUEUED,
-                QueryHistoryStatus.EXECUTING,
-            ])
-            .update({
-                status: QueryHistoryStatus.ERROR,
-                error,
-                errored_at: new Date(),
-            });
+        return this.executeOwnedUpdate(
+            queryUuid,
+            this.executionScopedQuery(queryUuid)
+                .whereIn('status', [
+                    QueryHistoryStatus.PENDING,
+                    QueryHistoryStatus.QUEUED,
+                    QueryHistoryStatus.EXECUTING,
+                ])
+                .update({
+                    status: QueryHistoryStatus.ERROR,
+                    error,
+                    errored_at: new Date(),
+                }),
+        );
     }
 
     async updateClaimedQueryToError(

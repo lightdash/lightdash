@@ -175,6 +175,14 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
         ).rejects.toThrow('Query execution ownership lost');
         await expect(
             QueryHistoryModel.withQueryExecution(oldOwner, () =>
+                model.failUnfinishedQueryDelivery(
+                    queryUuid,
+                    'stale exhaustion',
+                ),
+            ),
+        ).rejects.toThrow('Query execution ownership lost');
+        await expect(
+            QueryHistoryModel.withQueryExecution(oldOwner, () =>
                 model.markDuckdbCacheHit(queryUuid),
             ),
         ).rejects.toThrow('Query execution ownership lost');
