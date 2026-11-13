@@ -7,3 +7,9 @@
 .navigationButton[data-variant='default'] {
     display: none;
 }
+
+/* Focus moves into the card for keyboard users; the card itself needs no ring */
+.tooltip:focus,
+.tooltip:focus-visible {
+    outline: none;
+}

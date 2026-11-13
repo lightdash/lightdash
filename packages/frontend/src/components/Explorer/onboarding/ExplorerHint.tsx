@@ -49,6 +49,7 @@ const ExplorerHint: FC<Props> = ({ name, target, title, body, position }) => {
             labels={{ close: 'Got it' }}
             withCloseButton={false}
             classNames={{
+                tooltip: classes.tooltip,
                 stepCounter: classes.hidden,
                 navigationButton: classes.navigationButton,
             }}
