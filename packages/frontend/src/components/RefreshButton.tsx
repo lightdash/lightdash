@@ -101,6 +101,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
             <Indicator
                 disabled={!isStale}
                 processing
+                position="top-start"
                 color="orange"
                 size={9}
                 offset={2}

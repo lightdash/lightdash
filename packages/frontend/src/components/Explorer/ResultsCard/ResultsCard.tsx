@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ActionIcon,
+    Box,
     Group,
     Popover,
     SegmentedControl,
@@ -13,6 +14,7 @@ import {
     selectIsEditMode,
     selectHasSelectedFields,
     selectIsResultsExpanded,
+    selectIsVisualizationExpanded,
     selectSorts,
     selectTableName,
     useExplorerDispatch,
@@ -36,6 +38,8 @@ import MantineIcon from '../../common/MantineIcon';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
 import { useAddDroppedFieldToQuery, useFieldDrop } from '../fieldDrag';
+import StaleResultsPrompt from '../StaleResultsPrompt';
+import { useIsResultsStale } from '../useIsResultsStale';
 import { ExplorerResults } from './ExplorerResults';
 import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
@@ -85,6 +89,8 @@ const ResultsCard: FC = memo(() => {
     );
     const { user } = useApp();
     const resultsExport = useResultsExport();
+    const isStale = useIsResultsStale();
+    const isChartOpen = useExplorerSelector(selectIsVisualizationExpanded);
     // A field dropped here joins the query, which then runs
     const fieldDrop = useFieldDrop(useAddDroppedFieldToQuery());
     return (
@@ -243,6 +249,11 @@ const ResultsCard: FC = memo(() => {
                 )
             }
         >
+            {isStale && !isChartOpen && (
+                <Box py="sm">
+                    <StaleResultsPrompt subject="your results" />
+                </Box>
+            )}
             <ExplorerResults viewMode={viewMode} />
         </CollapsableCard>
     );

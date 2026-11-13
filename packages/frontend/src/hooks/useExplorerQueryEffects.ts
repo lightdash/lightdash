@@ -3,12 +3,8 @@ import {
     getFieldsFromMetricQuery,
     assertUnreachable,
 } from '@lightdash/common';
-import { useLocalStorage } from '@mantine/hooks';
 import { useEffect, useMemo } from 'react';
-import {
-    AUTO_FETCH_ENABLED_DEFAULT,
-    AUTO_FETCH_ENABLED_KEY,
-} from '../components/RunQuerySettings/defaults';
+import { useAutoFetch } from '../components/RunQuerySettings/useAutoFetch';
 import {
     explorerActions,
     selectFromDashboard,
@@ -79,10 +75,7 @@ export const useExplorerQueryEffects = ({
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     // Auto-fetch configuration
-    const [autoFetchEnabled] = useLocalStorage({
-        key: AUTO_FETCH_ENABLED_KEY,
-        defaultValue: AUTO_FETCH_ENABLED_DEFAULT,
-    });
+    const { isEnabled: autoFetchEnabled } = useAutoFetch();
 
     const savedChart = useExplorerSelector(selectSavedChart);
     const isSavedChart = !!savedChart;

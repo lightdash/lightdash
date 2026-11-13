@@ -105,7 +105,7 @@ describe('combined field tree', () => {
         const map = result.nodeMaps.get('users_explore-metrics')!;
         expect(Object.values(map)).toHaveLength(1);
         expect(leaves(map)).toEqual(['users_count', 'summary_count']);
-        expect(result.sections[0].itemsMap.summary_count).toBe(
+        expect(result.sections[1].itemsMap.summary_count).toBe(
             joined.metrics.count,
         );
         const flattened = flattenTreeForVirtualization({
@@ -145,8 +145,8 @@ describe('combined field tree', () => {
             description: 'Base definition',
         });
         expect(leaves(map)).toEqual(['users_active', 'summary_spend']);
-        expect(result.sections[2].itemsMap.users_active).toBe(baseField);
-        expect(result.sections[2].itemsMap.summary_spend).toBe(joinedField);
+        expect(result.sections[0].itemsMap.users_active).toBe(baseField);
+        expect(result.sections[0].itemsMap.summary_spend).toBe(joinedField);
         expect(value).toEqual(original);
     });
 

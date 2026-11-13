@@ -8,7 +8,7 @@ import {
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Box, Button, Group } from '@mantine/core';
+import { Box, Button, Group, Stack } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import {
     IconChartBar,
@@ -63,7 +63,6 @@ import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi
 import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
-import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
 import RunningBar from '../../common/RunningBar';
 import LightdashVisualization from '../../LightdashVisualization';
@@ -81,6 +80,7 @@ import {
     type DraggedField,
 } from '../fieldDrag';
 import ExploreIdleIllustration from '../ResultsCard/ExploreIdleIllustration';
+import StaleResultsPrompt from '../StaleResultsPrompt';
 import { useIsResultsStale } from '../useIsResultsStale';
 import DroppedFieldPlacer from './DroppedFieldPlacer';
 import { SeriesContextMenu } from './SeriesContextMenu';
@@ -605,16 +605,10 @@ const VisualizationCard: FC<Props> = memo((props) => {
                             )}
                             {isStale && (
                                 <Box className={classes.staleCover}>
-                                    <EmptyState
-                                        gap="xs"
-                                        icon={
-                                            <ExploreIdleIllustration variant="chart" />
-                                        }
-                                        title="Run query to see your chart"
-                                        titleProps={{ fz: 'sm' }}
-                                        description="Your selected fields changed."
-                                        descriptionProps={{ fz: 'xs' }}
-                                    />
+                                    <Stack gap="xs" align="center">
+                                        <ExploreIdleIllustration variant="chart" />
+                                        <StaleResultsPrompt subject="your chart" />
+                                    </Stack>
                                 </Box>
                             )}
                             <LightdashVisualization

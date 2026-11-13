@@ -193,27 +193,27 @@ describe('flattenTreeForVirtualization', () => {
         const { items: result } = flattenTreeForVirtualization(baseOptions);
 
         // Should have:
-        // - Section header for metrics
-        // - 1 metric node
         // - Section header for dimensions
         // - 2 dimension nodes
+        // - Section header for metrics
+        // - 1 metric node
         expect(result.length).toBe(5);
 
         expect(result[0].type).toBe('section-header');
         expect(result[0].data).toMatchObject({
-            treeSection: TreeSection.Metrics,
-            label: 'Metrics',
-        });
-
-        expect(result[1].type).toBe('tree-node');
-
-        expect(result[2].type).toBe('section-header');
-        expect(result[2].data).toMatchObject({
             treeSection: TreeSection.Dimensions,
             label: 'Dimensions',
         });
 
-        expect(result[3].type).toBe('tree-node');
+        expect(result[1].type).toBe('tree-node');
+        expect(result[2].type).toBe('tree-node');
+
+        expect(result[3].type).toBe('section-header');
+        expect(result[3].data).toMatchObject({
+            treeSection: TreeSection.Metrics,
+            label: 'Metrics',
+        });
+
         expect(result[4].type).toBe('tree-node');
     });
 

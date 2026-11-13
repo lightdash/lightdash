@@ -290,7 +290,61 @@ function flattenTable(
     const shouldShowSection = (sectionItems: TreeNodeItem[]) =>
         !options.isSearching || sectionItems.length > 0;
 
-    // 1. Metrics section: a query starts from what is measured
+    // 1. Dimensions section
+    const dimensionsMap = Object.values(table.dimensions).reduce(
+        (acc, item) => ({ ...acc, [getItemId(item)]: item }),
+        {},
+    );
+    const hasDimensions = Object.keys(dimensionsMap).length > 0;
+    const dimensionItems = hasDimensions
+        ? flattenSection(
+              {
+                  type: TreeSection.Dimensions,
+                  label: 'Dimensions',
+                  color: LD_FIELD_COLORS.dimension.color,
+                  itemsMap: dimensionsMap,
+                  orderFieldsBy: table.orderFieldsBy,
+              },
+              tableName,
+              options.expandedGroups,
+              searchResults,
+              options.isSearching,
+              options,
+              sectionContexts,
+              baseDepth,
+          )
+        : [];
+
+    if (shouldShowSection(dimensionItems)) {
+        items.push({
+            id: `${tableName}-section-dimensions`,
+            type: 'section-header',
+            estimatedHeight: ITEM_HEIGHTS.SECTION_HEADER,
+            data: {
+                tableName,
+                treeSection: TreeSection.Dimensions,
+                label: 'Dimensions',
+                color: LD_FIELD_COLORS.dimension.color,
+                depth: baseDepth,
+            },
+        } satisfies SectionHeaderItem);
+        items.push(...dimensionItems);
+    }
+
+    if (!hasDimensions && !options.isSearching) {
+        items.push({
+            id: `${tableName}-empty-dimensions`,
+            type: 'empty-state',
+            estimatedHeight: ITEM_HEIGHTS.EMPTY_STATE,
+            data: {
+                tableName,
+                treeSection: TreeSection.Dimensions,
+                message: 'No dimensions defined in your dbt project',
+            },
+        } satisfies EmptyStateItem);
+    }
+
+    // 2. Metrics section
     const metricsMap = Object.values(table.metrics).reduce(
         (acc, item) => ({ ...acc, [getItemId(item)]: item }),
         {},
@@ -338,7 +392,7 @@ function flattenTable(
         items.push(...metricItems);
     }
 
-    // 2. Custom metrics section
+    // 3. Custom metrics section
     const customMetricsForTable = options.additionalMetrics.filter(
         (metric) => metric.table === tableName,
     );
@@ -412,60 +466,6 @@ function flattenTable(
             } satisfies SectionHeaderItem);
             items.push(...customMetricItems);
         }
-    }
-
-    // 3. Dimensions section
-    const dimensionsMap = Object.values(table.dimensions).reduce(
-        (acc, item) => ({ ...acc, [getItemId(item)]: item }),
-        {},
-    );
-    const hasDimensions = Object.keys(dimensionsMap).length > 0;
-    const dimensionItems = hasDimensions
-        ? flattenSection(
-              {
-                  type: TreeSection.Dimensions,
-                  label: 'Dimensions',
-                  color: LD_FIELD_COLORS.dimension.color,
-                  itemsMap: dimensionsMap,
-                  orderFieldsBy: table.orderFieldsBy,
-              },
-              tableName,
-              options.expandedGroups,
-              searchResults,
-              options.isSearching,
-              options,
-              sectionContexts,
-              baseDepth,
-          )
-        : [];
-
-    if (shouldShowSection(dimensionItems)) {
-        items.push({
-            id: `${tableName}-section-dimensions`,
-            type: 'section-header',
-            estimatedHeight: ITEM_HEIGHTS.SECTION_HEADER,
-            data: {
-                tableName,
-                treeSection: TreeSection.Dimensions,
-                label: 'Dimensions',
-                color: LD_FIELD_COLORS.dimension.color,
-                depth: baseDepth,
-            },
-        } satisfies SectionHeaderItem);
-        items.push(...dimensionItems);
-    }
-
-    if (!hasDimensions && !options.isSearching) {
-        items.push({
-            id: `${tableName}-empty-dimensions`,
-            type: 'empty-state',
-            estimatedHeight: ITEM_HEIGHTS.EMPTY_STATE,
-            data: {
-                tableName,
-                treeSection: TreeSection.Dimensions,
-                message: 'No dimensions defined in your dbt project',
-            },
-        } satisfies EmptyStateItem);
     }
 
     // 4. Custom dimensions section
