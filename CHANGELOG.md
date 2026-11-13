@@ -1,3 +1,11 @@
+# [3.258.0](https://github.com/lightdash/lightdash/compare/3.257.0...3.258.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** a viewer runs a composer chart (bound run) ([#32573](https://github.com/lightdash/lightdash/issues/32573)) ([71c2b97](https://github.com/lightdash/lightdash/commit/71c2b97f964baedc2663b9e8cbc1e98714dfdbbd))
+* **composer:** a viewer runs a composer chart (bound run) ([#32573](https://github.com/lightdash/lightdash/issues/32573)) ([eaa7f9e](https://github.com/lightdash/lightdash/commit/eaa7f9e7017702580bc6ddf71907004a70302338))
+
 # [3.257.0](https://github.com/lightdash/lightdash/compare/3.256.0...3.257.0) (2026-11-13)
 
 

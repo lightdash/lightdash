@@ -78054,6 +78054,80 @@
                 "required": ["chart", "pipeline", "name", "dashboardUuid"],
                 "type": "object"
             },
+            "ComposerChartRunResults": {
+                "properties": {
+                    "queries": {
+                        "items": {
+                            "properties": {
+                                "queryUuid": {
+                                    "type": "string"
+                                },
+                                "sourceType": {
+                                    "$ref": "#/components/schemas/QuerySourceType"
+                                },
+                                "nodeId": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["queryUuid", "sourceType", "nodeId"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["queries"],
+                "type": "object"
+            },
+            "ApiComposerChartRunResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ComposerChartRunResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ComposerChartRunRequest": {
+                "properties": {
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "excludedParameterKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The parameter keys this tile keeps as its own."
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "dashboardFilters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "invalidateCache",
+                    "excludedParameterKeys",
+                    "parameters",
+                    "dashboardFilters",
+                    "tileUuid",
+                    "dashboardUuid"
+                ],
+                "type": "object",
+                "description": "A bound run of a stored chart where a dashboard shows it; it never carries nodes."
+            },
             "KnexPaginatedData_CatalogField-Array_": {
                 "properties": {
                     "pagination": {
@@ -79181,7 +79255,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.257.0",
+        "version": "3.258.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -125461,6 +125535,65 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}/run": {
+            "post": {
+                "operationId": "runComposerChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Runs a composer chart's stored pipeline where a dashboard shows it, for\nanyone who can view the chart. The request carries no nodes; each node's\nquery is polled with the standard results endpoint.",
+                "summary": "Run composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "composerChartUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ComposerChartRunRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/projects/{projectUuid}/dataCatalog/metrics-with-time-dimensions": {
