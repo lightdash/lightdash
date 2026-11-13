@@ -23,6 +23,7 @@ import {
 } from '@mantine/core';
 import {
     IconArrowLeft,
+    IconArrowUpRight,
     IconChevronRight,
     IconCode,
     IconFileCode,
@@ -1327,6 +1328,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         </Group>
     );
     const changeName = shownWorkspace?.name ?? workspace?.name;
+    const changeUrl =
+        development?.prUrl ??
+        pullRequest?.prUrl ??
+        shownWorkspace?.pullRequest?.url ??
+        null;
     const goBack = hasWorkspaces ? showChanges : showLive;
     // The open change heads its own column, so its name, progress and diff share one edge.
     const changeHeader = (
@@ -1356,6 +1362,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     <Text component="span" fz="xs" c="dimmed">
                         Updated {dayjs(shownWorkspace.updatedAt).fromNow()}
                     </Text>
+                ) : null}
+                {changeUrl ? (
+                    <Anchor
+                        href={changeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={classes.changeLink}
+                    >
+                        {pullRequestNumberOf(changeUrl)
+                            ? `Pull request #${pullRequestNumberOf(changeUrl)}`
+                            : 'Pull request'}
+                        <MantineIcon icon={IconArrowUpRight} size={12} />
+                    </Anchor>
                 ) : null}
             </div>
         </header>

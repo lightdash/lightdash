@@ -760,7 +760,10 @@ export const CompareTotals: FC<{
                 >
                     <Button
                         size="compact-xs"
-                        variant="subtle"
+                        variant="transparent"
+                        color="gray"
+                        px={0}
+                        className={classes.compareAction}
                         leftSection={
                             <MantineIcon icon={IconArrowsDiff} size={14} />
                         }
