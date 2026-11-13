@@ -108,6 +108,16 @@ type SharedConnectionAcquisition = SharedInstanceAcquisition & {
     connectMs: number;
 };
 
+type SharedS3Scope = {
+    uris: string[];
+    lookup: ReadonlySet<string>;
+};
+
+const toSharedS3Scope = (uris: string[]): SharedS3Scope => ({
+    uris,
+    lookup: new Set(uris),
+});
+
 export type DuckdbS3SessionConfig = {
     endpoint: string;
     region?: string;
@@ -666,7 +676,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
      */
     private static readonly sharedInstanceS3Scopes = new Map<
         string,
-        string[]
+        SharedS3Scope
     >();
 
     private static readonly sharedInstanceS3SecretLocks = new Map<
@@ -1743,7 +1753,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             if (client.s3Config?.scope) {
                 DuckdbWarehouseClient.sharedInstanceS3Scopes.set(
                     instanceCacheKey,
-                    [...client.s3Config.scope],
+                    toSharedS3Scope([...client.s3Config.scope]),
                 );
             }
             client.logger?.info(
@@ -2113,7 +2123,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const installed =
             DuckdbWarehouseClient.sharedInstanceS3Scopes.get(instanceCacheKey);
         if (!installed || !s3Config.scope) return [];
-        return s3Config.scope.filter((uri) => !installed.includes(uri));
+        return s3Config.scope.filter((uri) => !installed.lookup.has(uri));
     }
 
     private static async getSharedS3SecretToken(
@@ -2138,16 +2148,17 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     ): Promise<void> {
         const tokens = DuckdbWarehouseClient.sharedInstanceGcsTokens;
         const scopes = DuckdbWarehouseClient.sharedInstanceS3Scopes;
-        const needsReplacement = (token: string | null): boolean =>
-            (token !== null && tokens.get(instanceCacheKey) !== token) ||
+        const tokenChanged = (token: string | null): boolean =>
+            token !== null && tokens.get(instanceCacheKey) !== token;
+        const getMissingScope = () =>
             DuckdbWarehouseClient.getMissingSharedS3Scope(
                 instanceCacheKey,
                 s3Config,
-            ).length > 0;
+            );
 
         const token =
             await DuckdbWarehouseClient.getSharedS3SecretToken(s3Config);
-        if (!needsReplacement(token)) return;
+        if (!tokenChanged(token) && getMissingScope().length === 0) return;
 
         const locks = DuckdbWarehouseClient.sharedInstanceS3SecretLocks;
         let lock = locks.get(instanceCacheKey);
@@ -2162,17 +2173,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             // was fetched above must not overwrite it.
             const current =
                 await DuckdbWarehouseClient.getSharedS3SecretToken(s3Config);
-            if (!needsReplacement(current)) return;
+            const missingScope = getMissingScope();
+            if (!tokenChanged(current) && missingScope.length === 0) return;
 
             const installedScope = scopes.get(instanceCacheKey);
             const scope = installedScope
-                ? [
-                      ...installedScope,
-                      ...DuckdbWarehouseClient.getMissingSharedS3Scope(
-                          instanceCacheKey,
-                          s3Config,
-                      ),
-                  ]
+                ? [...installedScope.uris, ...missingScope]
                 : s3Config.scope;
 
             switch (s3Config.authMode) {
@@ -2206,7 +2212,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     );
             }
             if (scope) {
-                scopes.set(instanceCacheKey, scope);
+                scopes.set(instanceCacheKey, toSharedS3Scope(scope));
             }
         } finally {
             lock.release();
