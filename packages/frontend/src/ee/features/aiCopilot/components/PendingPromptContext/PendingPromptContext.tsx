@@ -46,7 +46,3 @@ export const usePendingPrompt = (): PendingPromptContextValue => {
     }
     return ctx;
 };
-
-// For surfaces that hand a prompt to the agent pages but may render without them
-// eslint-disable-next-line react-refresh/only-export-components
-export const useOptionalPendingPrompt = () => useContext(PendingPromptContext);

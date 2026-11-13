@@ -55,7 +55,6 @@ import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
 import classes from './Explorer.module.css';
 import ExplorerHeader from './ExplorerHeader';
-import ExploreStarterQuestions from './ExploreStarterQuestions';
 import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
 import ParametersCard from './ParametersCard/ParametersCard';
@@ -310,13 +309,8 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                         )}
 
                     {showLanding ? (
-                        <Group
-                            className={classes.landing}
-                            justify="center"
-                            gap={48}
-                        >
+                        <Group className={classes.landing} justify="center">
                             <NoTableSelected />
-                            <ExploreStarterQuestions />
                         </Group>
                     ) : (
                         <>
