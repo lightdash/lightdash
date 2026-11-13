@@ -48,6 +48,8 @@ describe('Analytics settings overview', () => {
                     projectUuid="analytics"
                     projectUrlIdentifier="analytics-slug"
                     dashboards={[]}
+                    heading={null}
+                    actions={null}
                 />
             </MemoryRouter>,
         );
@@ -81,6 +83,8 @@ describe('Analytics settings overview', () => {
                     projectUuid="analytics"
                     projectUrlIdentifier="analytics-slug"
                     dashboards={[]}
+                    heading={null}
+                    actions={null}
                 />
             </MemoryRouter>,
         );

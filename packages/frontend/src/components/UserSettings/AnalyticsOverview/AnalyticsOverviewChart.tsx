@@ -76,7 +76,8 @@ const AnalyticsOverviewChart = ({
         const numeric = {
             type: 'value' as const,
             minInterval: 1,
-            axisLabel: { color: ink },
+            splitNumber: 3,
+            axisLabel: { color: ink, hideOverlap: true },
             splitLine: { show: false },
         };
         return {

@@ -8,11 +8,11 @@ import {
     SimpleGrid,
     Stack,
     Text,
+    Title,
 } from '@mantine/core';
-import { IconHome } from '@tabler/icons-react';
+import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useProjectAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import {
@@ -20,14 +20,16 @@ import {
     useCreateAnalyticsProject,
     useDeleteAnalyticsProject,
 } from '../../hooks/organization/useAnalyticsProject';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useDeleteActiveProjectMutation } from '../../hooks/useActiveProject';
+import { useAnalyticsProjectView } from '../../hooks/useAnalyticsProjectView';
 import Callout from '../common/Callout';
 import EmptyStateLoader from '../common/EmptyStateLoader';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { SettingRow, SettingsSection } from '../common/Settings/SettingLayout';
 import { SettingsCard } from '../common/Settings/SettingsCard';
-import { SettingsPage } from '../common/Settings/SettingsPage';
+import { AnalyticsAskAiButton } from './AnalyticsAskAiButton';
 import AnalyticsDashboardCard from './AnalyticsDashboardCard';
 import AnalyticsHistoryBackfill from './AnalyticsHistoryBackfill';
 import AnalyticsOverview from './AnalyticsOverview/AnalyticsOverview';
@@ -44,6 +46,16 @@ const LightdashAnalyticsPanel = ({
     const { mutate: clearActiveProject } = useDeleteActiveProjectMutation();
     const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
     const analyticsProject = status.data?.project;
+    const { data: organization } = useOrganization();
+    useAnalyticsProjectView(
+        status.isSuccess && organization
+            ? {
+                  organizationId: organization.organizationUuid,
+                  projectUuid: analyticsProject?.projectUuid ?? null,
+                  source: 'settings',
+              }
+            : null,
+    );
     const projectUrlIdentifier = analyticsProject
         ? (analyticsProject.slug ?? analyticsProject.projectUuid)
         : null;
@@ -57,36 +69,26 @@ const LightdashAnalyticsPanel = ({
     );
     const verifiedDashboards =
         dashboards.data?.filter((dashboard) => dashboard.verification) ?? [];
+    const showOverview =
+        status.isSuccess && analyticsProject && projectUrlIdentifier;
+    const heading = (
+        <Stack gap="xs">
+            <Title order={1}>Usage analytics</Title>
+            <Text fz="sm" c="dimmed">
+                Track adoption and usage.
+            </Text>
+            {showOverview && (
+                <AnalyticsProcessingSummary
+                    processing={analyticsProject.processing}
+                    compact
+                />
+            )}
+        </Stack>
+    );
 
     return (
-        <SettingsPage
-            title="Lightdash analytics"
-            description="Track adoption and usage across your organization."
-            actions={
-                analyticsProject &&
-                projectUrlIdentifier && (
-                    <Group gap="xs">
-                        <Button
-                            component={Link}
-                            variant="default"
-                            to={`/projects/${projectUrlIdentifier}/home`}
-                            leftSection={<MantineIcon icon={IconHome} />}
-                        >
-                            Homepage
-                        </Button>
-                        {canAskAi && (
-                            <Button
-                                component={Link}
-                                to={`/projects/${analyticsProject.projectUuid}/ai-agents`}
-                                leftSection={<AiAgentIcon size={16} />}
-                            >
-                                Ask AI
-                            </Button>
-                        )}
-                    </Group>
-                )
-            }
-        >
+        <Stack gap="lg" pb="lg">
+            {!showOverview && heading}
             {status.isLoading ? (
                 <SettingsCard>
                     <EmptyStateLoader title="Loading analytics project" />
@@ -111,44 +113,56 @@ const LightdashAnalyticsPanel = ({
                     </Stack>
                 </SettingsCard>
             ) : analyticsProject && projectUrlIdentifier ? (
-                <>
-                    <AnalyticsProcessingSummary
-                        processing={analyticsProject.processing}
-                    />
-                    <AnalyticsOverview
-                        projectUuid={analyticsProject.projectUuid}
-                        projectUrlIdentifier={projectUrlIdentifier}
-                        dashboards={verifiedDashboards}
-                    />
-                </>
-            ) : (
-                <SettingsSection label="Analytics project" description={null}>
-                    <SettingsCard>
-                        <SettingRow
-                            title="Create your analytics project"
-                            description="Create a dedicated project with built-in AI usage and query event models. No connection setup is needed. Dashboard data for the last seven complete days is prepared first, then older events are added in the background. This can take a few minutes, or longer for larger histories."
-                            control={
-                                <Button
-                                    loading={createProject.isLoading}
-                                    onClick={() => createProject.mutate()}
-                                >
-                                    Create
-                                </Button>
-                            }
-                        >
-                            {createProject.isError && (
-                                <Box mt="sm">
-                                    <Callout
-                                        variant="danger"
-                                        title="Unable to create analytics project"
-                                    >
-                                        {createProject.error.error.message}
-                                    </Callout>
-                                </Box>
+                <AnalyticsOverview
+                    projectUuid={analyticsProject.projectUuid}
+                    projectUrlIdentifier={projectUrlIdentifier}
+                    dashboards={verifiedDashboards}
+                    heading={heading}
+                    actions={
+                        <Group gap="sm" wrap="nowrap">
+                            {canAskAi && (
+                                <AnalyticsAskAiButton
+                                    projectUuid={analyticsProject.projectUuid}
+                                />
                             )}
-                        </SettingRow>
-                    </SettingsCard>
-                </SettingsSection>
+                            <Button
+                                component={Link}
+                                variant="default"
+                                size="xs"
+                                to={`/projects/${projectUrlIdentifier}/tables`}
+                                leftSection={<MantineIcon icon={IconPlus} />}
+                            >
+                                Create your own
+                            </Button>
+                        </Group>
+                    }
+                />
+            ) : (
+                <SettingsCard>
+                    <SettingRow
+                        title="Create your analytics project"
+                        description="Create a dedicated project with built-in AI usage and query event models. No connection setup is needed. Dashboard data for the last seven complete days is prepared first, then older events are added in the background. This can take a few minutes, or longer for larger histories."
+                        control={
+                            <Button
+                                loading={createProject.isLoading}
+                                onClick={() => createProject.mutate()}
+                            >
+                                Create
+                            </Button>
+                        }
+                    >
+                        {createProject.isError && (
+                            <Box mt="sm">
+                                <Callout
+                                    variant="danger"
+                                    title="Unable to create analytics project"
+                                >
+                                    {createProject.error.error.message}
+                                </Callout>
+                            </Box>
+                        )}
+                    </SettingRow>
+                </SettingsCard>
             )}
             {status.isSuccess && projectUrlIdentifier && (
                 <Accordion variant="separated">
@@ -253,7 +267,7 @@ const LightdashAnalyticsPanel = ({
                     </Callout>
                 )}
             </MantineModal>
-        </SettingsPage>
+        </Stack>
     );
 };
 
