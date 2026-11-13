@@ -1,3 +1,10 @@
+## [3.258.1](https://github.com/lightdash/lightdash/compare/3.258.0...3.258.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **cli:** skip uuid fetch in track.sh on CI/dev ([#32300](https://github.com/lightdash/lightdash/issues/32300)) ([9124c26](https://github.com/lightdash/lightdash/commit/9124c26749c1ca30e0c080c09d740af8fcafee69))
+
 # [3.258.0](https://github.com/lightdash/lightdash/compare/3.257.0...3.258.0) (2026-11-13)
 
 
