@@ -3,7 +3,7 @@ import {
     ChartType,
     DashboardTileTypes,
     getDefaultChartTileSize,
-    type ApiError,
+    isApiError,
     type ComposerChart,
     type ComposerChartPipeline,
     type ComposerStoredChart,
@@ -61,7 +61,6 @@ export type SavedComposerChartLink = {
 
 type Props = {
     projectUuid: string;
-    opened: boolean;
     onClose: () => void;
     name: string;
     description: string;
@@ -74,7 +73,6 @@ type Props = {
 /** The chart save modal for a composer chart: dashboards only, the space option shown greyed out. */
 export const SaveComposerChartModal: FC<Props> = ({
     projectUuid,
-    opened,
     onClose,
     name,
     description,
@@ -84,7 +82,8 @@ export const SaveComposerChartModal: FC<Props> = ({
 }) => {
     const lightdashApi = useLightdashApi();
     const { user } = useApp();
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastSuccess, showToastApiError, showToastError } =
+        useToaster();
     const { getDashboardActiveTabUuid } = useDashboardStorage();
     const [isSelectingDashboard, setIsSelectingDashboard] = useState(false);
     const [isCreatingNewDashboard, setIsCreatingNewDashboard] = useState(false);
@@ -243,10 +242,17 @@ export const SaveComposerChartModal: FC<Props> = ({
             }).catch(() => undefined);
             onClose();
         } catch (e) {
-            showToastApiError({
-                title: 'Failed to save chart',
-                apiError: (e as ApiError).error,
-            });
+            if (isApiError(e)) {
+                showToastApiError({
+                    title: 'Failed to save chart',
+                    apiError: e.error,
+                });
+            } else {
+                showToastError({
+                    title: 'Failed to save chart',
+                    subtitle: e instanceof Error ? e.message : String(e),
+                });
+            }
         } finally {
             setIsSaving(false);
         }
@@ -254,7 +260,7 @@ export const SaveComposerChartModal: FC<Props> = ({
 
     return (
         <MantineModal
-            opened={opened}
+            opened
             onClose={onClose}
             title="Save chart"
             icon={IconChartBar}

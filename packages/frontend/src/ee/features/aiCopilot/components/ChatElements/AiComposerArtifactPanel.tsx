@@ -542,7 +542,6 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 composerSave.draft && (
                     <SaveComposerChartModal
                         projectUuid={projectUuid}
-                        opened
                         onClose={closeComposerSaveModal}
                         name={title}
                         description={description ?? ''}

@@ -4,13 +4,13 @@ export const config = { transaction: false };
 
 export const classification = {
     kind: 'safe',
-    reason: 'Validates a foreign key (SHARE UPDATE EXCLUSIVE, reads and writes continue) and builds a secondary index concurrently; older app versions never read the column.',
+    reason: 'Builds a secondary index concurrently without rewriting rows; older app versions never read the column.',
 };
 
-const ConstraintName = 'ai_artifact_versions_saved_composer_chart_uuid_foreign';
-const IndexName = 'ai_artifact_versions_saved_composer_chart_uuid_index';
-
-async function change(knex: Knex, direction: 'up' | 'down'): Promise<void> {
+async function changeIndex(
+    knex: Knex,
+    direction: 'up' | 'down',
+): Promise<void> {
     // Concurrent DDL cannot run in a transaction; pin settings and statements to one connection.
     const connection = await knex.client.acquireConnection();
     try {
@@ -27,16 +27,8 @@ async function change(knex: Knex, direction: 'up' | 'down'): Promise<void> {
 
         try {
             await knex.raw('SET statement_timeout = 0').connection(connection);
+            await knex.raw('SET lock_timeout = 0').connection(connection);
             if (direction === 'up') {
-                await knex
-                    .raw("SET lock_timeout = '60s'")
-                    .connection(connection);
-                await knex
-                    .raw(
-                        `ALTER TABLE ai_artifact_versions VALIDATE CONSTRAINT ${ConstraintName}`,
-                    )
-                    .connection(connection);
-                await knex.raw('SET lock_timeout = 0').connection(connection);
                 const invalid = await knex
                     .raw<{ rows: { invalid: boolean }[] }>(
                         `SELECT NOT indisvalid AS invalid
@@ -58,9 +50,10 @@ async function change(knex: Knex, direction: 'up' | 'down'): Promise<void> {
                     )
                     .connection(connection);
             } else {
-                await knex.raw('SET lock_timeout = 0').connection(connection);
                 await knex
-                    .raw(`DROP INDEX CONCURRENTLY IF EXISTS ${IndexName}`)
+                    .raw(
+                        'DROP INDEX CONCURRENTLY IF EXISTS ai_artifact_versions_saved_composer_chart_uuid_index',
+                    )
                     .connection(connection);
             }
         } finally {
@@ -77,9 +70,9 @@ async function change(knex: Knex, direction: 'up' | 'down'): Promise<void> {
 }
 
 export async function up(knex: Knex): Promise<void> {
-    await change(knex, 'up');
+    await changeIndex(knex, 'up');
 }
 
 export async function down(knex: Knex): Promise<void> {
-    await change(knex, 'down');
+    await changeIndex(knex, 'down');
 }
