@@ -24,7 +24,6 @@ import {
 } from 'react';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
-import AppColorSchemeScope from '../../components/NavBar/AppColorSchemeScope';
 import { maskEmail } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MOBILE_SIGN_IN_STRINGS as S, MOBILE_STRINGS } from './mobileStrings';
@@ -115,52 +114,51 @@ const ConfirmSignIn: FC<StepContext> = ({
         decline.current?.focus();
     }, []);
     return (
-        <AppColorSchemeScope>
-            <Stack gap="sm" role="group" aria-labelledby={titleId}>
-                <Stack gap={4}>
-                    <Text id={titleId} size="sm" fw={600}>
-                        {S.confirm.title}
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                        {S.confirm.description}
-                    </Text>
-                </Stack>
-                <Box component="dl" className={classes.confirmRows}>
-                    {[
-                        [S.confirm.account, account],
-                        [S.confirm.site, site],
-                        ...(platform ? [[S.confirm.device, platform]] : []),
-                    ].map(([label, value]) => (
-                        <Box key={label} className={classes.confirmRow}>
-                            <Text component="dt" size="sm" c="dimmed">
-                                {label}
-                            </Text>
-                            <Text component="dd" size="sm">
-                                {value}
-                            </Text>
-                        </Box>
-                    ))}
-                </Box>
-                <Group gap="xs">
-                    <Button
-                        ref={decline}
-                        size="xs"
-                        variant="default"
-                        onClick={signIn.decline}
-                        disabled={signIn.isDeciding}
-                    >
-                        {S.confirm.decline}
-                    </Button>
-                    <Button
-                        size="xs"
-                        onClick={signIn.approve}
-                        loading={signIn.isDeciding}
-                    >
-                        {S.confirm.approve}
-                    </Button>
-                </Group>
+        <Stack gap="sm" role="group" aria-labelledby={titleId}>
+            <Stack gap={4}>
+                <Text id={titleId} size="sm" fw={600}>
+                    {S.confirm.title}
+                </Text>
+                <Text size="sm" c="dimmed">
+                    {S.confirm.description}
+                </Text>
             </Stack>
-        </AppColorSchemeScope>
+            <Box component="dl" className={classes.confirmRows}>
+                {[
+                    [S.confirm.account, account],
+                    [S.confirm.site, site],
+                    ...(platform ? [[S.confirm.device, platform]] : []),
+                ].map(([label, value]) => (
+                    <Box key={label} className={classes.confirmRow}>
+                        <Text component="dt" size="sm" c="dimmed">
+                            {label}
+                        </Text>
+                        <Text component="dd" size="sm">
+                            {value}
+                        </Text>
+                    </Box>
+                ))}
+            </Box>
+            <Group gap="xs">
+                <Button
+                    ref={decline}
+                    size="xs"
+                    variant="default"
+                    onClick={signIn.decline}
+                    disabled={signIn.isDeciding}
+                >
+                    {S.confirm.decline}
+                </Button>
+                <Button
+                    size="xs"
+                    className={classes.confirmButton}
+                    onClick={signIn.approve}
+                    loading={signIn.isDeciding}
+                >
+                    {S.confirm.approve}
+                </Button>
+            </Group>
+        </Stack>
     );
 };
 

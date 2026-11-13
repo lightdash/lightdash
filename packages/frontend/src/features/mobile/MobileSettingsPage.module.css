@@ -89,6 +89,16 @@
 
 .signInPopover {
     color: var(--mantine-color-text);
+    color-scheme: dark;
+}
+
+.signInPopover .confirmButton:global(.mantine-Button-root) {
+    background: #5e4cff;
+    color: var(--mantine-color-white);
+}
+
+.signInPopover .confirmButton:global(.mantine-Button-root):hover {
+    background: #4c3bdb;
 }
 
 .signInButtonLabel {
