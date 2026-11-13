@@ -213,20 +213,20 @@ test.describe('Composer chart tile', () => {
         await page.goto(
             `/projects/${projectUuid}/dashboards/${dashboard.uuid}/view`,
         );
-        const canvasOf = (title: string) =>
+        const chartOf = (title: string) =>
             page
                 .locator('.react-grid-item')
                 .filter({ hasText: title })
-                .locator('.echarts-for-react canvas');
+                .locator('.echarts-for-react');
         await expect(
             page.getByTestId('composer-chart-visualization'),
         ).toBeVisible();
-        await expect(canvasOf('Classic')).toBeVisible();
-        await expect(canvasOf('Composer')).toBeVisible();
+        await expect(chartOf('Classic')).toBeVisible();
+        await expect(chartOf('Composer')).toBeVisible();
         // Same rows, fields and chart config draw the same pixels.
         await expect(async () => {
-            expect(await canvasOf('Composer').screenshot()).toEqual(
-                await canvasOf('Classic').screenshot(),
+            expect(await chartOf('Composer').screenshot()).toEqual(
+                await chartOf('Classic').screenshot(),
             );
         }).toPass({ timeout: 30_000 });
     });

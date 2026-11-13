@@ -197,6 +197,14 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
           terminal.error?.error.message ??
           stage.error?.error.message ??
           (drawState.status === 'error' ? drawState.message : null));
+    useEffect(() => {
+        // Draw errors are captured where they are thrown
+        if (errorMessage && drawState.status !== 'error') {
+            Sentry.captureException(new Error(errorMessage), {
+                tags: SENTRY_TAGS,
+            });
+        }
+    }, [errorMessage, drawState.status]);
     const isLoading =
         !errorMessage && (!readyDraw || !results.hasFetchedAllRows);
     const handleScreenshotReady = useCallback(
