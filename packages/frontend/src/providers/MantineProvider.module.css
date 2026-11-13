@@ -1,3 +1,6 @@
-.notificationsRoot[data-position^='bottom'] {
-    bottom: calc(var(--mantine-spacing-md) + env(safe-area-inset-bottom, 0px));
+@media (max-width: $mantine-breakpoint-sm) {
+    .notificationsRoot[data-position^='bottom'] {
+        top: var(--mantine-spacing-md);
+        bottom: auto;
+    }
 }
