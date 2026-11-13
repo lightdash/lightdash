@@ -1,6 +1,5 @@
 import {
     getChartFilterRuleOverrideMatches,
-    getFieldsFromMetricQuery,
     getItemMap,
     type FilterRule,
     type Filters,
@@ -34,7 +33,7 @@ export type SchedulerChartFilterSource = Pick<
 
 type Props = {
     savedChart: SchedulerChartFilterSource;
-    /** Opened from the chart page: the explorer's fields. Loaded otherwise. */
+    /** Chart query result fields, available if the Explore cannot be loaded. */
     itemsMap: ItemsMap | undefined;
     draftFilters: Filters | undefined;
     /** Edit mode: the overrides stored on the scheduler. */
@@ -63,26 +62,21 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
         savedChart.projectUuid,
     );
     const { data: explore, isInitialLoading: isLoadingExplore } =
-        useExploreByProjectUuid(
-            itemsMap ? undefined : savedChart.tableName,
-            savedChart.projectUuid,
-        );
+        useExploreByProjectUuid(savedChart.tableName, savedChart.projectUuid);
     const { startOfWeek, warehouseType } = useExploreWarehouseConnection(
         savedChart.tableName,
         savedChart.projectUuid,
     );
     const fieldsMap = useMemo<ItemsMap | undefined>(() => {
-        if (itemsMap || !explore) return itemsMap;
+        if (!explore) return itemsMap;
         const { metricQuery } = savedChart;
-        return inheritDefaults
-            ? getItemMap(
-                  explore,
-                  metricQuery.additionalMetrics,
-                  metricQuery.tableCalculations,
-                  metricQuery.customDimensions,
-              )
-            : getFieldsFromMetricQuery(metricQuery, explore);
-    }, [itemsMap, explore, savedChart.metricQuery, inheritDefaults]);
+        return getItemMap(
+            explore,
+            metricQuery.additionalMetrics,
+            metricQuery.tableCalculations,
+            metricQuery.customDimensions,
+        );
+    }, [itemsMap, explore, savedChart.metricQuery]);
     const chartFilters = savedChart.metricQuery.filters;
 
     // Seed the form with the chart's saved rules exactly once (undefined =
