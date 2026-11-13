@@ -33,9 +33,14 @@ import { v4 as uuidv4 } from 'uuid';
 import {
     explorerActions,
     selectSavedChart,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
+import {
+    isFilterableOnLiveSource,
+    useApiSourceExplore,
+} from '../../../../../features/externalConnections/liveSources/apiSourceExplore';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFilteredFields } from '../../../../../hooks/useFilters';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
@@ -80,6 +85,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     const projectUuid = useProjectUuid();
     const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
     const savedChart = useExplorerSelector(selectSavedChart);
+    const apiSource = useApiSourceExplore(useExplorerSelector(selectTableName));
     const { user } = useApp();
     const { showToastSuccess } = useToaster();
     const { addFilter } = useFilteredFields();
@@ -146,7 +152,9 @@ const TreeSingleNodeActions: FC<Props> = ({
             onChange={onMenuChange}
         >
             <Menu.Dropdown>
-                {!isAdditionalMetric(item) && isFilterableField(item) ? (
+                {!isAdditionalMetric(item) &&
+                isFilterableField(item) &&
+                isFilterableOnLiveSource(apiSource, item) ? (
                     <Menu.Item
                         component="button"
                         leftSection={<MantineIcon icon={IconFilter} />}

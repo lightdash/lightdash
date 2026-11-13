@@ -4,6 +4,7 @@ import {
     getFilterGroupItemsPropertyName,
     getFiltersFromGroup,
     getItemsFromFilterGroup,
+    getSupportedFilterRule,
     isAndFilterGroup,
     isCustomSqlDimension,
     isDimension,
@@ -30,10 +31,16 @@ import {
 import { IconPlus } from '@tabler/icons-react';
 import React, { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    getLiveSourceFilterGroups,
+    getLiveSourceSupportedOperators,
+    isFilterableOnLiveSource,
+} from '../../../features/externalConnections/liveSources/apiSourceExplore';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
 import FilterRuleForm from './FilterRuleForm';
 import classes from './Filters.module.css';
+import useFiltersContext from './useFiltersContext';
 
 type Props = {
     hideButtons?: boolean;
@@ -76,6 +83,13 @@ const FilterGroupForm: FC<Props> = memo(
     }) => {
         const items = getItemsFromFilterGroup(filterGroup);
         const [conditionLabel, setConditionLabel] = useState('');
+        const { apiSource } = useFiltersContext();
+        const liveSourceGroups = getLiveSourceFilterGroups(apiSource);
+        // Inside an AND group the new group is an OR group
+        const canConvertToGroup =
+            ALLOW_CONVERT_TO_GROUP_UP_TO_DEPTH > groupDepth &&
+            liveSourceGroups.nestedGroups &&
+            (liveSourceGroups.or || !isAndFilterGroup(filterGroup));
 
         const [dimensions, metrics, tableCalculations] = useMemo<
             [
@@ -151,19 +165,32 @@ const FilterGroupForm: FC<Props> = memo(
             [filterGroup, items, onChange],
         );
 
+        const addableFields = useMemo(
+            () =>
+                availableFieldsForGroupRules.filter((field) =>
+                    isFilterableOnLiveSource(apiSource, field),
+                ),
+            [availableFieldsForGroupRules, apiSource],
+        );
+
         const onAddFilterRule = useCallback(() => {
-            if (availableFieldsForGroupRules.length > 0) {
+            if (addableFields.length > 0) {
                 onChange({
                     ...filterGroup,
                     [getFilterGroupItemsPropertyName(filterGroup)]: [
                         ...items,
-                        createFilterRuleFromField(
-                            availableFieldsForGroupRules[0],
+                        getSupportedFilterRule(
+                            addableFields[0],
+                            createFilterRuleFromField(addableFields[0]),
+                            getLiveSourceSupportedOperators(
+                                apiSource,
+                                addableFields[0],
+                            ),
                         ),
                     ],
                 });
             }
-        }, [availableFieldsForGroupRules, filterGroup, items, onChange]);
+        }, [addableFields, apiSource, filterGroup, items, onChange]);
 
         const onChangeOperator = useCallback(
             (value: FilterGroupOperator) => {
@@ -203,6 +230,9 @@ const FilterGroupForm: FC<Props> = memo(
                                 {
                                     value: FilterGroupOperator.or,
                                     label: 'Any',
+                                    disabled:
+                                        !liveSourceGroups.or &&
+                                        isAndFilterGroup(filterGroup),
                                 },
                             ]}
                             value={
@@ -237,8 +267,7 @@ const FilterGroupForm: FC<Props> = memo(
                                     }
                                     onDelete={() => onDeleteItem(index)}
                                     onConvertToGroup={
-                                        ALLOW_CONVERT_TO_GROUP_UP_TO_DEPTH >
-                                        groupDepth
+                                        canConvertToGroup
                                             ? () =>
                                                   onChangeItem(
                                                       index,
@@ -274,11 +303,9 @@ const FilterGroupForm: FC<Props> = memo(
                     ))}
                 </Stack>
 
-                {isEditMode &&
-                    !hideButtons &&
-                    availableFieldsForGroupRules.length > 0 && (
-                        <AddFilterButton onClick={onAddFilterRule} />
-                    )}
+                {isEditMode && !hideButtons && addableFields.length > 0 && (
+                    <AddFilterButton onClick={onAddFilterRule} />
+                )}
             </Stack>
         );
     },

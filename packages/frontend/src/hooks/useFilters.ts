@@ -11,10 +11,15 @@ import {
     explorerActions,
     selectFilters,
     selectIsFiltersExpanded,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
     useExplorerStore,
 } from '../features/explorer/store';
+import {
+    getLiveSourceSupportedOperators,
+    useApiSourceExplore,
+} from '../features/externalConnections/liveSources/apiSourceExplore';
 import { ExplorerSection } from '../providers/Explorer/types';
 
 /**
@@ -25,6 +30,7 @@ import { ExplorerSection } from '../providers/Explorer/types';
 export const useAddFilter = () => {
     const dispatch = useExplorerDispatch();
     const store = useExplorerStore();
+    const apiSource = useApiSourceExplore(useExplorerSelector(selectTableName));
 
     const addFilter = useCallback(
         (
@@ -40,6 +46,10 @@ export const useAddFilter = () => {
                 value,
                 timezone,
                 operator,
+                supportedOperators: getLiveSourceSupportedOperators(
+                    apiSource,
+                    field,
+                ),
             });
             dispatch(explorerActions.setFilters(newFilters));
 
@@ -57,7 +67,7 @@ export const useAddFilter = () => {
                 behavior: 'smooth',
             });
         },
-        [dispatch, store],
+        [dispatch, store, apiSource],
     );
 
     return addFilter;
@@ -67,6 +77,7 @@ export const useFilteredFields = () => {
     const filters = useExplorerSelector(selectFilters);
     const dispatch = useExplorerDispatch();
     const store = useExplorerStore();
+    const apiSource = useApiSourceExplore(useExplorerSelector(selectTableName));
 
     const filteredFieldIds = useMemo(() => {
         const allFilterRules = getTotalFilterRules(filters);
@@ -95,6 +106,10 @@ export const useFilteredFields = () => {
                 value,
                 timezone,
                 operator,
+                supportedOperators: getLiveSourceSupportedOperators(
+                    apiSource,
+                    field,
+                ),
             });
             dispatch(explorerActions.setFilters(newFilters));
 
@@ -112,7 +127,7 @@ export const useFilteredFields = () => {
                 behavior: 'smooth',
             });
         },
-        [dispatch, store],
+        [dispatch, store, apiSource],
     );
 
     return useMemo(
@@ -128,6 +143,7 @@ export const useFilters = () => {
     const filters = useExplorerSelector(selectFilters);
     const dispatch = useExplorerDispatch();
     const store = useExplorerStore();
+    const apiSource = useApiSourceExplore(useExplorerSelector(selectTableName));
 
     const allFilterRules = useMemo(
         () => getTotalFilterRules(filters),
@@ -160,6 +176,10 @@ export const useFilters = () => {
                 value,
                 timezone,
                 operator,
+                supportedOperators: getLiveSourceSupportedOperators(
+                    apiSource,
+                    field,
+                ),
             });
             dispatch(explorerActions.setFilters(newFilters));
 
@@ -176,7 +196,7 @@ export const useFilters = () => {
                 behavior: 'smooth',
             });
         },
-        [dispatch, store],
+        [dispatch, store, apiSource],
     );
 
     return useMemo(

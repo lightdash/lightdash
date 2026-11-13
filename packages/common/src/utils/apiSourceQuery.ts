@@ -136,6 +136,26 @@ export const getApiSourceCapabilities = (
 ): ApiSourceCapabilities =>
     apiSource.capabilities ?? getLegacyCapabilities(apiSource);
 
+/**
+ * The filter operators a live data source runs on a field: none for a field
+ * it doesn't know, or a metric where it can't filter metrics. The Explore
+ * and dashboard filters offer only these; the query check refuses the rest.
+ */
+export const getApiSourceFilterOperators = (
+    apiSource: ApiSourceExplore,
+    fieldId: FieldId,
+    isMetric: boolean,
+): FilterOperator[] => {
+    const fieldRule = getFieldRule(apiSource, fieldId);
+    if (
+        !fieldRule ||
+        (isMetric && !getApiSourceCapabilities(apiSource).metricFilters)
+    ) {
+        return [];
+    }
+    return fieldRule.filterOperators;
+};
+
 /** Whether a live data source runs `feature`; only `native` runs today. */
 export const isApiSourcePushdownSupported = (
     pushdown: ApiSourcePushdown,
@@ -369,15 +389,16 @@ const getFilterIssues = (
         .filter((rule) => !rule.disabled)
         .flatMap((rule): ApiSourceQueryIssue[] => {
             const { fieldId } = rule.target;
-            const fieldRule = getFieldRule(apiSource, fieldId);
-            if (!fieldRule) {
+            if (!getFieldRule(apiSource, fieldId)) {
                 return [];
             }
             const isMetricFilterRefused =
                 kind === 'metrics' && !capabilities.metricFilters;
-            const operators = isMetricFilterRefused
-                ? []
-                : fieldRule.filterOperators;
+            const operators = getApiSourceFilterOperators(
+                apiSource,
+                fieldId,
+                kind === 'metrics',
+            );
             const getOperatorRefusalCode = (): LiveSourceRefusalCode => {
                 if (isMetricFilterRefused) {
                     return 'live_source.refused.metric_filter';

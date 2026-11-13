@@ -9,7 +9,12 @@ import {
     type ApiSourceExplore,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getDefaultDateRangeNote } from './apiSourceExplore';
+import {
+    getDefaultDateRangeNote,
+    getLiveSourceFilterGroups,
+    getLiveSourceOperatorOptions,
+    isFilterableOnLiveSource,
+} from './apiSourceExplore';
 
 const TABLE = 'ga4_abc_report';
 
@@ -102,5 +107,46 @@ describe('getDefaultDateRangeNote', () => {
                 apiSource: { ...apiSource, dateRange: null },
             }),
         ).toBeNull();
+    });
+});
+
+describe('live source filter rules', () => {
+    const { dimensions, metrics } = explore.tables[TABLE];
+    const date = { ...dimensions.date, fieldType: FieldType.DIMENSION };
+    const sessions = metrics.sessions;
+    const options = [
+        { value: FilterOperator.EQUALS, label: 'is' },
+        { value: FilterOperator.IN_BETWEEN, label: 'is between' },
+    ];
+
+    it('keeps only the operators the source runs on the field', () => {
+        expect(
+            getLiveSourceOperatorOptions(options, apiSource, date as never),
+        ).toEqual([{ value: FilterOperator.IN_BETWEEN, label: 'is between' }]);
+    });
+
+    it('keeps every operator outside live data sources', () => {
+        expect(getLiveSourceOperatorOptions(options, null, date as never)).toBe(
+            options,
+        );
+    });
+
+    it('hides fields the source cannot filter', () => {
+        expect(isFilterableOnLiveSource(apiSource, sessions as never)).toBe(
+            false,
+        );
+        expect(isFilterableOnLiveSource(apiSource, date as never)).toBe(true);
+        expect(isFilterableOnLiveSource(null, sessions as never)).toBe(true);
+    });
+
+    it('reads the group shapes the source runs', () => {
+        expect(getLiveSourceFilterGroups(apiSource)).toEqual({
+            or: true,
+            nestedGroups: false,
+        });
+        expect(getLiveSourceFilterGroups(null)).toEqual({
+            or: true,
+            nestedGroups: true,
+        });
     });
 });

@@ -15,6 +15,7 @@ import { ApiConnectorType } from '../types/querySources';
 import { TimeFrames } from '../types/timeFrames';
 import {
     getApiSourceCapabilities,
+    getApiSourceFilterOperators,
     getApiSourceQueryIssues,
     isDateZoomRefusedOnExplore,
     type ApiSourceQueryContext,
@@ -682,5 +683,35 @@ describe("getApiSourceQueryIssues with the explore's fields", () => {
         ).toEqual([
             "Item name can't be combined with Sessions: item-scoped dimensions only work with item-scoped metrics.",
         ]);
+    });
+});
+
+describe('getApiSourceFilterOperators', () => {
+    test('returns the operators the field declares', () => {
+        expect(
+            getApiSourceFilterOperators(apiSource, 'report_channel', false),
+        ).toEqual([FilterOperator.EQUALS, FilterOperator.NOT_EQUALS]);
+    });
+
+    test('returns none for a field the source does not know', () => {
+        expect(
+            getApiSourceFilterOperators(apiSource, 'unknown', false),
+        ).toEqual([]);
+    });
+
+    test('returns none for a metric where the source has no metric filters', () => {
+        const declared: ApiSourceExplore = {
+            ...apiSource,
+            capabilities: {
+                ...getApiSourceCapabilities(apiSource),
+                metricFilters: false,
+            },
+        };
+        expect(
+            getApiSourceFilterOperators(declared, 'report_sessions', true),
+        ).toEqual([]);
+        expect(
+            getApiSourceFilterOperators(apiSource, 'report_sessions', true),
+        ).toEqual([FilterOperator.GREATER_THAN]);
     });
 });
