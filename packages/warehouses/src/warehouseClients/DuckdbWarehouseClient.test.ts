@@ -11,6 +11,7 @@ import {
 import { createHash } from 'crypto';
 import fs from 'fs/promises';
 import type { Mock } from 'vitest';
+import { AnalyticsQueryCancelledError } from './AnalyticsQueryError';
 import {
     DuckdbWarehouseClient,
     mapFieldTypeFromTypeId,
@@ -192,6 +193,69 @@ describe('internal Parquet projects', () => {
         releases.get(2)!();
         releases.get(3)!();
         await Promise.all([second, third]);
+    });
+
+    it('skips a query cancelled while waiting and lets the next query take its slot', async () => {
+        const resolveSource = vi.fn(async () => source());
+        const logger = { info: vi.fn() };
+        const client = new DuckdbWarehouseClient(
+            { type: 'duckdb_parquet', resolveSource },
+            { logger },
+        );
+        const releaseActive = Promise.withResolvers<void>();
+        const activeCallback = vi.fn(() => releaseActive.promise);
+        const active = [
+            client['withEphemeralQuerySession'](activeCallback),
+            client['withEphemeralQuerySession'](activeCallback),
+        ];
+        let cancelled = false;
+        const isQueuedQueryCancelled = vi.fn(async () => cancelled);
+        const staleRows = vi.fn();
+        const stale = client.executeAsyncQuery(
+            {
+                sql: 'SELECT 1',
+                tags: {},
+                isQueuedQueryCancelled,
+            },
+            staleRows,
+        );
+        const staleAssertion = expect(stale).rejects.toBeInstanceOf(
+            AnalyticsQueryCancelledError,
+        );
+        const current = client.executeAsyncQuery({
+            sql: 'SELECT 2',
+            tags: {},
+        });
+        try {
+            await vi.waitFor(() =>
+                expect(activeCallback).toHaveBeenCalledTimes(2),
+            );
+            expect(isQueuedQueryCancelled).not.toHaveBeenCalled();
+            cancelled = true;
+        } finally {
+            releaseActive.resolve();
+        }
+        await Promise.all([...active, staleAssertion, current]);
+
+        expect(isQueuedQueryCancelled).toHaveBeenCalledOnce();
+        expect(createInstanceMock).toHaveBeenCalledTimes(3);
+        expect(resolveSource).toHaveBeenCalledTimes(3);
+        expect(staleRows).not.toHaveBeenCalled();
+        expect(logger.info).toHaveBeenCalledWith(
+            'DuckDB Parquet skipped cancelled query',
+            {
+                budgetWaitMs: expect.any(Number),
+                cancellationCheckMs: expect.any(Number),
+            },
+        );
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.stringContaining('DuckDB ephemeral query session complete:'),
+            expect.objectContaining({
+                budgetWaitMs: expect.any(Number),
+                mkdtempMs: expect.any(Number),
+                cleanupMs: expect.any(Number),
+            }),
+        );
     });
 
     it('releases capacity when instance creation or connection fails', async () => {

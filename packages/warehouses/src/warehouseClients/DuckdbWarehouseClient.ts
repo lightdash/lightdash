@@ -38,7 +38,10 @@ import fsSync from 'fs';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { toAnalyticsQueryError } from './AnalyticsQueryError';
+import {
+    AnalyticsQueryCancelledError,
+    toAnalyticsQueryError,
+} from './AnalyticsQueryError';
 import {
     getEmbeddedDatabaseFileName,
     resolveEmbeddedBundleDatabasePath,
@@ -2447,6 +2450,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private async withEphemeralQuerySession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
         querySql?: string,
+        isQueuedQueryCancelled?: () => Promise<boolean>,
     ): Promise<T> {
         const sessionStart = performance.now();
         const budget = this.parquetConfig
@@ -2457,13 +2461,41 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 'Analytics query capacity was reset. Try again.',
             );
         }
+        const budgetWaitMs = budget ? performance.now() - sessionStart : 0;
         let instance: DuckDBInstance | undefined;
         let connection: DuckdbConnection | undefined;
         let parquetDirectory: string | undefined;
         let queryFailed = false;
         let deadlineExceeded = false;
         let timeout: ReturnType<typeof setTimeout> | undefined;
+        let timing:
+            | {
+                  cancellationCheckMs: number;
+                  instanceCreateMs: number;
+                  connectMs: number;
+                  mkdtempMs: number;
+                  bootstrapMs: number;
+                  queryMs: number;
+              }
+            | undefined;
         try {
+            let cancellationCheckMs = 0;
+            if (budget && isQueuedQueryCancelled) {
+                const cancellationCheckStart = performance.now();
+                const cancelled = await isQueuedQueryCancelled();
+                cancellationCheckMs =
+                    performance.now() - cancellationCheckStart;
+                if (cancelled) {
+                    this.logger?.info(
+                        'DuckDB Parquet skipped cancelled query',
+                        {
+                            budgetWaitMs,
+                            cancellationCheckMs,
+                        },
+                    );
+                    throw new AnalyticsQueryCancelledError();
+                }
+            }
             const instanceCreateStart = performance.now();
             instance = await DuckDBInstance.create(':memory:');
             const instanceCreateMs = performance.now() - instanceCreateStart;
@@ -2480,6 +2512,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 timeout.unref();
             }
 
+            const mkdtempStart = performance.now();
             if (this.parquetConfig) {
                 parquetDirectory = await fs
                     .mkdtemp(
@@ -2487,6 +2520,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     )
                     .catch(() => undefined);
             }
+            const mkdtempMs = this.parquetConfig
+                ? performance.now() - mkdtempStart
+                : 0;
             const bootstrapTiming =
                 await DuckdbWarehouseClient.bootstrapQuerySession(
                     connection,
@@ -2504,17 +2540,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 throw new Error('Analytics query deadline exceeded');
             const queryMs = performance.now() - queryStart;
 
-            const totalMs = performance.now() - sessionStart;
-            this.logger?.info(
-                `DuckDB ephemeral query session complete: instance_create=${formatMilliseconds(instanceCreateMs)}ms connect=${formatMilliseconds(connectMs)}ms bootstrap=${formatMilliseconds(bootstrapTiming.bootstrapMs)}ms query=${formatMilliseconds(queryMs)}ms total=${formatMilliseconds(totalMs)}ms`,
-                {
-                    instanceCreateMs,
-                    connectMs,
-                    bootstrapMs: bootstrapTiming.bootstrapMs,
-                    queryMs,
-                    totalMs,
-                },
-            );
+            timing = {
+                cancellationCheckMs,
+                instanceCreateMs,
+                connectMs,
+                mkdtempMs,
+                bootstrapMs: bootstrapTiming.bootstrapMs,
+                queryMs,
+            };
 
             return result;
         } catch (error) {
@@ -2525,6 +2558,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             throw error;
         } finally {
             if (timeout) clearTimeout(timeout);
+            const cleanupStart = performance.now();
             const cleanupErrors: unknown[] = [];
             try {
                 for (const close of [
@@ -2554,7 +2588,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     if (!queryFailed) throw cleanupErrors[0];
                 }
             } finally {
+                const cleanupMs = performance.now() - cleanupStart;
                 budget?.release();
+                if (timing && cleanupErrors.length === 0) {
+                    const totalMs = performance.now() - sessionStart;
+                    this.logger?.info(
+                        `DuckDB ephemeral query session complete: budget_wait=${formatMilliseconds(budgetWaitMs)}ms instance_create=${formatMilliseconds(timing.instanceCreateMs)}ms connect=${formatMilliseconds(timing.connectMs)}ms bootstrap=${formatMilliseconds(timing.bootstrapMs)}ms query=${formatMilliseconds(timing.queryMs)}ms cleanup=${formatMilliseconds(cleanupMs)}ms total=${formatMilliseconds(totalMs)}ms`,
+                        { budgetWaitMs, ...timing, cleanupMs, totalMs },
+                    );
+                }
             }
         }
     }
@@ -2632,6 +2674,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             durationMs: number,
         ) => void,
         querySql?: string,
+        isQueuedQueryCancelled?: () => Promise<boolean>,
     ): Promise<T> {
         let releaseOrganizationConcurrency: (() => void) | undefined;
         if (
@@ -2670,10 +2713,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     return await this.withEphemeralQuerySession(
                         callback,
                         querySql,
+                        isQueuedQueryCancelled,
                     );
                 } catch (error) {
                     if (
                         error instanceof ParameterError ||
+                        error instanceof AnalyticsQueryCancelledError ||
                         error instanceof ParquetQueryTimeoutError
                     )
                         throw error;
@@ -3293,6 +3338,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             queryParams?: Record<string, AnyType>;
             tags?: Record<string, string>;
             timezone?: string;
+            isQueuedQueryCancelled?: () => Promise<boolean>;
             onPhaseTiming?: (
                 phase: WarehouseQueryPhase,
                 durationMs: number,
@@ -3390,6 +3436,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             () => !hasEmittedRows,
             reportPhase,
             sql,
+            options?.isQueuedQueryCancelled,
         );
     }
 
