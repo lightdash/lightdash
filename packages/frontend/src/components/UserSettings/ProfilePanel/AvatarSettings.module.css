@@ -2,7 +2,7 @@
     border: none;
     background: none;
     padding: 0;
-    border-radius: 50%;
+    border-radius: 37.5%;
     cursor: pointer;
     line-height: 0;
 }
@@ -19,7 +19,7 @@
     display: block;
     width: 26px;
     height: 26px;
-    border-radius: 50%;
+    border-radius: 37.5%;
     overflow: hidden;
     background-color: var(--mantine-color-body);
     border: 1px solid var(--mantine-color-ldGray-4);
@@ -42,7 +42,7 @@
     border: none;
     background: none;
     padding: 0;
-    border-radius: 50%;
+    border-radius: 37.5%;
     cursor: pointer;
     line-height: 0;
     font: inherit;
@@ -54,7 +54,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    border-radius: inherit;
     background: rgba(0, 0, 0, 0.4);
     opacity: 0;
     transition: opacity 0.15s ease;

@@ -270,7 +270,11 @@ export const RemediationActivityTimeline: FC<Props> = ({ reviewItem }) => {
                 `${user.firstName} ${user.lastName}`.trim() || user.email;
             return (
                 <span className={styles.author}>
-                    <LightdashUserAvatar size="xs" radius="xl" name={name} />
+                    <LightdashUserAvatar
+                        size="xs"
+                        userUuid={userUuid}
+                        name={name}
+                    />
                     {name}
                 </span>
             );

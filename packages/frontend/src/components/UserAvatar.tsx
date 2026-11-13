@@ -20,7 +20,6 @@ export const UserAvatar = forwardRef<
             data-testid="user-avatar"
             ref={ref}
             size={theme.spacing.xxl}
-            radius="lg"
             userUuid={user.data?.userUuid}
             avatarUrl={user.data?.avatarUrl}
             avatarGradient={user.data?.avatarGradient}
