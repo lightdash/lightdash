@@ -1,22 +1,13 @@
 import { subject } from '@casl/ability';
 import {
-    assertUnreachable,
     supportsAiServiceAccount,
     type WarehouseCredentials,
     FeatureFlags,
     ProjectType,
     getProjectAgentIdentitySettingsPath,
-    WarehouseTypes,
     type Project,
-    type PostgresCredentials,
-    type RedshiftCredentials,
-    type TrinoCredentials,
-    type ClickhouseCredentials,
-    type AthenaCredentials,
-    type BigqueryCredentials,
-    type DatabricksCredentials,
-    type SnowflakeCredentials,
     type AiServiceAccountTestResult,
+    type AiServiceAccountWarehouse,
     type ApiError,
     type AiServiceAccountSlot,
     type AiServiceAccountParent,
@@ -32,6 +23,11 @@ import MantineModal from '../../components/common/MantineModal';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
+import {
+    agentIdentityWarehouses,
+    renderAiServiceAccountSetup,
+    type AiServiceAccountConnection,
+} from './agentIdentityWarehouses';
 import { AiServiceAccountDetails } from './AiServiceAccountDetails';
 import { AiServiceAccountForm } from './AiServiceAccountForm';
 import { AiServiceAccountStatus } from './AiServiceAccountStatus';
@@ -41,26 +37,7 @@ import {
     useOrganizationAgentIdentitySettings,
     useTestAiServiceAccount,
 } from './api';
-import { AthenaAgentSetup } from './AthenaAgentSetup';
-import { BigQueryAgentSetup } from './BigQueryAgentSetup';
-import { ClickhouseAgentSetup } from './ClickhouseAgentSetup';
-import { DatabricksAgentSetup } from './DatabricksAgentSetup';
 import { getAiServiceAccountStatus } from './getAiServiceAccountStatus';
-import { PostgresAgentSetup } from './PostgresAgentSetup';
-import { RedshiftAgentSetup } from './RedshiftAgentSetup';
-import { getSnowflakeAiPrincipal } from './snowflakeAiPrincipal';
-import { SnowflakeAiServiceAccountSetup } from './SnowflakeAiServiceAccountSetup';
-import { TrinoAgentSetup } from './TrinoAgentSetup';
-
-type AiServiceAccountConnection =
-    | ClickhouseCredentials
-    | RedshiftCredentials
-    | TrinoCredentials
-    | PostgresCredentials
-    | AthenaCredentials
-    | BigqueryCredentials
-    | DatabricksCredentials
-    | SnowflakeCredentials;
 
 const isAiServiceAccountConnection = (
     connection: WarehouseCredentials,
@@ -103,7 +80,7 @@ const AiServiceAccountTestFeedback = ({
     result: AiServiceAccountTestResult | null;
     error: ApiError | null;
     observation: AiServiceAccountTestResult | null;
-    warehouseType: AiServiceAccountConnection['type'];
+    warehouseType: AiServiceAccountWarehouse;
 }) => (
     <>
         {result && !result.ok && (
@@ -116,7 +93,7 @@ const AiServiceAccountTestFeedback = ({
                 {error.error.message}
             </Alert>
         )}
-        {warehouseType !== WarehouseTypes.BIGQUERY &&
+        {agentIdentityWarehouses[warehouseType].usesPersistedVerification &&
             observation?.ok &&
             (error || (result && !result.ok)) && (
                 <Text size="sm" c="dimmed">
@@ -141,7 +118,7 @@ const AiServiceAccountSummary = ({
     parent: AiServiceAccountParent | null;
     testedPrincipal: string | null;
     observation: AiServiceAccountTestResult | null;
-    warehouseType: AiServiceAccountConnection['type'];
+    warehouseType: AiServiceAccountWarehouse;
     onReplace: (() => void) | null;
     onTestSuccess: (
         principal: string,
@@ -173,12 +150,9 @@ const AiServiceAccountSummary = ({
                                 {
                                     onSuccess: (result) => {
                                         const principal =
-                                            warehouseType ===
-                                            WarehouseTypes.SNOWFLAKE
-                                                ? getSnowflakeAiPrincipal(
-                                                      result,
-                                                  )
-                                                : result.principal;
+                                            agentIdentityWarehouses[
+                                                warehouseType
+                                            ].resolvePrincipal(result);
                                         if (result.ok && principal)
                                             onTestSuccess(principal, result);
                                     },
@@ -262,7 +236,7 @@ const AiServiceAccountSettingsContent = ({
     rule: OrganizationAgentIdentityRule;
     testedPrincipal: string | null;
     observation: AiServiceAccountTestResult | null;
-    warehouseType: AiServiceAccountConnection['type'];
+    warehouseType: AiServiceAccountWarehouse;
     onTestSuccess: (
         principal: string,
         verification: AiServiceAccountTestResult | null,
@@ -353,32 +327,20 @@ const getAiPrincipalState = (
     parent: AiServiceAccountParent | null,
     verification: AiServiceAccountTestResult | null,
     testedPrincipal: TestedAiPrincipal | null,
-    warehouseType: AiServiceAccountConnection['type'],
+    warehouseType: AiServiceAccountWarehouse,
 ) => {
     const identityKey = slot?.identityUuid ?? parent?.identityUuid ?? null;
-    const persistedVerification =
-        warehouseType === WarehouseTypes.BIGQUERY
-            ? null
-            : slot
-              ? verification
-              : (parent?.verification ?? null);
+    const warehouse = agentIdentityWarehouses[warehouseType];
+    const persistedVerification = !warehouse.usesPersistedVerification
+        ? null
+        : slot
+          ? verification
+          : (parent?.verification ?? null);
     const currentTest =
         testedPrincipal?.identityKey === identityKey ? testedPrincipal : null;
     const observation = currentTest?.verification ?? persistedVerification;
     const principal =
-        currentTest?.principal ??
-        (warehouseType === WarehouseTypes.SNOWFLAKE
-            ? getSnowflakeAiPrincipal(observation)
-            : warehouseType === WarehouseTypes.TRINO ||
-                warehouseType === WarehouseTypes.REDSHIFT ||
-                warehouseType === WarehouseTypes.CLICKHOUSE ||
-                warehouseType === WarehouseTypes.POSTGRES ||
-                warehouseType === WarehouseTypes.DATABRICKS ||
-                warehouseType === WarehouseTypes.ATHENA
-              ? observation?.ok
-                  ? observation.principal
-                  : null
-              : null);
+        currentTest?.principal ?? warehouse.resolvePrincipal(observation);
     return { identityKey, observation, principal };
 };
 
@@ -386,28 +348,7 @@ const AiServiceAccountSetup = ({
     connection,
 }: {
     connection: AiServiceAccountConnection;
-}) => {
-    switch (connection.type) {
-        case WarehouseTypes.TRINO:
-            return <TrinoAgentSetup connection={connection} />;
-        case WarehouseTypes.CLICKHOUSE:
-            return <ClickhouseAgentSetup connection={connection} />;
-        case WarehouseTypes.REDSHIFT:
-            return <RedshiftAgentSetup connection={connection} />;
-        case WarehouseTypes.POSTGRES:
-            return <PostgresAgentSetup connection={connection} />;
-        case WarehouseTypes.ATHENA:
-            return <AthenaAgentSetup connection={connection} />;
-        case WarehouseTypes.BIGQUERY:
-            return <BigQueryAgentSetup connection={connection} />;
-        case WarehouseTypes.DATABRICKS:
-            return <DatabricksAgentSetup connection={connection} />;
-        case WarehouseTypes.SNOWFLAKE:
-            return <SnowflakeAiServiceAccountSetup />;
-        default:
-            return assertUnreachable(connection, 'Unknown warehouse type');
-    }
-};
+}) => renderAiServiceAccountSetup(connection.type, connection);
 
 const AiServiceAccountSettingsBody = ({
     projectUuid,
