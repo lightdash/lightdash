@@ -121,7 +121,7 @@ export const layoutJoinGraph = ({
     links,
 }: JoinGraph): Map<string, { x: number; y: number }> => {
     const graph = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-    graph.setGraph({ rankdir: 'LR', ranksep: 120, nodesep: 24 });
+    graph.setGraph({ rankdir: 'LR', ranksep: 80, nodesep: 20 });
     tables.forEach((table) =>
         graph.setNode(table.id, {
             width: JOIN_NODE_WIDTH,

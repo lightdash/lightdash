@@ -169,7 +169,8 @@ const JoinEdge: FC<EdgeProps<JoinFlowEdge>> = ({
 const nodeTypes: NodeTypes = { table: TableNode };
 const edgeTypes: EdgeTypes = { join: JoinEdge };
 
-const FIT_VIEW_OPTIONS = { padding: 0.15, maxZoom: 1 };
+// Wide graphs open readable and pan, rather than shrinking to fit.
+const FIT_VIEW_OPTIONS = { padding: 0.15, minZoom: 0.6, maxZoom: 1 };
 
 export const JoinDiagram: FC<{ projectUuid: string; exploreName: string }> = ({
     projectUuid,
