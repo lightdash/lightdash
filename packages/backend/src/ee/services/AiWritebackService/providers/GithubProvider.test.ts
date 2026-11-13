@@ -19,6 +19,9 @@ vi.mock('../../../../clients/github/Github', () => ({
     createSignedCommitOnBranch: vi.fn().mockResolvedValue({ oid: 'sha' }),
     getBranchHeadSha: vi.fn().mockResolvedValue('base'),
     updatePullRequest: vi.fn().mockResolvedValue(undefined),
+    getFileContent: vi.fn(),
+    getRepoDefaultBranch: vi.fn(),
+    getRepoTree: vi.fn(),
 }));
 
 const mockGetPullRequest = getPullRequest as import('vitest').MockedFunction<
@@ -223,4 +226,68 @@ describe('GithubProvider publication authority', () => {
             );
         },
     );
+});
+
+describe('GithubProvider API checkout', () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    const commit = (prUrl: string | null) =>
+        provider
+            .openApiCheckout({ connection, installation, prUrl })
+            .then((checkout) =>
+                provider.commitApiChanges({
+                    connection,
+                    installation,
+                    user: { userUuid: 'u' } as never,
+                    checkout,
+                    title: 'Add a metric',
+                    description: 'Add a metric',
+                    fileChanges: { additions: [], deletions: [] },
+                    setStage: vi.fn(),
+                    assertPublishAllowed: null,
+                }),
+            );
+
+    it('opens a pull request from a new branch at the commit it read', async () => {
+        await expect(commit(null)).resolves.toEqual({
+            prUrl: 'https://github.com/acme/analytics/pull/42',
+            prCreated: true,
+            commitSha: 'sha',
+        });
+        const { branch } = vi.mocked(createBranch).mock.calls[0][0];
+        expect(vi.mocked(createBranch).mock.calls[0][0].sha).toBe('base');
+        expect(
+            vi.mocked(createSignedCommitOnBranch).mock.calls[0][0],
+        ).toMatchObject({
+            branch,
+            expectedHeadOid: 'base',
+        });
+        expect(vi.mocked(createPullRequest).mock.calls[0][0]).toMatchObject({
+            head: branch,
+            base: 'main',
+        });
+    });
+
+    it('adds a commit to an open pull request without opening another', async () => {
+        mockGetPullRequest.mockResolvedValue(openPr);
+        await expect(
+            commit('https://github.com/acme/analytics/pull/7'),
+        ).resolves.toMatchObject({ prCreated: false });
+        expect(createBranch).not.toHaveBeenCalled();
+        expect(createPullRequest).not.toHaveBeenCalled();
+        expect(vi.mocked(getBranchHeadSha).mock.calls[0][0].branch).toBe(
+            'feature/x',
+        );
+    });
+
+    it('refuses a pull request from another repository or a merged one', async () => {
+        await expect(
+            commit('https://github.com/evil/other/pull/7'),
+        ).rejects.toThrow(ParameterError);
+        mockGetPullRequest.mockResolvedValue({ ...openPr, merged: true });
+        await expect(
+            commit('https://github.com/acme/analytics/pull/7'),
+        ).rejects.toThrow(/merged/);
+        expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
+    });
 });

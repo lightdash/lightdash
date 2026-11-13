@@ -41,6 +41,19 @@ export class AiWritebackRunModel {
             .first();
     }
 
+    async findLatestPrUrlByThread(
+        aiThreadUuid: string,
+    ): Promise<string | null> {
+        const row = await this.database<AiWritebackRunTable>(
+            AiWritebackRunTableName,
+        )
+            .where('ai_thread_uuid', aiThreadUuid)
+            .whereNotNull('pr_url')
+            .orderBy('created_at', 'desc')
+            .first('pr_url');
+        return row?.pr_url ?? null;
+    }
+
     async create(data: {
         organizationUuid: string;
         projectUuid: string;

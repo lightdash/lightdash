@@ -22,6 +22,7 @@ describe('getSemanticStudioSystemPrompt', () => {
             ...base,
             dbt: {
                 opensPullRequest: false,
+                codeMode: false,
                 sections: ['## Repository context\nroot hint'],
             },
         });
@@ -35,7 +36,7 @@ describe('getSemanticStudioSystemPrompt', () => {
     it('has a dbt project check real values before suggesting, with one sampled query', () => {
         const prompt = getSemanticStudioSystemPrompt({
             ...base,
-            dbt: { opensPullRequest: false, sections: [] },
+            dbt: { opensPullRequest: false, codeMode: false, sections: [] },
         });
         expect(prompt).toContain('## Warehouse');
         expect(prompt).toContain("This project's warehouse is postgres.");
@@ -47,7 +48,7 @@ describe('getSemanticStudioSystemPrompt', () => {
         const prompt = getSemanticStudioSystemPrompt({
             ...base,
             warehouse: null,
-            dbt: { opensPullRequest: false, sections: [] },
+            dbt: { opensPullRequest: false, codeMode: false, sections: [] },
         });
         expect(prompt).not.toContain('## Warehouse');
         expect(prompt).not.toContain('runSql');
@@ -56,10 +57,20 @@ describe('getSemanticStudioSystemPrompt', () => {
     it('opens the pull request on the turn the person asks for it', () => {
         const prompt = getSemanticStudioSystemPrompt({
             ...base,
-            dbt: { opensPullRequest: true, sections: [] },
+            dbt: { opensPullRequest: true, codeMode: false, sections: [] },
         });
         expect(prompt).toContain('editDbtProject');
         expect(prompt).not.toContain('```diff');
         expect(prompt).not.toContain('## Warehouse');
+        expect(prompt).not.toContain('yaml.set');
+    });
+
+    it('saves with a script when code mode is on', () => {
+        const prompt = getSemanticStudioSystemPrompt({
+            ...base,
+            dbt: { opensPullRequest: true, codeMode: true, sections: [] },
+        });
+        expect(prompt).toContain('editDbtProject once with a script');
+        expect(prompt).toContain('yaml.set');
     });
 });

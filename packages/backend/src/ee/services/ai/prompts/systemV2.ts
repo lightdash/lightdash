@@ -197,6 +197,8 @@ export const getSystemPromptV2 = (
         // Whether the repo host supports server-side code search (GitHub yes,
         // GitLab no). Defaults true; when false the prompt steers off `search`.
         repoFsSupportsCodeSearch?: boolean;
+        // Semantic Studio saves its change with a code mode script.
+        semanticStudioCodeMode?: boolean;
         // Org Slack setting: the answer may not carry query results into Slack.
         slackLinksOnly?: boolean;
         canRunSql?: boolean;
@@ -220,6 +222,7 @@ export const getSystemPromptV2 = (
         siteUrl = '',
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
+        semanticStudioCodeMode = false,
         promptSections = NO_PROMPT_SECTIONS,
         slackChannelId = null,
         slackLinksOnly = false,
@@ -368,6 +371,7 @@ export const getSystemPromptV2 = (
                         ? {
                               opensPullRequest:
                                   promptSections.has('aiWriteback'),
+                              codeMode: semanticStudioCodeMode,
                               sections: [
                                   ...(promptSections.has('aiWriteback')
                                       ? [

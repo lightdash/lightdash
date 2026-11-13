@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     getErrorMessage,
     isAiWritebackRunInProgress,
+    isExploreError,
     isGitProjectType,
     isUserWithOrg,
     MissingConfigError,
@@ -95,6 +96,12 @@ import {
     type SandboxSpec,
 } from '../SandboxRuntime';
 import {
+    diffLineCounts,
+    runCodeMode,
+    validateSemanticLayerYaml,
+    type CodeModeRepo,
+} from '../SemanticStudioService/codeMode/codeMode';
+import {
     ALLOWED_TOOLS,
     ASSISTANT_TEXT_TAIL_CHARS,
     CLAUDE_MODEL,
@@ -127,6 +134,7 @@ import {
     TRY_OUT_TARGET_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
+import { findDeniedCommitPaths } from './deniedPaths';
 import {
     WRITEBACK_AGENT_ACCESS_REFUSED_MESSAGE,
     WritebackAccessError,
@@ -138,7 +146,7 @@ import {
 } from './errors';
 import { validateNativeSandbox } from './nativeValidation';
 import { BitbucketProvider } from './providers/BitbucketProvider';
-import { GithubProvider } from './providers/GithubProvider';
+import { GithubProvider, type ApiCheckout } from './providers/GithubProvider';
 import { assertSameHost, GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
 import { readStagedChanges } from './providers/sandboxGit';
@@ -197,6 +205,15 @@ const WRITEBACK_WORKSPACE: PersistentWorkspace = {
 // when the worker died before it could be finalized. Sweep well beyond that
 // hard timeout so an in-flight or just-timing-out run is never falsely errored.
 const STALE_RUN_THRESHOLD_MINUTES = 45;
+
+export type ScriptSave =
+    | { status: 'script_failed'; error: string; logs: string[] }
+    | { status: 'checked' }
+    | {
+          status: 'saved';
+          result: AiWritebackRunResult;
+          changedModels: string[];
+      };
 
 const STALE_RUN_ERROR_MESSAGE =
     'This change stopped unexpectedly before it finished, most likely because the server restarted mid-run. Please ask again to retry.';
@@ -1745,6 +1762,283 @@ export class AiWritebackService extends BaseService {
             this.dbtWritebackConfig(),
             assertPublishAllowed,
         );
+    }
+
+    /**
+     * Makes a change with a script, read and committed through the GitHub API
+     * with no sandbox. Null when the target needs the sandbox: not GitHub, a
+     * thread already bound to a sandbox, or a dbt source still to be chosen.
+     */
+    async saveWithScript(
+        args: AiWritebackRunArgs,
+        script: string,
+        {
+            dryRun,
+            assertPublishAllowed,
+        }: {
+            dryRun: boolean;
+            assertPublishAllowed: (() => Promise<void>) | null;
+        },
+    ): Promise<ScriptSave | null> {
+        const { user, projectUuid, aiWritebackRunUuid } = args;
+        await this.assertWritebackProviderSupported(
+            user.organizationUuid,
+            projectUuid,
+        );
+        const prepared = await this.prepareTurn({
+            user,
+            projectUuid,
+            prompt: args.prompt,
+            aiThreadUuid: args.aiThreadUuid,
+            dbtSourceUuid: args.dbtSourceUuid,
+            prUrl: args.prUrl,
+            startNewPullRequest: args.startNewPullRequest,
+        });
+        if (prepared.kind !== 'run') return null;
+        const { turn } = prepared;
+        if (turn.provider !== this.githubProvider || turn.existingRow) {
+            return null;
+        }
+        const setStage = (stage: AiWritebackFailureStage) => {
+            if (dryRun || !aiWritebackRunUuid) return;
+            this.aiWritebackRunModel
+                .updateStageIfInProgress(aiWritebackRunUuid, stage)
+                .catch((error: unknown) => {
+                    this.logger.warn(
+                        `AiWriteback: failed to persist run stage: ${getErrorMessage(error)}`,
+                    );
+                });
+        };
+        const startedAt = performance.now();
+        let stage: AiWritebackFailureStage = 'clone';
+        try {
+            setStage('clone');
+            const { gitConnection: connection } = turn;
+            const installation = await this.githubProvider.resolveInstallation(
+                turn.organizationUuid,
+                { user, connection },
+            );
+            const open = (prUrl: string | null) =>
+                this.githubProvider.openApiCheckout({
+                    connection,
+                    installation,
+                    prUrl,
+                });
+            let checkout: ApiCheckout;
+            if (args.prUrl) {
+                checkout = await open(args.prUrl);
+            } else {
+                const threadPrUrl =
+                    !args.startNewPullRequest && args.aiThreadUuid
+                        ? await this.aiWritebackRunModel.findLatestPrUrlByThread(
+                              args.aiThreadUuid,
+                          )
+                        : null;
+                // The thread's last pull request is continued while it is still open in this repository.
+                checkout = await (
+                    threadPrUrl ? open(threadPrUrl) : open(null)
+                ).catch((error: unknown) => {
+                    if (threadPrUrl && error instanceof ParameterError) {
+                        return open(null);
+                    }
+                    throw error;
+                });
+            }
+
+            const root = connection.projectSubPath
+                .replace(/^\.?\/+/, '')
+                .replace(/\/*$/, '/')
+                .replace(/^\/$/, '');
+            let listing: Promise<string[]> | null = null;
+            const isNative =
+                connection.provider === PullRequestProvider.GITHUB &&
+                connection.semanticLayer === 'lightdash';
+            const touchedTables = new Map<string, string>();
+            const repo: CodeModeRepo = {
+                list: () => {
+                    listing ??= checkout
+                        .listFiles()
+                        .then((paths) =>
+                            paths
+                                .filter((path) => path.startsWith(root))
+                                .map((path) => path.slice(root.length)),
+                        );
+                    return listing;
+                },
+                read: (path) => checkout.readFile(`${root}${path}`),
+                findModel: async (name) => {
+                    const explore =
+                        await this.projectModel.findExploreByTableName(
+                            projectUuid,
+                            name,
+                        );
+                    const table =
+                        explore && !isExploreError(explore)
+                            ? explore.tables[explore.baseTable]
+                            : undefined;
+                    if (!table) return null;
+                    const found = {
+                        yml: table.ymlPath ?? null,
+                        sql: table.sqlPath ?? null,
+                    };
+                    [found.yml, found.sql].forEach((path) => {
+                        if (path) touchedTables.set(path, name);
+                    });
+                    return found;
+                },
+                validateYaml: (path, text) =>
+                    validateSemanticLayerYaml(path, text, {
+                        isNative,
+                        dbtVersion: turn.dbtVersion,
+                    }),
+            };
+
+            stage = 'agent';
+            setStage('agent');
+            const ran = await runCodeMode(script, repo, { timeoutMs: 20000 });
+            const denied = findDeniedCommitPaths(
+                ran.edits.map(({ path }) => `${root}${path}`),
+            );
+            const error =
+                ran.error ??
+                (denied.length > 0
+                    ? `These files may not be changed: ${denied.join(', ')}`
+                    : null) ??
+                (ran.edits.length === 0
+                    ? 'The script changed no files.'
+                    : null);
+            this.logger.info('AI writeback script ran', {
+                event: 'ai_writeback.script.ran',
+                projectUuid,
+                dryRun,
+                ok: error === null,
+                files: ran.edits.length,
+                durationMs: Math.round(performance.now() - startedAt),
+            });
+            if (error !== null) {
+                return { status: 'script_failed', error, logs: ran.logs };
+            }
+            if (dryRun) return { status: 'checked' };
+
+            if (aiWritebackRunUuid) {
+                const claimed =
+                    await this.aiWritebackRunModel.claimForFinalize(
+                        aiWritebackRunUuid,
+                    );
+                if (!claimed) {
+                    const liveRow =
+                        await this.aiWritebackRunModel.findByUuid(
+                            aiWritebackRunUuid,
+                        );
+                    throw new WritebackRunAbortedError(
+                        liveRow?.status ?? 'cancelled',
+                    );
+                }
+            }
+            stage = 'commit';
+            const title = AiWritebackService.truncateEnd(
+                args.prompt.split('\n')[0].trim(),
+                72,
+            );
+            const committed = await this.githubProvider.commitApiChanges({
+                connection,
+                installation,
+                user,
+                checkout,
+                title,
+                description: args.prompt,
+                fileChanges: {
+                    additions: ran.edits.flatMap(({ path, after }) =>
+                        after === null
+                            ? []
+                            : [
+                                  {
+                                      path: `${root}${path}`,
+                                      contents:
+                                          Buffer.from(after).toString('base64'),
+                                  },
+                              ],
+                    ),
+                    deletions: ran.edits.flatMap(({ path, after }) =>
+                        after === null ? [{ path: `${root}${path}` }] : [],
+                    ),
+                },
+                setStage: (next) => {
+                    stage = next;
+                    setStage(next);
+                },
+                assertPublishAllowed,
+            });
+            if (committed.prCreated) {
+                await this.pullRequestsModel.findOrCreate({
+                    organizationUuid: turn.organizationUuid,
+                    projectUuid,
+                    createdByUserUuid: user.userUuid,
+                    provider: PullRequestProvider.GITHUB,
+                    source: PullRequestSource.AI_AGENT,
+                    owner: connection.owner,
+                    repo: connection.repo,
+                    prNumber: parsePullNumber(committed.prUrl),
+                    prUrl: committed.prUrl,
+                    summary: null,
+                });
+            }
+            if (aiWritebackRunUuid) {
+                await this.aiWritebackRunModel.markReady(aiWritebackRunUuid, {
+                    branchName: null,
+                    prUrl: committed.prUrl,
+                });
+            }
+            const diff = ran.edits.map(({ before, after }) =>
+                diffLineCounts(before, after),
+            );
+            return {
+                status: 'saved',
+                changedModels: [
+                    ...new Set(
+                        ran.edits.flatMap(({ path }) => {
+                            const table = touchedTables.get(path);
+                            return table ? [table] : [];
+                        }),
+                    ),
+                ],
+                result: {
+                    output: ran.logs.join('\n'),
+                    exitCode: 0,
+                    prUrl: committed.prUrl,
+                    prAction: committed.prCreated ? 'opened' : 'updated',
+                    commitSha: committed.commitSha,
+                    additions: diff.reduce((sum, d) => sum + d.additions, 0),
+                    deletions: diff.reduce((sum, d) => sum + d.deletions, 0),
+                    projectName: turn.projectName,
+                    repository: `${connection.owner}/${connection.repo}`,
+                    steps: ran.edits.map(({ path }) => ({
+                        kind: 'edit' as const,
+                        label: path.split('/').pop() ?? path,
+                    })),
+                    dbtSourceUuid: turn.projectDbtSourceUuid,
+                },
+            };
+        } catch (error) {
+            this.logger.warn('AI writeback script save failed', {
+                event: 'ai_writeback.script.failed',
+                projectUuid,
+                stage,
+                errorName: error instanceof Error ? error.name : typeof error,
+            });
+            if (!dryRun && aiWritebackRunUuid) {
+                await this.aiWritebackRunModel
+                    .markError(
+                        aiWritebackRunUuid,
+                        AiWritebackService.truncateEnd(
+                            getErrorMessage(error),
+                            4000,
+                        ),
+                    )
+                    .catch(() => false);
+            }
+            throw error;
+        }
     }
 
     async createPendingRun(args: {
