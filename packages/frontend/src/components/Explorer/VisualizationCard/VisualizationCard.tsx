@@ -11,7 +11,6 @@ import {
 import { Box, Button, Group, Stack, Text } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import {
-    IconChartBar,
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
@@ -85,6 +84,7 @@ import { ExplorerHint } from '../onboarding';
 import ExploreIdleIllustration from '../ResultsCard/ExploreIdleIllustration';
 import StaleResultsPrompt from '../StaleResultsPrompt';
 import { useIsResultsStale } from '../useIsResultsStale';
+import ChartTypeSummary from './ChartTypeSummary';
 import DroppedFieldPlacer from './DroppedFieldPlacer';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import { useDirtyPivotConfiguration } from './useDirtyPivotConfiguration';
@@ -485,20 +485,10 @@ const VisualizationCard: FC<Props> = memo((props) => {
                             isEditMode &&
                             (resultsData?.rows.length ?? 0) > 0 && (
                                 <>
-                                    <Button
-                                        size="compact-xs"
-                                        variant="light"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconChartBar}
-                                                size={12}
-                                            />
-                                        }
-                                        data-tour="explorer-visualize"
+                                    <ChartTypeSummary
+                                        chartType={chartType}
                                         onClick={toggleSection}
-                                    >
-                                        Visualize results
-                                    </Button>
+                                    />
                                     <ExplorerHint
                                         name="visualize"
                                         target='[data-tour="explorer-visualize"]'
