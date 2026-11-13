@@ -193,7 +193,11 @@ export const useDashboardChartReadyQuery = (
         }
     }, [explore, addParameterDefinitions]);
 
-    useTileVirtualViewSavedParameters(tileUuid, explore);
+    useTileVirtualViewSavedParameters(
+        tileUuid,
+        explore,
+        !!chartQuery.data?.merge,
+    );
 
     const dateZoomCapabilities = useMemo(() => {
         if (!chartQuery.data || !explore) return undefined;

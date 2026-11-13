@@ -84,34 +84,26 @@ const AnalyticsProcessingSummary = ({
 
     if (compact) {
         return (
-            <Tooltip
-                label={tooltip}
-                disabled={!tooltip}
-                multiline
-                maw={360}
-                events={{ hover: true, focus: true, touch: true }}
+            <Group
+                gap="xs"
+                role="status"
+                aria-label="Analytics processing status"
             >
-                <Group
-                    gap="xs"
-                    role="status"
-                    aria-label="Analytics processing status"
+                <Badge
+                    variant="dot"
+                    color={presentation.color}
+                    className={classes.compactStatus}
                 >
-                    <Badge
-                        variant="dot"
-                        color={presentation.color}
-                        className={classes.compactStatus}
-                    >
-                        {processing.lastSuccessfulAt
-                            ? `Last updated ${formatTime(processing.lastSuccessfulAt)}`
-                            : 'Preparing your analytics'}
-                    </Badge>
-                    {processing.status !== 'success' && (
-                        <Text fz="xs" c="dimmed">
-                            {presentation.label}
-                        </Text>
-                    )}
-                </Group>
-            </Tooltip>
+                    {processing.lastSuccessfulAt
+                        ? `Last updated ${formatTime(processing.lastSuccessfulAt)}`
+                        : 'Preparing your analytics'}
+                </Badge>
+                {processing.status !== 'success' && (
+                    <Text fz="xs" c="dimmed">
+                        {presentation.label}
+                    </Text>
+                )}
+            </Group>
         );
     }
 
