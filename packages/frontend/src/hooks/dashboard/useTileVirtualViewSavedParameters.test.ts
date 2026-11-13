@@ -27,7 +27,9 @@ describe('useTileVirtualViewSavedParameters', () => {
     });
 
     it("reports the explore's saved values with dashboard controls on", () => {
-        renderHook(() => useTileVirtualViewSavedParameters('tile-1', explore));
+        renderHook(() =>
+            useTileVirtualViewSavedParameters('tile-1', explore, false),
+        );
 
         expect(setTileVirtualViewSavedParameters).toHaveBeenCalledWith(
             'tile-1',
@@ -37,7 +39,7 @@ describe('useTileVirtualViewSavedParameters', () => {
 
     it('reports nothing while the explore is loading', () => {
         renderHook(() =>
-            useTileVirtualViewSavedParameters('tile-1', undefined),
+            useTileVirtualViewSavedParameters('tile-1', undefined, false),
         );
 
         expect(setTileVirtualViewSavedParameters).not.toHaveBeenCalled();
@@ -48,6 +50,7 @@ describe('useTileVirtualViewSavedParameters', () => {
             useTileVirtualViewSavedParameters(
                 'tile-1',
                 {} as unknown as ApiExploreResults,
+                false,
             ),
         );
 
@@ -57,10 +60,20 @@ describe('useTileVirtualViewSavedParameters', () => {
         );
     });
 
+    it('reports nothing for a merged chart, whose other queries the explore does not cover', () => {
+        renderHook(() =>
+            useTileVirtualViewSavedParameters('tile-1', explore, true),
+        );
+
+        expect(setTileVirtualViewSavedParameters).not.toHaveBeenCalled();
+    });
+
     it('reports nothing with dashboard controls off', () => {
         flag.enabled = false;
 
-        renderHook(() => useTileVirtualViewSavedParameters('tile-1', explore));
+        renderHook(() =>
+            useTileVirtualViewSavedParameters('tile-1', explore, false),
+        );
 
         expect(setTileVirtualViewSavedParameters).not.toHaveBeenCalled();
     });
