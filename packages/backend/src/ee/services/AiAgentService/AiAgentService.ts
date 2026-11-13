@@ -118,6 +118,7 @@ import {
     getAiAgentSkillListingText,
     getAppDisplayName,
     getComposerChartStage,
+    getComposerNodeSorts,
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
@@ -10716,13 +10717,15 @@ export class AiAgentService extends BaseService {
             const terminal = queries.find(
                 (query) => query.nodeId === terminalNodeId,
             );
+            if (!terminal) {
+                throw new Error(
+                    `No query for terminal node "${terminalNodeId}"`,
+                );
+            }
             const query = getComposerChartStage({
                 vizConfig,
                 customChartTypeSlots: slots ?? [],
-                sorts:
-                    terminal?.sourceType === QuerySourceType.SEMANTIC_LAYER
-                        ? (terminal.sorts ?? [])
-                        : [],
+                sorts: getComposerNodeSorts(terminal),
                 nodeId,
                 source: terminalNodeId,
             });

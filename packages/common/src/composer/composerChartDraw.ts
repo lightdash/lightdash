@@ -19,6 +19,7 @@ import {
 import {
     COMPOSER_RESULT_EXPLORE_NAME,
     ComposerResultColumns,
+    getComposerNodeSorts,
     getComposerResultQuery,
     getComposerSplitStage,
 } from './composerResultChart';
@@ -216,7 +217,6 @@ export const getComposerChartPivotStage = (
 ): ComposerChartPipelineNode | null => {
     const split = getSplitColumns(chart);
     if (split.columns.length === 0 || !split.drawable) return null;
-    const node = getTerminalNode(pipeline);
     const nodeIds = new Set(pipeline.nodes.map(({ nodeId }) => nodeId));
     let nodeId = CHART_STAGE_NODE_ID;
     while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
@@ -225,10 +225,7 @@ export const getComposerChartPivotStage = (
         pivotColumns: split.columns,
         dimensions: columnsWithRole(chart, FieldType.DIMENSION),
         metrics: columnsWithRole(chart, FieldType.METRIC),
-        sorts:
-            node.sourceType === QuerySourceType.SEMANTIC_LAYER
-                ? (node.sorts ?? [])
-                : [],
+        sorts: getComposerNodeSorts(getTerminalNode(pipeline)),
         nodeId,
         source: pipeline.terminalNodeId,
     });

@@ -13,6 +13,7 @@ import {
     QuerySourceType,
     type DuckdbSourceQuery,
     type QueryNodeId,
+    type SourceQuery,
 } from '../types/querySources';
 import { type ResultColumn } from '../types/results';
 import { type ChartConfig } from '../types/savedCharts';
@@ -163,10 +164,24 @@ const quoteIdentifier = (name: string) => `"${name.replaceAll('"', '""')}"`;
 
 const PIVOT_STAGE_SOURCE_NAME = 'node_result';
 
+/** A series split as a classic chart over field ids, with its column references by role. */
+export type ComposerSplitChart = {
+    chartConfig: ChartConfig;
+    /** Split into series; among the dimensions. */
+    pivotColumns: string[];
+    dimensions: string[];
+    metrics: string[];
+};
+
+/** The node's sorts by field id; only semantic-layer nodes declare them. */
+export const getComposerNodeSorts = (node: SourceQuery): SortField[] =>
+    node.sourceType === QuerySourceType.SEMANTIC_LAYER
+        ? (node.sorts ?? [])
+        : [];
+
 /**
- * The series-split stage over source (a node id or result query uuid): a DuckDB
- * query renaming columns to field ids, pivoted the way a classic chart pivots
- * (source sorts, y values, stacked overflow folded). Null when no pivot derives.
+ * The series-split stage over source (a node id or result query uuid): columns
+ * renamed to field ids, pivoted by the classic derivation; null when none derives.
  */
 export const getComposerSplitStage = ({
     chartConfig,
@@ -176,14 +191,7 @@ export const getComposerSplitStage = ({
     sorts,
     nodeId,
     source,
-}: {
-    /** Classic chart config over field ids. */
-    chartConfig: ChartConfig;
-    /** Column references split into series, among the dimensions. */
-    pivotColumns: string[];
-    dimensions: string[];
-    metrics: string[];
-    /** The source's sorts, by field id. */
+}: ComposerSplitChart & {
     sorts: SortField[];
     nodeId: QueryNodeId;
     source: string;

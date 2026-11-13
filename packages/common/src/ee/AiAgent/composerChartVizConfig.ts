@@ -6,6 +6,7 @@ import {
     getComposerSplitStage,
     toComposerResultMetric,
     toComposerResultRows,
+    type ComposerSplitChart,
 } from '../../composer/composerResultChart';
 import { DimensionType, type ItemsMap } from '../../types/field';
 import { type MetricQuery, type SortField } from '../../types/metricQuery';
@@ -422,18 +423,11 @@ export const getComposerSlackRunQueryChart = ({
     };
 };
 
-/** References of a series split, from the viz config alone; null without one. */
 /** The split as a classic chart over field ids, with its columns by role; null without a split. */
 const getSplitChart = (
     vizConfig: ComposerStoredChartVizConfig,
     customChartTypeSlots: ComposerCustomChartTypeSlot[],
-): {
-    chartConfig: ChartConfig;
-    split: string[];
-    dimensions: string[];
-    metrics: string[];
-} | null => {
-    const fieldIdOf = getComposerResultFieldId;
+): ComposerSplitChart | null => {
     if (vizConfig.type === 'custom') {
         const { index, split, values } = getCustomChartTypeReferences(
             vizConfig.fieldMapping,
@@ -450,11 +444,11 @@ const getSplitChart = (
                     dataAppVizUuid: vizConfig.dataAppVizUuid,
                     fieldMapping: mapFieldMapping(
                         vizConfig.fieldMapping,
-                        fieldIdOf,
+                        getComposerResultFieldId,
                     ),
                 },
             },
-            split,
+            pivotColumns: split,
             dimensions: [...index, ...split],
             metrics: values,
         };
@@ -485,8 +479,8 @@ const getSplitChart = (
                     type: ChartType.CARTESIAN,
                     config: {
                         layout: {
-                            xField: fieldIdOf(x),
-                            yField: values.map(fieldIdOf),
+                            xField: getComposerResultFieldId(x),
+                            yField: values.map(getComposerResultFieldId),
                             // Area always stacks, as the drawn chart does.
                             stack:
                                 type === 'area' ||
@@ -495,7 +489,7 @@ const getSplitChart = (
                         eChartsConfig: { series: [] },
                     },
                 },
-                split,
+                pivotColumns: split,
                 dimensions: unique([x, ...split]),
                 metrics: values,
             };
@@ -521,16 +515,10 @@ export const getComposerChartStage = ({
     source: string;
 }): DuckdbSourceQuery | null => {
     const splitChart = getSplitChart(vizConfig, customChartTypeSlots);
-    if (!splitChart) return null;
-    return getComposerSplitStage({
-        chartConfig: splitChart.chartConfig,
-        pivotColumns: splitChart.split,
-        dimensions: splitChart.dimensions,
-        metrics: splitChart.metrics,
-        sorts,
-        nodeId,
-        source,
-    });
+    return (
+        splitChart &&
+        getComposerSplitStage({ ...splitChart, sorts, nodeId, source })
+    );
 };
 
 type ReferenceCheck = {
