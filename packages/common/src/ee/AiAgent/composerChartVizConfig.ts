@@ -6,10 +6,11 @@ import {
     getComposerSplitStage,
     toComposerResultMetric,
     toComposerResultRows,
+    type ComposerNodeSorts,
     type ComposerSplitChart,
 } from '../../composer/composerResultChart';
 import { DimensionType, type ItemsMap } from '../../types/field';
-import { type MetricQuery, type SortField } from '../../types/metricQuery';
+import { type MetricQuery } from '../../types/metricQuery';
 import {
     type DuckdbSourceQuery,
     type QueryNodeId,
@@ -509,8 +510,7 @@ export const getComposerChartStage = ({
 }: {
     vizConfig: ComposerStoredChartVizConfig;
     customChartTypeSlots: ComposerCustomChartTypeSlot[];
-    /** The source node's sorts, by field id. */
-    sorts: SortField[];
+    sorts: ComposerNodeSorts;
     nodeId: QueryNodeId;
     source: string;
 }): DuckdbSourceQuery | null => {

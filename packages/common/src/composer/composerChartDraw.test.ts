@@ -376,6 +376,33 @@ describe('getComposerChartPivotStage', () => {
         });
     });
 
+    test('keeps a node sort on a metric the chart does not draw, as classic charts do', () => {
+        const pipeline: ComposerChartPipeline = {
+            ...semanticPipeline,
+            nodes: [
+                {
+                    nodeId: 'orders',
+                    title: 'Orders',
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    exploreName: 'orders',
+                    dimensions: ['month', 'method'],
+                    metrics: ['revenue', 'order_count'],
+                    sorts: [{ fieldId: 'order_count', descending: true }],
+                },
+            ],
+        };
+        const stage = getComposerChartPivotStage(pipeline, splitChart);
+        expect(stage).toMatchObject({
+            sql: expect.stringContaining('"order_count" AS "order_count"'),
+        });
+        if (stage?.sourceType !== QuerySourceType.DUCKDB) return;
+        expect(stage.pivotConfiguration).toMatchObject({
+            valuesColumns: [{ reference: 'revenue' }],
+            sortOnlyColumns: [{ reference: 'order_count' }],
+            sortBy: [{ reference: 'order_count', direction: 'DESC' }],
+        });
+    });
+
     test('takes a node id no stored node uses', () => {
         const pipeline: ComposerChartPipeline = {
             ...sqlPipeline,

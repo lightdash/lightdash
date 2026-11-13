@@ -180,11 +180,29 @@ export const getComposerChartStageNodeId = (nodeIds: string[]): QueryNodeId => {
     return nodeId;
 };
 
-/** The node's sorts by field id; only semantic-layer nodes declare them. */
-export const getComposerNodeSorts = (node: SourceQuery): SortField[] =>
-    node.sourceType === QuerySourceType.SEMANTIC_LAYER
-        ? (node.sorts ?? [])
-        : [];
+/** A node's sorts by field id, and the sorted measures a pivot keeps for ordering. */
+export type ComposerNodeSorts = {
+    sorts: SortField[];
+    sortedMeasures: string[];
+};
+
+/** Only semantic-layer nodes declare sorts. */
+export const getComposerNodeSorts = (node: SourceQuery): ComposerNodeSorts => {
+    if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
+        return { sorts: [], sortedMeasures: [] };
+    }
+    const sorts = node.sorts ?? [];
+    const measures = new Set([
+        ...node.metrics,
+        ...(node.tableCalculations ?? []).map(({ name }) => name),
+    ]);
+    return {
+        sorts,
+        sortedMeasures: sorts
+            .map(({ fieldId }) => fieldId)
+            .filter((fieldId) => measures.has(fieldId)),
+    };
+};
 
 /**
  * The series-split stage over source (a node id or result query uuid): columns
@@ -199,28 +217,34 @@ export const getComposerSplitStage = ({
     nodeId,
     source,
 }: ComposerSplitChart & {
-    sorts: SortField[];
+    sorts: ComposerNodeSorts;
     nodeId: QueryNodeId;
     source: string;
 }): DuckdbSourceQuery | null => {
     const fieldId = getComposerResultFieldId;
-    const references = unique([...dimensions, ...metrics]);
+    const queryMetrics = unique([
+        ...metrics,
+        ...sorts.sortedMeasures.filter(
+            (reference) => !dimensions.includes(reference),
+        ),
+    ]);
+    const references = unique([...dimensions, ...queryMetrics]);
     // Types are unknown before the run: the axis type comes from the chart.
     const { metricQuery, fields } = getComposerResultQuery(
         new ComposerResultColumns(
             references.map((reference) => ({
                 reference,
-                type: metrics.includes(reference)
+                type: queryMetrics.includes(reference)
                     ? DimensionType.NUMBER
                     : DimensionType.STRING,
             })),
         ),
-        dimensions.filter((reference) => !metrics.includes(reference)),
-        metrics,
+        dimensions.filter((reference) => !queryMetrics.includes(reference)),
+        queryMetrics,
     );
     const pivotConfiguration = derivePivotConfigurationFromChart(
         { chartConfig, pivotConfig: { columns: pivotColumns.map(fieldId) } },
-        { ...metricQuery, sorts },
+        { ...metricQuery, sorts: sorts.sorts },
         fields,
     );
     if (!pivotConfiguration) return null;

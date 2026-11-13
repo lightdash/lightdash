@@ -3,6 +3,7 @@ import {
     parseComposerStoredChart,
 } from '../../composer/composerChart';
 import { getComposerChartPivotStage } from '../../composer/composerChartDraw';
+import { getComposerNodeSorts } from '../../composer/composerResultChart';
 import { DimensionType, FieldType } from '../../types/field';
 import { MergeJoinType } from '../../types/mergeQuery';
 import { QuerySourceType, type SourceQuery } from '../../types/querySources';
@@ -204,7 +205,7 @@ describe('getComposerChartSaveDraft', () => {
                 getComposerChartStage({
                     vizConfig,
                     customChartTypeSlots: [],
-                    sorts: sorted.sorts ?? [],
+                    sorts: getComposerNodeSorts(sorted),
                     nodeId: 'chart_stage',
                     source: 'orders',
                 }),

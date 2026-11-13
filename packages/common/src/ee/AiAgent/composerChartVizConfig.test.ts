@@ -526,7 +526,7 @@ describe('getComposerChartStage', () => {
         getComposerChartStage({
             vizConfig: config,
             customChartTypeSlots,
-            sorts,
+            sorts: { sorts, sortedMeasures: [] },
             nodeId: 'chart_stage',
             source: 'orders',
         });

@@ -166,7 +166,7 @@ export const getComposerChartDraw = ({
             case QuerySourceType.SEMANTIC_LAYER:
                 return getItemsQuery(chart, columns, fields, {
                     exploreName: node.exploreName,
-                    sorts: getComposerNodeSorts(node),
+                    sorts: getComposerNodeSorts(node).sorts,
                 });
             case QuerySourceType.MERGE:
                 return getItemsQuery(chart, columns, fields, {
