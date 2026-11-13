@@ -213,7 +213,7 @@ overrides:
   '@hapi/content': 6.0.3
   undici: 6.29.1
   handlebars: 4.7.10
-  basic-ftp: 6.2.1
+  basic-ftp: 6.2.4
   vite@>=7.0.0 <7.3.2: 7.3.7
   systeminformation: 5.33.16
   path-to-regexp@0.1.12: 0.1.13
@@ -8597,8 +8597,8 @@ packages:
     resolution: {integrity: sha512-NF+epuEdnUYVlGuhaxbbq+dvJttwLnGY+YixlXlME5KpQ5W3CnXA5cVTneY3SPbPDRkcjMbifrwmFYcClgOZeg==}
     engines: {node: '>= 0.8'}
 
-  basic-ftp@6.2.1:
-    resolution: {integrity: sha512-bK67isD+lKq46AU8vNtjvMaT2ZqAOAmNCbxUHlFBRD4k15NWxyEjmaKtZPlgce58So4BNTjITGQOVTjL9y0ECA==}
+  basic-ftp@6.2.4:
+    resolution: {integrity: sha512-6ACKOQxSlv5xka4i03ujfncNr9qp5yZNK3u0+yUFTAU4HfG5AeztCC9+R1I9dm8oq+1vt4RZ7cIRTBrdHqL2mw==}
     engines: {node: '>=10.0.0'}
 
   bcp-47-match@2.0.1:
@@ -24164,7 +24164,7 @@ snapshots:
     dependencies:
       safe-buffer: 5.1.2
 
-  basic-ftp@6.2.1: {}
+  basic-ftp@6.2.4: {}
 
   bcp-47-match@2.0.1: {}
 
@@ -26624,7 +26624,7 @@ snapshots:
 
   get-uri@6.0.3(supports-color@9.1.0):
     dependencies:
-      basic-ftp: 6.2.1
+      basic-ftp: 6.2.4
       data-uri-to-buffer: 6.0.2
       debug: 4.4.3(supports-color@9.1.0)
       fs-extra: 11.3.2
