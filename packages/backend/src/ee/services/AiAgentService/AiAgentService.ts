@@ -1670,7 +1670,7 @@ export class AiAgentService extends BaseService {
                     key = `preview_environment:${item.previewProjectUuid}`;
                     break;
                 case 'semantic_model':
-                    key = `semantic_model:${item.modelName}`;
+                    key = `semantic_model:${item.modelName}:${item.fieldName ?? ''}`;
                     break;
                 case 'data_app_element':
                     key = dataAppElementContextKey(item);
@@ -10908,6 +10908,7 @@ export class AiAgentService extends BaseService {
                         runtimeOptions?.userAttributeOverrides ?? {},
                     invalidateCache: false,
                     plans: {},
+                    binding: null,
                     // Re-renders stay unattributed: prompt ids mark tool runs only.
                     aiAttribution: null,
                 });
@@ -11597,6 +11598,7 @@ export class AiAgentService extends BaseService {
                             runtimeOptions?.userAttributeOverrides ?? {},
                         invalidateCache: false,
                         plans: {},
+                        binding: null,
                         // Re-renders stay unattributed: prompt ids mark tool runs only.
                         aiAttribution: null,
                     },
@@ -11715,6 +11717,7 @@ export class AiAgentService extends BaseService {
         } & (
             | { savedDashboardUuid: string | null }
             | { savedSqlUuid: string | null }
+            | { savedComposerChartUuid: string | null }
         ),
     ): Promise<void> {
         const { organizationUuid } = user;
@@ -11777,6 +11780,19 @@ export class AiAgentService extends BaseService {
         ) {
             throw new NotFoundError(
                 `Saved SQL chart not found in project: ${update.savedSqlUuid}`,
+            );
+        }
+
+        if (
+            'savedComposerChartUuid' in update &&
+            update.savedComposerChartUuid !== null &&
+            !(await this.aiAgentModel.isComposerChartInProject(
+                update.savedComposerChartUuid,
+                agent.projectUuid,
+            ))
+        ) {
+            throw new NotFoundError(
+                `Composer chart not found in project: ${update.savedComposerChartUuid}`,
             );
         }
 
@@ -13151,8 +13167,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                 }
                 case 'semantic_model':
                     return item.fieldName
-                        ? `- The person has field "${item.fieldName}" of model "${item.modelName}" open.`
-                        : `- The person has model "${item.modelName}" open.`;
+                        ? `- The person is looking at field "${item.fieldName}" of model "${item.modelName}".`
+                        : `- The person is looking at model "${item.modelName}".`;
                 case 'preview_environment': {
                     const name = item.projectName
                         ? ` (${item.projectName})`
@@ -13881,6 +13897,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                                           user,
                                           projectUuid,
                                           project,
+                                          prompt.threadUuid,
                                       );
                               },
                           }

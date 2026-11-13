@@ -319,6 +319,11 @@
 
 .gridLines {
     --grid-line-color: var(--mantine-color-ldGray-2);
+    --grid-guide-color: color-mix(
+        in srgb,
+        var(--mantine-color-cyan-5) 12%,
+        transparent
+    );
 
     & :global(.react-grid-layout) {
         background-image:
@@ -369,6 +374,19 @@
                 var(--grid-pad-y) - var(--grid-gap-y) / 2 - var(--grid-cell-h) /
                     2
             );
+    }
+
+    /* Bands of fine columns with a gap between them, so tiles sized to whole
+       bands line up into zones */
+    &[data-canvas-background='columns'] :global(.react-grid-layout) {
+        --grid-gap-x: calc(var(--grid-cell-w) - var(--grid-col-w));
+        background-image: linear-gradient(
+            to right,
+            var(--grid-guide-color) calc(100% - var(--grid-gap-x)),
+            transparent calc(100% - var(--grid-gap-x))
+        );
+        background-size: var(--grid-guide-w) 100%;
+        background-position: var(--grid-pad-x) 0;
     }
 }
 

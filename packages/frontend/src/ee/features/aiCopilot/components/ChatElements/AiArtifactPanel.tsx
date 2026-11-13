@@ -380,6 +380,17 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                 <AiComposerArtifactPanel
                     key={artifact.versionUuid}
                     initialView="chart"
+                    savedComposerChart={
+                        artifactData.savedComposerChartUuid &&
+                        artifactData.savedComposerChartDashboardUuid
+                            ? {
+                                  composerChartUuid:
+                                      artifactData.savedComposerChartUuid,
+                                  dashboardUuid:
+                                      artifactData.savedComposerChartDashboardUuid,
+                              }
+                            : null
+                    }
                     projectUuid={artifact.projectUuid}
                     agentUuid={artifact.agentUuid}
                     source={{

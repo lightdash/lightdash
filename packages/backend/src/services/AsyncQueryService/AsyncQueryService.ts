@@ -22,6 +22,7 @@ import {
     buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
+    canEmbedViewerResolveTileParameters,
     ChartType,
     CompiledDimension,
     CreateWarehouseCredentials,
@@ -33,6 +34,7 @@ import {
     Dimension,
     DimensionType,
     DownloadFileType,
+    DuckdbConnectionType,
     ExpiredQueryError,
     Explore,
     ExploreCompiler,
@@ -60,6 +62,8 @@ import {
     getDimensions,
     getDimensionsWithValidParameters,
     getDocumentRuntimeChartConfig,
+    getEmbedExcludedParameterKeys,
+    getEmbedParameterValues,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
     getExecutableFilterFieldIds,
@@ -90,7 +94,6 @@ import {
     isMergeMetricSource,
     isMergeResultSource,
     isMetric,
-    isParameterInteractivityEnabled,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -216,6 +219,7 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
+    AnalyticsQueryCancelledError,
     AnalyticsQueryError,
     DuckdbWarehouseClient,
     mapFieldTypeFromDuckdbTypeName,
@@ -367,6 +371,7 @@ import { OrganizationAccessService } from '../OrganizationAccessService/Organiza
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import { getAnalyticsActivityWindow } from '../ProjectService/analyticsProject/getAnalyticsActivityWindow';
 import { developmentView } from '../ProjectService/developmentView';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
 import {
@@ -4057,6 +4062,7 @@ export class AsyncQueryService extends ProjectService {
         dataTimezone,
         displayTimezone,
         recoverStalledQuery,
+        isQueuedQueryCancelled,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -4068,6 +4074,7 @@ export class AsyncQueryService extends ProjectService {
         dataTimezone?: string;
         displayTimezone: string | null;
         recoverStalledQuery: boolean;
+        isQueuedQueryCancelled?: () => Promise<boolean>;
     }): Promise<{
         columns: ResultColumns;
         /** Pre-pivot columns, so pivoted queries keep a record of the
@@ -4353,6 +4360,9 @@ export class AsyncQueryService extends ProjectService {
                         tags: queryTags,
                         timezone: dataTimezone,
                         recoverStalledQuery,
+                        ...(isQueuedQueryCancelled && {
+                            isQueuedQueryCancelled,
+                        }),
                     },
                     transformRows,
                 ),
@@ -5234,6 +5244,7 @@ export class AsyncQueryService extends ProjectService {
      * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
      */
     private async runAsyncWarehouseQueryInScope({
+        analyticsActivityWindow,
         userUuid,
         organizationUuid,
         isPreviewProject,
@@ -5324,6 +5335,7 @@ export class AsyncQueryService extends ProjectService {
 
         type WarehouseQueryAttempt =
             | { kind: 'complete' }
+            | { kind: 'cancelled' }
             | {
                   kind: 'retry';
                   execute: (warehouseClient: WarehouseClient) => Promise<void>;
@@ -5332,6 +5344,7 @@ export class AsyncQueryService extends ProjectService {
         const withWarehouseAttempt = (
             execute: (
                 warehouseClient: WarehouseClient,
+                isQueuedQueryCancelled?: () => Promise<boolean>,
             ) => Promise<WarehouseQueryAttempt>,
         ) =>
             this.warehouseClientFactory.withWarehouseClient(
@@ -5339,7 +5352,12 @@ export class AsyncQueryService extends ProjectService {
                     kind: 'binding',
                     projectUuid,
                     binding: { kind: 'query', queryUuid },
-                    overrides: warehouseCredentialsOverrides,
+                    overrides: analyticsActivityWindow
+                        ? {
+                              ...warehouseCredentialsOverrides,
+                              analyticsActivityWindow,
+                          }
+                        : warehouseCredentialsOverrides,
                 },
                 connectionContextFromUser(
                     {
@@ -5444,7 +5462,16 @@ export class AsyncQueryService extends ProjectService {
                         ? warehouseCredentials
                         : null;
                     warehouseCredentialsType ??= warehouseCredentials.type;
-                    const result = await execute(warehouseClient);
+                    const isAnalytics =
+                        warehouseCredentials.type === WarehouseTypes.DUCKDB &&
+                        warehouseCredentials.connectionType ===
+                            DuckdbConnectionType.ANALYTICS;
+                    const result = await execute(
+                        warehouseClient,
+                        isAnalytics
+                            ? () => this.isQueryCancelled(queryUuid)
+                            : undefined,
+                    );
                     warehouseQueryCompletedBeforeCleanup =
                         result.kind === 'complete';
                     return result;
@@ -5453,6 +5480,7 @@ export class AsyncQueryService extends ProjectService {
 
         const executeWithWarehouseClient = async (
             warehouseClient: WarehouseClient,
+            isQueuedQueryCancelled?: () => Promise<boolean>,
         ): Promise<WarehouseQueryAttempt> => {
             const credentialsType = warehouseCredentialsType;
             if (credentialsType === undefined) {
@@ -5606,6 +5634,9 @@ export class AsyncQueryService extends ProjectService {
                                 dataTimezone: resolvedDataTimezone,
                                 displayTimezone,
                                 recoverStalledQuery,
+                                ...(isQueuedQueryCancelled && {
+                                    isQueuedQueryCancelled,
+                                }),
                             });
                         setPhaseTimingAttributes(
                             span,
@@ -5857,6 +5888,9 @@ export class AsyncQueryService extends ProjectService {
             try {
                 queryResults = await runWarehouseQuery(warehouseClient);
             } catch (e) {
+                if (e instanceof AnalyticsQueryCancelledError) {
+                    return { kind: 'cancelled' };
+                }
                 const canRetry =
                     !hasWrittenRows &&
                     projectCredentials !== null &&
@@ -6110,6 +6144,8 @@ export class AsyncQueryService extends ProjectService {
                 query.requestParameters.resultEntitlementFingerprint ?? null,
             query: query.compiledSql,
             displayTimezone,
+            analyticsActivityWindow:
+                query.requestParameters.analyticsActivityWindow,
         };
     }
 
@@ -6738,6 +6774,13 @@ export class AsyncQueryService extends ProjectService {
                     const displayTimezone = queryComposer.getDisplayTimezone();
 
                     const warehouseCredentialsType = warehouseCredentials.type;
+                    const analyticsActivityWindow =
+                        warehouseCredentials.type === WarehouseTypes.DUCKDB &&
+                        warehouseCredentials.connectionType ===
+                            DuckdbConnectionType.ANALYTICS &&
+                        !dateZoom
+                            ? getAnalyticsActivityWindow(metricQuery, timezone)
+                            : undefined;
                     const warehouseCredentialsOverrides: RunAsyncWarehouseQueryArgs['warehouseCredentialsOverrides'] =
                         {
                             snowflakeVirtualWarehouse: explore.warehouse,
@@ -7066,6 +7109,7 @@ export class AsyncQueryService extends ProjectService {
                                         : undefined,
                                 resultEntitlementFingerprint:
                                     entitlementFingerprint,
+                                analyticsActivityWindow,
                                 cacheSourceQueryUuid:
                                     resultsCache.cacheHit && identityEnabled
                                         ? resultsCache.queryUuid
@@ -7394,6 +7438,7 @@ export class AsyncQueryService extends ProjectService {
                     trackQueryExecuted(executedSource);
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
+                        analyticsActivityWindow,
                         authMethod: account.authentication.type,
                         agentIdentity: agentIdentity ?? null,
                         resultEntitlementFingerprint: entitlementFingerprint,
@@ -7853,9 +7898,17 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async executeAsyncMetricQuery(
-        args: ExecuteAsyncMetricQueryArgs,
+        requestArgs: ExecuteAsyncMetricQueryArgs,
         reuseQueryUuid?: string,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
+        // Explore and data app tiles reach this with a dashboard embed token; its fixed values must hold
+        const args = {
+            ...requestArgs,
+            parameters: AsyncQueryService.lockEmbedParameterValues(
+                requestArgs.account,
+                requestArgs.parameters,
+            ),
+        };
         const {
             account,
             projectUuid,
@@ -8572,6 +8625,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides: {},
             invalidateCache: invalidateCache ?? false,
             plans: { [totalsNodeId]: plan },
+            binding: null,
             aiAttribution: null,
         });
         const totals = queries.find((query) => query.nodeId === totalsNodeId);
@@ -8722,11 +8776,10 @@ export class AsyncQueryService extends ProjectService {
             // Viewer-supplied parameters are only trusted when the JWT
             // grants parameter interactivity — parity with the embed
             // search endpoint.
-            acceptedParameters = isParameterInteractivityEnabled(
+            acceptedParameters = getEmbedParameterValues(
                 account.access.parameters,
-            )
-                ? parameters
-                : {};
+                parameters,
+            );
         }
 
         const context = QueryExecutionContext.FILTER_AUTOCOMPLETE;
@@ -10022,7 +10075,7 @@ export class AsyncQueryService extends ProjectService {
             appResolved.excludedParameterKeys !== undefined &&
             (appResolved.account.isRegisteredUser() ||
                 (isJwtUser(appResolved.account) &&
-                    isParameterInteractivityEnabled(
+                    canEmbedViewerResolveTileParameters(
                         appResolved.account.access.parameters,
                     )))
         ) {
@@ -10178,6 +10231,41 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /** A viewer's parameter values and per-tile exclusions, as an embed token allows them */
+    static getAccountParameterInputs(
+        account: Account,
+        parameters: ParametersValuesMap | undefined,
+        excludedParameterKeys: string[] | undefined,
+    ): {
+        parameters: ParametersValuesMap | undefined;
+        excludedParameterKeys: string[] | undefined;
+    } {
+        if (!isJwtUser(account)) return { parameters, excludedParameterKeys };
+        return {
+            parameters: getEmbedParameterValues(
+                account.access.parameters,
+                parameters,
+            ),
+            excludedParameterKeys: getEmbedExcludedParameterKeys(
+                account.access.parameters,
+                excludedParameterKeys,
+            ),
+        };
+    }
+
+    // Keeps the given values but a dashboard embed token's fixed values win, unless the viewer may change them
+    static lockEmbedParameterValues(
+        account: Account,
+        parameters: ParametersValuesMap | undefined,
+    ): ParametersValuesMap | undefined {
+        if (!isJwtUser(account) || account.access.content.type !== 'dashboard')
+            return parameters;
+        return {
+            ...parameters,
+            ...getEmbedParameterValues(account.access.parameters, parameters),
+        };
+    }
+
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
@@ -10191,8 +10279,8 @@ export class AsyncQueryService extends ProjectService {
         querySurface,
         invalidateCache,
         limit,
-        parameters,
-        excludedParameterKeys,
+        parameters: requestedParameters,
+        excludedParameterKeys: requestedExcludedParameterKeys,
         pivotResults,
         includeUnpublishedDraft,
         sessionTimezone,
@@ -10201,6 +10289,13 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
+        // An embed token can call this route directly, so its parameter rules apply here too
+        const { parameters, excludedParameterKeys } =
+            AsyncQueryService.getAccountParameterInputs(
+                account,
+                requestedParameters,
+                requestedExcludedParameterKeys,
+            );
 
         const publishedChart =
             preloadedSavedChart ??
@@ -10602,7 +10697,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         dateZoom,
         limit,
-        parameters,
+        parameters: requestedParameters,
         sorts,
     }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
@@ -10637,6 +10732,15 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
+        // A dashboard embed drill-down runs with its source query's values, under the token's fixed values
+        const parameters =
+            isJwtUser(account) && account.access.content.type === 'dashboard'
+                ? AsyncQueryService.lockEmbedParameterValues(
+                      account,
+                      source.requestParameters?.parameters ??
+                          requestedParameters,
+                  )
+                : requestedParameters;
 
         const {
             warehouseCredentials,
@@ -15355,7 +15459,9 @@ export class AsyncQueryService extends ProjectService {
             },
             () =>
                 this.getQuerySourceService().submitQueries({
-                    documentQueryContext,
+                    binding: documentQueryContext
+                        ? { kind: 'document', context: documentQueryContext }
+                        : null,
                     account,
                     projectUuid,
                     context,
@@ -16150,6 +16256,13 @@ export class AsyncQueryService extends ProjectService {
     async executeAsyncDashboardSqlChartQuery(
         args: ExecuteAsyncDashboardSqlChartArgs,
     ): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
+        // An embed token can call this route directly, so its parameter rules apply here too
+        const { parameters, excludedParameterKeys } =
+            AsyncQueryService.getAccountParameterInputs(
+                args.account,
+                args.parameters,
+                args.excludedParameterKeys,
+            );
         const savedChart = isExecuteAsyncDashboardSqlChartByUuid(args)
             ? await this.savedSqlModel.getByUuid(args.savedSqlUuid, {
                   projectUuid: args.projectUuid,
@@ -16235,8 +16348,8 @@ export class AsyncQueryService extends ProjectService {
                 requestParameters: undefined,
                 appResolved: {
                     account,
-                    parameters: args.parameters,
-                    excludedParameterKeys: args.excludedParameterKeys,
+                    parameters,
+                    excludedParameterKeys,
                 },
             }),
             this.projectParametersModel.find(projectUuid),
@@ -16246,7 +16359,7 @@ export class AsyncQueryService extends ProjectService {
         const combinedParameters = await this.combineParameters(
             projectUuid,
             undefined,
-            omit(args.parameters, tileParameterLayer.excludedKeys),
+            omit(parameters, tileParameterLayer.excludedKeys),
             tileParameterLayer.dashboardValues,
             projectParameters,
         );

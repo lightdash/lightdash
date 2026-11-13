@@ -1,3 +1,4 @@
+import { toComposerResultRows } from '../../composer/composerResultChart';
 import { DimensionType } from '../../types/field';
 import { QuerySourceType } from '../../types/querySources';
 import { type ResultColumn } from '../../types/results';
@@ -12,7 +13,6 @@ import {
     getComposerBigNumber,
     getComposerChartStage,
     getComposerRunQueryChart,
-    toComposerResultRows,
 } from './composerChartVizConfig';
 import {
     composerChartVizConfigSchema,

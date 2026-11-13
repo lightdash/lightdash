@@ -16,6 +16,7 @@ import { AppModel } from './AppModel';
 import { AwsWebIdentityAudienceModel } from './AwsWebIdentityAudienceModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { CommentModel } from './CommentModel/CommentModel';
+import { ComposerChartModel } from './ComposerChartModel';
 import { ContentAsCodeProjectSettingsModel } from './ContentAsCodeProjectSettingsModel';
 import { ContentAsCodeSnapshotModel } from './ContentAsCodeSnapshotModel';
 import { ContentAsCodeWritebackModel } from './ContentAsCodeWritebackModel';
@@ -214,6 +215,7 @@ export type ModelManifest = {
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
+    composerChartModel: ComposerChartModel;
     contentModel: ContentModel;
     contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
@@ -241,6 +243,7 @@ export type ModelManifest = {
     aiAgentModel: unknown;
     homepageRecommendedActionSkipsModel: unknown;
     projectModelDocumentModel: unknown;
+    semanticStudioWorkspaceModel: unknown;
     projectHomepageModel: unknown;
     aiAgentDocumentModel: unknown;
     aiThreadFileModel: unknown;
@@ -1176,6 +1179,13 @@ export class ModelRepository
         );
     }
 
+    public getComposerChartModel(): ComposerChartModel {
+        return this.getModel(
+            'composerChartModel',
+            () => new ComposerChartModel({ database: this.database }),
+        );
+    }
+
     public getSavedSqlModel(): SavedSqlModel {
         return this.getModel(
             'savedSqlModel',
@@ -1294,6 +1304,10 @@ export class ModelRepository
 
     public getProjectModelDocumentModel<ModelImplT>(): ModelImplT {
         return this.getModel('projectModelDocumentModel');
+    }
+
+    public getSemanticStudioWorkspaceModel<ModelImplT>(): ModelImplT {
+        return this.getModel('semanticStudioWorkspaceModel');
     }
 
     public getMcpToolCallModel<ModelImplT>(): ModelImplT {

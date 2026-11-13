@@ -2052,6 +2052,16 @@ export class ProjectService
         }
     }
 
+    private async getPreviewCredentialMergeOptions(
+        organizationUuid: string,
+    ): Promise<{ inheritAcrossSnowflakeWarehouses: boolean }> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.PreviewInheritsAcrossWarehouses,
+        });
+        return { inheritAcrossSnowflakeWarehouses: enabled };
+    }
+
     private async recordPreviewCredentialOwnership({
         previewProjectUuid,
         upstreamProjectUuid,
@@ -5211,6 +5221,9 @@ export class ProjectService
                 newProjectData.warehouseConnection = mergeWarehouseCredentials(
                     upstreamCredentials,
                     data.warehouseConnection,
+                    await this.getPreviewCredentialMergeOptions(
+                        user.organizationUuid,
+                    ),
                 );
             }
         }
@@ -6641,10 +6654,14 @@ export class ProjectService
                     if (error instanceof NotFoundError) return undefined;
                     throw error;
                 });
+            const mergeOptions = await this.getPreviewCredentialMergeOptions(
+                savedProject.organizationUuid,
+            );
             const refreshedCredentials = savedProject.warehouseConnection
                 ? mergeWarehouseCredentials(
                       savedProject.warehouseConnection,
                       data.warehouseConnection,
+                      mergeOptions,
                   )
                 : data.warehouseConnection;
             updateData = {
@@ -6653,6 +6670,7 @@ export class ProjectService
                     ? mergeWarehouseCredentials(
                           upstreamCredentials,
                           refreshedCredentials,
+                          mergeOptions,
                       )
                     : refreshedCredentials,
             };

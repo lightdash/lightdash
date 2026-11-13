@@ -47,6 +47,8 @@ const parseStoredArtifact = <
         throw new Error('Expected a valid artifact type');
     }
     return {
+        savedComposerChartUuid: null,
+        savedComposerChartDashboardUuid: null,
         ...artifact,
         artifactType,
         chartConfig: parseStoredChartConfig(artifact.chartConfig),
@@ -683,6 +685,8 @@ describe('Slack AI agent blocks', () => {
                     artifactType: 'chart',
                     savedQueryUuid: null,
                     savedDashboardUuid: null,
+                    savedComposerChartUuid: null,
+                    savedComposerChartDashboardUuid: null,
                     createdAt: new Date(),
                     versionNumber: 1,
                     versionUuid: 'version-1',
@@ -803,6 +807,8 @@ describe('Slack AI agent blocks', () => {
                     artifactType: 'chart',
                     savedQueryUuid: null,
                     savedDashboardUuid: null,
+                    savedComposerChartUuid: null,
+                    savedComposerChartDashboardUuid: null,
                     createdAt: new Date(),
                     versionNumber: 1,
                     versionUuid: 'version-1',

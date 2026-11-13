@@ -1,5 +1,6 @@
 import { type AnalyticsProcessingStatus } from '@lightdash/common';
 import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
+import classes from './AnalyticsProcessingSummary.module.css';
 
 const statusPresentation: Record<
     AnalyticsProcessingStatus['status'],
@@ -20,8 +21,10 @@ const formatTime = (timestamp: string) =>
 
 const AnalyticsProcessingSummary = ({
     processing,
+    compact = false,
 }: {
     processing: AnalyticsProcessingStatus | null | undefined;
+    compact?: boolean;
 }) => {
     if (!processing)
         return (
@@ -78,6 +81,31 @@ const AnalyticsProcessingSummary = ({
           ]
               .filter(Boolean)
               .join(' ');
+
+    if (compact) {
+        return (
+            <Group
+                gap="xs"
+                role="status"
+                aria-label="Analytics processing status"
+            >
+                <Badge
+                    variant="dot"
+                    color={presentation.color}
+                    className={classes.compactStatus}
+                >
+                    {processing.lastSuccessfulAt
+                        ? `Last updated ${formatTime(processing.lastSuccessfulAt)}`
+                        : 'Preparing your analytics'}
+                </Badge>
+                {processing.status !== 'success' && (
+                    <Text fz="xs" c="dimmed">
+                        {presentation.label}
+                    </Text>
+                )}
+            </Group>
+        );
+    }
 
     return (
         <Stack gap="xs" role="status" aria-label="Analytics processing status">

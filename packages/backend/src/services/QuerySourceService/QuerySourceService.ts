@@ -33,12 +33,12 @@ import { agentExecutionContext } from '../AiAccessService/agentExecutionContext'
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
-import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import type { QuerySourceRegistry } from './QuerySourceRegistry';
 import type {
     QuerySourceClient,
     SourceQueryAiAttribution,
     SourceQueryExecutionContext,
+    SourceQueryRunBinding,
     SourceQuerySubmissionResult,
 } from './types';
 
@@ -445,6 +445,7 @@ export class QuerySourceService extends BaseService {
             userAttributeOverrides,
             invalidateCache,
             plans: {},
+            binding: null,
             aiAttribution,
         });
         return {
@@ -474,10 +475,10 @@ export class QuerySourceService extends BaseService {
         userAttributeOverrides,
         invalidateCache,
         plans,
-        documentQueryContext,
+        binding,
         aiAttribution,
     }: SourceQueryExecutionContext & {
-        documentQueryContext?: DocumentQueryContext;
+        binding: SourceQueryRunBinding | null;
         account: Account;
         projectUuid: string;
         queries: SourceQuery[];
@@ -533,7 +534,7 @@ export class QuerySourceService extends BaseService {
         for (const entry of ordered) {
             // eslint-disable-next-line no-await-in-loop -- dependency order: later submits need earlier queryUuids
             const { queryUuid, cacheHit } = await entry.source.submitQuery({
-                ...(documentQueryContext ? { documentQueryContext } : {}),
+                binding,
                 account,
                 projectUuid,
                 context,

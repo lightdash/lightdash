@@ -47,6 +47,7 @@ import {
     type LearnSandboxCommandPayload,
     type MetricQuery,
     type NotificationPayloadBase,
+    type ParameterInteractivityOptions,
     type ParametersValuesMap,
     type PossibleAbilities,
     type ReadyQueryResultsPage,
@@ -2248,12 +2249,16 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
         exportParameters,
         tileParameters,
         embedParametersEnabled,
+        embedParameters = embedParametersEnabled === undefined
+            ? undefined
+            : { enabled: embedParametersEnabled },
         legacyDashboard = false,
     }: {
         dashboardControlsEnabled: boolean;
         exportParameters?: ParametersValuesMap;
         tileParameters?: ExportContentPayload['tileParameters'];
         embedParametersEnabled?: boolean;
+        embedParameters?: ParameterInteractivityOptions;
         legacyDashboard?: boolean;
     }) => {
         const executeAsyncDashboardChartQuery = vi
@@ -2356,8 +2361,8 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
             undefined,
             {
                 user: { id: 'user-1' },
-                isJwtUser: () => embedParametersEnabled !== undefined,
-                access: { parameters: { enabled: embedParametersEnabled } },
+                isJwtUser: () => embedParameters !== undefined,
+                access: { parameters: embedParameters },
                 organization: { organizationUuid: 'org-1' },
             },
         );
@@ -2465,6 +2470,199 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
             },
         );
     });
+
+    describe('embed export parameters', () => {
+        const everyTile = (parameters: ParametersValuesMap) => ({
+            'tile-1': parameters,
+            'tile-2': parameters,
+        });
+
+        it('layers saved values, then token values, then the viewer values', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    embedParameters: {
+                        enabled: true,
+                        values: { 'orders.status': 'token', region: 'EU' },
+                    },
+                    exportParameters: { region: 'US', channel: 'web' },
+                }),
+            ).resolves.toEqual(
+                everyTile({
+                    'orders.status': 'token',
+                    region: 'US',
+                    channel: 'web',
+                }),
+            );
+        });
+
+        it('drops a viewer value the token does not allow', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    embedParameters: {
+                        enabled: true,
+                        allowedParameters: ['region'],
+                    },
+                    exportParameters: {
+                        region: 'US',
+                        'orders.status': 'injected',
+                    },
+                }),
+            ).resolves.toEqual(
+                everyTile({ 'orders.status': 'placed', region: 'US' }),
+            );
+        });
+
+        it('keeps token values but drops viewer values without interactivity', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    embedParameters: {
+                        enabled: false,
+                        values: { region: 'EU' },
+                    },
+                    exportParameters: {
+                        region: 'US',
+                        'orders.status': 'injected',
+                    },
+                }),
+            ).resolves.toEqual(
+                everyTile({ 'orders.status': 'placed', region: 'EU' }),
+            );
+        });
+
+        it('a non-embed export replaces the saved values with the exported ones', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    exportParameters: { region: 'US' },
+                }),
+            ).resolves.toEqual(everyTile({ region: 'US' }));
+        });
+    });
+});
+
+describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
+    it.each([SchedulerFormat.CSV, SchedulerFormat.XLSX])(
+        'delivers the classic tiles and skips the composer tile (%s)',
+        async (format) => {
+            const executeAsyncDashboardChartQuery = vi
+                .fn()
+                .mockRejectedValue(new Error('stop after the query request'));
+            const task = makeTaskWithDeps({
+                schedulerService: asDep<'schedulerService'>({
+                    dashboardModel: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue({
+                            uuid: 'dashboard-1',
+                            organizationUuid: 'org-1',
+                            projectUuid: 'project-1',
+                            filters: {
+                                dimensions: [],
+                                metrics: [],
+                                tableCalculations: [],
+                            },
+                            tabs: [],
+                            tiles: [
+                                {
+                                    uuid: 'classic-tile',
+                                    type: DashboardTileTypes.SAVED_CHART,
+                                    x: 0,
+                                    y: 0,
+                                    properties: {
+                                        title: 'Classic',
+                                        savedChartUuid: 'chart-1',
+                                    },
+                                },
+                                {
+                                    uuid: 'composer-tile',
+                                    type: DashboardTileTypes.COMPOSER_CHART,
+                                    x: 0,
+                                    y: 1,
+                                    properties: {
+                                        title: 'Composer',
+                                        composerChartUuid: 'composer-chart-1',
+                                    },
+                                },
+                            ],
+                            config: { isDateZoomDisabled: false },
+                        }),
+                    },
+                    savedChartModel: {
+                        get: vi.fn().mockResolvedValue({
+                            chartConfig: { type: ChartType.TABLE, config: {} },
+                        }),
+                    },
+                }),
+                asyncQueryService: asDep<'asyncQueryService'>({
+                    executeAsyncDashboardChartQuery,
+                }),
+                projectService: asDep<'projectService'>({
+                    projectParametersModel: {
+                        find: vi.fn().mockResolvedValue([]),
+                    },
+                }),
+                featureFlagModel: asDep<'featureFlagModel'>({
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
+                }),
+                fileStorageClient: asDep<'fileStorageClient'>({
+                    isEnabled: () => false,
+                }),
+                analytics: asDep<'analytics'>({ trackAccount: vi.fn() }),
+                slackClient: asDep<'slackClient'>({ isEnabled: false }),
+                lightdashConfig: asDep<'lightdashConfig'>({
+                    scheduler: lightdashConfigMock.scheduler,
+                    siteUrl: 'http://localhost:8090',
+                }),
+            });
+            Object.assign(task, {
+                getChartOrDashboard: vi.fn().mockResolvedValue({
+                    url: 'http://localhost:8090/dashboard',
+                    minimalUrl: 'http://localhost:8090/minimal',
+                    pageType: LightdashPage.DASHBOARD,
+                    details: { name: 'Dashboard', description: undefined },
+                    organizationUuid: 'org-1',
+                    projectUuid: 'project-1',
+                }),
+            });
+
+            await expect(
+                (
+                    task as unknown as {
+                        getNotificationPageData(
+                            ...args: unknown[]
+                        ): Promise<unknown>;
+                    }
+                ).getNotificationPageData(
+                    {
+                        name: 'Daily export',
+                        createdBy: 'user-1',
+                        format,
+                        savedChartUuid: null,
+                        dashboardUuid: 'dashboard-1',
+                        appUuid: null,
+                        options: {},
+                        filters: [],
+                    },
+                    'job-1',
+                    false,
+                    undefined,
+                    undefined,
+                    undefined,
+                    {
+                        user: { id: 'user-1' },
+                        isJwtUser: () => false,
+                        organization: { organizationUuid: 'org-1' },
+                    },
+                ),
+            ).resolves.toBeDefined();
+            expect(
+                executeAsyncDashboardChartQuery.mock.calls.map(
+                    ([args]) => args.tileUuid,
+                ),
+            ).toEqual(['classic-tile']);
+        },
+    );
 });
 
 describe('uploadGsheets — SQL chart values', () => {

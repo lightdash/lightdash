@@ -6,6 +6,7 @@ import {
     applyDimensionOverrides,
     assertUnreachable,
     BackfillDefaultUserSpacesPayload,
+    canEmbedViewerResolveTileParameters,
     CompileProjectPayload,
     convertReplaceableFieldMatchMapToReplaceCustomFields,
     CreateProject,
@@ -37,6 +38,7 @@ import {
     getCustomLabelsFromVizTableConfig,
     getDownloadPivotConfig,
     getDownloadPivotOptions,
+    getEmbedParameterValues,
     getErrorMessage,
     getHiddenFieldsFromVizTableConfig,
     getHiddenTableFields,
@@ -64,7 +66,6 @@ import {
     isDashboardValidationError,
     isDataAppValidationError,
     isJwtUser,
-    isParameterInteractivityEnabled,
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
@@ -1745,14 +1746,29 @@ export default class SchedulerTask {
                                 ),
                             );
 
+                        // An embed export runs with its token's values and only
+                        // the viewer's values it allows, over the saved ones.
+                        const requestedParameters = isJwtUser(account)
+                            ? getEmbedParameterValues(
+                                  account.access.parameters,
+                                  exportOptions?.parameters,
+                              )
+                            : exportOptions?.parameters;
+
                         // Ad-hoc exports send the parameter values currently
                         // applied on the dashboard, which replace the saved
                         // defaults the same way exported filters do.
-                        const finalParameters: ParametersValuesMap =
-                            exportOptions?.parameters ?? {
-                                ...convertedDashboardParameters,
-                                ...schedulerParameters,
-                            };
+                        const finalParameters: ParametersValuesMap = isJwtUser(
+                            account,
+                        )
+                            ? {
+                                  ...convertedDashboardParameters,
+                                  ...requestedParameters,
+                              }
+                            : (requestedParameters ?? {
+                                  ...convertedDashboardParameters,
+                                  ...schedulerParameters,
+                              });
                         const parameterControls =
                             await getEnabledParameterControls({
                                 featureFlagModel: this.featureFlagModel,
@@ -1780,7 +1796,7 @@ export default class SchedulerTask {
                                       tileUuid,
                                       chartSavedValues: {},
                                       requestParameters:
-                                          exportOptions?.parameters ??
+                                          requestedParameters ??
                                           schedulerParameters,
                                       userParameterNames,
                                   }).dashboardValues;
@@ -1801,7 +1817,7 @@ export default class SchedulerTask {
                         const getExportTileParameters = (tileUuid: string) =>
                             controlsEnabled &&
                             (!isJwtUser(account) ||
-                                isParameterInteractivityEnabled(
+                                canEmbedViewerResolveTileParameters(
                                     account.access.parameters,
                                 ))
                                 ? exportOptions?.tileParameters?.[tileUuid]
@@ -6642,7 +6658,7 @@ export default class SchedulerTask {
                     const tileParameters =
                         payload.tileParameters !== undefined &&
                         isJwtUser(overrideAccount) &&
-                        isParameterInteractivityEnabled(
+                        canEmbedViewerResolveTileParameters(
                             overrideAccount.access.parameters,
                         ) &&
                         (await areDashboardControlsEnabled({

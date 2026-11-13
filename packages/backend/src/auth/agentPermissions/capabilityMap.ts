@@ -389,6 +389,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.updateArtifactVersionSavedSql': [
         AgentCapability.ContentWrite,
     ],
+    'AiAgentController.updateArtifactVersionSavedComposerChart': [
+        AgentCapability.ContentWrite,
+    ],
     'AiAgentController.updateArtifactVersionVizConfig': [
         AgentCapability.ContentWrite,
     ],
@@ -687,6 +690,8 @@ export const REST_OPERATION_CAPABILITIES = {
     'CommentsController.deleteComment': [AgentCapability.Delete],
     'CommentsController.getComments': [AgentCapability.ReadDiscover],
     'CommentsController.resolveComment': [AgentCapability.ContentWrite],
+    'ComposerChartController.create': [AgentCapability.ContentWrite],
+    'ComposerChartController.get': [AgentCapability.ReadDiscover],
     'ContentController.bulkDeleteContent': [AgentCapability.Delete],
     'ContentController.bulkMoveContent': [AgentCapability.Publish],
     'ContentController.deleteContent': [AgentCapability.Delete],
@@ -1056,8 +1061,18 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'SemanticStudioController.getDraftImpact': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getDraftUsage': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getFieldUsage': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getStoredModels': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.listWorkspaces': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.startWorkspace': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.leaveWorkspace': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getWorkspace': [AgentCapability.ReadDiscover],
+    'SemanticStudioController.renameWorkspace': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.activateWorkspace': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.finishWorkspace': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getBuilderStatus': [AgentCapability.ReadDiscover],
     'SemanticStudioController.undo': [AgentCapability.DbtWriteback],
     'InviteLinksController.createInviteLink': [AgentCapability.Administration],
@@ -1687,6 +1702,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectDashboardControllerV2.delete': [AgentCapability.Delete],
     'ProjectDashboardControllerV2.get': [AgentCapability.ReadDiscover],
     'ProjectDashboardControllerV2.getComments': [AgentCapability.ReadDiscover],
+    'ProjectDashboardControllerV2.getParameters': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectDashboardControllerV2.getTileParameterReferences': [
         AgentCapability.ReadDiscover,
     ],
@@ -1769,6 +1787,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'ProjectSavedChartControllerV2.delete': [AgentCapability.Delete],
     'ProjectSavedChartControllerV2.get': [AgentCapability.ReadDiscover],
+    'ProjectSavedChartControllerV2.getParameters': [
+        AgentCapability.ReadDiscover,
+    ],
     'PullRequestsController.listPullRequests': [AgentCapability.ReadDiscover],
     'QueryController.cancelAsyncQuery': [AgentCapability.ReadDiscover],
     'QueryController.downloadResults': [AgentCapability.Export],

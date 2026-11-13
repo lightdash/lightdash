@@ -5,7 +5,7 @@ import {
     type DateZoomTileTargets,
     type ZoomTileChange,
 } from './dateZoomControls';
-import { type FieldApply } from './useControlsSidebar';
+import { type FieldApply } from './useControlsEditor';
 
 export type DateZoomEditorValue = {
     /** The zoom in the popover, or null. */

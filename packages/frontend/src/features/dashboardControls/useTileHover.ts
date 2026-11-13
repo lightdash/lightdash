@@ -15,7 +15,7 @@ import {
 } from '../dashboard/store';
 import { getMissingTileFieldId, getTileField } from './peers';
 import { getTileSelector } from './tileSelector';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { getSqlColumnsByTile } from './useSqlColumnsByTile';
 
 // Set on the grid items of the tiles a hovered pill's filter is on
@@ -67,7 +67,7 @@ export const useTileHover = (
     getTileUuids: (state: DashboardStoreState) => string[],
 ) => {
     const store = useDashboardStore();
-    const owner = useControlsSidebarSelector((c) => c.tileHoverOwner);
+    const owner = useControlsEditorSelector((c) => c.tileHoverOwner);
     const isMarking = useRef(false);
     // A press focuses the pill too, and may start a drag: that marks nothing
     const isPressed = useRef(false);

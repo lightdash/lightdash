@@ -1,6 +1,7 @@
 import { type DashboardAsCode } from '../../types/coder';
 import { DashboardTileTypes } from '../../types/dashboard';
 import { FilterOperator } from '../../types/filter';
+import { DateGranularity } from '../../types/timeFrames';
 import { DashboardAsCodeInternalization } from './dashboardAsCode';
 
 const dashboardAsCode: DashboardAsCode = {
@@ -68,6 +69,36 @@ const dashboardAsCode: DashboardAsCode = {
     },
 };
 
+const dashboardWithControls: DashboardAsCode = {
+    ...dashboardAsCode,
+    config: {
+        isDateZoomDisabled: true,
+        controlSections: [
+            { slug: 'dates', name: 'Dates' },
+            { slug: 'region', name: 'Region' },
+        ],
+        parameterControls: [
+            {
+                slug: 'currency',
+                label: 'Currency',
+                value: 'usd',
+                valueType: { type: 'string', multiple: false },
+                parameters: { currency: 'all' },
+            },
+        ],
+        dateZoomConfig: {
+            controls: [
+                {
+                    uuid: 'zoom-1',
+                    name: 'Revenue zoom',
+                    granularity: DateGranularity.WEEK,
+                },
+            ],
+            tileTargets: {},
+        },
+    },
+};
+
 describe('DashboardAsCodeInternalization', () => {
     describe('getLanguageMap', () => {
         it('should emit user-defined filter labels keyed by source label', () => {
@@ -97,27 +128,47 @@ describe('DashboardAsCodeInternalization', () => {
             ]);
         });
 
-        it('should emit control section names and omit config without sections', () => {
-            const internalization = new DashboardAsCodeInternalization();
-            const withSections = internalization.getLanguageMap({
-                ...dashboardAsCode,
-                config: {
-                    isDateZoomDisabled: false,
-                    controlSections: [
-                        { slug: 'dates', name: 'Dates' },
-                        { slug: 'region', name: 'Region' },
-                    ],
-                },
-            }).dashboard[dashboardAsCode.slug];
-            expect(withSections.config).toEqual({
-                controlSections: [{ name: 'Dates' }, { name: 'Region' }],
-            });
+        it('should emit control names keyed by source name, never by position', () => {
+            const languageMap =
+                new DashboardAsCodeInternalization().getLanguageMap(
+                    dashboardWithControls,
+                ).dashboard[dashboardAsCode.slug];
 
-            const withoutSections = internalization.getLanguageMap({
-                ...dashboardAsCode,
-                config: { isDateZoomDisabled: false },
-            }).dashboard[dashboardAsCode.slug];
-            expect(withoutSections.config).toBeUndefined();
+            expect(languageMap.sections).toEqual({
+                names: { Dates: 'Dates', Region: 'Region' },
+            });
+            expect(languageMap.parameterControls).toEqual({
+                labels: { Currency: 'Currency' },
+            });
+            expect(languageMap.dateZooms).toEqual({
+                names: { 'Revenue zoom': 'Revenue zoom' },
+            });
+            expect(languageMap).not.toHaveProperty('config');
+        });
+
+        it('should emit no control blocks when the dashboard has no such controls', () => {
+            const languageMap =
+                new DashboardAsCodeInternalization().getLanguageMap({
+                    ...dashboardAsCode,
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [],
+                        // Takes its parameter's label
+                        parameterControls: [
+                            {
+                                ...dashboardWithControls.config!
+                                    .parameterControls![0],
+                                label: null,
+                            },
+                        ],
+                        dateZoomConfig: { controls: [], tileTargets: {} },
+                    },
+                }).dashboard[dashboardAsCode.slug];
+
+            expect(languageMap).not.toHaveProperty('sections');
+            expect(languageMap).not.toHaveProperty('parameterControls');
+            expect(languageMap).not.toHaveProperty('dateZooms');
+            expect(languageMap).not.toHaveProperty('config');
         });
 
         it('should handle a dashboard without filters', () => {
@@ -205,31 +256,74 @@ describe('DashboardAsCodeInternalization', () => {
             );
         });
 
-        it('should merge translated section names by position without touching slugs', () => {
+        it('should keep each control translation when the controls are reordered', () => {
+            const config = dashboardWithControls.config!;
             const merged = new DashboardAsCodeInternalization().merge(
                 {
-                    config: { controlSections: [{ name: 'Dates FR' }] },
                     filters: undefined,
+                    sections: { names: { Dates: 'Fechas', Region: 'Región' } },
+                    parameterControls: { labels: { Currency: 'Moneda' } },
+                    dateZooms: {
+                        names: { 'Revenue zoom': 'Zoom de ingresos' },
+                    },
                 },
                 {
-                    ...structuredClone(dashboardAsCode),
+                    ...structuredClone(dashboardWithControls),
                     config: {
-                        isDateZoomDisabled: true,
-                        controlSections: [
-                            { slug: 'dates', name: 'Dates' },
-                            { slug: 'region', name: 'Region' },
-                        ],
+                        ...config,
+                        controlSections: [...config.controlSections!].reverse(),
                     },
                 },
             );
 
+            expect(merged.config?.controlSections).toEqual([
+                { slug: 'region', name: 'Región' },
+                { slug: 'dates', name: 'Fechas' },
+            ]);
+            expect(merged.config?.parameterControls).toEqual([
+                { ...config.parameterControls![0], label: 'Moneda' },
+            ]);
+            expect(merged.config?.dateZoomConfig).toEqual({
+                ...config.dateZoomConfig,
+                controls: [
+                    {
+                        ...config.dateZoomConfig!.controls[0],
+                        name: 'Zoom de ingresos',
+                    },
+                ],
+            });
+            expect(merged.config?.isDateZoomDisabled).toBe(true);
+        });
+
+        it('should leave control names without a translation untouched', () => {
+            const merged = new DashboardAsCodeInternalization().merge(
+                {
+                    filters: undefined,
+                    sections: { names: { Dates: 'Fechas', Other: 'Otro' } },
+                },
+                structuredClone(dashboardWithControls),
+            );
+
             expect(merged.config).toEqual({
-                isDateZoomDisabled: true,
+                ...dashboardWithControls.config,
                 controlSections: [
-                    { slug: 'dates', name: 'Dates FR' },
+                    { slug: 'dates', name: 'Fechas' },
                     { slug: 'region', name: 'Region' },
                 ],
             });
+        });
+
+        it('should ignore the positional section names of an older map', () => {
+            const olderMap = {
+                filters: undefined,
+                config: { controlSections: [{ name: 'Dates FR' }] },
+            };
+            const merged = new DashboardAsCodeInternalization().merge(
+                olderMap,
+                structuredClone(dashboardWithControls),
+            );
+
+            expect(merged.config).toEqual(dashboardWithControls.config);
         });
 
         it('should merge translated tab names by position without touching other tab fields', () => {

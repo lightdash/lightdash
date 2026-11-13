@@ -18,6 +18,7 @@ import { Box } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useEffect, type ComponentProps, type ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../../../../../api';
 import type * as QueryResultsHooks from '../../../../../hooks/useQueryResults';
@@ -56,6 +57,9 @@ vi.mock('../../hooks/useProjectAiAgents', () => ({
     useAiAgentArtifactVizQuery: mocks.query,
     useAiAgentDashboardChartVizQuery: mocks.query,
     useUpdateArtifactVersionSavedSql: () => ({ mutateAsync: vi.fn() }),
+    useUpdateArtifactVersionSavedComposerChart: () => ({
+        mutateAsync: vi.fn(),
+    }),
 }));
 vi.mock('../../../../../hooks/user/useCreateInAnySpaceAccess', () => ({
     default: () => false,
@@ -587,10 +591,66 @@ describe('composer artifact', () => {
         });
 
         it('hides it without export permission', async () => {
+            mocks.featureFlag.mockImplementation((flag: FeatureFlags) => ({
+                data: { enabled: flag !== FeatureFlags.ComposerCharts },
+            }));
             renderChart();
             await screen.findByRole('columnheader', { name: 'Status' });
             expect(
                 screen.queryByRole('button', { name: 'Quick actions' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('offers Save, disabled with the reason when a permission is missing', async () => {
+            renderChart();
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            const save = await screen.findByRole('menuitem', {
+                name: /^Save/,
+            });
+            expect(save).toBeDisabled();
+            expect(save).toHaveTextContent(
+                'You do not have permission to save composer charts',
+            );
+        });
+
+        it('shows View on dashboard in place of Save once saved', async () => {
+            mocks.artifact.mockReturnValue({
+                data: {
+                    artifactType: 'chart',
+                    title: 'Orders vs amounts',
+                    chartConfig: barConfig,
+                    savedComposerChartUuid: 'composer-chart-uuid',
+                    savedComposerChartDashboardUuid: 'dashboard-uuid',
+                },
+                isLoading: false,
+                error: null,
+                refetch: mocks.retry,
+            });
+            mocks.query.mockReturnValue(composerRun);
+            mocks.rows.mockReturnValue(statusCounts);
+            renderWithProviders(
+                <MemoryRouter>
+                    <AiArtifactPanel artifact={artifact} />
+                </MemoryRouter>,
+            );
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            expect(
+                await screen.findByRole('menuitem', {
+                    name: 'View on dashboard',
+                }),
+            ).toHaveAttribute(
+                'href',
+                expect.stringContaining('/dashboards/dashboard-uuid'),
+            );
+            expect(
+                screen.queryByRole('menuitem', { name: /^Save/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('menuitem', { name: 'Schedule delivery' }),
             ).not.toBeInTheDocument();
         });
 

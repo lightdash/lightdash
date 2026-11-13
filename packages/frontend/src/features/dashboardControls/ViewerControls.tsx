@@ -30,8 +30,8 @@ import {
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
 import RequiredFilterCard from '../dashboardFilters/FilterRequirements/RequiredFilterCard';
+import { findFilterRule } from './editorState';
 import { isRuleRequired } from './requirements';
-import { findFilterRule } from './sidebarState';
 
 type LockScope = 'this' | 'all' | 'some';
 

@@ -23,6 +23,7 @@ import {
     DbtProjectType,
     DimensionType,
     DownloadFileType,
+    DuckdbConnectionType,
     DuckdbExecutionSpec,
     ExecuteAsyncQueryRequestParams,
     ExploreType,
@@ -86,6 +87,7 @@ import {
     type CreateEmbedJwt,
     type DashboardParameterControl,
     type Document,
+    type DocumentExploreChartContent,
     type DocumentQueryReference,
     type Explore,
     type ItemsMap,
@@ -95,6 +97,7 @@ import {
     type MergeTypedColumn,
     type MetricQuery,
     type ParameterDefinitions,
+    type ParametersValuesMap,
     type PivotConfiguration,
     type ProjectDefaults,
     type RegisteredAccount,
@@ -257,6 +260,7 @@ import {
     cacheMiss,
     MissCacheResult,
 } from '../CacheService/types';
+import { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import { DocumentService } from '../DocumentService/DocumentService';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
@@ -1139,6 +1143,201 @@ describe('underlying data dimension selection', () => {
             );
         },
     );
+});
+
+const buildEmbedAccount = () => {
+    const account = fromJwt({
+        decodedToken: defaultJwtToken,
+        embed: {
+            projectUuid,
+            organization: {
+                organizationUuid: projectSummary.organizationUuid,
+                name: 'Test Organization',
+                createdAt: new Date('2024-01-01'),
+            },
+            encodedSecret: 'test-encoded-secret',
+            dashboardUuids: [],
+            allowAllDashboards: true,
+            chartUuids: [],
+            allowAllCharts: true,
+            allowAllApps: false,
+            appUuids: [],
+            createdAt: '2024-01-01',
+            user: null,
+        },
+        source: 'test-jwt-token',
+        content: {
+            type: 'dashboard',
+            dashboardUuid: 'test-dashboard-uuid',
+            chartUuids: [],
+            explores: [],
+        },
+        userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+    });
+    account.user.ability = new Ability<PossibleAbilities>([
+        { action: 'manage', subject: 'all' },
+    ]);
+    account.access.parameters = {
+        enabled: true,
+        allowedParameters: ['region'],
+        values: { currency: 'GBP' },
+    };
+    return account;
+};
+
+describe('underlying data parameters', () => {
+    const runUnderlyingData = async (
+        account: Account,
+        sourceParameters: ParametersValuesMap | undefined,
+    ) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(service.queryHistoryModel.get).mockResolvedValue({
+            queryUuid: 'source-query',
+            metricQuery: metricQueryMock,
+            fields: {},
+            requestParameters: { parameters: sourceParameters },
+            usedParameters: null,
+        } as unknown as QueryHistory);
+        // Stops the run once the parameters are resolved
+        const combineParameters = vi
+            .spyOn(service, 'combineParameters')
+            .mockRejectedValue(new Error('parameters resolved'));
+        await expect(
+            service.executeAsyncUnderlyingDataQuery({
+                account,
+                projectUuid,
+                underlyingDataSourceQueryUuid: 'source-query',
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                filters: {},
+                parameters: { region: 'APAC', currency: 'USD' },
+            }),
+        ).rejects.toThrow('parameters resolved');
+        return combineParameters.mock.calls[0][2];
+    };
+
+    it('runs an embed drill-down with its source values under the token fixed values', async () => {
+        expect(
+            await runUnderlyingData(buildEmbedAccount(), {
+                region: 'UK',
+                currency: 'USD',
+            }),
+        ).toEqual({ region: 'UK', currency: 'GBP' });
+    });
+
+    it('adds a token fixed value the source query did not record', async () => {
+        expect(
+            await runUnderlyingData(buildEmbedAccount(), { region: 'UK' }),
+        ).toEqual({ region: 'UK', currency: 'GBP' });
+    });
+
+    it('applies the token fixed values to the request when the source recorded none', async () => {
+        expect(await runUnderlyingData(buildEmbedAccount(), undefined)).toEqual(
+            { region: 'APAC', currency: 'GBP' },
+        );
+    });
+
+    it('leaves the parameters of a data app token as sent', async () => {
+        const account = buildEmbedAccount();
+        account.access.content = {
+            type: 'dataApp',
+            appUuid: 'app-uuid',
+            chartUuids: [],
+            explores: [],
+        };
+        expect(await runUnderlyingData(account, { region: 'UK' })).toEqual({
+            region: 'APAC',
+            currency: 'USD',
+        });
+    });
+
+    it('leaves the parameters of a signed-in user as sent', async () => {
+        const account = buildAccount();
+        account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
+        expect(await runUnderlyingData(account, { region: 'UK' })).toEqual({
+            region: 'APAC',
+            currency: 'USD',
+        });
+    });
+});
+
+describe('Explore metric query parameters', () => {
+    const runMetricQuery = async (
+        account: Account,
+        parameters: ParametersValuesMap,
+    ) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.spyOn(
+            service as AnyType,
+            'assertCustomSqlAuthorizedForQuery',
+        ).mockResolvedValue(undefined);
+        const run = vi
+            .spyOn(
+                service as AnyType,
+                'runAsyncMetricQueryWithoutPermissionCheck',
+            )
+            .mockResolvedValue({ queryUuid: 'query-uuid' });
+        await service.executeAsyncMetricQuery({
+            account,
+            projectUuid,
+            metricQuery: metricQueryMock,
+            context: QueryExecutionContext.EXPLORE,
+            parameters,
+        });
+        return (run.mock.calls[0][0] as { parameters: ParametersValuesMap })
+            .parameters;
+    };
+
+    it('replaces a viewer value the token fixes', async () => {
+        const account = buildEmbedAccount();
+        account.access.parameters = {
+            enabled: true,
+            allowedParameters: [],
+            values: { tenant: 'acme' },
+        };
+        expect(await runMetricQuery(account, { tenant: 'other' })).toEqual({
+            tenant: 'acme',
+        });
+    });
+
+    it('keeps a viewer value the token allows', async () => {
+        expect(
+            await runMetricQuery(buildEmbedAccount(), {
+                region: 'APAC',
+                currency: 'USD',
+            }),
+        ).toEqual({ region: 'APAC', currency: 'GBP' });
+    });
+
+    it('keeps values the token does not fix when parameter interactivity is off', async () => {
+        const account = buildEmbedAccount();
+        account.access.parameters = {
+            enabled: false,
+            values: { currency: 'GBP' },
+        };
+        expect(
+            await runMetricQuery(account, { region: 'APAC', currency: 'USD' }),
+        ).toEqual({ region: 'APAC', currency: 'GBP' });
+    });
+
+    it('leaves the values of a token without parameter rules as sent', async () => {
+        const account = buildEmbedAccount();
+        account.access.parameters = undefined;
+        expect(
+            await runMetricQuery(account, { region: 'APAC', currency: 'USD' }),
+        ).toEqual({ region: 'APAC', currency: 'USD' });
+    });
+
+    it('leaves the parameters of a signed-in user as sent', async () => {
+        const account = buildAccount();
+        account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
+        expect(
+            await runMetricQuery(account, { region: 'APAC', currency: 'USD' }),
+        ).toEqual({ region: 'APAC', currency: 'USD' });
+    });
 });
 
 describe('AsyncQueryService', () => {
@@ -7107,6 +7306,7 @@ describe('AsyncQueryService', () => {
                               submission: [],
                               pivotConfiguration: null,
                               plan: null,
+                              binding: null,
                           });
                 await expect(result).rejects.toThrow('Raw SQL');
                 expect(run).not.toHaveBeenCalled();
@@ -12417,6 +12617,67 @@ describe('AsyncQueryService', () => {
             queryCreatedAt: new Date(),
             displayTimezone: null,
         };
+
+        test('closes the result stream without failing a cancelled analytics query', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const close = vi.fn();
+            const write = vi.fn();
+            vi.mocked(
+                service.resultsStorageClient.createUploadStream,
+            ).mockReturnValue({
+                write,
+                close,
+                writeStream: new PassThrough(),
+            });
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue(
+                createMockQueryHistory(QueryHistoryStatus.CANCELLED),
+            );
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'resolveWarehouseCredentials',
+            ).mockResolvedValue({
+                warehouseCredentials: {
+                    type: WarehouseTypes.DUCKDB,
+                    connectionType: DuckdbConnectionType.ANALYTICS,
+                    database: 'memory',
+                    schema: 'main',
+                },
+                warehouseConnectionUuid: null,
+                connectionRoute: null,
+                aiPlan: null,
+                credentialKind: WarehouseCredentialKind.SHARED,
+            });
+            const executeAsyncQuery = vi.fn<
+                WarehouseClient['executeAsyncQuery']
+            >(async ({ isQueuedQueryCancelled }) => {
+                expect(await isQueuedQueryCancelled?.()).toBe(true);
+                throw new warehouses.AnalyticsQueryCancelledError();
+            });
+            const disconnect = vi.fn();
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'acquireUnscoped',
+            ).mockResolvedValue({
+                warehouseClient: { ...warehouseClientMock, executeAsyncQuery },
+                sshTunnel: {
+                    disconnect,
+                } as unknown as SshTunnel<CreateWarehouseCredentials>,
+                tunnelConnectMs: null,
+            });
+
+            await service.runAsyncWarehouseQuery(args);
+
+            expect(executeAsyncQuery).toHaveBeenCalledOnce();
+            expect(disconnect).toHaveBeenCalledOnce();
+            expect(close).toHaveBeenCalledOnce();
+            expect(write).not.toHaveBeenCalled();
+            expect(service.queryHistoryModel.update).not.toHaveBeenCalled();
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).not.toHaveBeenCalled();
+        });
 
         test('stores the safe analytics message and logs the storage status', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
@@ -19528,6 +19789,76 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         await drainMergeEvents(trackAccount, 1);
     });
 
+    it('refuses a document-bound pipeline node that is not the persisted Document query', async () => {
+        const { service, executeAsyncQuery } = buildServiceWithCompiledLegs();
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'Document', action: 'view' },
+        ]);
+        const [persisted, other] = attributeScopedMergeQuery.sources;
+        if (!('metricQuery' in persisted) || !('metricQuery' in other)) {
+            throw new Error('Expected metric sources');
+        }
+        const context = DocumentQueryContext.fromChart({
+            account,
+            projectUuid,
+            reference: {
+                documentUuid: 'saved-doc',
+                versionUuid: 'saved-version',
+                chartId: 'c1',
+            },
+            content: {
+                source: 'semantic',
+                chart: {
+                    name: 'Saved chart',
+                    tableName: persisted.metricQuery.exploreName,
+                    metricQuery: persisted.metricQuery,
+                    chartConfig: { type: ChartType.TABLE },
+                },
+            } as DocumentExploreChartContent,
+            sourceRowCap: lightdashConfigMock.query.maxLimit,
+        });
+
+        const runner = new QuerySourceService({
+            analytics: analyticsMock,
+            getAsyncQueryService: () => service,
+            getAgentPermissionService: () =>
+                ({ assertOperation: vi.fn() }) as never,
+            projectModel: (service as AnyType).projectModel,
+            featureFlagModel: (service as AnyType).featureFlagModel,
+            queryHistoryModel: service.queryHistoryModel,
+            registry: QuerySourceRegistry.withBuiltInSources({
+                asyncQueryService: service,
+                projectService: service,
+            }),
+        });
+
+        await expect(
+            runner.submitQueries({
+                account,
+                projectUuid,
+                queries: [
+                    {
+                        nodeId: 'other',
+                        sourceType: QuerySourceType.SEMANTIC_LAYER,
+                        exploreName: other.metricQuery.exploreName,
+                        dimensions: other.metricQuery.dimensions,
+                        metrics: other.metricQuery.metrics,
+                    },
+                ],
+                context: QueryExecutionContext.CHART,
+                parameters: {},
+                userAttributeOverrides: {},
+                invalidateCache: false,
+                plans: {},
+                binding: { kind: 'document', context },
+                aiAttribution: null,
+            }),
+        ).rejects.toThrow('Only the persisted Document query can execute');
+        expect(executeAsyncQuery).not.toHaveBeenCalled();
+    });
+
     it('refuses a pivot the composer rejects before any leg runs', async () => {
         const { service, create } = buildService({
             config: lightdashConfigMock,
@@ -19831,6 +20162,7 @@ describe('query sources carry the execution context', () => {
     const submissionDefaults: Omit<SubmitSourceQueryArgs, 'query'> = {
         account: sessionAccount,
         projectUuid,
+        binding: null,
         context: QueryExecutionContext.MULTI_SOURCE_QUERY,
         resolvedReferences: {},
         submission: [],

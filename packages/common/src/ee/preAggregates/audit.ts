@@ -4,6 +4,7 @@ import { type PreAggregateMatchMiss } from '../../types/preAggregate';
 export enum TileIneligibleReason {
     NON_CHART_TILE = 'non_chart_tile',
     SQL_CHART = 'sql_chart',
+    COMPOSER_CHART = 'composer_chart',
     ORPHANED_CHART = 'orphaned_chart',
     EXPLORE_RESOLUTION_ERROR = 'explore_resolution_error',
 }

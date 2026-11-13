@@ -14,6 +14,12 @@ export enum FeatureFlags {
     OAuthScopeEnforcement = 'oauth-scope-enforcement',
 
     MultiConnectionProjects = 'multi-connection-projects',
+    /**
+     * CLI previews inherit the parent's connection settings on a different
+     * Snowflake warehouse.
+     * Off by default; organization scope; no handler.
+     */
+    PreviewInheritsAcrossWarehouses = 'preview-inherits-across-warehouses',
     /** Extra warehouse connections of a different type to the project's original connection. */
     MixedWarehouseConnections = 'mixed-warehouse-connections',
     /** Backend-provisioned usage analytics projects. */
@@ -267,6 +273,11 @@ export enum FeatureFlags {
      * instances only while we gather feedback.
      */
     DashboardFitToScreenDefault = 'dashboard-fit-to-screen-default',
+    /**
+     * Org-scoped, off: composer charts as dashboard tiles. Not for orgs embedding with
+     * @lightdash/sdk < TBD (first with PR #32548): older SDKs crash the whole embed.
+     */
+    ComposerCharts = 'composer-charts',
 }
 
 export type FeatureFlag = {

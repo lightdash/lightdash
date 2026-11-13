@@ -141,7 +141,53 @@ const mockStreamRow = () =>
 
 export const createJobResponse = [
     {
-        getQueryResults: vi.fn(() => [rows, undefined, metadata]),
+        getQueryResults: vi.fn((options?: { skipParsing?: boolean }) => [
+            options?.skipParsing
+                ? [
+                      {
+                          f: [
+                              { v: 'string value' },
+                              { v: '100.25' },
+                              { v: '200.5' },
+                              { v: '2021-03-10' },
+                              { v: '636366600010000' },
+                              { v: 'false' },
+                              { v: '["1","2","3"]' },
+                              { v: '{"test":"1"}' },
+                              { v: [{ v: 'a' }, { v: 'b' }] },
+                              {
+                                  v: {
+                                      f: [
+                                          { v: '7' },
+                                          { v: '636366600010000' },
+                                          {
+                                              v: [
+                                                  { v: { f: [{ v: 'x' }] } },
+                                                  { v: { f: [{ v: 'y' }] } },
+                                              ],
+                                          },
+                                      ],
+                                  },
+                              },
+                          ],
+                      },
+                  ]
+                : rows,
+            undefined,
+            options?.skipParsing
+                ? {
+                      ...metadata,
+                      schema: {
+                          fields: metadata.schema.fields.map((field) =>
+                              field.name === 'myArrayColumn' ||
+                              field.name === 'myObjectColumn'
+                                  ? { ...field, type: BigqueryFieldType.STRING }
+                                  : field,
+                          ),
+                      },
+                  }
+                : metadata,
+        ]),
         getQueryResultsStream: vi.fn(mockStreamRow),
     },
 ];

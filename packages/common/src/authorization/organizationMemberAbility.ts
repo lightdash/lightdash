@@ -303,6 +303,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('create', 'DataApp', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'ComposerChart', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             inheritsFromOrgOrProject: true,

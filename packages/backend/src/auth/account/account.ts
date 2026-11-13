@@ -153,6 +153,7 @@ export const fromJwt = ({
             ),
         };
         parameters = {
+            ...parameters,
             enabled: abilities.can(
                 'view',
                 subject('EmbedDashboardParameters', { ...target }),

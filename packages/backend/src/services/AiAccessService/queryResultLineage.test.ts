@@ -55,6 +55,7 @@ it('strips every server-owned result binding from client parameters', () => {
     const client = {
         sql: 'SELECT 1',
         queryUsage: { requestId: 'forged' },
+        analyticsActivityWindow: { start: 'forged', end: 'forged' },
         aiSignInCredentialUuid: 'forged',
         resultProducer: { version: 1 },
         resultArtifact: { artifactUuid: 'forged' },
@@ -74,6 +75,7 @@ it('strips every server-owned result binding from client parameters', () => {
     expect(parameters).toEqual({
         sql: 'SELECT 1',
         queryUsage: undefined,
+        analyticsActivityWindow: undefined,
         aiSignInCredentialUuid: undefined,
         resultProducer: undefined,
         resultArtifact: undefined,

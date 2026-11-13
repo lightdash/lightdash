@@ -1,0 +1,180 @@
+.metric {
+    display: flex;
+    flex-direction: column;
+    container-type: inline-size;
+    padding: var(--mantine-spacing-lg);
+    text-align: left;
+    min-width: 0;
+    min-height: 144px;
+}
+
+.metric:hover,
+.metric[data-selected='true'] {
+    border-color: var(--mantine-color-violet-5);
+}
+
+.metricValue {
+    font-size: clamp(
+        var(--mantine-font-size-lg),
+        calc(25cqi - var(--mantine-spacing-lg)),
+        calc(var(--mantine-h1-font-size) * 1.5)
+    );
+    font-weight: 600;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+}
+
+.tabs {
+    flex-wrap: nowrap;
+    min-width: max-content;
+}
+
+.header {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) auto;
+    column-gap: var(--mantine-spacing-lg);
+    row-gap: var(--mantine-spacing-sm);
+    align-items: start;
+}
+
+.homepageLink {
+    justify-self: end;
+}
+
+.heading {
+    min-width: 0;
+    grid-row: 1 / 3;
+}
+
+.filters {
+    margin-left: auto;
+    max-width: 100%;
+}
+
+.projectFilter {
+    width: 280px;
+    max-width: 100%;
+    flex-shrink: 0;
+}
+
+.projectInput {
+    text-overflow: ellipsis;
+}
+
+.filterControls {
+    justify-content: flex-end;
+}
+
+.dateControl {
+    flex-shrink: 0;
+    --sc-padding: 3px;
+    background-color: var(--mantine-color-default-hover);
+    border: 1px solid var(--mantine-color-default-border);
+}
+
+.dateOption {
+    padding: 4px var(--mantine-spacing-sm);
+    line-height: 16px;
+    white-space: nowrap;
+}
+
+.dateIndicator {
+    border: 0;
+    box-shadow: none;
+    background-color: var(--mantine-color-body);
+}
+
+.tabBar {
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    padding-bottom: var(--mantine-spacing-xs);
+}
+
+.tabNavigation {
+    flex: 1;
+    min-width: 0;
+}
+
+.tabNavigation > button {
+    flex-shrink: 0;
+}
+
+.tabActions {
+    flex-shrink: 0;
+}
+
+.tabsViewport {
+    flex: 1;
+    min-width: 0;
+    mask-image: linear-gradient(to right, black calc(100% - 16px), transparent);
+}
+
+.tab {
+    padding-block: var(--mantine-spacing-sm);
+}
+
+.tab[data-active] {
+    border-color: var(--mantine-color-violet-5);
+    font-weight: 600;
+}
+
+@media (min-width: 62em) {
+    .charts[data-overview='true'] {
+        grid-template-columns: 1.6fr 1fr;
+    }
+}
+
+@container (max-width: 50em) {
+    .header {
+        grid-template-columns: 1fr auto;
+    }
+
+    .heading {
+        grid-row: 1;
+    }
+
+    .filters {
+        grid-column: 1 / -1;
+    }
+}
+
+@container (max-width: 44em) {
+    .filters {
+        width: 100%;
+    }
+
+    .tabBar {
+        flex-wrap: wrap;
+    }
+
+    .tabNavigation {
+        flex-basis: 100%;
+    }
+
+    .tabActions {
+        margin-left: auto;
+    }
+}
+
+.chart {
+    height: 240px !important;
+}
+
+.emptyChart {
+    height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.overview {
+    container-type: inline-size;
+}
+
+.summaryValue {
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--mantine-h1-font-size);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
