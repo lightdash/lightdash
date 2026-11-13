@@ -81,29 +81,6 @@
     opacity: 1;
 }
 
-/* Numeric labels sit over their right-aligned values; the menu overlays the
-   column's right edge so it never pushes the label off them */
-.results:not([data-grouped])
-    table
-    thead
-    th[data-numeric]
-    [class*='thContainer'] {
-    position: relative;
-    justify-content: flex-end;
-}
-
-.results:not([data-grouped])
-    table
-    thead
-    th[data-numeric]
-    [class*='thActionsContainer'] {
-    position: absolute;
-    right: 0;
-    margin: 0;
-    background-color: var(--mantine-color-body);
-    border-radius: var(--mantine-radius-sm);
-}
-
 /* Pagination is the table's last line: no band, small quiet controls */
 .results:not([data-grouped]) [class*='tableFooter'] {
     padding: 4px 8.5px;

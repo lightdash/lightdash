@@ -62,11 +62,6 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
         >
             <Text truncate fz={13} fw={600}>
                 {table.label}
-                {isJoined && (
-                    <Text span fz={11} fw={400} c="dimmed" ml={6}>
-                        Joined
-                    </Text>
-                )}
             </Text>
         </TableItemDetailPreview>
     );

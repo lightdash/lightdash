@@ -1,5 +1,3 @@
-import { Menu, UnstyledButton } from '@mantine/core';
-import { IconArrowsJoin, IconChevronDown } from '@tabler/icons-react';
 import type { Range } from '@tanstack/react-virtual';
 import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -10,7 +8,6 @@ import {
     type CSSProperties,
     type FC,
 } from 'react';
-import MantineIcon from '../../../../common/MantineIcon';
 import type { FlattenedItem, FlattenedTreeData } from './types';
 import classes from './VirtualizedTreeList.module.css';
 import VirtualTreeItem from './VirtualTreeItem';
@@ -109,104 +106,56 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
 
     const virtualItems = virtualizer.getVirtualItems();
 
-    const joinedTables = useMemo(
-        () =>
-            items.flatMap((item, index) =>
-                item.type === 'table-header' &&
-                item.data.table.name !== baseTableName
-                    ? [{ index, ...item.data }]
-                    : [],
-            ),
-        [items, baseTableName],
-    );
-
     return (
-        <div className={classes.root}>
-            {joinedTables.length > 0 && (
-                <Menu position="bottom-start" withinPortal>
-                    <Menu.Target>
-                        <UnstyledButton className={classes.joinedTables}>
-                            <MantineIcon icon={IconArrowsJoin} size={14} />
-                            {joinedTables.length} joined{' '}
-                            {joinedTables.length === 1 ? 'table' : 'tables'}
-                            <MantineIcon icon={IconChevronDown} size={12} />
-                        </UnstyledButton>
-                    </Menu.Target>
-                    <Menu.Dropdown className={classes.joinedTablesMenu}>
-                        {joinedTables.map(({ index, table, isExpanded }) => (
-                            <Menu.Item
-                                key={table.name}
-                                fz="xs"
-                                onClick={() => {
-                                    if (!isExpanded) onToggleTable(table.name);
-                                    // Wait a frame so a just-expanded table has its rows
-                                    requestAnimationFrame(() =>
-                                        virtualizer.scrollToIndex(index, {
-                                            align: 'start',
-                                        }),
-                                    );
-                                }}
-                            >
-                                {table.label}
-                            </Menu.Item>
-                        ))}
-                    </Menu.Dropdown>
-                </Menu>
-            )}
+        <div
+            ref={parentRef}
+            data-testid="virtualized-tree-scroll-container"
+            className={classes.scrollContainer}
+        >
             <div
-                ref={parentRef}
-                data-testid="virtualized-tree-scroll-container"
-                className={classes.scrollContainer}
+                className={classes.sizer}
+                style={
+                    {
+                        '--tree-height': `${virtualizer.getTotalSize()}px`,
+                    } as CSSProperties
+                }
             >
-                <div
-                    className={classes.sizer}
-                    style={
-                        {
-                            '--tree-height': `${virtualizer.getTotalSize()}px`,
-                        } as CSSProperties
-                    }
-                >
-                    {virtualItems.map((virtualItem) => {
-                        const item = items[virtualItem.index];
-                        const isStickyItem = isSticky(virtualItem.index);
-                        const isActiveStickyItem = isActiveSticky(
-                            virtualItem.index,
-                        );
+                {virtualItems.map((virtualItem) => {
+                    const item = items[virtualItem.index];
+                    const isStickyItem = isSticky(virtualItem.index);
+                    const isActiveStickyItem = isActiveSticky(
+                        virtualItem.index,
+                    );
 
-                        return (
-                            <div
-                                key={item.id}
-                                data-index={virtualItem.index}
-                                data-item-type={item.type}
-                                data-kind={getItemKind(item)}
-                                data-sticky-header={isStickyItem || undefined}
-                                data-active-sticky={
-                                    isActiveStickyItem || undefined
+                    return (
+                        <div
+                            key={item.id}
+                            data-index={virtualItem.index}
+                            data-item-type={item.type}
+                            data-kind={getItemKind(item)}
+                            data-sticky-header={isStickyItem || undefined}
+                            data-active-sticky={isActiveStickyItem || undefined}
+                            className={classes.item}
+                            style={
+                                {
+                                    '--item-start': `${virtualItem.start}px`,
+                                } as CSSProperties
+                            }
+                        >
+                            <VirtualTreeItem
+                                item={item}
+                                isJoinedTable={
+                                    item.type === 'table-header' &&
+                                    item.data.table.name !== baseTableName
                                 }
-                                className={classes.item}
-                                style={
-                                    {
-                                        '--item-start': `${virtualItem.start}px`,
-                                    } as CSSProperties
-                                }
-                            >
-                                <VirtualTreeItem
-                                    item={item}
-                                    isJoinedTable={
-                                        item.type === 'table-header' &&
-                                        item.data.table.name !== baseTableName
-                                    }
-                                    sectionContexts={sectionContexts}
-                                    onToggleTable={onToggleTable}
-                                    onToggleGroup={onToggleGroup}
-                                    onSelectedFieldChange={
-                                        onSelectedFieldChange
-                                    }
-                                />
-                            </div>
-                        );
-                    })}
-                </div>
+                                sectionContexts={sectionContexts}
+                                onToggleTable={onToggleTable}
+                                onToggleGroup={onToggleGroup}
+                                onSelectedFieldChange={onSelectedFieldChange}
+                            />
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
