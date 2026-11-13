@@ -24,6 +24,7 @@ import filterClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
 import { DateZoomControlMenuItems } from '../dateZoom/components/DateZoomControlPills';
 import { useEligibleDateZoomTiles } from '../dateZoom/hooks';
 import { getGranularityLabel } from '../dateZoom/utils';
+import { useControlContractClasses } from './controlContractClasses';
 import { ControlEditorPopover } from './ControlEditorPopover';
 import { DateZoomControlPopover } from './DateZoomControlPopover';
 import {
@@ -35,7 +36,6 @@ import { DefaultZoomPopover } from './DefaultZoomPopover';
 import pillClasses from './FilterPills.module.css';
 import classes from './ParameterPills.module.css';
 import { BarDroppable, PillDraggable } from './PillDraggable';
-import { useRailContractClasses } from './railContractClasses';
 import { useBarPill } from './useBarPill';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import {
@@ -184,7 +184,7 @@ const DateZoomPill: FC<{
     neighbourIds: string[];
 }> = ({ entry, neighbourIds }) => {
     const getUiString = useUiStrings();
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     const { control, isNew } = entry;
     const isOpen = useDateZoomEditorSelector(
         (c) => !c.isEditingDefault && c.editingId === control.uuid,

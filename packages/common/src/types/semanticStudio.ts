@@ -231,6 +231,18 @@ export type SemanticLayerDraftFieldUsage = {
     scheduledDeliveries: number;
 };
 
+/** A field a change redefines or removes, to look up in saved content. */
+export type SemanticLayerTouchedField = {
+    model: string;
+    fieldId: string;
+    label: string;
+    kind: 'changed' | 'removed';
+};
+
+export type SemanticLayerFieldUsageBody = {
+    fields: SemanticLayerTouchedField[];
+};
+
 /** Saved content that reads what the draft changes: what to look at before publishing, whether or not anything breaks. */
 export type SemanticLayerDraftUsage = {
     fields: SemanticLayerDraftFieldUsage[];
@@ -257,3 +269,51 @@ export type ApiSemanticLayerDraftTakeLiveRequest = {
 export type ApiSemanticLayerDraftMoveRequest = {
     direction: SemanticLayerDraftMoveDirection;
 };
+
+export type SemanticStudioWorkspacePullRequestState =
+    | 'open'
+    | 'merged'
+    | 'closed';
+
+/** One piece of Studio work from its first proposed change until it is live or discarded. */
+export type SemanticStudioWorkspace = {
+    workspaceUuid: string;
+    projectUuid: string;
+    name: string;
+    threadUuid: string;
+    agentUuid: string | null;
+    owner: { userUuid: string; name: string };
+    isMine: boolean;
+    /** The one your chat writes to and your development view reads. */
+    isActive: boolean;
+    /** The latest pull request its conversation opened, with its state when last checked. */
+    pullRequest: {
+        url: string;
+        state: SemanticStudioWorkspacePullRequestState | null;
+    } | null;
+    createdAt: Date;
+    updatedAt: Date;
+    finishedAt: Date | null;
+};
+
+export type SemanticStudioWorkspaces = {
+    /** Your unfinished workspaces, the active one first. */
+    mine: SemanticStudioWorkspace[];
+    /** Others' unfinished workspaces in this project, to be aware of. */
+    others: SemanticStudioWorkspace[];
+    /** Your workspaces finished in the last two weeks, newest first. */
+    recent: SemanticStudioWorkspace[];
+};
+
+export type ApiSemanticStudioWorkspacesResponse =
+    ApiSuccess<SemanticStudioWorkspaces>;
+
+export type ApiSemanticStudioWorkspaceResponse =
+    ApiSuccess<SemanticStudioWorkspace>;
+
+export type SemanticStudioWorkspaceStartBody = {
+    threadUuid: string;
+    name: string;
+};
+
+export type SemanticStudioWorkspaceRenameBody = { name: string };

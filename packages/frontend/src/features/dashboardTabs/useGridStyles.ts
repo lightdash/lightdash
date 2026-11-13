@@ -36,19 +36,29 @@ export const useGridStyles = ({
     rowHeight: number;
 }) => {
     const [observedWidth, setObservedWidth] = useState(0);
+    const [canvasTop, setCanvasTop] = useState(0);
 
     useEffect(() => {
         const wrapper = ref.current;
         if (!wrapper) return;
         const ro = new ResizeObserver(() => {
-            const rgl = wrapper.querySelector(
-                '.react-grid-layout',
-            ) as HTMLElement | null;
-            if (rgl) setObservedWidth(rgl.offsetWidth);
+            // Tabs kept in memory leave their grids in the wrapper with no width
+            const visibleGrid = Array.from(
+                wrapper.querySelectorAll<HTMLElement>('.react-grid-layout'),
+            ).find((grid) => grid.offsetWidth > 0);
+            if (!visibleGrid) return;
+            setObservedWidth(visibleGrid.offsetWidth);
+            setCanvasTop(
+                Math.round(
+                    visibleGrid.getBoundingClientRect().top + window.scrollY,
+                ),
+            );
         });
         ro.observe(wrapper);
+        // Anything growing above the grid moves it without resizing the wrapper
+        ro.observe(document.documentElement);
         return () => ro.disconnect();
-    }, [ref, setObservedWidth]);
+    }, [ref, setObservedWidth, setCanvasTop]);
 
     return useMemo(() => {
         if (observedWidth <= 0) return undefined;
@@ -65,6 +75,7 @@ export const useGridStyles = ({
             '--grid-row-h': `${rowHeight - GRID_MARGIN[1]}px`,
             '--grid-pad-x': `${GRID_CONTAINER_PADDING[0]}px`,
             '--grid-pad-y': `${GRID_CONTAINER_PADDING[1]}px`,
+            '--canvas-top': `${canvasTop}px`,
         } as React.CSSProperties;
-    }, [observedWidth, cols, rowHeight]);
+    }, [observedWidth, canvasTop, cols, rowHeight]);
 };

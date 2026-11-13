@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     DashboardTileTypes,
     type DashboardTab,
     type DashboardTile,
@@ -782,11 +783,8 @@ export const closeTileGaps = <T extends GridPlacement>(tiles: T[]): T[] =>
 const snapToFineStep = (value: number) =>
     Math.round(value * FINE_GRID_SCALE) / FINE_GRID_SCALE;
 
-/**
- * Reading-order rows: a tile joins the row it starts in the top half of,
- * unless it sits under a tile of that row, which starts the next row.
- */
-const toRows = <T extends GridPlacement>(tiles: T[]): T[][] =>
+/** Plain reading-order rows, for tiles no straight cut can split */
+const toFlatRows = <T extends GridPlacement>(tiles: T[]): T[][] =>
     sortBy(tiles, ['y', 'x']).reduce<T[][]>((rows, tile) => {
         const row = rows.at(-1);
         const joinsRow =
@@ -798,31 +796,142 @@ const toRows = <T extends GridPlacement>(tiles: T[]): T[][] =>
             : [...rows, [tile]];
     }, []);
 
-/** One row at `y`: full grid width in the tiles' proportions, tallest height */
-const justifyRow = <T extends GridPlacement>(row: T[], y: number): T[] => {
-    const leftToRight = sortBy(row, ['x']);
-    const totalWidth = leftToRight.reduce((sum, tile) => sum + tile.w, 0);
-    const h = Math.max(...leftToRight.map((tile) => tile.h));
-    const edgeAfter = (count: number) =>
-        snapToFineStep(
-            (leftToRight
-                .slice(0, count)
-                .reduce((sum, tile) => sum + tile.w, 0) *
-                GRID_DESKTOP_COLS) /
-                totalWidth,
-        );
-    return leftToRight.map((tile, index) => {
-        const x = edgeAfter(index);
-        return { ...tile, x, y, w: edgeAfter(index + 1) - x, h };
-    });
+/**
+ * Top-to-bottom bands: a tile joins the band it starts in the top half of, or
+ * that at least half of it sits inside.
+ */
+const toBands = <T extends GridPlacement>(tiles: T[]): T[][] =>
+    sortBy(tiles, ['y', 'x']).reduce<T[][]>((bands, tile) => {
+        const band = bands.at(-1);
+        const joinsBand =
+            band !== undefined &&
+            (tile.y < band[0].y + band[0].h / 2 ||
+                tile.y + tile.h / 2 <=
+                    Math.max(...band.map((placed) => placed.y + placed.h)));
+        return joinsBand
+            ? [...bands.slice(0, -1), [...band, tile]]
+            : [...bands, [tile]];
+    }, []);
+
+/** Left-to-right groups of tiles whose columns overlap */
+const toColumnGroups = <T extends GridPlacement>(tiles: T[]): T[][] =>
+    sortBy(tiles, ['x', 'y']).reduce<T[][]>((groups, tile) => {
+        const group = groups.at(-1);
+        const joinsGroup =
+            group !== undefined &&
+            tile.x < Math.max(...group.map((placed) => placed.x + placed.w));
+        return joinsGroup
+            ? [...groups.slice(0, -1), [...group, tile]]
+            : [...groups, [tile]];
+    }, []);
+
+type LayoutNode<T> =
+    | { kind: 'tile'; tile: T }
+    | { kind: 'row'; children: LayoutNode<T>[] }
+    | { kind: 'column'; children: LayoutNode<T>[] };
+
+/** Rows of columns of rows, as deep as the tiles nest */
+const toColumn = <T extends GridPlacement>(tiles: T[]): LayoutNode<T> => ({
+    kind: 'column',
+    children: toBands(tiles).map((band) => {
+        const groups = toColumnGroups(band);
+        return {
+            kind: 'row',
+            children: groups.map((group): LayoutNode<T> => {
+                if (group.length === 1) {
+                    return { kind: 'tile', tile: group[0] };
+                }
+                const cannotSplit =
+                    groups.length === 1 && toBands(group).length === 1;
+                return cannotSplit
+                    ? {
+                          kind: 'column',
+                          children: toFlatRows(group).map((row) => ({
+                              kind: 'row',
+                              children: sortBy(row, ['x']).map((tile) => ({
+                                  kind: 'tile',
+                                  tile,
+                              })),
+                          })),
+                      }
+                    : toColumn(group);
+            }),
+        };
+    }),
+});
+
+const sum = (values: number[]) =>
+    values.reduce((total, value) => total + value, 0);
+
+const naturalSize = (
+    node: LayoutNode<GridPlacement>,
+): { w: number; h: number } => {
+    if (node.kind === 'tile') return { w: node.tile.w, h: node.tile.h };
+    const sizes = node.children.map(naturalSize);
+    const widths = sizes.map((size) => size.w);
+    const heights = sizes.map((size) => size.h);
+    return node.kind === 'row'
+        ? { w: sum(widths), h: Math.max(...heights) }
+        : { w: Math.max(...widths), h: sum(heights) };
+};
+
+/** Edges that split `span` in the sizes' proportions, on fine grid steps */
+const shareOut = (sizes: number[], span: number): number[] => [
+    ...sizes.map((_, index) =>
+        snapToFineStep((sum(sizes.slice(0, index)) * span) / sum(sizes)),
+    ),
+    span,
+];
+
+const place = <T extends GridPlacement>(
+    node: LayoutNode<T>,
+    box: GridPlacement,
+): T[] => {
+    switch (node.kind) {
+        case 'tile':
+            return [{ ...node.tile, ...box }];
+        case 'row': {
+            const edges = shareOut(
+                node.children.map((child) => naturalSize(child).w),
+                box.w,
+            );
+            return node.children.flatMap((child, index) =>
+                place(child, {
+                    ...box,
+                    x: box.x + edges[index],
+                    w: edges[index + 1] - edges[index],
+                }),
+            );
+        }
+        case 'column': {
+            const edges = shareOut(
+                node.children.map((child) => naturalSize(child).h),
+                box.h,
+            );
+            return node.children.flatMap((child, index) =>
+                place(child, {
+                    ...box,
+                    y: box.y + edges[index],
+                    h: edges[index + 1] - edges[index],
+                }),
+            );
+        }
+        default:
+            return assertUnreachable(node, 'Unknown layout node');
+    }
 };
 
 /**
  * Justified rows: gaps close, then every row spans the whole grid at one
- * height and rows stack with nothing between them. Reading order is kept.
+ * height and rows stack with nothing between them. Tiles piled beside a
+ * taller neighbour stay beside it and share its height. Reading order is kept.
  */
-export const tidyTiles = <T extends GridPlacement>(tiles: T[]): T[] =>
-    toRows(closeTileGaps(tiles)).reduce<T[]>((placed, row) => {
-        const y = Math.max(0, ...placed.map((tile) => tile.y + tile.h));
-        return [...placed, ...justifyRow(row, y)];
-    }, []);
+export const tidyTiles = <T extends GridPlacement>(tiles: T[]): T[] => {
+    const root = toColumn(closeTileGaps(tiles));
+    return place(root, {
+        x: 0,
+        y: 0,
+        w: GRID_DESKTOP_COLS,
+        h: naturalSize(root).h,
+    });
+};

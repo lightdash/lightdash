@@ -34,6 +34,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { selectDashboardTiles, useDashboardSelector } from '../dashboard/store';
 import { getTileFieldOptions } from '../dashboardFilters/FilterConfiguration/utils';
+import { useControlContractClasses } from './controlContractClasses';
 import { DropdownClass } from './DropdownClass';
 import { LazySelect } from './LazySelect';
 import {
@@ -53,7 +54,6 @@ import {
     type FilterChip,
     type SqlColumn,
 } from './peers';
-import { useRailContractClasses } from './railContractClasses';
 import { TileCard, TileVeil } from './TileCard';
 import {
     areTilePropsEqual,
@@ -350,7 +350,7 @@ const TileOverlay = memo<TileOverlayProps>(
 // Mounted only while tiles are chosen: opening a filter leaves every tile as it is
 export const TileOverlays: FC = () => {
     const isEditing = useControlsSidebarSelector((c) => c.isMapping);
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     // The tile cards' lists, as an embed's stylesheet targets them
     return (
         <DropdownClass className={contractClasses?.filterDropdown ?? null}>

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { appendNewTilesToBottom } from './useDashboard';
 
-type Tile = { uuid: string; x: number; y: number; w: number; h: number };
+type Tile = {
+    uuid: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    tabUuid?: string;
+};
 
 const overlaps = (a: Tile, b: Tile) =>
     a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
@@ -31,5 +38,20 @@ describe('appendNewTilesToBottom', () => {
         ]);
 
         expect(result).toEqual([{ uuid: 'new', x: 0, y: 0, w: 15, h: 9 }]);
+    });
+
+    it('places a new tile below the tiles of its own tab, not of other tabs', () => {
+        const existingTiles: Tile[] = [
+            { uuid: 'short', x: 0, y: 0, w: 36, h: 4, tabUuid: 'short' },
+            { uuid: 'long', x: 0, y: 40, w: 36, h: 10, tabUuid: 'long' },
+        ];
+
+        const result = appendNewTilesToBottom(existingTiles, [
+            { uuid: 'on-short', x: 0, y: 0, w: 15, h: 9, tabUuid: 'short' },
+            { uuid: 'on-empty', x: 0, y: 0, w: 15, h: 9, tabUuid: 'empty' },
+        ]);
+
+        expect(result.find((tile) => tile.uuid === 'on-short')?.y).toBe(4);
+        expect(result.find((tile) => tile.uuid === 'on-empty')?.y).toBe(0);
     });
 });

@@ -820,6 +820,10 @@ import {
     ScimRequestLogTable,
 } from '../ee/database/entities/scimRequestLogs';
 import {
+    SemanticStudioWorkspacesTable,
+    SemanticStudioWorkspacesTableName,
+} from '../ee/database/entities/semanticStudioWorkspaces';
+import {
     ServiceAccountsTableName,
     ServiceAccountTable,
 } from '../ee/database/entities/serviceAccounts';
@@ -993,6 +997,7 @@ declare module 'knex/types/tables' {
         [ProjectModelChangeSetsTableName]: ProjectModelChangeSetsTable;
         [ProjectModelRevisionsTableName]: ProjectModelRevisionsTable;
         [ProjectModelDraftChangesTableName]: ProjectModelDraftChangesTable;
+        [SemanticStudioWorkspacesTableName]: SemanticStudioWorkspacesTable;
         [ProjectModelDraftImpactsTableName]: ProjectModelDraftImpactsTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;

@@ -1,9 +1,16 @@
 import * as Sentry from '@sentry/react';
+import { noop } from 'es-toolkit/compat';
 import { Outlet, useMatch } from 'react-router';
 import NavBar from '../../../components/NavBar';
 import ScopeTourHost from '../../../features/scopeTours/ScopeTourHost';
+import { useAnalyticsProjectRouteView } from '../../../hooks/useAnalyticsProjectView';
+import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 
 const AiAgentsRootLayout = () => {
+    const projectUuid = useProjectUuid();
+    const { data: project } = useProject(projectUuid, { onError: noop });
+    useAnalyticsProjectRouteView(project);
     // The settings form scrolls the window under a fixed AppShell sidebar, so
     // it needs the navbar fixed too; thread pages keep it static so the
     // in-thread chart editor modal can cover it, matching dashboard views.

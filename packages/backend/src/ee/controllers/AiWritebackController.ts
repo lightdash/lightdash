@@ -160,10 +160,15 @@ export class AiWritebackController extends BaseController {
         const results = await this.services
             .getCiService()
             .getPullRequestChecks({ user, projectUuid, prUrl, commitSha });
-        if (results && (results.merged || results.state !== 'open')) {
-            await this.services
-                .getSemanticStudioService<SemanticStudioService>()
-                .retireDbtTryOut(user, projectUuid, prUrl);
+        if (results) {
+            const studio =
+                this.services.getSemanticStudioService<SemanticStudioService>();
+            const openOrClosed = results.state === 'open' ? 'open' : 'closed';
+            const state = results.merged ? 'merged' : openOrClosed;
+            await studio.recordPullRequestState(projectUuid, prUrl, state);
+            if (state !== 'open') {
+                await studio.retireDbtTryOut(user, projectUuid, prUrl);
+            }
         }
         return {
             status: 'ok',

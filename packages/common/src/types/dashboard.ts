@@ -254,7 +254,7 @@ export type DashboardControlSection = {
     /** uuid, stable across dashboard versions */
     id: string;
     name: string;
-    /** Starts folded in the rail and on the bar; absent, the bar folds only a dense section */
+    /** Starts folded in the editor and on the bar; absent, the bar folds only a dense section */
     collapsed?: boolean;
 };
 

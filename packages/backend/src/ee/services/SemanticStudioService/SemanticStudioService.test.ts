@@ -315,7 +315,41 @@ const setup = ({
         async (): Promise<(Explore | ExploreError)[]> => [TRY_OUT_EXPLORE],
     );
     const files = new Map<string, string>();
+    let activeWorkspace: { threadUuid: string; prUrl: string | null } | null =
+        null;
+    const unused = async (): Promise<never> => {
+        throw new Error('not used in these tests');
+    };
     const args: SemanticStudioServiceArguments = {
+        workspaceModel: {
+            findActive: async () =>
+                activeWorkspace && {
+                    workspaceUuid: 'workspace-uuid',
+                    projectUuid: PROJECT_UUID,
+                    name: 'A change',
+                    threadUuid: activeWorkspace.threadUuid,
+                    agentUuid: null,
+                    owner: { userUuid: USER_UUID, name: 'Someone' },
+                    isMine: true,
+                    isActive: true,
+                    pullRequest: activeWorkspace.prUrl
+                        ? { url: activeWorkspace.prUrl, state: null }
+                        : null,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    finishedAt: null,
+                },
+            findStudioThread: unused,
+            findInProject: unused,
+            find: unused,
+            start: unused,
+            activate: unused,
+            leave: unused,
+            rename: unused,
+            finish: async () => 0,
+            attachPullRequest: async () => undefined,
+            recordPullRequestState: unused,
+        },
         featureFlagModel: {
             get: async () => ({ id: 'semantic-studio-editing', enabled }),
         },
@@ -498,6 +532,9 @@ const setup = ({
     const service = new SemanticStudioService(args);
     return {
         service,
+        setActiveWorkspace: (next: typeof activeWorkspace) => {
+            activeWorkspace = next;
+        },
         compileExploresFromManifest,
         upsert,
         openPullRequest,
@@ -1045,6 +1082,7 @@ describe('SemanticStudioService', () => {
                 repoWriter,
                 PROJECT_UUID,
                 project,
+                null,
             );
             expect(context.compileExploresFromManifest).toHaveBeenCalledWith(
                 repoWriter,
@@ -1074,6 +1112,7 @@ describe('SemanticStudioService', () => {
                 repoWriter,
                 PROJECT_UUID,
                 project,
+                null,
             );
             await context.service.retireDbtTryOut(
                 repoWriter,
@@ -1099,12 +1138,59 @@ describe('SemanticStudioService', () => {
             ).toBeNull();
         });
 
+        it("reads the active workspace's own change, not an older one for another pull request", async () => {
+            const context = dbt();
+            await context.service.saveDbtTryOut(
+                repoWriter,
+                PROJECT_UUID,
+                project,
+                null,
+            );
+            context.setActiveWorkspace({
+                threadUuid: 'thread-2',
+                prUrl: 'https://github.com/acme/shop/pull/2',
+            });
+            expect(
+                await context.service.findDevelopmentExplores(
+                    repoWriter,
+                    PROJECT_UUID,
+                ),
+            ).toBeNull();
+            await context.service.saveDbtTryOut(
+                repoWriter,
+                PROJECT_UUID,
+                project,
+                'thread-2',
+            );
+            expect(
+                (
+                    await context.service.findDevelopmentExplores(
+                        repoWriter,
+                        PROJECT_UUID,
+                    )
+                )?.get('try_out'),
+            ).toEqual(TRY_OUT_EXPLORE);
+            context.setActiveWorkspace({
+                threadUuid: 'thread-1',
+                prUrl: project.prUrl,
+            });
+            expect(
+                (
+                    await context.service.findDevelopmentExplores(
+                        repoWriter,
+                        PROJECT_UUID,
+                    )
+                )?.get('try_out'),
+            ).toEqual(TRY_OUT_EXPLORE);
+        });
+
         it('stands in for a preview that has not compiled yet', async () => {
             const context = dbt({ previewExplores: {} });
             await context.service.saveDbtTryOut(
                 repoWriter,
                 PROJECT_UUID,
                 project,
+                null,
             );
             expect(
                 (
@@ -1123,11 +1209,14 @@ describe('SemanticStudioService', () => {
                 deployer,
                 PROJECT_UUID,
                 project,
+                null,
             );
-            await context.service.saveDbtTryOut(repoWriter, PROJECT_UUID, {
-                ...project,
-                manifestJson: '{not json',
-            });
+            await context.service.saveDbtTryOut(
+                repoWriter,
+                PROJECT_UUID,
+                { ...project, manifestJson: '{not json' },
+                null,
+            );
             expect(context.compileExploresFromManifest).not.toHaveBeenCalled();
         });
     });

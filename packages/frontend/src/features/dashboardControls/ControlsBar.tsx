@@ -47,7 +47,7 @@ export const ControlsBar: FC<Props> = (props) => {
             }
             // Parameters are controls on this bar, after the filters; none until they are built
             parameters={NO_PARAMETERS}
-            // The rail is on the page: a drawer over it would hide it
+            // The bar is on the page: a drawer over it would hide it
             isCompactDrawerSuppressed={isSidebarOpen}
             // The flat bar's items share each line's centre with the
             // 30px funnel; the sectioned flow centres its own lines

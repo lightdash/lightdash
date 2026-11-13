@@ -1,3 +1,53 @@
+# [3.242.0](https://github.com/lightdash/lightdash/compare/3.241.0...3.242.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **dashboards:** keep stacked tiles beside their taller neighbours when tidying ([#32537](https://github.com/lightdash/lightdash/issues/32537)) ([497d87e](https://github.com/lightdash/lightdash/commit/497d87e9ad3e2a2d6e04a5ada3bd7105537a2314))
+* **homepage:** keep Choose metrics button in place while pressed ([#32534](https://github.com/lightdash/lightdash/issues/32534)) ([497bb01](https://github.com/lightdash/lightdash/commit/497bb018afceecb428765b9b8bff322f8913d2d9))
+
+
+### Features
+
+* **ai:** review Studio changes in one place and show what a dbt save is doing ([#32521](https://github.com/lightdash/lightdash/issues/32521)) ([7575f1e](https://github.com/lightdash/lightdash/commit/7575f1ee8b2f0edb8f63706e39369bd78854f694))
+
+# [3.241.0](https://github.com/lightdash/lightdash/compare/3.240.5...3.241.0) (2026-11-13)
+
+
+### Features
+
+* **embed:** give embed editors the dashboard controls editor ([#32500](https://github.com/lightdash/lightdash/issues/32500)) ([06337f7](https://github.com/lightdash/lightdash/commit/06337f789b93cc99bccefe66dac643df43453993))
+* **embed:** translate dashboard control names in embeds ([#32504](https://github.com/lightdash/lightdash/issues/32504)) ([7b2f8be](https://github.com/lightdash/lightdash/commit/7b2f8be7add849a6957dfc13e00442e92772e4bd))
+
+## [3.240.5](https://github.com/lightdash/lightdash/compare/3.240.4...3.240.5) (2026-11-13)
+
+
+### Bug Fixes
+
+* retry initial analytics processing when recreating a project ([#32532](https://github.com/lightdash/lightdash/issues/32532)) ([5430f6e](https://github.com/lightdash/lightdash/commit/5430f6eb82c1469b7bd537868776a18db641af4a))
+
+## [3.240.4](https://github.com/lightdash/lightdash/compare/3.240.3...3.240.4) (2026-11-13)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep embedded write-space threads private to their viewer ([#32405](https://github.com/lightdash/lightdash/issues/32405)) ([83c073b](https://github.com/lightdash/lightdash/commit/83c073b764568a0e1a86cad664c317515e17d95f))
+
+## [3.240.3](https://github.com/lightdash/lightdash/compare/3.240.2...3.240.3) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** have Studio check real values before suggesting on a dbt project ([#32519](https://github.com/lightdash/lightdash/issues/32519)) ([55e43cd](https://github.com/lightdash/lightdash/commit/55e43cdfc840340d22c221400b8fb1c95c2c8bf5))
+* **ai:** read results of a query run on your own unpublished model changes ([#32520](https://github.com/lightdash/lightdash/issues/32520)) ([cf625a0](https://github.com/lightdash/lightdash/commit/cf625a0baf8e4f2da435f51c1034f21d1da570ae))
+
+## [3.240.2](https://github.com/lightdash/lightdash/compare/3.240.1...3.240.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboards:** draw the editing canvas background on every tab and down to the window bottom ([#32517](https://github.com/lightdash/lightdash/issues/32517)) ([2d11f90](https://github.com/lightdash/lightdash/commit/2d11f90fcf787a0be203b52dc9d70dbcbc8fb586))
+
 ## [3.240.1](https://github.com/lightdash/lightdash/compare/3.240.0...3.240.1) (2026-11-12)
 
 

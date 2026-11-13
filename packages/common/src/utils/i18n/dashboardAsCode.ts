@@ -1,3 +1,4 @@
+import { omit } from 'es-toolkit/compat';
 import { type PartialDeep } from 'type-fest';
 import { z } from 'zod';
 import { type DashboardAsCode } from '../../types/coder';
@@ -17,15 +18,6 @@ const dashboardAsCodeSchema = z.object({
             name: z.string(),
         }),
     ),
-    config: z
-        .object({
-            controlSections: z.array(z.object({ name: z.string() })).optional(),
-        })
-        .optional()
-        // Only section names are translatable; drop an otherwise empty config
-        .transform((config) =>
-            config?.controlSections?.length ? config : undefined,
-        ),
     tiles: z.array(
         z.union([
             z.object({
@@ -100,30 +92,132 @@ export const translateFilterRuleLabels = <
         return translated ? { ...rule, label: translated } : rule;
     });
 
-const getFilterLabels = (
-    filters: DashboardAsCode['filters'],
+const getSourceNames = (
+    names: (string | null | undefined)[],
 ): DashboardFilterLabelTranslations | undefined => {
-    const labels = [
-        ...(filters?.dimensions ?? []),
-        ...(filters?.metrics ?? []),
-        ...(filters?.tableCalculations ?? []),
-    ]
-        .map((rule) => rule.label)
-        .filter(
-            (label): label is string =>
-                typeof label === 'string' && label.length > 0,
-        );
-    return labels.length > 0
-        ? Object.fromEntries(labels.map((label) => [label, label]))
+    const sourceNames = names.filter(
+        (name): name is string => typeof name === 'string' && name.length > 0,
+    );
+    return sourceNames.length > 0
+        ? Object.fromEntries(sourceNames.map((name) => [name, name]))
         : undefined;
 };
 
+const getFilterLabels = (
+    filters: DashboardAsCode['filters'],
+): DashboardFilterLabelTranslations | undefined =>
+    getSourceNames(
+        [
+            ...(filters?.dimensions ?? []),
+            ...(filters?.metrics ?? []),
+            ...(filters?.tableCalculations ?? []),
+        ].map((rule) => rule.label),
+    );
+
+/**
+ * Source (untranslated) name -> translated name, as filter labels: two
+ * controls with the same source name share one translation. Deliberately an
+ * index-signature literal, not `Record` — see DashboardTileTargets.
+ */
+export type DashboardControlNameTranslations = {
+    [sourceName: string]: string;
+};
+
+/** Control names of a dashboard's language map entry, each block present only when the dashboard has such controls */
+export type DashboardControlTranslations = {
+    sections?: { names: DashboardControlNameTranslations };
+    /** A control's own label; one without takes its parameter's, translated by `LanguageMap.parameters` */
+    parameterControls?: { labels: DashboardControlNameTranslations };
+    dateZooms?: { names: DashboardControlNameTranslations };
+};
+
+type DashboardControlNamesConfig = {
+    controlSections?: { name: string }[];
+    parameterControls?: { label: string | null }[];
+    dateZoomConfig?: { controls: { name: string }[] };
+};
+
+const getControlTranslations = (
+    config: DashboardControlNamesConfig | undefined,
+): DashboardControlTranslations => {
+    const sectionNames = getSourceNames(
+        (config?.controlSections ?? []).map(({ name }) => name),
+    );
+    const parameterControlLabels = getSourceNames(
+        (config?.parameterControls ?? []).map(({ label }) => label),
+    );
+    const dateZoomNames = getSourceNames(
+        (config?.dateZoomConfig?.controls ?? []).map(({ name }) => name),
+    );
+    return {
+        ...(sectionNames && { sections: { names: sectionNames } }),
+        ...(parameterControlLabels && {
+            parameterControls: { labels: parameterControlLabels },
+        }),
+        ...(dateZoomNames && { dateZooms: { names: dateZoomNames } }),
+    };
+};
+
+/**
+ * Translates section names, parameter control labels and date zoom control
+ * names by source name; a name without a translation is kept.
+ */
+export const translateDashboardControlNames = <
+    T extends DashboardControlNamesConfig,
+>(
+    config: T,
+    translations: DashboardControlTranslations,
+): T => {
+    const sectionNames = translations.sections?.names;
+    const parameterControlLabels = translations.parameterControls?.labels;
+    const dateZoomNames = translations.dateZooms?.names;
+    const translated: DashboardControlNamesConfig = {
+        ...(sectionNames &&
+            config.controlSections && {
+                controlSections: config.controlSections.map((section) => ({
+                    ...section,
+                    name:
+                        getFilterLabelTranslation(sectionNames, section.name) ??
+                        section.name,
+                })),
+            }),
+        ...(parameterControlLabels &&
+            config.parameterControls && {
+                parameterControls: config.parameterControls.map((control) => ({
+                    ...control,
+                    label:
+                        getFilterLabelTranslation(
+                            parameterControlLabels,
+                            control.label ?? undefined,
+                        ) ?? control.label,
+                })),
+            }),
+        ...(dateZoomNames &&
+            config.dateZoomConfig && {
+                dateZoomConfig: {
+                    ...config.dateZoomConfig,
+                    controls: config.dateZoomConfig.controls.map((control) => ({
+                        ...control,
+                        name:
+                            getFilterLabelTranslation(
+                                dateZoomNames,
+                                control.name,
+                            ) ?? control.name,
+                    })),
+                },
+            }),
+    };
+    return Object.keys(translated).length > 0
+        ? { ...config, ...translated }
+        : config;
+};
+
 type DashboardLanguageMapEntry = PartialDeep<
-    Omit<DashboardAsCode, 'filters'>,
+    Omit<DashboardAsCode, 'filters' | 'config'>,
     { recurseIntoArrays: true }
 > & {
     filters: { labels: DashboardFilterLabelTranslations } | undefined;
-};
+} & DashboardControlTranslations;
 
 export class DashboardAsCodeInternalization extends AsCodeInternalization<
     {
@@ -146,6 +240,7 @@ export class DashboardAsCodeInternalization extends AsCodeInternalization<
                     filters: filterLabels
                         ? { labels: filterLabels }
                         : undefined,
+                    ...getControlTranslations(dashboardAsCode.config),
                 },
             },
         };
@@ -158,12 +253,25 @@ export class DashboardAsCodeInternalization extends AsCodeInternalization<
         >['dashboard'][string],
         content: DashboardAsCode,
     ) {
-        const { filters: filterOverrides, ...contentOverrides } =
-            internalizationMap;
+        const {
+            filters: filterOverrides,
+            sections,
+            parameterControls,
+            dateZooms,
+            ...contentOverrides
+        } = internalizationMap;
+        // Older maps keyed section names by position under `config`: ignored
         const merged = mergeExisting(
             content,
-            contentOverrides,
+            omit(contentOverrides, 'config'),
         ) as DashboardAsCode;
+        if (merged.config) {
+            merged.config = translateDashboardControlNames(merged.config, {
+                sections,
+                parameterControls,
+                dateZooms,
+            });
+        }
         const labels = filterOverrides?.labels;
         if (labels && merged.filters) {
             merged.filters = {

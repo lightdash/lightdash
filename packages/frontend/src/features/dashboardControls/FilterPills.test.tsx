@@ -618,7 +618,7 @@ describe('FilterPills', () => {
         });
         renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
-        // Still rendered, so no pill changes width as the rail opens
+        // Still rendered, so no pill changes width as the editor opens
         const locks = screen.getAllByRole('button', {
             name: /ock filter/,
             hidden: true,

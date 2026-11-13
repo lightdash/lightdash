@@ -18,9 +18,9 @@ import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProv
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { FilterBarPopoversProvider } from '../dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
+import { ControlContractClasses } from './controlContractClasses';
 import { EditorPopover } from './FilterEditor';
 import classes from './FilterEditor.module.css';
-import { RailContractClasses } from './railContractClasses';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
 
 const mockSidebar = vi.hoisted(() => ({
@@ -804,9 +804,9 @@ describe('EditorPopover', () => {
                 editingRule: own,
             });
             renderWithProviders(
-                <RailContractClasses.Provider
+                <ControlContractClasses.Provider
                     value={{
-                        rail: 'ld-dashboard-filter-rail',
+                        editor: 'ld-dashboard-control-editor',
                         addFilterDropdown: 'add-list',
                         filterDropdown: 'ld-dashboard-filter-dropdown',
                         parameter: 'ld-dashboard-parameter',
@@ -816,9 +816,9 @@ describe('EditorPopover', () => {
                     }}
                 >
                     <Editor />
-                </RailContractClasses.Provider>,
+                </ControlContractClasses.Provider>,
             );
-            expect(editor()).toHaveClass('ld-dashboard-filter-rail');
+            expect(editor()).toHaveClass('ld-dashboard-control-editor');
             expect(editor()).toHaveClass('ld-dashboard-filter-dropdown');
         });
 
@@ -829,9 +829,9 @@ describe('EditorPopover', () => {
                 editingRule: own,
             });
             renderWithProviders(
-                <RailContractClasses.Provider
+                <ControlContractClasses.Provider
                     value={{
-                        rail: 'ld-dashboard-filter-rail',
+                        editor: 'ld-dashboard-control-editor',
                         addFilterDropdown: 'add-list',
                         filterDropdown: 'ld-dashboard-filter-dropdown',
                         parameter: 'ld-dashboard-parameter',
@@ -841,7 +841,7 @@ describe('EditorPopover', () => {
                     }}
                 >
                     <Editor />
-                </RailContractClasses.Provider>,
+                </ControlContractClasses.Provider>,
             );
             await userEvent.click(
                 screen.getByRole('button', { name: /^Operator:/ }),

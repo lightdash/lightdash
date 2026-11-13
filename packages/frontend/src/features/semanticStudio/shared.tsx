@@ -95,6 +95,7 @@ import {
 import { CHANGE_KIND_LABELS } from './modelCode';
 import { SemanticLayerPreview } from './SemanticLayerPreview';
 import classes from './shared.module.css';
+import { STUDIO_STARTERS } from './studioStarters';
 import { useCanEditSemanticLayer } from './useSemanticLayerModel';
 import {
     type FieldDraft,
@@ -1638,11 +1639,52 @@ const StartFromLiveSource: FC<{ view: ViewModel }> = ({ view }) => {
 };
 
 /** A warehouse with nothing modelled yet: what a semantic layer is, and the way in. */
+const FirstRequest: FC<{ onAsk: (prompt: string) => void }> = ({ onAsk }) => {
+    const [request, setRequest] = useState('');
+    const ask = () => {
+        if (request.trim()) onAsk(request.trim());
+    };
+    return (
+        <Stack gap="sm" w="100%" maw={520}>
+            <Box className={classes.firstRequest}>
+                <Textarea
+                    variant="unstyled"
+                    autosize
+                    minRows={2}
+                    maxRows={6}
+                    autoFocus
+                    placeholder="What should I build first?"
+                    value={request}
+                    onChange={(event) => setRequest(event.currentTarget.value)}
+                    onKeyDown={getHotkeyHandler([['Enter', ask]])}
+                />
+                <Group justify="flex-end">
+                    <Button size="xs" disabled={!request.trim()} onClick={ask}>
+                        Ask
+                    </Button>
+                </Group>
+            </Box>
+            <Group gap="xs" justify="center">
+                {STUDIO_STARTERS.map(({ label, prompt }) => (
+                    <Button
+                        key={label}
+                        size="xs"
+                        variant="default"
+                        onClick={() => onAsk(prompt)}
+                    >
+                        {label}
+                    </Button>
+                ))}
+            </Group>
+        </Stack>
+    );
+};
+
 export const BuildFirstModel: FC<{
     view: ViewModel;
     /** Left out while the chat is already open beside this. */
-    onGetStarted: (() => void) | null;
-}> = ({ view, onGetStarted }) => {
+    onAsk: ((prompt: string) => void) | null;
+}> = ({ view, onAsk }) => {
     const { data: project } = useProject(view.project.id);
     return (
         <Box className={classes.starter}>
@@ -1661,9 +1703,7 @@ export const BuildFirstModel: FC<{
                         answer calculates them the same way.
                     </Text>
                 </Stack>
-                {onGetStarted ? (
-                    <Button onClick={onGetStarted}>Get started</Button>
-                ) : null}
+                {onAsk ? <FirstRequest onAsk={onAsk} /> : null}
                 <StartFromLiveSource view={view} />
             </Stack>
         </Box>

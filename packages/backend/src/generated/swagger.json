@@ -6173,6 +6173,10 @@
                     "name": {
                         "type": "string"
                     },
+                    "slug": {
+                        "type": "string",
+                        "description": "Resolves `controlOrder` refs in this file; derived on download, never stored"
+                    },
                     "uuid": {
                         "type": "string"
                     }
@@ -6180,7 +6184,7 @@
                 "required": ["granularity", "name", "uuid"],
                 "type": "object"
             },
-            "DateZoomTileTarget": {
+            "DateZoomTileTargetAsCode": {
                 "properties": {
                     "tableName": {
                         "type": "string",
@@ -6190,6 +6194,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "controlSlug": {
+                        "type": "string",
+                        "description": "Slug of the control at `controlUuid`; written on download, ignored on upload"
+                    },
                     "controlUuid": {
                         "type": "string"
                     }
@@ -6197,10 +6205,10 @@
                 "required": ["tableName", "fieldId", "controlUuid"],
                 "type": "object"
             },
-            "Record_string.DateZoomTileTarget_": {
+            "Record_string.DateZoomTileTargetAsCode_": {
                 "properties": {},
                 "additionalProperties": {
-                    "$ref": "#/components/schemas/DateZoomTileTarget"
+                    "$ref": "#/components/schemas/DateZoomTileTargetAsCode"
                 },
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
@@ -6339,7 +6347,7 @@
                             "$ref": "#/components/schemas/DashboardControlRefAsCode"
                         },
                         "type": "array",
-                        "description": "The order of filters, parameter controls and sections on the bar. Absent: the default order."
+                        "description": "The order of filters, parameter controls, date zoom controls and sections on the bar. Absent: the default order."
                     },
                     "parameterControls": {
                         "items": {
@@ -6365,7 +6373,7 @@
                     "dateZoomConfig": {
                         "properties": {
                             "tileTargets": {
-                                "$ref": "#/components/schemas/Record_string.DateZoomTileTarget_"
+                                "$ref": "#/components/schemas/Record_string.DateZoomTileTargetAsCode_"
                             },
                             "controls": {
                                 "items": {
@@ -7143,22 +7151,22 @@
                 ],
                 "type": "object"
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -9762,6 +9770,31 @@
                 "required": ["granularity", "name", "uuid"],
                 "type": "object"
             },
+            "DateZoomTileTarget": {
+                "properties": {
+                    "tableName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "fieldId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "controlUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableName", "fieldId", "controlUuid"],
+                "type": "object"
+            },
+            "Record_string.DateZoomTileTarget_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DateZoomTileTarget"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "DateZoomConfig": {
                 "properties": {
                     "tileTargets": {
@@ -9781,7 +9814,7 @@
                 "properties": {
                     "collapsed": {
                         "type": "boolean",
-                        "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section"
+                        "description": "Starts folded in the editor and on the bar; absent, the bar folds only a dense section"
                     },
                     "name": {
                         "type": "string"
@@ -15703,6 +15736,16 @@
                     "hasSecret": {
                         "type": "boolean"
                     },
+                    "targetLabel": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The name the connection picker showed for the source's target."
+                    },
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "What an admin says this live source is for. Reaches the AI agent."
+                    },
                     "liveSourceName": {
                         "type": "string",
                         "nullable": true,
@@ -16220,6 +16263,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "explorePrefix": {
+                        "type": "string",
+                        "description": "Prefix of a new live source's explore names. Defaults to one derived\nfrom the name. It is set once and can't be changed afterwards."
+                    },
                     "apiSource": {
                         "allOf": [
                             {
@@ -16615,7 +16662,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Partial_CreateExternalConnection_": {
+            "Partial_Omit_CreateExternalConnection.explorePrefix__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -16736,8 +16783,21 @@
                 "description": "Make all properties in T optional"
             },
             "UpdateExternalConnection": {
-                "$ref": "#/components/schemas/Partial_CreateExternalConnection_",
-                "description": "Omitted/blank `secret` means the stored secret is left unchanged."
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Partial_Omit_CreateExternalConnection.explorePrefix__"
+                    },
+                    {
+                        "properties": {
+                            "aiHint": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Live sources only. Empty or null clears it."
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "LiveSourceFieldEditor": {
                 "properties": {
@@ -16847,11 +16907,21 @@
                         "nullable": true,
                         "description": "ISO timestamp of the last scan, or null when the source was never scanned."
                     },
+                    "usedByChartCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Saved charts on any of the source's explores, each counted once."
+                    },
                     "exploreName": {
                         "type": "string"
                     }
                 },
-                "required": ["fields", "scannedAt", "exploreName"],
+                "required": [
+                    "fields",
+                    "scannedAt",
+                    "usedByChartCount",
+                    "exploreName"
+                ],
                 "type": "object"
             },
             "ApiLiveSourceFieldsResponse": {
@@ -17311,6 +17381,130 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExplorePrefixCheck": {
+                "properties": {
+                    "suggestionExploreNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "suggestion": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "A free prefix close to the one asked for, when it's taken."
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "exploreNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The explore names the prefix gives; empty when its format is invalid."
+                    },
+                    "prefix": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "suggestionExploreNames",
+                    "suggestion",
+                    "error",
+                    "exploreNames",
+                    "prefix"
+                ],
+                "type": "object",
+                "description": "Whether a new live source can use an explore prefix."
+            },
+            "ApiExplorePrefixCheckResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExplorePrefixCheck"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ReattachableLiveSource": {
+                "properties": {
+                    "isSameTarget": {
+                        "type": "boolean",
+                        "description": "Reads the same target as the source being reattached."
+                    },
+                    "usedByChartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "apiSource": {
+                        "$ref": "#/components/schemas/ExternalConnectionApiSource"
+                    },
+                    "exploreNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "explorePrefix": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "isSameTarget",
+                    "usedByChartCount",
+                    "deletedAt",
+                    "apiSource",
+                    "exploreNames",
+                    "explorePrefix",
+                    "name",
+                    "externalConnectionUuid"
+                ],
+                "type": "object",
+                "description": "A deleted live source whose explore prefix a new source can take over."
+            },
+            "ApiReattachableLiveSourcesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ReattachableLiveSource"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiReattachLiveSourceRequest": {
+                "properties": {
+                    "deletedConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["deletedConnectionUuid"],
                 "type": "object"
             },
             "Pick_Organization.name-or-organizationUuid-or-createdAt_": {
@@ -17826,7 +18020,7 @@
                         "properties": {
                             "externalId": {
                                 "type": "string",
-                                "description": "Must be unique per viewer within the organization: it owns the threads of read-only AI agent tokens."
+                                "description": "Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts."
                             },
                             "email": {
                                 "type": "string"
@@ -20616,6 +20810,10 @@
                         },
                         "required": ["nested", "or"],
                         "type": "object"
+                    },
+                    "definitionHash": {
+                        "type": "string",
+                        "description": "Hash of what the integration's code defines for this explore. Absent on\nexplores built before hashes, which counts as out of date."
                     },
                     "baseVersion": {
                         "type": "number",
@@ -23489,6 +23687,12 @@
             },
             "AppStateSnapshot": {
                 "properties": {
+                    "sharedAccess": {
+                        "type": "string",
+                        "enum": ["none"],
+                        "nullable": false,
+                        "description": "`none` when this viewer can neither read nor write shared values.\nAbsent means full access."
+                    },
                     "shared": {
                         "$ref": "#/components/schemas/Record_string.AppStateSharedEntry_"
                     },
@@ -24817,7 +25021,130 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__": {
+            "DataAppConsumerAccessStatus": {
+                "type": "string",
+                "enum": ["available", "limited", "unavailable"]
+            },
+            "QueryReferenceUnresolvedPart": {
+                "type": "string",
+                "enum": [
+                    "explore",
+                    "dimensions",
+                    "metrics",
+                    "filters",
+                    "metricFilters",
+                    "sorts",
+                    "parameters",
+                    "localFields",
+                    "customSql"
+                ]
+            },
+            "DataReferenceLocation": {
+                "properties": {
+                    "column": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "line": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["column", "line", "path"],
+                "type": "object"
+            },
+            "GlobalFilterReferenceUnresolvedPart": {
+                "type": "string",
+                "enum": ["explore", "field"]
+            },
+            "DataAppConsumerAccessIssue": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "location": {
+                                "$ref": "#/components/schemas/DataReferenceLocation"
+                            },
+                            "unresolved": {
+                                "items": {
+                                    "$ref": "#/components/schemas/QueryReferenceUnresolvedPart"
+                                },
+                                "type": "array"
+                            },
+                            "explore": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "null when the explore itself could not be read."
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["query"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "location",
+                            "unresolved",
+                            "explore",
+                            "kind"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "location": {
+                                "$ref": "#/components/schemas/DataReferenceLocation"
+                            },
+                            "unresolved": {
+                                "items": {
+                                    "$ref": "#/components/schemas/GlobalFilterReferenceUnresolvedPart"
+                                },
+                                "type": "array"
+                            },
+                            "explore": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["globalFilter"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "location",
+                            "unresolved",
+                            "explore",
+                            "kind"
+                        ],
+                        "type": "object"
+                    }
+                ],
+                "description": "A place in the app's source whose data access could not be fully read, so\nusers without Explore access cannot run it."
+            },
+            "DataAppConsumerAccess": {
+                "properties": {
+                    "issues": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppConsumerAccessIssue"
+                        },
+                        "type": "array"
+                    },
+                    "queryCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Queries found in the version's source."
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/DataAppConsumerAccessStatus"
+                    }
+                },
+                "required": ["issues", "queryCount", "status"],
+                "type": "object"
+            },
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--latestReadyVersionConsumerAccess-DataAppConsumerAccess-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -24843,6 +25170,14 @@
                             },
                             "addAnalysisDismissed": {
                                 "type": "boolean"
+                            },
+                            "latestReadyVersionConsumerAccess": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/DataAppConsumerAccess"
+                                    }
+                                ],
+                                "nullable": true
                             },
                             "latestReadyVersionHasAnalyzableData": {
                                 "type": "boolean",
@@ -24919,6 +25254,7 @@
                             "icon",
                             "registrySlug",
                             "addAnalysisDismissed",
+                            "latestReadyVersionConsumerAccess",
                             "latestReadyVersionHasAnalyzableData",
                             "latestReadyVersionUsesAiAnalysis",
                             "latestReadyVersion",
@@ -24949,7 +25285,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--latestReadyVersionHasAnalyzableData-boolean-or-null--latestReadyVersionConsumerAccess-DataAppConsumerAccess-or-null--addAnalysisDismissed-boolean--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null__"
             },
             "UuidOrSlug": {
                 "type": "string",
@@ -27176,8 +27512,85 @@
                 "required": ["tableCalculations", "metrics", "dimensions"],
                 "type": "object"
             },
+            "AiDashboardTileRef": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
+            "AiDashboardDateZoomControl": {
+                "properties": {
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardTileRef"
+                        },
+                        "type": "array"
+                    },
+                    "isViewerPick": {
+                        "type": "boolean",
+                        "description": "False: the saved grain when the context was attached, which the saved config supersedes"
+                    },
+                    "granularity": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "description": "The viewer's pick, else the control's saved grain"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "tiles",
+                    "isViewerPick",
+                    "granularity",
+                    "name",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "AiDashboardTileParameters": {
+                "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "tile": {
+                        "$ref": "#/components/schemas/AiDashboardTileRef"
+                    }
+                },
+                "required": ["parameters", "tile"],
+                "type": "object"
+            },
             "AiDashboardRuntimeOverrides": {
                 "properties": {
+                    "tileParameters": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardTileParameters"
+                        },
+                        "type": "array",
+                        "description": "The values each tile runs with; present only when the viewer's picks on parameter controls change them"
+                    },
+                    "dateZoomControls": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardDateZoomControl"
+                        },
+                        "type": "array",
+                        "description": "Every named date zoom on the dashboard; absent when it has none"
+                    },
                     "dateZoom": {
                         "allOf": [
                             {
@@ -29848,6 +30261,10 @@
             },
             "PivotConfiguration": {
                 "properties": {
+                    "foldOverflowGroups": {
+                        "type": "boolean",
+                        "description": "When true, groups past the pivot column limit are not dropped. Their\nvalues are added up per row into one extra \"Other\" pivot column\n(`OTHER_PIVOT_KEY`), so anything summed across the groups, such as a\nstacked bar total, still covers the whole result. Only set for stacked\ncartesian charts whose values are all numeric."
+                    },
                     "pivotColumnsOrder": {
                         "items": {
                             "$ref": "#/components/schemas/GroupByColumn"
@@ -30556,6 +30973,20 @@
                     },
                     {
                         "properties": {
+                            "dataAppSource": {
+                                "properties": {
+                                    "version": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "appUuid": {
+                                        "$ref": "#/components/schemas/UUID"
+                                    }
+                                },
+                                "required": ["version", "appUuid"],
+                                "type": "object",
+                                "description": "Server-assigned provenance for queries authorized through a data app."
+                            },
                             "documentSource": {
                                 "$ref": "#/components/schemas/DocumentQueryReference"
                             }
@@ -30992,6 +31423,10 @@
             },
             "PivotValuesColumn": {
                 "properties": {
+                    "isOtherGroup": {
+                        "type": "boolean",
+                        "description": "True on the column that holds several groups added together as \"Other\".\nClients identify the bucket by this flag, not by its label. Absent\nmeans false."
+                    },
                     "columnIndex": {
                         "type": "number",
                         "format": "double"
@@ -32387,6 +32822,106 @@
                 "required": ["vizConfig", "rows", "columns", "title"],
                 "type": "object",
                 "description": "Rows and a visualize-tool viz config to draw as the Slack chart image; vizConfig is parsed server-side."
+            },
+            "SlackNativeChartImageReason": {
+                "type": "string",
+                "enum": [
+                    "unsupported_type",
+                    "horizontal_bar",
+                    "area",
+                    "secondary_axis",
+                    "stacked",
+                    "no_rows",
+                    "no_x_axis",
+                    "no_series",
+                    "too_many_categories",
+                    "too_many_series",
+                    "missing_value",
+                    "non_numeric_value",
+                    "invalid_time_value",
+                    "empty_label",
+                    "duplicate_category",
+                    "duplicate_series",
+                    "category_label_collision",
+                    "series_label_collision"
+                ]
+            },
+            "ApiAiAgentVisualizeSlackSendResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "permalink": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "ts": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "blocks": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Record_string.unknown_"
+                                },
+                                "type": "array",
+                                "description": "Empty when nothing was posted."
+                            },
+                            "reason": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/SlackNativeChartImageReason"
+                                    }
+                                ],
+                                "nullable": true,
+                                "description": "Why the chart is not native; null when it is."
+                            },
+                            "route": {
+                                "type": "string",
+                                "enum": ["native", "image"]
+                            }
+                        },
+                        "required": [
+                            "permalink",
+                            "ts",
+                            "blocks",
+                            "reason",
+                            "route"
+                        ],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentVisualizeSlackSendRequest": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiAiAgentVisualizeSlackPreviewRequest"
+                    },
+                    {
+                        "properties": {
+                            "route": {
+                                "type": "string",
+                                "enum": ["auto", "native", "image"],
+                                "description": "auto applies the native chart rules; native and image force a route."
+                            },
+                            "threadTs": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "channel": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["route", "threadTs", "channel"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Dev-only harness: posts a visualize chart to Slack, native or as an image."
             },
             "AiAgentUserPreferences": {
                 "properties": {
@@ -35808,6 +36343,7 @@
                     "findContent",
                     "createContent",
                     "analyzeFieldImpact",
+                    "askUser",
                     "closePullRequest",
                     "createScheduledDelivery",
                     "delegateResearchTask",
@@ -37377,6 +37913,13 @@
                                                             },
                                                             "needsDbtSourceSelection": {
                                                                 "type": "boolean",
+                                                                "nullable": true
+                                                            },
+                                                            "changedModels": {
+                                                                "items": {
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "array",
                                                                 "nullable": true
                                                             },
                                                             "steps": {
@@ -41098,14 +41641,22 @@
                 "required": ["instruction"],
                 "type": "object"
             },
+            "SemanticLayerApplyMode": {
+                "type": "string",
+                "enum": ["live", "pull_request", "dbt_pull_request"]
+            },
             "SemanticLayerStatus": {
                 "properties": {
+                    "appliesAs": {
+                        "$ref": "#/components/schemas/SemanticLayerApplyMode",
+                        "description": "How a change lands: `live` applies a draft here, `pull_request` sends a draft to the project's repository, and `dbt_pull_request` has the agent edit the dbt project in a pull request, with no draft."
+                    },
                     "enabled": {
                         "type": "boolean",
-                        "description": "Whether this person can change this project's models from the server."
+                        "description": "Whether this person can change this project's models from Semantic Studio."
                     }
                 },
-                "required": ["enabled"],
+                "required": ["appliesAs", "enabled"],
                 "type": "object"
             },
             "ApiSuccess_SemanticLayerStatus_": {
@@ -41125,12 +41676,70 @@
             "ApiSemanticLayerStatusResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerStatus_"
             },
+            "SemanticLayerStoredModels": {
+                "properties": {
+                    "models": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["models"],
+                "type": "object",
+                "description": "The models whose YAML the project keeps, as opposed to ones deployed from elsewhere."
+            },
+            "ApiSuccess_SemanticLayerStoredModels_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerStoredModels"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerStoredModelsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerStoredModels_"
+            },
             "SemanticLayerChangeSource": {
                 "type": "string",
                 "enum": ["draft", "undo"]
             },
             "SemanticLayerModelChange": {
                 "properties": {
+                    "replaced": {
+                        "properties": {
+                            "paths": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "by": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["paths", "by"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "The parts this change wrote over that someone else had changed just before; null when it wrote over nobody."
+                    },
+                    "byUserUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The uuid of who made the change; null when that person is gone."
+                    },
+                    "by": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Who made the change; null when that person is gone."
+                    },
                     "otherModels": {
                         "items": {
                             "type": "string"
@@ -41169,6 +41778,9 @@
                     }
                 },
                 "required": [
+                    "replaced",
+                    "byUserUuid",
+                    "by",
                     "otherModels",
                     "contentAfter",
                     "contentBefore",
@@ -41225,6 +41837,63 @@
             },
             "ApiSemanticLayerModelResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerModelCode-or-null_"
+            },
+            "SemanticLayerDraftState": {
+                "properties": {
+                    "fingerprint": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fingerprint"],
+                "type": "object",
+                "description": "A value that changes whenever a person's draft would read differently; opaque."
+            },
+            "ApiSuccess_SemanticLayerDraftState_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftState"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftStateResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftState_"
+            },
+            "SemanticLayerDraftedModels": {
+                "properties": {
+                    "models": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["models"],
+                "type": "object",
+                "description": "The names of the models a person has changes in development on, read without replaying or compiling anything."
+            },
+            "ApiSuccess_SemanticLayerDraftedModels_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftedModels"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftedModelsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftedModels_"
             },
             "ModelFragmentChange": {
                 "properties": {
@@ -41325,8 +41994,112 @@
                 "type": "object",
                 "description": "One change in a person's draft, replayed on what is live whenever it is read."
             },
+            "SemanticLayerDraftConflict": {
+                "properties": {
+                    "mine": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "What the draft leaves; null when the draft removes it. Publishing puts this in place of what is live."
+                    },
+                    "live": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "What is live now; null when the part was removed."
+                    },
+                    "base": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "What the draft was based on; null when the part was not there."
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Such as `metrics.revenue.sql`; empty for the model as a whole."
+                    }
+                },
+                "required": ["mine", "live", "base", "path"],
+                "type": "object",
+                "description": "A part of a model that changed live and that the draft changes too, with each side's version of it as YAML."
+            },
+            "SemanticLayerDraftReconciliation": {
+                "properties": {
+                    "conflicts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerDraftConflict"
+                        },
+                        "type": "array"
+                    },
+                    "merged": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Paths published since the draft was based that it does not touch."
+                    },
+                    "liveVersion": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "The live version this was worked out against; null when the model is not live. Sent back when keeping the draft over it."
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": ["current", "merged", "conflict"]
+                    }
+                },
+                "required": ["conflicts", "merged", "liveVersion", "state"],
+                "type": "object",
+                "description": "How a drafted model stands against live. `current`: nothing was published to it\nsince. `merged`: something was, in parts the draft does not touch, and the\ndraft sits on top of it. `conflict`: something was, in parts the draft changes\ntoo, so publishing replaces someone else's change."
+            },
+            "SemanticLayerDrafter": {
+                "properties": {
+                    "paths": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["paths", "name"],
+                "type": "object",
+                "description": "Someone else with a draft of a model, and the parts of it they are changing."
+            },
             "SemanticLayerDraftModel": {
                 "properties": {
+                    "publishedSince": {
+                        "properties": {
+                            "at": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "by": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["at", "by"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "The latest change someone else published to this model since this draft first touched it; null when none."
+                    },
+                    "alsoChanging": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerDrafter"
+                        },
+                        "type": "array",
+                        "description": "Other people with unpublished changes to this model, and the parts each is changing; never the content."
+                    },
+                    "reconciliation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SemanticLayerDraftReconciliation"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "How this model's draft stands against what was published since it was based; null when the base was not recorded."
+                    },
                     "explore": {
                         "allOf": [
                             {
@@ -41351,6 +42124,9 @@
                     }
                 },
                 "required": [
+                    "publishedSince",
+                    "alsoChanging",
+                    "reconciliation",
                     "explore",
                     "contentAfter",
                     "contentBefore",
@@ -41361,6 +42137,11 @@
             },
             "SemanticLayerSettledDraftChange": {
                 "properties": {
+                    "pullRequestUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The pull request an applied change was sent as; null when it went live on the server."
+                    },
                     "status": {
                         "type": "string",
                         "enum": ["applied", "discarded", "undone"]
@@ -41369,12 +42150,31 @@
                         "type": "string"
                     }
                 },
-                "required": ["status", "draftChangeUuid"],
+                "required": ["pullRequestUrl", "status", "draftChangeUuid"],
                 "type": "object",
                 "description": "What became of a change that left the draft."
             },
             "SemanticLayerDraft": {
                 "properties": {
+                    "othersDrafting": {
+                        "items": {
+                            "properties": {
+                                "drafters": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/SemanticLayerDrafter"
+                                    },
+                                    "type": "array"
+                                },
+                                "model": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["drafters", "model"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "description": "Every model other people have unpublished changes to, whether or not this draft touches it."
+                    },
                     "settled": {
                         "items": {
                             "$ref": "#/components/schemas/SemanticLayerSettledDraftChange"
@@ -41411,7 +42211,13 @@
                         "description": "Oldest first: each builds on the ones before it."
                     }
                 },
-                "required": ["settled", "errors", "models", "changes"],
+                "required": [
+                    "othersDrafting",
+                    "settled",
+                    "errors",
+                    "models",
+                    "changes"
+                ],
                 "type": "object"
             },
             "ApiSuccess_SemanticLayerDraft_": {
@@ -41487,8 +42293,100 @@
             "ApiSemanticLayerDraftImpactResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftImpact_"
             },
+            "SemanticLayerDraftFieldUsage": {
+                "properties": {
+                    "scheduledDeliveries": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dashboards": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "charts": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["changed", "removed"],
+                        "description": "`changed` keeps the field with a different definition, so numbers move; `removed` takes it away."
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "scheduledDeliveries",
+                    "dashboards",
+                    "charts",
+                    "kind",
+                    "label",
+                    "fieldId",
+                    "model"
+                ],
+                "type": "object",
+                "description": "A field the draft defines differently or removes, with the saved content that reads it."
+            },
+            "SemanticLayerDraftUsage": {
+                "properties": {
+                    "checkedFields": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "How many changed or removed fields were looked up; the rest of a very large draft is not."
+                    },
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerDraftFieldUsage"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["checkedFields", "fields"],
+                "type": "object",
+                "description": "Saved content that reads what the draft changes: what to look at before publishing, whether or not anything breaks."
+            },
+            "ApiSuccess_SemanticLayerDraftUsage_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftUsage"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftUsageResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftUsage_"
+            },
             "SemanticLayerDraftApplyResult": {
                 "properties": {
+                    "pullRequestUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The pull request the draft was sent as, for a project whose models live in a repository; null otherwise."
+                    },
                     "failures": {
                         "items": {
                             "properties": {
@@ -41512,7 +42410,7 @@
                         "description": "Null when nothing went live."
                     }
                 },
-                "required": ["failures", "exploreCount"],
+                "required": ["pullRequestUrl", "failures", "exploreCount"],
                 "type": "object"
             },
             "ApiSuccess_SemanticLayerDraftApplyResult_": {
@@ -41531,6 +42429,42 @@
             },
             "ApiSemanticLayerDraftApplyResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftApplyResult_"
+            },
+            "SemanticLayerDraftMoveDirection": {
+                "type": "string",
+                "enum": ["earlier", "later"],
+                "description": "Which way a change moves in a draft's order."
+            },
+            "ApiSemanticLayerDraftMoveRequest": {
+                "properties": {
+                    "direction": {
+                        "$ref": "#/components/schemas/SemanticLayerDraftMoveDirection"
+                    }
+                },
+                "required": ["direction"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftKeepRequest": {
+                "properties": {
+                    "liveVersion": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "The live version the person was shown, from the model's reconciliation."
+                    }
+                },
+                "required": ["liveVersion"],
+                "type": "object"
+            },
+            "ApiSemanticLayerDraftTakeLiveRequest": {
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "The part to leave as it is live, such as `metrics.revenue.sql`."
+                    }
+                },
+                "required": ["path"],
+                "type": "object"
             },
             "ApiSuccess__exploreCount-number__": {
                 "properties": {
@@ -44618,11 +45552,11 @@
                 "enum": [
                     "sandbox",
                     "agent",
+                    "pull_request",
                     "install",
                     "clone",
                     "commit",
-                    "push",
-                    "pull_request"
+                    "push"
                 ]
             },
             "AiWritebackRunStatus": {
@@ -45777,22 +46711,6 @@
                         "nullable": true,
                         "description": "Null until the report is published as a Document."
                     },
-                    "isReportExpired": {
-                        "type": "boolean"
-                    },
-                    "reportExpiredAt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "reportExpiresAt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "resultMarkdown": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "The report narrative with compact <chart> references."
-                    },
                     "terminalReason": {
                         "allOf": [
                             {
@@ -45841,10 +46759,6 @@
                     "executionContextSnapshot",
                     "budget",
                     "document",
-                    "isReportExpired",
-                    "reportExpiredAt",
-                    "reportExpiresAt",
-                    "resultMarkdown",
                     "terminalReason",
                     "status",
                     "prompt",
@@ -45929,141 +46843,6 @@
             },
             "ApiAiDeepResearchRunListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun-Array_"
-            },
-            "AiDeepResearchChartConfig": {
-                "properties": {
-                    "secondaryYAxisLabel": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "secondaryYAxisMetric": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "yAxisLabel": {
-                        "type": "string"
-                    },
-                    "xAxisLabel": {
-                        "type": "string"
-                    },
-                    "funnelDataInput": {
-                        "type": "string",
-                        "enum": ["row", "column", null],
-                        "nullable": true
-                    },
-                    "lineType": {
-                        "type": "string",
-                        "enum": ["line", "area", null],
-                        "nullable": true
-                    },
-                    "stackBars": {
-                        "type": "boolean",
-                        "nullable": true
-                    },
-                    "xAxisType": {
-                        "type": "string",
-                        "enum": ["category", "time", null],
-                        "nullable": true
-                    },
-                    "groupBy": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "yAxisMetrics": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "xAxisDimension": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "defaultVizType": {
-                        "type": "string",
-                        "enum": [
-                            "table",
-                            "bar",
-                            "horizontal",
-                            "line",
-                            "scatter",
-                            "pie",
-                            "funnel"
-                        ]
-                    }
-                },
-                "required": [
-                    "secondaryYAxisLabel",
-                    "secondaryYAxisMetric",
-                    "yAxisLabel",
-                    "xAxisLabel",
-                    "funnelDataInput",
-                    "lineType",
-                    "stackBars",
-                    "xAxisType",
-                    "groupBy",
-                    "yAxisMetrics",
-                    "xAxisDimension",
-                    "defaultVizType"
-                ],
-                "type": "object"
-            },
-            "AiDeepResearchChartData": {
-                "properties": {
-                    "fields": {
-                        "$ref": "#/components/schemas/ItemsMap",
-                        "description": "Selected + filter fields; drives labels and value formatting."
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
-                    },
-                    "queryUuid": {
-                        "type": "string",
-                        "description": "The verified execution this chart is evidence of."
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/AiDeepResearchChartConfig"
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "type": "string",
-                        "enum": ["warehouse"],
-                        "nullable": false
-                    }
-                },
-                "required": [
-                    "fields",
-                    "metricQuery",
-                    "queryUuid",
-                    "chartConfig",
-                    "title",
-                    "source"
-                ],
-                "type": "object",
-                "description": "Everything the UI needs to render one report chart. Derived on demand from\nthe execution the chart references; the markdown only carries compact\n<chart> references."
-            },
-            "ApiSuccess_AiDeepResearchChartData_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AiDeepResearchChartData"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiDeepResearchChartResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchChartData_"
             },
             "Record_string.never_": {
                 "properties": {},
@@ -58808,8 +59587,8 @@
                     "consolidateAiAgentMemoryPartition",
                     "cleanMcpToolCalls",
                     "cleanRateCounters",
+                    "rebuildOutdatedApiSourceExplores",
                     "cleanDataAppAnalyses",
-                    "cleanAiDeepResearchReports",
                     "cleanAiAgentThreads",
                     "cleanScimRequestLogs",
                     "cleanAppStateHistory",
@@ -60201,6 +60980,50 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ProvisionedOrganization": {
+                "properties": {
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["userUuid", "organizationUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_ProvisionedOrganization_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProvisionedOrganization"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiProvisionOrganizationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ProvisionedOrganization_"
+            },
+            "ProvisionOrganizationRequest": {
+                "properties": {
+                    "ownerPassword": {
+                        "type": "string"
+                    },
+                    "ownerEmail": {
+                        "type": "string"
+                    },
+                    "organizationName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["ownerPassword", "ownerEmail", "organizationName"],
                 "type": "object"
             },
             "DbtProjectType": {
@@ -65021,7 +65844,7 @@
             },
             "OrganizationDesignFileKind": {
                 "type": "string",
-                "enum": ["instruction", "css", "font", "image"]
+                "enum": ["instruction", "image", "css", "font"]
             },
             "ApiOrganizationDesignFile": {
                 "properties": {
@@ -67129,6 +67952,10 @@
                 ],
                 "type": "string"
             },
+            "MobileSignInDeclinedBy": {
+                "type": "string",
+                "enum": ["web", "phone", "failed_redeems"]
+            },
             "MobileSignInPlatform": {
                 "type": "string",
                 "enum": ["ios", "android"]
@@ -67163,6 +67990,14 @@
                         ],
                         "nullable": true
                     },
+                    "declinedBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MobileSignInDeclinedBy"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "matchNumber": {
                         "type": "string",
                         "nullable": true
@@ -67179,6 +68014,7 @@
                 },
                 "required": [
                     "device",
+                    "declinedBy",
                     "matchNumber",
                     "expiresAt",
                     "status",
@@ -77484,7 +78320,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.216.0",
+        "version": "3.242.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -91464,6 +92300,47 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/semantic-studio/models": {
+            "get": {
+                "operationId": "getSemanticLayerStoredModels",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerStoredModelsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The names of the models whose YAML the project keeps.",
+                "summary": "List stored semantic layer models",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/semantic-studio/models/{modelName}": {
             "get": {
                 "operationId": "getSemanticLayerModel",
@@ -91508,6 +92385,88 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/state": {
+            "get": {
+                "operationId": "getSemanticLayerDraftState",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerDraftStateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "A value that changes whenever this person's draft would read differently.",
+                "summary": "Get the state of my semantic layer draft",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/models": {
+            "get": {
+                "operationId": "getSemanticLayerDraftedModels",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerDraftedModelsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The models this person has changes in development on, by name.",
+                "summary": "List the models in my semantic layer draft",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -91681,6 +92640,47 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/usage": {
+            "get": {
+                "operationId": "getSemanticLayerDraftUsage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerDraftUsageResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Saved charts and dashboards that read a field this person's draft defines differently or removes.",
+                "summary": "Get the saved content my semantic layer draft changes",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/semantic-studio/draft/apply": {
             "post": {
                 "operationId": "applySemanticLayerDraft",
@@ -91818,6 +92818,183 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/changes/{draftChangeUuid}/move": {
+            "post": {
+                "operationId": "moveSemanticLayerDraftChange",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Moves one change one place earlier or later in this person's draft.",
+                "summary": "Reorder a change in my semantic layer draft",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "draftChangeUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiSemanticLayerDraftMoveRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/models/{model}/keep": {
+            "post": {
+                "operationId": "keepSemanticLayerDraftModel",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Keeps this person's draft of a model over what was published to it since they started.",
+                "summary": "Keep my draft of a model over what was published since",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiSemanticLayerDraftKeepRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/draft/models/{model}/take-live": {
+            "post": {
+                "operationId": "takeLiveSemanticLayerDraftPart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Leaves one part of this person's drafted model as it is live.",
+                "summary": "Take the live version of one part of my drafted model",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "model",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiSemanticLayerDraftTakeLiveRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/semantic-studio/draft/changes/{draftChangeUuid}": {
@@ -95167,190 +96344,6 @@
                     {
                         "in": "path",
                         "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{chartKey}/refresh": {
-            "post": {
-                "operationId": "refreshAiDeepResearchChart",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentThreadMessageVizQueryResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Re-execute the metric query behind a warehouse-backed report chart to\nload its live results.",
-                "summary": "Refresh Deep Research chart",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "chartKey",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/queries/{queryUuid}/results": {
-            "get": {
-                "operationId": "getDeepResearchChartQueryResults",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiGetAsyncQueryResultsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "queryUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "page",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "pageSize",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{queryUuid}": {
-            "get": {
-                "operationId": "getAiDeepResearchChart",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiDeepResearchChartResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Load the retained query metadata behind a report chart.",
-                "summary": "Get Deep Research chart",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "queryUuid",
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"

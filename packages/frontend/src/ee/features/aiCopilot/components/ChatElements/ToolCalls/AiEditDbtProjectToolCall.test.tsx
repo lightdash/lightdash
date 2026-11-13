@@ -98,7 +98,7 @@ describe('the quiet pull request card of a side panel', () => {
         vi.clearAllMocks();
     });
 
-    it('shows one Merge action and keeps closing and GitHub linking in its menu', async () => {
+    it('points to the workspace for its changes and keeps closing and GitHub linking in its menu', async () => {
         held.ciChecks = {
             merged: false,
             state: 'open',
@@ -118,7 +118,12 @@ describe('the quiet pull request card of a side panel', () => {
                 </QuietCardsContext.Provider>
             </MemoryRouter>,
         );
-        expect(screen.getByRole('button', { name: 'Merge' })).toBeVisible();
+        expect(
+            screen.getByRole('button', { name: 'View changes' }),
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'Merge' }),
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Close PR' }),
         ).not.toBeInTheDocument();
@@ -128,7 +133,7 @@ describe('the quiet pull request card of a side panel', () => {
         fireEvent.click(screen.getByRole('button', { name: 'More' }));
         await waitFor(() =>
             expect(
-                screen.getByRole('menuitem', { name: 'Close pull request' }),
+                screen.getByRole('menuitem', { name: 'Discard changes' }),
             ).toBeVisible(),
         );
         expect(
