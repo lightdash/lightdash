@@ -46,11 +46,11 @@ export function buildSectionKey(
 // Height constants for different item types (in pixels)
 // These must include margins to match actual rendered height
 export const ITEM_HEIGHTS = {
-    TABLE_HEADER: 32,
-    SECTION_HEADER: 42,
-    TREE_SINGLE_NODE: 32,
-    TREE_GROUP_NODE: 32,
-    MISSING_FIELD: 32,
+    TABLE_HEADER: 26,
+    SECTION_HEADER: 30,
+    TREE_SINGLE_NODE: 26,
+    TREE_GROUP_NODE: 26,
+    MISSING_FIELD: 26,
     EMPTY_STATE: 60,
 } as const;
 

@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Button, Group, Text, ActionIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
 import { IconCode, IconPlus } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import {
@@ -123,11 +123,8 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
         );
     }, [projectUuid, user.data, customDimensionsToWriteBack, dispatch, track]);
 
-    // Section headers use simplified padding: depth * 20
-    // (no base 12px like tree nodes)
-    const pl = useMemo(() => {
-        return depth ? `${depth * 20}px` : undefined;
-    }, [depth]);
+    // Aligns the label with the icons of the fields it heads
+    const pl = useMemo(() => `${8 + (depth ?? 0) * 12}px`, [depth]);
 
     const showAddButton =
         treeSection === TreeSection.Dimensions && canManageCustomFields;
@@ -142,9 +139,16 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
         customDimensionsToWriteBack.length > 0;
 
     return (
-        <Group mt="sm" mb="xs" pl={pl} pr="sm" justify="space-between">
+        <Group
+            h={30}
+            pt={6}
+            pl={pl}
+            pr={2}
+            justify="space-between"
+            wrap="nowrap"
+        >
             <Group gap="xs">
-                <Text fz="sm" fw={600} c={color}>
+                <Text fz={11} fw={600} c={color}>
                     {label}
                 </Text>
                 {helpButton && (
@@ -168,10 +172,10 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                         }
                         position="left"
                     >
-                        <Button
-                            variant="subtle"
-                            size="compact-xs"
-                            leftSection={<MantineIcon icon={IconPlus} />}
+                        <ActionIcon
+                            size="sm"
+                            c="dimmed"
+                            aria-label="Add custom dimension"
                             // data-disabled keeps the tooltip working
                             data-disabled={
                                 isCustomDimensionRefused || undefined
@@ -186,8 +190,8 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                             data-tour-anchor="add-custom-dimension"
                             data-tour-hint="Add a custom dimension"
                         >
-                            Add
-                        </Button>
+                            <MantineIcon icon={IconPlus} />
+                        </ActionIcon>
                     </Tooltip>
                 )}
 

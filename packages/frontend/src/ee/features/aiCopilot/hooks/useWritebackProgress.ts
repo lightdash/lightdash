@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import {
     formatElapsed,
     getWritebackStepIndex,
+    initialStepTimes,
+    recordStepTimes,
     WRITEBACK_STEPS,
+    type StepTimes,
 } from '../components/ChatElements/ToolCalls/writebackProgress';
 import { useWritebackRunStatus } from './useWritebackRunStatus';
 
@@ -40,4 +43,18 @@ export const useWritebackProgress = (
     return data.status === 'ready'
         ? { step: WRITEBACK_STEPS.length, state: 'done' }
         : { step: lastStep.current, state: 'stopped' };
+};
+
+/** When each step of a run was seen to start, for the times shown beside finished steps. */
+export const useStepTimes = (
+    { step, state }: WritebackProgress,
+    runStartedAt: string | null,
+): StepTimes => {
+    const [times, setTimes] = useState(() => initialStepTimes(runStartedAt));
+    useEffect(() => {
+        setTimes((previous) =>
+            recordStepTimes(previous, { step, state }, Date.now()),
+        );
+    }, [step, state]);
+    return times;
 };

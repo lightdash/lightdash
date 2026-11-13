@@ -431,11 +431,14 @@ const QueryAFiltersCard: FC = memo(() => {
                             : undefined
                     }
                 >
-                    <FiltersForm
-                        isEditMode={isEditMode}
-                        filters={processedFilters}
-                        setFilters={setFilters}
-                    />
+                    {/* Lines the form up with the card title, past the chevron */}
+                    <Box px={22}>
+                        <FiltersForm
+                            isEditMode={isEditMode}
+                            filters={processedFilters}
+                            setFilters={setFilters}
+                        />
+                    </Box>
                 </FiltersProvider>
             )}
         </CollapsableCard>
