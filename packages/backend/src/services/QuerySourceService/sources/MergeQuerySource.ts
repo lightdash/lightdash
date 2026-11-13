@@ -23,7 +23,7 @@ import type {
     SubmittedSourceQueries,
     ValidateSourceQueryArgs,
 } from '../types';
-import { getNodeAuthority } from './nodeAuthority';
+import { withoutDocumentAuthority } from './withoutDocumentAuthority';
 
 type MergeQuerySourceArguments = {
     asyncQueryService: Pick<
@@ -143,7 +143,7 @@ export class MergeQuerySource implements QuerySourceClient {
                 ...getMergeNodeParameters(query, args.submission),
             };
             const compiled = await this.asyncQueryService.compileComposerMerge({
-                authority: getNodeAuthority(args.authority),
+                authority: withoutDocumentAuthority(args.authority),
                 account: args.account,
                 projectUuid: args.projectUuid,
                 nodeId: query.nodeId ?? null,
@@ -193,7 +193,7 @@ export class MergeQuerySource implements QuerySourceClient {
         );
         const { queryUuid } =
             await this.asyncQueryService.submitComposerMergeJoin({
-                authority: getNodeAuthority(args.authority),
+                authority: withoutDocumentAuthority(args.authority),
                 account: args.account,
                 projectUuid: args.projectUuid,
                 context: args.context,

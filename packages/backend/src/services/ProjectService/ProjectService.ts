@@ -9917,7 +9917,6 @@ export class ProjectService
 
     async compileQuery(
         args: {
-            /** Absent means the caller's own query, under every write gate. */
             authority?: QueryRunAuthority;
             account: Account;
             // ! TODO: we need to fix this type
@@ -10279,7 +10278,6 @@ export class ProjectService
      * explorer shows them against the offending query row.
      */
     async compileMergeQuery(args: {
-        /** Absent means the caller's own query, under every write gate. */
         authority?: QueryRunAuthority;
         account: Account;
         projectUuid: string;
@@ -10477,23 +10475,30 @@ export class ProjectService
         const mergeSqlTableCalculations = mergeQuery.tableCalculations.filter(
             (calculation) => !calculation.formula,
         );
-        if (
-            mergeSqlTableCalculations.length > 0 &&
-            authority.kind === 'request'
-        ) {
-            const { organizationUuid } =
-                await this.projectModel.getSummary(projectUuid);
-            await this.assertCustomSqlAuthorizedForQuery({
-                account,
-                projectUuid,
-                organizationUuid,
-                exploreName: resolvedSources[0].metricQuery.exploreName,
-                metricQuery: {
-                    tableCalculations: mergeSqlTableCalculations,
-                    customDimensions: [],
-                    additionalMetrics: [],
-                },
-            });
+        switch (authority.kind) {
+            case 'document':
+            case 'composer':
+                // Their SQL calculations were authorized when saved
+                break;
+            case 'request':
+                if (mergeSqlTableCalculations.length > 0) {
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(projectUuid);
+                    await this.assertCustomSqlAuthorizedForQuery({
+                        account,
+                        projectUuid,
+                        organizationUuid,
+                        exploreName: resolvedSources[0].metricQuery.exploreName,
+                        metricQuery: {
+                            tableCalculations: mergeSqlTableCalculations,
+                            customDimensions: [],
+                            additionalMetrics: [],
+                        },
+                    });
+                }
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
         }
 
         // Each leg runs whole: the merged statement sorts and limits, and a

@@ -74,6 +74,11 @@ export type QueryRunAuthority =
 
 export const REQUEST_AUTHORITY: RequestAuthority = { kind: 'request' };
 
+export const getDocumentQueryContext = (
+    authority: QueryRunAuthority,
+): DocumentQueryContext | undefined =>
+    authority.kind === 'document' ? authority.context : undefined;
+
 /** The trusted stamp a bound composer run leaves on its query history row. */
 export const getComposerChartSource = (
     authority: QueryRunAuthority,

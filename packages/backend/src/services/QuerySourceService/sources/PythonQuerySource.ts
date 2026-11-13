@@ -15,7 +15,7 @@ import type {
     SourceQuerySubmissionResult,
     SubmitSourceQueryArgs,
 } from '../types';
-import { getNodeAuthority } from './nodeAuthority';
+import { withoutDocumentAuthority } from './withoutDocumentAuthority';
 
 type PythonQuerySourceArguments = {
     asyncQueryService: Pick<AsyncQueryService, 'executeAsyncPythonQuery'>;
@@ -96,7 +96,7 @@ export class PythonQuerySource implements QuerySourceClient {
         );
         const { queryUuid } =
             await this.asyncQueryService.executeAsyncPythonQuery({
-                authority: getNodeAuthority(authority),
+                authority: withoutDocumentAuthority(authority),
                 account,
                 projectUuid,
                 code: sourceQuery.code,
