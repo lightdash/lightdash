@@ -126,7 +126,7 @@ vi.mock(
     '../../../../../features/dashboardControls/useParameterBarControls',
     () => ({
         useParameterBarControls: () => ({
-            entries: [{ control: { hidden: false } }],
+            entries: [{ control: { hidden: false, parameters: {} } }],
         }),
     }),
 );
@@ -146,7 +146,12 @@ vi.mock('../../../../../features/dashboardControls/ParameterPills', () => ({
     ParameterPills: () => <div data-testid="parameter-pills" />,
 }));
 vi.mock('./EmbedDashboardParameters', () => ({
-    default: () => <div data-testid="shipped-parameters" />,
+    default: ({ parameters }: { parameters: Record<string, unknown> }) => (
+        <div
+            data-testid="shipped-parameters"
+            data-names={Object.keys(parameters).join(',')}
+        />
+    ),
 }));
 vi.mock('./EmbedDashboardFilters', () => ({
     default: () => <div data-testid="shipped-filters" />,
@@ -168,7 +173,13 @@ vi.mock('../../../../../features/dateZoom', () => ({
     ),
 }));
 
-const dashboard = (canAddFilters: boolean, areParametersEnabled = false) =>
+const dashboard = (
+    canAddFilters: boolean,
+    areParametersEnabled = false,
+    parameterInteractivity: Partial<
+        NonNullable<InteractivityOptions['parameterInteractivity']>
+    > = {},
+) =>
     ({
         uuid: 'dashboard-1',
         filters: { dimensions: [], metrics: [], tableCalculations: [] },
@@ -177,7 +188,10 @@ const dashboard = (canAddFilters: boolean, areParametersEnabled = false) =>
             enabled: FilterInteractivityValues.all,
             canAddFilters,
         },
-        parameterInteractivity: { enabled: areParametersEnabled },
+        parameterInteractivity: {
+            enabled: areParametersEnabled,
+            ...parameterInteractivity,
+        },
     }) as unknown as Dashboard & InteractivityOptions;
 
 const savedRule = {
@@ -504,11 +518,13 @@ describe('EmbedDashboardFilterBar', () => {
             areParametersEnabled,
             shouldShowFilters,
             hasControls = true,
+            parameterInteractivity,
         }: {
             isControlsEnabled: boolean;
             areParametersEnabled: boolean;
             shouldShowFilters: boolean;
             hasControls?: boolean;
+            parameterInteractivity?: Parameters<typeof dashboard>[2];
         }) => {
             const store = createDashboardTestStore({
                 parameterDefinitions: { region: { label: 'Region' } },
@@ -524,7 +540,11 @@ describe('EmbedDashboardFilterBar', () => {
             return renderWithProviders(
                 <DashboardStoreTestProvider store={store}>
                     <EmbedDashboardFilterBar
-                        dashboard={dashboard(true, areParametersEnabled)}
+                        dashboard={dashboard(
+                            true,
+                            areParametersEnabled,
+                            parameterInteractivity,
+                        )}
                         shouldShowFilters={shouldShowFilters}
                         activeTiles={[{ uuid: 'tile-1' } as DashboardTile]}
                         isControlsEnabled={isControlsEnabled}
@@ -584,6 +604,44 @@ describe('EmbedDashboardFilterBar', () => {
             });
             expect(
                 screen.queryByTestId('parameter-pills'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('shows only the parameters the token lets the viewer change', () => {
+            renderParameters({
+                isControlsEnabled: false,
+                areParametersEnabled: true,
+                shouldShowFilters: true,
+                parameterInteractivity: { allowedParameters: ['currency'] },
+            });
+            expect(screen.getByTestId('shipped-parameters')).toHaveAttribute(
+                'data-names',
+                '',
+            );
+        });
+
+        it('shows the parameters the token allows', () => {
+            renderParameters({
+                isControlsEnabled: false,
+                areParametersEnabled: true,
+                shouldShowFilters: true,
+                parameterInteractivity: { allowedParameters: ['region'] },
+            });
+            expect(screen.getByTestId('shipped-parameters')).toHaveAttribute(
+                'data-names',
+                'region',
+            );
+        });
+
+        it('hides the parameters when the token hides them', () => {
+            renderParameters({
+                isControlsEnabled: false,
+                areParametersEnabled: true,
+                shouldShowFilters: true,
+                parameterInteractivity: { hidden: true },
+            });
+            expect(
+                screen.queryByTestId('shipped-parameters'),
             ).not.toBeInTheDocument();
         });
 
