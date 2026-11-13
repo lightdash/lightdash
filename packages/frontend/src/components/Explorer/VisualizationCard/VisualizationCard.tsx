@@ -11,6 +11,7 @@ import {
 import { Button, Group } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import {
+    IconChartBar,
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
@@ -73,6 +74,8 @@ import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import SortButton from '../../SortButton';
 import ExplorerChartSidebar from '../ChartGallery/ExplorerChartSidebar';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
+import StaleResultsNotice from '../StaleResultsNotice';
+import ChartTypeButton from './ChartTypeButton';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import { useDirtyPivotConfiguration } from './useDirtyPivotConfiguration';
 import { useExplorerChartColorPalette } from './useExplorerChartColorPalette';
@@ -248,6 +251,14 @@ const VisualizationCard: FC<Props> = memo((props) => {
         () => dispatch(explorerActions.closeVisualizationConfig()),
         [dispatch],
     );
+    // A new chart starts on the gallery: try types first, then configure one
+    const hasSavedChart = !!savedChart;
+    const handleConfigureClick = useCallback(() => {
+        dispatch(explorerActions.openVisualizationConfig());
+        if (!hasSavedChart) {
+            dispatch(explorerActions.setChartSidebarStep('choose'));
+        }
+    }, [dispatch, hasSavedChart]);
 
     // Deep link (e.g. the removed-chart-type recovery hint): arrive in edit
     // mode with the config sidebar already open, then drop the param.
@@ -427,8 +438,27 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     minimal={minimal}
                     onToggle={toggleSection}
                     headerElement={
-                        isOpen && (
+                        !isOpen ? (
+                            // Results alone are not a chart yet: point at the next step
+                            isEditMode &&
+                            (resultsData?.rows.length ?? 0) > 0 && (
+                                <Button
+                                    size="compact-xs"
+                                    variant="light"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconChartBar}
+                                            size={12}
+                                        />
+                                    }
+                                    onClick={toggleSection}
+                                >
+                                    Visualize results
+                                </Button>
+                            )
+                        ) : (
                             <Group gap="xs" wrap="nowrap">
+                                <StaleResultsNotice />
                                 {sorts.length > 0 && (
                                     <SortButton
                                         sorts={sorts}
@@ -460,6 +490,11 @@ const VisualizationCard: FC<Props> = memo((props) => {
                         <>
                             {isOpen && (
                                 <>
+                                    {isEditMode && !chartTypeAuthoring && (
+                                        <ChartTypeButton
+                                            chartType={chartType}
+                                        />
+                                    )}
                                     {isEditMode ? (
                                         <Button
                                             ref={visualizationConfigButtonRef}
@@ -475,7 +510,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                             onClick={
                                                 isVisualizationConfigOpen
                                                     ? closeVisualizationConfig
-                                                    : openVisualizationConfig
+                                                    : handleConfigureClick
                                             }
                                             rightSection={
                                                 <MantineIcon

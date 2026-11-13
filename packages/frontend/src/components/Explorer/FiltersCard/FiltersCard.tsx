@@ -31,6 +31,7 @@ import {
     selectCustomDimensions,
     selectFilters,
     selectIsEditMode,
+    selectHasSelectedFields,
     selectIsFiltersExpanded,
     selectMetricQuery,
     selectParameters,
@@ -57,6 +58,7 @@ const QueryAFiltersCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
 
     const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
+    const hasSelectedFields = useExplorerSelector(selectHasSelectedFields);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
@@ -376,11 +378,18 @@ const QueryAFiltersCard: FC = memo(() => {
         return renderExpression(filterExpression);
     }, [processedFilters, visibleFields]);
 
+    // Nothing to filter until there is a field or a filter to show
+    const isInactive = totalActiveFilters === 0 && !hasSelectedFields;
+
     return (
         <CollapsableCard
-            isOpen={filterIsOpen}
+            isOpen={filterIsOpen && !isInactive}
             title="Filters"
-            disabled={!tableName || (totalActiveFilters === 0 && !isEditMode)}
+            disabled={
+                !tableName ||
+                isInactive ||
+                (totalActiveFilters === 0 && !isEditMode)
+            }
             toggleTooltip={
                 totalActiveFilters === 0 && !isEditMode
                     ? 'This chart has no filters'
