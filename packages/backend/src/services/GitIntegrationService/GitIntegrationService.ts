@@ -30,6 +30,7 @@ import {
     ParameterError,
     ParseError,
     Project,
+    ProjectSummary,
     ProjectType,
     PullRequestCreated,
     PullRequestProvider,
@@ -779,6 +780,7 @@ Affected charts:
         const path = connection.project_sub_path;
         const hostDomain = connection.host_domain;
         return {
+            organizationUuid: project.organizationUuid,
             owner,
             repo,
             branch,
@@ -822,14 +824,23 @@ Affected charts:
         );
     }
 
+    private async getProjectInOrganization(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ProjectSummary> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (project.organizationUuid !== user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+        return project;
+    }
+
     /**
      * Get the protected branch for a project.
      * For normal projects: the project's configured branch (e.g., "main")
      * For preview projects: the upstream project's configured branch
      */
-    private async getProtectedBranch(projectUuid: string): Promise<string> {
-        const project = await this.projectModel.getSummary(projectUuid);
-
+    private async getProtectedBranch(project: ProjectSummary): Promise<string> {
         if (
             project.type === ProjectType.PREVIEW &&
             project.upstreamProjectUuid
@@ -845,7 +856,7 @@ Affected charts:
         }
 
         // Normal project: protected branch is this project's configured branch
-        const { branch } = await this.getProjectRepo(projectUuid);
+        const { branch } = await this.getProjectRepo(project.projectUuid);
         return branch;
     }
 
@@ -1014,12 +1025,17 @@ Affected charts:
         }
         const yamlQuoteChar = parsedQuoteChar.data;
 
+        const user = toSessionUser(account);
+        const { organizationUuid } = await this.getProjectInOrganization(
+            user,
+            projectUuid,
+        );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('CustomFields', {
-                    organizationUuid: account.organization.organizationUuid!,
+                    organizationUuid,
                     projectUuid,
                 }),
             )
@@ -1030,7 +1046,6 @@ Affected charts:
         GitIntegrationService.assertCustomDimensionsSupported(customDimensions);
         await this.assertExploreWritebackSourceIsUnambiguous(projectUuid);
 
-        const user = toSessionUser(account);
         const gitProps = await this.getDbtWritebackGitProps(
             user,
             projectUuid,
@@ -1107,12 +1122,16 @@ Affected charts:
 
         if (fields.length === 0) throw new ParseError(`Missing ${typeName}s`);
 
+        const { organizationUuid } = await this.getProjectInOrganization(
+            user,
+            projectUuid,
+        );
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('CustomFields', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid,
                     projectUuid,
                 }),
             )
@@ -1463,6 +1482,7 @@ ${sql}
         columns: VizColumn[],
         quoteChar: `"` | `'` = '"',
     ): Promise<PullRequestCreated> {
+        await this.getProjectInOrganization(user, projectUuid);
         const gitProps = await this.getDbtWritebackGitProps(
             user,
             projectUuid,
@@ -1572,6 +1592,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         projectUuid: string,
         name: string,
     ): Promise<ApiGithubDbtWritePreview['results']> {
+        await this.getProjectInOrganization(user, projectUuid);
         await this.assertSqlModelWritebackSupported(projectUuid);
         const project = await this.projectModel.get(projectUuid);
         if (project.dbtConnection.type === DbtProjectType.BITBUCKET) {
@@ -1614,6 +1635,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
     }
 
     async getBranches(user: SessionUser, projectUuid: string) {
+        await this.getProjectInOrganization(user, projectUuid);
         const gitProps = await this.getGitProps(user, projectUuid, '"');
 
         const getBranches =
@@ -1634,8 +1656,10 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             type: DbtProjectType.BITBUCKET;
         }
     > {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.getProjectInOrganization(
+            user,
+            projectUuid,
+        );
         if (
             this.createAuditedAbility(user).cannot(
                 'view',
@@ -1673,13 +1697,16 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         hostDomain?: string;
         type: DbtProjectType.GITHUB | DbtProjectType.GITLAB;
     }> {
-        const { owner, repo, hostDomain, type } =
+        const { owner, repo, hostDomain, type, organizationUuid } =
             await this.getProjectRepo(projectUuid);
+        if (organizationUuid !== user.organizationUuid) {
+            throw new ForbiddenError();
+        }
         let token: string = '';
         let installationId: string | undefined;
 
         if (type === DbtProjectType.GITHUB) {
-            if (options?.preferUserToken && user.organizationUuid) {
+            if (options?.preferUserToken) {
                 // When the user has linked their personal GitHub account, act
                 // as them so commits and PRs are attributed to the real
                 // author. A user-to-server token only reaches repos the user
@@ -1687,7 +1714,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 // access first and fall back to the app bot when it's missing.
                 const userToken = await this.githubAppService.getValidUserToken(
                     user.userUuid,
-                    user.organizationUuid,
+                    organizationUuid,
                 );
                 if (
                     userToken &&
@@ -1709,7 +1736,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             }
             try {
                 installationId = await this.getInstallationId(user);
-                token = await this.getOrUpdateToken(user.organizationUuid!);
+                token = await this.getOrUpdateToken(organizationUuid);
             } catch {
                 const project =
                     await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -1753,12 +1780,13 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         user: SessionUser,
         projectUuid: string,
     ): Promise<GitBranch[]> {
+        const project = await this.getProjectInOrganization(user, projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid: project.organizationUuid,
                     projectUuid,
                 }),
             )
@@ -1781,7 +1809,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             hostDomain: creds.hostDomain,
         });
 
-        const protectedBranch = await this.getProtectedBranch(projectUuid);
+        const protectedBranch = await this.getProtectedBranch(project);
 
         return branches.map(
             (branch: { name: string; protected?: boolean }) => ({
@@ -1802,12 +1830,16 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         branch: string,
         path?: string,
     ): Promise<GitFileOrDirectory> {
+        const { organizationUuid } = await this.getProjectInOrganization(
+            user,
+            projectUuid,
+        );
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid,
                     projectUuid,
                     metadata: { branch, path },
                 }),
@@ -1891,15 +1923,16 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         message?: string,
         encoding?: 'base64',
     ): Promise<{ sha: string; path: string }> {
+        const project = await this.getProjectInOrganization(user, projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
-        const protectedBranch = await this.getProtectedBranch(projectUuid);
+        const protectedBranch = await this.getProtectedBranch(project);
         const isProtectedBranch = branch === protectedBranch;
 
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid: project.organizationUuid,
                     projectUuid,
                     isProtectedBranch,
                     metadata: { branch, path, sha },
@@ -1995,15 +2028,16 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         sha: string,
         message?: string,
     ): Promise<void> {
+        const project = await this.getProjectInOrganization(user, projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
-        const protectedBranch = await this.getProtectedBranch(projectUuid);
+        const protectedBranch = await this.getProtectedBranch(project);
         const isProtectedBranch = branch === protectedBranch;
 
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid: project.organizationUuid,
                     projectUuid,
                     isProtectedBranch,
                     metadata: { branch, path, sha },
@@ -2052,12 +2086,16 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         branchName: string,
         sourceBranch: string,
     ): Promise<GitBranch> {
+        const { organizationUuid } = await this.getProjectInOrganization(
+            user,
+            projectUuid,
+        );
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid,
                     projectUuid,
                     isProtectedBranch: false,
                     metadata: { branchName, sourceBranch },
@@ -2127,12 +2165,13 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         description: string,
         source: PullRequestSource = PullRequestSource.SOURCE_EDITOR,
     ): Promise<PullRequestCreated> {
+        const project = await this.getProjectInOrganization(user, projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid: project.organizationUuid,
                     projectUuid,
                     isProtectedBranch: false,
                     metadata: { branch },
@@ -2145,7 +2184,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         const creds = await this.getGitCredentials(user, projectUuid, {
             preferUserToken: true,
         });
-        const protectedBranch = await this.getProtectedBranch(projectUuid);
+        const protectedBranch = await this.getProtectedBranch(project);
 
         Logger.debug(
             `Creating pull request from branch ${branch} to ${protectedBranch} in ${creds.owner}/${creds.repo}`,

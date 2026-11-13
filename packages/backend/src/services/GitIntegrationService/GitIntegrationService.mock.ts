@@ -74,9 +74,14 @@ export const PROJECT_MODEL = {
     getExploreFromCache: vi.fn(() => ({ ymlPath: 'path/to/schema.yml' })),
     ...singleRouteProjectModelMethods,
     getWarehouseCredentialsForProject: vi.fn(() => ({})),
+    getSummary: vi.fn().mockResolvedValue({
+        projectUuid: 'projectUuid',
+        organizationUuid: 'organizationUuid',
+    }),
     get: vi.fn(() =>
         Promise.resolve({
             projectUuid: 'projectUuid',
+            organizationUuid: 'organizationUuid',
             name: 'Project',
             dbtVersion: SupportedDbtVersions.V1_9,
             dbtConnection: {

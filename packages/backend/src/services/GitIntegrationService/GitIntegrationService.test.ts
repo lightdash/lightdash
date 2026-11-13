@@ -8,6 +8,7 @@ import {
     NotFoundError,
     ParameterError,
     PossibleAbilities,
+    ProjectType,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -16,6 +17,7 @@ import {
     createBranch,
     createPullRequest,
     findOpenPullRequestByHead,
+    getBranches,
     getFileContent,
     getLastCommit,
     updateFile,
@@ -62,6 +64,7 @@ vi.mock('../../clients/github/Github.ts', () => ({
         number: 1,
     }),
     findOpenPullRequestByHead: vi.fn().mockResolvedValue(null),
+    getBranches: vi.fn().mockResolvedValue([{ name: 'main' }]),
     getOrRefreshToken: vi.fn().mockImplementation((token, refreshToken) => ({
         token,
         refreshToken,
@@ -124,13 +127,21 @@ describe('GitIntegrationService', () => {
                     semanticLayer: 'lightdash',
                 },
             };
+            const projectUser = {
+                ...user,
+                organizationUuid: 'organizationUuid',
+            };
             PROJECT_MODEL.get.mockResolvedValue(nativeProject);
             try {
                 await expect(
                     action === 'preview'
-                        ? service.writeBackPreview(user, 'projectUuid', 'model')
+                        ? service.writeBackPreview(
+                              projectUser,
+                              'projectUuid',
+                              'model',
+                          )
                         : service.createPullRequestFromSql(
-                              user,
+                              projectUser,
                               'projectUuid',
                               'model',
                               'select 1',
@@ -146,6 +157,94 @@ describe('GitIntegrationService', () => {
             }
         },
     );
+
+    describe('project source access', () => {
+        const sourceCodeUser = {
+            ...user,
+            organizationUuid: 'organizationUuid',
+            ability: new Ability<PossibleAbilities>([
+                {
+                    action: 'view',
+                    subject: 'SourceCode',
+                    conditions: { projectUuid: 'projectUuid' },
+                },
+                {
+                    action: 'manage',
+                    subject: 'SourceCode',
+                    conditions: {
+                        projectUuid: 'projectUuid',
+                        isProtectedBranch: false,
+                    },
+                },
+            ]),
+        };
+
+        it('reads repository content with project source access', async () => {
+            await expect(
+                service.getFileOrDirectory(
+                    sourceCodeUser,
+                    'projectUuid',
+                    'main',
+                    'models/schema.yml',
+                ),
+            ).resolves.toEqual({
+                type: 'file',
+                content: SCHEMA_YML,
+                sha: 'sha',
+                path: 'models/schema.yml',
+            });
+        });
+
+        it('rejects access outside the active organization before resolving the repository', async () => {
+            PROJECT_MODEL.getSummary.mockResolvedValueOnce({
+                projectUuid: 'projectUuid',
+                organizationUuid: 'other-organization',
+            });
+            await expect(
+                service.getFileOrDirectory(
+                    sourceCodeUser,
+                    'projectUuid',
+                    'main',
+                    'models/schema.yml',
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(PROJECT_MODEL.get).not.toHaveBeenCalled();
+            expect(getFileContent).not.toHaveBeenCalled();
+        });
+
+        it('keeps the configured branch protected for project editors', async () => {
+            await expect(
+                service.saveFile(
+                    sourceCodeUser,
+                    'projectUuid',
+                    'main',
+                    'models/schema.yml',
+                    SCHEMA_YML,
+                ),
+            ).rejects.toThrow('Cannot write to protected branch "main"');
+            expect(updateFile).not.toHaveBeenCalled();
+        });
+
+        it('lists branches for a user who can create a preview of the project', async () => {
+            const previewUser = {
+                ...sourceCodeUser,
+                ability: new Ability<PossibleAbilities>([
+                    {
+                        action: 'create',
+                        subject: 'Project',
+                        conditions: {
+                            type: ProjectType.PREVIEW,
+                            upstreamProjectUuid: 'projectUuid',
+                        },
+                    },
+                ]),
+            };
+            await expect(
+                service.getBranches(previewUser, 'projectUuid'),
+            ).resolves.toEqual(['main']);
+            expect(getBranches).toHaveBeenCalledTimes(1);
+        });
+    });
 
     describe('updateFile', () => {
         it.each([
@@ -788,6 +887,7 @@ describe('Bitbucket project credentials', () => {
     const createService = () => {
         const project = {
             name: 'Jaffle',
+            organizationUuid: 'organization',
             dbtConnection: {
                 type: DbtProjectType.BITBUCKET,
                 repository: 'workspace/jaffle',
