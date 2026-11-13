@@ -72,11 +72,7 @@ export const applyDashboardFiltersToComposerNodes = ({
     };
 };
 
-/**
- * Dashboard parameter values for every tier, with classic tile precedence: each
- * semantic-layer node's own map is replaced by the overrides for its explore, and
- * the shared map SQL, DuckDB and Python nodes read gets the dashboard's values.
- */
+// Classic tile precedence: each semantic-layer node's map becomes its explore's overrides; the shared map gets the dashboard's values
 export const applyDashboardParametersToComposerNodes = ({
     nodes,
     exploreByNodeId,

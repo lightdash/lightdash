@@ -10206,7 +10206,7 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
-    /** A composer tile's date-resolved dashboard filters and parameter layer, resolved as for any tile, and the project's parameter definitions. */
+    /** A composer tile's dashboard filters and parameter layer, resolved as for any tile. */
     async getComposerTileContext({
         account,
         projectUuid,
