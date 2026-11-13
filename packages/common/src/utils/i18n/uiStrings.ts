@@ -130,6 +130,7 @@ export const DEFAULT_UI_STRINGS = {
     'tileMenu.downloadData': 'Download data',
     'tileMenu.exportImage': 'Export image',
     'tileMenu.viewUnderlyingData': 'View underlying data',
+    'tile.composerChart.notAvailable': 'This chart is not available here',
     'dateZoom.defaultZoom': 'Default zoom',
     'dateZoom.none': 'None',
     'dateZoom.viewModeTooltip':

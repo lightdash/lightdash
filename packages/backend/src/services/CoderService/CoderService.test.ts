@@ -2153,6 +2153,59 @@ describe('CoderService', () => {
             ).toThrow('Space space-uuid not found');
         });
 
+        it('leaves composer chart tiles out of the file', () => {
+            const exported = (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                {
+                    description: null,
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    name: 'Dashboard',
+                    slug: 'dashboard',
+                    spaceUuid: 'space-uuid',
+                    tabs: [],
+                    tiles: [
+                        {
+                            uuid: 'heading-tile',
+                            type: DashboardTileTypes.HEADING,
+                            x: 0,
+                            y: 0,
+                            h: 1,
+                            w: 12,
+                            tabUuid: null,
+                            properties: { text: 'Revenue' },
+                        },
+                        {
+                            uuid: 'composer-tile',
+                            type: DashboardTileTypes.COMPOSER_CHART,
+                            x: 0,
+                            y: 1,
+                            h: 3,
+                            w: 6,
+                            tabUuid: null,
+                            properties: {
+                                title: 'Orders',
+                                composerChartUuid: 'composer-chart-1',
+                            },
+                        },
+                    ],
+                    uuid: 'dashboard-uuid',
+                    config: { isDateZoomDisabled: false },
+                },
+                [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
+                new Map(),
+            );
+            expect(
+                exported.tiles.map((tile: { type: string }) => tile.type),
+            ).toEqual([DashboardTileTypes.HEADING]);
+        });
+
         it('leaves the control order out of the file with the flag off', () => {
             const exported = (
                 CoderService as unknown as {
