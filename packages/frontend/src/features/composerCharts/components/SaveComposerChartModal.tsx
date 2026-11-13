@@ -144,12 +144,19 @@ export const SaveComposerChartModal: FC<Props> = ({
               ),
           })
         : null;
+    const cannotUpdateSelected =
+        !isCreatingNewDashboard &&
+        !!selectedDashboard &&
+        !user.data?.ability.can(
+            'update',
+            subject('Dashboard', selectedDashboard),
+        );
     const isReadyToSave = isCreatingNewDashboard
         ? !!form.values.newDashboardName &&
           (isCreatingNewSpace
               ? !!form.values.newSpaceName
               : !!form.values.spaceUuid)
-        : !!selectedDashboard;
+        : !!selectedDashboard && !cannotUpdateSelected;
 
     const getDestination = async (values: FormValues): Promise<Dashboard> => {
         if (!isCreatingNewDashboard) {
@@ -286,37 +293,45 @@ export const SaveComposerChartModal: FC<Props> = ({
                 onSubmit={form.onSubmit((values) => void save(values))}
             >
                 {isSelectingDashboard ? (
-                    <SaveToDashboardForm
-                        form={form}
-                        isLoading={isLoadingDashboards || isLoadingSpaces}
-                        spaces={spaces}
-                        dashboards={dashboards}
-                        tabs={selectedDashboard?.tabs ?? []}
-                        destinationTabUuid={destinationTab?.uuid ?? null}
-                        onSelectTab={(tabUuid) =>
-                            form.setFieldValue('tabUuid', tabUuid)
-                        }
-                        isCreatingNewDashboard={isCreatingNewDashboard}
-                        onStartCreatingNewDashboard={() => {
-                            setIsCreatingNewDashboard(true);
-                            setIsCreatingNewSpace(!spaces?.length);
-                            form.setFieldValue(
-                                'spaceUuid',
-                                spaces?.[0]?.uuid ?? null,
-                            );
-                        }}
-                        onCancelCreatingNewDashboard={() => {
-                            setIsCreatingNewDashboard(false);
-                            setIsCreatingNewSpace(false);
-                        }}
-                        isCreatingNewSpaceForDashboard={isCreatingNewSpace}
-                        onStartCreatingNewSpaceForDashboard={() =>
-                            setIsCreatingNewSpace(true)
-                        }
-                        onCancelCreatingNewSpaceForDashboard={() =>
-                            setIsCreatingNewSpace(false)
-                        }
-                    />
+                    <Stack gap="xs">
+                        <SaveToDashboardForm
+                            form={form}
+                            isLoading={isLoadingDashboards || isLoadingSpaces}
+                            spaces={spaces}
+                            dashboards={dashboards}
+                            tabs={selectedDashboard?.tabs ?? []}
+                            destinationTabUuid={destinationTab?.uuid ?? null}
+                            onSelectTab={(tabUuid) =>
+                                form.setFieldValue('tabUuid', tabUuid)
+                            }
+                            isCreatingNewDashboard={isCreatingNewDashboard}
+                            onStartCreatingNewDashboard={() => {
+                                setIsCreatingNewDashboard(true);
+                                setIsCreatingNewSpace(!spaces?.length);
+                                form.setFieldValue(
+                                    'spaceUuid',
+                                    spaces?.[0]?.uuid ?? null,
+                                );
+                            }}
+                            onCancelCreatingNewDashboard={() => {
+                                setIsCreatingNewDashboard(false);
+                                setIsCreatingNewSpace(false);
+                            }}
+                            isCreatingNewSpaceForDashboard={isCreatingNewSpace}
+                            onStartCreatingNewSpaceForDashboard={() =>
+                                setIsCreatingNewSpace(true)
+                            }
+                            onCancelCreatingNewSpaceForDashboard={() =>
+                                setIsCreatingNewSpace(false)
+                            }
+                        />
+                        {cannotUpdateSelected && (
+                            <Text fz="xs" c="dimmed">
+                                You do not have permission to edit this
+                                dashboard
+                            </Text>
+                        )}
+                    </Stack>
                 ) : (
                     <Stack gap="xs">
                         <TextInput
