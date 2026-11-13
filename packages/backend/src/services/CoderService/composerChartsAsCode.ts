@@ -2,6 +2,7 @@ import {
     ChartType,
     ContentAsCodeType,
     currentVersion,
+    ParameterError,
     type ChartAsCodeConfig,
     type ComposerChart,
     type ComposerChartAsCode,
@@ -92,3 +93,17 @@ export const isComposerChartAsCodeUnchanged = (
         plain(withCurrentPin(file.chart, current.chart)),
         plain(current.chart),
     );
+
+/** A CLI predating composer charts sends their files to the classic chart route. */
+export const assertNotComposerChartFile = (slug: string, body: unknown) => {
+    if (
+        typeof body === 'object' &&
+        body !== null &&
+        'contentType' in body &&
+        body.contentType === ContentAsCodeType.COMPOSER_CHART
+    ) {
+        throw new ParameterError(
+            `Chart "${slug}" is a composer chart file. Upgrade your CLI to upload composer charts.`,
+        );
+    }
+};

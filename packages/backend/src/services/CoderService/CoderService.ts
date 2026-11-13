@@ -196,6 +196,7 @@ import {
     type CurrentChartSqlItems,
 } from './chartPermissions';
 import {
+    assertNotComposerChartFile,
     isComposerChartAsCodeUnchanged,
     toComposerChartAsCode,
 } from './composerChartsAsCode';
@@ -4534,15 +4535,7 @@ export class CoderService extends BaseService {
         chartAsCode: ChartAsCode,
         options: UpsertContentAsCodeOptions = {},
     ) {
-        // A CLI predating composer charts sends their files here
-        if (
-            (chartAsCode as { contentType?: string }).contentType ===
-            ContentAsCodeType.COMPOSER_CHART
-        ) {
-            throw new ParameterError(
-                `Chart "${slug}" is a composer chart file. Upgrade your CLI to upload composer charts.`,
-            );
-        }
+        assertNotComposerChartFile(slug, chartAsCode);
         await this.assertAgentUploadAllowed(
             options.account ?? null,
             user,
