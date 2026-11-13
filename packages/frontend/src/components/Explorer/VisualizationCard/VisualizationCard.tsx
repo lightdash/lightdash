@@ -8,14 +8,13 @@ import {
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Button, Group } from '@mantine/core';
+import { Box, Button, Group } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import {
     IconChartBar,
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
-import clsx from 'clsx';
 import {
     lazy,
     memo,
@@ -64,6 +63,7 @@ import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi
 import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
+import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
 import RunningBar from '../../common/RunningBar';
 import LightdashVisualization from '../../LightdashVisualization';
@@ -80,6 +80,7 @@ import {
     useFieldDrop,
     type DraggedField,
 } from '../fieldDrag';
+import ExploreIdleIllustration from '../ResultsCard/ExploreIdleIllustration';
 import { useIsResultsStale } from '../useIsResultsStale';
 import DroppedFieldPlacer from './DroppedFieldPlacer';
 import { SeriesContextMenu } from './SeriesContextMenu';
@@ -602,12 +603,23 @@ const VisualizationCard: FC<Props> = memo((props) => {
                             {isLoadingQueryResults && (
                                 <RunningBar label="Running query" />
                             )}
+                            {isStale && (
+                                <Box className={classes.staleCover}>
+                                    <EmptyState
+                                        gap="xs"
+                                        icon={
+                                            <ExploreIdleIllustration variant="chart" />
+                                        }
+                                        title="Run query to see your chart"
+                                        titleProps={{ fz: 'sm' }}
+                                        description="Your selected fields changed."
+                                        descriptionProps={{ fz: 'xs' }}
+                                    />
+                                </Box>
+                            )}
                             <LightdashVisualization
                                 ref={measureRef}
-                                className={clsx(
-                                    'sentry-block ph-no-capture',
-                                    isStale && classes.stale,
-                                )}
+                                className="sentry-block ph-no-capture"
                                 data-testid="visualization"
                                 onScreenshotReady={onScreenshotReady}
                                 onScreenshotError={onScreenshotError}
