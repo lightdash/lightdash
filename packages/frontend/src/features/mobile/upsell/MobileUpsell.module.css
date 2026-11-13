@@ -66,12 +66,82 @@
 }
 
 .signIn {
+    display: grid;
+    gap: var(--mantine-spacing-sm);
     margin-inline: -8px;
     padding: 12px 8px;
+    container: sign-in / inline-size;
     border: 1px solid rgb(139 127 255 / 0.45);
     border-radius: var(--mantine-radius-lg);
     background: rgb(94 76 255 / 0.08);
     box-shadow: var(--ld-ring);
+}
+
+.signInBody {
+    display: grid;
+    grid-template-columns: fit-content(160px) minmax(0, 1fr);
+    gap: var(--mantine-spacing-md);
+    align-items: start;
+}
+
+.code :global(.mantine-Group-root) > :global(.mantine-Stack-root) {
+    min-width: 0;
+}
+
+.guide {
+    display: grid;
+    gap: var(--mantine-spacing-sm);
+    align-content: start;
+}
+
+.steps {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.steps li {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.35;
+}
+
+.steps li[data-state='current'] {
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+.stepNumber {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    width: 19px;
+    height: 19px;
+    border: 1px solid var(--ld-guide);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.steps li[data-state='current'] .stepNumber {
+    border-color: var(--ld-violet);
+    background: var(--ld-violet);
+    color: var(--mantine-color-white);
+}
+
+.steps li[data-state='done'] .stepNumber {
+    border-color: var(--ld-violet-soft);
+    color: var(--ld-violet-soft);
+}
+
+@container sign-in (width < 340px) {
+    .signInBody {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .frame[data-paused='true'] *,

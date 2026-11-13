@@ -1,9 +1,9 @@
 import { FeatureFlags } from '@lightdash/common';
 import {
+    Badge,
     Button,
     getDefaultZIndex,
     Popover,
-    Stack,
     Title,
     Tooltip,
 } from '@mantine/core';
@@ -25,6 +25,11 @@ import { getHost } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
+import {
+    previewSignInLabel,
+    usePreviewSignIn,
+    usePreviewSignInPhase,
+} from './previewSignInState';
 import {
     useMobileUpsell,
     type MobileUpsellChoice,
@@ -68,14 +73,19 @@ const MobileSignInPopover: FC<{
     const { data: health } = useHealth();
     const id = useId();
     const [opened, setOpened] = useState(false);
-    const signIn = useMobileSignInCode({ autoShow: opened });
+    const preview = usePreviewSignInPhase();
+    const liveSignIn = useMobileSignInCode({
+        autoShow: opened && !preview.holdsMint,
+    });
+    const previewSignIn = usePreviewSignIn(preview.forced);
+    const signIn = previewSignIn ?? liveSignIn;
     const isConfirming = signIn.phase === 'claimed';
     const dropdown = useRef<HTMLDivElement>(null);
     useKeepFocusInPopover(signIn.phase, dropdown);
 
     const close = () => {
         setOpened(false);
-        signIn.hide();
+        liveSignIn.hide();
     };
 
     return (
@@ -119,16 +129,29 @@ const MobileSignInPopover: FC<{
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown ref={dropdown}>
-                <MobileUpsellFrame variation={upsell}>
-                    <Stack gap="sm">
-                        <Title order={6}>{MOBILE_STRINGS.signInTitle}</Title>
+                <MobileUpsellFrame
+                    variation={upsell}
+                    phase={signIn.phase}
+                    title={
+                        <>
+                            {previewSignIn && (
+                                <Badge color="orange" variant="light">
+                                    {previewSignInLabel(previewSignIn.phase)}
+                                </Badge>
+                            )}
+                            <Title order={6}>
+                                {MOBILE_STRINGS.signInTitle}
+                            </Title>
+                        </>
+                    }
+                    step={
                         <MobileSignInStep
                             signIn={signIn}
                             host={getHost(health?.siteUrl)}
                             email={user.data?.email}
                         />
-                    </Stack>
-                </MobileUpsellFrame>
+                    }
+                />
             </Popover.Dropdown>
         </Popover>
     );

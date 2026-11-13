@@ -25,6 +25,16 @@ export const UPSELL_STRINGS = {
     },
 } as const;
 
+export const SIGN_IN_GUIDE_STRINGS = {
+    label: 'Sign-in steps',
+    steps: [
+        'Scan the code with your phone camera.',
+        'Confirm the sign-in here.',
+        'Type the number shown here into the app.',
+    ],
+    noApp: 'No app yet? The scan opens a page with store links.',
+} as const;
+
 export const UPSELL_GRAPHIC_STRINGS = {
     ask: 'Ask',
     question: 'How many orders did we get each month?',
