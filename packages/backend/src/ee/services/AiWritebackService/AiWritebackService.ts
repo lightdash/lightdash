@@ -1482,6 +1482,10 @@ export class AiWritebackService extends BaseService {
                     'github.com',
                     'gitlab.com',
                     'bitbucket.org',
+                    // `dbt deps`: the package index, then its tarball hosts.
+                    'hub.getdbt.com',
+                    'public.cdn.getdbt.com',
+                    'codeload.github.com',
                 ],
             },
         };
@@ -4231,10 +4235,15 @@ export class AiWritebackService extends BaseService {
                 clearTimeout(timer);
             }
         } catch (error) {
+            // dbt prints its errors to stdout, so keep the tail of both.
+            const output =
+                error instanceof SandboxCommandError
+                    ? `\n${`${error.stderr}\n${error.stdout}`.trim().slice(-2000)}`
+                    : '';
             this.logger.warn(
                 `AiWriteback: could not prepare the change to be tried before its preview: ${getErrorMessage(
                     error,
-                )} (sandboxId=${sandbox.sandboxId})`,
+                )} (sandboxId=${sandbox.sandboxId})${output}`,
             );
         }
     }
