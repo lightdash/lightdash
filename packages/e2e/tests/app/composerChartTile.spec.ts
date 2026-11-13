@@ -1,8 +1,10 @@
 import {
     ApiChartSummaryListResponse,
     ComposerChart,
+    ComposerChartRunResults,
     CreateComposerChart,
     CreateDashboard,
+    Dashboard,
     DashboardTileTypes,
     FeatureFlags,
     FieldType,
@@ -14,6 +16,8 @@ import {
     expect,
     json,
     loginAs,
+    ResultRow,
+    runMetricQuery,
     SEED_USERS,
     test,
     TrackedApi,
@@ -21,6 +25,21 @@ import {
 
 const projectUuid = SEED_PROJECT.project_uuid;
 const CLASSIC_CHART_NAME = 'How much revenue do we have per payment method?';
+
+const pollRows = async (api: TrackedApi, queryUuid: string) => {
+    for (;;) {
+        const results = await json<{
+            status: string;
+            rows: ResultRow[];
+            error?: string;
+        }>(await api.get(`/api/v2/projects/${projectUuid}/query/${queryUuid}`));
+        if (results.error) throw new Error(`Query failed: ${results.error}`);
+        if (results.status === 'ready') return results.rows;
+        await new Promise((resolve) => {
+            setTimeout(resolve, 200);
+        });
+    }
+};
 
 const getSeedChart = async (api: TrackedApi): Promise<SavedChart> => {
     const charts = await json<ApiChartSummaryListResponse['results']>(
@@ -83,11 +102,7 @@ test.describe('Composer chart tile', () => {
         await loginAs(api.raw, SEED_USERS.admin);
         const flagUrl = `/api/v2/feature-flag/${FeatureFlags.ComposerCharts}`;
         const flag = await json<{ enabled: boolean }>(await api.get(flagUrl));
-        if (!flag.enabled) {
-            expect(
-                (await api.post(flagUrl, { data: { enabled: true } })).status(),
-            ).toBe(200);
-        }
+        expect(flag.enabled, 'composer-charts is on in previews').toBe(true);
     });
 
     test.afterEach(async ({ api }) => {
@@ -154,6 +169,46 @@ test.describe('Composer chart tile', () => {
             },
         );
         expect(updated.status()).toBe(200);
+        const composerTile = (await json<Dashboard>(updated)).tiles.find(
+            ({ type }) => type === DashboardTileTypes.COMPOSER_CHART,
+        );
+
+        // The tile's run returns the classic query's rows.
+        const run = await json<ComposerChartRunResults>(
+            await api.post(
+                `/api/v2/projects/${projectUuid}/composer-charts/${composer.uuid}/run`,
+                {
+                    data: {
+                        dashboardUuid: dashboard.uuid,
+                        tileUuid: composerTile?.uuid,
+                        dashboardFilters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        parameters: {},
+                        excludedParameterKeys: [],
+                        invalidateCache: false,
+                    },
+                },
+            ),
+        );
+        const terminal = run.queries.find(({ nodeId }) => nodeId === 'result');
+        expect(terminal, 'terminal node query').toBeDefined();
+        const composerRows = await pollRows(api, terminal!.queryUuid);
+        const classicRows = await runMetricQuery(api.raw, projectUuid, {
+            ...classic.metricQuery,
+        });
+        const rawValues = (rows: ResultRow[]) =>
+            rows.map((row) =>
+                Object.fromEntries(
+                    Object.entries(row).map(([id, { value }]) => [
+                        id,
+                        value.raw,
+                    ]),
+                ),
+            );
+        expect(rawValues(composerRows)).toEqual(rawValues(classicRows));
 
         await page.goto(
             `/projects/${projectUuid}/dashboards/${dashboard.uuid}/view`,

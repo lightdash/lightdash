@@ -7,12 +7,13 @@ import {
     type TableCalculation,
 } from '../types/field';
 import { type MetricQuery } from '../types/metricQuery';
-import { QuerySourceType, type DuckdbSourceQuery } from '../types/querySources';
+import { QuerySourceType } from '../types/querySources';
 import { type ResultColumn, type ResultRow } from '../types/results';
 import { ChartType, type ChartConfig } from '../types/savedCharts';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     type ComposerChartPipeline,
+    type ComposerChartPipelineNode,
     type ComposerStoredChart,
 } from './composerChart';
 import {
@@ -32,8 +33,25 @@ export type ComposerChartDraw = {
     pivotColumns: string[];
 };
 
+// The cap the builders' synthetic query reports; rows are capped by each node.
+const DRAW_QUERY_LIMIT = 5000;
+
 const missingColumnError = (reference: string) =>
     new Error(`Column "${reference}" is missing from the result`);
+
+const notNumericError = (reference: string) =>
+    new Error(`Column "${reference}" is no longer numeric`);
+
+const columnsWithRole = (chart: ComposerStoredChart, fieldType: FieldType) =>
+    chart.columns
+        .filter((column) => column.fieldType === fieldType)
+        .map(({ reference }) => reference);
+
+/** Group-by columns the chart can split by; only cartesian charts split into series. */
+const getSplitColumns = (chart: ComposerStoredChart) => ({
+    columns: chart.pivotConfig?.columns ?? [],
+    drawable: chart.chartConfig.type === ChartType.CARTESIAN,
+});
 
 const getTerminalNode = (pipeline: ComposerChartPipeline) => {
     const node = pipeline.nodes.find(
@@ -54,15 +72,23 @@ const getItemsQuery = (
     fields: ItemsMap,
     base: Pick<MetricQuery, 'exploreName' | 'sorts'>,
 ) => {
-    const columnNames = new Set(columns.map(({ reference }) => reference));
+    const columnsByName = new Map(
+        columns.map((column) => [column.reference, column]),
+    );
     const chartFields: ItemsMap = {};
     const dimensions: string[] = [];
     const metrics: string[] = [];
     const tableCalculations: TableCalculation[] = [];
-    chart.columns.forEach(({ reference }) => {
+    chart.columns.forEach(({ reference, fieldType }) => {
         const item = fields[reference];
-        if (!item || !columnNames.has(reference)) {
-            throw missingColumnError(reference);
+        const column = columnsByName.get(reference);
+        if (!item || !column) throw missingColumnError(reference);
+        if (
+            fieldType === FieldType.METRIC &&
+            !isMetric(item) &&
+            column.type !== DimensionType.NUMBER
+        ) {
+            throw notNumericError(reference);
         }
         chartFields[reference] = item;
         if (isTableCalculation(item)) tableCalculations.push(item);
@@ -75,7 +101,7 @@ const getItemsQuery = (
             dimensions,
             metrics,
             filters: {},
-            limit: 5000,
+            limit: DRAW_QUERY_LIMIT,
             tableCalculations,
         },
         fields: chartFields,
@@ -89,28 +115,25 @@ const getResultColumnsQuery = (
 ) => {
     const resultColumns = new ComposerResultColumns(columns);
     const names = new Set(resultColumns.references);
-    const byRole = (fieldType: FieldType) =>
-        chart.columns
-            .filter((column) => column.fieldType === fieldType)
-            .map(({ reference }) => {
-                if (!names.has(reference)) throw missingColumnError(reference);
-                return reference;
-            });
-    const dimensions = byRole(FieldType.DIMENSION);
-    const metrics = byRole(FieldType.METRIC);
+    chart.columns.forEach(({ reference }) => {
+        if (!names.has(reference)) throw missingColumnError(reference);
+    });
+    const metrics = columnsWithRole(chart, FieldType.METRIC);
     metrics.forEach((reference) => {
-        if (resultColumns.get(reference).type !== DimensionType.NUMBER) {
-            throw new Error(`Column "${reference}" is no longer numeric`);
+        if (!resultColumns.isNumeric(reference)) {
+            throw notNumericError(reference);
         }
     });
-    return getComposerResultQuery(resultColumns, dimensions, metrics);
+    return getComposerResultQuery(
+        resultColumns,
+        columnsWithRole(chart, FieldType.DIMENSION),
+        metrics,
+    );
 };
 
 const assertDrawablePivot = (chart: ComposerStoredChart) => {
-    if (
-        (chart.pivotConfig?.columns.length ?? 0) > 0 &&
-        chart.chartConfig.type !== ChartType.CARTESIAN
-    ) {
+    const split = getSplitColumns(chart);
+    if (split.columns.length > 0 && !split.drawable) {
         throw new Error(
             'Group-by is only drawn on bar, line, area and scatter charts',
         );
@@ -190,29 +213,21 @@ const CHART_STAGE_NODE_ID = 'chart_stage';
 export const getComposerChartPivotStage = (
     pipeline: ComposerChartPipeline,
     chart: ComposerStoredChart,
-): (DuckdbSourceQuery & { nodeId: string }) | null => {
-    const pivotColumns = chart.pivotConfig?.columns ?? [];
-    if (
-        pivotColumns.length === 0 ||
-        chart.chartConfig.type !== ChartType.CARTESIAN
-    ) {
-        return null;
-    }
-    const byRole = (fieldType: FieldType) =>
-        chart.columns
-            .filter((column) => column.fieldType === fieldType)
-            .map(({ reference }) => reference);
+): ComposerChartPipelineNode | null => {
+    const split = getSplitColumns(chart);
+    if (split.columns.length === 0 || !split.drawable) return null;
+    const pivotColumns = split.columns;
     const nodeIds = new Set(pipeline.nodes.map(({ nodeId }) => nodeId));
     let nodeId = CHART_STAGE_NODE_ID;
     while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
     const stage = getComposerPivotStage({
-        indexColumns: byRole(FieldType.DIMENSION).filter(
+        indexColumns: columnsWithRole(chart, FieldType.DIMENSION).filter(
             (reference) => !pivotColumns.includes(reference),
         ),
         pivotColumns,
-        valueColumns: byRole(FieldType.METRIC),
+        valueColumns: columnsWithRole(chart, FieldType.METRIC),
         nodeId,
         source: pipeline.terminalNodeId,
     });
-    return { ...stage, nodeId };
+    return { ...stage, nodeId, title: 'Series split' };
 };

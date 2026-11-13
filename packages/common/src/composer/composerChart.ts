@@ -529,7 +529,7 @@ export type ComposerChartRunResults = {
         sourceType: QuerySourceType;
         queryUuid: string;
     }>;
-    /** The terminal node's fields map: a semantic-layer node's or merge's own items; empty for sql, duckdb and python. */
+    /** The terminal node's fields map from its run; the tile draws a semantic-layer or merge result from it. */
     fields: ItemsMap;
     /** The server-built series-split stage the chart draws from; null without a group-by. */
     chartStageQueryUuid: string | null;

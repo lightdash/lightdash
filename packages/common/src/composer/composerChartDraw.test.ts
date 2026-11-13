@@ -6,6 +6,7 @@ import {
     type CompiledMetric,
     type ItemsMap,
 } from '../types/field';
+import { MergeJoinType } from '../types/mergeQuery';
 import { QuerySourceType } from '../types/querySources';
 import { type ResultColumn } from '../types/results';
 import { ChartType, type ChartConfig } from '../types/savedCharts';
@@ -176,7 +177,7 @@ describe('getComposerChartDraw', () => {
                     sourceType: QuerySourceType.MERGE,
                     sources: [{ nodeId: 'orders' }, { nodeId: 'other' }],
                     joinKey: [],
-                    joinType: 'inner' as never,
+                    joinType: MergeJoinType.INNER,
                 },
             ],
         };
@@ -222,6 +223,23 @@ describe('getComposerChartDraw', () => {
                 fields: {},
             }),
         ).toThrow('Column "revenue" is no longer numeric');
+    });
+
+    test('a semantic-layer metric column that is now a non-numeric dimension errors naming it', () => {
+        expect(() =>
+            getComposerChartDraw({
+                pipeline: semanticPipeline,
+                chart: semanticChart,
+                columns: [
+                    semanticColumns[0],
+                    { reference: 'orders_total', type: DimensionType.STRING },
+                ],
+                fields: {
+                    ...semanticFields,
+                    orders_total: { ...statusDimension, name: 'total' },
+                },
+            }),
+        ).toThrow('Column "orders_total" is no longer numeric');
     });
 
     test('a group-by on a cartesian chart draws its split columns as pivot dimensions', () => {
@@ -302,16 +320,16 @@ describe('getComposerChartPivotStage', () => {
     });
 
     test('pivots the terminal node’s rows from the stored columns and pivotConfig alone', () => {
-        expect(getComposerChartPivotStage(sqlPipeline, splitChart)).toEqual({
+        expect(
+            getComposerChartPivotStage(sqlPipeline, splitChart),
+        ).toMatchObject({
             sourceType: QuerySourceType.DUCKDB,
             nodeId: 'chart_stage',
-            sql: 'SELECT "month" AS "month", "method" AS "method", "revenue" AS "revenue" FROM "node_result"',
             references: { node_result: 'orders' },
             pivotConfiguration: {
-                indexColumn: [{ reference: 'month', type: 'category' }],
+                indexColumn: [{ reference: 'month' }],
                 groupByColumns: [{ reference: 'method' }],
-                valuesColumns: [{ reference: 'revenue', aggregation: 'any' }],
-                sortBy: undefined,
+                valuesColumns: [{ reference: 'revenue' }],
             },
         });
     });

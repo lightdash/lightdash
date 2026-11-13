@@ -4,6 +4,7 @@ import {
     getChartKind,
     getComposerChartDraw,
     pickComposerChartRows,
+    type ComposerChartDraw,
     type DashboardComposerChartTile as ComposerChartTile,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/react';
@@ -42,7 +43,12 @@ type Props = Pick<
     'onEdit' | 'onDelete' | 'isEditMode' | 'minimal' | 'tabs'
 > & { tile: ComposerChartTile };
 
-const SENTRY_TAG = ['lightdash.chartKind', 'composer'] as const;
+const SENTRY_TAGS = { 'lightdash.chartKind': 'composer' };
+
+type DrawState =
+    | { status: 'loading' }
+    | { status: 'ready'; draw: ComposerChartDraw }
+    | { status: 'error'; message: string };
 
 const getTitle = (tile: ComposerChartTile) =>
     tile.properties.title || tile.properties.chartName || '';
@@ -144,7 +150,8 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
         title,
     );
     // A group-by draws from the server-built stage; otherwise the terminal node's rows.
-    const results = run?.chartStageQueryUuid ? stage : terminal;
+    const drawsFromStage = !!run?.chartStageQueryUuid;
+    const results = drawsFromStage ? stage : terminal;
     useEffect(() => {
         if (
             results.queryUuid &&
@@ -154,33 +161,34 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             results.setFetchAll(true);
     }, [results]);
 
-    const draw = useMemo(() => {
-        if (!chart || !run || !terminal.columns) return null;
+    const drawState = useMemo((): DrawState => {
+        if (!chart || !run || !terminal.columns) return { status: 'loading' };
         try {
-            return getComposerChartDraw({
-                pipeline: chart.pipeline,
-                chart: chart.chart,
-                columns: Object.values(terminal.columns),
-                fields: run.fields,
-            });
+            return {
+                status: 'ready',
+                draw: getComposerChartDraw({
+                    pipeline: chart.pipeline,
+                    chart: chart.chart,
+                    columns: Object.values(terminal.columns),
+                    fields: run.fields,
+                }),
+            };
         } catch (error) {
-            return error instanceof Error ? error : new Error(String(error));
+            Sentry.captureException(error, { tags: SENTRY_TAGS });
+            return {
+                status: 'error',
+                message: error instanceof Error ? error.message : String(error),
+            };
         }
     }, [chart, run, terminal.columns]);
-    useEffect(() => {
-        if (draw instanceof Error) {
-            Sentry.captureException(draw, {
-                tags: { [SENTRY_TAG[0]]: SENTRY_TAG[1] },
-            });
-        }
-    }, [draw]);
+    const readyDraw = drawState.status === 'ready' ? drawState.draw : null;
 
     const rows = useMemo(() => {
-        if (!draw || draw instanceof Error) return [];
-        return run?.chartStageQueryUuid
+        if (!readyDraw) return [];
+        return drawsFromStage
             ? results.rows
-            : pickComposerChartRows(draw, results.rows);
-    }, [draw, run?.chartStageQueryUuid, results.rows]);
+            : pickComposerChartRows(readyDraw, results.rows);
+    }, [readyDraw, drawsFromStage, results.rows]);
 
     const errorMessage = !composerChartUuid
         ? 'This chart has been deleted.'
@@ -188,8 +196,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
           runQuery.error?.error.message ??
           terminal.error?.error.message ??
           stage.error?.error.message ??
-          (draw instanceof Error ? draw.message : null));
-    const readyDraw = draw instanceof Error ? null : draw;
+          (drawState.status === 'error' ? drawState.message : null));
     const isLoading =
         !errorMessage && (!readyDraw || !results.hasFetchedAllRows);
     const handleScreenshotReady = useCallback(
@@ -225,9 +232,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                 results.hasFetchedAllRows &&
                 projectUuid && (
                     <Sentry.ErrorBoundary
-                        beforeCapture={(scope) =>
-                            scope.setTag(SENTRY_TAG[0], SENTRY_TAG[1])
-                        }
+                        beforeCapture={(scope) => scope.setTags(SENTRY_TAGS)}
                         fallback={({ error }) => (
                             <TileError
                                 tileUuid={tile.uuid}
@@ -240,6 +245,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                         )}
                     >
                         <ComposerChartVisualization
+                            key={chart?.versionUuid}
                             projectUuid={projectUuid}
                             dashboardUuid={dashboardUuid}
                             tileUuid={tile.uuid}

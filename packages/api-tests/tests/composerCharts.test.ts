@@ -624,11 +624,12 @@ describe('Composer charts', () => {
         );
         expect(run.status).toBe(200);
         const { chartStageQueryUuid, queries } = run.body.results;
+        if (!chartStageQueryUuid) throw new Error('No series-split stage ran');
         expect(queries.map(({ queryUuid }) => queryUuid)).toContain(
             chartStageQueryUuid,
         );
         expect(
-            (await pollRows(viewer, String(chartStageQueryUuid))).length,
+            (await pollRows(viewer, chartStageQueryUuid)).length,
         ).toBeGreaterThan(0);
     });
 
