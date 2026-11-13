@@ -36,6 +36,7 @@ import {
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
     isDashboardChartTileType,
+    isDashboardComposerChartTile,
     isDashboardControlOrder,
     isDashboardScheduler,
     isDashboardSqlChartTile,
@@ -114,6 +115,7 @@ import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
+import { type ComposerChartModel } from '../../models/ComposerChartModel';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
 import {
@@ -161,6 +163,10 @@ import {
     getVerificationAfterUpdate,
 } from '../verifiedContentGuards';
 import { withVersionAgentIdentity } from '../VersionAgentIdentity';
+import {
+    duplicateComposerChartTiles,
+    rollbackComposerCharts,
+} from './composerChartTiles';
 
 type DashboardServiceArguments = {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
@@ -176,6 +182,7 @@ type DashboardServiceArguments = {
     schedulerService: SchedulerService;
     savedChartModel: SavedChartModel;
     savedSqlModel: SavedSqlModel;
+    composerChartModel: ComposerChartModel;
     savedChartService: SavedChartService;
     schedulerClient: SchedulerClient;
     contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
@@ -335,6 +342,8 @@ export class DashboardService
     savedChartModel: SavedChartModel;
 
     savedSqlModel: SavedSqlModel;
+
+    composerChartModel: ComposerChartModel;
 
     savedChartService: SavedChartService;
 
@@ -507,6 +516,7 @@ export class DashboardService
         schedulerService,
         savedChartModel,
         savedSqlModel,
+        composerChartModel,
         savedChartService,
         schedulerClient,
         contentAsCodeProjectSettingsModel,
@@ -535,6 +545,7 @@ export class DashboardService
         this.schedulerService = schedulerService;
         this.savedChartModel = savedChartModel;
         this.savedSqlModel = savedSqlModel;
+        this.composerChartModel = composerChartModel;
         this.savedChartService = savedChartService;
         this.projectModel = projectModel;
         this.catalogModel = catalogModel;
@@ -747,9 +758,7 @@ export class DashboardService
     }
 
     // Draft payloads are untrusted JSON, so narrow instead of casting.
-    private static collectDraftSavedChartUuids(
-        drafts: ContentDraft[],
-    ): Set<string> {
+    private static collectDraftChartUuids(drafts: ContentDraft[]): Set<string> {
         const chartUuids = new Set<string>();
         drafts.forEach(({ draft }) => {
             const { tiles } = draft as { tiles?: unknown };
@@ -759,11 +768,15 @@ export class DashboardService
                 const { properties } = tile as { properties?: unknown };
                 if (typeof properties !== 'object' || properties === null)
                     return;
-                const { savedChartUuid } = properties as {
+                const { savedChartUuid, composerChartUuid } = properties as {
                     savedChartUuid?: unknown;
+                    composerChartUuid?: unknown;
                 };
                 if (typeof savedChartUuid === 'string') {
                     chartUuids.add(savedChartUuid);
+                }
+                if (typeof composerChartUuid === 'string') {
+                    chartUuids.add(composerChartUuid);
                 }
             });
         });
@@ -782,7 +795,7 @@ export class DashboardService
         // that references it. When the author's save was held back as a draft,
         // no version references the chart, so the next published save would
         // permanently delete a chart the draft still points at.
-        const draftChartUuids = DashboardService.collectDraftSavedChartUuids(
+        const draftChartUuids = DashboardService.collectDraftChartUuids(
             await this.contentDraftModel.listOpenForContent(
                 projectUuid,
                 'dashboard',
@@ -821,6 +834,10 @@ export class DashboardService
                     throw error;
                 }
             }),
+        );
+        await this.composerChartModel.deleteOrphans(
+            dashboardUuid,
+            draftChartUuids,
         );
     }
 
@@ -2421,17 +2438,35 @@ export class DashboardService
             ownerUserUuid: DashboardService.getDefaultOwnerUserUuid(user),
         };
 
+        // Composer tiles join in the second version, once their charts are copied
+        const hasComposerTiles = duplicatedDashboard.tiles.some(
+            isDashboardComposerChartTile,
+        );
         const newDashboard = await this.dashboardModel.create(
             targetSpaceUuid,
-            duplicatedDashboard,
+            {
+                ...duplicatedDashboard,
+                tiles: duplicatedDashboard.tiles.filter(
+                    (tile) => !isDashboardComposerChartTile(tile),
+                ),
+            },
             user,
             projectUuid,
         );
 
-        if (hasChartsInDashboard(newDashboard)) {
+        if (hasChartsInDashboard(newDashboard) || hasComposerTiles) {
             const tileUuidMap = new Map<string, string>();
 
-            const updatedTiles = await Promise.all(
+            const copiedComposerTiles = await duplicateComposerChartTiles(
+                this.composerChartModel,
+                duplicatedDashboard.tiles,
+                { dashboardUuid: newDashboard.uuid, userUuid: user.userUuid },
+            );
+            copiedComposerTiles.forEach(({ from, tile }) =>
+                tileUuidMap.set(from, tile.uuid),
+            );
+
+            const classicTiles = await Promise.all(
                 newDashboard.tiles.map(async (tile) => {
                     if (
                         isDashboardChartTileType(tile) &&
@@ -2461,6 +2496,10 @@ export class DashboardService
                     return tile;
                 }),
             );
+            const updatedTiles = [
+                ...classicTiles,
+                ...copiedComposerTiles.map(({ tile }) => tile),
+            ];
 
             const remapTileUuidKeys = <T>(
                 byTileUuid: Record<string, T>,
@@ -2476,21 +2515,25 @@ export class DashboardService
             ): Record<string, DashboardTileTarget> | undefined =>
                 tileTargets && remapTileUuidKeys(tileTargets);
 
-            const remappedFilters: typeof newDashboard.filters = {
-                dimensions: newDashboard.filters.dimensions.map((filter) => ({
-                    ...filter,
-                    tileTargets: remapTileTargets(filter.tileTargets),
-                })),
-                metrics: newDashboard.filters.metrics.map((filter) => ({
-                    ...filter,
-                    tileTargets: remapTileTargets(filter.tileTargets),
-                })),
-                tableCalculations: newDashboard.filters.tableCalculations.map(
+            // From the source: the first version dropped the composer tiles' targets
+            const remappedFilters: typeof duplicatedDashboard.filters = {
+                dimensions: duplicatedDashboard.filters.dimensions.map(
                     (filter) => ({
                         ...filter,
                         tileTargets: remapTileTargets(filter.tileTargets),
                     }),
                 ),
+                metrics: duplicatedDashboard.filters.metrics.map((filter) => ({
+                    ...filter,
+                    tileTargets: remapTileTargets(filter.tileTargets),
+                })),
+                tableCalculations:
+                    duplicatedDashboard.filters.tableCalculations.map(
+                        (filter) => ({
+                            ...filter,
+                            tileTargets: remapTileTargets(filter.tileTargets),
+                        }),
+                    ),
             };
 
             await this.dashboardModel.addVersion(
@@ -2500,20 +2543,20 @@ export class DashboardService
                     filters: remappedFilters,
                     tabs: newTabs,
                     parameters: newDashboard.parameters,
-                    config: newDashboard.config && {
-                        ...newDashboard.config,
-                        ...(newDashboard.config.dateZoomConfig && {
+                    config: duplicatedDashboard.config && {
+                        ...duplicatedDashboard.config,
+                        ...(duplicatedDashboard.config.dateZoomConfig && {
                             dateZoomConfig: {
-                                ...newDashboard.config.dateZoomConfig,
+                                ...duplicatedDashboard.config.dateZoomConfig,
                                 tileTargets: remapTileUuidKeys(
-                                    newDashboard.config.dateZoomConfig
+                                    duplicatedDashboard.config.dateZoomConfig
                                         .tileTargets,
                                 ),
                             },
                         }),
-                        ...(newDashboard.config.parameterControls && {
+                        ...(duplicatedDashboard.config.parameterControls && {
                             parameterControls:
-                                newDashboard.config.parameterControls.map(
+                                duplicatedDashboard.config.parameterControls.map(
                                     (control) => ({
                                         ...control,
                                         parameters: Object.fromEntries(
@@ -4756,6 +4799,13 @@ export class DashboardService
             } else {
                 this.logger.info('No dashboard-owned charts to rollback');
             }
+            await rollbackComposerCharts(
+                this.composerChartModel,
+                targetVersion.tiles,
+                targetVersion.versionUuid,
+                user.userUuid,
+                tx,
+            );
         });
 
         this.analytics.track({

@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { type ComposerChartModel } from '../../models/ComposerChartModel';
 import { DashboardService } from './DashboardService';
 
 const PROJECT_UUID = 'project-uuid';
@@ -129,6 +130,9 @@ const buildService = (overrides: Overrides = {}) => {
         } as AnyType,
         savedChartModel: { permanentDelete } as AnyType,
         savedSqlModel: {} as AnyType,
+        composerChartModel: {
+            deleteOrphans: vi.fn(async () => {}),
+        } as unknown as ComposerChartModel,
         savedChartService: {} as AnyType,
         projectModel: {
             get: vi.fn().mockResolvedValue({

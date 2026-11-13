@@ -86,3 +86,13 @@
     margin: 0;
     overflow-wrap: anywhere;
 }
+
+.signInPopover {
+    color: var(--mantine-color-text);
+}
+
+@media ($navigation-compact <= width < $navigation-search-icon) {
+    .headerButton {
+        display: none;
+    }
+}

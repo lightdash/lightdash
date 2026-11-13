@@ -4,12 +4,12 @@
     bottom: var(--mantine-spacing-md);
     z-index: var(--mantine-z-index-app);
     display: flex;
-    align-items: center;
-    gap: 2px;
+    flex-direction: column;
+    min-width: 0;
     max-width: calc(100vw - 2 * var(--mantine-spacing-md));
     padding: 4px;
     border: 1px solid var(--mantine-color-dark-4);
-    border-radius: var(--mantine-radius-xl);
+    border-radius: 20px;
     background: color-mix(
         in srgb,
         var(--mantine-color-dark-7) 92%,
@@ -24,7 +24,129 @@
     font-weight: 500;
     white-space: nowrap;
     translate: -50% 0;
+    transition: min-width 320ms cubic-bezier(0.22, 1, 0.36, 1);
     animation: arrive 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.island[data-open] {
+    min-width: 280px;
+}
+
+.bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+}
+
+/* The panel opens out of the pill: its row grows from nothing, so the dock itself gets taller. */
+.panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.island[data-open] .panel {
+    grid-template-rows: 1fr;
+}
+
+.panelInner {
+    min-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    translate: 0 6px;
+    transition:
+        opacity 160ms ease,
+        translate 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.island[data-open] .panelInner {
+    padding-bottom: 6px;
+    opacity: 1;
+    translate: 0 0;
+    transition-delay: 80ms, 0ms;
+}
+
+.workspace {
+    max-width: 268px;
+    padding: 10px 10px 0;
+    overflow: hidden;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    text-overflow: ellipsis;
+}
+
+.workspace + .intro {
+    padding-top: 2px;
+    color: var(--mantine-color-dark-1);
+}
+
+.intro {
+    max-width: 268px;
+    padding: 10px 10px 2px;
+    color: var(--mantine-color-white);
+    font-weight: 400;
+    line-height: 1.45;
+    white-space: normal;
+}
+
+.heading {
+    padding: 8px 10px 4px;
+    color: rgb(255 255 255 / 0.55);
+    font-weight: 400;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 10px;
+    border-radius: 10px;
+    color: var(--mantine-color-white);
+    font-size: inherit;
+    font-weight: 500;
+}
+
+.row:hover {
+    background: rgb(255 255 255 / 0.1);
+}
+
+.row:focus-visible {
+    outline: 2px solid var(--mantine-color-orange-5);
+    outline-offset: -2px;
+}
+
+.row[data-footer] {
+    margin-top: 4px;
+    color: rgb(255 255 255 / 0.75);
+}
+
+.rowLabel {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rowHint {
+    color: rgb(255 255 255 / 0.4);
+    font-weight: 400;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.row:hover .rowHint,
+.row:focus-visible .rowHint {
+    opacity: 1;
+}
+
+.chevron {
+    transition: rotate 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.island[data-open] .chevron {
+    rotate: 180deg;
 }
 
 @keyframes arrive {
@@ -40,7 +162,21 @@
     align-items: center;
     gap: 8px;
     padding: 4px 10px 4px 12px;
-    cursor: default;
+    border-radius: var(--mantine-radius-xl);
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    cursor: pointer;
+}
+
+.state:hover,
+.state[aria-expanded='true'] {
+    background: rgb(255 255 255 / 0.1);
+}
+
+.state:focus-visible {
+    outline: 2px solid var(--mantine-color-orange-5);
+    outline-offset: 2px;
 }
 
 .pulse {
@@ -91,5 +227,12 @@
     .island,
     .pulse::after {
         animation: none;
+    }
+
+    .island,
+    .panel,
+    .panelInner,
+    .chevron {
+        transition: none;
     }
 }

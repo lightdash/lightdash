@@ -38,6 +38,10 @@ import {
     type ComposerQuerySource,
     type ComposerQueryStage,
 } from '../services/AsyncQueryService/composerQueryStage';
+import {
+    QUERY_POLLING_SOURCES,
+    type QueryPollingSource,
+} from '../services/AsyncQueryService/queryPollingSource';
 import type { WarehouseExecutionSource } from '../services/AsyncQueryService/types';
 import {
     API_QUERY_OUTCOMES,
@@ -168,9 +172,6 @@ export default class PrometheusMetrics {
     public aiAgentMemoryCitedCounter: prometheus.Counter | null = null;
 
     public aiAgentMemoryUnresolvedRetiredCounter: prometheus.Counter | null =
-        null;
-
-    public aiDeepResearchReportCleanupCounter: prometheus.Counter<'outcome'> | null =
         null;
 
     public schedulerDailyJobGenerationLastCompletedTimestamp: prometheus.Gauge | null =
@@ -375,6 +376,9 @@ export default class PrometheusMetrics {
         'from' | 'to' | 'context'
     > | null = null;
 
+    private queryPollingTimeoutCounter: prometheus.Counter<'source'> | null =
+        null;
+
     private queueWaitHistogram: prometheus.Histogram | null = null;
 
     private totalDurationHistogram: prometheus.Histogram | null = null;
@@ -458,6 +462,16 @@ export default class PrometheusMetrics {
                     labelNames: ['from', 'to', 'context'],
                     ...rest,
                 });
+
+                this.queryPollingTimeoutCounter = new prometheus.Counter({
+                    name: 'lightdash_query_polling_timeouts_total',
+                    help: 'Queries whose result wait timed out, by caller source',
+                    labelNames: ['source'],
+                    ...rest,
+                });
+                for (const source of QUERY_POLLING_SOURCES) {
+                    this.queryPollingTimeoutCounter.inc({ source }, 0);
+                }
 
                 this.queueWaitHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_queue_wait_duration_seconds',
@@ -709,14 +723,6 @@ export default class PrometheusMetrics {
                     new prometheus.Counter({
                         name: 'ai_agent_memory_unresolved_retired_total',
                         help: 'Memories retired by the sweep because every object they name left the catalog',
-                        ...rest,
-                    });
-
-                this.aiDeepResearchReportCleanupCounter =
-                    new prometheus.Counter({
-                        name: 'ai_deep_research_report_cleanup_total',
-                        help: 'Deep Research reports processed by cleanup outcome',
-                        labelNames: ['outcome'],
                         ...rest,
                     });
 
@@ -1044,14 +1050,6 @@ export default class PrometheusMetrics {
                 this.aiAgentMemoryUnknownToolPolicyCounter?.inc(0);
                 this.aiAgentMemoryCitedCounter?.inc(0);
                 this.aiAgentMemoryUnresolvedRetiredCounter?.inc(0);
-                (['scanned', 'expired', 'failed'] as const).forEach(
-                    (outcome) => {
-                        this.aiDeepResearchReportCleanupCounter?.inc(
-                            { outcome },
-                            0,
-                        );
-                    },
-                );
                 AI_AGENT_MEMORY_CONSOLIDATE_METRIC_OUTCOMES.forEach(
                     (outcome) => {
                         this.aiAgentMemoryConsolidateCounter?.inc(
@@ -1826,6 +1824,10 @@ export default class PrometheusMetrics {
         });
     }
 
+    public incrementQueryPollingTimeout(source: QueryPollingSource) {
+        this.queryPollingTimeoutCounter?.inc({ source });
+    }
+
     public observeQueueWaitDuration(durationMs: number, context: string) {
         this.queueWaitHistogram?.observe(
             { context: getQueryContextLabel(context) },
@@ -2111,13 +2113,6 @@ export default class PrometheusMetrics {
 
     public incrementAiAgentMemoryUnresolvedRetired(count: number) {
         this.aiAgentMemoryUnresolvedRetiredCounter?.inc(count);
-    }
-
-    public incrementAiDeepResearchReportCleanup(
-        outcome: 'scanned' | 'expired' | 'failed',
-        count: number,
-    ) {
-        this.aiDeepResearchReportCleanupCounter?.inc({ outcome }, count);
     }
 
     public trackAiAgentMemoryConsolidate(

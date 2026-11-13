@@ -21,6 +21,7 @@ import {
     PROJECT_DBT_SOURCE_NAME_PATTERN,
     ProjectType,
     resolveDbtVersion,
+    SnowflakeAuthenticationType,
     SupportedDbtVersions,
     validateProjectDbtSourceName,
     WarehouseTypes,
@@ -190,6 +191,55 @@ describe('normalizeWarehouseCredentials', () => {
 });
 
 describe('mergeWarehouseCredentials', () => {
+    describe('Snowflake preview on a different warehouse', () => {
+        const parent: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'account',
+            user: 'service_user',
+            password: 'parent-password',
+            database: 'PROD',
+            warehouse: 'PROD_WH',
+            schema: 'analytics',
+            queryTag: 'parent-tag',
+            requireUserCredentials: true,
+        };
+        const preview: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'account',
+            user: 'developer',
+            privateKey: 'developer-key',
+            authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+            role: 'DEVELOPER',
+            database: 'DEV',
+            warehouse: 'dev_wh',
+            schema: 'dbt_developer',
+        };
+
+        test('uses the preview credentials as-is by default', () => {
+            expect(mergeWarehouseCredentials(parent, preview)).toEqual(preview);
+        });
+
+        test('keeps the parent policy when inheriting across warehouses', () => {
+            const merged = mergeWarehouseCredentials(parent, preview, {
+                inheritAcrossSnowflakeWarehouses: true,
+            });
+            expect(merged).toEqual({
+                ...preview,
+                queryTag: 'parent-tag',
+                requireUserCredentials: true,
+            });
+        });
+
+        test('does not loosen a preview that already requires user credentials', () => {
+            const merged = mergeWarehouseCredentials(
+                { ...parent, requireUserCredentials: false },
+                { ...preview, requireUserCredentials: true },
+                { inheritAcrossSnowflakeWarehouses: true },
+            );
+            expect(merged.requireUserCredentials).toBe(true);
+        });
+    });
+
     test.each([undefined, false, true])(
         'preserves or overrides the BigQuery personal credential opt-in (%s)',
         (allowUserCredentials) => {

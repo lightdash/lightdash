@@ -13,7 +13,7 @@ import userEvent from '@testing-library/user-event';
 import { type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dashboardParametersActions } from '../../../../../features/dashboard/store';
-import { RailContractClasses } from '../../../../../features/dashboardControls/railContractClasses';
+import { ControlContractClasses } from '../../../../../features/dashboardControls/controlContractClasses';
 import {
     createDashboardTestStore,
     seedDashboardEditState,
@@ -35,16 +35,22 @@ vi.mock('../../../../../features/dashboardControls/AddControl', () => ({
     AddControl: ({
         triggerClassName,
         unsavedFiltersTooltip,
+        withParameters = true,
+        withDateZooms = true,
     }: {
         triggerClassName?: string;
         unsavedFiltersTooltip?: string;
+        withParameters?: boolean;
+        withDateZooms?: boolean;
     }) => (
         <button
             type="button"
             className={triggerClassName}
             data-tooltip={unsavedFiltersTooltip}
+            data-with-parameters={String(withParameters)}
+            data-with-date-zooms={String(withDateZooms)}
         >
-            Rail add
+            Controls add
         </button>
     ),
 }));
@@ -61,7 +67,7 @@ vi.mock('../../../../../features/dashboardControls/FilterPills', async () => {
                     .isLoadingDashboardFilters === true;
             return (
                 <div
-                    data-testid="rail-pills"
+                    data-testid="controls-pills"
                     className={triggerClassName}
                     data-skeletons={isFirstLoad || undefined}
                 />
@@ -72,17 +78,45 @@ vi.mock('../../../../../features/dashboardControls/FilterPills', async () => {
 vi.mock('../../../../../features/dashboardControls/SectionedFilters', () => ({
     SectionedFilters: ({
         viewerActions,
+        editorActions,
         triggerClassName,
+        hiddenFilters = [],
     }: {
-        viewerActions: ReactNode;
+        viewerActions?: ReactNode;
+        editorActions?: ReactNode;
         triggerClassName?: string;
+        hiddenFilters?: { id: string }[];
     }) => (
-        <div data-testid="sectioned-filters" className={triggerClassName}>
+        <div
+            data-testid="sectioned-filters"
+            data-editor={editorActions !== undefined || undefined}
+            data-hidden-filters={hiddenFilters.map(({ id }) => id).join(',')}
+            className={triggerClassName}
+        >
             {viewerActions}
+            {editorActions}
         </div>
     ),
 }));
-// Reads the rail's provider, which the page puts around the bar
+// An editor's Default zoom has its own tests, and reads the date zoom editor
+vi.mock(
+    '../../../../../features/dashboardControls/DateZoomPills',
+    async (importActual) => ({
+        ...(await importActual<object>()),
+        DefaultZoomButton: () => (
+            <button type="button" data-testid="default-zoom-button" />
+        ),
+    }),
+);
+vi.mock(
+    '../../../../../features/dateZoom/components/DateZoomCrossTabFieldsLoader',
+    () => ({
+        DateZoomCrossTabFieldsLoader: () => (
+            <div data-testid="cross-tab-fields-loader" />
+        ),
+    }),
+);
+// Reads the controls provider, which the page puts around the bar
 vi.mock('../../../../../features/dashboardControls/ControlsBar', () => ({
     MappingSwap: ({ children }: { children: ReactNode }) => (
         <div data-testid="mapping-swap">{children}</div>
@@ -96,14 +130,14 @@ vi.mock(
         }),
     }),
 );
-// The rail's state, which the page provides around the real date zoom pills
-vi.mock('../../../../../features/dashboardControls/useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
+// The controls state, which the page provides around the real date zoom pills
+vi.mock('../../../../../features/dashboardControls/useControlsEditor', () => ({
+    useControlsEditorSelector: (
         selector: (c: Record<string, unknown>) => unknown,
     ) =>
         selector({
             isMapping: false,
-            isSidebarOpen: false,
+            isEditorOpen: false,
             isViewer: true,
             requestSwitch: (proceed: () => void) => proceed(),
         }),
@@ -137,6 +171,7 @@ vi.mock('../../../../../features/dateZoom', () => ({
 const dashboard = (canAddFilters: boolean, areParametersEnabled = false) =>
     ({
         uuid: 'dashboard-1',
+        filters: { dimensions: [], metrics: [], tableCalculations: [] },
         canDateZoom: false,
         dashboardFiltersInteractivity: {
             enabled: FilterInteractivityValues.all,
@@ -202,35 +237,35 @@ describe('EmbedDashboardFilterBar', () => {
         mockDashboardContext.current = {};
     });
 
-    it('keeps the shipped filters while the rail is off', () => {
+    it('keeps the shipped filters while the controls bar is off', () => {
         renderBar(true, false);
         expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
-        expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('controls-pills')).not.toBeInTheDocument();
         expect(screen.queryByTestId('mapping-swap')).not.toBeInTheDocument();
     });
 
-    it("gives the rail's bar the mapping row's place, so a viewer can choose tiles", () => {
+    it("gives the controls bar the mapping row's place, so a viewer can choose tiles", () => {
         renderBar(true, true);
         expect(
             within(screen.getByTestId('mapping-swap')).getByTestId(
-                'rail-pills',
+                'controls-pills',
             ),
         ).toBeInTheDocument();
     });
 
-    it('opens the rail from "Add filter" and the pills, with the class contract', () => {
+    it('opens the editor from "Add filter" and the pills, with the class contract', () => {
         renderBar(true, true);
         expect(screen.queryByTestId('shipped-filters')).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Rail add' })).toHaveClass(
-            'ld-dashboard-add-filter',
-        );
         expect(
-            screen.getByRole('button', { name: 'Rail add' }),
+            screen.getByRole('button', { name: 'Controls add' }),
+        ).toHaveClass('ld-dashboard-add-filter');
+        expect(
+            screen.getByRole('button', { name: 'Controls add' }),
         ).toHaveAttribute(
             'data-tooltip',
             DEFAULT_UI_STRINGS['filters.unsavedFiltersTooltip'],
         );
-        expect(screen.getByTestId('rail-pills')).toHaveClass(
+        expect(screen.getByTestId('controls-pills')).toHaveClass(
             'ld-dashboard-filter',
         );
         expect(
@@ -251,12 +286,12 @@ describe('EmbedDashboardFilterBar', () => {
         expect(sectioned).toHaveClass('ld-dashboard-filter');
         // "Add filter" and the reset lead the sectioned bar
         expect(
-            within(sectioned).getByRole('button', { name: 'Rail add' }),
+            within(sectioned).getByRole('button', { name: 'Controls add' }),
         ).toHaveClass('ld-dashboard-add-filter');
         expect(
             within(sectioned).getByRole('button', { name: 'Reset' }),
         ).toBeInTheDocument();
-        expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('controls-pills')).not.toBeInTheDocument();
         // A size container, for the bar's narrow layouts
         expect(sectioned.closest('[class*="filterArea"]')).not.toBeNull();
     });
@@ -281,7 +316,7 @@ describe('EmbedDashboardFilterBar', () => {
         });
         renderWithProviders(barElement(false, true, store));
         expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
-        expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('controls-pills')).not.toBeInTheDocument();
     });
 
     it('keeps the shipped filters for a dashboard with sections while the flag is off', () => {
@@ -295,6 +330,172 @@ describe('EmbedDashboardFilterBar', () => {
         expect(
             screen.queryByTestId('sectioned-filters'),
         ).not.toBeInTheDocument();
+    });
+
+    describe("an editor's bar", () => {
+        const renderEditor = ({
+            canDateZoom,
+            areParametersEnabled,
+            isControlsEnabled = true,
+            token = {},
+        }: {
+            canDateZoom: boolean;
+            areParametersEnabled: boolean;
+            isControlsEnabled?: boolean;
+            token?: Partial<Dashboard & InteractivityOptions>;
+        }) => {
+            // A flat dashboard: no sections, no stored order
+            const store = createDashboardTestStore({
+                dashboardFilters: {
+                    dimensions: [savedRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            });
+            store.dispatch(
+                dashboardParametersActions.syncParameterControls({
+                    controls: [],
+                    isSaved: true,
+                }),
+            );
+            return renderWithProviders(
+                <DashboardStoreTestProvider store={store}>
+                    <EmbedDashboardFilterBar
+                        dashboard={{
+                            // Viewers may not add filters; an editor always can
+                            ...dashboard(false, areParametersEnabled),
+                            canDateZoom,
+                            ...token,
+                        }}
+                        shouldShowFilters
+                        activeTiles={[]}
+                        isEditMode
+                        isControlsEnabled={isControlsEnabled}
+                    />
+                </DashboardStoreTestProvider>,
+            );
+        };
+
+        it("is the app's sectioned editor bar, with the class contract", () => {
+            renderEditor({ canDateZoom: false, areParametersEnabled: false });
+            const sectioned = screen.getByTestId('sectioned-filters');
+            expect(sectioned).toHaveAttribute('data-editor', 'true');
+            expect(sectioned).toHaveClass('ld-dashboard-filter');
+            expect(
+                within(sectioned).getByRole('button', { name: 'Controls add' }),
+            ).toHaveClass('ld-dashboard-add-filter');
+            expect(
+                within(screen.getByTestId('mapping-swap')).getByTestId(
+                    'sectioned-filters',
+                ),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByTestId('shipped-filters'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Reset' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it.each([
+            { canDateZoom: false, areParametersEnabled: false },
+            { canDateZoom: true, areParametersEnabled: false },
+            { canDateZoom: false, areParametersEnabled: true },
+        ])(
+            'adds only the kinds the token shows (%o)',
+            ({ canDateZoom, areParametersEnabled }) => {
+                renderEditor({ canDateZoom, areParametersEnabled });
+                const add = screen.getByRole('button', {
+                    name: 'Controls add',
+                });
+                expect(add).toHaveAttribute(
+                    'data-with-date-zooms',
+                    String(canDateZoom),
+                );
+                expect(add).toHaveAttribute(
+                    'data-with-parameters',
+                    String(areParametersEnabled),
+                );
+            },
+        );
+
+        it.each([
+            {
+                enabled: FilterInteractivityValues.some,
+                allowedFilters: ['saved'],
+                hidden: 'hidden',
+            },
+            {
+                enabled: FilterInteractivityValues.all,
+                allowedFilters: undefined,
+                hidden: '',
+            },
+        ])(
+            'tells the sections which saved filters the token hides ($enabled)',
+            ({ enabled, allowedFilters, hidden }) => {
+                renderEditor({
+                    canDateZoom: false,
+                    areParametersEnabled: false,
+                    token: {
+                        filters: {
+                            dimensions: [
+                                { ...savedRule, id: 'hidden', sectionId: 'a' },
+                                savedRule,
+                            ],
+                            metrics: [{ ...savedRule, id: 'metric' }],
+                            tableCalculations: [],
+                        },
+                        dashboardFiltersInteractivity: {
+                            enabled,
+                            allowedFilters,
+                        },
+                    },
+                });
+                expect(screen.getByTestId('sectioned-filters')).toHaveAttribute(
+                    'data-hidden-filters',
+                    hidden,
+                );
+            },
+        );
+
+        it("has the editor's Default zoom in the shipped one's place", () => {
+            renderEditor({ canDateZoom: true, areParametersEnabled: false });
+            expect(
+                screen.getByTestId('default-zoom-button').parentElement,
+            ).toHaveClass('ld-dashboard-date-zoom');
+            expect(
+                screen.getByTestId('cross-tab-fields-loader'),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByTestId('shipped-date-zoom'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('has no Default zoom where the token allows no date zoom', () => {
+            renderEditor({ canDateZoom: false, areParametersEnabled: false });
+            expect(
+                screen.queryByTestId('default-zoom-button'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('keeps the shipped editor and date zoom with the controls off', () => {
+            renderEditor({
+                canDateZoom: true,
+                areParametersEnabled: false,
+                isControlsEnabled: false,
+            });
+            expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
+            expect(screen.getByTestId('shipped-date-zoom')).toHaveAttribute(
+                'data-with-controls',
+                'true',
+            );
+            expect(
+                screen.queryByTestId('sectioned-filters'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByTestId('default-zoom-button'),
+            ).not.toBeInTheDocument();
+        });
     });
 
     describe('parameters', () => {
@@ -356,9 +557,9 @@ describe('EmbedDashboardFilterBar', () => {
                 areParametersEnabled: true,
                 shouldShowFilters: true,
             });
-            expect(screen.getByTestId('rail-pills').nextElementSibling).toBe(
-                screen.getByTestId('parameter-pills'),
-            );
+            expect(
+                screen.getByTestId('controls-pills').nextElementSibling,
+            ).toBe(screen.getByTestId('parameter-pills'));
             expect(
                 screen.queryByTestId('shipped-parameters'),
             ).not.toBeInTheDocument();
@@ -472,9 +673,9 @@ describe('EmbedDashboardFilterBar', () => {
             renderWithProviders(
                 <DashboardStoreTestProvider store={zoomStore(hidden)}>
                     {/* As the embed page provides them */}
-                    <RailContractClasses.Provider
+                    <ControlContractClasses.Provider
                         value={{
-                            rail: 'ld-dashboard-filter-rail',
+                            editor: 'ld-dashboard-control-editor',
                             addFilterDropdown:
                                 'ld-dashboard-add-filter-dropdown',
                             filterDropdown: 'ld-dashboard-filter-dropdown',
@@ -495,7 +696,7 @@ describe('EmbedDashboardFilterBar', () => {
                             isEditMode={isEditMode}
                             isControlsEnabled={isControlsEnabled}
                         />
-                    </RailContractClasses.Provider>
+                    </ControlContractClasses.Provider>
                 </DashboardStoreTestProvider>,
             );
         const zoomPill = (name: string) =>
@@ -521,11 +722,13 @@ describe('EmbedDashboardFilterBar', () => {
             const user = userEvent.setup();
             renderBar(true, true);
             await user.click(screen.getByRole('button', { name: 'Hide' }));
-            expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+            expect(
+                screen.queryByTestId('controls-pills'),
+            ).not.toBeInTheDocument();
             await user.click(
                 screen.getByRole('button', { name: 'Show filters' }),
             );
-            expect(screen.getByTestId('rail-pills')).toBeInTheDocument();
+            expect(screen.getByTestId('controls-pills')).toBeInTheDocument();
         });
 
         it('collapses named zooms alone behind Hide, counted in the summary', async () => {
@@ -584,7 +787,7 @@ describe('EmbedDashboardFilterBar', () => {
         };
         mockDashboardContext.current = loaded;
         const { rerender } = renderBar(true, true);
-        expect(screen.getByTestId('rail-pills')).not.toHaveAttribute(
+        expect(screen.getByTestId('controls-pills')).not.toHaveAttribute(
             'data-skeletons',
         );
 
@@ -597,7 +800,7 @@ describe('EmbedDashboardFilterBar', () => {
             allFilterableFields: undefined,
         };
         rerender(barElement(true, true));
-        expect(screen.getByTestId('rail-pills')).not.toHaveAttribute(
+        expect(screen.getByTestId('controls-pills')).not.toHaveAttribute(
             'data-skeletons',
         );
     });

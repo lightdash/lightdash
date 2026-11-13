@@ -101,6 +101,7 @@ export default abstract class WarehouseBaseClient<
             tags?: Record<string, string>;
             timezone?: string;
             recoverStalledQuery?: boolean;
+            isQueuedQueryCancelled?: () => Promise<boolean>;
             onPhaseTiming?: (
                 phase: WarehouseQueryPhase,
                 durationMs: number,
@@ -116,6 +117,7 @@ export default abstract class WarehouseBaseClient<
             tags,
             timezone,
             recoverStalledQuery,
+            isQueuedQueryCancelled,
         }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
@@ -138,6 +140,7 @@ export default abstract class WarehouseBaseClient<
                 tags,
                 timezone,
                 recoverStalledQuery,
+                ...(isQueuedQueryCancelled && { isQueuedQueryCancelled }),
                 onPhaseTiming: (phase, durationMs) => {
                     phaseTimings[phase] =
                         (phaseTimings[phase] ?? 0) + durationMs;

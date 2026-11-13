@@ -39,6 +39,12 @@ export const getTileTitle = (tile: DashboardTile): string => {
             return tile.properties.text || 'Heading';
         case DashboardTileTypes.DATA_APP:
             return tile.properties.title || 'Data app';
+        case DashboardTileTypes.COMPOSER_CHART:
+            return (
+                tile.properties.title ||
+                tile.properties.chartName ||
+                'Untitled chart'
+            );
         default:
             return assertUnreachable(tile, 'Unknown dashboard tile type');
     }

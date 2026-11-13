@@ -1,7 +1,7 @@
-# Provider contract (`useControlsSidebar`)
+# Provider contract (`useControlsEditor`)
 
-`ControlsSidebarProvider.tsx` owns the edit; pure helpers are in
-`sidebarState.ts`. The editor popover is on screen exactly while a filter is
+`ControlsEditorProvider.tsx` owns the edit; pure helpers are in
+`editorState.ts`. The editor popover is on screen exactly while a filter is
 edited: there is no separate list or open state.
 
 ## The draft
@@ -14,7 +14,7 @@ edited: there is no separate list or open state.
   dashboard once (`applyDraft`, in each rule's current section), raises
   "changed", then ends the edit. A clean edit writes nothing.
 - Cancel (`discard`) drops the draft: nothing of it reached the dashboard.
-- Mapping (`startMapping`, `SidebarState.mappingStart`) writes tile targets
+- Mapping (`startMapping`, `EditorState.mappingStart`) writes tile targets
   to the same draft. Its Apply is `close`; `cancelMapping` puts the rule back
   as mapping found it (the value cannot change meanwhile) and the popover
   returns; `endMapping` (the row's back arrow) returns to the popover with
@@ -31,14 +31,14 @@ edited: there is no separate list or open state.
 ## Reading the context
 
 - It is a `use-context-selector` context. Use
-  `useControlsSidebarSelector((c) => c.x)` anywhere rendered per tile, per
-  pill or around the page; `useControlsSidebar()` re-renders on every change,
+  `useControlsEditorSelector((c) => c.x)` anywhere rendered per tile, per
+  pill or around the page; `useControlsEditor()` re-renders on every change,
   hover included.
 - Callbacks keep one identity for the provider's life. They read
   `latest.current` (synced after each render, written eagerly by the
   `write*` helpers) so two calls in one event agree, e.g. `updateFilter` then
   `close`.
-- `isSidebarOpen`, `highlightedFieldId`, `isAsking` and `fieldUndo` are
+- `isEditorOpen`, `highlightedFieldId`, `isAsking` and `fieldUndo` are
   derived on render. An existing rule removed from the dashboard from outside
   closes the editor at once; the next `open`/`openNew` starts over. A new
   rule lives only in the draft until Apply.
@@ -46,8 +46,8 @@ edited: there is no separate list or open state.
 ## Modes
 
 - Mode is the route's, or the provider's `isEditMode` input (embeds). An
-  edit belongs to the mode it started in (`SidebarState.isViewer`) and keeps
-  writing that edit's filter set (`SidebarState.filterSet`).
+  edit belongs to the mode it started in (`EditorState.isViewer`) and keeps
+  writing that edit's filter set (`EditorState.filterSet`).
 - A viewer's own filter and a viewer's new one are on the temporary filters
   (`setDashboardTemporaryFilters`), new rules made `isTemporary` and through
   `getFilterRuleWithDisabledState(rule, false)`. A viewer's saved filter

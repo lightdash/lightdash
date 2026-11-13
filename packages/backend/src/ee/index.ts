@@ -70,6 +70,7 @@ import { ReleaseHighlightsModel } from './models/ReleaseHighlightsModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
 import { ScimRequestLogModel } from './models/ScimRequestLogModel';
+import { SemanticStudioWorkspaceModel } from './models/SemanticStudioWorkspaceModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { createLightdashPgWireHandlers } from './postgresWire/lightdashHandlers';
 import { PostgresWireServer } from './postgresWire/PostgresWireServer';
@@ -133,6 +134,7 @@ import { createPlaygroundAppFileStore } from './services/ProjectService/playgrou
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
 import { seedTrainingCopyAgentDocuments } from './services/ProjectService/seedPlaygroundAgentDocuments';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
+import { seedTrainingCopyDeepResearchDocument } from './services/ProjectService/seedPlaygroundDeepResearchDocument';
 import { seedPlaygroundMetricsTrees } from './services/ProjectService/seedPlaygroundMetricsTrees';
 import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/ReleaseHighlightsService';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
@@ -198,6 +200,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 context,
             }) =>
                 new AnalyticsProjectService({
+                    analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     getAiAgentService: () =>
@@ -427,6 +430,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectModelDocumentModel:
                         models.getProjectModelDocumentModel<ProjectModelDocumentModel>(),
+                    workspaceModel:
+                        models.getSemanticStudioWorkspaceModel<SemanticStudioWorkspaceModel>(),
                     projectService: repository.getProjectService(),
                     validationService: repository.getValidationService(),
                     repoModels: new RepoModelSource({
@@ -434,6 +439,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getGithubAppInstallationsModel(),
                     }),
                     savedChartModel: models.getSavedChartModel(),
+                    fileStorageClient: clients.getFileStorageClient(),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
                 new HomepageRecommendedActionSkipsService({
@@ -1072,8 +1078,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiModelCatalog,
                     }),
                 }),
-            schedulerAiAugmentationService: ({ models, repository }) =>
+            schedulerAiAugmentationService: ({ models, repository, context }) =>
                 new SchedulerAiAugmentationService({
+                    lightdashConfig: context.lightdashConfig,
                     agentPermissionService:
                         repository.getAgentPermissionService(),
                     featureFlagModel: models.getFeatureFlagModel(),
@@ -1407,13 +1414,34 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 }),
                             analytics: context.lightdashAnalytics,
                         }),
-                    seedTrainingCopyEnterpriseContent: (args) =>
-                        seedTrainingCopyAgentDocuments({
-                            ...args,
-                            aiAgentModel: models.getAiAgentModel(),
-                            aiAgentDocumentModel:
-                                models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
-                        }),
+                    seedTrainingCopyEnterpriseContent: async (args) => {
+                        // Each sample seeds on its own, so one failing still
+                        // leaves the other in the copy.
+                        const results = await Promise.allSettled([
+                            seedTrainingCopyAgentDocuments({
+                                ...args,
+                                aiAgentModel: models.getAiAgentModel(),
+                                aiAgentDocumentModel:
+                                    models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
+                            }),
+                            args.spaceUuid &&
+                                seedTrainingCopyDeepResearchDocument({
+                                    projectUuid: args.projectUuid,
+                                    spaceUuid: args.spaceUuid,
+                                    createdByUserUuid: args.createdByUserUuid,
+                                    documentModel: models.getDocumentModel(),
+                                    aiDeepResearchRunModel:
+                                        models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
+                                    aiAgentModel:
+                                        models.getAiAgentModel<AiAgentModel>(),
+                                }),
+                        ]);
+                        const failure = results.find(
+                            (result): result is PromiseRejectedResult =>
+                                result.status === 'rejected',
+                        );
+                        if (failure) throw failure.reason;
+                    },
                     provisionTrainingProject: ({ user, projectService }) =>
                         provisionTrainingProject({
                             user,
@@ -1752,6 +1780,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new HomepageRecommendedActionSkipsModel({ database }),
             projectModelDocumentModel: ({ database }) =>
                 new ProjectModelDocumentModel({ database }),
+            semanticStudioWorkspaceModel: ({ database }) =>
+                new SemanticStudioWorkspaceModel({ database }),
             aiAgentModel: ({ database, utils }) =>
                 new AiAgentModel({
                     database,

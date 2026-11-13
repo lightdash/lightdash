@@ -4,22 +4,22 @@ import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import filterClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
+import { useControlContractClasses } from './controlContractClasses';
 import { formatTilesOf } from './fieldLabels';
 import { focusOnMount, mappingRowMarker } from './mappingFocus';
 import classes from './MappingRow.module.css';
-import { useRailContractClasses } from './railContractClasses';
 
 // In the popover's place while a control's tiles are chosen, so an embed's
-// rail class goes with it. The popover that held focus is gone: the row
+// editor class goes with it. The popover that held focus is gone: the row
 // takes it, so Tab reaches the chips and Escape cancels from here
 export const MappingRowFrame: FC<{ children: ReactNode }> = ({ children }) => {
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     return (
         <Group
             className={
                 contractClasses === null
                     ? classes.row
-                    : `${classes.row} ${contractClasses.rail}`
+                    : `${classes.row} ${contractClasses.editor}`
             }
             gap="xs"
             tabIndex={-1}

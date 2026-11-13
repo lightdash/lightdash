@@ -81,6 +81,8 @@ export * from './compiler/queryParameterReferences';
 export * from './compiler/referenceLookup';
 export * from './compiler/translator';
 export * from './compiler/writebackColumn';
+export * from './composer/composerChart';
+export * from './composer/composerResultChart';
 export * from './parameters/dashboardParameterControls';
 export * from './parameters/dashboardTileParameters';
 export * from './parameters/parameterDefaults';

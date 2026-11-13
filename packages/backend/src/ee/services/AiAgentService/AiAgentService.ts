@@ -181,7 +181,9 @@ import {
     QuerySourceType,
     QuerySurface,
     ReadinessScore,
+    serializeDashboardDateZoomControlsForAiContext,
     serializeDashboardFiltersForAiContext,
+    serializeDashboardTileParametersForAiContext,
     ShareUrl,
     SlackPrompt,
     sleep,
@@ -709,7 +711,10 @@ import {
     WritebackAgentAccessError,
     WritebackThreadPrClosedError,
 } from '../AiWritebackService/errors';
-import type { AiWritebackSource } from '../AiWritebackService/types';
+import type {
+    AiWritebackSource,
+    ParsedDbtProject,
+} from '../AiWritebackService/types';
 import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writebackAgentWork';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
@@ -1665,7 +1670,7 @@ export class AiAgentService extends BaseService {
                     key = `preview_environment:${item.previewProjectUuid}`;
                     break;
                 case 'semantic_model':
-                    key = `semantic_model:${item.modelName}`;
+                    key = `semantic_model:${item.modelName}:${item.fieldName ?? ''}`;
                     break;
                 case 'data_app_element':
                     key = dataAppElementContextKey(item);
@@ -3583,7 +3588,11 @@ export class AiAgentService extends BaseService {
 
         let threadScope: EmbedThreadScope;
         if (!isReadOnly) {
-            threadScope = { type: 'writeSpaces', writeSpaceUuids };
+            threadScope = {
+                type: 'writeSpaces',
+                writeSpaceUuids,
+                externalUserId,
+            };
         } else if (externalUserId !== null) {
             threadScope = { type: 'externalUser', externalUserId };
         } else {
@@ -10899,6 +10908,7 @@ export class AiAgentService extends BaseService {
                         runtimeOptions?.userAttributeOverrides ?? {},
                     invalidateCache: false,
                     plans: {},
+                    binding: null,
                     // Re-renders stay unattributed: prompt ids mark tool runs only.
                     aiAttribution: null,
                 });
@@ -11588,6 +11598,7 @@ export class AiAgentService extends BaseService {
                             runtimeOptions?.userAttributeOverrides ?? {},
                         invalidateCache: false,
                         plans: {},
+                        binding: null,
                         // Re-renders stay unattributed: prompt ids mark tool runs only.
                         aiAttribution: null,
                     },
@@ -11706,6 +11717,7 @@ export class AiAgentService extends BaseService {
         } & (
             | { savedDashboardUuid: string | null }
             | { savedSqlUuid: string | null }
+            | { savedComposerChartUuid: string | null }
         ),
     ): Promise<void> {
         const { organizationUuid } = user;
@@ -11768,6 +11780,19 @@ export class AiAgentService extends BaseService {
         ) {
             throw new NotFoundError(
                 `Saved SQL chart not found in project: ${update.savedSqlUuid}`,
+            );
+        }
+
+        if (
+            'savedComposerChartUuid' in update &&
+            update.savedComposerChartUuid !== null &&
+            !(await this.aiAgentModel.isComposerChartInProject(
+                update.savedComposerChartUuid,
+                agent.projectUuid,
+            ))
+        ) {
+            throw new NotFoundError(
+                `Composer chart not found in project: ${update.savedComposerChartUuid}`,
             );
         }
 
@@ -12761,7 +12786,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
     }
 
     static createDeepResearchRunContext(
-        runs: AiDeepResearchRunContextRow[],
+        runs: Array<AiDeepResearchRunContextRow & { has_report: boolean }>,
         latestProgressEvents: DbAiDeepResearchEvent[],
         now = new Date(),
     ): AiAgentDeepResearchRunContext[] {
@@ -12801,9 +12826,9 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         });
     }
 
-    static selectDeepResearchContextRuns(
-        runs: AiDeepResearchRunContextRow[],
-    ): AiDeepResearchRunContextRow[] {
+    static selectDeepResearchContextRuns<T extends AiDeepResearchRunContextRow>(
+        runs: T[],
+    ): T[] {
         const activeRuns = runs.filter(
             ({ status }) => !isAiDeepResearchRunTerminal(status),
         );
@@ -13023,11 +13048,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                             `  Active tab: "${overrides.activeTab.name}"`,
                         );
                     }
+                    // With named zooms the dashboard-wide one needs its own name
+                    const dateZoomLabel = overrides.dateZoomControls
+                        ? 'default date zoom'
+                        : 'date zoom';
                     // Stated explicitly so a reset replaces overrides from earlier turns.
                     const savedState = [
                         !overrides.dashboardFilters && 'filters',
-                        !overrides.dashboardParameters && 'parameter values',
-                        overrides.dateZoom === undefined && 'date zoom',
+                        !overrides.dashboardParameters &&
+                            !overrides.tileParameters &&
+                            'parameter values',
+                        overrides.dateZoom === undefined && dateZoomLabel,
                     ].filter((label): label is string => !!label);
                     if (savedState.length > 0) {
                         overrideLines.push(
@@ -13046,7 +13077,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     }
                     if (overrides.dateZoom !== undefined) {
                         overrideLines.push(
-                            `  Date zoom: ${JSON.stringify(overrides.dateZoom)}`,
+                            `  ${overrides.dateZoomControls ? 'Default date zoom' : 'Date zoom'}: ${JSON.stringify(overrides.dateZoom)}`,
+                        );
+                    }
+                    if (overrides.tileParameters) {
+                        overrideLines.push(
+                            `  Parameter values by tile: ${JSON.stringify(serializeDashboardTileParametersForAiContext(overrides.tileParameters))}`,
+                        );
+                    }
+                    if (overrides.dateZoomControls) {
+                        overrideLines.push(
+                            `  Named date zooms, each setting the grain of its own tiles; the other tiles follow the default date zoom: ${JSON.stringify(serializeDashboardDateZoomControlsForAiContext(overrides.dateZoomControls))}`,
                         );
                     }
                     return overrideLines.length > 0
@@ -13126,8 +13167,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                 }
                 case 'semantic_model':
                     return item.fieldName
-                        ? `- The person has field "${item.fieldName}" of model "${item.modelName}" open.`
-                        : `- The person has model "${item.modelName}" open.`;
+                        ? `- The person is looking at field "${item.fieldName}" of model "${item.modelName}".`
+                        : `- The person is looking at model "${item.modelName}".`;
                 case 'preview_environment': {
                     const name = item.projectName
                         ? ` (${item.projectName})`
@@ -13843,8 +13884,24 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             toolResultReady = true;
 
             let result: AiWritebackRunResult;
+            let changedModels: string[] | null = null;
             try {
                 const runArgs = {
+                    ...(prompt.threadCreatedFrom === 'semantic_studio'
+                        ? {
+                              onDbtProject: async (
+                                  project: ParsedDbtProject,
+                              ) => {
+                                  changedModels =
+                                      await this.semanticStudioService.saveDbtTryOut(
+                                          user,
+                                          projectUuid,
+                                          project,
+                                          prompt.threadUuid,
+                                      );
+                              },
+                          }
+                        : {}),
                     agentPermissionsApply: true,
                     user,
                     projectUuid,
@@ -14026,6 +14083,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     deletions: result.deletions ?? null,
                     previewUrl: previewUrl ?? null,
                     steps: result.steps,
+                    changedModels,
                     needsDbtSourceSelection:
                         result.needsDbtSourceSelection ?? null,
                     dbtSourceOptions: result.dbtSourceOptions ?? null,
@@ -17508,11 +17566,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     AiAgentService.selectDeepResearchContextRuns(
                         threadDeepResearchRuns.map((run) => ({
                             ...run,
-                            has_report:
-                                run.has_report ||
-                                researchDocuments.has(
-                                    run.ai_deep_research_run_uuid,
-                                ),
+                            has_report: researchDocuments.has(
+                                run.ai_deep_research_run_uuid,
+                            ),
                         })),
                     );
                 const latestDeepResearchProgress =

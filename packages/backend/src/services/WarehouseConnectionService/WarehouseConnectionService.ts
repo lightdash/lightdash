@@ -920,11 +920,19 @@ export class WarehouseConnectionService extends BaseService {
                 (method === RequestMethod.CLI ||
                     method === RequestMethod.CLI_CI)
             ) {
+                const { enabled: inheritAcrossSnowflakeWarehouses } =
+                    await this.featureFlagService.get({
+                        user: { organizationUuid: project.organizationUuid },
+                        featureFlagId:
+                            FeatureFlags.PreviewInheritsAcrossWarehouses,
+                    });
+                const mergeOptions = { inheritAcrossSnowflakeWarehouses };
                 if (saved !== null) {
                     credentials =
                         mergeWarehouseCredentials<CreateWarehouseCredentialsWithOptionalSecrets>(
                             saved,
                             credentials,
+                            mergeOptions,
                         );
                 }
                 upstreamCredentials = await this.getUpstreamExtraCredentials(
@@ -937,6 +945,7 @@ export class WarehouseConnectionService extends BaseService {
                         mergeWarehouseCredentials<CreateWarehouseCredentialsWithOptionalSecrets>(
                             upstreamCredentials,
                             credentials,
+                            mergeOptions,
                         );
                 }
             }

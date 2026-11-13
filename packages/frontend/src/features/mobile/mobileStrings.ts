@@ -33,6 +33,8 @@ export const MOBILE_SIGN_IN_STRINGS = {
     newCode: 'Show a new code',
     anotherPhone: 'Sign in another phone',
     qrLabel: 'Sign-in QR code',
+    installHint:
+        'If you do not have the app, scan to open the store. Install the app, then scan again.',
     refreshed: 'New code',
     typeOnPhone: 'Type this number on your phone',
     cancel: 'Cancel',
@@ -85,6 +87,8 @@ export const MOBILE_SIGN_IN_STRINGS = {
 
 export const MOBILE_SIGN_IN_LANDING_STRINGS = {
     body: 'Open the Lightdash app on this phone, then scan the code again with your phone camera.',
+    cloudBody:
+        'Install the app on this phone, then scan the code again with your phone camera.',
 } as const;
 
 export const MOBILE_APP_SIGN_IN_STRINGS = {

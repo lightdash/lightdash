@@ -1,8 +1,17 @@
-import { type DashboardFilters } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    DateGranularity,
+    type AiDashboardRuntimeOverrides,
+    type DashboardFilters,
+    type DashboardParameterControl,
+    type DashboardTile,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import { getParameterControlInputs } from '../../../../features/dashboard/store/parameterControls';
 import { type LauncherCurrentDashboard } from './aiAgentLauncherSlice';
 import {
     addActiveTabToDashboardRuntimeOverrides,
+    addControlsToDashboardRuntimeOverrides,
     getCurrentDashboardPromptContext,
     getDashboardParametersValuesMap,
     getNonDefaultDashboardRuntimeOverrides,
@@ -246,5 +255,209 @@ describe('dashboard page context', () => {
                 projectUuid: 'project-1',
             }),
         ).toHaveLength(1);
+    });
+});
+
+const chartTile = (uuid: string, chartName: string): DashboardTile =>
+    ({
+        uuid,
+        type: DashboardTileTypes.SAVED_CHART,
+        properties: { savedChartUuid: `${uuid}-chart`, chartName },
+    }) as DashboardTile;
+
+const tiles = [
+    chartTile('tile-1', 'Revenue'),
+    chartTile('tile-2', 'Orders'),
+    {
+        uuid: 'tile-3',
+        type: DashboardTileTypes.MARKDOWN,
+        properties: { title: 'Notes', content: '' },
+    } as DashboardTile,
+];
+
+const regionControl = (
+    id: string,
+    value: string,
+    target: DashboardParameterControl['parameters'][string],
+): DashboardParameterControl => ({
+    id,
+    label: null,
+    value,
+    valueType: { type: 'string', multiple: false },
+    parameters: { region: target },
+});
+
+const withoutControls = {
+    tiles,
+    dateZoomConfig: { controls: [], tileTargets: {} },
+    controlGranularities: {},
+    parameterControlInputs: null,
+    parameterControls: null,
+    tileParameterReferences: {},
+};
+
+describe('addControlsToDashboardRuntimeOverrides', () => {
+    it('sends the payload unchanged without named zooms or parameter controls', () => {
+        const runtimeOverrides: AiDashboardRuntimeOverrides = {
+            activeTab: { uuid: 'tab-1', name: 'Overview' },
+            dashboardParameters: { region: 'EU' },
+            dateZoom: { granularity: DateGranularity.WEEK },
+        };
+
+        expect(
+            addControlsToDashboardRuntimeOverrides({
+                ...withoutControls,
+                runtimeOverrides,
+            }),
+        ).toBe(runtimeOverrides);
+        expect(
+            addControlsToDashboardRuntimeOverrides({
+                ...withoutControls,
+                runtimeOverrides: null,
+            }),
+        ).toBeNull();
+    });
+
+    it('sends each named zoom with its current grain and tiles', () => {
+        expect(
+            addControlsToDashboardRuntimeOverrides({
+                ...withoutControls,
+                runtimeOverrides: null,
+                dateZoomConfig: {
+                    controls: [
+                        {
+                            uuid: 'zoom-1',
+                            name: 'Revenue zoom',
+                            granularity: DateGranularity.MONTH,
+                        },
+                    ],
+                    tileTargets: {
+                        'tile-1': {
+                            controlUuid: 'zoom-1',
+                            fieldId: 'orders.date',
+                            tableName: 'orders',
+                        },
+                    },
+                },
+                controlGranularities: { 'zoom-1': DateGranularity.WEEK },
+            }),
+        ).toEqual({
+            dateZoomControls: [
+                {
+                    uuid: 'zoom-1',
+                    name: 'Revenue zoom',
+                    granularity: DateGranularity.WEEK,
+                    isViewerPick: true,
+                    tiles: [{ uuid: 'tile-1', name: 'Revenue' }],
+                },
+            ],
+        });
+    });
+
+    const tileParameterReferences = {
+        'tile-1': ['region'],
+        'tile-2': ['region'],
+    };
+    const withParameterControls = (
+        parameterControls: DashboardParameterControl[],
+        controlPicks: Record<string, string>,
+    ) => ({
+        ...withoutControls,
+        runtimeOverrides: null,
+        parameterControls,
+        parameterControlInputs: getParameterControlInputs(
+            parameterControls,
+            {},
+            ['region'],
+            controlPicks,
+        ),
+        tileParameterReferences,
+    });
+
+    it('sends nothing for parameter controls the viewer has not picked on', () => {
+        expect(
+            addControlsToDashboardRuntimeOverrides(
+                withParameterControls(
+                    [
+                        regionControl('control-1', 'US', { only: ['tile-2'] }),
+                        regionControl('control-2', 'EU', 'all'),
+                    ],
+                    {},
+                ),
+            ),
+        ).toBeNull();
+    });
+
+    it("sends a pick that sets every tile alike, which the dashboard's parameters do not hold", () => {
+        expect(
+            addControlsToDashboardRuntimeOverrides(
+                withParameterControls(
+                    [regionControl('control-1', 'EU', 'all')],
+                    { 'control-1': 'US' },
+                ),
+            ),
+        ).toEqual({
+            tileParameters: [
+                {
+                    tile: { uuid: 'tile-1', name: 'Revenue' },
+                    parameters: { region: 'US' },
+                },
+                {
+                    tile: { uuid: 'tile-2', name: 'Orders' },
+                    parameters: { region: 'US' },
+                },
+            ],
+        });
+    });
+
+    it('leaves a picked value off tiles that do not use the parameter, and keeps it on tiles not yet loaded', () => {
+        const inputs = withParameterControls(
+            [regionControl('control-1', 'EU', 'all')],
+            { 'control-1': 'US' },
+        );
+        expect(
+            addControlsToDashboardRuntimeOverrides({
+                ...inputs,
+                tileParameterReferences: { 'tile-1': ['region'], 'tile-2': [] },
+            }),
+        ).toEqual({
+            tileParameters: [
+                {
+                    tile: { uuid: 'tile-1', name: 'Revenue' },
+                    parameters: { region: 'US' },
+                },
+            ],
+        });
+        expect(
+            addControlsToDashboardRuntimeOverrides({
+                ...inputs,
+                tileParameterReferences: { 'tile-1': ['region'] },
+            })?.tileParameters,
+        ).toHaveLength(2);
+    });
+
+    it('sends the values each tile runs with after a pick on a scoped control', () => {
+        expect(
+            addControlsToDashboardRuntimeOverrides(
+                withParameterControls(
+                    [
+                        regionControl('control-1', 'US', { only: ['tile-2'] }),
+                        regionControl('control-2', 'EU', 'all'),
+                    ],
+                    { 'control-1': 'APAC' },
+                ),
+            ),
+        ).toEqual({
+            tileParameters: [
+                {
+                    tile: { uuid: 'tile-1', name: 'Revenue' },
+                    parameters: { region: 'EU' },
+                },
+                {
+                    tile: { uuid: 'tile-2', name: 'Orders' },
+                    parameters: { region: 'APAC' },
+                },
+            ],
+        });
     });
 });

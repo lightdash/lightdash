@@ -1770,7 +1770,7 @@ export class ExternalConnectionService extends BaseService {
             return suggestion;
         }
         if (getExplorePrefixError(prefix)) {
-            throw new ParameterError(`Invalid Source ID: ${error}`);
+            throw new ParameterError(`Invalid explore prefix: ${error}`);
         }
         throw new AlreadyExistsError(
             suggestion ? `${error}. Try "${suggestion}".` : `${error}.`,

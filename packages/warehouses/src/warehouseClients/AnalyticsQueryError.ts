@@ -1,5 +1,11 @@
 import { WarehouseQueryError } from '@lightdash/common';
 
+export class AnalyticsQueryCancelledError extends Error {
+    constructor() {
+        super('Analytics query was cancelled while waiting for capacity.');
+    }
+}
+
 const messages = {
     sql_parser_error:
         'The analytics query contains malformed SQL. Check any custom column expressions.',

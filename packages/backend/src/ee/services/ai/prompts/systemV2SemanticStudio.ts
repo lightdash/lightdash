@@ -70,6 +70,34 @@ ${REPLY_RULES}
 - A metric reads only columns of its own model. A join belongs on the model it starts from, and its relationship is measured for you.
 - A dimension reads one row. Logic that needs several rows to work out a row's value goes in a derived model whose sql_from is one SELECT in this warehouse's dialect.`;
 
+type SemanticStudioWarehouse = { type: string | null; schema: string | null };
+
+const getWarehouseIntro = ({ type, schema }: SemanticStudioWarehouse): string =>
+    type
+        ? `This project's warehouse is ${type}${schema ? `, default schema ${schema}` : ''}. `
+        : '';
+
+const getDraftWarehouseSection = (
+    warehouse: SemanticStudioWarehouse | null,
+): string =>
+    warehouse
+        ? `## Warehouse\n\n${getWarehouseIntro(warehouse)}Write every sql, sql_on and sql_from in the warehouse's dialect. Find tables with listWarehouseTables. Before modelling a table that is new to the layer, read its columns with describeWarehouseTable and type each dimension from them. Use runSql only to check real values, such as whether a key is unique.`
+        : "## Warehouse\n\nYou cannot query this project's warehouse in this thread, so you cannot look up tables or columns. Ask the person for a table's name and columns before modelling it.";
+
+/** A dbt thread that can run SQL grounds what it suggests in the model's real values. */
+const getDbtWarehouseSection = (warehouse: SemanticStudioWarehouse): string =>
+    `## Warehouse
+
+${getWarehouseIntro(warehouse)}Write every sql in the warehouse's dialect.
+- Before you suggest a new metric or dimension, or answer what is worth adding to a model, look at the model's real values with runSql: the distinct values of a column a metric would filter on, how often a column it reads is null, whether its key is unique. Names alone can suggest a filter on a value that never occurs.
+- Every runSql call costs the person an approval click and warehouse time. Make one call that checks every column at once, not one call per column, and a second only when the first leaves the suggestion open. Each query reads a bounded sample rather than the whole table, in this shape:
+\`\`\`sql
+SELECT <filter column>, COUNT(*) AS row_count, COUNT(<measure column>) AS non_null, COUNT(DISTINCT <key>) AS keys
+FROM (SELECT <the columns you need> FROM <table> LIMIT 10000) AS sample
+GROUP BY 1
+\`\`\`
+- Say in one line what the data showed, as one of your sentences outside a diff.`;
+
 export const getSemanticStudioSystemPrompt = ({
     agentName,
     date,
@@ -86,20 +114,21 @@ export const getSemanticStudioSystemPrompt = ({
     /** Null when the project has none. */
     projectContext: string | null;
     /** Null when the person cannot run SQL, so the agent cannot look at tables. */
-    warehouse: { type: string | null; schema: string | null } | null;
+    warehouse: SemanticStudioWarehouse | null;
     /** Set on a dbt project, which keeps no draft; null for a project that does. */
     dbt: SemanticStudioDbtTurn | null;
 }): string =>
     [
         `You are ${agentName}, working beside a person in Semantic Studio, the page where they read and change this project's semantic layer. You help them understand a model and change it. Today is ${date}.`,
         ...(dbt
-            ? getDbtSections(dbt)
-            : [
-                  getDraftSections(),
-                  warehouse
-                      ? `## Warehouse\n\n${warehouse.type ? `This project's warehouse is ${warehouse.type}${warehouse.schema ? `, default schema ${warehouse.schema}` : ''}. ` : ''}Write every sql, sql_on and sql_from in the warehouse's dialect. Find tables with listWarehouseTables. Before modelling a table that is new to the layer, read its columns with describeWarehouseTable and type each dimension from them. Use runSql only to check real values, such as whether a key is unique.`
-                      : "## Warehouse\n\nYou cannot query this project's warehouse in this thread, so you cannot look up tables or columns. Ask the person for a table's name and columns before modelling it.",
-              ]),
+            ? [
+                  ...getDbtSections(dbt),
+                  // The turn that opens the pull request repeats the last proposal, so it has nothing to check.
+                  warehouse && !dbt.opensPullRequest
+                      ? getDbtWarehouseSection(warehouse)
+                      : '',
+              ]
+            : [getDraftSections(), getDraftWarehouseSection(warehouse)]),
         instructions,
         `## Available explores\n${availableExplores}`,
         projectContext ? `## Project context\n${projectContext}` : '',

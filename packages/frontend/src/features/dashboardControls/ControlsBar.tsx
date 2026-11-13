@@ -18,7 +18,7 @@ import { ParameterMappingRow } from './ParameterMappingRow';
 import { ParameterPills } from './ParameterPills';
 import { SectionedFilters } from './SectionedFilters';
 import { SettledFilterFields } from './SettledFilterFields';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { useParameterEditorSelector } from './useParameterEditor';
 
@@ -31,7 +31,7 @@ type Props = Omit<
 
 // The shipped bar with its filter area swapped, in edit and view mode alike
 export const ControlsBar: FC<Props> = (props) => {
-    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    const isEditorOpen = useControlsEditorSelector((c) => c.isEditorOpen);
     // Sections or a stored order need the sectioned bar; else a viewer's is flat
     const hasSections = useDashboardSelector(
         (state) =>
@@ -47,8 +47,8 @@ export const ControlsBar: FC<Props> = (props) => {
             }
             // Parameters are controls on this bar, after the filters; none until they are built
             parameters={NO_PARAMETERS}
-            // The rail is on the page: a drawer over it would hide it
-            isCompactDrawerSuppressed={isSidebarOpen}
+            // The bar is on the page: a drawer over it would hide it
+            isCompactDrawerSuppressed={isEditorOpen}
             // The flat bar's items share each line's centre with the
             // 30px funnel; the sectioned flow centres its own lines
             filtersAlign={
@@ -102,7 +102,7 @@ export const ControlsBar: FC<Props> = (props) => {
 // place. The filter row stays mounted, faded, inert and out of the layout,
 // so the bar shrinks to one line and the row comes back at once
 export const MappingSwap: FC<{ children: ReactNode }> = ({ children }) => {
-    const isFilterMapping = useControlsSidebarSelector((c) => c.isMapping);
+    const isFilterMapping = useControlsEditorSelector((c) => c.isMapping);
     const isParameterMapping = useParameterEditorSelector((c) => c.isMapping);
     const isDateZoomMapping = useDateZoomEditorSelector((c) => c.isMapping);
     const isMapping =

@@ -1192,14 +1192,15 @@ export class SavedChartService
         if (
             merge &&
             !isEqual(merge, existingChart.merge) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('MergeQuery', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { savedChartUuid },
-                }),
-            )
+            (!this.lightdashConfig.mergeQueryAuthoring.enabled ||
+                auditedAbility.cannot(
+                    'manage',
+                    subject('MergeQuery', {
+                        organizationUuid,
+                        projectUuid,
+                        metadata: { savedChartUuid },
+                    }),
+                ))
         ) {
             throw new ForbiddenError(
                 'User cannot save charts with a new or modified merge',
@@ -2447,13 +2448,14 @@ export class SavedChartService
 
         if (
             chartToSave.merge &&
-            auditedAbility.cannot(
-                'manage',
-                subject('MergeQuery', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
+            (!this.lightdashConfig.mergeQueryAuthoring.enabled ||
+                auditedAbility.cannot(
+                    'manage',
+                    subject('MergeQuery', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                ))
         ) {
             throw new ForbiddenError('User cannot save merged charts');
         }

@@ -220,6 +220,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         pollInterval: 1000,
         jobTimeout: 0,
+        queryPollingTimeout: 5 * 60 * 1000,
         shutdownTimeout: 60_000,
         tasks: ALL_TASK_NAMES,
         quiesce: {
@@ -470,6 +471,9 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     dashboardComments: {
+        enabled: true,
+    },
+    mergeQueryAuthoring: {
         enabled: true,
     },
     externalSources: {

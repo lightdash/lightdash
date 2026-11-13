@@ -6463,7 +6463,8 @@
                     "markdown",
                     "loom",
                     "heading",
-                    "data_app"
+                    "data_app",
+                    "composer_chart"
                 ],
                 "type": "string"
             },
@@ -7151,22 +7152,22 @@
                 ],
                 "type": "object"
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--config_63__58__controlSections_63__58__name-string_-Array-or-undefined_-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -9814,7 +9815,7 @@
                 "properties": {
                     "collapsed": {
                         "type": "boolean",
-                        "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section"
+                        "description": "Starts folded in the editor and on the bar; absent, the bar folds only a dense section"
                     },
                     "name": {
                         "type": "string"
@@ -10286,6 +10287,49 @@
                     }
                 ]
             },
+            "DashboardTileTypes.COMPOSER_CHART": {
+                "enum": ["composer_chart"],
+                "type": "string"
+            },
+            "DashboardComposerChartTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "chartName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "composerChartUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "hideTitle": {
+                                "type": "boolean"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["chartName", "composerChartUuid"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.COMPOSER_CHART"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardComposerChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardComposerChartTileProperties"
+                    }
+                ]
+            },
             "DashboardTile": {
                 "anyOf": [
                     {
@@ -10305,6 +10349,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardDataAppTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardComposerChartTile"
                     }
                 ]
             },
@@ -18020,7 +18067,7 @@
                         "properties": {
                             "externalId": {
                                 "type": "string",
-                                "description": "Must be unique per viewer within the organization: it owns the threads of read-only AI agent tokens."
+                                "description": "Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts."
                             },
                             "email": {
                                 "type": "string"
@@ -23687,6 +23734,12 @@
             },
             "AppStateSnapshot": {
                 "properties": {
+                    "sharedAccess": {
+                        "type": "string",
+                        "enum": ["none"],
+                        "nullable": false,
+                        "description": "`none` when this viewer can neither read nor write shared values.\nAbsent means full access."
+                    },
                     "shared": {
                         "$ref": "#/components/schemas/Record_string.AppStateSharedEntry_"
                     },
@@ -27100,6 +27153,42 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AnalyticsProjectView": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "projectUuid": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/UUID"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "source": {
+                                "type": "string",
+                                "enum": ["settings"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["projectUuid", "source"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "projectUuid": {
+                                "$ref": "#/components/schemas/UUID"
+                            },
+                            "source": {
+                                "type": "string",
+                                "enum": ["homepage", "project"]
+                            }
+                        },
+                        "required": ["projectUuid", "source"],
+                        "type": "object"
+                    }
+                ]
+            },
             "EnsureAnalyticsProjectResult": {
                 "properties": {
                     "created": {
@@ -27506,8 +27595,85 @@
                 "required": ["tableCalculations", "metrics", "dimensions"],
                 "type": "object"
             },
+            "AiDashboardTileRef": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
+            "AiDashboardDateZoomControl": {
+                "properties": {
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardTileRef"
+                        },
+                        "type": "array"
+                    },
+                    "isViewerPick": {
+                        "type": "boolean",
+                        "description": "False: the saved grain when the context was attached, which the saved config supersedes"
+                    },
+                    "granularity": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DateGranularity"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "description": "The viewer's pick, else the control's saved grain"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "tiles",
+                    "isViewerPick",
+                    "granularity",
+                    "name",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "AiDashboardTileParameters": {
+                "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "tile": {
+                        "$ref": "#/components/schemas/AiDashboardTileRef"
+                    }
+                },
+                "required": ["parameters", "tile"],
+                "type": "object"
+            },
             "AiDashboardRuntimeOverrides": {
                 "properties": {
+                    "tileParameters": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardTileParameters"
+                        },
+                        "type": "array",
+                        "description": "The values each tile runs with; present only when the viewer's picks on parameter controls change them"
+                    },
+                    "dateZoomControls": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDashboardDateZoomControl"
+                        },
+                        "type": "array",
+                        "description": "Every named date zoom on the dashboard; absent when it has none"
+                    },
                     "dateZoom": {
                         "allOf": [
                             {
@@ -37832,6 +37998,13 @@
                                                                 "type": "boolean",
                                                                 "nullable": true
                                                             },
+                                                            "changedModels": {
+                                                                "items": {
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "array",
+                                                                "nullable": true
+                                                            },
                                                             "steps": {
                                                                 "items": {
                                                                     "properties": {
@@ -40655,6 +40828,15 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "savedComposerChartUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null when unsaved or the composer chart was deleted."
+                    },
+                    "savedComposerChartDashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "versionCreatedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -40682,6 +40864,8 @@
                     "savedQueryUuid",
                     "savedSqlUuid",
                     "savedDashboardUuid",
+                    "savedComposerChartUuid",
+                    "savedComposerChartDashboardUuid",
                     "versionCreatedAt",
                     "verifiedByUserUuid",
                     "verifiedAt"
@@ -41586,6 +41770,209 @@
             "ApiSemanticLayerStatusResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerStatus_"
             },
+            "SemanticLayerStoredModels": {
+                "properties": {
+                    "models": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["models"],
+                "type": "object",
+                "description": "The models whose YAML the project keeps, as opposed to ones deployed from elsewhere."
+            },
+            "ApiSuccess_SemanticLayerStoredModels_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerStoredModels"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticLayerStoredModelsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerStoredModels_"
+            },
+            "SemanticStudioWorkspacePullRequestState": {
+                "type": "string",
+                "enum": ["open", "merged", "closed"]
+            },
+            "SemanticStudioWorkspace": {
+                "properties": {
+                    "finishedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "pullRequest": {
+                        "properties": {
+                            "state": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/SemanticStudioWorkspacePullRequestState"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "url": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["state", "url"],
+                        "type": "object",
+                        "nullable": true,
+                        "description": "The latest pull request its conversation opened, with its state when last checked."
+                    },
+                    "isActive": {
+                        "type": "boolean",
+                        "description": "The one your chat writes to and your development view reads."
+                    },
+                    "isMine": {
+                        "type": "boolean"
+                    },
+                    "owner": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "userUuid"],
+                        "type": "object"
+                    },
+                    "agentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "workspaceUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "finishedAt",
+                    "updatedAt",
+                    "createdAt",
+                    "pullRequest",
+                    "isActive",
+                    "isMine",
+                    "owner",
+                    "agentUuid",
+                    "threadUuid",
+                    "name",
+                    "projectUuid",
+                    "workspaceUuid"
+                ],
+                "type": "object",
+                "description": "One piece of Studio work from its first proposed change until it is live or discarded."
+            },
+            "SemanticStudioWorkspaces": {
+                "properties": {
+                    "recent": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticStudioWorkspace"
+                        },
+                        "type": "array",
+                        "description": "Your workspaces finished in the last two weeks, newest first."
+                    },
+                    "others": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticStudioWorkspace"
+                        },
+                        "type": "array",
+                        "description": "Others' unfinished workspaces in this project, to be aware of."
+                    },
+                    "mine": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticStudioWorkspace"
+                        },
+                        "type": "array",
+                        "description": "Your unfinished workspaces, the active one first."
+                    }
+                },
+                "required": ["recent", "others", "mine"],
+                "type": "object"
+            },
+            "ApiSuccess_SemanticStudioWorkspaces_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticStudioWorkspaces"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioWorkspacesResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioWorkspaces_"
+            },
+            "ApiSuccess_SemanticStudioWorkspace_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticStudioWorkspace"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSemanticStudioWorkspaceResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticStudioWorkspace_"
+            },
+            "SemanticStudioWorkspaceStartBody": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "threadUuid"],
+                "type": "object"
+            },
+            "SemanticStudioWorkspaceRenameBody": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object"
+            },
             "SemanticLayerChangeSource": {
                 "type": "string",
                 "enum": ["draft", "undo"]
@@ -42260,6 +42647,38 @@
             "ApiSemanticLayerDraftUsageResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_SemanticLayerDraftUsage_"
             },
+            "SemanticLayerTouchedField": {
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": ["changed", "removed"]
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    }
+                },
+                "required": ["kind", "label", "fieldId", "model"],
+                "type": "object",
+                "description": "A field a change redefines or removes, to look up in saved content."
+            },
+            "SemanticLayerFieldUsageBody": {
+                "properties": {
+                    "fields": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerTouchedField"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["fields"],
+                "type": "object"
+            },
             "SemanticLayerDraftApplyResult": {
                 "properties": {
                     "pullRequestUrl": {
@@ -42610,6 +43029,7 @@
                 "enum": [
                     "non_chart_tile",
                     "sql_chart",
+                    "composer_chart",
                     "orphaned_chart",
                     "explore_resolution_error"
                 ],
@@ -46591,22 +47011,6 @@
                         "nullable": true,
                         "description": "Null until the report is published as a Document."
                     },
-                    "isReportExpired": {
-                        "type": "boolean"
-                    },
-                    "reportExpiredAt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "reportExpiresAt": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "resultMarkdown": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "The report narrative with compact <chart> references."
-                    },
                     "terminalReason": {
                         "allOf": [
                             {
@@ -46655,10 +47059,6 @@
                     "executionContextSnapshot",
                     "budget",
                     "document",
-                    "isReportExpired",
-                    "reportExpiredAt",
-                    "reportExpiresAt",
-                    "resultMarkdown",
                     "terminalReason",
                     "status",
                     "prompt",
@@ -46743,141 +47143,6 @@
             },
             "ApiAiDeepResearchRunListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun-Array_"
-            },
-            "AiDeepResearchChartConfig": {
-                "properties": {
-                    "secondaryYAxisLabel": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "secondaryYAxisMetric": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "yAxisLabel": {
-                        "type": "string"
-                    },
-                    "xAxisLabel": {
-                        "type": "string"
-                    },
-                    "funnelDataInput": {
-                        "type": "string",
-                        "enum": ["row", "column", null],
-                        "nullable": true
-                    },
-                    "lineType": {
-                        "type": "string",
-                        "enum": ["line", "area", null],
-                        "nullable": true
-                    },
-                    "stackBars": {
-                        "type": "boolean",
-                        "nullable": true
-                    },
-                    "xAxisType": {
-                        "type": "string",
-                        "enum": ["category", "time", null],
-                        "nullable": true
-                    },
-                    "groupBy": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "yAxisMetrics": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "xAxisDimension": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "defaultVizType": {
-                        "type": "string",
-                        "enum": [
-                            "table",
-                            "bar",
-                            "horizontal",
-                            "line",
-                            "scatter",
-                            "pie",
-                            "funnel"
-                        ]
-                    }
-                },
-                "required": [
-                    "secondaryYAxisLabel",
-                    "secondaryYAxisMetric",
-                    "yAxisLabel",
-                    "xAxisLabel",
-                    "funnelDataInput",
-                    "lineType",
-                    "stackBars",
-                    "xAxisType",
-                    "groupBy",
-                    "yAxisMetrics",
-                    "xAxisDimension",
-                    "defaultVizType"
-                ],
-                "type": "object"
-            },
-            "AiDeepResearchChartData": {
-                "properties": {
-                    "fields": {
-                        "$ref": "#/components/schemas/ItemsMap",
-                        "description": "Selected + filter fields; drives labels and value formatting."
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery"
-                    },
-                    "queryUuid": {
-                        "type": "string",
-                        "description": "The verified execution this chart is evidence of."
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/AiDeepResearchChartConfig"
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "type": "string",
-                        "enum": ["warehouse"],
-                        "nullable": false
-                    }
-                },
-                "required": [
-                    "fields",
-                    "metricQuery",
-                    "queryUuid",
-                    "chartConfig",
-                    "title",
-                    "source"
-                ],
-                "type": "object",
-                "description": "Everything the UI needs to render one report chart. Derived on demand from\nthe execution the chart references; the markdown only carries compact\n<chart> references."
-            },
-            "ApiSuccess_AiDeepResearchChartData_": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AiDeepResearchChartData"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiDeepResearchChartResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchChartData_"
             },
             "Record_string.never_": {
                 "properties": {},
@@ -59624,7 +59889,6 @@
                     "cleanRateCounters",
                     "rebuildOutdatedApiSourceExplores",
                     "cleanDataAppAnalyses",
-                    "cleanAiDeepResearchReports",
                     "cleanAiAgentThreads",
                     "cleanScimRequestLogs",
                     "cleanAppStateHistory",
@@ -63094,6 +63358,16 @@
                     }
                 ]
             },
+            "CreateDashboardComposerChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardComposerChartTileProperties"
+                    }
+                ]
+            },
             "Pick_UpdatedByUser.userUuid_": {
                 "properties": {
                     "userUuid": {
@@ -63162,6 +63436,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CreateDashboardDataAppTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardComposerChartTile"
                                 }
                             ]
                         },
@@ -75037,6 +75314,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CreateDashboardDataAppTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardComposerChartTile"
                                 }
                             ]
                         },
@@ -77229,6 +77509,426 @@
                 "required": ["item"],
                 "type": "object"
             },
+            "StoredNode_SemanticLayerSourceQuery_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerSourceQuery"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "StoredNode_SqlSourceQuery_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SqlSourceQuery"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "StoredNode_DuckdbSourceQuery_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DuckdbSourceQuery"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Pick_PythonSourceQuery.Exclude_keyofPythonSourceQuery.pivotConfiguration__": {
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Maximum rows kept from the returned DataFrame."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.PYTHON"
+                    },
+                    "nodeId": {
+                        "type": "string",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "references": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "description": "Which query results the code reads, in the same two forms as duckdb\nreferences. Shorthand array: node ids of queries in the same\nsubmission, each exposed as inputs[nodeId]. Map form for aliasing or\nexisting results: {inputName: nodeIdOrQueryUuid}. At least one is\nrequired."
+                    }
+                },
+                "required": ["code", "sourceType", "references"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_PythonSourceQuery.pivotConfiguration_": {
+                "$ref": "#/components/schemas/Pick_PythonSourceQuery.Exclude_keyofPythonSourceQuery.pivotConfiguration__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "StoredNode_Omit_PythonSourceQuery.pivotConfiguration__": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_PythonSourceQuery.pivotConfiguration_"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Pick_MergeSourceQuery.Exclude_keyofMergeSourceQuery.pivotConfiguration__": {
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array",
+                        "description": "Sort of the merged result, by merged column id. Defaults to join-key order."
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Calculations over the merged row. Defaults to none."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.MERGE"
+                    },
+                    "nodeId": {
+                        "type": "string",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeSourceQueryInput"
+                        },
+                        "type": "array",
+                        "description": "At least two semanticLayer nodes, in order; a left join keeps the first one's rows."
+                    },
+                    "joinKey": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
+                        },
+                        "type": "array",
+                        "description": "Join key parts, each naming one field per source by node id."
+                    },
+                    "joinType": {
+                        "$ref": "#/components/schemas/MergeJoinType"
+                    }
+                },
+                "required": ["sourceType", "sources", "joinKey", "joinType"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_MergeSourceQuery.pivotConfiguration_": {
+                "$ref": "#/components/schemas/Pick_MergeSourceQuery.Exclude_keyofMergeSourceQuery.pivotConfiguration__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "StoredNode_Omit_MergeSourceQuery.pivotConfiguration__": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_MergeSourceQuery.pivotConfiguration_"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ComposerChartPipelineNode": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/StoredNode_SemanticLayerSourceQuery_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StoredNode_SqlSourceQuery_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StoredNode_DuckdbSourceQuery_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StoredNode_Omit_PythonSourceQuery.pivotConfiguration__"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StoredNode_Omit_MergeSourceQuery.pivotConfiguration__"
+                    }
+                ],
+                "description": "A node of a stored composer chart pipeline; kinds a dashboard viewer can run."
+            },
+            "ComposerChartPipeline": {
+                "properties": {
+                    "nodes": {
+                        "items": {
+                            "$ref": "#/components/schemas/ComposerChartPipelineNode"
+                        },
+                        "type": "array"
+                    },
+                    "terminalNodeId": {
+                        "type": "string"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": ["nodes", "terminalNodeId", "schemaVersion"],
+                "type": "object"
+            },
+            "ComposerChartColumn": {
+                "properties": {
+                    "fieldType": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FieldType.DIMENSION"
+                            },
+                            {
+                                "$ref": "#/components/schemas/FieldType.METRIC"
+                            }
+                        ]
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldType", "reference"],
+                "type": "object"
+            },
+            "ComposerStoredChart": {
+                "properties": {
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ComposerChartColumn"
+                        },
+                        "type": "array"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "tableConfig",
+                    "pivotConfig",
+                    "chartConfig",
+                    "columns",
+                    "schemaVersion"
+                ],
+                "type": "object"
+            },
+            "ComposerChart": {
+                "properties": {
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "chart": {
+                        "$ref": "#/components/schemas/ComposerStoredChart"
+                    },
+                    "pipeline": {
+                        "$ref": "#/components/schemas/ComposerChartPipeline"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedByUserUuid",
+                    "updatedAt",
+                    "chart",
+                    "pipeline",
+                    "versionUuid",
+                    "createdByUserUuid",
+                    "createdAt",
+                    "slug",
+                    "description",
+                    "name",
+                    "dashboardUuid",
+                    "projectUuid",
+                    "uuid"
+                ],
+                "type": "object",
+                "description": "A composer chart and its current version."
+            },
+            "ApiComposerChartResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ComposerChart"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateComposerChart": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/ComposerStoredChart"
+                    },
+                    "pipeline": {
+                        "$ref": "#/components/schemas/ComposerChartPipeline"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["chart", "pipeline", "name", "dashboardUuid"],
+                "type": "object"
+            },
             "KnexPaginatedData_CatalogField-Array_": {
                 "properties": {
                     "pagination": {
@@ -78356,7 +79056,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.234.5",
+        "version": "3.254.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -85026,6 +85726,48 @@
                 "parameters": []
             }
         },
+        "/api/v1/org/analytics-project/view": {
+            "post": {
+                "operationId": "TrackAnalyticsProjectView",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Record an authenticated analytics visit and its source.",
+                "summary": "Track analytics visit",
+                "tags": ["Analytics project"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AnalyticsProjectView"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/org/analytics-project/sample-content": {
             "post": {
                 "operationId": "InstallAnalyticsSampleContent",
@@ -91569,6 +92311,89 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/savedComposerChart": {
+            "patch": {
+                "operationId": "updateArtifactVersionSavedComposerChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "artifactUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "versionUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "savedComposerChartUuid": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/UUID"
+                                            }
+                                        ],
+                                        "nullable": true
+                                    }
+                                },
+                                "required": ["savedComposerChartUuid"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/verified": {
             "patch": {
                 "operationId": "setArtifactVersionVerified",
@@ -92336,6 +93161,382 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/semantic-studio/models": {
+            "get": {
+                "operationId": "getSemanticLayerStoredModels",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerStoredModelsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The names of the models whose YAML the project keeps.",
+                "summary": "List stored semantic layer models",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/workspaces": {
+            "get": {
+                "operationId": "listSemanticStudioWorkspaces",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioWorkspacesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Studio work in this project: yours in flight, others' in flight, and yours finished lately.",
+                "summary": "List Semantic Studio workspaces",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "startSemanticStudioWorkspace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioWorkspaceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Makes a Studio conversation's workspace your active one, starting it when it has none.",
+                "summary": "Start a Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SemanticStudioWorkspaceStartBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/workspaces/leave": {
+            "post": {
+                "operationId": "leaveSemanticStudioWorkspace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Leaves your active workspace, so your next conversation starts a new one.",
+                "summary": "Leave my Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}": {
+            "get": {
+                "operationId": "getSemanticStudioWorkspace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioWorkspaceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "One workspace in this project.",
+                "summary": "Get a Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "workspaceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "renameSemanticStudioWorkspace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioWorkspaceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Renames one of your workspaces.",
+                "summary": "Rename a Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "workspaceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SemanticStudioWorkspaceRenameBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}/activate": {
+            "post": {
+                "operationId": "activateSemanticStudioWorkspace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticStudioWorkspaceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Makes one of your workspaces the active one.",
+                "summary": "Switch to a Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "workspaceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/workspaces/{workspaceUuid}/finish": {
+            "post": {
+                "operationId": "finishSemanticStudioWorkspace",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Ends one of your workspaces after its changes were discarded; it stays as history.",
+                "summary": "Finish a Semantic Studio workspace",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "workspaceUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/semantic-studio/models/{modelName}": {
             "get": {
                 "operationId": "getSemanticLayerModel",
@@ -92633,6 +93834,57 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/semantic-studio/field-usage": {
+            "post": {
+                "operationId": "getSemanticLayerFieldUsage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSemanticLayerDraftUsageResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Saved charts and dashboards that read any of the given fields, which a pull request defines differently or removes.",
+                "summary": "Get the saved content that reads changed fields",
+                "tags": ["Semantic Studio"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SemanticLayerFieldUsageBody"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/semantic-studio/draft/usage": {
@@ -96339,190 +97591,6 @@
                     {
                         "in": "path",
                         "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{chartKey}/refresh": {
-            "post": {
-                "operationId": "refreshAiDeepResearchChart",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiAgentThreadMessageVizQueryResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Re-execute the metric query behind a warehouse-backed report chart to\nload its live results.",
-                "summary": "Refresh Deep Research chart",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "chartKey",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/queries/{queryUuid}/results": {
-            "get": {
-                "operationId": "getDeepResearchChartQueryResults",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiGetAsyncQueryResultsResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "queryUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "page",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "pageSize",
-                        "required": false,
-                        "schema": {
-                            "format": "double",
-                            "type": "number"
-                        }
-                    }
-                ]
-            }
-        },
-        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{queryUuid}": {
-            "get": {
-                "operationId": "getAiDeepResearchChart",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAiDeepResearchChartResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Load the retained query metadata behind a report chart.",
-                "summary": "Get Deep Research chart",
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "aiDeepResearchRunUuid",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/components/schemas/UUID"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "queryUuid",
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
@@ -124070,6 +125138,106 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/composer-charts": {
+            "post": {
+                "operationId": "createComposerChart",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates a composer chart owned by a dashboard: a stored pipeline and the\nchart drawn from its terminal node. Adds no tile; add one with the\ndashboard update. Requires the composer-charts feature flag.",
+                "summary": "Create composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateComposerChart"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}": {
+            "get": {
+                "operationId": "getComposerChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets a composer chart's current version, pipeline included. Anyone who\ncan view the owning dashboard can read it.",
+                "summary": "Get composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "composerChartUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/projects/{projectUuid}/dataCatalog/metrics-with-time-dimensions": {

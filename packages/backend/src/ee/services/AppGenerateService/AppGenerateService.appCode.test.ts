@@ -1,6 +1,7 @@
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
+    DATA_APP_NEWER_VERSION_CODE,
     DATA_REFERENCE_EXTRACTOR_VERSION,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     DirectAccessResourceType,
@@ -3068,7 +3069,10 @@ describe('AppGenerateService.authorizeConsumerQuery', () => {
                 ...request,
                 previewToken: mintFor(version),
             }),
-        ).rejects.toThrow('newer version');
+        ).rejects.toMatchObject({
+            message: expect.stringContaining('newer version'),
+            data: { code: DATA_APP_NEWER_VERSION_CODE },
+        });
     });
 
     it('denies when the app has no ready version', async () => {

@@ -243,7 +243,7 @@ describe('PostHog sign-in', () => {
         );
     });
 
-    it('creates a signed-in source with the Source ID the admin typed', async () => {
+    it('creates a signed-in source with the explore prefix the admin typed', async () => {
         const { service, externalConnectionModel, fetchToken } = buildService();
         fetchToken.mockResolvedValue(
             jsonResponse(200, {

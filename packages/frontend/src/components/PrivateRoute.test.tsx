@@ -7,8 +7,13 @@ const state = vi.hoisted(() => ({
     isAuthenticated: true,
     user: undefined as { organizationUuid?: string } | undefined,
     isUserError: false,
-    account: undefined as { registered: boolean } | undefined,
+    account: undefined as
+        | { registered: boolean; serviceAccount?: boolean }
+        | undefined,
     isAccountError: false,
+    isAccountLoading: false,
+    hasEmailClient: false,
+    isEmailVerified: true as boolean | undefined,
 }));
 
 vi.mock('../providers/App/useApp', () => ({
@@ -16,7 +21,10 @@ vi.mock('../providers/App/useApp', () => ({
         health: {
             isInitialLoading: false,
             error: null,
-            data: { isAuthenticated: state.isAuthenticated },
+            data: {
+                isAuthenticated: state.isAuthenticated,
+                hasEmailClient: state.hasEmailClient,
+            },
         },
         user: {
             data: state.user ? { ...state.user, abilityRules: [] } : undefined,
@@ -29,15 +37,22 @@ vi.mock('../providers/App/useApp', () => ({
 vi.mock('../hooks/user/useAccount', () => ({
     useAccount: () => ({
         data: state.account
-            ? { isRegisteredUser: () => state.account!.registered }
+            ? {
+                  isRegisteredUser: () => state.account!.registered,
+                  isServiceAccount: () => !!state.account!.serviceAccount,
+              }
             : undefined,
         isError: state.isAccountError,
+        isInitialLoading: state.isAccountLoading,
     }),
 }));
 
 vi.mock('../hooks/useEmailVerification', () => ({
     useEmailStatus: () => ({
-        data: { isVerified: true },
+        data:
+            state.isEmailVerified === undefined
+                ? undefined
+                : { isVerified: state.isEmailVerified },
         isInitialLoading: false,
     }),
 }));
@@ -68,6 +83,10 @@ const renderPrivateRoute = () =>
                         element={<div>join organization</div>}
                     />
                     <Route path="/login" element={<div>login</div>} />
+                    <Route
+                        path="/verify-email"
+                        element={<div>verify email</div>}
+                    />
                 </Routes>
             </MemoryRouter>
         </MantineProvider>,
@@ -80,6 +99,9 @@ describe('PrivateRoute', () => {
         state.isUserError = false;
         state.account = { registered: true };
         state.isAccountError = false;
+        state.isAccountLoading = false;
+        state.hasEmailClient = false;
+        state.isEmailVerified = true;
     });
 
     it('renders its children for a user in an organization', () => {
@@ -135,5 +157,37 @@ describe('PrivateRoute', () => {
         renderPrivateRoute();
 
         expect(screen.getByText('login')).toBeInTheDocument();
+    });
+
+    it('sends an unverified user to verify their email when an email client is set', () => {
+        state.hasEmailClient = true;
+        state.isEmailVerified = false;
+
+        renderPrivateRoute();
+
+        expect(screen.getByText('verify email')).toBeInTheDocument();
+    });
+
+    it('lets a service-account session past email verification when its email status is missing', () => {
+        state.hasEmailClient = true;
+        state.isEmailVerified = undefined;
+        state.account = { registered: true, serviceAccount: true };
+
+        renderPrivateRoute();
+
+        expect(screen.getByText('app')).toBeInTheDocument();
+        expect(screen.queryByText('verify email')).toBeNull();
+    });
+
+    it('holds before the email check while the account is still loading', () => {
+        state.hasEmailClient = true;
+        state.isEmailVerified = undefined;
+        state.account = undefined;
+        state.isAccountLoading = true;
+
+        renderPrivateRoute();
+
+        expect(screen.getByTestId('page-spinner')).toBeInTheDocument();
+        expect(screen.queryByText('verify email')).toBeNull();
     });
 });

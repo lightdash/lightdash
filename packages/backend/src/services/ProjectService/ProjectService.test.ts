@@ -1500,6 +1500,7 @@ describe('ProjectService', () => {
                     expect(enterprise).toHaveBeenCalledExactlyOnceWith({
                         organizationUuid: 'organization-uuid',
                         projectUuid: 'copy',
+                        spaceUuid: 'training-space',
                         createdByUserUuid: 'creator',
                     });
                     expect(reported).not.toHaveBeenCalled();
@@ -1512,7 +1513,9 @@ describe('ProjectService', () => {
                     await expect(
                         seedAll(createLearnService(enterprise)),
                     ).resolves.toBeUndefined();
-                    expect(enterprise).toHaveBeenCalledTimes(1);
+                    expect(enterprise).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({ spaceUuid: null }),
+                    );
                     expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
                 });
 
@@ -3879,6 +3882,124 @@ describe('ProjectService', () => {
         createWithoutCompileSpy.mockRestore();
         scheduleCompileProjectSpy.mockRestore();
     });
+
+    test.each([
+        { flagEnabled: false, requireUserCredentials: undefined },
+        { flagEnabled: true, requireUserCredentials: true },
+    ])(
+        'CLI preview on a different Snowflake warehouse requires user credentials only when inheriting across warehouses ($flagEnabled)',
+        async ({ flagEnabled, requireUserCredentials }) => {
+            const upstreamProjectUuid = 'upstream-project-uuid';
+            const developer: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                account: 'account',
+                user: 'developer',
+                password: 'developer-password',
+                database: 'DEV',
+                warehouse: 'DEV_WH',
+                schema: 'dbt_developer',
+            };
+            const featureFlagModel = {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            flagEnabled &&
+                            featureFlagId ===
+                                FeatureFlags.PreviewInheritsAcrossWarehouses,
+                    }),
+                ),
+            };
+            const previewService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    featureFlagModel:
+                        featureFlagModel as unknown as FeatureFlagModel,
+                },
+            );
+            const previewUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Test organization',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'create' },
+                ]),
+            };
+            const spies = [
+                vi
+                    .spyOn(
+                        previewService as unknown as {
+                            validateProjectCreationPermissions: () => Promise<true>;
+                        },
+                        'validateProjectCreationPermissions',
+                    )
+                    .mockResolvedValue(true),
+                vi
+                    .spyOn(previewService, 'getPreviewExpiresAt')
+                    .mockResolvedValue(null),
+                vi
+                    .spyOn(previewService, 'copyUserAccessOnPreview')
+                    .mockResolvedValue(),
+                vi
+                    .spyOn(projectModel, 'getWarehouseCredentialsForBinding')
+                    .mockResolvedValue({
+                        ...developer,
+                        user: 'service_user',
+                        password: 'parent-password',
+                        database: 'PROD',
+                        warehouse: 'PROD_WH',
+                        schema: 'analytics',
+                        requireUserCredentials: true,
+                    }),
+            ];
+            projectModel.createWithOptionalCredentials.mockClear();
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                'created-preview-project-uuid',
+            );
+
+            try {
+                await previewService.createWithoutCompile(
+                    previewUser,
+                    {
+                        name: 'Preview on a development warehouse',
+                        type: ProjectType.PREVIEW,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        warehouseConnection: developer,
+                        upstreamProjectUuid,
+                        copyContent: false,
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    },
+                    RequestMethod.CLI,
+                );
+
+                const created = (
+                    projectModel.createWithOptionalCredentials.mock
+                        .calls as unknown as [
+                        string,
+                        string,
+                        { warehouseConnection?: CreateWarehouseCredentials },
+                    ][]
+                )[0][2].warehouseConnection;
+                expect(created).toMatchObject(developer);
+                expect(created?.requireUserCredentials).toBe(
+                    requireUserCredentials,
+                );
+                if (flagEnabled) {
+                    expect(featureFlagModel.get).toHaveBeenCalledWith({
+                        user: {
+                            organizationUuid: previewUser.organizationUuid,
+                        },
+                        featureFlagId:
+                            FeatureFlags.PreviewInheritsAcrossWarehouses,
+                    });
+                }
+            } finally {
+                spies.forEach((spy) => spy.mockRestore());
+            }
+        },
+    );
 
     test.each([RequestMethod.WEB_APP, RequestMethod.CLI])(
         'copies additional dbt sources when creating a preview through %s',

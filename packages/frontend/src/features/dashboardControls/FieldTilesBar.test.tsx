@@ -27,7 +27,7 @@ import { renderWithProviders as renderWithAppProviders } from '../../testing/tes
 import { FieldTilesBar } from './FieldTilesBar';
 import { useFieldTileActions } from './useFieldTileActions';
 
-const mockSidebar = vi.hoisted(() => ({
+const mockEditor = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const mockDashboardContext = vi.hoisted(() => ({
@@ -37,15 +37,24 @@ const mockSqlColumnsByTile = vi.hoisted(() => ({
     current: {} as Record<string, { reference: string; type: string }[]>,
 }));
 
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebar: () => mockSidebar.current,
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditor: () => mockEditor.current,
+    useControlsEditorSelector: (
         selector: (value: Record<string, unknown>) => unknown,
-    ) => selector(mockSidebar.current),
+    ) => selector(mockEditor.current),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
 }));
+const mockEmbedMode = vi.hoisted(() => ({
+    current: 'direct' as 'direct' | 'sdk',
+}));
+vi.mock('../../ee/providers/Embed/useEmbed', async (importOriginal) => {
+    const actual = await importOriginal<{ default: () => object }>();
+    return {
+        default: () => ({ ...actual.default(), mode: mockEmbedMode.current }),
+    };
+});
 vi.mock('./useSqlColumnsByTile', () => ({
     useSqlColumnsByTile: () => mockSqlColumnsByTile.current,
 }));
@@ -98,11 +107,11 @@ const setHoveredFieldId = vi.fn();
 const removeWaitingField = vi.fn();
 const removeLastField = vi.fn();
 
-const setSidebar = (
+const setEditor = (
     editingRule: DashboardFilterRule | null,
     overrides: Record<string, unknown> = {},
 ) => {
-    mockSidebar.current = {
+    mockEditor.current = {
         editingRule,
         isPlaceholder: false,
         isMapping: true,
@@ -211,7 +220,7 @@ describe('FieldTilesBar', () => {
 
     describe('when it shows', () => {
         it('is hidden while no field is clicked, even a hovered one', () => {
-            setSidebar(rule('orders_status'), {
+            setEditor(rule('orders_status'), {
                 highlightedFieldId: null,
                 hoveredFieldId: 'orders_status',
             });
@@ -221,36 +230,52 @@ describe('FieldTilesBar', () => {
         });
 
         it('is hidden outside mapping, with no control open, and for a placeholder', () => {
-            setSidebar(rule('orders_status'), { isMapping: false });
+            setEditor(rule('orders_status'), { isMapping: false });
             const { rerender } = renderWithProviders(<Dashboard />);
             expect(queryBar()).not.toBeInTheDocument();
 
-            setSidebar(null);
+            setEditor(null);
             rerender(<Dashboard />);
             expect(queryBar()).not.toBeInTheDocument();
 
-            setSidebar(rule(''), { isPlaceholder: true });
+            setEditor(rule(''), { isPlaceholder: true });
             rerender(<Dashboard />);
             expect(queryBar()).not.toBeInTheDocument();
         });
 
-        it('sits right after the tile grid and leaves when the field is unclicked', () => {
-            setSidebar(rule('orders_status'));
+        it('floats off the grid, with room after it, and leaves when the field is unclicked', () => {
+            setEditor(rule('orders_status'));
             const { rerender } = renderWithProviders(<Dashboard />);
 
             const grid = screen.getByTestId('grid');
-            // After the grid, so it takes no space above the tiles
-            expect(grid.nextElementSibling).toBe(bar().parentElement);
+            // Room after the grid, so the bar never covers the last tile row
+            // (Mantine's test env draws the fixed bar in place, in its Affix)
+            expect(grid.nextElementSibling).toContainElement(bar());
+            expect(grid.nextElementSibling).not.toBe(bar().parentElement);
             expect(grid.previousElementSibling).toBeNull();
+            expect(bar()).toHaveAttribute('data-dashboard-floating-bar');
 
-            setSidebar(rule('orders_status'), { highlightedFieldId: null });
+            setEditor(rule('orders_status'), { highlightedFieldId: null });
             rerender(<Dashboard />);
             expect(queryBar()).not.toBeInTheDocument();
             expect(grid.nextElementSibling).toBeNull();
         });
 
+        it('sits right after the tile grid in an SDK embed', () => {
+            mockEmbedMode.current = 'sdk';
+            try {
+                setEditor(rule('orders_status'));
+                renderWithProviders(<Dashboard />);
+                expect(screen.getByTestId('grid').nextElementSibling).toBe(
+                    bar().parentElement,
+                );
+            } finally {
+                mockEmbedMode.current = 'direct';
+            }
+        });
+
         it('is one field only: the clicked one', () => {
-            setSidebar(rule('orders_status', { 'tile-1': REGION }), {
+            setEditor(rule('orders_status', { 'tile-1': REGION }), {
                 highlightedFieldId: 'orders_region',
             });
             renderWithProviders(<Dashboard />);
@@ -262,7 +287,7 @@ describe('FieldTilesBar', () => {
 
     describe('its count and actions', () => {
         it('shows the field, its count, Filter and Clear, all without hover', () => {
-            setSidebar(rule('orders_status', { 'tile-1': false }));
+            setEditor(rule('orders_status', { 'tile-1': false }));
             renderWithProviders(<Dashboard />);
 
             expect(within(bar()).getByText('Status')).toBeInTheDocument();
@@ -276,7 +301,7 @@ describe('FieldTilesBar', () => {
         });
 
         it('says "tile" for one tile', () => {
-            setSidebar(rule('orders_status', { 'tile-1': REGION }), {
+            setEditor(rule('orders_status', { 'tile-1': REGION }), {
                 highlightedFieldId: 'orders_region',
             });
             renderWithProviders(<Dashboard />);
@@ -285,7 +310,7 @@ describe('FieldTilesBar', () => {
         });
 
         it('has no Undo, nor its divider, until there is something to undo', () => {
-            setSidebar(rule('orders_status', { 'tile-1': false }));
+            setEditor(rule('orders_status', { 'tile-1': false }));
             renderWithProviders(<Dashboard />);
 
             expect(queryUndo()).not.toBeInTheDocument();
@@ -293,7 +318,7 @@ describe('FieldTilesBar', () => {
         });
 
         it('offers Undo as a quiet icon at the end after an apply or a clear, and runs it', async () => {
-            setSidebar(rule('orders_status', { 'tile-1': false }), {
+            setEditor(rule('orders_status', { 'tile-1': false }), {
                 fieldUndo: {
                     kind: 'apply',
                     fieldId: 'orders_status',
@@ -317,7 +342,7 @@ describe('FieldTilesBar', () => {
         });
 
         it('fills Undo right after a field is added, as the one step to take', () => {
-            setSidebar(rule('orders_status', { 'tile-1': REGION }), {
+            setEditor(rule('orders_status', { 'tile-1': REGION }), {
                 highlightedFieldId: 'orders_region',
                 fieldUndo: {
                     kind: 'add',
@@ -340,7 +365,7 @@ describe('FieldTilesBar', () => {
         });
 
         it("fills Filter right after a tile card's pick, as the one step to take", () => {
-            setSidebar(rule('orders_status', { 'tile-1': false }), {
+            setEditor(rule('orders_status', { 'tile-1': false }), {
                 fieldUndo: {
                     kind: 'pick',
                     fieldId: 'orders_status',
@@ -362,7 +387,7 @@ describe('FieldTilesBar', () => {
         });
 
         it('switches Filter off, and keeps the bar, when every tile that has the field is filtered by it', () => {
-            setSidebar(rule('orders_status'));
+            setEditor(rule('orders_status'));
             renderWithProviders(<Dashboard />);
 
             expect(filterAllButton()).toHaveTextContent(/^Filter more$/);
@@ -383,7 +408,7 @@ describe('FieldTilesBar', () => {
                     'tile-3': [status],
                 },
             };
-            setSidebar(
+            setEditor(
                 rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
             );
             renderWithProviders(<Dashboard />);
@@ -402,7 +427,7 @@ describe('FieldTilesBar', () => {
         });
 
         it('says in a tooltip which fields Filter all tiles replaces', async () => {
-            setSidebar(rule('orders_status', { 'tile-1': REGION }));
+            setEditor(rule('orders_status', { 'tile-1': REGION }));
             renderWithProviders(<Dashboard />);
 
             await userEvent.hover(filterAllButton());
@@ -412,7 +437,7 @@ describe('FieldTilesBar', () => {
         });
 
         it("switches Clear off on the filter's only field, and says why", async () => {
-            setSidebar(rule('orders_status'));
+            setEditor(rule('orders_status'));
             renderWithProviders(<Dashboard />);
 
             // No count on a Clear that cannot act; its wrapper says why
@@ -425,7 +450,7 @@ describe('FieldTilesBar', () => {
         });
 
         it('clears a field from every tile while the filter has another', () => {
-            setSidebar(rule('orders_status', { 'tile-1': REGION }), {
+            setEditor(rule('orders_status', { 'tile-1': REGION }), {
                 highlightedFieldId: 'orders_region',
             });
             renderWithProviders(<Dashboard />);
@@ -444,7 +469,7 @@ describe('FieldTilesBar', () => {
         });
 
         it('has every action switched off for a field no tile offers', () => {
-            setSidebar(rule('orders_status'), {
+            setEditor(rule('orders_status'), {
                 highlightedFieldId: 'customers_city',
                 waitingFieldIds: ['customers_city'],
             });
@@ -494,14 +519,14 @@ describe('FieldTilesBar', () => {
         });
 
         it('counts over every tab and fills and clears the tab in view first', () => {
-            setSidebar(
+            setEditor(
                 rule('orders_status', { 'tile-1': REGION, 'tile-3': false }),
             );
             renderWithProviders(<TabbedDashboard />);
 
-            expect(screen.getByTestId('grid-1').nextElementSibling).toBe(
-                bar().parentElement,
-            );
+            expect(
+                screen.getByTestId('grid-1').nextElementSibling,
+            ).toContainElement(bar());
             // The total stays over every tab
             expect(countOf()).toHaveTextContent(/^1 of 3 tiles$/);
             expect(buttonTexts()).toEqual(['Filter 1 more', 'Clear 1']);
@@ -518,7 +543,7 @@ describe('FieldTilesBar', () => {
         });
 
         it('records for Undo only the tiles Filter changes, as its label counts', () => {
-            setSidebar(rule('orders_status', { 'tile-2': false }));
+            setEditor(rule('orders_status', { 'tile-2': false }));
             renderWithProviders(<TabbedDashboard />);
 
             expect(filterAllButton()).toHaveTextContent(/^Filter 1 more$/);
@@ -531,7 +556,7 @@ describe('FieldTilesBar', () => {
         });
 
         it('clears the tab in view only', () => {
-            setSidebar(rule('orders_status', { 'tile-1': REGION }));
+            setEditor(rule('orders_status', { 'tile-1': REGION }));
             renderWithProviders(<TabbedDashboard />);
 
             fireEvent.click(button('Clear 1'));
@@ -547,7 +572,7 @@ describe('FieldTilesBar', () => {
         });
 
         it('fills the other tabs once the tab in view is done', () => {
-            setSidebar(rule('orders_status', { 'tile-3': false }));
+            setEditor(rule('orders_status', { 'tile-3': false }));
             renderWithProviders(<TabbedDashboard />);
 
             expect(countOf()).toHaveTextContent(/^2 of 3 tiles$/);
@@ -564,7 +589,7 @@ describe('FieldTilesBar', () => {
         });
 
         it('clears the other tabs once the tab in view has none', () => {
-            setSidebar(
+            setEditor(
                 rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
             );
             renderWithProviders(<TabbedDashboard />);
@@ -587,14 +612,14 @@ describe('FieldTilesBar', () => {
         });
 
         it('switches Filter off, and keeps the bar, once every tab is done', () => {
-            setSidebar(rule('orders_status'));
+            setEditor(rule('orders_status'));
             renderWithProviders(<TabbedDashboard />);
 
             expect(filterAllButton()).toHaveTextContent(/^Filter more$/);
             expect(filterAllButton()).toBeDisabled();
         });
         it('slides in when a chip is selected, and not again on a tab switch', () => {
-            setSidebar(rule('orders_status'));
+            setEditor(rule('orders_status'));
             const { rerender } = renderWithProviders(<TabbedDashboard />);
             expect(bar()).toHaveAttribute('data-arrive');
 
@@ -603,22 +628,22 @@ describe('FieldTilesBar', () => {
                 activeTab: TAB_2,
             };
             rerender(<TabbedDashboard />);
-            expect(screen.getByTestId('grid-2').nextElementSibling).toBe(
-                bar().parentElement,
-            );
+            expect(
+                screen.getByTestId('grid-2').nextElementSibling,
+            ).toContainElement(bar());
             expect(bar()).not.toHaveAttribute('data-arrive');
 
             // Unselected and selected again: it arrives again
-            setSidebar(rule('orders_status'), { highlightedFieldId: null });
+            setEditor(rule('orders_status'), { highlightedFieldId: null });
             rerender(<TabbedDashboard />);
-            setSidebar(rule('orders_status'));
+            setEditor(rule('orders_status'));
             rerender(<TabbedDashboard />);
             expect(bar()).toHaveAttribute('data-arrive');
         });
 
         it('slides in again when another chip is selected straight away, after a tab switch too', () => {
             const regionRule = rule('orders_status', { 'tile-1': REGION });
-            setSidebar(regionRule);
+            setEditor(regionRule);
             const { rerender } = renderWithProviders(<TabbedDashboard />);
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
@@ -634,11 +659,11 @@ describe('FieldTilesBar', () => {
             rerender(<TabbedDashboard />);
             expect(bar()).not.toHaveAttribute('data-arrive');
 
-            setSidebar(regionRule, { highlightedFieldId: 'orders_region' });
+            setEditor(regionRule, { highlightedFieldId: 'orders_region' });
             rerender(<TabbedDashboard />);
             expect(bar('Region')).toHaveAttribute('data-arrive');
 
-            setSidebar(regionRule);
+            setEditor(regionRule);
             rerender(<TabbedDashboard />);
             expect(bar()).toHaveAttribute('data-arrive');
         });
@@ -662,7 +687,7 @@ describe('FieldTilesBar', () => {
                 tableName: 'mock_table',
                 isSqlColumn: true,
             };
-            setSidebar(
+            setEditor(
                 {
                     ...rule('country', { 'tile-1': column, 'tile-2': false }),
                     target: column,
@@ -703,7 +728,7 @@ describe('FieldTilesBar', () => {
                 ...mockDashboardContext.current,
                 filterableFieldsByTileUuid: {},
             };
-            setSidebar(
+            setEditor(
                 {
                     ...rule(REF, { 'tile-1': column, 'tile-2': false }),
                     target: column,
@@ -762,7 +787,7 @@ describe('FieldTilesBar', () => {
 
     describe('keyboard between the bar and its chip', () => {
         it('goes back to the selected chip on Shift+Tab from its first action', async () => {
-            setSidebar(rule('orders_status', { 'tile-1': false }));
+            setEditor(rule('orders_status', { 'tile-1': false }));
             renderWithProviders(
                 <Dashboard>
                     <button data-controls-chip="orders_status" aria-pressed>
@@ -782,11 +807,11 @@ describe('FieldTilesBar', () => {
 
     describe('focus after an action', () => {
         it('goes to the bar when the pressed button is switched off', async () => {
-            setSidebar(rule('orders_status', { 'tile-1': false }));
+            setEditor(rule('orders_status', { 'tile-1': false }));
             const { rerender } = renderWithProviders(<Dashboard />);
 
             await userEvent.click(filterAllButton());
-            setSidebar(getAppliedRule());
+            setEditor(getAppliedRule());
             rerender(<Dashboard />);
 
             expect(filterAllButton()).toBeDisabled();
@@ -794,9 +819,9 @@ describe('FieldTilesBar', () => {
         });
 
         it('is not taken while nothing was pressed', () => {
-            setSidebar(rule('orders_status', { 'tile-1': false }));
+            setEditor(rule('orders_status', { 'tile-1': false }));
             const { rerender } = renderWithProviders(<Dashboard />);
-            setSidebar(rule('orders_status'));
+            setEditor(rule('orders_status'));
             rerender(<Dashboard />);
 
             expect(bar()).not.toHaveFocus();
@@ -804,7 +829,7 @@ describe('FieldTilesBar', () => {
     });
 
     it('hands back the same actions while nothing they read has changed', () => {
-        setSidebar(rule('orders_status'));
+        setEditor(rule('orders_status'));
         const columns = {};
         const store = seedDashboardEditState(
             createDashboardTestStore(),
@@ -824,8 +849,8 @@ describe('FieldTilesBar', () => {
         expect(first).not.toBeNull();
 
         // A hover is no input of the actions
-        mockSidebar.current = {
-            ...mockSidebar.current,
+        mockEditor.current = {
+            ...mockEditor.current,
             hoveredFieldId: 'orders_status',
         };
         rerender();
@@ -833,7 +858,7 @@ describe('FieldTilesBar', () => {
     });
 
     it('never empties a field filter from a SQL column, which is not its field', () => {
-        setSidebar(rule('orders_status'));
+        setEditor(rule('orders_status'));
         const columns = {};
         const store = seedDashboardEditState(
             createDashboardTestStore(),
@@ -888,7 +913,7 @@ describe('FieldTilesBar', () => {
                     'tile-3': [joinedStatus],
                 },
             };
-            setSidebar(rule('orders_status', { 'tile-2': false }));
+            setEditor(rule('orders_status', { 'tile-2': false }));
         });
 
         it('is a chip per label, each counting and acting on its own tiles', () => {
@@ -916,7 +941,7 @@ describe('FieldTilesBar', () => {
 
         it('keeps its name and offers its tiles again once Clear took it off every tile', async () => {
             // The joined chip's tiles are both left out: its key is no chip now
-            setSidebar(
+            setEditor(
                 rule('orders_status', { 'tile-2': false, 'tile-3': false }),
                 { highlightedFieldId: JOINED_KEY },
             );
@@ -971,7 +996,7 @@ describe('FieldTilesBar', () => {
                 filterableFieldsByTileUuid: undefined,
             };
             // tile-2 is left out: a blind write would lose that
-            setSidebar(
+            setEditor(
                 rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
                 { highlightedFieldId: 'orders_region' },
             );

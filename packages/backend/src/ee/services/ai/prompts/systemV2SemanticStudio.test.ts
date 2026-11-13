@@ -32,6 +32,27 @@ describe('getSemanticStudioSystemPrompt', () => {
         expect(prompt).not.toContain('your draft');
     });
 
+    it('has a dbt project check real values before suggesting, with one sampled query', () => {
+        const prompt = getSemanticStudioSystemPrompt({
+            ...base,
+            dbt: { opensPullRequest: false, sections: [] },
+        });
+        expect(prompt).toContain('## Warehouse');
+        expect(prompt).toContain("This project's warehouse is postgres.");
+        expect(prompt).toContain('real values with runSql');
+        expect(prompt).toContain('LIMIT 10000');
+    });
+
+    it('leaves the warehouse out of a dbt project when the person cannot run SQL', () => {
+        const prompt = getSemanticStudioSystemPrompt({
+            ...base,
+            warehouse: null,
+            dbt: { opensPullRequest: false, sections: [] },
+        });
+        expect(prompt).not.toContain('## Warehouse');
+        expect(prompt).not.toContain('runSql');
+    });
+
     it('opens the pull request on the turn the person asks for it', () => {
         const prompt = getSemanticStudioSystemPrompt({
             ...base,
@@ -39,5 +60,6 @@ describe('getSemanticStudioSystemPrompt', () => {
         });
         expect(prompt).toContain('editDbtProject');
         expect(prompt).not.toContain('```diff');
+        expect(prompt).not.toContain('## Warehouse');
     });
 });

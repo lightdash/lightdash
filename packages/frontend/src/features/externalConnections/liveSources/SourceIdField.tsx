@@ -13,27 +13,23 @@ export const SourceIdField: FC<Props> = ({ connection, sourceId }) => {
     if (connection) {
         return connection.liveSourceName ? (
             <TextInput
-                label="Source ID"
+                label="Explore prefix"
                 value={connection.liveSourceName}
                 readOnly
-                description="Set when the source was created. To use another, delete this source and add a new one."
+                description="Used by Lightdash to name this source's explores. Can't be changed."
             />
         ) : null;
     }
-    const { value, onChange, error, suggestion, exploreName } = sourceId;
+    const { value, onChange, error, suggestion } = sourceId;
     return (
         <Stack gap={4}>
             <TextInput
                 required
-                label="Source ID"
+                label="Explore prefix"
                 value={value}
                 onChange={(event) => onChange(event.currentTarget.value)}
                 error={error}
-                description={
-                    exploreName
-                        ? `Charts will refer to it as ${exploreName}. It can't be changed later.`
-                        : "Charts refer to this. It can't be changed later."
-                }
+                description="Used by Lightdash to name this source's explores. Can't be changed later."
             />
             {suggestion && (
                 <Text fz="xs" c="dimmed">

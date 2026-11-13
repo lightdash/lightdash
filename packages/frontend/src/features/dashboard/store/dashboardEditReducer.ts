@@ -46,7 +46,7 @@ const EMPTY_TILE_LAYOUT_HISTORY: TileLayoutHistory = {
 // Each step holds one small record per tile, so a long history stays cheap
 const TILE_LAYOUT_HISTORY_LIMIT = 50;
 
-export type CanvasBackground = 'dots' | 'grid';
+export type CanvasBackground = 'columns' | 'dots' | 'grid';
 
 export type DashboardEditState = {
     /** Undefined until the page seeds it from the loaded dashboard */
@@ -76,7 +76,7 @@ export type DashboardEditState = {
         DateGranularity | string | undefined
     > | null;
     hasDefaultDateZoomGranularityChanged: boolean;
-    /** Staged sections of the controls rail, in display order */
+    /** Staged sections of the controls bar, in display order */
     controlSections: DashboardControlSection[];
     haveControlSectionsChanged: boolean;
     /** The bar's order of every control: the saved one, or the editor's reorder */

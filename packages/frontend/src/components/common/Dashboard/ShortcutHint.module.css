@@ -1,0 +1,44 @@
+.anchor {
+    position: relative;
+    display: inline-flex;
+}
+
+.hint {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + var(--mantine-spacing-sm));
+    z-index: 1;
+    transform: translate(-50%, 2px);
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    box-shadow: var(--mantine-shadow-sm);
+    transition:
+        opacity 120ms ease-out,
+        transform 120ms ease-out;
+}
+
+/* For controls in the header, which clips anything drawn outside it */
+.hint[data-position='corner'] {
+    left: auto;
+    right: calc(var(--mantine-spacing-xs) * -1);
+    bottom: auto;
+    top: calc(var(--mantine-spacing-xs) * -1);
+    transform: translate(0, 2px);
+}
+
+/* Set on the body by useShortcutHints while the modifier is held */
+:global(body[data-shortcut-hints]) .hint {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+:global(body[data-shortcut-hints]) .hint[data-position='corner'] {
+    transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hint {
+        transition: none;
+    }
+}

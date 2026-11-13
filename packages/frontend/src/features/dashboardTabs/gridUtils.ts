@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     DashboardTileTypes,
     type DashboardTab,
     type DashboardTile,
@@ -187,6 +188,143 @@ export const hasGridItemMoved = (before: Layout, after: Layout): boolean =>
     before.w !== after.w ||
     before.h !== after.h;
 
+type GridRect = Pick<Layout, 'i' | 'x' | 'y' | 'w' | 'h'>;
+
+const rectsOverlap = (a: GridRect, b: GridRect): boolean =>
+    a.i !== b.i &&
+    a.x < b.x + b.w &&
+    b.x < a.x + a.w &&
+    a.y < b.y + b.h &&
+    b.y < a.y + a.h;
+
+export const settleLayoutAfterEdit = ({
+    layout,
+    editedTileId,
+    previous,
+    home,
+}: {
+    layout: Layout[];
+    editedTileId: string;
+    previous: ReadonlyMap<string, GridRect>;
+    home: ReadonlyMap<string, number>;
+}): Layout[] => {
+    const edited = layout.find((item) => item.i === editedTileId);
+    if (!edited) return layout;
+
+    const order = new Map(layout.map((item, index) => [item.i, index]));
+    const byRow = (a: Layout, b: Layout) =>
+        a.y - b.y || (order.get(a.i) ?? 0) - (order.get(b.i) ?? 0);
+    const isFree = (item: Layout, placed: Layout[]) =>
+        !placed.some((other) => rectsOverlap(item, other));
+
+    const others = layout
+        .filter((item) => item.i !== editedTileId)
+        .map((drawn) => {
+            const before = previous.get(drawn.i) ?? drawn;
+            return {
+                drawn,
+                item: {
+                    ...drawn,
+                    x: before.x,
+                    y: before.y,
+                    w: before.w,
+                    h: before.h,
+                },
+            };
+        })
+        .sort((a, b) => byRow(a.item, b.item));
+
+    const placed: Layout[] = [edited];
+    for (const { drawn, item } of others) {
+        let next = item;
+        const swappedUp = { ...item, y: Math.floor(drawn.y) };
+        if (!isFree(next, placed) && drawn.y < item.y) {
+            if (isFree(swappedUp, placed)) next = swappedUp;
+        }
+        let blockers = placed.filter((other) => rectsOverlap(next, other));
+        while (blockers.length > 0) {
+            next = {
+                ...next,
+                y: Math.ceil(
+                    Math.max(...blockers.map((other) => other.y + other.h)),
+                ),
+            };
+            blockers = placed.filter((other) => rectsOverlap(next, other));
+        }
+        placed.push(next);
+    }
+
+    placed
+        .slice(1)
+        .sort(byRow)
+        .forEach((item) => {
+            const homeRow = home.get(item.i);
+            if (homeRow === undefined || homeRow >= item.y) return;
+            const index = placed.findIndex((other) => other.i === item.i);
+            const rest = placed.filter((other) => other.i !== item.i);
+            const freeRow = [
+                homeRow,
+                ...rest
+                    .map((other) => Math.ceil(other.y + other.h))
+                    .filter((row) => row > homeRow && row < item.y),
+            ]
+                .sort((a, b) => a - b)
+                .find((row) => isFree({ ...item, y: row }, rest));
+            if (freeRow !== undefined) {
+                placed[index] = { ...item, y: freeRow };
+            }
+        });
+
+    const placedById = new Map(placed.map((item) => [item.i, item]));
+    return layout.map((item) => placedById.get(item.i) ?? item);
+};
+
+export const keepResizedTileCorner = (
+    layout: Layout[],
+    before: Layout,
+): Layout[] =>
+    layout.map((item) =>
+        item.i === before.i ? { ...item, x: before.x, y: before.y } : item,
+    );
+
+export const matchesSavedLayout = (
+    layout: Layout[],
+    saved: ReadonlyMap<string, GridRect>,
+): boolean =>
+    layout.every((item) => {
+        const tile = saved.get(item.i);
+        return tile !== undefined && !hasGridItemMoved(tile, item);
+    });
+
+export const getLayoutToSaveAfterEdit = ({
+    layout,
+    before,
+    after,
+    gridScale,
+    previous,
+    home,
+}: {
+    layout: Layout[];
+    before: Layout;
+    after: Layout;
+    gridScale: number;
+    previous: ReadonlyMap<string, GridRect>;
+    home: ReadonlyMap<string, number>;
+}): Layout[] | null => {
+    if (!hasGridItemMoved(before, after)) return null;
+    const isResize = before.w !== after.w || before.h !== after.h;
+    const settled = settleLayoutAfterEdit({
+        layout: convertLayoutToBaseCoordinates(
+            isResize ? keepResizedTileCorner(layout, before) : layout,
+            gridScale,
+        ),
+        editedTileId: after.i,
+        previous,
+        home,
+    });
+    return matchesSavedLayout(settled, previous) ? null : settled;
+};
+
 export const withGridItem = (layout: Layout[], item: Layout): Layout[] =>
     layout.map((other) => (other.i === item.i ? item : other));
 
@@ -245,6 +383,7 @@ const doGridItemsOverlap = (a: Layout, b: Layout): boolean =>
 export const resolveDropOverlaps = (
     layout: Layout[],
     droppedIds: string[],
+    rowStep = 1,
 ): Layout[] => {
     const isDropped = (item: Layout) => droppedIds.includes(item.i);
     const settled = sortBy(
@@ -259,7 +398,11 @@ export const resolveDropOverlaps = (
                 ? candidate
                 : settle({
                       ...candidate,
-                      y: Math.max(...blockers.map((b) => b.y + b.h)),
+                      y:
+                          Math.ceil(
+                              Math.max(...blockers.map((b) => b.y + b.h)) /
+                                  rowStep,
+                          ) * rowStep,
                   });
         };
         return [...placed, settle(item)];
@@ -529,7 +672,8 @@ export const getMobileGridLayout = (tiles: DashboardTile[]): Layout[] => {
                     : tile.type === DashboardTileTypes.LOOM
                       ? 4
                       : tile.type === DashboardTileTypes.SAVED_CHART ||
-                          tile.type === DashboardTileTypes.SQL_CHART
+                          tile.type === DashboardTileTypes.SQL_CHART ||
+                          tile.type === DashboardTileTypes.COMPOSER_CHART
                         ? Math.max(5, Math.min(Math.ceil(tile.h * 0.75), 8))
                         : Math.max(5, Math.min(tile.h, 8));
             const layout: Layout = {
@@ -640,11 +784,8 @@ export const closeTileGaps = <T extends GridPlacement>(tiles: T[]): T[] =>
 const snapToFineStep = (value: number) =>
     Math.round(value * FINE_GRID_SCALE) / FINE_GRID_SCALE;
 
-/**
- * Reading-order rows: a tile joins the row it starts in the top half of,
- * unless it sits under a tile of that row, which starts the next row.
- */
-const toRows = <T extends GridPlacement>(tiles: T[]): T[][] =>
+/** Plain reading-order rows, for tiles no straight cut can split */
+const toFlatRows = <T extends GridPlacement>(tiles: T[]): T[][] =>
     sortBy(tiles, ['y', 'x']).reduce<T[][]>((rows, tile) => {
         const row = rows.at(-1);
         const joinsRow =
@@ -656,31 +797,142 @@ const toRows = <T extends GridPlacement>(tiles: T[]): T[][] =>
             : [...rows, [tile]];
     }, []);
 
-/** One row at `y`: full grid width in the tiles' proportions, tallest height */
-const justifyRow = <T extends GridPlacement>(row: T[], y: number): T[] => {
-    const leftToRight = sortBy(row, ['x']);
-    const totalWidth = leftToRight.reduce((sum, tile) => sum + tile.w, 0);
-    const h = Math.max(...leftToRight.map((tile) => tile.h));
-    const edgeAfter = (count: number) =>
-        snapToFineStep(
-            (leftToRight
-                .slice(0, count)
-                .reduce((sum, tile) => sum + tile.w, 0) *
-                GRID_DESKTOP_COLS) /
-                totalWidth,
-        );
-    return leftToRight.map((tile, index) => {
-        const x = edgeAfter(index);
-        return { ...tile, x, y, w: edgeAfter(index + 1) - x, h };
-    });
+/**
+ * Top-to-bottom bands: a tile joins the band it starts in the top half of, or
+ * that at least half of it sits inside.
+ */
+const toBands = <T extends GridPlacement>(tiles: T[]): T[][] =>
+    sortBy(tiles, ['y', 'x']).reduce<T[][]>((bands, tile) => {
+        const band = bands.at(-1);
+        const joinsBand =
+            band !== undefined &&
+            (tile.y < band[0].y + band[0].h / 2 ||
+                tile.y + tile.h / 2 <=
+                    Math.max(...band.map((placed) => placed.y + placed.h)));
+        return joinsBand
+            ? [...bands.slice(0, -1), [...band, tile]]
+            : [...bands, [tile]];
+    }, []);
+
+/** Left-to-right groups of tiles whose columns overlap */
+const toColumnGroups = <T extends GridPlacement>(tiles: T[]): T[][] =>
+    sortBy(tiles, ['x', 'y']).reduce<T[][]>((groups, tile) => {
+        const group = groups.at(-1);
+        const joinsGroup =
+            group !== undefined &&
+            tile.x < Math.max(...group.map((placed) => placed.x + placed.w));
+        return joinsGroup
+            ? [...groups.slice(0, -1), [...group, tile]]
+            : [...groups, [tile]];
+    }, []);
+
+type LayoutNode<T> =
+    | { kind: 'tile'; tile: T }
+    | { kind: 'row'; children: LayoutNode<T>[] }
+    | { kind: 'column'; children: LayoutNode<T>[] };
+
+/** Rows of columns of rows, as deep as the tiles nest */
+const toColumn = <T extends GridPlacement>(tiles: T[]): LayoutNode<T> => ({
+    kind: 'column',
+    children: toBands(tiles).map((band) => {
+        const groups = toColumnGroups(band);
+        return {
+            kind: 'row',
+            children: groups.map((group): LayoutNode<T> => {
+                if (group.length === 1) {
+                    return { kind: 'tile', tile: group[0] };
+                }
+                const cannotSplit =
+                    groups.length === 1 && toBands(group).length === 1;
+                return cannotSplit
+                    ? {
+                          kind: 'column',
+                          children: toFlatRows(group).map((row) => ({
+                              kind: 'row',
+                              children: sortBy(row, ['x']).map((tile) => ({
+                                  kind: 'tile',
+                                  tile,
+                              })),
+                          })),
+                      }
+                    : toColumn(group);
+            }),
+        };
+    }),
+});
+
+const sum = (values: number[]) =>
+    values.reduce((total, value) => total + value, 0);
+
+const naturalSize = (
+    node: LayoutNode<GridPlacement>,
+): { w: number; h: number } => {
+    if (node.kind === 'tile') return { w: node.tile.w, h: node.tile.h };
+    const sizes = node.children.map(naturalSize);
+    const widths = sizes.map((size) => size.w);
+    const heights = sizes.map((size) => size.h);
+    return node.kind === 'row'
+        ? { w: sum(widths), h: Math.max(...heights) }
+        : { w: Math.max(...widths), h: sum(heights) };
+};
+
+/** Edges that split `span` in the sizes' proportions, on fine grid steps */
+const shareOut = (sizes: number[], span: number): number[] => [
+    ...sizes.map((_, index) =>
+        snapToFineStep((sum(sizes.slice(0, index)) * span) / sum(sizes)),
+    ),
+    span,
+];
+
+const place = <T extends GridPlacement>(
+    node: LayoutNode<T>,
+    box: GridPlacement,
+): T[] => {
+    switch (node.kind) {
+        case 'tile':
+            return [{ ...node.tile, ...box }];
+        case 'row': {
+            const edges = shareOut(
+                node.children.map((child) => naturalSize(child).w),
+                box.w,
+            );
+            return node.children.flatMap((child, index) =>
+                place(child, {
+                    ...box,
+                    x: box.x + edges[index],
+                    w: edges[index + 1] - edges[index],
+                }),
+            );
+        }
+        case 'column': {
+            const edges = shareOut(
+                node.children.map((child) => naturalSize(child).h),
+                box.h,
+            );
+            return node.children.flatMap((child, index) =>
+                place(child, {
+                    ...box,
+                    y: box.y + edges[index],
+                    h: edges[index + 1] - edges[index],
+                }),
+            );
+        }
+        default:
+            return assertUnreachable(node, 'Unknown layout node');
+    }
 };
 
 /**
  * Justified rows: gaps close, then every row spans the whole grid at one
- * height and rows stack with nothing between them. Reading order is kept.
+ * height and rows stack with nothing between them. Tiles piled beside a
+ * taller neighbour stay beside it and share its height. Reading order is kept.
  */
-export const tidyTiles = <T extends GridPlacement>(tiles: T[]): T[] =>
-    toRows(closeTileGaps(tiles)).reduce<T[]>((placed, row) => {
-        const y = Math.max(0, ...placed.map((tile) => tile.y + tile.h));
-        return [...placed, ...justifyRow(row, y)];
-    }, []);
+export const tidyTiles = <T extends GridPlacement>(tiles: T[]): T[] => {
+    const root = toColumn(closeTileGaps(tiles));
+    return place(root, {
+        x: 0,
+        y: 0,
+        w: GRID_DESKTOP_COLS,
+        h: naturalSize(root).h,
+    });
+};

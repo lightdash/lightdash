@@ -33,6 +33,7 @@ import {
     Dimension,
     DimensionType,
     DownloadFileType,
+    DuckdbConnectionType,
     ExpiredQueryError,
     Explore,
     ExploreCompiler,
@@ -216,6 +217,7 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
+    AnalyticsQueryCancelledError,
     AnalyticsQueryError,
     DuckdbWarehouseClient,
     mapFieldTypeFromDuckdbTypeName,
@@ -262,6 +264,7 @@ import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import {
     mapQueryHistoryRowToListItem,
     QueryHistoryModel,
+    QueryPollingTimeoutError,
     type CachedResultsContent,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -366,6 +369,8 @@ import { OrganizationAccessService } from '../OrganizationAccessService/Organiza
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import { getAnalyticsActivityWindow } from '../ProjectService/analyticsProject/getAnalyticsActivityWindow';
+import { developmentView } from '../ProjectService/developmentView';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
 import {
     areDashboardControlsEnabled,
@@ -395,6 +400,7 @@ import {
 } from '../QuerySourceService/api/apiQueryOutcome';
 import { toApiSourceQueryError } from '../QuerySourceService/api/apiSourceExplore';
 import {
+    assertApiResultComplete,
     compileApiSourceMetricQuery,
     toApiSourceResult,
 } from '../QuerySourceService/api/apiSourceExplores';
@@ -502,6 +508,7 @@ import {
     assertAgentQueryWithinEstimateLimit,
     QueryEstimateCache,
 } from './queryCostEstimate';
+import type { QueryPollingSource } from './queryPollingSource';
 import { canReuseApiResult, canReuseQueryResult } from './queryResultReuse';
 import { queryUsageProperties, queryWorkloadOrigin } from './queryUsage';
 import {
@@ -2066,10 +2073,25 @@ export class AsyncQueryService extends ProjectService {
         const getUnfilteredExplore = (name: string) => {
             let explore = unfilteredExplorePromises.get(name);
             if (!explore) {
-                explore = this.projectModel.getExploreFromCache(
-                    projectUuid,
-                    name,
-                );
+                // A result run in the development view is checked against the same unpublished models it read.
+                explore = (async () => {
+                    const inDevelopment =
+                        (await developmentView
+                            .getStore()
+                            ?.findExplores(
+                                await getCurrentAccount(),
+                                projectUuid,
+                            )) ?? null;
+                    if (!inDevelopment?.has(name)) {
+                        return this.projectModel.getExploreFromCache(
+                            projectUuid,
+                            name,
+                        );
+                    }
+                    const changed = inDevelopment.get(name);
+                    if (!changed) throw new ForbiddenError();
+                    return changed;
+                })();
                 unfilteredExplorePromises.set(name, explore);
             }
             return explore;
@@ -2570,20 +2592,6 @@ export class AsyncQueryService extends ProjectService {
                 'Embed token is not allowed to download AI agent results',
             );
         }
-    }
-
-    async bindQueryToResearchRun(
-        account: Account,
-        projectUuid: string,
-        queryUuid: string,
-        runUuid: string,
-    ): Promise<void> {
-        await this.queryHistoryModel.recordResultResearchRun(
-            queryUuid,
-            projectUuid,
-            account.user.id,
-            runUuid,
-        );
     }
 
     async bindQueryToArtifact(
@@ -4007,6 +4015,7 @@ export class AsyncQueryService extends ProjectService {
         dataTimezone,
         displayTimezone,
         recoverStalledQuery,
+        isQueuedQueryCancelled,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -4018,6 +4027,7 @@ export class AsyncQueryService extends ProjectService {
         dataTimezone?: string;
         displayTimezone: string | null;
         recoverStalledQuery: boolean;
+        isQueuedQueryCancelled?: () => Promise<boolean>;
     }): Promise<{
         columns: ResultColumns;
         /** Pre-pivot columns, so pivoted queries keep a record of the
@@ -4303,6 +4313,9 @@ export class AsyncQueryService extends ProjectService {
                         tags: queryTags,
                         timezone: dataTimezone,
                         recoverStalledQuery,
+                        ...(isQueuedQueryCancelled && {
+                            isQueuedQueryCancelled,
+                        }),
                     },
                     transformRows,
                 ),
@@ -5184,6 +5197,7 @@ export class AsyncQueryService extends ProjectService {
      * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
      */
     private async runAsyncWarehouseQueryInScope({
+        analyticsActivityWindow,
         userUuid,
         organizationUuid,
         isPreviewProject,
@@ -5274,6 +5288,7 @@ export class AsyncQueryService extends ProjectService {
 
         type WarehouseQueryAttempt =
             | { kind: 'complete' }
+            | { kind: 'cancelled' }
             | {
                   kind: 'retry';
                   execute: (warehouseClient: WarehouseClient) => Promise<void>;
@@ -5282,6 +5297,7 @@ export class AsyncQueryService extends ProjectService {
         const withWarehouseAttempt = (
             execute: (
                 warehouseClient: WarehouseClient,
+                isQueuedQueryCancelled?: () => Promise<boolean>,
             ) => Promise<WarehouseQueryAttempt>,
         ) =>
             this.warehouseClientFactory.withWarehouseClient(
@@ -5289,7 +5305,12 @@ export class AsyncQueryService extends ProjectService {
                     kind: 'binding',
                     projectUuid,
                     binding: { kind: 'query', queryUuid },
-                    overrides: warehouseCredentialsOverrides,
+                    overrides: analyticsActivityWindow
+                        ? {
+                              ...warehouseCredentialsOverrides,
+                              analyticsActivityWindow,
+                          }
+                        : warehouseCredentialsOverrides,
                 },
                 connectionContextFromUser(
                     {
@@ -5394,7 +5415,16 @@ export class AsyncQueryService extends ProjectService {
                         ? warehouseCredentials
                         : null;
                     warehouseCredentialsType ??= warehouseCredentials.type;
-                    const result = await execute(warehouseClient);
+                    const isAnalytics =
+                        warehouseCredentials.type === WarehouseTypes.DUCKDB &&
+                        warehouseCredentials.connectionType ===
+                            DuckdbConnectionType.ANALYTICS;
+                    const result = await execute(
+                        warehouseClient,
+                        isAnalytics
+                            ? () => this.isQueryCancelled(queryUuid)
+                            : undefined,
+                    );
                     warehouseQueryCompletedBeforeCleanup =
                         result.kind === 'complete';
                     return result;
@@ -5403,6 +5433,7 @@ export class AsyncQueryService extends ProjectService {
 
         const executeWithWarehouseClient = async (
             warehouseClient: WarehouseClient,
+            isQueuedQueryCancelled?: () => Promise<boolean>,
         ): Promise<WarehouseQueryAttempt> => {
             const credentialsType = warehouseCredentialsType;
             if (credentialsType === undefined) {
@@ -5556,6 +5587,9 @@ export class AsyncQueryService extends ProjectService {
                                 dataTimezone: resolvedDataTimezone,
                                 displayTimezone,
                                 recoverStalledQuery,
+                                ...(isQueuedQueryCancelled && {
+                                    isQueuedQueryCancelled,
+                                }),
                             });
                         setPhaseTimingAttributes(
                             span,
@@ -5807,6 +5841,9 @@ export class AsyncQueryService extends ProjectService {
             try {
                 queryResults = await runWarehouseQuery(warehouseClient);
             } catch (e) {
+                if (e instanceof AnalyticsQueryCancelledError) {
+                    return { kind: 'cancelled' };
+                }
                 const canRetry =
                     !hasWrittenRows &&
                     projectCredentials !== null &&
@@ -6060,6 +6097,8 @@ export class AsyncQueryService extends ProjectService {
                 query.requestParameters.resultEntitlementFingerprint ?? null,
             query: query.compiledSql,
             displayTimezone,
+            analyticsActivityWindow:
+                query.requestParameters.analyticsActivityWindow,
         };
     }
 
@@ -6688,6 +6727,13 @@ export class AsyncQueryService extends ProjectService {
                     const displayTimezone = queryComposer.getDisplayTimezone();
 
                     const warehouseCredentialsType = warehouseCredentials.type;
+                    const analyticsActivityWindow =
+                        warehouseCredentials.type === WarehouseTypes.DUCKDB &&
+                        warehouseCredentials.connectionType ===
+                            DuckdbConnectionType.ANALYTICS &&
+                        !dateZoom
+                            ? getAnalyticsActivityWindow(metricQuery, timezone)
+                            : undefined;
                     const warehouseCredentialsOverrides: RunAsyncWarehouseQueryArgs['warehouseCredentialsOverrides'] =
                         {
                             snowflakeVirtualWarehouse: explore.warehouse,
@@ -7016,6 +7062,7 @@ export class AsyncQueryService extends ProjectService {
                                         : undefined,
                                 resultEntitlementFingerprint:
                                     entitlementFingerprint,
+                                analyticsActivityWindow,
                                 cacheSourceQueryUuid:
                                     resultsCache.cacheHit && identityEnabled
                                         ? resultsCache.queryUuid
@@ -7344,6 +7391,7 @@ export class AsyncQueryService extends ProjectService {
                     trackQueryExecuted(executedSource);
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
+                        analyticsActivityWindow,
                         authMethod: account.authentication.type,
                         agentIdentity: agentIdentity ?? null,
                         resultEntitlementFingerprint: entitlementFingerprint,
@@ -8522,6 +8570,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides: {},
             invalidateCache: invalidateCache ?? false,
             plans: { [totalsNodeId]: plan },
+            binding: null,
             aiAttribution: null,
         });
         const totals = queries.find((query) => query.nodeId === totalsNodeId);
@@ -12480,8 +12529,20 @@ export class AsyncQueryService extends ProjectService {
                 args.invalidateCache ??
                 false,
             history: { fields, requestParameters, metricQuery, explore },
-            toResult: (result) =>
-                toApiSourceResult({ compiled, rows: result.rows, fields }),
+            toResult: (result) => {
+                const { label, maxRows } = connector.describe();
+                assertApiResultComplete({
+                    compiled,
+                    hasMoreRows: result.hasMoreRows,
+                    label,
+                    maxRows,
+                });
+                return toApiSourceResult({
+                    compiled,
+                    rows: result.rows,
+                    fields,
+                });
+            },
         });
         return {
             queryUuid,
@@ -12785,7 +12846,7 @@ export class AsyncQueryService extends ProjectService {
                     executeMs = Date.now() - startedAt;
                     span.setAttributes({
                         'lightdash.rowCount': result.rows.length,
-                        'lightdash.truncated': result.truncated,
+                        'lightdash.truncated': result.hasMoreRows,
                         'lightdash.apiCalls': connector.usage().apiCalls,
                         ...(result.bytesRead !== null
                             ? { 'lightdash.bytesRead': result.bytesRead }
@@ -12869,18 +12930,20 @@ export class AsyncQueryService extends ProjectService {
                         errorMessage: null,
                         totalRowCount: shaped.rows.length,
                         columnsCount: Object.keys(shaped.columns).length,
-                        truncated: result.truncated,
+                        truncated: result.hasMoreRows,
                     });
                     logCall({
                         outcome: 'ok',
                         errorMessage: null,
                         rowCount: shaped.rows.length,
                         columnCount: Object.keys(shaped.columns).length,
-                        truncated: result.truncated,
+                        truncated: result.hasMoreRows,
                     });
                     this.logger.info(
                         `Api query ${queryUuid} ready: ${shaped.rows.length} rows${
-                            result.truncated ? ' (truncated)' : ''
+                            result.hasMoreRows
+                                ? ' (more rows past the limit)'
+                                : ''
                         } from ${connectorType} in ${Date.now() - startedAt}ms`,
                     );
                 } catch (e) {
@@ -13006,7 +13069,7 @@ export class AsyncQueryService extends ProjectService {
                 'ok',
                 Date.now() - startedAt,
             );
-            if (result.truncated) {
+            if (result.hasMoreRows) {
                 this.prometheusMetrics?.incrementApiSourceTruncated(
                     connectorType,
                 );
@@ -15291,7 +15354,9 @@ export class AsyncQueryService extends ProjectService {
             },
             () =>
                 this.getQuerySourceService().submitQueries({
-                    documentQueryContext,
+                    binding: documentQueryContext
+                        ? { kind: 'document', context: documentQueryContext }
+                        : null,
                     account,
                     projectUuid,
                     context,
@@ -16274,7 +16339,8 @@ export class AsyncQueryService extends ProjectService {
 
     /**
      * Poll for query completion with exponential backoff.
-     * Throws on CANCELLED, ERROR, or timeout.
+     * Throws on CANCELLED, ERROR, or timeout. A timeout cancels the query
+     * if it is still running.
      */
     async pollForQueryCompletion({
         account,
@@ -16284,6 +16350,7 @@ export class AsyncQueryService extends ProjectService {
         maxBackoffMs = 2000,
         timeoutMs = 5 * 60 * 1000, // 5 min default
         abortSignal,
+        source = 'other',
     }: {
         account: Account;
         projectUuid: string;
@@ -16292,16 +16359,66 @@ export class AsyncQueryService extends ProjectService {
         maxBackoffMs?: number;
         timeoutMs?: number;
         abortSignal?: AbortSignal;
+        source?: QueryPollingSource;
     }): Promise<void> {
-        await this.queryHistoryModel.pollForQueryCompletion({
-            queryUuid,
-            account,
-            projectUuid,
-            initialBackoffMs,
-            maxBackoffMs,
-            timeoutMs,
-            abortSignal,
-        });
+        try {
+            await this.queryHistoryModel.pollForQueryCompletion({
+                queryUuid,
+                account,
+                projectUuid,
+                initialBackoffMs,
+                maxBackoffMs,
+                timeoutMs,
+                abortSignal,
+            });
+        } catch (error) {
+            if (error instanceof QueryPollingTimeoutError) {
+                this.prometheusMetrics?.incrementQueryPollingTimeout(source);
+                await this.cancelTimedOutQuery({
+                    account,
+                    projectUuid,
+                    queryUuid,
+                });
+            }
+            throw error;
+        }
+    }
+
+    private async cancelTimedOutQuery({
+        account,
+        projectUuid,
+        queryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<void> {
+        try {
+            const history = await this.queryHistoryModel.get(
+                queryUuid,
+                projectUuid,
+                account,
+            );
+            if (
+                [
+                    QueryHistoryStatus.PENDING,
+                    QueryHistoryStatus.QUEUED,
+                    QueryHistoryStatus.EXECUTING,
+                ].includes(history.status)
+            ) {
+                await this.cancelAsyncQuery({
+                    account,
+                    projectUuid,
+                    queryUuid,
+                });
+            }
+        } catch (error) {
+            this.logger.warn(
+                `Failed to cancel query ${queryUuid} after polling timed out: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
     }
 
     async pollQueryHistoryUntilDeadline({
