@@ -77498,6 +77498,426 @@
                 "required": ["item"],
                 "type": "object"
             },
+            "StoredNode_SemanticLayerSourceQuery_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerSourceQuery"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "StoredNode_SqlSourceQuery_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SqlSourceQuery"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "StoredNode_DuckdbSourceQuery_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DuckdbSourceQuery"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Pick_PythonSourceQuery.Exclude_keyofPythonSourceQuery.pivotConfiguration__": {
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Maximum rows kept from the returned DataFrame."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.PYTHON"
+                    },
+                    "nodeId": {
+                        "type": "string",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "references": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "description": "Which query results the code reads, in the same two forms as duckdb\nreferences. Shorthand array: node ids of queries in the same\nsubmission, each exposed as inputs[nodeId]. Map form for aliasing or\nexisting results: {inputName: nodeIdOrQueryUuid}. At least one is\nrequired."
+                    }
+                },
+                "required": ["code", "sourceType", "references"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_PythonSourceQuery.pivotConfiguration_": {
+                "$ref": "#/components/schemas/Pick_PythonSourceQuery.Exclude_keyofPythonSourceQuery.pivotConfiguration__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "StoredNode_Omit_PythonSourceQuery.pivotConfiguration__": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_PythonSourceQuery.pivotConfiguration_"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Pick_MergeSourceQuery.Exclude_keyofMergeSourceQuery.pivotConfiguration__": {
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array",
+                        "description": "Sort of the merged result, by merged column id. Defaults to join-key order."
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Calculations over the merged row. Defaults to none."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.MERGE"
+                    },
+                    "nodeId": {
+                        "type": "string",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeSourceQueryInput"
+                        },
+                        "type": "array",
+                        "description": "At least two semanticLayer nodes, in order; a left join keeps the first one's rows."
+                    },
+                    "joinKey": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
+                        },
+                        "type": "array",
+                        "description": "Join key parts, each naming one field per source by node id."
+                    },
+                    "joinType": {
+                        "$ref": "#/components/schemas/MergeJoinType"
+                    }
+                },
+                "required": ["sourceType", "sources", "joinKey", "joinType"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_MergeSourceQuery.pivotConfiguration_": {
+                "$ref": "#/components/schemas/Pick_MergeSourceQuery.Exclude_keyofMergeSourceQuery.pivotConfiguration__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "StoredNode_Omit_MergeSourceQuery.pivotConfiguration__": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_MergeSourceQuery.pivotConfiguration_"
+                    },
+                    {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            },
+                            "nodeId": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+                            }
+                        },
+                        "required": ["title", "nodeId"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ComposerChartPipelineNode": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/StoredNode_SemanticLayerSourceQuery_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StoredNode_SqlSourceQuery_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StoredNode_DuckdbSourceQuery_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StoredNode_Omit_PythonSourceQuery.pivotConfiguration__"
+                    },
+                    {
+                        "$ref": "#/components/schemas/StoredNode_Omit_MergeSourceQuery.pivotConfiguration__"
+                    }
+                ],
+                "description": "A node of a stored composer chart pipeline; kinds a dashboard viewer can run."
+            },
+            "ComposerChartPipeline": {
+                "properties": {
+                    "nodes": {
+                        "items": {
+                            "$ref": "#/components/schemas/ComposerChartPipelineNode"
+                        },
+                        "type": "array"
+                    },
+                    "terminalNodeId": {
+                        "type": "string"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": ["nodes", "terminalNodeId", "schemaVersion"],
+                "type": "object"
+            },
+            "ComposerChartColumn": {
+                "properties": {
+                    "fieldType": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FieldType.DIMENSION"
+                            },
+                            {
+                                "$ref": "#/components/schemas/FieldType.METRIC"
+                            }
+                        ]
+                    },
+                    "reference": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldType", "reference"],
+                "type": "object"
+            },
+            "ComposerStoredChart": {
+                "properties": {
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig"
+                    },
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ComposerChartColumn"
+                        },
+                        "type": "array"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "tableConfig",
+                    "pivotConfig",
+                    "chartConfig",
+                    "columns",
+                    "schemaVersion"
+                ],
+                "type": "object"
+            },
+            "ComposerChart": {
+                "properties": {
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "chart": {
+                        "$ref": "#/components/schemas/ComposerStoredChart"
+                    },
+                    "pipeline": {
+                        "$ref": "#/components/schemas/ComposerChartPipeline"
+                    },
+                    "versionUuid": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedByUserUuid",
+                    "updatedAt",
+                    "chart",
+                    "pipeline",
+                    "versionUuid",
+                    "createdByUserUuid",
+                    "createdAt",
+                    "slug",
+                    "description",
+                    "name",
+                    "dashboardUuid",
+                    "projectUuid",
+                    "uuid"
+                ],
+                "type": "object",
+                "description": "A composer chart and its current version."
+            },
+            "ApiComposerChartResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ComposerChart"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateComposerChart": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/ComposerStoredChart"
+                    },
+                    "pipeline": {
+                        "$ref": "#/components/schemas/ComposerChartPipeline"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["chart", "pipeline", "name", "dashboardUuid"],
+                "type": "object"
+            },
             "KnexPaginatedData_CatalogField-Array_": {
                 "properties": {
                     "pagination": {
@@ -78625,7 +79045,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.249.0",
+        "version": "3.250.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -124624,6 +125044,106 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/composer-charts": {
+            "post": {
+                "operationId": "createComposerChart",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates a composer chart owned by a dashboard: a stored pipeline and the\nchart drawn from its terminal node. Adds no tile; add one with the\ndashboard update. Requires the composer-charts feature flag.",
+                "summary": "Create composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateComposerChart"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}": {
+            "get": {
+                "operationId": "getComposerChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets a composer chart's current version, pipeline included. Anyone who\ncan view the owning dashboard can read it.",
+                "summary": "Get composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "composerChartUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/projects/{projectUuid}/dataCatalog/metrics-with-time-dimensions": {
