@@ -22,9 +22,12 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import {
+    IconArrowLeft,
     IconChevronRight,
     IconCode,
     IconFileCode,
+    IconMessage,
+    IconPlus,
     IconSearch,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -49,6 +52,7 @@ import {
     useChatOpen,
     useSemanticStudioChat,
     useStoredStudioThread,
+    useStudioAgent,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import {
     useStudioPendingChange,
@@ -944,6 +948,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     useDraftFreshness(view.project.id);
     const { data: project } = useProject(view.project.id);
     const chat = useSemanticStudioChat(view.project.id);
+    const { startNewThread } = useStudioAgent(view.project.id);
     const [isChatOpen, setIsChatOpen] = useChatOpen();
     const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
     const [hasStarted, setHasStarted] = useState(false);
@@ -1194,6 +1199,28 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // Reviewing changes takes the full width: the tree is for browsing models.
     const isReviewPane =
         pane === 'changes' || pane === 'review' || pane === 'workspaces';
+    // Live is what is published; Changes is everything in flight, and an open change gets its own bar.
+    const isChangesView = isReviewPane;
+    const isChangeOpen =
+        (pane === 'changes' || pane === 'review') &&
+        !!(shownWorkspace || workspace);
+    const hasChangesTab = hasWorkspaces || hasChanges || !!saving;
+    const inFlight =
+        workspaces?.mine.filter(({ finishedAt }) => !finishedAt).length ?? 0;
+    const showLive = () => {
+        setIsTryingChanges(false);
+        switchView('models');
+    };
+    const showChanges = () =>
+        hasWorkspaces
+            ? setSearchParams({ [VIEW_PARAM]: 'workspaces' })
+            : switchView('changes');
+    const startNewChange = () => {
+        startNewThread();
+        setIsTryingChanges(false);
+        setIsChatOpen(true);
+        void navigate(getSemanticStudioUrl(view.project.id, { ref: null }));
+    };
     // What the chat is told the person has open: in the code view that is the file, not the page behind it.
     const openModel = isCode
         ? { modelName: file, fieldName: searchParams.get(FIELD_PARAM) }
@@ -1344,134 +1371,229 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             !hasProposal &&
                             !hasWorkspaces &&
                             isChatOpen) ? null : (
-                            <Group
-                                className={classes.toolbar}
-                                justify="space-between"
-                                wrap="nowrap"
-                                gap="sm"
-                            >
-                                <Group gap={6} wrap="nowrap" flex="none">
-                                    <UnstyledButton
-                                        className={classes.crumb}
-                                        aria-current={
-                                            pane === 'browse'
-                                                ? 'page'
-                                                : undefined
-                                        }
-                                        onClick={() => switchView('models')}
+                            <>
+                                <Group
+                                    className={classes.toolbar}
+                                    justify="space-between"
+                                    wrap="nowrap"
+                                    gap="sm"
+                                >
+                                    <div
+                                        className={classes.views}
+                                        role="tablist"
+                                        aria-label="Views"
                                     >
-                                        Models
-                                    </UnstyledButton>
-                                    {hasWorkspaces ? (
                                         <UnstyledButton
-                                            className={classes.crumb}
-                                            aria-current={
-                                                pane === 'workspaces'
-                                                    ? 'page'
-                                                    : undefined
-                                            }
-                                            onClick={() =>
-                                                setSearchParams({
-                                                    [VIEW_PARAM]: 'workspaces',
-                                                })
-                                            }
+                                            role="tab"
+                                            className={classes.view}
+                                            aria-selected={!isChangesView}
+                                            onClick={showLive}
                                         >
-                                            Changes
+                                            <span className={classes.liveDot} />
+                                            Live
                                         </UnstyledButton>
-                                    ) : null}
-                                    {shownWorkspace || workspace ? (
-                                        <>
-                                            <Text fz="xs" c="dimmed">
-                                                /
-                                            </Text>
+                                        {hasChangesTab ? (
+                                            <UnstyledButton
+                                                role="tab"
+                                                className={classes.view}
+                                                aria-selected={isChangesView}
+                                                onClick={showChanges}
+                                            >
+                                                Changes
+                                                {saving ? (
+                                                    <span
+                                                        className={
+                                                            classes.busyDot
+                                                        }
+                                                        aria-label="Saving"
+                                                    />
+                                                ) : inFlight > 0 ? (
+                                                    <span
+                                                        className={
+                                                            classes.count
+                                                        }
+                                                    >
+                                                        {inFlight}
+                                                    </span>
+                                                ) : null}
+                                            </UnstyledButton>
+                                        ) : null}
+                                    </div>
+                                    <Group
+                                        gap="xs"
+                                        wrap="nowrap"
+                                        miw={0}
+                                        ml="auto"
+                                    >
+                                        {keepsDraft && !isChangeOpen ? (
                                             <Tooltip
                                                 label={
-                                                    workspace?.hint ??
-                                                    'Open what this change does'
+                                                    isCode
+                                                        ? 'Back to models'
+                                                        : 'Read the YAML'
                                                 }
                                             >
-                                                <UnstyledButton
-                                                    className={classes.crumb}
-                                                    data-workspace
-                                                    aria-current={
-                                                        pane === 'changes' ||
-                                                        pane === 'review'
-                                                            ? 'page'
-                                                            : undefined
+                                                <ActionIcon
+                                                    size="md"
+                                                    variant={
+                                                        isCode
+                                                            ? 'light'
+                                                            : 'default'
                                                     }
+                                                    aria-label="Code"
+                                                    aria-pressed={isCode}
                                                     onClick={() =>
-                                                        switchView('changes')
+                                                        switchView(
+                                                            isCode
+                                                                ? 'models'
+                                                                : 'code',
+                                                        )
                                                     }
                                                 >
-                                                    {shownWorkspace?.name ??
-                                                        workspace?.name}
-                                                </UnstyledButton>
+                                                    <MantineIcon
+                                                        icon={IconCode}
+                                                    />
+                                                </ActionIcon>
                                             </Tooltip>
-                                        </>
-                                    ) : null}
+                                        ) : null}
+                                        {keepsDraft ? (
+                                            !isChatOpen ? (
+                                                <Button
+                                                    size="xs"
+                                                    variant="default"
+                                                    flex="none"
+                                                    onClick={() =>
+                                                        setIsChatOpen(true)
+                                                    }
+                                                >
+                                                    Build
+                                                </Button>
+                                            ) : null
+                                        ) : (
+                                            <Button
+                                                size="xs"
+                                                variant="default"
+                                                flex="none"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconPlus}
+                                                        size={14}
+                                                    />
+                                                }
+                                                onClick={startNewChange}
+                                            >
+                                                New change
+                                            </Button>
+                                        )}
+                                    </Group>
                                 </Group>
-                                {stage && (shownWorkspace || workspace) ? (
-                                    <Box className={classes.stageLine}>
-                                        <StudioStageLine stage={stage} />
-                                    </Box>
-                                ) : null}
-                                {saving ? (
-                                    <StudioSavingBar
-                                        projectUuid={view.project.id}
-                                        change={saving}
-                                        pullRequest={development}
-                                    />
-                                ) : development ? (
-                                    <StudioDevelopmentBar
-                                        projectUuid={view.project.id}
-                                        pullRequest={development}
-                                    />
-                                ) : null}
-                                {keepsDraft && !isBuildingFirstModel ? (
-                                    <DraftDevelopmentBar
-                                        projectUuid={view.project.id}
-                                    />
-                                ) : null}
-                                <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
-                                    {keepsDraft ? (
+                                {isChangeOpen ? (
+                                    <Group
+                                        className={classes.changeBar}
+                                        wrap="nowrap"
+                                        gap="sm"
+                                    >
                                         <Tooltip
                                             label={
-                                                isCode
-                                                    ? 'Back to models'
-                                                    : 'Read the YAML'
+                                                hasWorkspaces
+                                                    ? 'All changes'
+                                                    : 'Back to live'
                                             }
                                         >
                                             <ActionIcon
+                                                variant="subtle"
+                                                color="gray"
                                                 size="md"
-                                                variant={
-                                                    isCode ? 'light' : 'default'
+                                                aria-label={
+                                                    hasWorkspaces
+                                                        ? 'All changes'
+                                                        : 'Back to live'
                                                 }
-                                                aria-label="Code"
-                                                aria-pressed={isCode}
-                                                onClick={() =>
-                                                    switchView(
-                                                        isCode
-                                                            ? 'models'
-                                                            : 'code',
-                                                    )
+                                                onClick={
+                                                    hasWorkspaces
+                                                        ? showChanges
+                                                        : showLive
                                                 }
                                             >
-                                                <MantineIcon icon={IconCode} />
+                                                <MantineIcon
+                                                    icon={IconArrowLeft}
+                                                />
                                             </ActionIcon>
                                         </Tooltip>
-                                    ) : null}
-                                    {chat.isAvailable && !isChatOpen ? (
-                                        <Button
-                                            size="xs"
-                                            variant="default"
-                                            flex="none"
-                                            onClick={() => setIsChatOpen(true)}
+                                        <Tooltip
+                                            label={
+                                                workspace?.hint ??
+                                                'What this change does'
+                                            }
                                         >
-                                            Build
-                                        </Button>
-                                    ) : null}
-                                </Group>
-                            </Group>
+                                            <Text
+                                                className={classes.changeName}
+                                            >
+                                                {shownWorkspace?.name ??
+                                                    workspace?.name}
+                                            </Text>
+                                        </Tooltip>
+                                        {stage ? (
+                                            <Box className={classes.stageLine}>
+                                                <StudioStageLine
+                                                    stage={stage}
+                                                />
+                                            </Box>
+                                        ) : null}
+                                        <Group
+                                            gap="xs"
+                                            wrap="nowrap"
+                                            miw={0}
+                                            ml="auto"
+                                        >
+                                            {saving ? (
+                                                <StudioSavingBar
+                                                    projectUuid={
+                                                        view.project.id
+                                                    }
+                                                    change={saving}
+                                                    pullRequest={development}
+                                                />
+                                            ) : development ? (
+                                                <StudioDevelopmentBar
+                                                    projectUuid={
+                                                        view.project.id
+                                                    }
+                                                    pullRequest={development}
+                                                />
+                                            ) : null}
+                                            {keepsDraft &&
+                                            !isBuildingFirstModel ? (
+                                                <DraftDevelopmentBar
+                                                    projectUuid={
+                                                        view.project.id
+                                                    }
+                                                />
+                                            ) : null}
+                                            {chat.isAvailable &&
+                                            !isChatOpen &&
+                                            !keepsDraft ? (
+                                                <Button
+                                                    size="xs"
+                                                    variant="default"
+                                                    flex="none"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconMessage}
+                                                            size={14}
+                                                        />
+                                                    }
+                                                    onClick={() =>
+                                                        setIsChatOpen(true)
+                                                    }
+                                                >
+                                                    Chat
+                                                </Button>
+                                            ) : null}
+                                        </Group>
+                                    </Group>
+                                ) : null}
+                            </>
                         )}
                         <Box
                             className={classes.workspaceBody}
