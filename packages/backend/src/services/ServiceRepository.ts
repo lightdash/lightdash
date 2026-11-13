@@ -2008,6 +2008,7 @@ export class ServiceRepository
             () =>
                 new ComposerChartService({
                     composerChartModel: this.models.getComposerChartModel(),
+                    appModel: this.models.getAppModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     spacePermissionService: this.getSpacePermissionService(),

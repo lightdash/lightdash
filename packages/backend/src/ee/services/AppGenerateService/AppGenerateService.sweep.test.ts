@@ -29,6 +29,7 @@ function buildService() {
         spacePermissionService: {} as never,
         coderService: {} as never,
         documentService: {} as never,
+        composerChartService: {} as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,

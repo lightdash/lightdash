@@ -293,6 +293,7 @@ vi.mock('../MetricQueryData/useMetricQueryDataContext', () => ({
     useMetricQueryDataContext: () => mocks.metricQueryData.current,
 }));
 
+import { ComposerChartRenderTargetContext } from '../../features/chartTypes/composerChartRenderTarget';
 import { DocumentRenderTargetContext } from '../../features/chartTypes/documentRenderTarget/context';
 import {
     RENDER_ACK_FALLBACK_MS,
@@ -909,6 +910,27 @@ describe('DataAppVizRenderer', () => {
                 },
             }),
             undefined,
+        );
+    });
+
+    it('renders a composer chart tile through the composer chart, before any saved chart', () => {
+        render(
+            <ComposerChartRenderTargetContext.Provider value="composer-uuid">
+                {rendererElement()}
+            </ComposerChartRenderTargetContext.Provider>,
+        );
+
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                chartContext: { composerChartUuid: 'composer-uuid' },
+            }),
+            undefined,
+        );
+        expect(mocks.renderMetadataHook).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            expect.objectContaining({ composerChartUuid: 'composer-uuid' }),
+            expect.anything(),
         );
     });
 

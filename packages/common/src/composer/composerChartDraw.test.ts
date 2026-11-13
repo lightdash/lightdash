@@ -418,6 +418,31 @@ describe('getComposerChartPivotStage', () => {
         );
     });
 
+    test('splits a custom chart type on the columns bound to its series slots', () => {
+        expect(
+            getComposerChartPivotStage(sqlPipeline, {
+                ...splitChart,
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: 'viz',
+                        dataAppVizVersion: 1,
+                        fieldMapping: {
+                            category: 'month',
+                            value: 'revenue',
+                            series: ['method'],
+                        },
+                    },
+                },
+            }),
+        ).toMatchObject({
+            pivotConfiguration: {
+                groupByColumns: [{ reference: 'method' }],
+                valuesColumns: [{ reference: 'revenue' }],
+            },
+        });
+    });
+
     test('is null for a chart that is not cartesian, which the tile refuses to draw', () => {
         expect(
             getComposerChartPivotStage(sqlPipeline, {

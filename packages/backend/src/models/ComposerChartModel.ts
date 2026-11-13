@@ -1,4 +1,5 @@
 import {
+    ChartType,
     NotFoundError,
     parseComposerPipeline,
     parseComposerStoredChart,
@@ -17,6 +18,7 @@ import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
+import { SpaceTableName } from '../database/entities/spaces';
 import { generateUniqueSlugScopedToProject } from '../utils/SlugUtils';
 
 export type CreateComposerChartRecord = {
@@ -201,6 +203,132 @@ export class ComposerChartModel {
             chart: JSON.stringify(version.chart),
             created_by_user_uuid: userUuid,
         });
+    }
+
+    /** Live charts on live dashboards whose current version renders the custom chart type. */
+    private usingDataAppVizQuery(
+        database: Knex,
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ) {
+        return database(ComposerChartsTableName)
+            .innerJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${ComposerChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .joinRaw(
+                `CROSS JOIN LATERAL (
+                    SELECT pipeline, chart FROM ${ComposerChartVersionsTableName}
+                    WHERE composer_chart_uuid = ${ComposerChartsTableName}.composer_chart_uuid
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                ) AS current_version`,
+            )
+            .where(`${ComposerChartsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${ComposerChartsTableName}.deleted_at`)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .whereRaw(`current_version.chart #>> '{chartConfig,type}' = ?`, [
+                ChartType.DATA_APP_VIZ,
+            ])
+            .whereRaw(
+                `current_version.chart #>> '{chartConfig,config,dataAppVizUuid}' = ?`,
+                [dataAppVizUuid],
+            );
+    }
+
+    async countUsingDataAppViz(
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<number> {
+        const [result] = await this.usingDataAppVizQuery(
+            this.database,
+            projectUuid,
+            dataAppVizUuid,
+        ).count<{ count: string }[]>({ count: '*' });
+        return Number(result.count);
+    }
+
+    /**
+     * Appends a version pinning `version` to each chart using the type, a copy
+     * of its current version otherwise; older versions keep their pin.
+     */
+    async repinUsingDataAppViz(
+        projectUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+        userUuid: string,
+    ): Promise<number> {
+        return this.database.transaction(async (trx) => {
+            const moved = await trx
+                .into(
+                    trx.raw(
+                        '?? (composer_chart_uuid, pipeline, chart, created_by_user_uuid)',
+                        [ComposerChartVersionsTableName],
+                    ),
+                )
+                .insert(
+                    this.usingDataAppVizQuery(trx, projectUuid, dataAppVizUuid)
+                        .whereRaw(
+                            `(current_version.chart #> '{chartConfig,config,dataAppVizVersion}') IS DISTINCT FROM to_jsonb(?::integer)`,
+                            [version],
+                        )
+                        .select(
+                            `${ComposerChartsTableName}.composer_chart_uuid`,
+                            'current_version.pipeline',
+                            trx.raw(
+                                `jsonb_set(current_version.chart, '{chartConfig,config,dataAppVizVersion}', to_jsonb(?::integer), true)`,
+                                [version],
+                            ),
+                            trx.raw('?::uuid', [userUuid]),
+                        ),
+                )
+                .returning('composer_chart_uuid');
+            return moved.length;
+        });
+    }
+
+    /** Re-points a preview project's charts from the custom chart types they were copied with onto the preview's copies. */
+    async remapPreviewDataAppVizs(
+        previewProjectUuid: string,
+        mappings: Array<{
+            sourceAppUuid: string;
+            previewAppUuid: string;
+            previewAppVersion: number;
+        }>,
+    ): Promise<void> {
+        /* eslint-disable no-await-in-loop */
+        for (const mapping of mappings) {
+            await this.database(ComposerChartVersionsTableName)
+                .whereIn(
+                    'composer_chart_uuid',
+                    this.database(ComposerChartsTableName)
+                        .where('project_uuid', previewProjectUuid)
+                        .select('composer_chart_uuid'),
+                )
+                .whereRaw(
+                    `chart #>> '{chartConfig,type}' = ? AND chart #>> '{chartConfig,config,dataAppVizUuid}' = ?`,
+                    [ChartType.DATA_APP_VIZ, mapping.sourceAppUuid],
+                )
+                .update({
+                    chart: this.database.raw(
+                        `jsonb_set(
+                            jsonb_set(chart, '{chartConfig,config,dataAppVizUuid}', to_jsonb(?::text)),
+                            '{chartConfig,config,dataAppVizVersion}',
+                            to_jsonb(?::integer),
+                            true
+                        )`,
+                        [mapping.previewAppUuid, mapping.previewAppVersion],
+                    ) as unknown as string,
+                });
+        }
+        /* eslint-enable no-await-in-loop */
     }
 
     /** The chart and its latest version; its documents parsed strictly. */

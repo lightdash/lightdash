@@ -1,12 +1,17 @@
 import { subject } from '@casl/ability';
 import {
     AgentCapability,
+    ChartType,
     FeatureFlags,
     FeatureNotEnabledError,
+    FieldType,
     ForbiddenError,
     getComposerPipelineWriteDeniedReason,
+    getDataAppVizChartConfigErrors,
     isDashboardComposerChartTile,
     NotFoundError,
+    ParameterError,
+    parseComposerChartInput,
     parseComposerChartRunRequest,
     parseComposerPipeline,
     parseComposerStoredChart,
@@ -16,6 +21,7 @@ import {
     type ComposerChartPipeline,
     type ComposerChartRunRequest,
     type ComposerChartRunResults,
+    type ComposerStoredChart,
     type CreateComposerChart,
     type RegisteredAccount,
     type UUID,
@@ -28,12 +34,14 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { traceSpan } from '../../tracing/tracing';
 import { BaseService } from '../BaseService';
+import { resolveDataAppVizBinding } from '../CoderService/dataAppVizBinding';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { ComposerRunBinding } from './ComposerRunBinding';
 
 type ComposerChartServiceArguments = {
     composerChartModel: ComposerChartModel;
+    appModel: Parameters<typeof resolveDataAppVizBinding>[0]['appModel'];
     dashboardModel: DashboardModel;
     featureFlagModel: FeatureFlagModel;
     spacePermissionService: SpacePermissionService;
@@ -45,6 +53,8 @@ type ProjectSubject = { organizationUuid: string; projectUuid: string };
 
 export class ComposerChartService extends BaseService {
     private readonly composerChartModel: ComposerChartModel;
+
+    private readonly appModel: ComposerChartServiceArguments['appModel'];
 
     private readonly dashboardModel: DashboardModel;
 
@@ -59,6 +69,7 @@ export class ComposerChartService extends BaseService {
     constructor(args: ComposerChartServiceArguments) {
         super({ serviceName: 'ComposerChartService' });
         this.composerChartModel = args.composerChartModel;
+        this.appModel = args.appModel;
         this.dashboardModel = args.dashboardModel;
         this.featureFlagModel = args.featureFlagModel;
         this.spacePermissionService = args.spacePermissionService;
@@ -123,6 +134,49 @@ export class ComposerChartService extends BaseService {
         }
     }
 
+    /** As document save: a missing pin takes the latest renderable version. */
+    private async pinCustomChartType(
+        projectUuid: string,
+        chart: ComposerStoredChart,
+    ): Promise<ComposerStoredChart> {
+        if (chart.chartConfig.type !== ChartType.DATA_APP_VIZ) return chart;
+        const { chartConfig, vizSchema } = await resolveDataAppVizBinding({
+            appModel: this.appModel,
+            logger: this.logger,
+            projectUuid,
+            chartConfig: chart.chartConfig,
+            source: 'composerChart',
+        });
+        if (
+            chartConfig.type !== ChartType.DATA_APP_VIZ ||
+            chartConfig.config === undefined ||
+            vizSchema === undefined
+        ) {
+            throw new ParameterError(
+                'Composer chart chartConfig must reference a custom chart type',
+            );
+        }
+        const columnsWith = (fieldType: FieldType) =>
+            chart.columns
+                .filter((column) => column.fieldType === fieldType)
+                .map(({ reference }) => reference);
+        const errors = getDataAppVizChartConfigErrors(
+            chartConfig.config,
+            vizSchema,
+            {
+                dimensions: columnsWith(FieldType.DIMENSION),
+                metrics: columnsWith(FieldType.METRIC),
+                tableCalculations: [],
+            },
+        );
+        if (errors.length > 0) {
+            throw new ParameterError(
+                `Invalid custom chart type mapping: ${errors.join(' ')}`,
+            );
+        }
+        return parseComposerStoredChart({ ...chart, chartConfig });
+    }
+
     /** Shared by the create endpoint and, later, content-as-code upload. */
     async create(
         account: RegisteredAccount,
@@ -130,7 +184,7 @@ export class ComposerChartService extends BaseService {
         data: CreateComposerChart,
     ): Promise<ComposerChart> {
         const pipeline = parseComposerPipeline(data.pipeline);
-        const chart = parseComposerStoredChart(data.chart);
+        const input = parseComposerChartInput(data.chart);
 
         const dashboardAccess = await this.getDashboardAccess(
             account,
@@ -161,6 +215,7 @@ export class ComposerChartService extends BaseService {
             );
         }
         this.assertCanWritePipeline(account, dashboardAccess, pipeline);
+        const chart = await this.pinCustomChartType(projectUuid, input);
 
         const uuid = await this.composerChartModel.create({
             uuid: null,
@@ -173,6 +228,39 @@ export class ComposerChartService extends BaseService {
             createdByUserUuid: account.user.userUuid,
         });
         return this.composerChartModel.get(uuid);
+    }
+
+    /** Charts whose current version uses the custom chart type; the caller authorizes. */
+    countUsingDataAppViz(
+        projectUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<number> {
+        return this.composerChartModel.countUsingDataAppViz(
+            projectUuid,
+            dataAppVizUuid,
+        );
+    }
+
+    /** Copies a stored pipeline, so no author checks; the caller authorizes the upgrade. */
+    repinUsingDataAppViz(
+        projectUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+        userUuid: string,
+    ): Promise<number> {
+        return this.composerChartModel.repinUsingDataAppViz(
+            projectUuid,
+            dataAppVizUuid,
+            version,
+            userUuid,
+        );
+    }
+
+    /** Preview-project copy only: a copy carries no new SQL, so no author checks. */
+    remapPreviewDataAppVizs(
+        ...args: Parameters<ComposerChartModel['remapPreviewDataAppVizs']>
+    ): Promise<void> {
+        return this.composerChartModel.remapPreviewDataAppVizs(...args);
     }
 
     /** View on the chart, through its current owner: today always its dashboard. */
