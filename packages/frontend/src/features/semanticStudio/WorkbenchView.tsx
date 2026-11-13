@@ -120,6 +120,7 @@ import {
     SemanticLayerNudge,
     SettingsLink,
 } from './shared';
+import { StudioRunningPill } from './StudioRunningPill';
 import { StudioStageLine, type StudioStage } from './StudioStageLine';
 import { StudioWorkspacesList } from './StudioWorkspacesList';
 import {
@@ -1205,8 +1206,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         (pane === 'changes' || pane === 'review') &&
         !!(shownWorkspace || workspace);
     const hasChangesTab = hasWorkspaces || hasChanges || !!saving;
-    const inFlight =
-        workspaces?.mine.filter(({ finishedAt }) => !finishedAt).length ?? 0;
     const showLive = () => {
         setIsTryingChanges(false);
         switchView('models');
@@ -1400,22 +1399,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 onClick={showChanges}
                                             >
                                                 Changes
-                                                {saving ? (
-                                                    <span
-                                                        className={
-                                                            classes.busyDot
-                                                        }
-                                                        aria-label="Saving"
-                                                    />
-                                                ) : inFlight > 0 ? (
-                                                    <span
-                                                        className={
-                                                            classes.count
-                                                        }
-                                                    >
-                                                        {inFlight}
-                                                    </span>
-                                                ) : null}
                                             </UnstyledButton>
                                         ) : null}
                                     </div>
@@ -1425,6 +1408,16 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         miw={0}
                                         ml="auto"
                                     >
+                                        <StudioRunningPill
+                                            projectUuid={view.project.id}
+                                            workspaces={workspaces?.mine ?? []}
+                                            saving={saving}
+                                            onOpen={(target) =>
+                                                openWorkspace(target, {
+                                                    navigateTo: true,
+                                                })
+                                            }
+                                        />
                                         {keepsDraft && !isChangeOpen ? (
                                             <Tooltip
                                                 label={
