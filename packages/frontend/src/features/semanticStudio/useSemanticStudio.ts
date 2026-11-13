@@ -5,9 +5,10 @@ import {
     type ApiCatalogResults,
     type ApiError,
     type CatalogField,
+    type Explore as CompiledExplore,
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     useCallback,
     useDeferredValue,
@@ -15,6 +16,7 @@ import {
     useMemo,
     useState,
 } from 'react';
+import { getExplore } from '../../hooks/useExplore';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import {
     buildProjectTree,
@@ -32,6 +34,10 @@ import {
     type ProjectTree,
 } from './model';
 import { keepsKindPage } from './permissions';
+import {
+    matchExploreFields,
+    uncataloguedExploreIds,
+} from './sourceFieldSearch';
 import {
     isSameRoute,
     isSemanticStudioPath,
@@ -105,9 +111,43 @@ const useFieldSearch = (projectUuid: string, query: string) => {
 };
 
 /**
+ * External and live data source explores, which the catalog doesn't index.
+ * They load through the explore cache the field pages share, once a search
+ * starts; one that fails to load is left out rather than failing the rest.
+ */
+const useUncataloguedExplores = (project: Project, enabled: boolean) => {
+    const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
+    const exploreIds = useMemo(
+        () => uncataloguedExploreIds(project),
+        [project],
+    );
+    return useQuery<CompiledExplore[], ApiError>({
+        queryKey: ['semantic-layer-source-fields', project.id, exploreIds],
+        enabled: enabled && exploreIds.length > 0,
+        staleTime: 60_000,
+        queryFn: async () => {
+            const settled = await Promise.allSettled(
+                exploreIds.map((exploreId) =>
+                    queryClient.fetchQuery({
+                        queryKey: ['tables', exploreId, project.id],
+                        queryFn: () =>
+                            getExplore(lightdashApi, project.id, exploreId),
+                        staleTime: 60_000,
+                    }),
+                ),
+            );
+            return settled.flatMap((result) =>
+                result.status === 'fulfilled' ? [result.value] : [],
+            );
+        },
+    });
+};
+
+/**
  * The sidebar search. Sources, folders and explores match on every
  * keystroke, deferred so typing never waits on the list; fields come from the
- * catalog once typing pauses. Its state lives with the search box, so typing
+ * catalog once typing pauses, and from external and live data sources. Its state lives with the search box, so typing
  * never re-renders the page beside it.
  */
 export const useProjectSearch = (project: Project, tree: ProjectTree) => {
@@ -115,8 +155,12 @@ export const useProjectSearch = (project: Project, tree: ProjectTree) => {
     const deferredSearch = useDeferredValue(search);
     const [debouncedSearch] = useDebouncedValue(search, 200);
     const fieldSearch = useFieldSearch(project.id, debouncedSearch);
+    const sourceExplores = useUncataloguedExplores(
+        project,
+        debouncedSearch.trim().length >= MIN_FIELD_SEARCH,
+    );
     const needle = deferredSearch.trim().toLowerCase();
-    const fieldMatches = useMemo(() => {
+    const catalogMatches = useMemo(() => {
         if (needle.length < MIN_FIELD_SEARCH || !fieldSearch.data) return [];
         // While a newer request runs, keep only the earlier matches that
         // still fit, so no stale field shows under the new text.
@@ -129,6 +173,16 @@ export const useProjectSearch = (project: Project, tree: ProjectTree) => {
               )
             : fieldSearch.data;
     }, [needle, fieldSearch.data, fieldSearch.isPreviousData, debouncedSearch]);
+    const fieldMatches = useMemo(
+        () =>
+            needle.length < MIN_FIELD_SEARCH
+                ? catalogMatches
+                : [
+                      ...catalogMatches,
+                      ...matchExploreFields(sourceExplores.data ?? [], needle),
+                  ],
+        [needle, catalogMatches, sourceExplores.data],
+    );
     const results = useMemo(
         () => searchProject(tree, deferredSearch, fieldMatches),
         [tree, deferredSearch, fieldMatches],
@@ -144,7 +198,9 @@ export const useProjectSearch = (project: Project, tree: ProjectTree) => {
         isSearchingFields:
             isSearching &&
             needle.length >= MIN_FIELD_SEARCH &&
-            (fieldSearch.isFetching || debouncedSearch !== search),
+            (fieldSearch.isFetching ||
+                sourceExplores.isFetching ||
+                debouncedSearch !== search),
     };
 };
 

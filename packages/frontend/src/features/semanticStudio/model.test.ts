@@ -312,6 +312,28 @@ describe('searchProject', () => {
         expect(results).toEqual([]);
     });
 
+    it('opens a field in the explore it names, listing it once', () => {
+        const events = {
+            name: 'event_name',
+            label: 'Event name',
+            tableName: 'events',
+            exploreId: 'posthog_events',
+            fieldType: 'dimension' as const,
+        };
+        const { results } = searchProject(tree, 'event name', [events, events]);
+        expect(results).toEqual([
+            expect.objectContaining({
+                group: 'Fields',
+                ref: {
+                    type: 'field',
+                    exploreId: 'posthog_events',
+                    fieldId: 'events_event_name',
+                },
+                path: ['Live data sources', 'Events'],
+            }),
+        ]);
+    });
+
     it('caps the results but reports the total', () => {
         const { results, total } = searchProject(tree, 'order', [], 1);
         expect(results).toHaveLength(1);
