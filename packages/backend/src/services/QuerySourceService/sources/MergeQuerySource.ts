@@ -23,6 +23,7 @@ import type {
     SubmittedSourceQueries,
     ValidateSourceQueryArgs,
 } from '../types';
+import { getComposerRunBinding } from './composerRunBinding';
 
 type MergeQuerySourceArguments = {
     asyncQueryService: Pick<
@@ -191,6 +192,7 @@ export class MergeQuerySource implements QuerySourceClient {
         );
         const { queryUuid } =
             await this.asyncQueryService.submitComposerMergeJoin({
+                ...getComposerRunBinding(args.binding),
                 account: args.account,
                 projectUuid: args.projectUuid,
                 context: args.context,

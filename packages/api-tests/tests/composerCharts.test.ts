@@ -4,9 +4,13 @@ import {
     FeatureFlags,
     FieldType,
     FilterOperator,
+    MergeJoinType,
     QuerySourceType,
     SEED_PROJECT,
     type ComposerChart,
+    type ComposerChartPipeline,
+    type ComposerChartRunRequest,
+    type ComposerChartRunResults,
     type CreateComposerChart,
     type Dashboard,
 } from '@lightdash/common';
@@ -34,6 +38,72 @@ const sqlPipeline: CreateComposerChart['pipeline'] = {
             nodeId: 'orders',
             title: 'Orders by status',
             sql: 'select status as orders_status, sum(amount) as orders_total_order_amount from orders group by 1',
+        },
+    ],
+};
+
+const runRequest = (
+    dashboardUuid: string,
+    tileUuid: string,
+): ComposerChartRunRequest => ({
+    dashboardUuid,
+    tileUuid,
+    dashboardFilters: { dimensions: [], metrics: [], tableCalculations: [] },
+    parameters: {},
+    excludedParameterKeys: [],
+    invalidateCache: false,
+});
+
+// One node of every kind a viewer may not write themselves, except python,
+// whose sandbox previews do not run
+const everyKindPipeline: ComposerChartPipeline = {
+    schemaVersion: 1,
+    terminalNodeId: 'summary',
+    nodes: [
+        {
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId: 'amounts',
+            title: 'Amounts',
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: ['orders_total_order_amount'],
+        },
+        {
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId: 'counts',
+            title: 'Counts',
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: ['orders_unique_order_count'],
+        },
+        {
+            sourceType: QuerySourceType.MERGE,
+            nodeId: 'merged',
+            title: 'Merged',
+            sources: [{ nodeId: 'amounts' }, { nodeId: 'counts' }],
+            joinKey: [
+                {
+                    name: 'status',
+                    fieldIdBySourceId: {
+                        amounts: 'orders_status',
+                        counts: 'orders_status',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.FULL,
+        },
+        {
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'raw',
+            title: 'Raw orders',
+            sql: 'SELECT status, amount FROM postgres.jaffle.orders',
+        },
+        {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'summary',
+            title: 'Summary',
+            sql: 'SELECT raw.status, count(*) AS n FROM raw JOIN merged ON raw.status = merged.merge_status GROUP BY 1',
+            references: ['raw', 'merged'],
         },
     ],
 };
@@ -182,6 +252,64 @@ describe('Composer charts', () => {
         );
         expect(updated.status).toBe(200);
         return { dashboard: updated.body.results, chart: resp.body.results };
+    };
+
+    const runUrl = (composerChartUuid: string) =>
+        `${chartsUrl}/${composerChartUuid}/run`;
+
+    /** A dashboard holding one composer tile; returns the chart and its tile. */
+    const createComposerDashboard = async (pipeline: ComposerChartPipeline) => {
+        const dashboard = await createDashboard();
+        const body = composerChartBody(dashboard.uuid);
+        const created = await admin.post<Body<ComposerChart>>(chartsUrl, {
+            ...body,
+            pipeline,
+            chart: {
+                ...body.chart,
+                columns: [
+                    { reference: 'status', fieldType: FieldType.DIMENSION },
+                    { reference: 'n', fieldType: FieldType.METRIC },
+                ],
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: { xField: 'status', yField: ['n'] },
+                        eChartsConfig: {},
+                    },
+                },
+                tableConfig: { columnOrder: ['status', 'n'] },
+            },
+        });
+        expect(created.status).toBe(201);
+        const updated = await addComposerTile(
+            dashboard,
+            created.body.results.uuid,
+        );
+        expect(updated.status).toBe(200);
+        return {
+            dashboard,
+            chart: created.body.results,
+            tileUuid: updated.body.results.tiles[0].uuid,
+        };
+    };
+
+    const pollRows = async (client: ApiClient, queryUuid: string) => {
+        for (let attempt = 0; attempt < 120; attempt += 1) {
+            const resp = await client.get<
+                Body<{ status: string; rows: unknown[]; error?: string }>
+            >(`/api/v2/projects/${projectUuid}/query/${queryUuid}`);
+            const { status } = resp.body.results;
+            if (status === 'ready') return resp.body.results.rows;
+            if (status === 'error') {
+                throw new Error(
+                    `Node query failed: ${resp.body.results.error}`,
+                );
+            }
+            await new Promise((resolve) => {
+                setTimeout(resolve, 500);
+            });
+        }
+        throw new Error(`Node query ${queryUuid} did not complete`);
     };
 
     beforeAll(async () => {
@@ -403,5 +531,112 @@ describe('Composer charts', () => {
 
             expect((await getChart(chart.uuid)).status).toBe(404);
         });
+    });
+    it('lets a dashboard viewer run every node, sql, merge and duckdb included, and read its rows', async () => {
+        const { dashboard, chart, tileUuid } =
+            await createComposerDashboard(everyKindPipeline);
+        const viewer = await loginAsViewer();
+        // The viewer cannot run SQL or compose queries of their own
+        const ownSql = await viewer.post(
+            `/api/v2/projects/${projectUuid}/query/sql`,
+            { sql: 'SELECT 1' },
+            { failOnStatusCode: false },
+        );
+        expect(ownSql.status).toBe(403);
+
+        const run = await viewer.post<Body<ComposerChartRunResults>>(
+            runUrl(chart.uuid),
+            runRequest(dashboard.uuid, tileUuid),
+        );
+        expect(run.status).toBe(200);
+        expect(
+            run.body.results.queries.map(({ nodeId }) => nodeId).sort(),
+        ).toEqual(everyKindPipeline.nodes.map(({ nodeId }) => nodeId).sort());
+        for (const { queryUuid } of run.body.results.queries) {
+            // eslint-disable-next-line no-await-in-loop
+            expect((await pollRows(viewer, queryUuid)).length).toBeGreaterThan(
+                0,
+            );
+        }
+    });
+
+    it('refuses a run request carrying nodes, or naming a chart its dashboard does not own', async () => {
+        const { dashboard, chart, tileUuid } =
+            await createComposerDashboard(everyKindPipeline);
+        const withNodes = await admin.post<{ error: { message: string } }>(
+            runUrl(chart.uuid),
+            {
+                ...runRequest(dashboard.uuid, tileUuid),
+                nodes: [
+                    {
+                        sourceType: QuerySourceType.SQL,
+                        nodeId: 'raw',
+                        sql: 'SELECT 1',
+                    },
+                ],
+            },
+            { failOnStatusCode: false },
+        );
+        expect(withNodes.status).toBe(400);
+        expect(withNodes.body.error.message).toContain('nodes');
+
+        const other = await createComposerDashboard(everyKindPipeline);
+        const otherChart = await admin.post(
+            runUrl(other.chart.uuid),
+            runRequest(dashboard.uuid, tileUuid),
+            { failOnStatusCode: false },
+        );
+        expect(otherChart.status).toBe(403);
+    });
+
+    it('refuses a run from another organization', async () => {
+        const { dashboard, chart, tileUuid } =
+            await createComposerDashboard(everyKindPipeline);
+        const outsider = await anotherLogin();
+        const refused = await outsider.post(
+            runUrl(chart.uuid),
+            runRequest(dashboard.uuid, tileUuid),
+            { failOnStatusCode: false },
+        );
+        expect(refused.status).toBe(403);
+    });
+
+    it('refuses a run with the flag off while classic queries still run', async () => {
+        const { dashboard, chart, tileUuid } =
+            await createComposerDashboard(everyKindPipeline);
+        expect((await admin.post(flagUrl, { enabled: false })).status).toBe(
+            200,
+        );
+        try {
+            const refused = await admin.post<{
+                error: { data?: { featureFlagId?: string } };
+            }>(runUrl(chart.uuid), runRequest(dashboard.uuid, tileUuid), {
+                failOnStatusCode: false,
+            });
+            expect(refused.status).toBe(403);
+            expect(refused.body.error.data?.featureFlagId).toBe(
+                FeatureFlags.ComposerCharts,
+            );
+            const classic = await admin.post(
+                `/api/v2/projects/${projectUuid}/query/metric-query`,
+                {
+                    context: 'dashboardView',
+                    query: {
+                        exploreName: 'orders',
+                        dimensions: ['orders_status'],
+                        metrics: ['orders_total_order_amount'],
+                        filters: {},
+                        sorts: [],
+                        limit: 10,
+                        tableCalculations: [],
+                    },
+                },
+            );
+            expect(classic.status).toBe(200);
+        } finally {
+            expect((await admin.post(flagUrl, { enabled: true })).status).toBe(
+                200,
+            );
+        }
     });
 });

@@ -16,6 +16,7 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
+import type { ComposerRunBinding } from '../../ComposerChartService/ComposerRunBinding';
 import type { DocumentQueryContext } from '../../DocumentService/DocumentQueryContext';
 import type { ProjectService } from '../../ProjectService/ProjectService';
 import type {
@@ -129,13 +130,16 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
 
     private static getBoundContext(binding: SubmitSourceQueryArgs['binding']): {
         documentQueryContext?: DocumentQueryContext;
+        composerRunBinding?: ComposerRunBinding;
     } {
         if (binding === null) return {};
         switch (binding.kind) {
             case 'document':
                 return { documentQueryContext: binding.context };
+            case 'composer':
+                return { composerRunBinding: binding.binding };
             default:
-                return assertUnreachable(binding.kind, 'Unknown run binding');
+                return assertUnreachable(binding, 'Unknown run binding');
         }
     }
 

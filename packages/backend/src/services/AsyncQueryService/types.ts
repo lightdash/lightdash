@@ -51,6 +51,7 @@ import type {
     QueryComposer,
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
+import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import type { MeteredApiConnector } from '../QuerySourceService/api/ApiConnector';
 import type { QueryPollingSource } from './queryPollingSource';
@@ -117,6 +118,8 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
+    /** Present only on a bound composer run: skips the write gates and stamps the row. */
+    composerRunBinding?: ComposerRunBinding;
     documentQueryContext?: DocumentQueryContext;
     metricQuery: MetricQuery;
     limit?: number | null | undefined;
@@ -208,6 +211,8 @@ export type PreAggregationRoute = {
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
+    /** Present only on a bound composer run: skips the write gates and stamps the row. */
+    composerRunBinding?: ComposerRunBinding;
     sql: string;
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
@@ -236,6 +241,8 @@ export type EstimateAsyncSqlQueryArgs = Pick<
 >;
 
 export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
+    /** Present only on a bound composer run: skips the write gates and stamps the row. */
+    composerRunBinding?: ComposerRunBinding;
     sql: string;
     limit?: number;
     /** Table name -> queryUuid of a previous async query to expose as that table. */
@@ -245,6 +252,8 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
+    /** Present only on a bound composer run: skips the write gates and stamps the row. */
+    composerRunBinding?: ComposerRunBinding;
     /** Python source defining run(inputs, params) -> pandas.DataFrame. */
     code: string;
     limit?: number;
@@ -502,6 +511,8 @@ export type QueryHistoryActor = {
 };
 
 export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
+    /** Present only on a bound composer run: skips the write gates and stamps the row. */
+    composerRunBinding?: ComposerRunBinding;
     sql: string;
     limit?: number;
     /** Table name -> queryUuid of a previous async query to expose as that table. */

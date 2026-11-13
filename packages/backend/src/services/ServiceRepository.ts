@@ -1396,6 +1396,8 @@ export class ServiceRepository
                     refreshTokenRotation: this.models.getRefreshTokenRotation(),
                     aiAccessService: this.getAiAccessService(),
                     getDocumentService: () => this.getDocumentService(),
+                    getComposerChartService: () =>
+                        this.getComposerChartService(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     contentDraftModel: this.models.getContentDraftModel(),
@@ -2009,6 +2011,7 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    getQuerySourceService: () => this.getQuerySourceService(),
                 }),
         );
     }

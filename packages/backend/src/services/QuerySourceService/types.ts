@@ -12,6 +12,7 @@ import type {
     UserAttributeValueMap,
 } from '@lightdash/common';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
+import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 
 export type ScanSchemaArgs = {
@@ -36,10 +37,9 @@ export type SourceQueryExecutionContext = {
 };
 
 /** Server-built proof that a submission runs a persisted chart; never built from a request. */
-export type SourceQueryRunBinding = {
-    kind: 'document';
-    context: DocumentQueryContext;
-};
+export type SourceQueryRunBinding =
+    | { kind: 'document'; context: DocumentQueryContext }
+    | { kind: 'composer'; binding: ComposerRunBinding };
 
 /** The AI agent run a batch belongs to, for analytics. */
 export type SourceQueryAiAttribution = {

@@ -52,6 +52,13 @@ curl -s -X PATCH -H "Authorization: ApiKey $LDPAT" -H 'Content-Type: application
  "tiles": [{"type": "composer_chart", "x": 0, "y": 0, "h": 9, "w": 12,
             "properties": {"title": "Orders", "composerChartUuid": "$CHART", "chartName": null}}]}
 EOF
+
+# 4. A bound run, as any viewer of the dashboard. Poll each queryUuid at
+#    /api/v2/projects/$PROJECT/query/<queryUuid>.
+TILE=$(curl -s -H "Authorization: ApiKey $LDPAT" "$SITE_URL/api/v1/dashboards/$DASHBOARD" | jq -r '.results.tiles[0].uuid')
+curl -s -H "Authorization: ApiKey $LDPAT" -H 'Content-Type: application/json' \
+  "$SITE_URL/api/v2/projects/$PROJECT/composer-charts/$CHART/run" \
+  -d "{\"dashboardUuid\":\"$DASHBOARD\",\"tileUuid\":\"$TILE\",\"dashboardFilters\":{\"dimensions\":[],\"metrics\":[],\"tableCalculations\":[]},\"parameters\":{},\"excludedParameterKeys\":[],\"invalidateCache\":false}"
 ```
 
 Delete the dashboard when done.

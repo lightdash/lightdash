@@ -6,27 +6,35 @@ import {
     ForbiddenError,
     getComposerPipelineWriteDeniedReason,
     NotFoundError,
+    parseComposerChartRunRequest,
     parseComposerPipeline,
     parseComposerStoredChart,
     QuerySourceType,
     type CaslSubjectNames,
     type ComposerChart,
     type ComposerChartPipeline,
+    type ComposerChartRunRequest,
+    type ComposerChartRunResults,
     type CreateComposerChart,
     type RegisteredAccount,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import { ComposerChartModel } from '../../models/ComposerChartModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { traceSpan } from '../../tracing/tracing';
 import { BaseService } from '../BaseService';
+import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import { ComposerRunBinding } from './ComposerRunBinding';
 
 type ComposerChartServiceArguments = {
     composerChartModel: ComposerChartModel;
     dashboardModel: DashboardModel;
     featureFlagModel: FeatureFlagModel;
     spacePermissionService: SpacePermissionService;
+    getQuerySourceService: () => Pick<QuerySourceService, 'submitComposerRun'>;
 };
 
 type ProjectSubject = { organizationUuid: string; projectUuid: string };
@@ -40,12 +48,15 @@ export class ComposerChartService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly getQuerySourceService: ComposerChartServiceArguments['getQuerySourceService'];
+
     constructor(args: ComposerChartServiceArguments) {
         super({ serviceName: 'ComposerChartService' });
         this.composerChartModel = args.composerChartModel;
         this.dashboardModel = args.dashboardModel;
         this.featureFlagModel = args.featureFlagModel;
         this.spacePermissionService = args.spacePermissionService;
+        this.getQuerySourceService = args.getQuerySourceService;
     }
 
     private async getDashboardAccess(
@@ -157,12 +168,12 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.get(uuid);
     }
 
-    /** Answers with the flag off, so a chart stays readable (spec 5). */
-    async get(
+    /** View on the chart, through its current owner: today always its dashboard. */
+    async assertCanView(
         account: RegisteredAccount,
         projectUuid: string,
         composerChartUuid: string,
-    ): Promise<ComposerChart> {
+    ): Promise<{ organizationUuid: string; dashboardUuid: string }> {
         const owner = await this.composerChartModel.getOwner(composerChartUuid);
         if (owner.projectUuid !== projectUuid) {
             throw new NotFoundError('Composer chart not found');
@@ -185,6 +196,86 @@ export class ComposerChartService extends BaseService {
                 "You don't have permission to view this composer chart",
             );
         }
+        return {
+            organizationUuid: dashboardAccess.organizationUuid,
+            dashboardUuid: owner.dashboardUuid,
+        };
+    }
+
+    /** Answers with the flag off, so a chart stays readable (spec 5). */
+    async get(
+        account: RegisteredAccount,
+        projectUuid: string,
+        composerChartUuid: string,
+    ): Promise<ComposerChart> {
+        await this.assertCanView(account, projectUuid, composerChartUuid);
         return this.composerChartModel.get(composerChartUuid);
+    }
+
+    /**
+     * A bound run: the stored pipeline runs for anyone who can view the chart,
+     * and every node row is stamped with it. Filters and parameters are
+     * accepted and not applied yet.
+     */
+    async run(
+        account: RegisteredAccount,
+        projectUuid: string,
+        composerChartUuid: string,
+        body: ComposerChartRunRequest,
+    ): Promise<ComposerChartRunResults> {
+        Sentry.setTag('lightdash.chartKind', 'composer');
+        const request = parseComposerChartRunRequest(body);
+        const { organizationUuid, dashboardUuid } = await this.assertCanView(
+            account,
+            projectUuid,
+            composerChartUuid,
+        );
+        const { enabled } = await this.featureFlagModel.get({
+            user: { userUuid: account.user.userUuid, organizationUuid },
+            featureFlagId: FeatureFlags.ComposerCharts,
+        });
+        if (!enabled) {
+            throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
+        }
+        if (request.dashboardUuid !== dashboardUuid) {
+            throw new ForbiddenError(
+                'This composer chart is not on that dashboard',
+            );
+        }
+        const binding = ComposerRunBinding.forAuthorizedViewer({
+            account,
+            chart: await this.composerChartModel.get(composerChartUuid),
+            tileUuid: request.tileUuid,
+        });
+        const { queries } = await traceSpan(
+            {
+                op: 'composer_chart.run',
+                name: 'composer_chart.run',
+                attributes: {
+                    'lightdash.projectUuid': projectUuid,
+                    'lightdash.composerChartUuid': composerChartUuid,
+                    'lightdash.nodeCount': binding.nodes.length,
+                    'lightdash.nodeKinds': [
+                        ...new Set(binding.nodes.map((n) => n.sourceType)),
+                    ]
+                        .sort()
+                        .join(','),
+                },
+            },
+            () =>
+                this.getQuerySourceService().submitComposerRun({
+                    account,
+                    projectUuid,
+                    binding,
+                    invalidateCache: request.invalidateCache,
+                }),
+        );
+        return {
+            queries: queries.map(({ nodeId, sourceType, queryUuid }) => ({
+                nodeId,
+                sourceType,
+                queryUuid,
+            })),
+        };
     }
 }

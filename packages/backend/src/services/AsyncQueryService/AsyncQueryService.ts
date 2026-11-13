@@ -160,6 +160,7 @@ import {
     type CalculateTotalKind,
     type CompiledCustomSqlDimension,
     type CompiledMetric,
+    type ComposerChartRunSource,
     type CustomDimension,
     type DocumentQueryReference,
     type DocumentSqlChart,
@@ -361,6 +362,8 @@ import type {
 } from '../CacheService/ICacheService';
 import { cacheMiss, CreateCacheResult } from '../CacheService/types';
 import type { CacheHitCacheResult } from '../CacheService/types';
+import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
+import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import { CsvService } from '../CsvService/CsvService';
 import { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import type { DocumentService } from '../DocumentService/DocumentService';
@@ -655,6 +658,7 @@ type AsyncQueryExecutionPlan =
 
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
     getDocumentService: () => DocumentService;
+    getComposerChartService: () => Pick<ComposerChartService, 'assertCanView'>;
     contentDraftModel: ContentDraftModel;
     queryHistoryModel: QueryHistoryModel;
     downloadAuditModel: DownloadAuditModel;
@@ -706,6 +710,7 @@ type ExecuteAsyncQueryArgs = Pick<
     resultSource?: NonNullable<
         QueryHistory['requestParameters']['resultSource']
     >;
+    composerChartSource?: ComposerChartRunSource;
     identityEnabled?: boolean;
     // Single SQL seam: metric paths pass a QueryComposer, SQL-chart
     // paths a SqlQueryComposer — getSql() owns pivot wrapping for both.
@@ -908,6 +913,8 @@ export class AsyncQueryService extends ProjectService {
     private readonly getQuerySourceService: () => QuerySourceService;
     private readonly getDocumentService: () => DocumentService;
 
+    private readonly getComposerChartService: AsyncQueryServiceArguments['getComposerChartService'];
+
     protected readonly preAggregateStrategy: PreAggregateStrategy;
 
     private readonly externalSourceTableResolver: AsyncQueryServiceArguments['externalSourceTableResolver'];
@@ -932,6 +939,7 @@ export class AsyncQueryService extends ProjectService {
         this.composeEngineClient = args.composeEngineClient;
         this.getQuerySourceService = args.getQuerySourceService;
         this.getDocumentService = args.getDocumentService;
+        this.getComposerChartService = args.getComposerChartService;
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
         this.externalSourceTableResolver = args.externalSourceTableResolver;
@@ -2133,6 +2141,23 @@ export class AsyncQueryService extends ProjectService {
                     checkedContent.add(key);
                 }
             }
+            const composerSource = parameters?.composerChartSource;
+            if (
+                composerSource &&
+                !checkedContent.has(
+                    `composer:${composerSource.composerChartUuid}`,
+                )
+            ) {
+                assertRegisteredAccount(fresh);
+                await this.getComposerChartService().assertCanView(
+                    fresh,
+                    projectUuid,
+                    composerSource.composerChartUuid,
+                );
+                checkedContent.add(
+                    `composer:${composerSource.composerChartUuid}`,
+                );
+            }
             if (chartUuid && !checkedContent.has(`chart:${chartUuid}`)) {
                 await this.assertSavedChartQuerySourceAccess(
                     fresh,
@@ -2419,6 +2444,16 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 queryHistory.requestParameters.documentSource.documentUuid,
+            );
+        }
+        const composerSource =
+            queryHistory.requestParameters?.composerChartSource;
+        if (composerSource) {
+            assertRegisteredAccount(account);
+            await this.getComposerChartService().assertCanView(
+                account,
+                projectUuid,
+                composerSource.composerChartUuid,
             );
         }
         const { chartUuid, references } = getQuerySourceParameters(
@@ -4738,7 +4773,11 @@ export class AsyncQueryService extends ProjectService {
             dashboardTileId:
                 'tileUuid' in history.requestParameters
                     ? (history.requestParameters.tileUuid ?? null)
-                    : null,
+                    : (trustedResultParameters.composerChartSource?.tileUuid ??
+                      null),
+            ...(trustedResultParameters.composerChartSource
+                ? { chartKind: 'composer_chart' as const }
+                : {}),
         };
         const enriched = {
             ...history,
@@ -6887,6 +6926,8 @@ export class AsyncQueryService extends ProjectService {
                                                   resultEffectiveParameters,
                                                   resultSource:
                                                       args.resultSource,
+                                                  composerChartSource:
+                                                      args.composerChartSource,
                                               },
                                           ),
                                       controls,
@@ -7055,6 +7096,7 @@ export class AsyncQueryService extends ProjectService {
                             {
                                 resultEffectiveParameters,
                                 resultSource: args.resultSource,
+                                composerChartSource: args.composerChartSource,
                                 externalSourceReferences:
                                     externalSourceReference &&
                                     'tableUuid' in externalSourceReference
@@ -7884,6 +7926,15 @@ export class AsyncQueryService extends ProjectService {
         // We only check `exploreName` for chart embeds. Otherwise, CASL doesn't match
         // on condition checks that aren't set. If no `exploreName` is set in conditions,
         // CASL ignores it.
+        // A bound composer node runs like a classic dashboard tile: its author's
+        // checks ran at save; the explore still loads under the viewer's attributes
+        if (args.composerRunBinding) {
+            args.composerRunBinding.assertExecution(account, projectUuid);
+            return this.runAsyncMetricQueryWithoutPermissionCheck(
+                args,
+                organizationUuid,
+            );
+        }
         if (args.documentQueryContext) {
             args.documentQueryContext.assertMetricQuery(
                 account,
@@ -7971,6 +8022,7 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
             totalConfiguration,
             documentQueryContext,
+            composerRunBinding,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
         sourceQueryHistory?: QueryHistory,
@@ -8277,6 +8329,7 @@ export class AsyncQueryService extends ProjectService {
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
+                composerChartSource: composerRunBinding?.stamp,
                 identityEnabled,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
@@ -10928,12 +10981,16 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         userAttributeOverrides,
         warehouseConnectionUuid: requestedConnectionUuid,
+        composerRunBinding,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         const { organizationUuid, provisioningSource } =
             await this.projectModel.getSummary(projectUuid);
 
+        // A bound composer node runs its author's stored SQL, as a saved SQL chart tile does
+        composerRunBinding?.assertExecution(account, projectUuid);
         const auditedAbility = this.createAuditedAbility(account);
         if (
+            !composerRunBinding &&
             auditedAbility.cannot(
                 'manage',
                 subject('SqlRunner', {
@@ -11034,6 +11091,7 @@ export class AsyncQueryService extends ProjectService {
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
+                composerChartSource: composerRunBinding?.stamp,
             },
             {
                 sql,
@@ -11621,36 +11679,17 @@ export class AsyncQueryService extends ProjectService {
         references,
         parameters,
         pivotConfiguration,
+        composerRunBinding,
     }: ExecuteAsyncComposeSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
-        assertIsAccountWithOrg(account);
-
-        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ComposeSqlRunner,
-        });
-        if (!isEndpointEnabled) {
-            throw new ForbiddenError('Compose SQL queries are not enabled');
-        }
-
-        const projectSummary = await this.projectModel.getSummary(projectUuid);
-        const { organizationUuid } = projectSummary;
-
-        // Same ability that gates running a metric query from the explorer:
-        // interactive viewers and up, but not plain viewers.
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Explore', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        if (composerRunBinding) {
+            // The author's Explore access was checked at save; per-source switches still apply
+            composerRunBinding.assertExecution(account, projectUuid);
+        } else {
+            await this.assertCanRunComposeQueries(
+                account,
+                projectUuid,
+                'Compose SQL queries are not enabled',
+            );
         }
 
         // User SQL runs on a session whose credentials reach only the results
@@ -11672,6 +11711,7 @@ export class AsyncQueryService extends ProjectService {
             references,
             parameters,
             pivotConfiguration,
+            composerRunBinding,
             plan: {
                 columns: { mode: 'discover' },
                 engine: 'scopedToReferencedResults',
@@ -11687,6 +11727,36 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: {},
             resolvedTimezone: null,
         };
+    }
+
+    /** The compose flag, and the ability that gates running a metric query from the explorer. */
+    private async assertCanRunComposeQueries(
+        account: Account,
+        projectUuid: string,
+        disabledMessage: string,
+    ): Promise<void> {
+        assertIsAccountWithOrg(account);
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
+        });
+        if (!enabled) {
+            throw new ForbiddenError(disabledMessage);
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        // Interactive viewers and up, but not plain viewers
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
     }
 
     /** Python queries run for at most this long inside the sandbox. */
@@ -11736,35 +11806,22 @@ export class AsyncQueryService extends ProjectService {
         references,
         parameters,
         invalidateCache,
+        composerRunBinding,
     }: ExecuteAsyncPythonQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ComposeSqlRunner,
-        });
-        if (!isEndpointEnabled) {
-            throw new ForbiddenError('Python queries are not enabled');
+        if (composerRunBinding) {
+            // The author's Explore access was checked at save; per-source switches still apply
+            composerRunBinding.assertExecution(account, projectUuid);
+        } else {
+            await this.assertCanRunComposeQueries(
+                account,
+                projectUuid,
+                'Python queries are not enabled',
+            );
         }
-
-        const projectSummary = await this.projectModel.getSummary(projectUuid);
-        const { organizationUuid } = projectSummary;
-
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Explore', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (Object.keys(references).length === 0) {
             throw new ParameterError(
@@ -11875,7 +11932,10 @@ export class AsyncQueryService extends ProjectService {
             undefined,
             undefined,
             querySurface,
-            { resultEntitlementFingerprint },
+            {
+                resultEntitlementFingerprint,
+                composerChartSource: composerRunBinding?.stamp,
+            },
         );
         await this.queryHistoryModel.recordResultProducer(
             queryUuid,
@@ -13192,8 +13252,10 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         plan,
         invalidateCache,
+        composerRunBinding,
     }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
+        composerRunBinding?.assertExecution(account, projectUuid);
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const { organizationUuid } = projectSummary;
@@ -13316,7 +13378,10 @@ export class AsyncQueryService extends ProjectService {
             undefined,
             undefined,
             querySurface,
-            { resultEntitlementFingerprint },
+            {
+                resultEntitlementFingerprint,
+                composerChartSource: composerRunBinding?.stamp,
+            },
         );
         this.prometheusMetrics?.trackQueryStateTransition(
             'new',
@@ -15469,6 +15534,7 @@ export class AsyncQueryService extends ProjectService {
         labelBySourceId,
         parameters,
         invalidateCache,
+        composerRunBinding,
     }: {
         account: Account;
         projectUuid: string;
@@ -15480,6 +15546,7 @@ export class AsyncQueryService extends ProjectService {
         labelBySourceId: Record<string, string>;
         parameters: ParametersValuesMap;
         invalidateCache: boolean;
+        composerRunBinding?: ComposerRunBinding;
     }): Promise<{ queryUuid: string }> {
         const { joinNode, references, plan } = this.buildMergeJoin({
             nodeId: COMPOSE_MERGE_JOIN_NODE_ID,
@@ -15506,6 +15573,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             invalidateCache,
             plan,
+            composerRunBinding,
         });
     }
 

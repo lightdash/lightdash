@@ -17,6 +17,7 @@ import type {
     ScanSchemaArgs,
     SubmitSourceQueryArgs,
 } from '../types';
+import { getComposerRunBinding } from './composerRunBinding';
 
 type SqlQuerySourceArguments = {
     asyncQueryService: AsyncQueryService;
@@ -107,6 +108,7 @@ export class SqlQuerySource implements QuerySourceClient {
         userAttributeOverrides,
         invalidateCache,
         pivotConfiguration,
+        binding,
     }: SubmitSourceQueryArgs): Promise<{
         queryUuid: string;
         cacheHit: boolean;
@@ -114,6 +116,7 @@ export class SqlQuerySource implements QuerySourceClient {
         const sourceQuery = SqlQuerySource.assertSourceQuery(query);
 
         const results = await this.asyncQueryService.executeAsyncSqlQuery({
+            ...getComposerRunBinding(binding),
             account,
             projectUuid,
             sql: sourceQuery.sql,

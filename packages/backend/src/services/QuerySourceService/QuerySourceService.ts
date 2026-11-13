@@ -8,6 +8,7 @@ import {
     ForbiddenError,
     MAX_SOURCE_QUERIES_PER_SUBMISSION,
     ParameterError,
+    QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
     UnexpectedServerError,
@@ -16,7 +17,6 @@ import {
     type ApiGetSourceQueryStatusResults,
     type ApiListQuerySourcesResults,
     type ApiScanQuerySourceSchemaResults,
-    type QueryExecutionContext,
     type SourceQuery,
     type SourceQuerySubmission,
 } from '@lightdash/common';
@@ -33,6 +33,7 @@ import { agentExecutionContext } from '../AiAccessService/agentExecutionContext'
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
+import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { QuerySourceRegistry } from './QuerySourceRegistry';
 import type {
     QuerySourceClient,
@@ -60,6 +61,15 @@ type QuerySourceServiceArguments = {
     queryHistoryModel: QueryHistoryModel;
     featureFlagModel: FeatureFlagModel;
     registry: QuerySourceRegistry;
+};
+
+type SubmitQueriesArgs = SourceQueryExecutionContext & {
+    account: Account;
+    projectUuid: string;
+    queries: SourceQuery[];
+    context: QueryExecutionContext;
+    plans: Record<string, DuckdbQueryPlan>;
+    aiAttribution: SourceQueryAiAttribution | null;
 };
 
 /** One query of a submission with its source and in-request dependencies. */
@@ -460,12 +470,54 @@ export class QuerySourceService extends BaseService {
     }
 
     /**
+     * The bound entry: runs exactly the binding's stored nodes, so nothing a
+     * request carries can add or change one. The binding's builder checked
+     * view on the chart; agent SQL rules and per-source switches still apply.
+     */
+    async submitComposerRun({
+        account,
+        projectUuid,
+        binding,
+        invalidateCache,
+    }: {
+        account: Account;
+        projectUuid: string;
+        binding: ComposerRunBinding;
+        invalidateCache: boolean;
+    }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
+        binding.assertExecution(account, projectUuid);
+        return this.submit({
+            account,
+            projectUuid,
+            queries: binding.nodes,
+            context: QueryExecutionContext.DASHBOARD,
+            parameters: {},
+            userAttributeOverrides: {},
+            invalidateCache,
+            plans: {},
+            binding: { kind: 'composer', binding },
+            aiAttribution: null,
+        });
+    }
+
+    /**
      * The ungated submission: no feature flag, no ability check. For callers
      * inside the server that have already authorized what they submit, such
      * as a merge, and that may hand a duckdb node an execution plan by node
      * id. The public endpoint never reaches this directly.
      */
-    async submitQueries({
+    async submitQueries(
+        args: SubmitQueriesArgs & {
+            binding: Extract<
+                SourceQueryRunBinding,
+                { kind: 'document' }
+            > | null;
+        },
+    ): Promise<{ queries: InternalSourceQuerySubmission[] }> {
+        return this.submit(args);
+    }
+
+    private async submit({
         account,
         projectUuid,
         queries,
@@ -477,14 +529,8 @@ export class QuerySourceService extends BaseService {
         plans,
         binding,
         aiAttribution,
-    }: SourceQueryExecutionContext & {
+    }: SubmitQueriesArgs & {
         binding: SourceQueryRunBinding | null;
-        account: Account;
-        projectUuid: string;
-        queries: SourceQuery[];
-        context: QueryExecutionContext;
-        plans: Record<string, DuckdbQueryPlan>;
-        aiAttribution: SourceQueryAiAttribution | null;
     }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         const ordered = this.validateQueries(queries, plans);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
@@ -648,9 +694,23 @@ export class QuerySourceService extends BaseService {
                 );
                 const connection =
                     connectionReader || isConnectionProducedQuery(queryHistory);
-                const check = connection ? this.getAsyncQueryService?.() : null;
-                if (connection && !check) throw new ForbiddenError();
-                if (check) {
+                // A composer chart node is readable only while its reader can view the chart
+                const stamped =
+                    queryHistory.requestParameters?.composerChartSource !==
+                    undefined;
+                const check =
+                    connection || stamped
+                        ? this.getAsyncQueryService?.()
+                        : null;
+                if ((connection || stamped) && !check)
+                    throw new ForbiddenError();
+                if (check && !connection) {
+                    await check.assertCanReadStoredResults(
+                        account,
+                        projectUuid,
+                        queryHistory,
+                    );
+                } else if (check) {
                     await check.assertCanReadStoredResults(
                         account,
                         projectUuid,

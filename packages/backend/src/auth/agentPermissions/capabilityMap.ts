@@ -692,6 +692,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'CommentsController.resolveComment': [AgentCapability.ContentWrite],
     'ComposerChartController.create': [AgentCapability.ContentWrite],
     'ComposerChartController.get': [AgentCapability.ReadDiscover],
+    'ComposerChartController.run': [AgentCapability.Query],
     'ContentController.bulkDeleteContent': [AgentCapability.Delete],
     'ContentController.bulkMoveContent': [AgentCapability.Publish],
     'ContentController.deleteContent': [AgentCapability.Delete],

@@ -15,6 +15,7 @@ import type {
     SourceQuerySubmissionResult,
     SubmitSourceQueryArgs,
 } from '../types';
+import { getComposerRunBinding } from './composerRunBinding';
 
 type PythonQuerySourceArguments = {
     asyncQueryService: Pick<AsyncQueryService, 'executeAsyncPythonQuery'>;
@@ -82,6 +83,7 @@ export class PythonQuerySource implements QuerySourceClient {
         resolvedReferences,
         parameters,
         invalidateCache,
+        binding,
     }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = PythonQuerySource.assertSourceQuery(query);
         const references = Object.fromEntries(
@@ -94,6 +96,7 @@ export class PythonQuerySource implements QuerySourceClient {
         );
         const { queryUuid } =
             await this.asyncQueryService.executeAsyncPythonQuery({
+                ...getComposerRunBinding(binding),
                 account,
                 projectUuid,
                 code: sourceQuery.code,
