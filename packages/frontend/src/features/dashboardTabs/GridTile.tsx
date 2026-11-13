@@ -5,7 +5,7 @@ import {
     type Dashboard as IDashboard,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
-import { memo, type FC } from 'react';
+import { memo, type FC, type MouseEvent } from 'react';
 import ChartTile from '../../components/DashboardTiles/DashboardChartTile';
 import DataAppTile from '../../components/DashboardTiles/DashboardDataAppTile';
 import HeadingTile from '../../components/DashboardTiles/DashboardHeadingTile';
@@ -15,6 +15,7 @@ import SqlChartTile from '../../components/DashboardTiles/DashboardSqlChartTile'
 import TileBase from '../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../components/DashboardTiles/UnmetRequirementsPlaceholder';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
+import styles from './tabs.module.css';
 
 type GridTileProps = Pick<
     React.ComponentProps<typeof TileBase>,
@@ -78,10 +79,26 @@ const GridTileInner: FC<GridTileProps> = memo((props) => {
     }
 });
 
+// A tile's menus and modals render outside it but still bubble through it in
+// React, so without this a press on one would start dragging the tile
+const stopPressFromOutsideTile = (event: MouseEvent<HTMLDivElement>) => {
+    if (
+        event.target instanceof Node &&
+        !event.currentTarget.contains(event.target)
+    ) {
+        event.stopPropagation();
+    }
+};
+
 const GridTile: FC<GridTileProps> = (props) => (
-    <ErrorBoundary wrapper={{ h: '100%', w: '100%' }}>
-        <GridTileInner {...props} />
-    </ErrorBoundary>
+    <div
+        className={styles.tilePressBoundary}
+        onMouseDown={props.isEditMode ? stopPressFromOutsideTile : undefined}
+    >
+        <ErrorBoundary wrapper={{ h: '100%', w: '100%' }}>
+            <GridTileInner {...props} />
+        </ErrorBoundary>
+    </div>
 );
 
 export default GridTile;

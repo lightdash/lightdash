@@ -1666,6 +1666,7 @@ describe('ContentAsCodeWritebackService', () => {
             vi.mocked(getRepoTree).mockResolvedValue({
                 files: Object.keys(files).map((path) => ({ path, size: 1 })),
                 truncated: false,
+                sha: 'tree-sha',
             });
             vi.mocked(getFileContent).mockImplementation(
                 async ({ fileName }) => {
@@ -1877,6 +1878,7 @@ describe('ContentAsCodeWritebackService', () => {
             vi.mocked(getRepoTree).mockResolvedValue({
                 files: [],
                 truncated: true,
+                sha: 'tree-sha',
             });
 
             await expect(

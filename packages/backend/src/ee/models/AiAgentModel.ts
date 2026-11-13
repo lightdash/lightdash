@@ -308,9 +308,13 @@ const sqlApprovalToolCallSql = (alias: string): string =>
         queries: [{ sourceType: QuerySourceType.SQL }],
     })}'::jsonb))`;
 
-/** Which embedded threads a token can see: by its write spaces, or by its viewer when it has none. */
+/** Which embedded threads a token can see: by its write spaces and viewer, or by its viewer alone when it has no write spaces. */
 export type EmbedThreadScope =
-    | { type: 'writeSpaces'; writeSpaceUuids: string[] }
+    | {
+          type: 'writeSpaces';
+          writeSpaceUuids: string[];
+          externalUserId: string | null;
+      }
     | { type: 'externalUser'; externalUserId: string };
 
 export type AiPromptResponseState = {
@@ -7324,9 +7328,10 @@ export class AiAgentModel {
             case 'writeSpaces': {
                 // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
                 const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
+                // A token without a viewer only sees threads started without one.
                 return this.database.raw(
-                    `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0)`,
-                    [scope.writeSpaceUuids],
+                    `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0 AND ${AiWebAppThreadTableName}.embed_external_user_id IS NOT DISTINCT FROM ?::text)`,
+                    [scope.writeSpaceUuids, scope.externalUserId],
                 );
             }
             case 'externalUser':
@@ -8065,6 +8070,28 @@ export class AiAgentModel {
                 `${DocumentsTableName}.slug`,
             );
         return row?.slug ?? null;
+    }
+
+    /** The on-screen state most recently attached for the dashboard in the thread; null when none, or as saved. */
+    async findThreadDashboardRuntimeOverrides(
+        threadUuid: string,
+        dashboardUuid: string,
+    ): Promise<AiDashboardRuntimeOverrides | null> {
+        const row = await this.database(AiPromptContextTableName)
+            .join(
+                AiPromptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiPromptContextTableName}.ai_prompt_uuid`,
+            )
+            .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
+            .andWhere(`${AiPromptContextTableName}.entity_type`, 'dashboard')
+            .andWhere(`${AiPromptContextTableName}.entity_uuid`, dashboardUuid)
+            .orderBy(`${AiPromptContextTableName}.created_at`, 'desc')
+            .first<
+                | { runtime_overrides: AiDashboardRuntimeOverrides | null }
+                | undefined
+            >(`${AiPromptContextTableName}.runtime_overrides`);
+        return row?.runtime_overrides ?? null;
     }
 
     async getContextForPromptUuids(

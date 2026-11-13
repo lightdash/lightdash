@@ -2,7 +2,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Box, Group, Popover } from '@mantine/core';
+import { Box } from '@mantine/core';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -22,12 +22,12 @@ import {
     getUniqueSqlColumns,
 } from '../dashboardFilters/FilterConfiguration/utils';
 import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
+import { ControlEditorPopover } from './ControlEditorPopover';
 import { focusStartOnMount } from './editorFocus';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import classes from './FilterEditor.module.css';
-import { EditorActions, EditorPrompt, FilterPopover } from './FilterPopover';
+import { EditorActions, EditorFrame, FilterPopover } from './FilterPopover';
 import { canTileTakeFilter } from './peers';
-import { useRailContractClasses } from './railContractClasses';
 import { findFilterRule } from './sidebarState';
 import { useAppliedTileCount } from './useAppliedTileCount';
 import { useApplyBlockedReason } from './useApplyBlockedReason';
@@ -61,43 +61,27 @@ const PlaceholderEditor: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
         [],
     );
     return (
-        <Box
-            className={classes.root}
-            role="dialog"
-            aria-label={name}
-            ref={focusOnMount}
+        <EditorFrame
+            name={name}
+            applyBlockedReason={applyBlockedReason}
+            isAsking={isAsking}
+            onResolvePending={resolvePending}
+            rootRef={focusOnMount}
+            // A new filter shows only its field search until a field is picked
+            footer={
+                isNew ? null : (
+                    <EditorActions
+                        applyBlockedReason={applyBlockedReason}
+                        isApplyDisabled
+                        isAsking={isAsking}
+                        onCancel={discard}
+                        onApply={close}
+                    />
+                )
+            }
         >
-            {isAsking && (
-                <EditorPrompt
-                    name={name}
-                    applyBlockedReason={applyBlockedReason}
-                    onResolvePending={resolvePending}
-                />
-            )}
-            <Box
-                className={classes.body}
-                data-dimmed={isAsking || undefined}
-                inert={isAsking || undefined}
-            >
-                <Box className={classes.content}>{fieldsAndTiles}</Box>
-                {/* A new filter shows only its field search until a field is picked */}
-                {!isNew && (
-                    <Group
-                        justify="flex-end"
-                        wrap="nowrap"
-                        className={classes.footer}
-                    >
-                        <EditorActions
-                            applyBlockedReason={applyBlockedReason}
-                            isApplyDisabled
-                            isAsking={isAsking}
-                            onCancel={discard}
-                            onApply={close}
-                        />
-                    </Group>
-                )}
-            </Box>
-        </Box>
+            <Box className={classes.content}>{fieldsAndTiles}</Box>
+        </EditorFrame>
     );
 };
 
@@ -246,10 +230,6 @@ const EditorContent: FC = () => {
     return <FilterEditorContent key={filterId} rule={editingRule} />;
 };
 
-// Closing is immediate and opening is the dropdown's own CSS arrival, which
-// also plays when the editor moves to a new pill
-const NO_TRANSITION = { duration: 0 };
-
 type EditorPopoverProps = {
     /** This target's filter is the one edited. */
     isOpen: boolean;
@@ -257,46 +237,16 @@ type EditorPopoverProps = {
     children: ReactNode;
 };
 
-// The editor as a popover under its pill, placed as the shipped pill's, with
-// focus kept inside. The provider owns Escape and clicks outside
-// (`useEditorDismiss`), so Mantine's are off, and so are its roles: an
-// expanded target reads as an open list. Focus goes back to the pill from
-// the provider (`FocusReturn`)
 export const EditorPopover: FC<EditorPopoverProps> = ({ isOpen, children }) => {
-    const contractClasses = useRailContractClasses();
     // Mapping stands in for the popover until its Cancel brings it back
     const isMapping = useControlsSidebarSelector((c) => c.isMapping);
     return (
-        <Popover
-            opened={isOpen && !isMapping}
-            position="bottom-start"
-            withArrow
-            offset={1}
-            arrowOffset={14}
-            transitionProps={NO_TRANSITION}
-            trapFocus
-            closeOnEscape={false}
-            closeOnClickOutside={false}
-            withRoles={false}
+        <ControlEditorPopover
+            isShown={isOpen && !isMapping}
+            dropdownClass="filterDropdown"
+            content={<EditorContent />}
         >
-            <Popover.Target>{children}</Popover.Target>
-            {/* Mounted only while open, so a closing popover draws nothing,
-                not even for the frame its transition takes to end */}
-            {isOpen && !isMapping && (
-                <Popover.Dropdown
-                    p={0}
-                    // The trap's last resort before its body has mounted
-                    tabIndex={-1}
-                    data-controls-editor
-                    className={
-                        contractClasses === null
-                            ? classes.dropdown
-                            : `${classes.dropdown} ${contractClasses.rail} ${contractClasses.filterDropdown}`
-                    }
-                >
-                    <EditorContent />
-                </Popover.Dropdown>
-            )}
-        </Popover>
+            {children}
+        </ControlEditorPopover>
     );
 };

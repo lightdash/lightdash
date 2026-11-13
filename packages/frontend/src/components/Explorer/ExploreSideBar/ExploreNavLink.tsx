@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
+    Badge,
     Box,
     Highlight,
     Group,
@@ -14,6 +15,7 @@ import {
     NavLink,
     Paper,
     Stack,
+    Tooltip,
 } from '@mantine/core';
 import { useToggle } from '@mantine/hooks';
 import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
@@ -47,6 +49,8 @@ type ExploreNavLinkProps = {
     explore: SummaryExplore;
     connectionName: string | null;
     query?: string;
+    /** The person is looking at their own unpublished version of this table. Never true in an embed, which has no development view. */
+    isInDevelopment: boolean;
     onClick: () => void;
 };
 
@@ -54,6 +58,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     explore,
     connectionName,
     query,
+    isInDevelopment,
     onClick,
 }: ExploreNavLinkProps) => {
     const [isHover, toggleHover] = useToggle();
@@ -115,6 +120,14 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     } else if (hasWarnings) {
         rightSection = (
             <MantineIcon icon={IconAlertTriangle} size="lg" color="yellow.9" />
+        );
+    } else if (isInDevelopment) {
+        rightSection = (
+            <Tooltip label="Your changes: only you see this version">
+                <Badge color="orange" size="xs">
+                    Dev
+                </Badge>
+            </Tooltip>
         );
     }
 

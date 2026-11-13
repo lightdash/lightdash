@@ -8,6 +8,7 @@ import {
     type SendNowScheduler,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { AGENT_SUMMARY_REFUSED_MESSAGE } from '../../../services/AgentPermissionService/agentWorkAuthority';
 import {
     agentActionTestCases,
@@ -57,6 +58,7 @@ const setup = (enabled: boolean) => {
         assertOperationWithRequest: vi.fn().mockResolvedValue(undefined),
     };
     const service = new SchedulerAiAugmentationService({
+        lightdashConfig: lightdashConfigMock,
         agentPermissionService: agentPermissionService as never,
         featureFlagModel: { get: vi.fn(async () => ({ enabled })) } as never,
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },

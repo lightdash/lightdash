@@ -1,6 +1,5 @@
 import {
     AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS,
-    AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
     AI_DEFAULT_MAX_QUERY_LIMIT,
     ALL_TASK_NAMES,
     AllowedEmailDomainsRole,
@@ -1829,6 +1828,7 @@ export type LightdashConfig = {
         dailyJobGenerationConcurrency: number;
         pollInterval: number;
         jobTimeout: number;
+        queryPollingTimeout: number;
         screenshotTimeout?: number;
         shutdownTimeout: number;
         tasks: Array<SchedulerTaskName>;
@@ -2050,6 +2050,9 @@ export type LightdashConfig = {
         };
     };
     dashboardComments: {
+        enabled: boolean;
+    };
+    mergeQueryAuthoring: {
         enabled: boolean;
     };
     preAggregates: {
@@ -2558,6 +2561,39 @@ type AuthMicrosoftManagedSignInConfig = {
     androidClientId: string | undefined;
 };
 
+export type AuthTrustedProvisionerConfig = {
+    issuer: string;
+    audience: string;
+    subjects: string[];
+    ownerEmailDomain: string;
+};
+
+const parseTrustedProvisionerConfig =
+    (): AuthTrustedProvisionerConfig | null => {
+        const issuer = process.env.TRUSTED_PROVISIONER_ISSUER?.trim();
+        const audience = process.env.TRUSTED_PROVISIONER_AUDIENCE?.trim();
+        const ownerEmailDomain =
+            process.env.TRUSTED_PROVISIONER_OWNER_EMAIL_DOMAIN?.trim().toLowerCase();
+        const subjects = (process.env.TRUSTED_PROVISIONER_SUBJECTS ?? '')
+            .split(',')
+            .map((subject) => subject.trim())
+            .filter((subject) => subject.length > 0);
+        if (
+            !issuer ||
+            !audience ||
+            !ownerEmailDomain ||
+            subjects.length === 0
+        ) {
+            return null;
+        }
+        return {
+            issuer,
+            audience,
+            subjects,
+            ownerEmailDomain,
+        };
+    };
+
 type AuthOidcConfig = {
     callbackPath: string;
     loginPath: string;
@@ -2623,6 +2659,7 @@ export type AuthConfig = {
     oneLogin: AuthOneLoginConfig;
     azuread: AuthAzureADConfig;
     microsoftManagedSignIn: AuthMicrosoftManagedSignInConfig;
+    trustedProvisioner: AuthTrustedProvisionerConfig | null;
     oidc: AuthOidcConfig;
     snowflake: AuthSnowflakeConfig;
     snowflakeAi: AuthSnowflakeAiConfig;
@@ -2679,6 +2716,50 @@ export type PostmarkConfig = {
 };
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+const DEFAULT_SCHEDULER_QUERY_POLLING_TIMEOUT = 1000 * 60 * 5; // 5 minutes
+const SCHEDULER_QUERY_POLLING_MAX_SHARE_OF_JOB_TIMEOUT = 0.9;
+
+const parseSchedulerTimeouts = (): {
+    jobTimeout: number;
+    queryPollingTimeout: number;
+} => {
+    const rawJobTimeout = process.env.SCHEDULER_JOB_TIMEOUT;
+    const jobTimeout = rawJobTimeout
+        ? parseInt(rawJobTimeout, 10)
+        : DEFAULT_JOB_TIMEOUT;
+    if (!Number.isSafeInteger(jobTimeout) || jobTimeout < 1) {
+        throw new ParseError(
+            `Cannot parse environment variable "SCHEDULER_JOB_TIMEOUT". Value must be a positive integer but SCHEDULER_JOB_TIMEOUT=${rawJobTimeout}`,
+        );
+    }
+    const maxQueryPollingTimeout = Math.max(
+        1,
+        Math.floor(
+            jobTimeout * SCHEDULER_QUERY_POLLING_MAX_SHARE_OF_JOB_TIMEOUT,
+        ),
+    );
+    if (!process.env.SCHEDULER_QUERY_POLLING_TIMEOUT) {
+        return {
+            jobTimeout,
+            queryPollingTimeout: Math.min(
+                DEFAULT_SCHEDULER_QUERY_POLLING_TIMEOUT,
+                maxQueryPollingTimeout,
+            ),
+        };
+    }
+    const queryPollingTimeout = getPositiveIntegerFromEnvironmentVariable(
+        'SCHEDULER_QUERY_POLLING_TIMEOUT',
+        DEFAULT_SCHEDULER_QUERY_POLLING_TIMEOUT,
+        MAX_TIMER_MS,
+    );
+    if (queryPollingTimeout > maxQueryPollingTimeout) {
+        throw new ParseError(
+            `Cannot parse environment variable "SCHEDULER_QUERY_POLLING_TIMEOUT". Value must be at most ${maxQueryPollingTimeout} (90% of SCHEDULER_JOB_TIMEOUT=${jobTimeout}) but SCHEDULER_QUERY_POLLING_TIMEOUT=${queryPollingTimeout}`,
+        );
+    }
+    return { jobTimeout, queryPollingTimeout };
+};
+
 // 300k rows a night: twice the insert rate of the busiest known instance, so
 // retention catches up without one night ever deleting an unbounded amount
 const DEFAULT_QUERY_HISTORY_CLEANUP_MAX_BATCHES = 300;
@@ -3275,6 +3356,7 @@ export const parseConfig = (): LightdashConfig => {
         getIntegerFromEnvironmentVariable('NATS_WORKER_CONCURRENCY') ?? 1;
     const natsWorkerQueueTimeoutMs =
         getIntegerFromEnvironmentVariable('NATS_QUEUE_TIMEOUT_MS') ?? 180000;
+    const schedulerTimeouts = parseSchedulerTimeouts();
     const lightdashCloudInstance = process.env.LIGHTDASH_CLOUD_INSTANCE;
     const mobilePushSandbox = parseMobilePushCredential('SANDBOX');
     const mobilePushProduction = parseMobilePushCredential('PRODUCTION');
@@ -3338,14 +3420,6 @@ export const parseConfig = (): LightdashConfig => {
     const queryHistoryRetentionDays =
         getIntegerFromEnvironmentVariable('QUERY_HISTORY_RETENTION_DAYS') ||
         AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS;
-    if (
-        queryHistoryCleanupEnabled &&
-        queryHistoryRetentionDays < AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS
-    ) {
-        console.warn(
-            `WARNING: QUERY_HISTORY_RETENTION_DAYS is below the ${AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS}-day Deep Research report retention. Report charts may become unavailable before their reports expire.`,
-        );
-    }
 
     const snowflakeAiTestAccountUrlOrigin =
         parseSnowflakeAiTestAccountUrlOrigin();
@@ -3604,6 +3678,7 @@ export const parseConfig = (): LightdashConfig => {
                 androidClientId:
                     process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_ANDROID_CLIENT_ID,
             },
+            trustedProvisioner: parseTrustedProvisionerConfig(),
             oidc: {
                 callbackPath: '/oauth/redirect/oidc',
                 loginPath: '/login/oidc',
@@ -3901,9 +3976,8 @@ export const parseConfig = (): LightdashConfig => {
             pollInterval:
                 getIntegerFromEnvironmentVariable('SCHEDULER_POLL_INTERVAL') ||
                 1000,
-            jobTimeout: process.env.SCHEDULER_JOB_TIMEOUT
-                ? parseInt(process.env.SCHEDULER_JOB_TIMEOUT, 10)
-                : DEFAULT_JOB_TIMEOUT,
+            jobTimeout: schedulerTimeouts.jobTimeout,
+            queryPollingTimeout: schedulerTimeouts.queryPollingTimeout,
             screenshotTimeout: process.env.SCHEDULER_SCREENSHOT_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
@@ -4199,6 +4273,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         dashboardComments: {
             enabled: process.env.DISABLE_DASHBOARD_COMMENTS !== 'true',
+        },
+        mergeQueryAuthoring: {
+            enabled: process.env.DISABLE_MERGE_QUERY_AUTHORING !== 'true',
         },
         softDelete: {
             enabled: process.env.SOFT_DELETE_ENABLED === 'true',

@@ -40,6 +40,12 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
+/* Studio reads the person's changes too, and looks the same either way without this. */
+.toolbar[data-my-changes] {
+    border-bottom-color: var(--mantine-color-orange-5);
+    box-shadow: 0 1px 0 var(--mantine-color-orange-5);
+}
+
 .workspaceBody {
     flex: 1;
     min-height: 0;
@@ -149,6 +155,12 @@
     height: 6px;
     border-radius: 50%;
     background: var(--mantine-color-yellow-6);
+}
+
+/* Someone else's work in development: an outline, so it never reads as yours. */
+.draftDot[data-others] {
+    background: transparent;
+    border: 1px solid var(--mantine-color-yellow-6);
 }
 
 .fileRow:first-child {

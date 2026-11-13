@@ -61,6 +61,7 @@ const app = (
     latestReadyVersion: null,
     latestReadyVersionUsesAiAnalysis: null,
     latestReadyVersionHasAnalyzableData: null,
+    latestReadyVersionConsumerAccess: null,
     addAnalysisDismissed: false,
     icon: null,
     verification: null,

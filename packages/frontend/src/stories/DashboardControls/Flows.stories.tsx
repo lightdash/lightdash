@@ -44,6 +44,7 @@ export const AddAFilter: Story = {
 };
 
 export const AddAParameter: Story = {
+    // An unset pill reads its parameter's default
     name: 'Add an unset parameter',
     play: async ({ canvas, canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
@@ -69,7 +70,7 @@ export const AddAParameter: Story = {
             within(editor).getByRole('button', { name: 'Apply' }),
         );
         await expect(
-            canvas.getByRole('button', { name: /Region.*is not set/ }),
+            canvas.getByRole('button', { name: /Region.*Global/ }),
         ).toBeVisible();
         await waitForApiIdle();
     },
@@ -95,9 +96,10 @@ export const AddASecondControlOnAParameter: Story = {
             ).toBeVisible(),
         );
         await expect(within(editor).getByRole('combobox')).toHaveValue('');
+        // The control already on the bar, and the new one reading the default
         await expect(
-            canvas.getByRole('button', { name: /Week starts on.*Monday/ }),
-        ).toBeVisible();
+            canvas.getAllByRole('button', { name: /Week starts on.*Monday/ }),
+        ).toHaveLength(2);
     },
 };
 
@@ -169,7 +171,7 @@ export const AddControlsToSection: Story = {
             within(parameter).getByRole('button', { name: 'Apply' }),
         );
         await expect(
-            within(section).getByRole('button', { name: /Region.*is not set/ }),
+            within(section).getByRole('button', { name: /Region.*Global/ }),
         ).toBeVisible();
         await waitForApiIdle();
     },

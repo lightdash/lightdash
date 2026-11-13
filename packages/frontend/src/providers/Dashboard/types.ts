@@ -101,6 +101,7 @@ export type DashboardContextType = {
         tileUuid: string,
         fields: ChartZoomableField[],
     ) => void;
+    setTileDateZoomRefused: (tileUuid: string, isRefused: boolean) => void;
     hasTilesThatSupportFilters: boolean;
     /** Replaces the tile's viewer sort; an empty list clears it */
     setTileChartSorts: (tileUuid: string, sorts: SortField[]) => void;

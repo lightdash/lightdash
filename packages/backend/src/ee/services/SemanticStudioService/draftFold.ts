@@ -4,6 +4,7 @@ import {
     ParameterError,
     parseModelFragment,
     removeModelParts,
+    restoreModelParts,
     type ApplyModelFragmentResult,
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftModelInput,
@@ -19,8 +20,8 @@ type Merged = Omit<ApplyModelFragmentResult, 'contents'> & {
     contents: string | null;
 };
 
-/** What one drafted item does to one model's YAML. */
-const mergeItem = (
+/** What a drafted item's fragment and removals do to one model's YAML. */
+const mergeFragment = (
     current: string | null,
     { name, yaml, remove, removeModel }: SemanticLayerDraftModelInput,
 ): Merged => {
@@ -86,6 +87,35 @@ const mergeItem = (
     };
 };
 
+/** What one drafted item does to one model's YAML; `live` is the model as it is live, for the parts the item leaves as they are there. */
+const mergeItem = (
+    current: string | null,
+    item: SemanticLayerDraftModelInput,
+    live: string | null,
+): Merged => {
+    const merged = mergeFragment(current, item);
+    const paths = item.restore ?? [];
+    if (paths.length === 0 || merged.contents === null || live === null) {
+        return merged;
+    }
+    const { contents, restored } = restoreModelParts({
+        contents: merged.contents,
+        live,
+        paths,
+    });
+    return {
+        ...merged,
+        contents,
+        changes: [
+            ...merged.changes,
+            ...restored.map(({ path, removed }) => ({
+                path,
+                action: removed ? ('removed' as const) : ('patched' as const),
+            })),
+        ],
+    };
+};
+
 /** Replays draft changes in order on the given models, with no warehouse involved; results keep the shape of `changes`. */
 export const foldDraft = (
     documents: Map<string, string>,
@@ -120,7 +150,7 @@ export const foldDraft = (
                 contents,
                 changes: made,
                 refusals,
-            } = mergeItem(current, item);
+            } = mergeItem(current, item, documents.get(item.name) ?? null);
             if (made.length > 0) writes.set(item.name, contents);
             return {
                 model: item.name,

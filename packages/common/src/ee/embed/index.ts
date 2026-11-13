@@ -399,7 +399,7 @@ export type CreateEmbedJwt = {
     userAttributes?: { [key: string]: string };
     user?: {
         email?: string;
-        /** Must be unique per viewer within the organization: it owns the threads of read-only AI agent tokens. */
+        /** Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts. */
         externalId?: string;
     };
     expiresIn?: string;

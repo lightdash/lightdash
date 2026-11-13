@@ -273,6 +273,7 @@ import {
 } from '../WarehouseClientFactory/WarehouseClientFactory';
 import { getAgentTableListScopeFingerprint } from './agentTableList';
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
+import { developmentView } from './developmentView';
 import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
@@ -1499,6 +1500,7 @@ describe('ProjectService', () => {
                     expect(enterprise).toHaveBeenCalledExactlyOnceWith({
                         organizationUuid: 'organization-uuid',
                         projectUuid: 'copy',
+                        spaceUuid: 'training-space',
                         createdByUserUuid: 'creator',
                     });
                     expect(reported).not.toHaveBeenCalled();
@@ -1511,7 +1513,9 @@ describe('ProjectService', () => {
                     await expect(
                         seedAll(createLearnService(enterprise)),
                     ).resolves.toBeUndefined();
-                    expect(enterprise).toHaveBeenCalledTimes(1);
+                    expect(enterprise).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({ spaceUuid: null }),
+                    );
                     expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
                 });
 
@@ -9259,6 +9263,56 @@ describe('ProjectService', () => {
                 expect(explore.unfilteredTables).toBeUndefined();
             },
         );
+
+        test("reads a person's unpublished model over the live one only in the development view", async () => {
+            const drafted: Explore = {
+                ...validExplore,
+                label: 'In development',
+            };
+            const findExplores = vi.fn(
+                async () => new Map([[validExplore.name, drafted]]),
+            );
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValue([
+                validExplore,
+            ]);
+
+            const live = await service.getExplore(
+                account,
+                projectUuid,
+                validExplore.name,
+            );
+            expect(live.label).toBe(validExplore.label);
+            expect(findExplores).not.toHaveBeenCalled();
+
+            const inDevelopment = await developmentView.run(
+                { findExplores, hasChanges: async () => true },
+                () =>
+                    service.getExplore(account, projectUuid, validExplore.name),
+            );
+            expect(inDevelopment.label).toBe('In development');
+            expect(findExplores).toHaveBeenCalledWith(account, projectUuid);
+        });
+
+        test('hides a model the person removed, in the development view', async () => {
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValue([
+                validExplore,
+            ]);
+            await expect(
+                developmentView.run(
+                    {
+                        findExplores: async () =>
+                            new Map([[validExplore.name, null]]),
+                        hasChanges: async () => true,
+                    },
+                    () =>
+                        service.getExplore(
+                            account,
+                            projectUuid,
+                            validExplore.name,
+                        ),
+                ),
+            ).rejects.toThrow('does not exist');
+        });
 
         test('returns split candidates when the requested explore name was qualified', async () => {
             vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(

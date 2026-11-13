@@ -470,12 +470,30 @@ describe('choosing the tiles a parameter control sets', () => {
         await user.click(
             within(row()).getByRole('button', { name: 'Clear all tiles' }),
         );
+        // As a date zoom's: a control on no tiles does nothing
+        expect(
+            within(row()).getByRole('button', { name: 'Clear all tiles' }),
+        ).toBeDisabled();
+        expect(
+            within(row()).getByRole('button', { name: 'Apply' }),
+        ).toBeDisabled();
+        await user.click(
+            within(row()).getByRole('button', { name: 'Back to parameter' }),
+        );
+        expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
+        await user.click(screen.getByRole('button', { name: /Choose tiles/ }));
+        await setThisTile(
+            user,
+            'orders1',
+            'Region on orders1',
+            'Orders Region',
+        );
         await user.click(within(row()).getByRole('button', { name: 'Apply' }));
         expect(
             store.getState().parameters.parameterControls?.[0].parameters,
         ).toEqual({
             'orders.region': {
-                except: ['orders1', 'orders2', 'payments1', 'currency1'],
+                except: ['orders2', 'payments1', 'currency1'],
             },
         });
     });

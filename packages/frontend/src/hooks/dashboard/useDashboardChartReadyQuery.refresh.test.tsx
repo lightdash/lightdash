@@ -66,6 +66,7 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
             setTilesWithDateZoomApplied: () => {},
             addParameterDefinitions: () => {},
             setChartZoomableFields: () => {},
+            setTileDateZoomRefused: () => {},
         }),
 }));
 vi.mock('../../providers/Dashboard/useDashboardTileStatusContext', () => ({

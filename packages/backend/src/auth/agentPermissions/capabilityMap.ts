@@ -118,6 +118,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     submitWorkerFindings: [AgentCapability.ReadDiscover],
     syncDbtProject: [AgentCapability.DeployUpload],
     updateUserName: [AgentCapability.Administration],
+    askUser: [AgentCapability.ReadDiscover],
 } as const satisfies Record<
     AgentToolName | 'exportChartAsCode' | 'loadAgentTools',
     RequiredAgentCapabilities
@@ -362,6 +363,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.ContentWrite,
     ],
     'AiAgentController.runEvaluation': [AgentCapability.Query],
+    'AiAgentController.sendVisualizeSlackChart': [
+        AgentCapability.Administration,
+    ],
     'AiAgentController.setArtifactVersionVerified': [AgentCapability.Publish],
     'AiAgentController.setUserDefaultAgent': [AgentCapability.ReadDiscover],
     'AiAgentController.startMcpOAuthConnection': [
@@ -477,14 +481,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiCreditController.getUsage': [AgentCapability.ReadDiscover],
     'AiDeepResearchController.cancelRun': [AgentCapability.Administration],
     'AiDeepResearchController.createRun': [AgentCapability.Query],
-    'AiDeepResearchController.getChart': [AgentCapability.ReadDiscover],
-    'AiDeepResearchController.getChartQueryResults': [
-        AgentCapability.ReadDiscover,
-    ],
     'AiDeepResearchController.getRun': [AgentCapability.ReadDiscover],
     'AiDeepResearchController.listEvents': [AgentCapability.ReadDiscover],
     'AiDeepResearchController.listRuns': [AgentCapability.ReadDiscover],
-    'AiDeepResearchController.refreshChart': [AgentCapability.Query],
     'AiOrganizationSettingsController.getRuntimeSettings': [
         AgentCapability.ReadDiscover,
     ],
@@ -1048,8 +1047,17 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.DbtWriteback,
     ],
     'SemanticStudioController.getDraft': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.moveDraftChange': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.keepDraftModel': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getDraftState': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getDraftedModels': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.takeLiveDraftPart': [
+        AgentCapability.DbtWriteback,
+    ],
     'SemanticStudioController.getDraftImpact': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getDraftUsage': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getModel': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.getStoredModels': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getBuilderStatus': [AgentCapability.ReadDiscover],
     'SemanticStudioController.undo': [AgentCapability.DbtWriteback],
     'InviteLinksController.createInviteLink': [AgentCapability.Administration],

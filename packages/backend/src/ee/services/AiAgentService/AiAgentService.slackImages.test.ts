@@ -779,8 +779,8 @@ describe('Slack image delivery scope', () => {
                     expect.objectContaining({
                         type: 'bar',
                         encode: {
-                            x: 'composer_result_orders_status',
-                            y: 'composer_result_orders_revenue',
+                            x: 'orders_status',
+                            y: 'orders_revenue',
                         },
                     }),
                 ],
@@ -1065,6 +1065,123 @@ describe('Slack image delivery scope', () => {
             messageTs: '104.0',
             text: 'Answer',
             blocks: message.blocks,
+        });
+    });
+
+    describe('native charts at answer time', () => {
+        const threadButton = {
+            type: 'button',
+            url: 'https://lightdash.test/thread',
+            style: 'primary',
+            action_id: 'actions.view_composer_card_button_click.0',
+            text: { type: 'plain_text', text: 'Explore in Lightdash' },
+        };
+        const nativeSetup = (defaultVizType: 'bar' | 'pie', enabled = true) => {
+            const h = setup();
+            h.decisionFlag.mockResolvedValue({ enabled });
+            const input = {
+                ...h.input,
+                rowLimit: 2,
+                queryTool: {
+                    title: 'Orders',
+                    queryConfig: {
+                        exploreName: 'orders',
+                        dimensions: ['status'],
+                        metrics: ['orders'],
+                        sorts: [],
+                    },
+                    chartConfig: {
+                        defaultVizType,
+                        xAxisDimension: 'status',
+                        yAxisMetrics: ['orders'],
+                        groupBy: null,
+                        xAxisType: 'category',
+                        stackBars: null,
+                        lineType: null,
+                        xAxisLabel: '',
+                        yAxisLabel: '',
+                        secondaryYAxisMetric: null,
+                    },
+                },
+            } as unknown as SlackRunQueryRenderInput;
+            h.getDelivery.mockResolvedValue({
+                finished_at: null,
+                render_inputs: { version: input },
+            });
+            h.getRawAsyncQueryResults.mockResolvedValue({
+                rows: [
+                    { status: 'placed', orders: 1 },
+                    { status: 'shipped', orders: '2' },
+                ],
+                fields: {},
+                truncated: false,
+            });
+            const cardBlocks = [
+                {
+                    type: 'card',
+                    block_id: getSlackArtifactCardBlockId('version'),
+                    actions: [threadButton],
+                },
+            ];
+            const authorize = vi.fn().mockResolvedValue(undefined);
+            const run = () =>
+                h.service['withSlackNativeCharts']({
+                    user: defaultSessionUser,
+                    slackPrompt: h.prompt,
+                    reader: { kind: 'agent' } as never,
+                    artifacts: [
+                        {
+                            versionUuid: 'version',
+                            chartConfig: { source: 'semantic' },
+                        } as AiArtifact,
+                    ],
+                    cardBlocks,
+                    authorize,
+                });
+            return { ...h, cardBlocks, authorize, run };
+        };
+
+        it('leaves the answer unchanged when the flag is off', async () => {
+            const h = nativeSetup('bar', false);
+            expect(await h.run()).toBeNull();
+            expect(h.decisionFlag).toHaveBeenCalledWith({
+                user: defaultSessionUser,
+                featureFlagId: FeatureFlags.AiAgentSlackNativeCharts,
+            });
+            expect(h.getDelivery).not.toHaveBeenCalled();
+        });
+
+        it('builds an eligible card into a native chart from its authorized rows', async () => {
+            const h = nativeSetup('bar');
+            const layout = await h.run();
+            expect(layout?.image).toBe(h.cardBlocks);
+            expect(layout?.native[0]).toMatchObject({
+                type: 'data_visualization',
+                chart: { axis_config: { categories: ['placed', 'shipped'] } },
+            });
+            expect(h.authorize).toHaveBeenCalledWith({
+                queryUuid: 'execution',
+                exploreNames: ['orders'],
+            });
+            expect(h.getRawAsyncQueryResults).toHaveBeenCalledWith(
+                expect.objectContaining({ aiAccessOnly: true, maxRows: 2 }),
+            );
+        });
+
+        it('keeps an ineligible chart on the image path without reading rows', async () => {
+            const h = nativeSetup('pie');
+            expect(await h.run()).toBeNull();
+            expect(h.getRawAsyncQueryResults).not.toHaveBeenCalled();
+        });
+
+        it('keeps the image path when the result is truncated', async () => {
+            const h = nativeSetup('bar');
+            h.getRawAsyncQueryResults.mockResolvedValue({
+                rows: [{ status: 'placed', orders: 1 }],
+                fields: {},
+                truncated: true,
+            });
+            expect(await h.run()).toBeNull();
         });
     });
 });

@@ -14,6 +14,11 @@ export type DashboardDateZoomState = {
     tilesWithDateZoomApplied: Set<string> | undefined;
     /** Date fields each chart tile can be zoomed on, reported by the tile */
     chartZoomableFieldsByTileUuid: Record<string, ChartZoomableField[]>;
+    /**
+     * Chart tiles that keep their saved grain under date zoom (live data
+     * sources), reported by the tile once its explore loads
+     */
+    dateZoomRefusedByTileUuid: Record<string, boolean>;
 };
 
 export const initialDashboardDateZoomState: DashboardDateZoomState = {
@@ -21,6 +26,7 @@ export const initialDashboardDateZoomState: DashboardDateZoomState = {
     controlGranularities: {},
     tilesWithDateZoomApplied: undefined,
     chartZoomableFieldsByTileUuid: {},
+    dateZoomRefusedByTileUuid: {},
 };
 
 export const dashboardDateZoomActions = {
@@ -41,6 +47,10 @@ export const dashboardDateZoomActions = {
         tileUuid: string;
         fields: ChartZoomableField[];
     }>('dashboardDateZoom/setChartZoomableFields'),
+    setTileDateZoomRefused: createAction<{
+        tileUuid: string;
+        isRefused: boolean;
+    }>('dashboardDateZoom/setTileDateZoomRefused'),
     /** Drops zoomable fields of tiles no longer on the dashboard */
     keepTileDateZoomState: createAction<string[]>(
         'dashboardDateZoom/keepTileDateZoomState',
@@ -101,15 +111,38 @@ export const dashboardDateZoomReducer = (
             },
         };
     }
+    if (dashboardDateZoomActions.setTileDateZoomRefused.match(action)) {
+        const { tileUuid, isRefused } = action.payload;
+        if (state.dateZoomRefusedByTileUuid[tileUuid] === isRefused) {
+            return state;
+        }
+        return {
+            ...state,
+            dateZoomRefusedByTileUuid: {
+                ...state.dateZoomRefusedByTileUuid,
+                [tileUuid]: isRefused,
+            },
+        };
+    }
     if (dashboardDateZoomActions.keepTileDateZoomState.match(action)) {
+        const tileUuids = new Set(action.payload);
         const chartZoomableFieldsByTileUuid = keepTiles(
             state.chartZoomableFieldsByTileUuid,
-            new Set(action.payload),
+            tileUuids,
+        );
+        const dateZoomRefusedByTileUuid = keepTiles(
+            state.dateZoomRefusedByTileUuid,
+            tileUuids,
         );
         return chartZoomableFieldsByTileUuid ===
-            state.chartZoomableFieldsByTileUuid
+            state.chartZoomableFieldsByTileUuid &&
+            dateZoomRefusedByTileUuid === state.dateZoomRefusedByTileUuid
             ? state
-            : { ...state, chartZoomableFieldsByTileUuid };
+            : {
+                  ...state,
+                  chartZoomableFieldsByTileUuid,
+                  dateZoomRefusedByTileUuid,
+              };
     }
     return state;
 };

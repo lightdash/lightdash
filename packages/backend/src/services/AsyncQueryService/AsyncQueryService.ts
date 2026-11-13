@@ -83,6 +83,7 @@ import {
     isCustomDimension,
     isDashboardChartTileType,
     isDateItem,
+    isDateZoomRefusedOnExplore,
     isExploreError,
     isField,
     isJwtUser,
@@ -106,6 +107,8 @@ import {
     NotImplementedError,
     NotSupportedError,
     OrganizationAccessStatus,
+    OTHER_PIVOT_KEY,
+    OTHER_PIVOT_LABEL,
     ParameterError,
     ParseError,
     PersistentDownloadFileAccessMode,
@@ -259,6 +262,7 @@ import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import {
     mapQueryHistoryRowToListItem,
     QueryHistoryModel,
+    QueryPollingTimeoutError,
     type CachedResultsContent,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -363,6 +367,7 @@ import { OrganizationAccessService } from '../OrganizationAccessService/Organiza
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import { developmentView } from '../ProjectService/developmentView';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
 import {
     areDashboardControlsEnabled,
@@ -392,6 +397,7 @@ import {
 } from '../QuerySourceService/api/apiQueryOutcome';
 import { toApiSourceQueryError } from '../QuerySourceService/api/apiSourceExplore';
 import {
+    assertApiResultComplete,
     compileApiSourceMetricQuery,
     toApiSourceResult,
 } from '../QuerySourceService/api/apiSourceExplores';
@@ -499,6 +505,7 @@ import {
     assertAgentQueryWithinEstimateLimit,
     QueryEstimateCache,
 } from './queryCostEstimate';
+import type { QueryPollingSource } from './queryPollingSource';
 import { canReuseApiResult, canReuseQueryResult } from './queryResultReuse';
 import { queryUsageProperties, queryWorkloadOrigin } from './queryUsage';
 import {
@@ -2063,10 +2070,25 @@ export class AsyncQueryService extends ProjectService {
         const getUnfilteredExplore = (name: string) => {
             let explore = unfilteredExplorePromises.get(name);
             if (!explore) {
-                explore = this.projectModel.getExploreFromCache(
-                    projectUuid,
-                    name,
-                );
+                // A result run in the development view is checked against the same unpublished models it read.
+                explore = (async () => {
+                    const inDevelopment =
+                        (await developmentView
+                            .getStore()
+                            ?.findExplores(
+                                await getCurrentAccount(),
+                                projectUuid,
+                            )) ?? null;
+                    if (!inDevelopment?.has(name)) {
+                        return this.projectModel.getExploreFromCache(
+                            projectUuid,
+                            name,
+                        );
+                    }
+                    const changed = inDevelopment.get(name);
+                    if (!changed) throw new ForbiddenError();
+                    return changed;
+                })();
                 unfilteredExplorePromises.set(name, explore);
             }
             return explore;
@@ -2378,6 +2400,16 @@ export class AsyncQueryService extends ProjectService {
             return;
         }
         checkedQueries.add(queryHistory.queryUuid);
+        if (queryHistory.requestParameters?.dataAppSource) {
+            const appService = this.getAppGenerateService?.();
+            if (!appService) throw new ForbiddenError();
+            await appService.assertCanViewQuerySource({
+                account,
+                projectUuid,
+                appUuid: queryHistory.requestParameters.dataAppSource.appUuid,
+                version: queryHistory.requestParameters.dataAppSource.version,
+            });
+        }
         if (queryHistory.requestParameters?.documentSource) {
             assertRegisteredAccount(account);
             await this.getDocumentService().get(
@@ -2595,20 +2627,6 @@ export class AsyncQueryService extends ProjectService {
                 'Embed token is not allowed to download query results',
             );
         }
-    }
-
-    async bindQueryToResearchRun(
-        account: Account,
-        projectUuid: string,
-        queryUuid: string,
-        runUuid: string,
-    ): Promise<void> {
-        await this.queryHistoryModel.recordResultResearchRun(
-            queryUuid,
-            projectUuid,
-            account.user.id,
-            runUuid,
-        );
     }
 
     async bindQueryToArtifact(
@@ -4172,7 +4190,20 @@ export class AsyncQueryService extends ProjectService {
                       // with the same row_index carries a different value
                       // for the same passthrough dim, the dim isn't
                       // 1-to-1 with the visible row/pivot dims.
-                      if (passthroughDimensions && currentTransformedRow) {
+                      // The row that carries the summed values of the groups
+                      // past the column limit (foldOverflowGroups). Its
+                      // group-by and passthrough values belong to one of the
+                      // folded groups, so they are not used.
+                      const isOtherGroup =
+                          Number(
+                              row[PivotQueryBuilder.IS_OTHER_GROUP_COLUMN],
+                          ) === 1;
+
+                      if (
+                          passthroughDimensions &&
+                          currentTransformedRow &&
+                          !isOtherGroup
+                      ) {
                           for (const dim of passthroughDimensions) {
                               const incoming = row[dim.reference];
                               const existing =
@@ -4231,6 +4262,13 @@ export class AsyncQueryService extends ProjectService {
 
                       const pivotValues =
                           groupByColumns?.map((c) => {
+                              if (isOtherGroup) {
+                                  return {
+                                      referenceField: c.reference,
+                                      value: OTHER_PIVOT_KEY,
+                                      formatted: OTHER_PIVOT_LABEL,
+                                  };
+                              }
                               const field = itemsMap[c.reference];
                               const rawValue = formatRawValue(
                                   field,
@@ -4276,6 +4314,7 @@ export class AsyncQueryService extends ProjectService {
                               aggregation: col.aggregation,
                               pivotValues,
                               columnIndex: row.column_index,
+                              ...(isOtherGroup && { isOtherGroup: true }),
                           });
 
                           currentTransformedRow = currentTransformedRow ?? {};
@@ -7871,8 +7910,29 @@ export class AsyncQueryService extends ProjectService {
                 },
             }),
         );
+        let dataAppSource: ExecuteAsyncQueryRequestParams['dataAppSource'];
         if (isForbidden) {
-            throw new ForbiddenError();
+            const appService = this.getAppGenerateService?.();
+            // Materialization skips model-required filters; an app token must
+            // never authorize it.
+            if (
+                !appService ||
+                !args.dataAppPreviewToken ||
+                context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+            ) {
+                throw new ForbiddenError();
+            }
+            dataAppSource = await appService.authorizeConsumerQuery({
+                account,
+                projectUuid,
+                organizationUuid,
+                previewToken: args.dataAppPreviewToken,
+                metricQuery: inputMetricQuery,
+                parameters: args.parameters,
+                dashboardFilters: args.dashboardFilters,
+                dateZoom: args.dateZoom,
+                pivotConfiguration: args.pivotConfiguration,
+            });
         }
 
         await this.assertCustomSqlAuthorizedForQuery({
@@ -7890,6 +7950,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             undefined,
             reuseQueryUuid,
+            dataAppSource,
         );
     }
 
@@ -7916,6 +7977,7 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid: string,
         sourceQueryHistory?: QueryHistory,
         reuseQueryUuid?: string,
+        dataAppSource?: ExecuteAsyncQueryRequestParams['dataAppSource'],
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -8096,10 +8158,12 @@ export class AsyncQueryService extends ProjectService {
         const references =
             sourceQueryHistory &&
             (sourceParameters.chartUuid ||
-                sourceQueryHistory.requestParameters?.documentSource)
+                sourceQueryHistory.requestParameters?.documentSource ||
+                sourceQueryHistory.requestParameters?.dataAppSource)
                 ? { source: sourceQueryHistory.queryUuid }
                 : sourceParameters.references;
         const requestParameters: ExecuteAsyncQueryRequestParams = {
+            ...(dataAppSource ? { dataAppSource } : {}),
             ...(documentQueryContext
                 ? { documentSource: documentQueryContext.reference }
                 : {}),
@@ -10122,7 +10186,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid,
         dashboardFilters,
         dashboardSorts,
-        dateZoom,
+        dateZoom: requestedDateZoom,
         context,
         querySurface,
         invalidateCache,
@@ -10162,6 +10226,13 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
             ),
         ]);
+
+        // A live data source whose integration refuses date zoom keeps its
+        // saved grain, so one zoom never fails its tiles. Direct metric
+        // queries still refuse the zoom.
+        const dateZoom = isDateZoomRefusedOnExplore(explore)
+            ? undefined
+            : requestedDateZoom;
 
         let effectiveDashboardUuid: string | undefined = dashboardUuid;
 
@@ -12459,8 +12530,20 @@ export class AsyncQueryService extends ProjectService {
                 args.invalidateCache ??
                 false,
             history: { fields, requestParameters, metricQuery, explore },
-            toResult: (result) =>
-                toApiSourceResult({ compiled, rows: result.rows, fields }),
+            toResult: (result) => {
+                const { label, maxRows } = connector.describe();
+                assertApiResultComplete({
+                    compiled,
+                    hasMoreRows: result.hasMoreRows,
+                    label,
+                    maxRows,
+                });
+                return toApiSourceResult({
+                    compiled,
+                    rows: result.rows,
+                    fields,
+                });
+            },
         });
         return {
             queryUuid,
@@ -12764,7 +12847,7 @@ export class AsyncQueryService extends ProjectService {
                     executeMs = Date.now() - startedAt;
                     span.setAttributes({
                         'lightdash.rowCount': result.rows.length,
-                        'lightdash.truncated': result.truncated,
+                        'lightdash.truncated': result.hasMoreRows,
                         'lightdash.apiCalls': connector.usage().apiCalls,
                         ...(result.bytesRead !== null
                             ? { 'lightdash.bytesRead': result.bytesRead }
@@ -12848,18 +12931,20 @@ export class AsyncQueryService extends ProjectService {
                         errorMessage: null,
                         totalRowCount: shaped.rows.length,
                         columnsCount: Object.keys(shaped.columns).length,
-                        truncated: result.truncated,
+                        truncated: result.hasMoreRows,
                     });
                     logCall({
                         outcome: 'ok',
                         errorMessage: null,
                         rowCount: shaped.rows.length,
                         columnCount: Object.keys(shaped.columns).length,
-                        truncated: result.truncated,
+                        truncated: result.hasMoreRows,
                     });
                     this.logger.info(
                         `Api query ${queryUuid} ready: ${shaped.rows.length} rows${
-                            result.truncated ? ' (truncated)' : ''
+                            result.hasMoreRows
+                                ? ' (more rows past the limit)'
+                                : ''
                         } from ${connectorType} in ${Date.now() - startedAt}ms`,
                     );
                 } catch (e) {
@@ -12985,7 +13070,7 @@ export class AsyncQueryService extends ProjectService {
                 'ok',
                 Date.now() - startedAt,
             );
-            if (result.truncated) {
+            if (result.hasMoreRows) {
                 this.prometheusMetrics?.incrementApiSourceTruncated(
                     connectorType,
                 );
@@ -16253,7 +16338,8 @@ export class AsyncQueryService extends ProjectService {
 
     /**
      * Poll for query completion with exponential backoff.
-     * Throws on CANCELLED, ERROR, or timeout.
+     * Throws on CANCELLED, ERROR, or timeout. A timeout cancels the query
+     * if it is still running.
      */
     async pollForQueryCompletion({
         account,
@@ -16263,6 +16349,7 @@ export class AsyncQueryService extends ProjectService {
         maxBackoffMs = 2000,
         timeoutMs = 5 * 60 * 1000, // 5 min default
         abortSignal,
+        source = 'other',
     }: {
         account: Account;
         projectUuid: string;
@@ -16271,16 +16358,66 @@ export class AsyncQueryService extends ProjectService {
         maxBackoffMs?: number;
         timeoutMs?: number;
         abortSignal?: AbortSignal;
+        source?: QueryPollingSource;
     }): Promise<void> {
-        await this.queryHistoryModel.pollForQueryCompletion({
-            queryUuid,
-            account,
-            projectUuid,
-            initialBackoffMs,
-            maxBackoffMs,
-            timeoutMs,
-            abortSignal,
-        });
+        try {
+            await this.queryHistoryModel.pollForQueryCompletion({
+                queryUuid,
+                account,
+                projectUuid,
+                initialBackoffMs,
+                maxBackoffMs,
+                timeoutMs,
+                abortSignal,
+            });
+        } catch (error) {
+            if (error instanceof QueryPollingTimeoutError) {
+                this.prometheusMetrics?.incrementQueryPollingTimeout(source);
+                await this.cancelTimedOutQuery({
+                    account,
+                    projectUuid,
+                    queryUuid,
+                });
+            }
+            throw error;
+        }
+    }
+
+    private async cancelTimedOutQuery({
+        account,
+        projectUuid,
+        queryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<void> {
+        try {
+            const history = await this.queryHistoryModel.get(
+                queryUuid,
+                projectUuid,
+                account,
+            );
+            if (
+                [
+                    QueryHistoryStatus.PENDING,
+                    QueryHistoryStatus.QUEUED,
+                    QueryHistoryStatus.EXECUTING,
+                ].includes(history.status)
+            ) {
+                await this.cancelAsyncQuery({
+                    account,
+                    projectUuid,
+                    queryUuid,
+                });
+            }
+        } catch (error) {
+            this.logger.warn(
+                `Failed to cancel query ${queryUuid} after polling timed out: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
     }
 
     async pollQueryHistoryUntilDeadline({

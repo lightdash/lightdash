@@ -10,6 +10,7 @@ import {
 } from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
 import {
+    CartesianSeriesType,
     ChartType,
     type CartesianChartConfig,
     type DataAppVizChart,
@@ -17,6 +18,7 @@ import {
 } from '../types/savedCharts';
 import {
     SortByDirection,
+    StackType,
     VizAggregationOptions,
     VizIndexType,
 } from '../visualizations/types';
@@ -1256,6 +1258,148 @@ describe('derivePivotConfigurationFromChart', () => {
             expect(result?.groupByColumns).toEqual([
                 { reference: 'orders_order_source' },
             ]);
+        });
+    });
+
+    describe('Folding groups past the column limit into "Other"', () => {
+        const dimension = (name: string): ItemsMap[string] => ({
+            sql: `\${TABLE}.${name}`,
+            name,
+            type: DimensionType.STRING,
+            fieldType: FieldType.DIMENSION,
+            table: 'orders',
+            tableLabel: 'Orders',
+            label: name,
+            hidden: false,
+        });
+        const metric = (name: string, type: MetricType): ItemsMap[string] => ({
+            sql: `\${TABLE}.${name}`,
+            name,
+            type,
+            fieldType: FieldType.METRIC,
+            table: 'orders',
+            tableLabel: 'Orders',
+            label: name,
+            hidden: false,
+        });
+        const items: ItemsMap = {
+            orders_day: dimension('day'),
+            orders_project: dimension('project'),
+            orders_count: metric('count', MetricType.COUNT),
+            orders_latest_status: metric('latest_status', MetricType.STRING),
+        };
+
+        const derive = (
+            yField: string,
+            config: Partial<CartesianChartConfig['config']> = {},
+        ) =>
+            derivePivotConfigurationFromChart(
+                {
+                    chartConfig: {
+                        type: ChartType.CARTESIAN,
+                        config: {
+                            layout: { xField: 'orders_day', yField: [yField] },
+                            eChartsConfig: { series: [] },
+                            ...config,
+                        },
+                    },
+                    pivotConfig: { columns: ['orders_project'] },
+                },
+                {
+                    exploreName: 'orders',
+                    dimensions: ['orders_day', 'orders_project'],
+                    metrics: [yField],
+                    filters: {},
+                    sorts: [{ fieldId: 'orders_day', descending: false }],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+                items,
+            );
+
+        const stackedSeries = (yField: string) => ({
+            eChartsConfig: {
+                series: [
+                    {
+                        type: CartesianSeriesType.BAR,
+                        stack: yField,
+                        encode: {
+                            xRef: { field: 'orders_day' },
+                            yRef: { field: yField },
+                        },
+                    },
+                ],
+            },
+        });
+
+        it('folds the overflow for a stacked chart with numeric values', () => {
+            expect(
+                derive('orders_count', stackedSeries('orders_count'))
+                    ?.foldOverflowGroups,
+            ).toBe(true);
+        });
+
+        it('does not fold when the chart has its own column limit', () => {
+            const result = derive('orders_count', {
+                ...stackedSeries('orders_count'),
+                columnLimit: 5,
+            });
+            expect(result).toBeDefined();
+            expect(result?.foldOverflowGroups).toBeUndefined();
+        });
+
+        it('folds the overflow when stacking is set on the layout', () => {
+            expect(
+                derive('orders_count', {
+                    layout: {
+                        xField: 'orders_day',
+                        yField: ['orders_count'],
+                        stack: true,
+                    },
+                })?.foldOverflowGroups,
+            ).toBe(true);
+        });
+
+        it('does not fold when stacking was switched off on the layout', () => {
+            const result = derive('orders_count', {
+                layout: {
+                    xField: 'orders_day',
+                    yField: ['orders_count'],
+                    stack: StackType.NONE,
+                },
+            });
+            expect(result).toBeDefined();
+            expect(result?.foldOverflowGroups).toBeUndefined();
+        });
+
+        it.each([StackType.NORMAL, StackType.PERCENT])(
+            'folds the overflow when the layout stack is %s',
+            (stack) => {
+                expect(
+                    derive('orders_count', {
+                        layout: {
+                            xField: 'orders_day',
+                            yField: ['orders_count'],
+                            stack,
+                        },
+                    })?.foldOverflowGroups,
+                ).toBe(true);
+            },
+        );
+
+        it('does not fold when the chart is not stacked', () => {
+            const result = derive('orders_count');
+            expect(result).toBeDefined();
+            expect(result?.foldOverflowGroups).toBeUndefined();
+        });
+
+        it('does not fold values that cannot be added up', () => {
+            const result = derive(
+                'orders_latest_status',
+                stackedSeries('orders_latest_status'),
+            );
+            expect(result).toBeDefined();
+            expect(result?.foldOverflowGroups).toBeUndefined();
         });
     });
 

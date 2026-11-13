@@ -125,7 +125,7 @@ describe('PostHogConnector', () => {
                 { week: '2026-10-18', wau: 36, events: 111 },
                 { week: '2026-10-25', wau: 3, events: 3 },
             ],
-            truncated: false,
+            hasMoreRows: false,
             bytesRead: 12392719,
         });
     });
@@ -137,7 +137,7 @@ describe('PostHogConnector', () => {
             limit: 2,
         });
 
-        expect(result.truncated).toBe(true);
+        expect(result.hasMoreRows).toBe(true);
         expect(result.rows).toHaveLength(2);
         expect(result.bytesRead).toBeNull();
     });

@@ -17,6 +17,11 @@ export const useStudioAgent = (projectUuid: string) => {
         key: `semantic-studio-agent-thread-${projectUuid}`,
         defaultValue: null,
     });
+    // ponytail: one chat back, not a history; list the project's Studio threads if people need more.
+    const [previous, setPrevious] = useLocalStorage<StoredThread | null>({
+        key: `semantic-studio-agent-previous-thread-${projectUuid}`,
+        defaultValue: null,
+    });
     const storedAgent = agents.find(({ uuid }) => uuid === stored?.agentUuid);
     return {
         isEnabled,
@@ -26,6 +31,19 @@ export const useStudioAgent = (projectUuid: string) => {
                 ? { agent: storedAgent, threadUuid: stored.threadUuid }
                 : null,
         setStored,
+        startNewThread: () => {
+            if (stored) setPrevious(stored);
+            setStored(null);
+        },
+        previousThread:
+            previous && agents.some(({ uuid }) => uuid === previous.agentUuid)
+                ? previous
+                : null,
+        /** Swaps the open chat with the previous one, so each button press goes back and forth. */
+        returnToPreviousThread: () => {
+            setPrevious(stored);
+            setStored(previous);
+        },
     };
 };
 

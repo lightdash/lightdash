@@ -1,4 +1,5 @@
 import {
+    isToolEditDbtProjectResult,
     isToolName,
     type AiAgentMessageAssistant,
     type AiAgentToolResult,
@@ -49,6 +50,11 @@ export const getFinalStepFailure = (
     if (!last) return null;
     const failures = getToolCallFailures(last.calls, toolResults);
     const lastCall = last.calls[last.calls.length - 1];
+    // A dbt edit's own card says what went wrong, in words meant for the person.
+    const lastResult = toolResults?.find(
+        (result) => result.toolCallId === lastCall?.toolCallId,
+    );
+    if (lastResult && isToolEditDbtProjectResult(lastResult)) return null;
     // Grouping merges retries, so a group whose last call succeeded recovered.
     if (
         !lastCall ||

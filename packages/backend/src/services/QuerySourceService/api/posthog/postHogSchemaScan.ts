@@ -73,7 +73,7 @@ export const scanPostHogSchema = async (
                     ? [{ name, count: Number(count) || 0 }]
                     : [],
         ),
-        eventsTruncated: events.truncated,
+        eventsTruncated: events.hasMoreRows,
         propertyKeys,
     };
 };

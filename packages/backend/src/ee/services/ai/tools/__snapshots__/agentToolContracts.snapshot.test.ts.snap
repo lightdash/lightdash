@@ -11686,6 +11686,19 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                         "null",
                       ],
                     },
+                    "changedModels": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
                     "commitSha": {
                       "type": [
                         "string",
@@ -12012,6 +12025,19 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
                       "type": [
                         "number",
                         "null",
+                      ],
+                    },
+                    "changedModels": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        {
+                          "type": "null",
+                        },
                       ],
                     },
                     "commitSha": {
@@ -25982,6 +26008,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "createContent",
   "createScheduledDelivery",
   "updateUserName",
+  "askUser",
   "runContentQuery",
   "listContent",
   "loadSkill",

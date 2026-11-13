@@ -68,6 +68,8 @@ import {
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadShareResponse,
     ApiAiAgentVisualizeSlackPreviewRequest,
+    ApiAiAgentVisualizeSlackSendRequest,
+    ApiAiAgentVisualizeSlackSendResponse,
     ApiAiMcpOAuthCredentialRequest,
     ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
@@ -117,6 +119,7 @@ import {
     getAppDisplayName,
     getComposerChartStage,
     getComposerSlackEchartsConfig,
+    getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
@@ -127,6 +130,8 @@ import {
     getItemLabelWithoutTableName,
     getItemMap,
     getSlackAiEchartsConfig,
+    getSlackNativeChart,
+    getSlackNativeChartConfigGate,
     getValidAiQueryLimit,
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
@@ -176,7 +181,9 @@ import {
     QuerySourceType,
     QuerySurface,
     ReadinessScore,
+    serializeDashboardDateZoomControlsForAiContext,
     serializeDashboardFiltersForAiContext,
+    serializeDashboardTileParametersForAiContext,
     ShareUrl,
     SlackPrompt,
     sleep,
@@ -226,7 +233,9 @@ import {
     type PivotConfiguration,
     type QueryResultReader,
     type RegisteredAccount,
+    type ResultColumn,
     type SessionUser,
+    type SlackNativeChartRoute,
     type SlackPromptJobPayload,
     type SqlApprovalToolName,
     type SuggestionValidationCatalog,
@@ -390,7 +399,10 @@ import {
     type DbAiPromptTurnDecisionOutcome,
 } from '../../database/entities/ai';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
-import { toSlackArtifactRenderInput } from '../../database/entities/aiSlackArtifactDeliveries';
+import {
+    toSlackArtifactRenderInput,
+    type SlackArtifactRenderInput,
+} from '../../database/entities/aiSlackArtifactDeliveries';
 import { threadComposerQueryScope } from '../../database/entities/composerQueryNodes';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import {
@@ -542,6 +554,7 @@ import {
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
+import { canOfferAskUser } from '../ai/tools/askUser';
 import { executeEditContent } from '../ai/tools/editContent';
 import { formatSkillResult } from '../ai/tools/loadSkill';
 import {
@@ -615,6 +628,7 @@ import {
 import { getPivotedResults } from '../ai/utils/getPivotedResults';
 import {
     buildFeedbackContextActions,
+    buildSlackCardBlock,
     buildSlackTaskUpdate,
     getAgentConfirmationBlocks,
     getAgentSelectionBlocks,
@@ -653,7 +667,10 @@ import {
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../ai/utils/renderEcharts';
-import { getSlackArtifactCardVersions } from '../ai/utils/slackArtifactImages';
+import {
+    getSlackArtifactCardBlockId,
+    getSlackArtifactCardVersions,
+} from '../ai/utils/slackArtifactImages';
 import {
     getSlackImageSource,
     type SlackImageSource,
@@ -661,8 +678,16 @@ import {
 import { getSlackBigNumbers } from '../ai/utils/slackBigNumbers';
 import { getSlackSelectedCardArtifacts } from '../ai/utils/slackChartSelection';
 import {
+    getSlackNativeChartBlockId,
+    getSlackNativeChartLayout,
+    getSlackNativeCharts,
+    sendWithSlackNativeChartFallback,
+    toSlackImageChartBlocks,
+    type SlackChartBlocks,
+} from '../ai/utils/slackNativeCharts';
+import {
     getSlackTableBlocks,
-    splitSlackTableMessage,
+    splitSlackDataMessage,
     type SlackTableQueryResults,
 } from '../ai/utils/slackTableBlocks';
 import { getSlackTablePreviews } from '../ai/utils/slackTablePreviews';
@@ -686,7 +711,10 @@ import {
     WritebackAgentAccessError,
     WritebackThreadPrClosedError,
 } from '../AiWritebackService/errors';
-import type { AiWritebackSource } from '../AiWritebackService/types';
+import type {
+    AiWritebackSource,
+    ParsedDbtProject,
+} from '../AiWritebackService/types';
 import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writebackAgentWork';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
@@ -745,6 +773,12 @@ import {
     type AiUsageViewerAttribution,
 } from './usageAttribution';
 import { getWritebackConnectionSupport } from './writebackConnection';
+
+/** Checks a Slack answer may read a query's results before they are shown. */
+type SlackResultAuthorizer = (args: {
+    queryUuid: string;
+    exploreNames: string[];
+}) => Promise<void>;
 
 type SlackAiAccessRefusalState = {
     selected: AiAccessRefusal | null;
@@ -2541,17 +2575,174 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    /** Debug harness: draws caller-provided rows exactly as the Slack composer chart image. */
-    public async previewVisualizeSlackChart(
+    /** Null keeps the image path: an unreadable or incomplete result, or a chart with no image. */
+    private async getSlackNativeChartRoute({
+        user,
+        reader,
+        projectUuid,
+        artifact,
+        input,
+        authorize,
+    }: {
+        user: SessionUser;
+        reader: QueryResultReader;
+        projectUuid: string;
+        artifact: AiArtifact;
+        input: SlackArtifactRenderInput;
+        authorize: SlackResultAuthorizer;
+    }): Promise<SlackNativeChartRoute | null> {
+        const source = getSlackImageSource(input, artifact.chartConfig);
+        if (!source) return null;
+        const account = fromSession(user);
+        const blockId = getSlackNativeChartBlockId(input.versionUuid);
+        const getRows = async () => {
+            await authorize({
+                queryUuid: input.queryUuid,
+                exploreNames: source.exploreNames,
+            });
+            const results =
+                await this.asyncQueryService.getRawAsyncQueryResults({
+                    account,
+                    reader,
+                    projectUuid,
+                    queryUuid: input.queryUuid,
+                    aiAccessOnly: true,
+                    maxRows: input.rowLimit,
+                });
+            return results.truncated || results.rows.length !== input.rowLimit
+                ? null
+                : results;
+        };
+
+        if (input.source === 'runQuery') {
+            const gate = getSlackNativeChartConfigGate(input.queryTool);
+            if (!gate.eligible) return { route: 'image', reason: gate.reason };
+            const results = await getRows();
+            return results
+                ? getSlackNativeChart({
+                      queryTool: input.queryTool,
+                      queryResults: results,
+                      getPivotedResults,
+                      blockId,
+                  })
+                : null;
+        }
+        if (source.source !== 'composer') return null;
+        const history = await this.asyncQueryService.getAsyncQueryHistory({
+            account,
+            reader,
+            projectUuid,
+            queryUuid: input.queryUuid,
+        });
+        const { columns } = history;
+        if (!columns) return null;
+        const toChart = (rows: Record<string, unknown>[]) =>
+            getComposerSlackRunQueryChart({
+                columns: Object.values(columns),
+                rows,
+                vizConfig: source.vizConfig,
+                metadata: {
+                    title: artifact.title ?? '',
+                    description: artifact.description ?? '',
+                },
+            });
+        const shape = toChart([]);
+        if (!shape) return null;
+        const gate = getSlackNativeChartConfigGate(shape.tool);
+        if (!gate.eligible) return { route: 'image', reason: gate.reason };
+        const results = await getRows();
+        const chart = results ? toChart(results.rows) : null;
+        return chart
+            ? getSlackNativeChart({
+                  queryTool: chart.tool,
+                  queryResults: { rows: chart.rows, fields: chart.fields },
+                  getPivotedResults,
+                  blockId,
+              })
+            : null;
+    }
+
+    /** Flag-gated: up to two eligible chart cards become native charts; the rest keep the image path. */
+    private async withSlackNativeCharts({
+        user,
+        slackPrompt,
+        reader,
+        artifacts,
+        cardBlocks,
+        authorize,
+    }: {
+        user: SessionUser;
+        slackPrompt: SlackPrompt;
+        reader: QueryResultReader;
+        artifacts: AiArtifact[];
+        cardBlocks: (Block | KnownBlock)[];
+        authorize: SlackResultAuthorizer;
+    }): Promise<SlackChartBlocks | null> {
+        try {
+            const versions = getSlackArtifactCardVersions(cardBlocks);
+            if (versions.length === 0) return null;
+            const { enabled } = await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiAgentSlackNativeCharts,
+            });
+            if (!enabled) return null;
+            const delivery =
+                await this.aiAgentModel.slackArtifactDeliveries.get(
+                    slackPrompt.promptUuid,
+                );
+            if (!delivery || delivery.finished_at) return null;
+            const charts = await getSlackNativeCharts(
+                versions,
+                async (versionUuid) => {
+                    const stored = delivery.render_inputs[versionUuid];
+                    const artifact = artifacts.find(
+                        (candidate) => candidate.versionUuid === versionUuid,
+                    );
+                    if (!stored || !artifact) return null;
+                    try {
+                        const result = await this.getSlackNativeChartRoute({
+                            user,
+                            reader,
+                            projectUuid: slackPrompt.projectUuid,
+                            artifact,
+                            input: toSlackArtifactRenderInput(stored),
+                            authorize,
+                        });
+                        this.logger.info('Slack chart route', {
+                            promptUuid: slackPrompt.promptUuid,
+                            versionUuid,
+                            route: result?.route ?? 'image',
+                            reason:
+                                result?.route === 'image'
+                                    ? result.reason
+                                    : null,
+                        });
+                        return result;
+                    } catch (error) {
+                        this.logger.warn('Slack native chart unavailable', {
+                            promptUuid: slackPrompt.promptUuid,
+                            versionUuid,
+                            error: getErrorMessage(error),
+                        });
+                        return null;
+                    }
+                },
+            );
+            return getSlackNativeChartLayout(cardBlocks, charts);
+        } catch (error) {
+            this.logger.warn('Slack native charts skipped', {
+                promptUuid: slackPrompt.promptUuid,
+                error: getErrorMessage(error),
+            });
+            return null;
+        }
+    }
+
+    private async parseSlackChartHarnessVizConfig(
         account: RegisteredAccount,
         projectUuid: UUID,
-        {
-            title,
-            columns,
-            rows,
-            vizConfig,
-        }: ApiAiAgentVisualizeSlackPreviewRequest,
-    ): Promise<Buffer> {
+        vizConfig: Record<string, unknown>,
+    ) {
         if (!(await this.getIsCopilotEnabled(toSessionUser(account)))) {
             throw new ForbiddenError('Copilot is not enabled');
         }
@@ -2576,10 +2767,33 @@ export class AiAgentService extends BaseService {
                 `Invalid vizConfig: ${parsed.error.message}`,
             );
         }
+        return {
+            vizConfig: parsed.data,
+            organizationUuid: project.organizationUuid,
+        };
+    }
+
+    /** Debug harness: draws caller-provided rows exactly as the Slack composer chart image. */
+    public async previewVisualizeSlackChart(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        {
+            title,
+            columns,
+            rows,
+            vizConfig,
+        }: ApiAiAgentVisualizeSlackPreviewRequest,
+    ): Promise<Buffer> {
+        const { vizConfig: parsedVizConfig } =
+            await this.parseSlackChartHarnessVizConfig(
+                account,
+                projectUuid,
+                vizConfig,
+            );
         const options = await getComposerSlackEchartsConfig({
             columns,
             rows,
-            vizConfig: parsed.data,
+            vizConfig: parsedVizConfig,
             metadata: { title, description: '' },
             getPivotedResults,
         });
@@ -2587,6 +2801,148 @@ export class AiAgentService extends BaseService {
             throw new ParameterError('This chart has no Slack image');
         }
         return renderEcharts(options);
+    }
+
+    /** Dev-only harness: posts caller-provided rows to Slack, routed by the native chart rules unless forced. */
+    public async sendVisualizeSlackChart(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        {
+            title,
+            columns,
+            rows,
+            vizConfig,
+            channel,
+            threadTs,
+            route,
+        }: ApiAiAgentVisualizeSlackSendRequest,
+    ): Promise<ApiAiAgentVisualizeSlackSendResponse['results']> {
+        const { vizConfig: parsedVizConfig, organizationUuid } =
+            await this.parseSlackChartHarnessVizConfig(
+                account,
+                projectUuid,
+                vizConfig,
+            );
+        const metadata = { title, description: '' };
+        const chart = getComposerSlackRunQueryChart({
+            columns,
+            rows,
+            vizConfig: parsedVizConfig,
+            metadata,
+        });
+        if (!chart) {
+            throw new ParameterError('This chart has no Slack image');
+        }
+        const versionUuid = nanoidGenerator();
+        const decision = await getSlackNativeChart({
+            queryTool: chart.tool,
+            queryResults: { rows: chart.rows, fields: chart.fields },
+            getPivotedResults,
+            blockId: getSlackNativeChartBlockId(versionUuid),
+        });
+        const reason = decision.route === 'image' ? decision.reason : null;
+        const nativeBlock =
+            route !== 'image' && decision.route === 'native'
+                ? decision.block
+                : null;
+        if (route === 'native' && !nativeBlock) {
+            return {
+                route: 'image',
+                reason,
+                blocks: [],
+                ts: null,
+                permalink: null,
+            };
+        }
+        const card = (heroImageUrl: string | undefined) =>
+            buildSlackCardBlock({
+                blockId: getSlackArtifactCardBlockId(versionUuid),
+                title,
+                subtitle: 'Chart',
+                heroImageUrl,
+                actions: [
+                    {
+                        type: 'button',
+                        url: `${this.lightdashConfig.siteUrl}/projects/${projectUuid}`,
+                        style: 'primary',
+                        action_id: 'actions.view_composer_card_button_click.0',
+                        text: {
+                            type: 'plain_text',
+                            text: 'Explore in Lightdash',
+                        },
+                    },
+                ],
+            });
+        const blocks = nativeBlock
+            ? (getSlackNativeChartLayout(
+                  [card(undefined)],
+                  new Map([[versionUuid, nativeBlock]]),
+              )?.native ?? [card(undefined)])
+            : [
+                  card(
+                      await this.renderSlackChartHarnessImage({
+                          organizationUuid,
+                          columns,
+                          rows,
+                          vizConfig: parsedVizConfig,
+                          metadata,
+                      }),
+                  ),
+              ];
+        const posted = await this.slackClient.postMessage({
+            organizationUuid,
+            channel,
+            ...(threadTs !== null ? { thread_ts: threadTs } : {}),
+            text: title,
+            blocks,
+            unfurl_links: false,
+        });
+        const ts = posted.ts ?? null;
+        const webClient = await this.slackClient.getWebClient(organizationUuid);
+        const permalink = ts
+            ? ((
+                  await webClient.chat.getPermalink({
+                      channel: posted.channel ?? channel,
+                      message_ts: ts,
+                  })
+              ).permalink ?? null)
+            : null;
+        return {
+            route: nativeBlock ? 'native' : 'image',
+            reason,
+            blocks: blocks as unknown as Record<string, unknown>[],
+            ts,
+            permalink,
+        };
+    }
+
+    private async renderSlackChartHarnessImage({
+        organizationUuid,
+        columns,
+        rows,
+        vizConfig,
+        metadata,
+    }: {
+        organizationUuid: string;
+        columns: ResultColumn[];
+        rows: Record<string, unknown>[];
+        vizConfig: ComposerStoredChartVizConfig;
+        metadata: { title: string; description: string };
+    }): Promise<string> {
+        const options = await getComposerSlackEchartsConfig({
+            columns,
+            rows,
+            vizConfig,
+            metadata,
+            getPivotedResults,
+        });
+        if (!options) {
+            throw new ParameterError('This chart has no Slack image');
+        }
+        return this.uploadSlackAgentCardImage({
+            organizationUuid,
+            image: await renderEcharts(options),
+        });
     }
 
     private async uploadSlackAgentCardImage(
@@ -3232,7 +3588,11 @@ export class AiAgentService extends BaseService {
 
         let threadScope: EmbedThreadScope;
         if (!isReadOnly) {
-            threadScope = { type: 'writeSpaces', writeSpaceUuids };
+            threadScope = {
+                type: 'writeSpaces',
+                writeSpaceUuids,
+                externalUserId,
+            };
         } else if (externalUserId !== null) {
             threadScope = { type: 'externalUser', externalUserId };
         } else {
@@ -5447,10 +5807,12 @@ export class AiAgentService extends BaseService {
                 );
             }
             if (
-                !(await this.semanticStudioService.canEditModels(
-                    user,
-                    agent.projectUuid,
-                ))
+                !(
+                    await this.semanticStudioService.getStatus(
+                        user,
+                        agent.projectUuid,
+                    )
+                ).enabled
             ) {
                 throw new ForbiddenError(
                     'You cannot change the semantic layer of this project',
@@ -12408,7 +12770,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
     }
 
     static createDeepResearchRunContext(
-        runs: AiDeepResearchRunContextRow[],
+        runs: Array<AiDeepResearchRunContextRow & { has_report: boolean }>,
         latestProgressEvents: DbAiDeepResearchEvent[],
         now = new Date(),
     ): AiAgentDeepResearchRunContext[] {
@@ -12448,9 +12810,9 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         });
     }
 
-    static selectDeepResearchContextRuns(
-        runs: AiDeepResearchRunContextRow[],
-    ): AiDeepResearchRunContextRow[] {
+    static selectDeepResearchContextRuns<T extends AiDeepResearchRunContextRow>(
+        runs: T[],
+    ): T[] {
         const activeRuns = runs.filter(
             ({ status }) => !isAiDeepResearchRunTerminal(status),
         );
@@ -12670,11 +13032,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                             `  Active tab: "${overrides.activeTab.name}"`,
                         );
                     }
+                    // With named zooms the dashboard-wide one needs its own name
+                    const dateZoomLabel = overrides.dateZoomControls
+                        ? 'default date zoom'
+                        : 'date zoom';
                     // Stated explicitly so a reset replaces overrides from earlier turns.
                     const savedState = [
                         !overrides.dashboardFilters && 'filters',
-                        !overrides.dashboardParameters && 'parameter values',
-                        overrides.dateZoom === undefined && 'date zoom',
+                        !overrides.dashboardParameters &&
+                            !overrides.tileParameters &&
+                            'parameter values',
+                        overrides.dateZoom === undefined && dateZoomLabel,
                     ].filter((label): label is string => !!label);
                     if (savedState.length > 0) {
                         overrideLines.push(
@@ -12693,7 +13061,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     }
                     if (overrides.dateZoom !== undefined) {
                         overrideLines.push(
-                            `  Date zoom: ${JSON.stringify(overrides.dateZoom)}`,
+                            `  ${overrides.dateZoomControls ? 'Default date zoom' : 'Date zoom'}: ${JSON.stringify(overrides.dateZoom)}`,
+                        );
+                    }
+                    if (overrides.tileParameters) {
+                        overrideLines.push(
+                            `  Parameter values by tile: ${JSON.stringify(serializeDashboardTileParametersForAiContext(overrides.tileParameters))}`,
+                        );
+                    }
+                    if (overrides.dateZoomControls) {
+                        overrideLines.push(
+                            `  Named date zooms, each setting the grain of its own tiles; the other tiles follow the default date zoom: ${JSON.stringify(serializeDashboardDateZoomControlsForAiContext(overrides.dateZoomControls))}`,
                         );
                     }
                     return overrideLines.length > 0
@@ -13490,8 +13868,23 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             toolResultReady = true;
 
             let result: AiWritebackRunResult;
+            let changedModels: string[] | null = null;
             try {
                 const runArgs = {
+                    ...(prompt.threadCreatedFrom === 'semantic_studio'
+                        ? {
+                              onDbtProject: async (
+                                  project: ParsedDbtProject,
+                              ) => {
+                                  changedModels =
+                                      await this.semanticStudioService.saveDbtTryOut(
+                                          user,
+                                          projectUuid,
+                                          project,
+                                      );
+                              },
+                          }
+                        : {}),
                     agentPermissionsApply: true,
                     user,
                     projectUuid,
@@ -13673,6 +14066,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     deletions: result.deletions ?? null,
                     previewUrl: previewUrl ?? null,
                     steps: result.steps,
+                    changedModels,
                     needsDbtSourceSelection:
                         result.needsDbtSourceSelection ?? null,
                     dbtSourceOptions: result.dbtSourceOptions ?? null,
@@ -14885,7 +15279,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             return runAttachmentShellCommand(files, command);
         };
 
-        const exploreRepo: ExploreRepoFn = async ({ command, target }) => {
+        const exploreRepo: ExploreRepoFn = async ({
+            command,
+            target,
+            rankMatches,
+        }) => {
             const mountFs = await getMountFs();
             const trimmedTarget = target?.trim();
             // `target` selects the starting directory in the unified tree: an
@@ -14907,7 +15305,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 cwd,
                 isTruncated: () => Promise.resolve(mountFs.isTruncated()),
                 budgetHit: () => Promise.resolve(mountFs.wasBudgetHit()),
-                search: (absPath, query) => mountFs.search(absPath, query),
+                search: async (absPath, query) => {
+                    const found = await mountFs.search(absPath, query);
+                    return rankMatches
+                        ? {
+                              ...found,
+                              matches: await rankMatches(found.matches),
+                          }
+                        : found;
+                },
             });
         };
 
@@ -17143,11 +17549,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     AiAgentService.selectDeepResearchContextRuns(
                         threadDeepResearchRuns.map((run) => ({
                             ...run,
-                            has_report:
-                                run.has_report ||
-                                researchDocuments.has(
-                                    run.ai_deep_research_run_uuid,
-                                ),
+                            has_report: researchDocuments.has(
+                                run.ai_deep_research_run_uuid,
+                            ),
                         })),
                     );
                 const latestDeepResearchProgress =
@@ -17189,6 +17593,25 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         user,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
+                const enableAskUser =
+                    canOfferAskUser(prompt, responseExecution.mode) &&
+                    (
+                        await this.featureFlagService.get({
+                            user,
+                            featureFlagId: FeatureFlags.AiAgentAskUser,
+                        })
+                    ).enabled;
+                // A dbt project keeps no draft in Semantic Studio; its thread edits the repository instead.
+                const semanticStudioStatus = isSemanticStudioThread
+                    ? await this.semanticStudioService.getStatus(
+                          user,
+                          promptProject.projectUuid,
+                      )
+                    : null;
+                const semanticStudioDrafts =
+                    semanticStudioStatus !== null &&
+                    semanticStudioStatus.enabled &&
+                    semanticStudioStatus.appliesAs !== 'dbt_pull_request';
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17200,6 +17623,16 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 if (
                     aiWritebackEnabled &&
                     !writebackConnectionSupport.editDbtProject
+                ) {
+                    aiWritebackEnabled = false;
+                }
+
+                // On a dbt project Semantic Studio proposes first: the pull request tools join only the turn the person asks for one.
+                if (
+                    semanticStudioStatus !== null &&
+                    (!semanticStudioStatus.enabled ||
+                        (!semanticStudioDrafts &&
+                            !options.toolHints?.includes('editDbtProject')))
                 ) {
                     aiWritebackEnabled = false;
                 }
@@ -17677,9 +18110,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread,
+                    semanticStudioDrafts,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
+                    enableAskUser,
                     enableFilterExpressions: filterExpressionsEnabled,
                     repoFsRoot,
                     repoFsSupportsCodeSearch,
@@ -18657,7 +19092,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         response: string;
         accessRefusal: AiAccessRefusal | null;
         runtimeTableResults: ReadonlyMap<string, SlackTableQueryResults>;
-    }): Promise<(Block | KnownBlock)[]> {
+    }): Promise<{
+        blocks: (Block | KnownBlock)[];
+        chartBlocks: SlackChartBlocks | null;
+    }> {
         const referencedArtifactsMap =
             await this.aiAgentModel.findThreadReferencedArtifacts({
                 promptUuids: [slackPrompt.promptUuid],
@@ -18744,12 +19182,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 agentUuid: agent?.uuid ?? null,
             }),
         };
-        const authorizeSlackResults = async ({
+        const authorizeSlackResults: SlackResultAuthorizer = async ({
             queryUuid,
             exploreNames,
-        }: {
-            queryUuid: string;
-            exploreNames: string[];
         }) => {
             const history = await this.asyncQueryService.getAsyncQueryHistory({
                 account: fromSession(user),
@@ -18875,6 +19310,16 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             !!(await this.getDecisionClient(user, slackPrompt.projectUuid)),
             bigNumbers,
         );
+        const chartBlocks = canShowInlineTables
+            ? await this.withSlackNativeCharts({
+                  user,
+                  slackPrompt,
+                  reader: slackResultReader,
+                  artifacts: cardArtifacts,
+                  cardBlocks: exploreBlocks,
+                  authorize: authorizeSlackResults,
+              })
+            : null;
         const sqlArtifactBlocks = await getSqlArtifactCardBlocks(
             slackPrompt.promptUuid,
             toolCalls,
@@ -18917,20 +19362,23 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             response,
         });
 
-        return [
-            ...memoryCitationBlocks,
-            ...tableBlocks,
-            ...exploreBlocks,
-            ...sqlArtifactBlocks,
-            ...editDbtProjectBlocks,
-            ...referencedArtifactsBlocks,
-            ...getAiAccessRefusalBlocks(
-                accessRefusal,
-                this.lightdashConfig.siteUrl,
-            ),
-            ...feedbackBlocks,
-            ...historyBlocks,
-        ];
+        return {
+            blocks: [
+                ...memoryCitationBlocks,
+                ...tableBlocks,
+                ...(chartBlocks?.native ?? exploreBlocks),
+                ...sqlArtifactBlocks,
+                ...editDbtProjectBlocks,
+                ...referencedArtifactsBlocks,
+                ...getAiAccessRefusalBlocks(
+                    accessRefusal,
+                    this.lightdashConfig.siteUrl,
+                ),
+                ...feedbackBlocks,
+                ...historyBlocks,
+            ],
+            chartBlocks,
+        };
     }
 
     private getAgentThreadUrl(
@@ -18958,8 +19406,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         };
     }
 
-    // Always ≥1 message so the stream closes. With native tables, the tables and
-    // every block after them (cards, feedback) post as their own last message.
+    // Always ≥1 message so the stream closes. Native tables and charts, with
+    // every block after them (cards, feedback), post as their own last message.
     private static getSlackAnswerMessages({
         slackResponse,
         trailingBlocks,
@@ -18969,8 +19417,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         trailingBlocks: (Block | KnownBlock)[];
         threadUrl: string;
     }): (Block | KnownBlock)[][] {
-        const { withAnswer, tableMessage } =
-            splitSlackTableMessage(trailingBlocks);
+        const { withAnswer, dataMessage } =
+            splitSlackDataMessage(trailingBlocks);
         const { messages, truncated } =
             slackResponse === null
                 ? { messages: [], truncated: false }
@@ -18995,9 +19443,23 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                       ]
                     : []),
             ],
-            ...(tableMessage ? [tableMessage] : []),
+            ...(dataMessage ? [dataMessage] : []),
         ].filter((blocks) => blocks.length > 0);
         return composed.length > 0 ? composed : [[]];
+    }
+
+    private static trackNativeChartFallback(promptUuid: string) {
+        let dropped = false;
+        return {
+            dropped: () => dropped,
+            onFallback: (error: unknown) => {
+                dropped = true;
+                Logger.warn('Slack rejected native charts; sending images', {
+                    promptUuid,
+                    error: getErrorMessage(error),
+                });
+            },
+        };
     }
 
     private static readonly SLACK_PROMPT_RETRY_ACTION_ID = 'ai_prompt_retry';
@@ -19050,6 +19512,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         slackResponse,
         slackifiedMarkdown,
         trailingBlocks,
+        chartBlocks,
         accessRefusalState,
         deliveryGuard,
     }: {
@@ -19061,10 +19524,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         slackResponse: string;
         slackifiedMarkdown: string;
         trailingBlocks: (Block | KnownBlock)[];
+        /** The native chart segment of trailingBlocks and its image form; null without one. */
+        chartBlocks: SlackChartBlocks | null;
         accessRefusalState: SlackAiAccessRefusalState;
         deliveryGuard: AgentDeliveryGuard;
-    }): Promise<void> {
+    }): Promise<{ nativeChartsDropped: boolean }> {
         const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
+        const nativeChartFallback = AiAgentService.trackNativeChartFallback(
+            slackPrompt.promptUuid,
+        );
         const messages = AiAgentService.getSlackAnswerMessages({
             slackResponse:
                 accessRefusalState.selected === null ? slackResponse : null,
@@ -19094,18 +19562,19 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         try {
             if (accessRefusalState.selected === null)
                 await deliveryGuard.assert();
-            await this.slackClient.stopAgentStream({
-                organizationUuid: slackPrompt.organizationUuid,
-                channelId: slackPrompt.slackChannelId,
-                threadTs,
-                messageTs: streamTs,
-                chunks: [
-                    {
-                        type: 'blocks',
-                        blocks: messages[0],
-                    },
-                ],
-            });
+            await sendWithSlackNativeChartFallback(
+                messages[0],
+                chartBlocks,
+                (blocks) =>
+                    this.slackClient.stopAgentStream({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channelId: slackPrompt.slackChannelId,
+                        threadTs,
+                        messageTs: streamTs,
+                        chunks: [{ type: 'blocks', blocks }],
+                    }),
+                nativeChartFallback.onFallback,
+            );
             if (isLast(0)) {
                 accessRefusalState.markDelivered();
             }
@@ -19128,7 +19597,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         e,
                     ),
                 );
-            return;
+            return { nativeChartsDropped: nativeChartFallback.dropped() };
         }
 
         for (let index = 1; index < messages.length; index += 1) {
@@ -19137,15 +19606,21 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 await (async () => {
                     if (accessRefusalState.selected === null)
                         await deliveryGuard.assert();
-                    return this.slackClient.postMessage({
-                        organizationUuid: slackPrompt.organizationUuid,
-                        channel: slackPrompt.slackChannelId,
-                        thread_ts: threadTs,
-                        text: notificationText,
-                        blocks: messages[index],
-                        unfurl_links: false,
-                        ...(agentName ? { username: agentName } : {}),
-                    });
+                    return sendWithSlackNativeChartFallback(
+                        messages[index],
+                        chartBlocks,
+                        (blocks) =>
+                            this.slackClient.postMessage({
+                                organizationUuid: slackPrompt.organizationUuid,
+                                channel: slackPrompt.slackChannelId,
+                                thread_ts: threadTs,
+                                text: notificationText,
+                                blocks,
+                                unfurl_links: false,
+                                ...(agentName ? { username: agentName } : {}),
+                            }),
+                        nativeChartFallback.onFallback,
+                    );
                 })();
                 if (isLast(index)) {
                     accessRefusalState.markDelivered();
@@ -19182,6 +19657,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 break;
             }
         }
+        return { nativeChartsDropped: nativeChartFallback.dropped() };
     }
 
     private async deliverSlackAnswerMessages({
@@ -19192,6 +19668,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         slackResponse,
         slackifiedMarkdown,
         trailingBlocks,
+        chartBlocks,
         accessRefusalState,
         deliveryGuard,
     }: {
@@ -19202,10 +19679,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         slackResponse: string;
         slackifiedMarkdown: string;
         trailingBlocks: (Block | KnownBlock)[];
+        /** The native chart segment of trailingBlocks and its image form; null without one. */
+        chartBlocks: SlackChartBlocks | null;
         accessRefusalState: SlackAiAccessRefusalState;
         deliveryGuard: AgentDeliveryGuard;
-    }): Promise<void> {
+    }): Promise<{ nativeChartsDropped: boolean }> {
         const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
+        const nativeChartFallback = AiAgentService.trackNativeChartFallback(
+            slackPrompt.promptUuid,
+        );
         const messages = AiAgentService.getSlackAnswerMessages({
             slackResponse:
                 accessRefusalState.selected === null ? slackResponse : null,
@@ -19239,15 +19721,21 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const posted = await (async () => {
                     if (accessRefusalState.selected === null)
                         await deliveryGuard.assert();
-                    return this.slackClient.postMessage({
-                        organizationUuid: slackPrompt.organizationUuid,
-                        channel: slackPrompt.slackChannelId,
-                        thread_ts: threadTs,
-                        text: notificationText,
-                        blocks: messages[index],
-                        unfurl_links: false,
-                        ...(agentName ? { username: agentName } : {}),
-                    });
+                    return sendWithSlackNativeChartFallback(
+                        messages[index],
+                        chartBlocks,
+                        (blocks) =>
+                            this.slackClient.postMessage({
+                                organizationUuid: slackPrompt.organizationUuid,
+                                channel: slackPrompt.slackChannelId,
+                                thread_ts: threadTs,
+                                text: notificationText,
+                                blocks,
+                                unfurl_links: false,
+                                ...(agentName ? { username: agentName } : {}),
+                            }),
+                        nativeChartFallback.onFallback,
+                    );
                 })();
                 if (isLast(index)) {
                     accessRefusalState.markDelivered();
@@ -19292,6 +19780,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 responseSlackTs: firstMessageTs,
             });
         }
+        return { nativeChartsDropped: nativeChartFallback.dropped() };
     }
 
     // Builds a SQL Runner share URL for a specific runSql call — used by
@@ -19803,6 +20292,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 case 'delegateResearchTask':
                 case 'submitWorkerFindings':
                 case 'updateUserName':
+                case 'askUser':
                     return 'Answering your question';
                 default:
                     return assertUnreachable(
@@ -19985,6 +20475,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     slackResponse: '',
                     slackifiedMarkdown: refusalMessage,
                     trailingBlocks: getAccessRefusalBlocks(),
+                    chartBlocks: null,
                     accessRefusalState,
                     deliveryGuard,
                 };
@@ -20051,16 +20542,18 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             }
 
             const finalizationStartedAt = Date.now();
-            const blocks = await this.getSlackAgentFinalBlocks({
-                user,
-                slackPrompt,
-                agent,
-                response,
-                runtimeTableResults,
-                accessRefusal: accessRefusalState.delivered
-                    ? null
-                    : accessRefusalState.selected,
-            });
+            const { blocks, chartBlocks } = await this.getSlackAgentFinalBlocks(
+                {
+                    user,
+                    slackPrompt,
+                    agent,
+                    response,
+                    runtimeTableResults,
+                    accessRefusal: accessRefusalState.delivered
+                        ? null
+                        : accessRefusalState.selected,
+                },
+            );
             const blocksFinishedAt = Date.now();
             const visibleResponse = stripSlackVisualizationSelection(response);
             const slackResponse = stripCitationsForSlack(visibleResponse);
@@ -20070,12 +20563,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             );
 
             await flushTaskUpdates();
+            let delivered: { nativeChartsDropped: boolean };
             if (streamTs) {
                 finalizeToolTasksForSuccess();
                 queueReasoningTaskUpdate({ status: 'complete' });
                 await flushTaskUpdates();
                 await updatePlanTitle(completionTitle());
-                await this.deliverSlackAnswerWithCard({
+                delivered = await this.deliverSlackAnswerWithCard({
                     slackPrompt,
                     threadTs,
                     streamTs,
@@ -20084,12 +20578,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     slackResponse,
                     slackifiedMarkdown,
                     trailingBlocks: blocks,
+                    chartBlocks,
                     accessRefusalState,
                     deliveryGuard,
                 });
                 await persistCardResponseTs();
             } else {
-                await this.deliverSlackAnswerMessages({
+                delivered = await this.deliverSlackAnswerMessages({
                     slackPrompt,
                     threadTs,
                     agentUuid: agent?.uuid,
@@ -20097,6 +20592,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     slackResponse,
                     slackifiedMarkdown,
                     trailingBlocks: blocks,
+                    chartBlocks,
                     accessRefusalState,
                     deliveryGuard,
                 });
@@ -20129,7 +20625,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     );
                 if (delivery && !delivery.finished_at) {
                     const hasSelectedImages = getSlackArtifactCardVersions(
-                        blocks,
+                        delivered.nativeChartsDropped && chartBlocks
+                            ? toSlackImageChartBlocks(blocks, chartBlocks)
+                            : blocks,
                     ).some((version) =>
                         Object.hasOwn(delivery.render_inputs, version),
                     );

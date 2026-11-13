@@ -3,6 +3,7 @@ import {
     hashFieldReference,
     isField,
     isMetric,
+    isOtherPivotReference,
 } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { IconArrowBarToDown } from '@tabler/icons-react';
@@ -82,6 +83,9 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
         item &&
         isField(item) &&
         isMetric(item) &&
+        // "Other" is several groups added together, so there is no single
+        // value to drill into
+        !isOtherPivotReference(pivotReference) &&
         (source || explore) &&
         fieldValues &&
         (source?.metricQuery || metricQuery)

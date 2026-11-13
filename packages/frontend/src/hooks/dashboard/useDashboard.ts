@@ -936,21 +936,26 @@ export const useDashboardVersionRollbackMutation = (
     );
 };
 
-export const appendNewTilesToBottom = <T extends Pick<DashboardTile, 'y'>>(
+// Each tab is its own canvas, so a new tile goes below the tiles of its own tab
+export const appendNewTilesToBottom = <
+    T extends Pick<DashboardTile, 'y' | 'h'> &
+        Partial<Pick<DashboardTile, 'tabUuid'>>,
+>(
     existingTiles: T[] | undefined,
     newTiles: T[],
 ): T[] => {
-    const tilesY =
-        existingTiles &&
-        existingTiles.map(function (tile) {
-            return tile.y;
-        });
-    const maxY =
-        tilesY && tilesY.length > 0 ? Math.max.apply(Math, tilesY) : -1;
     const reorderedTiles = newTiles.map((tile) => ({
         ...tile,
-        y: maxY + 1,
-    })); //add to the bottom
+        y: (existingTiles ?? [])
+            .filter(
+                (existing) =>
+                    (existing.tabUuid ?? null) === (tile.tabUuid ?? null),
+            )
+            .reduce(
+                (bottom, existing) => Math.max(bottom, existing.y + existing.h),
+                0,
+            ),
+    }));
 
     return [...(existingTiles ?? []), ...reorderedTiles];
 };

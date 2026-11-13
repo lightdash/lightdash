@@ -17,6 +17,7 @@ import { lazy, Suspense, type FC } from 'react';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
+import AppColorSchemeScope from '../../components/NavBar/AppColorSchemeScope';
 import { maskEmail } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MOBILE_SIGN_IN_STRINGS as S, MOBILE_STRINGS } from './mobileStrings';
@@ -254,7 +255,9 @@ export const MobileSignInStep: FC<{
     return (
         <Stack gap="sm">
             <PhaseView {...context} />
-            <ConfirmModal {...context} />
+            <AppColorSchemeScope>
+                <ConfirmModal {...context} />
+            </AppColorSchemeScope>
             <VisuallyHidden aria-live="polite">
                 {getAnnouncement(signIn)}
             </VisuallyHidden>

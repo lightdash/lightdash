@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    MergeJoinType,
     type Account,
     type CreateSavedChart,
     type DashboardDAO,
@@ -100,10 +101,10 @@ const catalogModel = {
     updateFieldsChartUsage: vi.fn(async () => undefined),
 };
 
-describe('SavedChartService.create into a dashboard', () => {
-    const service = new SavedChartService({
+const buildService = (lightdashConfig = lightdashConfigMock) =>
+    new SavedChartService({
         analytics: analyticsMock,
-        lightdashConfig: lightdashConfigMock,
+        lightdashConfig,
         projectModel,
         savedChartModel,
         dashboardModel,
@@ -129,6 +130,9 @@ describe('SavedChartService.create into a dashboard', () => {
         contentDraftModel: {},
     } as never);
 
+describe('SavedChartService.create into a dashboard', () => {
+    const service = buildService();
+
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -145,5 +149,59 @@ describe('SavedChartService.create into a dashboard', () => {
             writeActor.userUuid,
             expect.objectContaining({ dashboardUuid: DASHBOARD_UUID }),
         );
+    });
+
+    test('refuses a merged chart from an actor without the merge scope', async () => {
+        await expect(
+            service.create(embedAccount, 'project-uuid', {
+                ...chartSavedBySlug,
+                merge: {
+                    queries: {},
+                    join: MergeJoinType.FULL,
+                    keys: {},
+                    limit: 500,
+                },
+            }),
+        ).rejects.toThrow('User cannot save merged charts');
+        expect(savedChartModel.create).not.toHaveBeenCalled();
+    });
+
+    test('refuses a merged chart from an actor with the merge scope when merge authoring is disabled', async () => {
+        const mergeActor = {
+            ...writeActor,
+            ability: new Ability<PossibleAbilities>([
+                ...writeActor.ability.rules,
+                {
+                    subject: 'MergeQuery',
+                    action: ['manage'],
+                    conditions: { organizationUuid: 'org-uuid' },
+                },
+            ]),
+        };
+        const mergeAccount = {
+            ...embedAccount,
+            embedWriteUser: mergeActor,
+        } as unknown as Account;
+        const mergedChart = {
+            ...chartSavedBySlug,
+            merge: {
+                queries: {},
+                join: MergeJoinType.FULL,
+                keys: {},
+                limit: 500,
+            },
+        };
+
+        await service.create(mergeAccount, 'project-uuid', mergedChart);
+        expect(savedChartModel.create).toHaveBeenCalledTimes(1);
+
+        const disabledService = buildService({
+            ...lightdashConfigMock,
+            mergeQueryAuthoring: { enabled: false },
+        });
+        await expect(
+            disabledService.create(mergeAccount, 'project-uuid', mergedChart),
+        ).rejects.toThrow('User cannot save merged charts');
+        expect(savedChartModel.create).toHaveBeenCalledTimes(1);
     });
 });

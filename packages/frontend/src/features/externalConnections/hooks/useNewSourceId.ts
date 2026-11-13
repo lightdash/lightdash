@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useExplorePrefixCheck } from './useLiveSourceReattach';
 
 /**
- * A new source's Source ID, ready to ignore: it follows the name, moves to a
+ * A new source's explore prefix, ready to ignore: it follows the name, moves to a
  * free one when that's taken, and only reports problems once the admin types.
  */
 export const useNewSourceId = ({
@@ -39,10 +39,6 @@ export const useNewSourceId = ({
         onChange: setTyped,
         error,
         suggestion: autoSuggestion ? null : (check?.suggestion ?? null),
-        exploreName:
-            (autoSuggestion
-                ? check?.suggestionExploreNames[0]
-                : check?.exploreNames[0]) ?? null,
         isBlocked:
             enabled && (requested.length === 0 || isChecking || error !== null),
     };

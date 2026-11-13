@@ -46,6 +46,8 @@ const EMPTY_TILE_LAYOUT_HISTORY: TileLayoutHistory = {
 // Each step holds one small record per tile, so a long history stays cheap
 const TILE_LAYOUT_HISTORY_LIMIT = 50;
 
+export type CanvasBackground = 'dots' | 'grid';
+
 export type DashboardEditState = {
     /** Undefined until the page seeds it from the loaded dashboard */
     tiles: Dashboard['tiles'] | undefined;
@@ -54,6 +56,8 @@ export type DashboardEditState = {
     tileLayoutHistory: TileLayoutHistory;
     /** How large the editor draws the tile grid; 1 is actual size */
     canvasZoom: number;
+    /** What the editor draws behind the tiles to show the grid */
+    canvasBackground: CanvasBackground;
     /** Always sorted by `order` */
     tabs: Dashboard['tabs'];
     haveTabsChanged: boolean;
@@ -85,6 +89,7 @@ export const initialDashboardEditState: DashboardEditState = {
     haveTilesChanged: false,
     tileLayoutHistory: EMPTY_TILE_LAYOUT_HISTORY,
     canvasZoom: 1,
+    canvasBackground: 'grid',
     tabs: [],
     haveTabsChanged: false,
     activeTab: undefined,
@@ -145,6 +150,9 @@ export const dashboardEditActions = {
     undoTileLayout: createAction('dashboardEdit/undoTileLayout'),
     redoTileLayout: createAction('dashboardEdit/redoTileLayout'),
     setCanvasZoom: createAction<number>('dashboardEdit/setCanvasZoom'),
+    setCanvasBackground: createAction<CanvasBackground>(
+        'dashboardEdit/setCanvasBackground',
+    ),
     setHaveTilesChanged: createAction<boolean>(
         'dashboardEdit/setHaveTilesChanged',
     ),
@@ -447,6 +455,9 @@ export const dashboardEditReducer = (
     }
     if (dashboardEditActions.setCanvasZoom.match(action)) {
         return set(state, 'canvasZoom', action.payload);
+    }
+    if (dashboardEditActions.setCanvasBackground.match(action)) {
+        return set(state, 'canvasBackground', action.payload);
     }
     // A clean draft (saved or discarded) starts a new history
     if (dashboardEditActions.setHaveTilesChanged.match(action)) {

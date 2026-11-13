@@ -1,3 +1,4 @@
+import { parseAskUserCall } from '@lightdash/common';
 import { getPendingApprovalIds } from '../components/ChatElements/ToolCalls/utils/sqlApprovalPending';
 import { getThreadUuidFromPathname } from '../hooks/aiAgentRouting';
 import {
@@ -16,6 +17,13 @@ export const getSqlApprovalNotificationContent = (
     agentName: string | null,
 ): { title: string; body: string } => ({
     title: 'Approval needed',
+    body: agentName || 'AI agent',
+});
+
+export const getQuestionNotificationContent = (
+    agentName: string | null,
+): { title: string; body: string } => ({
+    title: 'Question for you',
     body: agentName || 'AI agent',
 });
 
@@ -40,7 +48,7 @@ export const getSqlApprovalNotificationClickAction = ({
     return 'navigate';
 };
 
-export type AwaitingSqlApproval = {
+export type AwaitingUserInput = {
     toolCallId: string;
     threadUuid: string;
     projectUuid: string;
@@ -51,7 +59,7 @@ export type AwaitingSqlApproval = {
 export const getAwaitingSqlApprovals = (
     streams: AiAgentThreadStreamingState[],
     isThreadAutoApproved: (threadUuid: string) => boolean,
-): AwaitingSqlApproval[] =>
+): AwaitingUserInput[] =>
     streams
         .filter(
             (stream) =>
@@ -66,4 +74,27 @@ export const getAwaitingSqlApprovals = (
                 projectUuid,
                 agentUuid,
             })),
+        );
+
+/** askUser calls in live streams: the turn ends waiting on the user's answer. */
+export const getAwaitingQuestions = (
+    streams: AiAgentThreadStreamingState[],
+): AwaitingUserInput[] =>
+    streams
+        .filter((stream) => isAiAgentThreadStreamActive(stream.connection))
+        .flatMap(({ threadUuid, projectUuid, agentUuid, parts }) =>
+            parts.flatMap((part) =>
+                part.type === 'toolCall' &&
+                part.isArgsPartial !== true &&
+                parseAskUserCall(part.toolName, part.toolArgs) !== null
+                    ? [
+                          {
+                              toolCallId: part.toolCallId,
+                              threadUuid,
+                              projectUuid,
+                              agentUuid,
+                          },
+                      ]
+                    : [],
+            ),
         );

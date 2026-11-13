@@ -1,4 +1,5 @@
 import {
+    NotFoundError,
     type SemanticLayerDraftModelInput,
     type SemanticLayerModelChange,
     type SemanticLayerModelCode,
@@ -20,6 +21,7 @@ import {
     type DraftImpactBreaks,
     type DraftImpactCheckStatus,
 } from '../../database/entities/projectModelDraftImpacts';
+import { UserTableName } from '../../database/entities/users';
 import { AiPromptTableName } from '../database/entities/ai';
 
 const MODEL_HISTORY_LIMIT = 50;
@@ -41,6 +43,8 @@ export type StoredDraftChange = {
     question: string | null;
     createdAt: Date;
     models: SemanticLayerDraftModelInput[];
+    /** The version each model was at when the change was made; null when that was not recorded. */
+    baseVersions: Record<string, number | null> | null;
 };
 
 export type ChangeSet = {
@@ -156,7 +160,7 @@ export class ProjectModelDocumentModel {
     async findModelHistory(
         projectUuid: string,
         name: string,
-    ): Promise<SemanticLayerModelChange[]> {
+    ): Promise<Omit<SemanticLayerModelChange, 'replaced'>[]> {
         const changeSetUuid = `${ProjectModelRevisionsTableName}.project_model_change_set_uuid`;
         const rows = await this.database(ProjectModelRevisionsTableName)
             .innerJoin(
@@ -169,8 +173,16 @@ export class ProjectModelDocumentModel {
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${ProjectModelChangeSetsTableName}.prompt_uuid`,
             )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${ProjectModelChangeSetsTableName}.created_by_user_uuid`,
+            )
             .select({
                 changeSetUuid,
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
+                byUserUuid: `${UserTableName}.user_uuid`,
                 contentBefore: `${ProjectModelRevisionsTableName}.content_before`,
                 contentAfter: `${ProjectModelRevisionsTableName}.content_after`,
                 source: `${ProjectModelChangeSetsTableName}.kind`,
@@ -196,8 +208,12 @@ export class ProjectModelDocumentModel {
                 .orderBy('name'),
             (other) => other.project_model_change_set_uuid,
         );
-        return rows.map(({ revertedBy, ...row }) => ({
+        return rows.map(({ revertedBy, firstName, lastName, ...row }) => ({
             ...row,
+            by:
+                typeof firstName === 'string'
+                    ? `${firstName} ${lastName ?? ''}`.trim()
+                    : null,
             reverted: revertedBy !== null,
             otherModels: (others[row.changeSetUuid] ?? []).map(
                 (other) => other.name,
@@ -225,8 +241,288 @@ export class ProjectModelDocumentModel {
                 question: `${AiPromptTableName}.prompt`,
                 createdAt: `${ProjectModelDraftChangesTableName}.created_at`,
                 models: `${ProjectModelDraftChangesTableName}.models`,
+                baseVersions: `${ProjectModelDraftChangesTableName}.base_versions`,
             })
             .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'asc');
+    }
+
+    /**
+     * Swaps the place of two of a person's draft changes. A draft has no order of
+     * its own beyond when each change was made, so the two trade times.
+     */
+    async swapDraftChanges(
+        owner: DraftOwner,
+        [first, second]: [string, string],
+    ): Promise<void> {
+        const table = ProjectModelDraftChangesTableName;
+        await this.database.transaction(async (trx) => {
+            const timeOf = (uuid: string) =>
+                trx(table)
+                    .select('created_at')
+                    .where('project_model_draft_change_uuid', uuid);
+            // One statement, so each side reads the other's time as it was, at the precision the database keeps.
+            const swapped = await ProjectModelDocumentModel.openDraftChanges(
+                trx,
+                owner,
+            )
+                .whereIn('project_model_draft_change_uuid', [first, second])
+                .update({
+                    created_at: trx.raw(
+                        'coalesce(case project_model_draft_change_uuid when ? then (?) else (?) end, created_at)',
+                        [first, timeOf(second), timeOf(first)],
+                    ),
+                });
+            // Rolls back a swap that found only one of the two.
+            if (swapped !== 2) {
+                throw new NotFoundError('Nothing in the draft matches');
+            }
+        });
+    }
+
+    /** Runs one publish at a time for a person on a project, on whichever server it lands; a second one waits its turn. */
+    async withPublishLock<T>(
+        { projectUuid, userUuid }: DraftOwner,
+        publish: () => Promise<T>,
+    ): Promise<T> {
+        // ponytail: holds one pooled connection per concurrent publish; move to a lock row with a timestamp if publishes pile up.
+        return this.database.transaction(async (trx) => {
+            await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                `semantic-studio-publish:${projectUuid}:${userUuid}`,
+            ]);
+            return publish();
+        });
+    }
+
+    /** What decides how a person's draft reads, without any of its content: every model's live version and every open change on the project. */
+    async findDraftState(projectUuid: string): Promise<{
+        versions: { name: string; version: number }[];
+        changes: {
+            uuid: string;
+            userUuid: string;
+            at: Date;
+            baseVersions: Record<string, number | null> | null;
+        }[];
+    }> {
+        // ponytail: a repository-backed project has no versions, so a change there moves nothing here.
+        const [versions, changes] = await Promise.all([
+            this.database(ProjectModelDocumentsTableName)
+                .select({ name: 'name', version: 'document_version' })
+                .where('project_uuid', projectUuid)
+                .orderBy('name'),
+            this.database(ProjectModelDraftChangesTableName)
+                .select({
+                    uuid: 'project_model_draft_change_uuid',
+                    userUuid: 'created_by_user_uuid',
+                    at: 'created_at',
+                    baseVersions: 'base_versions',
+                })
+                .where('project_uuid', projectUuid)
+                .where('status', 'draft')
+                .orderBy('created_at', 'asc'),
+        ]);
+        return { versions, changes };
+    }
+
+    /** Bases a person's draft of one model on the given version, once they have seen what was published and kept their own; false, and nothing written, when live is no longer at that version. */
+    async rebaseDraftChanges(
+        owner: DraftOwner,
+        model: string,
+        version: number | null,
+    ): Promise<boolean> {
+        return this.database.transaction(async (trx) => {
+            // Held until this commits, so a publish to the model lands wholly before or wholly after.
+            const live = await trx(ProjectModelDocumentsTableName)
+                .select('document_version')
+                .where('project_uuid', owner.projectUuid)
+                .where('name', model)
+                .forUpdate()
+                .first();
+            if ((live?.document_version ?? null) !== version) return false;
+            await ProjectModelDocumentModel.openDraftChanges(trx, owner)
+                .whereRaw('models @> ?::jsonb', [
+                    JSON.stringify([{ name: model }]),
+                ])
+                .update({
+                    base_versions: trx.raw(
+                        "jsonb_set(coalesce(base_versions, '{}'::jsonb), ?::text[], ?::jsonb)",
+                        [[model], JSON.stringify(version)],
+                    ),
+                });
+            return true;
+        });
+    }
+
+    /** What each of these models held at a given version, by model name; a version that was never written is left out. */
+    async findDocumentsAt(
+        projectUuid: string,
+        versions: Map<string, number>,
+    ): Promise<Map<string, string | null>> {
+        if (versions.size === 0) return new Map();
+        const rows = await this.database(ProjectModelRevisionsTableName)
+            .innerJoin(
+                ProjectModelChangeSetsTableName,
+                `${ProjectModelChangeSetsTableName}.project_model_change_set_uuid`,
+                `${ProjectModelRevisionsTableName}.project_model_change_set_uuid`,
+            )
+            .select<
+                { name: string; version: number; content: string | null }[]
+            >({
+                name: `${ProjectModelRevisionsTableName}.name`,
+                version: `${ProjectModelRevisionsTableName}.document_version`,
+                content: `${ProjectModelRevisionsTableName}.content_after`,
+            })
+            .where(
+                `${ProjectModelChangeSetsTableName}.project_uuid`,
+                projectUuid,
+            )
+            .whereIn(`${ProjectModelRevisionsTableName}.name`, [
+                ...versions.keys(),
+            ])
+            // Narrowed here so no other version's YAML is read; the exact pairing is checked below.
+            .whereIn(`${ProjectModelRevisionsTableName}.document_version`, [
+                ...new Set(versions.values()),
+            ])
+            .orderBy(`${ProjectModelChangeSetsTableName}.created_at`, 'asc');
+        return new Map(
+            rows
+                .filter(({ name, version }) => versions.get(name) === version)
+                .map(({ name, content }) => [name, content]),
+        );
+    }
+
+    /** The models other people have unpublished changes to, with who; never what the changes are. */
+    async findOtherDrafters(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<
+        {
+            name: string;
+            models: string[];
+            /** Their draft, oldest change first. */
+            changes: SemanticLayerDraftModelInput[][];
+        }[]
+    > {
+        const rows = await this.database(ProjectModelDraftChangesTableName)
+            .innerJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${ProjectModelDraftChangesTableName}.created_by_user_uuid`,
+            )
+            .select<
+                {
+                    userUuid: string;
+                    firstName: string;
+                    lastName: string;
+                    models: SemanticLayerDraftModelInput[];
+                }[]
+            >({
+                userUuid: `${UserTableName}.user_uuid`,
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
+                models: `${ProjectModelDraftChangesTableName}.models`,
+            })
+            .where(
+                `${ProjectModelDraftChangesTableName}.project_uuid`,
+                projectUuid,
+            )
+            .where(`${ProjectModelDraftChangesTableName}.status`, 'draft')
+            .whereNot(
+                `${ProjectModelDraftChangesTableName}.created_by_user_uuid`,
+                userUuid,
+            )
+            .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'asc');
+        return Object.values(groupBy(rows, (row) => row.userUuid)).map(
+            (changes) => ({
+                name: `${changes[0].firstName} ${changes[0].lastName}`.trim(),
+                models: [
+                    ...new Set(
+                        changes.flatMap(({ models }) =>
+                            models.map(({ name }) => name),
+                        ),
+                    ),
+                ],
+                changes: changes.map(({ models }) => models),
+            }),
+        );
+    }
+
+    /** The latest change anyone else published to each of these models after the given time. */
+    async findPublishedSince(
+        projectUuid: string,
+        userUuid: string,
+        since: Map<string, Date>,
+    ): Promise<Map<string, { by: string | null; at: Date }>> {
+        if (since.size === 0) return new Map();
+        const rows = await this.database(ProjectModelRevisionsTableName)
+            .innerJoin(
+                ProjectModelChangeSetsTableName,
+                `${ProjectModelChangeSetsTableName}.project_model_change_set_uuid`,
+                `${ProjectModelRevisionsTableName}.project_model_change_set_uuid`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${ProjectModelChangeSetsTableName}.created_by_user_uuid`,
+            )
+            .select<
+                {
+                    model: string;
+                    firstName: string | null;
+                    lastName: string | null;
+                    at: Date;
+                }[]
+            >({
+                model: `${ProjectModelRevisionsTableName}.name`,
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
+                at: `${ProjectModelChangeSetsTableName}.created_at`,
+            })
+            .where(
+                `${ProjectModelChangeSetsTableName}.project_uuid`,
+                projectUuid,
+            )
+            .whereIn(`${ProjectModelRevisionsTableName}.name`, [
+                ...since.keys(),
+            ])
+            // Nothing older than the oldest start can count; each model's own start is checked below.
+            .where(
+                `${ProjectModelChangeSetsTableName}.created_at`,
+                '>',
+                new Date(
+                    Math.min(...[...since.values()].map((at) => at.getTime())),
+                ),
+            )
+            .where((builder) =>
+                builder
+                    .whereNull(
+                        `${ProjectModelChangeSetsTableName}.created_by_user_uuid`,
+                    )
+                    .orWhereNot(
+                        `${ProjectModelChangeSetsTableName}.created_by_user_uuid`,
+                        userUuid,
+                    ),
+            )
+            .orderBy(`${ProjectModelChangeSetsTableName}.created_at`, 'asc');
+        // Oldest first, so the last one kept for a model is its latest.
+        return new Map(
+            rows.flatMap(({ model, firstName, lastName, at }) => {
+                const started = since.get(model);
+                return started && at > started
+                    ? [
+                          [
+                              model,
+                              {
+                                  by:
+                                      firstName === null
+                                          ? null
+                                          : `${firstName} ${lastName ?? ''}`.trim(),
+                                  at,
+                              },
+                          ],
+                      ]
+                    : [];
+            }),
+        );
     }
 
     /** What became of a person's recent draft changes, newest first. */
@@ -244,11 +540,13 @@ export class ProjectModelDocumentModel {
                 {
                     draftChangeUuid: string;
                     status: SettledDraftChangeStatus;
+                    pullRequestUrl: string | null;
                     revertedBy: string | null;
                 }[]
             >({
                 draftChangeUuid: `${ProjectModelDraftChangesTableName}.project_model_draft_change_uuid`,
                 status: `${ProjectModelDraftChangesTableName}.status`,
+                pullRequestUrl: `${ProjectModelDraftChangesTableName}.applied_pull_request_url`,
                 revertedBy: `${ProjectModelChangeSetsTableName}.reverted_by_change_set_uuid`,
             })
             .where(
@@ -262,10 +560,13 @@ export class ProjectModelDocumentModel {
             .whereNot(`${ProjectModelDraftChangesTableName}.status`, 'draft')
             .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'desc')
             .limit(SETTLED_DRAFT_CHANGES_LIMIT);
-        return rows.map(({ draftChangeUuid, status, revertedBy }) => ({
-            draftChangeUuid,
-            status: revertedBy ? 'undone' : status,
-        }));
+        return rows.map(
+            ({ draftChangeUuid, status, pullRequestUrl, revertedBy }) => ({
+                draftChangeUuid,
+                status: revertedBy ? 'undone' : status,
+                pullRequestUrl,
+            }),
+        );
     }
 
     async createDraftChange({
@@ -273,9 +574,11 @@ export class ProjectModelDocumentModel {
         userUuid,
         promptUuid,
         models,
+        baseVersions,
     }: DraftOwner & {
         promptUuid: string | null;
         models: SemanticLayerDraftModelInput[];
+        baseVersions: Record<string, number | null> | null;
     }): Promise<string> {
         const [{ project_model_draft_change_uuid: draftChangeUuid }] =
             await this.database(ProjectModelDraftChangesTableName)
@@ -284,6 +587,10 @@ export class ProjectModelDocumentModel {
                     created_by_user_uuid: userUuid,
                     prompt_uuid: promptUuid,
                     models: JSON.stringify(models),
+                    base_versions:
+                        baseVersions === null
+                            ? null
+                            : JSON.stringify(baseVersions),
                 })
                 .returning('project_model_draft_change_uuid');
         return draftChangeUuid;
@@ -372,6 +679,7 @@ export class ProjectModelDocumentModel {
                 'prompt_uuid',
                 'created_at',
                 'models',
+                'base_versions',
             );
         const holding = rows.filter(({ models }) =>
             models.some(({ name }) => name === model),
@@ -406,6 +714,18 @@ export class ProjectModelDocumentModel {
                 prompt_uuid: mixed[mixed.length - 1].prompt_uuid,
                 // Where the first of them was, so later changes still build on it.
                 created_at: mixed[0].created_at,
+                // The oldest base recorded for this model among them.
+                base_versions: JSON.stringify(
+                    Object.fromEntries(
+                        mixed
+                            .flatMap(({ base_versions: bases }) =>
+                                bases && model in bases ? [bases[model]] : [],
+                            )
+                            .sort((a, b) => (a ?? -1) - (b ?? -1))
+                            .slice(0, 1)
+                            .map((version) => [model, version]),
+                    ),
+                ),
                 models: JSON.stringify(
                     mixed.flatMap(({ models }) =>
                         models.filter(({ name }) => name === model),
@@ -423,6 +743,7 @@ export class ProjectModelDocumentModel {
         outcome: {
             status: SettledDraftChangeStatus;
             applied_change_set_uuid: string | null;
+            applied_pull_request_url: string | null;
         },
     ): Promise<number> {
         const settling =
@@ -443,10 +764,13 @@ export class ProjectModelDocumentModel {
     async updateDraftChangeStatus({
         drafts,
         status,
+        pullRequestUrl,
         ...owner
     }: DraftOwner & {
         drafts: DraftSelection;
         status: SettledDraftChangeStatus;
+        /** The pull request an applied draft was sent as; null for anything else. */
+        pullRequestUrl: string | null;
     }): Promise<number> {
         return this.database.transaction((trx) =>
             ProjectModelDocumentModel.updateSelectedDraftChanges(
@@ -456,6 +780,7 @@ export class ProjectModelDocumentModel {
                 {
                     status,
                     applied_change_set_uuid: null,
+                    applied_pull_request_url: pullRequestUrl,
                 },
             ),
         );
@@ -507,10 +832,47 @@ export class ProjectModelDocumentModel {
                     .returning('project_model_change_set_uuid');
 
             const before = new Map(stored.map((row) => [row.name, row]));
+            const added = documents
+                .map(({ name }) => name)
+                .filter((name) => !before.has(name));
+            // A model made again keeps counting from its last version, so an old base never reads as live.
+            const lastVersions = new Map(
+                added.length === 0
+                    ? []
+                    : (
+                          await trx(ProjectModelRevisionsTableName)
+                              .innerJoin(
+                                  ProjectModelChangeSetsTableName,
+                                  `${ProjectModelChangeSetsTableName}.project_model_change_set_uuid`,
+                                  `${ProjectModelRevisionsTableName}.project_model_change_set_uuid`,
+                              )
+                              .where(
+                                  `${ProjectModelChangeSetsTableName}.project_uuid`,
+                                  projectUuid,
+                              )
+                              .whereIn(
+                                  `${ProjectModelRevisionsTableName}.name`,
+                                  added,
+                              )
+                              .groupBy(`${ProjectModelRevisionsTableName}.name`)
+                              .select({
+                                  name: `${ProjectModelRevisionsTableName}.name`,
+                              })
+                              .max({
+                                  version: `${ProjectModelRevisionsTableName}.document_version`,
+                              })
+                      ).map(({ name, version }): [string, number] => [
+                          name,
+                          Number(version),
+                      ]),
+            );
             await Promise.all(
                 documents.map(async ({ name, content }) => {
                     const current = before.get(name);
-                    const version = (current?.document_version ?? 0) + 1;
+                    const version =
+                        (current?.document_version ??
+                            lastVersions.get(name) ??
+                            0) + 1;
                     const document = () =>
                         trx(ProjectModelDocumentsTableName).where({
                             project_uuid: projectUuid,
@@ -566,6 +928,7 @@ export class ProjectModelDocumentModel {
                     {
                         status: 'applied',
                         applied_change_set_uuid: changeSetUuid,
+                        applied_pull_request_url: null,
                     },
                 );
             }

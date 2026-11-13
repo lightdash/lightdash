@@ -202,7 +202,10 @@ import {
 } from '../services/AgentPermissionService/agentWorkAuthority';
 import { agentExecutionContext } from '../services/AiAccessService/agentExecutionContext';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
-import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
+import {
+    getSchedulerPollingOptions,
+    type PollingOptions,
+} from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
 import { ContentAsCodeWritebackService } from '../services/ContentAsCodeWritebackService/ContentAsCodeWritebackService';
 import {
@@ -660,6 +663,10 @@ export default class SchedulerTask {
             args.agentConnectionApprovalRequestModel;
         this.aiUsageLedgerModel = args.aiUsageLedgerModel;
         this.learnSandboxService = args.learnSandboxService;
+    }
+
+    protected get schedulerPollingOptions(): PollingOptions {
+        return getSchedulerPollingOptions(this.lightdashConfig);
     }
 
     /**
@@ -1379,7 +1386,7 @@ export default class SchedulerTask {
                                     onlyRaw: csvOptions?.formatted === false,
                                     expirationSecondsOverride,
                                 },
-                                SCHEDULER_POLLING_OPTIONS,
+                                this.schedulerPollingOptions,
                             );
 
                         // Downloads the rerun replacement when one exists,
@@ -1667,7 +1674,7 @@ export default class SchedulerTask {
                                         ),
                                     expirationSecondsOverride,
                                 },
-                                SCHEDULER_POLLING_OPTIONS,
+                                this.schedulerPollingOptions,
                             );
                         csvUrl = {
                             filename:
@@ -1924,7 +1931,7 @@ export default class SchedulerTask {
                                             ),
                                         expirationSecondsOverride,
                                     },
-                                    SCHEDULER_POLLING_OPTIONS,
+                                    this.schedulerPollingOptions,
                                     dashboardUuid,
                                 );
                             return {
@@ -2011,7 +2018,7 @@ export default class SchedulerTask {
                                             ),
                                         expirationSecondsOverride,
                                     },
-                                    SCHEDULER_POLLING_OPTIONS,
+                                    this.schedulerPollingOptions,
                                     dashboardUuid,
                                 );
                             return {
@@ -3906,7 +3913,7 @@ export default class SchedulerTask {
                 pivotConfiguration,
                 parameters: payload.parameters,
             },
-            SCHEDULER_POLLING_OPTIONS,
+            this.schedulerPollingOptions,
         );
 
         onQueryComplete();
@@ -4627,7 +4634,7 @@ export default class SchedulerTask {
                             ? scheduler.parameters
                             : undefined,
                     },
-                    SCHEDULER_POLLING_OPTIONS,
+                    this.schedulerPollingOptions,
                 );
 
                 if (thresholds !== undefined && thresholds.length > 0) {
@@ -4854,7 +4861,7 @@ export default class SchedulerTask {
                                               userParameterNames,
                                           }).dashboardValues,
                             },
-                            SCHEDULER_POLLING_OPTIONS,
+                            this.schedulerPollingOptions,
                         );
                         const showTableNames = isTableChartConfig(
                             chart.chartConfig.config,
@@ -4954,7 +4961,7 @@ export default class SchedulerTask {
                             context:
                                 QueryExecutionContext.SCHEDULED_GSHEETS_SQL_CHART,
                         },
-                        SCHEDULER_POLLING_OPTIONS,
+                        this.schedulerPollingOptions,
                     );
 
                 await this.googleDriveClient.uploadMetadata(
@@ -5604,7 +5611,7 @@ export default class SchedulerTask {
                                 schedulerFilters: chartFilterOverrides,
                                 parameters: chartParameterOverrides,
                             },
-                            SCHEDULER_POLLING_OPTIONS,
+                            this.schedulerPollingOptions,
                         );
 
                     const evaluation = SchedulerTask.evaluateThreshold(
@@ -7084,7 +7091,7 @@ export default class SchedulerTask {
                     pivotConfig: downloadPivotConfig,
                     columnOrder: chart.tableConfig.columnOrder,
                 },
-                SCHEDULER_POLLING_OPTIONS,
+                this.schedulerPollingOptions,
             );
         return {
             chartName: chart.name,
@@ -7164,7 +7171,7 @@ export default class SchedulerTask {
                             : undefined,
                     ),
                 },
-                SCHEDULER_POLLING_OPTIONS,
+                this.schedulerPollingOptions,
             );
         return {
             chartName: chart.name,

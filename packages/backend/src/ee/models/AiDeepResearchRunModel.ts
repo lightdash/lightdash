@@ -1,6 +1,5 @@
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
-    AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     countDeepResearchFindings,
     findDeepResearchChartRefs,
@@ -74,22 +73,7 @@ export type AiDeepResearchRunContextRow = Pick<
     | 'created_at'
     | 'started_at'
     | 'completed_at'
-> & {
-    has_report: boolean;
-};
-
-export type AiDeepResearchReportSummaryRow = Pick<
-    DbAiDeepResearchRun,
-    | 'ai_deep_research_run_uuid'
-    | 'organization_uuid'
-    | 'project_uuid'
-    | 'created_by_user_uuid'
-    | 'prompt'
-    | 'created_at'
-    | 'updated_at'
-> & {
-    content_size_bytes: number;
-};
+>;
 
 type EventCursor = {
     createdAt: string;
@@ -119,12 +103,6 @@ const WAREHOUSE_LIMIT_ERROR_RE =
     /bytesBilledLimitExceeded|maximumBytesBilled|bytes billed|resource[_ -]?exhausted|resource limit|memory limit|out of memory|exceeded (?:its |the )?(?:query |warehouse )?(?:limit|quota)/i;
 const PREVENTED_WAREHOUSE_SCAN_RE =
     /full-column scan|listing all values for this field is disabled/i;
-
-export type AiDeepResearchReportCleanupResult = {
-    scanned: number;
-    expired: number;
-    failed: number;
-};
 
 export class AiDeepResearchActiveRunError extends Error {
     readonly activeRunUuid: string;
@@ -467,7 +445,7 @@ export class AiDeepResearchRunModel {
                 })
                 .returning('*');
             // The outcome goes on afterwards: a run is only ever inserted as
-            // queued, so the insert shape has no room for a report.
+            // queued, so the insert shape has no room for an outcome.
             await transaction<AiDeepResearchRunsTable>(
                 AiDeepResearchRunsTableName,
             )
@@ -477,7 +455,6 @@ export class AiDeepResearchRunModel {
                 )
                 .update({
                     status: 'completed',
-                    result_markdown: data.resultMarkdown,
                     duration_ms: data.durationMs,
                     warehouse_query_count: data.warehouseQueryCount,
                     findings_count: countDeepResearchFindings(
@@ -574,6 +551,29 @@ export class AiDeepResearchRunModel {
             .first();
     }
 
+    /** A project's completed runs that answered this exact question. */
+    async findCompletedByProjectAndPrompt(args: {
+        projectUuid: string;
+        prompt: string;
+    }): Promise<
+        Pick<
+            DbAiDeepResearchRun,
+            'ai_deep_research_run_uuid' | 'prompt_uuid' | 'ai_thread_uuid'
+        >[]
+    > {
+        return this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .select(
+                'ai_deep_research_run_uuid',
+                'prompt_uuid',
+                'ai_thread_uuid',
+            )
+            .where('project_uuid', args.projectUuid)
+            .where('prompt', args.prompt)
+            .where('status', 'completed');
+    }
+
     async findByPromptForExecution(args: {
         promptUuid: string;
         organizationUuid: string;
@@ -586,30 +586,6 @@ export class AiDeepResearchRunModel {
             .where('organization_uuid', args.organizationUuid)
             .where('project_uuid', args.projectUuid)
             .first();
-    }
-
-    async findByPromptUuidsScoped(args: {
-        promptUuids: string[];
-        organizationUuid: string;
-        projectUuid: string;
-    }): Promise<
-        Pick<DbAiDeepResearchRun, 'prompt_uuid' | 'result_markdown'>[]
-    > {
-        if (args.promptUuids.length === 0) {
-            return [];
-        }
-
-        return this.database<AiDeepResearchRunsTable>(
-            AiDeepResearchRunsTableName,
-        )
-            .select('prompt_uuid', 'result_markdown')
-            .whereIn('prompt_uuid', args.promptUuids)
-            .where('organization_uuid', args.organizationUuid)
-            .where('project_uuid', args.projectUuid)
-            .whereNull('report_expired_at')
-            .whereRaw(
-                "coalesce(report_expires_at, completed_at + interval '30 days') > now()",
-            );
     }
 
     async findByThreadScoped(args: {
@@ -645,16 +621,6 @@ export class AiDeepResearchRunModel {
                 'created_at',
                 'started_at',
                 'completed_at',
-                this.database.raw(
-                    `(
-                        report_expired_at is null
-                        and coalesce(
-                            report_expires_at,
-                            completed_at + interval '30 days'
-                        ) > now()
-                        and coalesce(octet_length(result_markdown), 0) > 0
-                    ) as has_report`,
-                ),
             )
             .where('ai_thread_uuid', args.aiThreadUuid)
             .where('organization_uuid', args.organizationUuid)
@@ -663,71 +629,6 @@ export class AiDeepResearchRunModel {
             .orderBy('created_at', 'asc');
 
         return rows as unknown as AiDeepResearchRunContextRow[];
-    }
-
-    async findReportSummariesByThreadScoped(args: {
-        aiThreadUuid: string;
-        organizationUuid: string;
-        projectUuid: string;
-        createdByUserUuid: string;
-    }): Promise<AiDeepResearchReportSummaryRow[]> {
-        const rows = await this.database<AiDeepResearchRunsTable>(
-            AiDeepResearchRunsTableName,
-        )
-            .select(
-                'ai_deep_research_run_uuid',
-                'organization_uuid',
-                'project_uuid',
-                'created_by_user_uuid',
-                'prompt',
-                'created_at',
-                'updated_at',
-                this.database.raw(
-                    'octet_length(result_markdown) as content_size_bytes',
-                ),
-            )
-            .where('ai_thread_uuid', args.aiThreadUuid)
-            .where('organization_uuid', args.organizationUuid)
-            .where('project_uuid', args.projectUuid)
-            .where('created_by_user_uuid', args.createdByUserUuid)
-            .whereNull('report_expired_at')
-            .whereRaw(
-                "coalesce(report_expires_at, completed_at + interval '30 days') > now()",
-            )
-            .whereRaw('octet_length(result_markdown) > 0')
-            .orderBy('created_at', 'asc');
-
-        return rows as unknown as AiDeepResearchReportSummaryRow[];
-    }
-
-    async findReportByUuidThreadScoped(args: {
-        aiDeepResearchRunUuid: string;
-        aiThreadUuid: string;
-        organizationUuid: string;
-        projectUuid: string;
-        createdByUserUuid: string;
-    }): Promise<
-        | Pick<
-              DbAiDeepResearchRun,
-              'ai_deep_research_run_uuid' | 'prompt' | 'result_markdown'
-          >
-        | undefined
-    > {
-        return this.database<AiDeepResearchRunsTable>(
-            AiDeepResearchRunsTableName,
-        )
-            .select('ai_deep_research_run_uuid', 'prompt', 'result_markdown')
-            .where('ai_deep_research_run_uuid', args.aiDeepResearchRunUuid)
-            .where('ai_thread_uuid', args.aiThreadUuid)
-            .where('organization_uuid', args.organizationUuid)
-            .where('project_uuid', args.projectUuid)
-            .where('created_by_user_uuid', args.createdByUserUuid)
-            .whereNull('report_expired_at')
-            .whereRaw(
-                "coalesce(report_expires_at, completed_at + interval '30 days') > now()",
-            )
-            .whereRaw('octet_length(result_markdown) > 0')
-            .first();
     }
 
     async findLatestProgressByRunUuids(
@@ -1059,7 +960,6 @@ export class AiDeepResearchRunModel {
                     status: 'cancelled',
                     terminal_reason: terminalReason,
                     failure_stage: failureStage,
-                    result_markdown: null,
                     ...metrics,
                     duration_ms:
                         AiDeepResearchRunModel.getDurationMs(transaction),
@@ -1275,23 +1175,16 @@ export class AiDeepResearchRunModel {
                 )
                 .update({
                     status: transaction.raw(
-                        "case when cancellation_requested_at is not null then 'cancelled' when result_markdown is not null then 'partially_completed' else 'failed' end",
+                        "case when cancellation_requested_at is not null then 'cancelled' else 'failed' end",
                     ) as unknown as DbAiDeepResearchRun['status'],
                     terminal_reason: transaction.raw(
                         "case when cancellation_requested_at is not null then 'user_cancellation' else 'internal_error' end",
                     ) as unknown as DbAiDeepResearchRun['terminal_reason'],
                     failure_stage: 'recovery',
-                    result_markdown: transaction.raw(
-                        'case when cancellation_requested_at is not null then null else result_markdown end',
-                    ) as unknown as string | null,
                     error_message: transaction.raw(
-                        'case when cancellation_requested_at is not null or result_markdown is not null then null else ? end',
+                        'case when cancellation_requested_at is not null then null else ? end',
                         [errorMessage],
                     ) as unknown as string | null,
-                    report_expires_at: transaction.raw(
-                        "case when cancellation_requested_at is null and result_markdown is not null then now() + (? * interval '1 day') else report_expires_at end",
-                        [AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS],
-                    ) as unknown as Date | null,
                     completed_at: transaction.fn.now() as unknown as Date,
                     updated_at: transaction.fn.now() as unknown as Date,
                 })
@@ -1303,7 +1196,7 @@ export class AiDeepResearchRunModel {
                         await AiDeepResearchRunModel.getTerminalMetrics(
                             transaction,
                             run.prompt_uuid,
-                            run.result_markdown ?? null,
+                            null,
                         );
                     const [updatedRun] =
                         await transaction<AiDeepResearchRunsTable>(
@@ -1347,128 +1240,6 @@ export class AiDeepResearchRunModel {
             );
             return runsWithMetrics;
         });
-    }
-
-    async cleanExpiredReports(
-        batchSize: number,
-    ): Promise<AiDeepResearchReportCleanupResult> {
-        const candidates = await this.database<AiDeepResearchRunsTable>(
-            AiDeepResearchRunsTableName,
-        )
-            .select('ai_deep_research_run_uuid', 'prompt_uuid')
-            .whereNull('report_expired_at')
-            .whereIn('status', [
-                'completed',
-                'partially_completed',
-                'failed',
-                'cancelled',
-            ])
-            .where((query) =>
-                query
-                    .where('report_expires_at', '<=', this.database.fn.now())
-                    .orWhere((legacyQuery) =>
-                        legacyQuery
-                            .whereNull('report_expires_at')
-                            .whereNotNull('completed_at')
-                            .whereRaw(
-                                "completed_at + interval '30 days' <= now()",
-                            ),
-                    ),
-            )
-            .orderByRaw(
-                "coalesce(report_expires_at, completed_at + interval '30 days') asc",
-            )
-            .limit(batchSize);
-
-        const results = await Promise.all(
-            candidates.map(async (candidate) => {
-                try {
-                    return await this.database.transaction(
-                        async (transaction) => {
-                            const lockedCandidate =
-                                await transaction<AiDeepResearchRunsTable>(
-                                    AiDeepResearchRunsTableName,
-                                )
-                                    .select('ai_deep_research_run_uuid')
-                                    .where(
-                                        'ai_deep_research_run_uuid',
-                                        candidate.ai_deep_research_run_uuid,
-                                    )
-                                    .whereNull('report_expired_at')
-                                    .whereIn('status', [
-                                        'completed',
-                                        'partially_completed',
-                                        'failed',
-                                        'cancelled',
-                                    ])
-                                    .whereRaw(
-                                        "coalesce(report_expires_at, completed_at + interval '30 days') <= now()",
-                                    )
-                                    .forUpdate()
-                                    .first();
-                            if (!lockedCandidate) {
-                                return 'skipped' as const;
-                            }
-
-                            await transaction<AiAgentToolResultTable>(
-                                AiAgentToolResultTableName,
-                            )
-                                .where('ai_prompt_uuid', candidate.prompt_uuid)
-                                .delete();
-                            await transaction<AiAgentToolCallErrorTable>(
-                                AiAgentToolCallErrorTableName,
-                            )
-                                .where('ai_prompt_uuid', candidate.prompt_uuid)
-                                .delete();
-                            await transaction<AiAgentToolCallTable>(
-                                AiAgentToolCallTableName,
-                            )
-                                .where('ai_prompt_uuid', candidate.prompt_uuid)
-                                .delete();
-
-                            const expired =
-                                await transaction<AiDeepResearchRunsTable>(
-                                    AiDeepResearchRunsTableName,
-                                )
-                                    .where(
-                                        'ai_deep_research_run_uuid',
-                                        candidate.ai_deep_research_run_uuid,
-                                    )
-                                    .whereNull('report_expired_at')
-                                    .whereRaw(
-                                        "coalesce(report_expires_at, completed_at + interval '30 days') <= now()",
-                                    )
-                                    .update({
-                                        result_markdown: null,
-                                        report_expires_at: transaction.raw(
-                                            "coalesce(report_expires_at, completed_at + interval '30 days')",
-                                        ) as unknown as Date,
-                                        report_expired_at:
-                                            transaction.fn.now() as unknown as Date,
-                                        updated_at:
-                                            transaction.fn.now() as unknown as Date,
-                                    });
-                            return expired > 0
-                                ? ('expired' as const)
-                                : ('skipped' as const);
-                        },
-                    );
-                } catch (error) {
-                    Logger.error(
-                        `Failed to clean Deep Research report ${candidate.ai_deep_research_run_uuid}: ${getErrorMessage(error)}`,
-                    );
-                    return 'failed' as const;
-                }
-            }),
-        );
-
-        const expired = results.filter((result) => result === 'expired').length;
-        const failed = results.filter((result) => result === 'failed').length;
-        return {
-            scanned: candidates.length,
-            expired,
-            failed,
-        };
     }
 
     async listPendingAnalyticsEvents(args?: {

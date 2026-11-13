@@ -16,6 +16,7 @@ import {
     toFieldCombinationIssue,
     type CompiledApiSourceQuery,
 } from '../apiSourceExplore';
+import { getGrainIssues, type ApiSourceGrain } from '../apiSourceGrain';
 import { getFinestLevel, isFinerLevel } from '../apiSourceLevels';
 import {
     META_ADS_BREAKDOWNS,
@@ -28,6 +29,34 @@ import {
 const REACH_METRICS = ['reach', 'frequency'];
 const BREAKDOWNS: ReadonlySet<string> = new Set(META_ADS_BREAKDOWNS);
 const REACH_BREAKDOWN_MONTHS = 13;
+
+// Names aren't unique, so a name identifies a row only with its parent.
+const GRAINS: Partial<Record<MetaAdsLevel, ApiSourceGrain>> = {
+    campaign: {
+        entity: 'campaign',
+        identities: [['campaign_id'], ['campaign_name']],
+        fix: 'Add Campaign name or Campaign ID.',
+    },
+    adset: {
+        entity: 'ad set',
+        identities: [
+            ['adset_id'],
+            ['adset_name', 'campaign_id'],
+            ['adset_name', 'campaign_name'],
+        ],
+        fix: 'Add Ad set ID, or Ad set name with Campaign name.',
+    },
+    ad: {
+        entity: 'ad',
+        identities: [
+            ['ad_id'],
+            ['ad_name', 'adset_id'],
+            ['ad_name', 'adset_name', 'campaign_id'],
+            ['ad_name', 'adset_name', 'campaign_name'],
+        ],
+        fix: 'Add Ad ID, or Ad name with Ad set ID.',
+    },
+};
 
 const refuse = (fieldId: FieldId | null, message: string) =>
     toApiSourceQueryError([toFieldCombinationIssue(fieldId, message)]);
@@ -160,6 +189,19 @@ export const compileMetaAdsQuery = ({
                 (fieldId) => META_ADS_FIELD_LEVELS[apiName(fieldId)],
             ),
         ) ?? ('account' as MetaAdsLevel);
+
+    const grainIssues = getGrainIssues({
+        explore,
+        integration: 'Meta Ads',
+        grains: GRAINS,
+        level,
+        levelOf: (name) => META_ADS_FIELD_LEVELS[name],
+        dimensions: fieldsByKind.objects,
+        apiName,
+    });
+    if (grainIssues.length > 0) {
+        throw toApiSourceQueryError(grainIssues);
+    }
 
     if (
         breakdowns.includes('platform_position') &&

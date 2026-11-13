@@ -170,6 +170,7 @@ export * from './types/dataRetention';
 export * from './types/featureFlags';
 export * from './types/impersonationOrganizationSettings';
 export * from './types/previewExpirationProjectSettings';
+export * from './types/provisioning';
 export * from './types/resultsCacheProjectSettings';
 export * from './types/upstreamDiff';
 export * from './types/field';
@@ -1300,6 +1301,7 @@ export * from './compiler/compileLightdashModels';
 
 export * from './lightdash/LightdashModelEditor';
 export * from './lightdash/applyModelFragment';
+export * from './lightdash/diffModelDocuments';
 export * from './lightdash/convertCustomMetricToLightdash';
 export * from './types/analyticsProject';
 export * from './types/recentContent';

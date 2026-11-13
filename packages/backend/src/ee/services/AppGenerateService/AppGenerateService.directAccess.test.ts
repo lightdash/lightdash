@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     DATA_REFERENCE_EXTRACTOR_VERSION,
+    FeatureFlags,
     ForbiddenError,
     ProjectType,
     SpaceMemberRole,
@@ -71,7 +72,10 @@ const buildUser = (): SessionUser => {
     } as unknown as SessionUser;
 };
 
-const buildService = (role: SpaceMemberRole) => {
+const buildService = (
+    role: SpaceMemberRole,
+    { consumerAccessEnabled = false }: { consumerAccessEnabled?: boolean } = {},
+) => {
     const analytics = { track: vi.fn() };
     const appModel = {
         findApp: vi.fn().mockResolvedValue(app),
@@ -176,7 +180,13 @@ const buildService = (role: SpaceMemberRole) => {
         userModel: userModel as never,
         appModel: appModel as never,
         featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    enabled:
+                        featureFlagId !== FeatureFlags.DataAppConsumerAccess ||
+                        consumerAccessEnabled,
+                }),
+            ),
         } as never,
         organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
@@ -313,6 +323,19 @@ describe('AppGenerateService view outcomes', () => {
 });
 
 describe('AppGenerateService direct app access', () => {
+    it('limits Viewers to the latest ready version when consumer access is on', async () => {
+        const { service } = buildService(SpaceMemberRole.VIEWER, {
+            consumerAccessEnabled: true,
+        });
+        const user = buildUser();
+        await expect(
+            service.getPreviewToken(user, PROJECT_UUID, APP_UUID, 1),
+        ).rejects.toThrow('newer version');
+        await expect(
+            service.getPreviewToken(user, PROJECT_UUID, APP_UUID, 2),
+        ).resolves.toEqual(expect.any(String));
+    });
+
     it('gives a direct Viewer the normal app read surface without parent metadata', async () => {
         const { service, spacePermissionService } = buildService(
             SpaceMemberRole.VIEWER,

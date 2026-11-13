@@ -13,6 +13,7 @@ import { buildAccount } from '../../auth/account/account.mock';
 import {
     getQueryHistoryRequestColumns,
     QueryHistoryModel,
+    QueryPollingTimeoutError,
 } from './QueryHistoryModel';
 
 describe('QueryHistoryModel connection attribution', () => {
@@ -543,6 +544,38 @@ describe('QueryHistoryModel polling cancellation', () => {
             }),
         ).rejects.toMatchObject({ name: 'AbortError' });
         expect(get).toHaveBeenCalledOnce();
+    });
+});
+
+describe('QueryHistoryModel polling timeout', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('throws a typed timeout error with the existing message', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        const model = new QueryHistoryModel({ database: {} as Knex });
+        const get = vi
+            .spyOn(model, 'getByQueryUuid')
+            .mockImplementation(async () => {
+                vi.setSystemTime(Date.now() + 60_000);
+                return { status: QueryHistoryStatus.EXECUTING } as QueryHistory;
+            });
+        const error = await model
+            .pollForQueryCompletion({
+                queryUuid: 'query',
+                projectUuid: 'project',
+                account: null,
+                initialBackoffMs: 1,
+                maxBackoffMs: 1,
+            })
+            .catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(QueryPollingTimeoutError);
+        expect((error as Error).message).toBe(
+            'Query polling timed out after 300000ms',
+        );
+        expect(get).toHaveBeenCalledTimes(6);
     });
 });
 
