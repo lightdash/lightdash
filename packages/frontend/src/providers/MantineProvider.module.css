@@ -19,3 +19,14 @@
         bottom: var(--mantine-spacing-md);
     }
 }
+
+@media (max-width: $mantine-breakpoint-sm) and (min-height: 30.0625em) {
+    .notificationsRoot.signedOut[data-position^='bottom'] {
+        top: rem(90px);
+    }
+
+    .notificationsRoot.signedOut[data-position^='bottom']
+        :global(.mantine-Notification-root) {
+        padding-block: rem(6px);
+    }
+}
