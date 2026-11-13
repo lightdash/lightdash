@@ -8527,6 +8527,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides: {},
             invalidateCache: invalidateCache ?? false,
             plans: { [totalsNodeId]: plan },
+            binding: null,
             aiAttribution: null,
         });
         const totals = queries.find((query) => query.nodeId === totalsNodeId);
@@ -15310,7 +15311,9 @@ export class AsyncQueryService extends ProjectService {
             },
             () =>
                 this.getQuerySourceService().submitQueries({
-                    documentQueryContext,
+                    binding: documentQueryContext
+                        ? { kind: 'document', context: documentQueryContext }
+                        : null,
                     account,
                     projectUuid,
                     context,
