@@ -545,11 +545,13 @@ export type SearchResult = {
     fieldKind?: FieldKind;
 };
 
-/** A field match from the data catalog: which explore table it belongs to. */
+/** A field match: which explore table it belongs to. */
 export type FieldMatch = {
     name: string;
     label: string;
     tableName: string;
+    /** The explore it opens in; the explore named after its table when unset. */
+    exploreId?: string;
     fieldType: FieldKind;
 };
 
@@ -571,8 +573,9 @@ const groupOf = (ref: NodeRef): SearchGroup => {
 
 /**
  * Matches in tree order, grouped: sources, folders, explores, then fields.
- * Fields come from the data catalog search, since field lists only load per
- * explore; each lands on the explore named after its table.
+ * Fields come from the data catalog search and from the explores it doesn't
+ * index (sourceFieldSearch.ts), since field lists only load per explore; each
+ * lands on its explore, the one named after its table unless it says.
  */
 export const searchProject = (
     tree: ProjectTree,
@@ -614,22 +617,21 @@ export const searchProject = (
         }
     };
     visit(tree.nodes);
+    const seenFields = new Set<string>();
     for (const field of fieldMatches) {
-        const path = explorePaths.get(field.tableName);
+        const exploreId = field.exploreId ?? field.tableName;
+        const path = explorePaths.get(exploreId);
         if (!path) continue;
-        add(
-            {
-                type: 'field',
-                exploreId: field.tableName,
-                fieldId: getItemId({
-                    table: field.tableName,
-                    name: field.name,
-                }),
-            },
-            field.label,
-            path,
-            field.fieldType,
-        );
+        const ref: NodeRef = {
+            type: 'field',
+            exploreId,
+            fieldId: getItemId({ table: field.tableName, name: field.name }),
+        };
+        // The same field can come from the catalog and from its explore.
+        const key = nodeKey(ref);
+        if (seenFields.has(key)) continue;
+        seenFields.add(key);
+        add(ref, field.label, path, field.fieldType);
     }
     const results = SEARCH_GROUPS.flatMap((group) =>
         matches.filter((match) => match.group === group),
