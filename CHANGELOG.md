@@ -1,3 +1,10 @@
+## [3.259.1](https://github.com/lightdash/lightdash/compare/3.259.0...3.259.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **oauth:** allow the claude: redirect scheme in strict OAuth mode ([#32606](https://github.com/lightdash/lightdash/issues/32606)) ([500379e](https://github.com/lightdash/lightdash/commit/500379ec196fa9b3b40cb14e13493f30ce996f5e)), closes [#32605](https://github.com/lightdash/lightdash/issues/32605)
+
 # [3.259.0](https://github.com/lightdash/lightdash/compare/3.258.2...3.259.0) (2026-11-13)
 
 
