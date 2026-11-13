@@ -171,10 +171,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
             onMouseLeave={handleMouseLeave}
             pl={pl}
             label={
-                <Group>
-                    {!isOpen && hasSelectedChildren && (
-                        <Badge>{selectedChildrenCount}</Badge>
-                    )}
+                <Group gap={6} wrap="nowrap">
                     <HoverCard
                         openDelay={300}
                         keepMounted={false}
@@ -231,6 +228,11 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                         >
                             {node.source.label}
                         </Text>
+                    )}
+                    {!isOpen && hasSelectedChildren && (
+                        <Badge size="xs" flex="0 0 auto">
+                            {selectedChildrenCount}
+                        </Badge>
                     )}
                 </Group>
             }

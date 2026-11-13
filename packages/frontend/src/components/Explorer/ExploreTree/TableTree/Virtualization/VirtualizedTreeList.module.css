@@ -1,5 +1,8 @@
+/* Bleeds to the sidebar edges so table hairlines run the full width; rows
+   keep their inset through the item padding */
 .scrollContainer {
     height: 100%;
+    margin-inline: -8px;
     overflow: auto;
 }
 
@@ -42,6 +45,7 @@
     top: 0;
     left: 0;
     width: 100%;
+    padding-inline: 8px;
     transform: translateY(var(--item-start));
 
     &[data-active-sticky] {
@@ -62,6 +66,11 @@
 
 .item[data-sticky-header]:not([data-index='0']) :global(.mantine-NavLink-root) {
     border-top: 1px solid var(--mantine-color-ldGray-2);
+}
+
+/* Continues that hairline through the row's inset */
+.item[data-sticky-header]:not([data-index='0']) {
+    box-shadow: inset 0 1px 0 var(--mantine-color-ldGray-2);
 }
 
 /* Type icons render at exactly half their 24px grid so strokes land on whole

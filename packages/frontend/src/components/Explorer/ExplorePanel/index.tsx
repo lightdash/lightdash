@@ -5,7 +5,7 @@ import {
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
-import { ActionIcon, Group, HoverCard, Menu, Stack, Text } from '@mantine/core';
+import { ActionIcon, Group, HoverCard, Menu, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAlertTriangle,
@@ -335,9 +335,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             }
                                             onClick={handleAddMergeSource}
                                         >
-                                            <Text fz="xs" fw={500}>
-                                                Merge another query
-                                            </Text>
+                                            Merge another query
                                         </Menu.Item>
                                     )}
                                     {canMergeAnotherQuery &&
@@ -355,9 +353,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                             data-tour-hint="Edit the virtual view"
                                             onClick={handleEditVirtualView}
                                         >
-                                            <Text fz="xs" fw={500}>
-                                                Edit virtual view
-                                            </Text>
+                                            Edit virtual view
                                         </Menu.Item>
                                     )}
                                     {isVirtualView && canViewContentAsCode && (
@@ -418,9 +414,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                                     handleDeleteVirtualView
                                                 }
                                             >
-                                                <Text fz="xs" fw={500}>
-                                                    Delete
-                                                </Text>
+                                                Delete
                                             </Menu.Item>
                                         </>
                                     )}
