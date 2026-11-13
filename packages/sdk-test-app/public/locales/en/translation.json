@@ -13,6 +13,21 @@
                     "Order period": "Order period"
                 }
             },
+            "sections": {
+                "names": {
+                    "Orders": "Orders"
+                }
+            },
+            "parameterControls": {
+                "labels": {
+                    "Metric type": "Metric type"
+                }
+            },
+            "dateZooms": {
+                "names": {
+                    "Revenue zoom": "Revenue zoom"
+                }
+            },
             "tiles": [
                 {
                     "type": "loom",

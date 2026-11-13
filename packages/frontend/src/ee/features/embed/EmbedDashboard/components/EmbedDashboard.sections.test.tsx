@@ -10,9 +10,11 @@ import {
     dashboardParametersActions,
     selectControlSections,
     selectControlGranularities,
+    selectCurrentDateZoomConfig,
     selectDashboardFilters,
     selectDateZoomGranularity,
     selectIsDateZoomDisabled,
+    selectParameterControls,
     selectParameterPicks,
     selectRawTemporaryFilters,
     useDashboardDateZoomConfig,
@@ -172,6 +174,20 @@ const SectionNames: FC = () => {
     );
 };
 
+// The parameter control labels and date zoom names the bar reads
+const ControlNames: FC = () => {
+    const parameterControls = useDashboardSelector(selectParameterControls);
+    const dateZoomConfig = useDashboardSelector(selectCurrentDateZoomConfig);
+    return (
+        <output data-testid="control-names">
+            {[
+                ...(parameterControls ?? []).map(({ label }) => label),
+                ...dateZoomConfig.controls.map(({ name }) => name),
+            ].join(',')}
+        </output>
+    );
+};
+
 const FilterIds: FC = () => {
     const filters = useDashboardSelector(selectDashboardFilters);
     const temporaryFilters = useDashboardSelector(selectRawTemporaryFilters);
@@ -253,6 +269,7 @@ const embedElement = (isEditMode: boolean, loaded = dashboard) => (
             isEditModeExternal
         >
             <SectionNames />
+            <ControlNames />
             <FilterIds />
             <ParametersState />
             <DraftOnExit isEditMode={isEditMode} />
@@ -1077,5 +1094,180 @@ describe('EmbedDashboard editor controls', () => {
                 parameters: dashboard.parameters,
             });
         });
+    });
+});
+
+describe('EmbedDashboard control name translations', () => {
+    const translated = {
+        ...dashboard,
+        config: {
+            ...dashboard.config,
+            parameterControls: [
+                {
+                    id: 'p1',
+                    label: 'Currency',
+                    value: null,
+                    valueType: { type: 'string', multiple: false },
+                    parameters: { currency: 'all' },
+                },
+            ],
+            dateZoomConfig: {
+                controls: [
+                    { uuid: 'z1', name: 'Revenue zoom', granularity: 'week' },
+                ],
+                tileTargets: {},
+            },
+        },
+    } as unknown as Dashboard;
+    const sectionNames = () => screen.getByTestId('section-names');
+    const controlNames = () => screen.getByTestId('control-names');
+    const save = () => screen.getByRole('button', { name: 'Save' });
+    const changeName = async () => {
+        const name = screen.getByDisplayValue('Sales');
+        await userEvent.clear(name);
+        await userEvent.type(name, 'Sales 2');
+    };
+
+    beforeEach(() => {
+        mocks.isFlagEnabled = true;
+        mocks.availableFilters = undefined;
+        mocks.updateDashboard.mockReset();
+        mocks.embed = {
+            dashboardUuid: dashboard.uuid,
+            dispatchEmbedEvent: vi.fn(),
+            embedToken: 'token',
+            embedWriteContext: {
+                canUpdateDashboard: true,
+                canCreateSavedChart: false,
+            },
+            languageMap: {
+                dashboard: {
+                    [dashboard.slug]: {
+                        filters: undefined,
+                        sections: { names: { Dates: 'Fechas' } },
+                        parameterControls: { labels: { Currency: 'Moneda' } },
+                        dateZooms: {
+                            names: { 'Revenue zoom': 'Zoom de ingresos' },
+                        },
+                    },
+                },
+            },
+            mode: 'direct',
+            writeActions: { spaceUuid: SPACE_UUID },
+            filters: undefined,
+            t: () => undefined,
+        };
+    });
+
+    it('shows a viewer the translated section, parameter control and date zoom names', async () => {
+        renderEmbed(false, {
+            ...translated,
+            canDateZoom: true,
+        } as unknown as Dashboard);
+        expect(
+            await screen.findByRole('group', { name: 'Fechas' }),
+        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(controlNames()).toHaveTextContent('Moneda,Zoom de ingresos'),
+        );
+        // The zoom's pill; a parameter pill needs its definition, not loaded here
+        expect(
+            await screen.findByRole('button', { name: /Zoom de ingresos/ }),
+        ).toBeInTheDocument();
+    });
+
+    it('translates the date zoom name with the flag off', async () => {
+        mocks.isFlagEnabled = false;
+        renderEmbed(false, translated);
+        await waitFor(() =>
+            expect(controlNames()).toHaveTextContent('Zoom de ingresos'),
+        );
+    });
+
+    it('gives an editor the source names and saves them when nothing is renamed', async () => {
+        const { rerender } = renderEmbed(false, translated);
+        await waitFor(() => expect(sectionNames()).toHaveTextContent('Fechas'));
+
+        rerender(embedElement(true, translated));
+        await waitFor(() => expect(sectionNames()).toHaveTextContent('Dates'));
+        await waitFor(() =>
+            expect(controlNames()).toHaveTextContent('Currency,Revenue zoom'),
+        );
+
+        // Any change enables Save
+        await changeName();
+        await userEvent.click(save());
+        const { config } = mocks.updateDashboard.mock.calls[0][0];
+        expect(config.controlSections).toEqual(
+            translated.config?.controlSections,
+        );
+        expect(config.parameterControls).toEqual(
+            translated.config?.parameterControls,
+        );
+        expect(config.dateZoomConfig).toEqual(
+            translated.config?.dateZoomConfig,
+        );
+
+        // Back to viewing: translated again
+        rerender(embedElement(false, translated));
+        await waitFor(() => expect(sectionNames()).toHaveTextContent('Fechas'));
+        await waitFor(() =>
+            expect(controlNames()).toHaveTextContent('Moneda,Zoom de ingresos'),
+        );
+    });
+
+    it("saves an editor's section name, never a translation", async () => {
+        const { rerender } = renderEmbed(false, translated);
+        await waitFor(() => expect(sectionNames()).toHaveTextContent('Fechas'));
+        rerender(embedElement(true, translated));
+        await waitFor(() => expect(sectionNames()).toHaveTextContent('Dates'));
+
+        act(() => {
+            mocks.dispatch?.(
+                dashboardEditActions.renameControlSection({
+                    id: 'a',
+                    name: 'Periods',
+                }),
+            );
+        });
+        await waitFor(() => expect(save()).toBeEnabled());
+        await userEvent.click(save());
+        expect(
+            mocks.updateDashboard.mock.calls[0][0].config.controlSections,
+        ).toEqual([{ id: 'a', name: 'Periods' }]);
+    });
+
+    it('translates again when a host leaves edit mode with control drafts', async () => {
+        const { rerender } = renderEmbed(true, translated);
+        await waitFor(() => expect(sectionNames()).toHaveTextContent('Dates'));
+        act(() => {
+            mocks.dispatch?.(
+                dashboardEditActions.renameControlSection({
+                    id: 'a',
+                    name: 'Periods',
+                }),
+            );
+        });
+
+        rerender(embedElement(false, translated));
+        await waitFor(() => expect(sectionNames()).toHaveTextContent('Fechas'));
+        await waitFor(() =>
+            expect(controlNames()).toHaveTextContent('Moneda,Zoom de ingresos'),
+        );
+    });
+
+    it('shows a viewer the untitled string for a section with no name', async () => {
+        mocks.embed = { ...mocks.embed, languageMap: undefined };
+        renderEmbed(false, {
+            ...dashboard,
+            config: {
+                ...dashboard.config,
+                controlSections: [{ id: 'a', name: '' }],
+            },
+        } as unknown as Dashboard);
+        expect(
+            await screen.findByRole('group', { name: 'Untitled section' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Untitled section')).toBeInTheDocument();
     });
 });
