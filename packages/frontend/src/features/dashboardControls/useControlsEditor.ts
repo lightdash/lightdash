@@ -25,8 +25,8 @@ export type FieldApply = {
 
 export type MoveDirection = 'left' | 'right';
 
-export type ControlsSidebarContextValue = {
-    /** The filter control being edited, or null when the sidebar is closed. */
+export type ControlsEditorContextValue = {
+    /** The filter control being edited, or null when the editor is closed. */
     editing: { filterId: string } | null;
     /**
      * Outside edit mode: the editor writes the viewer's own temporary
@@ -35,7 +35,7 @@ export type ControlsSidebarContextValue = {
     isViewer: boolean;
     /** False in an embed whose viewers may not add filters: no "Add filter". */
     canAddFilters: boolean;
-    /** The edited control was started with Add in this sidebar session. */
+    /** The edited control was started with Add in this editor session. */
     isNew: boolean;
     /** The edited control has no mapping yet, so it cannot be kept. */
     isPlaceholder: boolean;
@@ -46,7 +46,7 @@ export type ControlsSidebarContextValue = {
      * A filter is being edited, so the editor is on screen: false as soon as
      * the edited filter is no longer in the dashboard.
      */
-    isSidebarOpen: boolean;
+    isEditorOpen: boolean;
     /** Choosing tiles: the mapping row stands in for the filter row and the popover. */
     isMapping: boolean;
     /** "Choose tiles" is offered: an editor's filter or a viewer's own, not a viewer's saved one. */
@@ -106,7 +106,7 @@ export type ControlsSidebarContextValue = {
     activeFieldId: string | null;
     /**
      * Fields listed on the edited filter that are on no tile yet. They only
-     * live while the sidebar is open: a field is saved through a tile.
+     * live while the editor is open: a field is saved through a tile.
      */
     waitingFieldIds: string[];
     addWaitingField: (fieldId: string) => void;
@@ -144,28 +144,28 @@ export type ControlsSidebarContextValue = {
     dismissLink: (tileUuid: string, ruleId: string) => void;
 };
 
-export const ControlsSidebarContext =
-    createContext<ControlsSidebarContextValue | null>(null);
+export const ControlsEditorContext =
+    createContext<ControlsEditorContextValue | null>(null);
 
 const assertProvided = (
-    context: ControlsSidebarContextValue | null,
-): ControlsSidebarContextValue => {
+    context: ControlsEditorContextValue | null,
+): ControlsEditorContextValue => {
     if (context === null) {
         throw new Error(
-            'useControlsSidebar must be used within a ControlsSidebarProvider',
+            'useControlsEditor must be used within a ControlsEditorProvider',
         );
     }
     return context;
 };
 
 /** The whole value: re-renders on every change. Prefer the selector. */
-export const useControlsSidebar = (): ControlsSidebarContextValue =>
-    assertProvided(useContext(ControlsSidebarContext));
+export const useControlsEditor = (): ControlsEditorContextValue =>
+    assertProvided(useContext(ControlsEditorContext));
 
 /** Re-renders only when the selected slice changes. Callbacks are stable. */
-export const useControlsSidebarSelector = <Selected>(
-    selector: (value: ControlsSidebarContextValue) => Selected,
+export const useControlsEditorSelector = <Selected>(
+    selector: (value: ControlsEditorContextValue) => Selected,
 ): Selected =>
-    useContextSelector(ControlsSidebarContext, (context) =>
+    useContextSelector(ControlsEditorContext, (context) =>
         selector(assertProvided(context)),
     );

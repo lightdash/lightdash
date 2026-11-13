@@ -58,7 +58,7 @@ import {
     isTileInRow,
 } from './peers';
 import { useApplyBlockedReason } from './useApplyBlockedReason';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { useFieldTileActions } from './useFieldTileActions';
 import { useFilterFieldsMap } from './useFilterFieldsMap';
 import { useFilterRuleField } from './useFilterRuleField';
@@ -126,8 +126,8 @@ const AddFieldMenu: FC<{
     const getUiString = useUiStrings();
     const contractClasses = useControlContractClasses();
     const [isOpen, setIsOpen] = useState(false);
-    const applyWithUndo = useControlsSidebarSelector((c) => c.applyWithUndo);
-    const setHighlightedFieldId = useControlsSidebarSelector(
+    const applyWithUndo = useControlsEditorSelector((c) => c.applyWithUndo);
+    const setHighlightedFieldId = useControlsEditorSelector(
         (c) => c.setHighlightedFieldId,
     );
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
@@ -325,22 +325,22 @@ const useBarPill = (
 
 const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
     const getUiString = useUiStrings();
-    const highlightedFieldId = useControlsSidebarSelector(
+    const highlightedFieldId = useControlsEditorSelector(
         (c) => c.highlightedFieldId,
     );
-    const hoveredFieldId = useControlsSidebarSelector((c) => c.hoveredFieldId);
-    const setHighlightedFieldId = useControlsSidebarSelector(
+    const hoveredFieldId = useControlsEditorSelector((c) => c.hoveredFieldId);
+    const setHighlightedFieldId = useControlsEditorSelector(
         (c) => c.setHighlightedFieldId,
     );
-    const clearHighlightedField = useControlsSidebarSelector(
+    const clearHighlightedField = useControlsEditorSelector(
         (c) => c.clearHighlightedField,
     );
-    const setHoveredFieldId = useControlsSidebarSelector(
+    const setHoveredFieldId = useControlsEditorSelector(
         (c) => c.setHoveredFieldId,
     );
-    const cancelMapping = useControlsSidebarSelector((c) => c.cancelMapping);
-    const endMapping = useControlsSidebarSelector((c) => c.endMapping);
-    const close = useControlsSidebarSelector((c) => c.close);
+    const cancelMapping = useControlsEditorSelector((c) => c.cancelMapping);
+    const endMapping = useControlsEditorSelector((c) => c.endMapping);
+    const close = useControlsEditorSelector((c) => c.close);
     const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
     const pill = useBarPill(rule);
     const sqlColumnsByTile = useSqlColumnsByTile(rule);
@@ -527,7 +527,7 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
 // In the filter row's place while tiles are chosen: the back arrow, the open
 // pill, the title with its counts, a chip per field, "Add a field", Cancel and Apply
 export const MappingRow: FC = () => {
-    const rule = useControlsSidebarSelector((c) =>
+    const rule = useControlsEditorSelector((c) =>
         c.isMapping ? c.editingRule : null,
     );
     if (rule === null) return null;

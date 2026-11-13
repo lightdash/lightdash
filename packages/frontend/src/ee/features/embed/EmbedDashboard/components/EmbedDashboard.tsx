@@ -65,7 +65,7 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../../../../../features/dashboard/store';
 import { type ControlContractClassNames } from '../../../../../features/dashboardControls/controlContractClasses';
-import { ControlsSidebarProvider } from '../../../../../features/dashboardControls/ControlsSidebarProvider';
+import { ControlsEditorProvider } from '../../../../../features/dashboardControls/ControlsEditorProvider';
 import { DateZoomTileOverlays } from '../../../../../features/dashboardControls/DateZoomTileOverlay';
 import { DateZoomTilesBar } from '../../../../../features/dashboardControls/DateZoomTilesBar';
 import { FieldTilesBar } from '../../../../../features/dashboardControls/FieldTilesBar';
@@ -1403,7 +1403,7 @@ const EmbedDashboard: FC<{
                 {sharesViewWithAiAgent && (
                     <EmbedDashboardAiAgentContextPublisher />
                 )}
-                <ControlsSidebarProvider
+                <ControlsEditorProvider
                     // No route says the mode in an embed
                     isEditMode={canWriteDashboard && isEditMode}
                     // An editor always authors saved filters
@@ -1509,7 +1509,7 @@ const EmbedDashboard: FC<{
                             <DateZoomTilesBar />
                         </>
                     )}
-                </ControlsSidebarProvider>
+                </ControlsEditorProvider>
             </div>
         </div>
     );

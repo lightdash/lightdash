@@ -4,9 +4,9 @@ import {
 } from '@lightdash/common';
 import { isEqual, isUndefined, omit, omitBy } from 'es-toolkit/compat';
 import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
-import { type ControlsSidebarContextValue } from './useControlsSidebar';
+import { type ControlsEditorContextValue } from './useControlsEditor';
 
-export type ControlsSidebarSnapshot = {
+export type ControlsEditorSnapshot = {
     dashboardFilters: DashboardFilters;
     haveFiltersChanged: boolean;
 };
@@ -18,20 +18,20 @@ export const isPlaceholderRule = (rule: DashboardFilterRule): boolean =>
 
 // Until its field is picked a new filter has no pill: the editor anchors on
 // the section "+" it was started from, else on the bar's "Add filter"
-export const isPickingNewField = (c: ControlsSidebarContextValue) =>
-    c.isSidebarOpen && c.isNew && c.isPlaceholder;
+export const isPickingNewField = (c: ControlsEditorContextValue) =>
+    c.isEditorOpen && c.isNew && c.isPlaceholder;
 
 export const isNewFilterIn = (
-    c: ControlsSidebarContextValue,
+    c: ControlsEditorContextValue,
     sectionIds: string[],
 ): boolean =>
     isPickingNewField(c) && sectionIds.includes(c.editingRule?.sectionId ?? '');
 
 // A folded section renders no pills, so its "+" holds the editor of a member
 export const isEditingIn = (
-    c: ControlsSidebarContextValue,
+    c: ControlsEditorContextValue,
     sectionId: string,
-): boolean => c.isSidebarOpen && c.editingRule?.sectionId === sectionId;
+): boolean => c.isEditorOpen && c.editingRule?.sectionId === sectionId;
 
 export const findFilterRule = (
     filters: DashboardFilters,
@@ -210,7 +210,7 @@ export const applyDraft = (
 
 // What the dashboard's "changed" flag is once the editor is done
 export const haveFiltersChangedSince = (
-    snapshot: ControlsSidebarSnapshot,
+    snapshot: ControlsEditorSnapshot,
     filters: DashboardFilters,
     toSaved: ToSavedRule,
 ): boolean =>

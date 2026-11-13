@@ -128,13 +128,13 @@ vi.mock(
     }),
 );
 // The controls state, which the page provides around the real date zoom pills
-vi.mock('../../../../../features/dashboardControls/useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
+vi.mock('../../../../../features/dashboardControls/useControlsEditor', () => ({
+    useControlsEditorSelector: (
         selector: (c: Record<string, unknown>) => unknown,
     ) =>
         selector({
             isMapping: false,
-            isSidebarOpen: false,
+            isEditorOpen: false,
             isViewer: true,
             requestSwitch: (proceed: () => void) => proceed(),
         }),

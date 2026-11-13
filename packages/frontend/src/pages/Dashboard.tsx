@@ -111,7 +111,7 @@ import {
     useRequiredFiltersNote,
 } from '../features/dashboard/store';
 import TileQueryQueueProvider from '../features/dashboard/tileQueryQueue/TileQueryQueueProvider';
-import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
+import { ControlsEditorPage } from '../features/dashboardControls/ControlsEditorPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
 import { useControlDraftResets } from '../features/dashboardControls/useControlDraftResets';
 import { type EditFiltersVisibility } from '../features/dashboardFilters/EditFiltersVisibilityControl';
@@ -1093,7 +1093,7 @@ const Dashboard: FC = () => {
     const isDashboardControlsEnabled =
         dashboardControlsFlag.data?.enabled === true;
     const DashboardPage = isDashboardControlsEnabled
-        ? ControlsSidebarPage
+        ? ControlsEditorPage
         : Page;
     const dashboardCustomMetricsFlag = useServerFeatureFlag(
         FeatureFlags.DashboardCustomMetrics,

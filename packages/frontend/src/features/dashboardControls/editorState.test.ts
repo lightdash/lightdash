@@ -18,7 +18,7 @@ import {
     restoreFilterRule,
     restoreFilterRules,
     withFilterRuleLabel,
-} from './sidebarState';
+} from './editorState';
 
 const rule = (id: string, values: unknown[]): DashboardFilterRule => ({
     id,
@@ -36,7 +36,7 @@ const filters: DashboardFilters = {
     tableCalculations: [],
 };
 
-describe('sidebarState', () => {
+describe('editorState', () => {
     it('finds a rule among dimensions and metrics', () => {
         expect(findFilterRule(filters, 'a')?.id).toBe('a');
         expect(findFilterRule(filters, 'm')?.id).toBe('m');

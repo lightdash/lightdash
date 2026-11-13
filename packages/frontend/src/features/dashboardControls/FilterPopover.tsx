@@ -58,6 +58,7 @@ import {
     focusStringValueOnMount,
     focusValueOnMount,
 } from './editorFocus';
+import { withFilterRuleLabel } from './editorState';
 import { formatTileCount, formatTilesOf } from './fieldLabels';
 import classes from './FilterEditor.module.css';
 import { FilterValueSettings, LockedRequiredNote } from './FilterValueSettings';
@@ -66,7 +67,6 @@ import { useRefocusAfter } from './nameFocus';
 import { NameInput } from './NameInput';
 import { SectionSetting } from './SectionSetting';
 import { getSettingsSummary } from './settingsSummary';
-import { withFilterRuleLabel } from './sidebarState';
 import { getApplyBlockedReason } from './useApplyBlockedReason';
 import { useRuleEdits } from './useRuleEdits';
 import { useSettingsChipFocus } from './useSettingsChipFocus';

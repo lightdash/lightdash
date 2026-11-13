@@ -37,7 +37,7 @@ import {
 } from './dateZoomControls';
 import { EditorFocusReturn, type FocusTarget } from './EditorFocusReturn';
 import { useOrderSectionChanges } from './useControlOrder';
-import { type FieldApply } from './useControlsSidebar';
+import { type FieldApply } from './useControlsEditor';
 import {
     DateZoomEditorContext,
     useDateZoomEditorSelector,

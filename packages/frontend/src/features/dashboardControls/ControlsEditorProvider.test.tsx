@@ -42,14 +42,14 @@ import {
     getFilterRuleWithDisabledState,
     getFilterRuleWithRequired,
 } from '../dashboardFilters/FilterConfiguration/utils';
-import { ControlsSidebarProvider } from './ControlsSidebarProvider';
+import { ControlsEditorProvider } from './ControlsEditorProvider';
+import { isNewFilterIn } from './editorState';
 import { getFieldCount, setTileField, type FieldsByTile } from './peers';
-import { isNewFilterIn } from './sidebarState';
 import {
-    useControlsSidebar,
-    useControlsSidebarSelector,
-    type ControlsSidebarContextValue,
-} from './useControlsSidebar';
+    useControlsEditor,
+    useControlsEditorSelector,
+    type ControlsEditorContextValue,
+} from './useControlsEditor';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -244,9 +244,9 @@ const DashboardState: FC<
     latest.changed = haveFiltersChanged;
     return (
         <MantineProvider>
-            <ControlsSidebarProvider isEditMode={providerMode.isEditMode}>
+            <ControlsEditorProvider isEditMode={providerMode.isEditMode}>
                 {children}
-            </ControlsSidebarProvider>
+            </ControlsEditorProvider>
         </MantineProvider>
     );
 };
@@ -268,11 +268,10 @@ const Wrapper: FC<PropsWithChildren> = ({ children }) => {
     );
 };
 
-const setup = () =>
-    renderHook(() => useControlsSidebar(), { wrapper: Wrapper });
+const setup = () => renderHook(() => useControlsEditor(), { wrapper: Wrapper });
 
 // The rule the editor holds, which only Apply puts on the dashboard
-const editedRule = (context: ControlsSidebarContextValue) => {
+const editedRule = (context: ControlsEditorContextValue) => {
     if (context.editingRule === null) throw new Error('expected an edit');
     return context.editingRule;
 };
@@ -298,7 +297,7 @@ const excludeTileFromB = (filters: DashboardFilters): DashboardFilters => ({
     ),
 });
 
-describe('ControlsSidebarProvider', () => {
+describe('ControlsEditorProvider', () => {
     beforeEach(() => {
         saved.filters = initialFilters;
         latest.filters = initialFilters;
@@ -329,7 +328,7 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.discard());
         expect(latest.filters).toEqual(initialFilters);
         expect(latest.changed).toBe(false);
-        expect(result.current.isSidebarOpen).toBe(false);
+        expect(result.current.isEditorOpen).toBe(false);
     });
 
     it('writes the draft once on Apply and closes', () => {
@@ -397,7 +396,7 @@ describe('ControlsSidebarProvider', () => {
 
             act(() => result.current.startMapping());
             expect(result.current.isMapping).toBe(true);
-            expect(result.current.isSidebarOpen).toBe(true);
+            expect(result.current.isEditorOpen).toBe(true);
             expect(editedRule(result.current).values).toEqual(['9']);
             expect(latest.filters).toEqual(initialFilters);
         });
@@ -448,7 +447,7 @@ describe('ControlsSidebarProvider', () => {
 
             act(() => result.current.cancelMapping());
             expect(result.current.isMapping).toBe(false);
-            expect(result.current.isSidebarOpen).toBe(true);
+            expect(result.current.isEditorOpen).toBe(true);
             expect(editedRule(result.current)).toEqual(rule('a', ['9']));
             expect(latest.filters).toEqual(initialFilters);
         });
@@ -464,7 +463,7 @@ describe('ControlsSidebarProvider', () => {
 
             act(() => result.current.endMapping());
             expect(result.current.isMapping).toBe(false);
-            expect(result.current.isSidebarOpen).toBe(true);
+            expect(result.current.isEditorOpen).toBe(true);
             expect(editedRule(result.current)).toEqual(
                 withTargets(['9'], { t1: false }),
             );
@@ -510,7 +509,7 @@ describe('ControlsSidebarProvider', () => {
 
             pressEscapeInRow();
             expect(result.current.isMapping).toBe(false);
-            expect(result.current.isSidebarOpen).toBe(true);
+            expect(result.current.isEditorOpen).toBe(true);
             expect(editedRule(result.current)).toEqual(rule('a', ['1']));
         });
 
@@ -557,7 +556,7 @@ describe('ControlsSidebarProvider', () => {
             const { result } = setup();
             act(() => result.current.open('a'));
             act(() => result.current.open('a'));
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
 
             act(() => result.current.open('a'));
             act(() => result.current.updateFilter(rule('a', ['9'])));
@@ -611,7 +610,7 @@ describe('ControlsSidebarProvider', () => {
             const proceed = vi.fn();
             act(() => result.current.open('a'));
             act(() => result.current.requestSwitch(proceed));
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(proceed).toHaveBeenCalledTimes(1);
 
             act(() => result.current.open('a'));
@@ -621,7 +620,7 @@ describe('ControlsSidebarProvider', () => {
             expect(proceed).toHaveBeenCalledTimes(1);
             act(() => result.current.resolvePending(true));
             expect(latest.filters.dimensions[0].values).toEqual(['9']);
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(proceed).toHaveBeenCalledTimes(2);
         });
 
@@ -654,7 +653,7 @@ describe('ControlsSidebarProvider', () => {
             act(() => result.current.updateOtherFilters([rule('b', ['x'])]));
             act(() => result.current.removeFilterById('a'));
             expect(latest.filters.dimensions).toEqual([rule('b', ['2'])]);
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(result.current.editing).toBeNull();
         });
 
@@ -674,7 +673,7 @@ describe('ControlsSidebarProvider', () => {
                 ...filters,
                 dimensions: filters.dimensions.filter((r) => r.id !== 'a'),
             }));
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             act(() => result.current.open('b'));
             expect(result.current.editing).toEqual({ filterId: 'b' });
             expect(result.current.isAsking).toBe(false);
@@ -687,7 +686,7 @@ describe('ControlsSidebarProvider', () => {
             act(() => result.current.open('b'));
             mockParams.current = { mode: 'view' };
             rerender();
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(result.current.isAsking).toBe(false);
             expect(latest.filters.dimensions[0].values).toEqual(['9']);
         });
@@ -885,7 +884,7 @@ describe('ControlsSidebarProvider', () => {
             dragIntoSection('a', 's');
             expect(result.current.isDirty).toBe(false);
             act(() => result.current.open('a'));
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
 
             act(() => result.current.open('a'));
             act(() =>
@@ -922,7 +921,7 @@ describe('ControlsSidebarProvider', () => {
         const { result } = setup();
         act(() => result.current.openNew());
         act(() => result.current.close());
-        expect(result.current.isSidebarOpen).toBe(false);
+        expect(result.current.isEditorOpen).toBe(false);
         expect(latest.filters).toEqual(initialFilters);
         expect(latest.changed).toBe(false);
     });
@@ -1284,7 +1283,7 @@ describe('ControlsSidebarProvider', () => {
             };
         });
 
-        it('picked in the sidebar filters every tile that offers it', () => {
+        it('picked in the editor filters every tile that offers it', () => {
             const { result } = start();
 
             act(() => result.current.addFirstField(statusField));
@@ -1320,7 +1319,7 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.filters).toEqual(initialFilters);
 
             act(() => result.current.discard());
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(latest.filters).toEqual(initialFilters);
             expect(latest.changed).toBe(false);
         });
@@ -1334,7 +1333,7 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.editing).toEqual({ filterId: id });
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
-        expect(result.current.isSidebarOpen).toBe(true);
+        expect(result.current.isEditorOpen).toBe(true);
     });
 
     it('Add leaves a placeholder with a typed label as it is', () => {
@@ -1376,7 +1375,7 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.discard());
         expect(latest.filters.dimensions[0].values).toEqual(['9']);
         expect(latest.changed).toBe(true);
-        expect(result.current.isSidebarOpen).toBe(false);
+        expect(result.current.isEditorOpen).toBe(false);
     });
 
     it('Add turns off an empty default value on the filter it closes', () => {
@@ -1419,7 +1418,7 @@ describe('ControlsSidebarProvider', () => {
             const { result } = setup();
             act(() => result.current.open('a'));
             fireEvent.pointerDown(document.body);
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
         });
 
         it('discards unapplied changes as Cancel does, with no question', () => {
@@ -1428,7 +1427,7 @@ describe('ControlsSidebarProvider', () => {
             act(() => result.current.updateFilter(rule('a', ['9'])));
             fireEvent.pointerDown(document.body);
             expect(result.current.isAsking).toBe(false);
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(latest.filters).toEqual(initialFilters);
             expect(
                 tracksOf(EventName.DASHBOARD_FILTER_EDITOR_CLOSED).map(
@@ -1453,7 +1452,7 @@ describe('ControlsSidebarProvider', () => {
             expect(result.current.isAsking).toBe(true);
             fireEvent.pointerDown(document.body);
             expect(result.current.isAsking).toBe(false);
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(latest.filters).toEqual(initialFilters);
         });
     });
@@ -1649,10 +1648,10 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.changed).toBe(true);
         });
 
-        it('close the sidebar when they take the edited rule away', () => {
+        it('close the editor when they take the edited rule away', () => {
             const { result } = setup();
             act(() => result.current.open('a'));
-            expect(result.current.isSidebarOpen).toBe(true);
+            expect(result.current.isEditorOpen).toBe(true);
 
             writeOutsideTheEditor((filters) => ({
                 ...filters,
@@ -1660,13 +1659,13 @@ describe('ControlsSidebarProvider', () => {
             }));
 
             expect(result.current.editingRule).toBeNull();
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
 
             // The next open starts over, and the rule that was taken away
             // stays away
             act(() => result.current.open('b'));
             expect(result.current.editing).toEqual({ filterId: 'b' });
-            expect(result.current.isSidebarOpen).toBe(true);
+            expect(result.current.isEditorOpen).toBe(true);
             expect(latest.filters.dimensions).toEqual([rule('b', ['2'])]);
             expect(latest.changed).toBe(true);
         });
@@ -1700,7 +1699,7 @@ describe('ControlsSidebarProvider', () => {
 
         act(() => result.current.addFirstField(statusField));
         expect(result.current.isPlaceholder).toBe(false);
-        expect(result.current.isSidebarOpen).toBe(true);
+        expect(result.current.isEditorOpen).toBe(true);
         expect(result.current.editingRule).toMatchObject({
             id,
             target: { fieldId: 'orders_status' },
@@ -1711,7 +1710,7 @@ describe('ControlsSidebarProvider', () => {
             dimensions: filters.dimensions.filter((r) => r.id !== 'b'),
         }));
         expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['a']);
-        expect(result.current.isSidebarOpen).toBe(true);
+        expect(result.current.isEditorOpen).toBe(true);
         act(() => result.current.close());
         expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['a', id]);
     });
@@ -2066,7 +2065,7 @@ describe('ControlsSidebarProvider', () => {
         it('leaves the control open and empty, with its id and label', () => {
             const { result } = openEmptied();
 
-            expect(result.current.isSidebarOpen).toBe(true);
+            expect(result.current.isEditorOpen).toBe(true);
             expect(result.current.editing).toEqual({ filterId: 'a' });
             expect(result.current.isPlaceholder).toBe(true);
             expect(result.current.isNew).toBe(false);
@@ -2215,7 +2214,7 @@ describe('ControlsSidebarProvider', () => {
             const { result } = openEmptied();
             act(() => result.current.close());
 
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(latest.filters.dimensions).toEqual([rule('b', ['2'])]);
             expect(latest.changed).toBe(true);
         });
@@ -2224,7 +2223,7 @@ describe('ControlsSidebarProvider', () => {
             const { result } = openEmptied();
             act(() => result.current.discard());
 
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(latest.filters).toEqual(initialFilters);
             expect(latest.changed).toBe(false);
         });
@@ -2277,7 +2276,7 @@ describe('ControlsSidebarProvider', () => {
             act(() => result.current.removeLastField('Status'));
             act(() => result.current.discard());
 
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(latest.filters).toEqual(initialFilters);
             expect(latest.changed).toBe(false);
         });
@@ -2365,7 +2364,7 @@ describe('ControlsSidebarProvider', () => {
         expect(latest.filters.dimensions).toHaveLength(3);
         expect(latest.filters.dimensions[2].label).toBeUndefined();
         expect(latest.changed).toBe(true);
-        expect(result.current.isSidebarOpen).toBe(false);
+        expect(result.current.isEditorOpen).toBe(false);
     });
 
     it('closing with a default value switched on but empty turns it off', () => {
@@ -2484,7 +2483,7 @@ describe('ControlsSidebarProvider', () => {
             };
             // Status on t2, Region on t1; then Region on both
             const applyRegionToAll = (result: {
-                current: ControlsSidebarContextValue;
+                current: ControlsEditorContextValue;
             }) => {
                 act(() => result.current.open('a'));
                 act(() =>
@@ -2768,7 +2767,7 @@ describe('ControlsSidebarProvider', () => {
                     acrossTabs: false,
                 };
                 const clearRegion = (result: {
-                    current: ControlsSidebarContextValue;
+                    current: ControlsEditorContextValue;
                 }) => {
                     act(() => result.current.open('a'));
                     act(() =>
@@ -3000,7 +2999,7 @@ describe('ControlsSidebarProvider', () => {
 
         expect(latest.filters.dimensions).toHaveLength(3);
         expect(latest.filters.dimensions[2].label).toBe('S');
-        expect(result.current.isSidebarOpen).toBe(false);
+        expect(result.current.isEditorOpen).toBe(false);
     });
 
     it('keeps every callback stable across edits, hovers and other controls', () => {
@@ -3015,7 +3014,7 @@ describe('ControlsSidebarProvider', () => {
         expect(Object.keys(initial)).toHaveLength(24);
         expect(initial).toHaveProperty('endMapping');
         expect(initial).toHaveProperty('updateOtherFilters');
-        // A pill hover marks tiles only; nothing in the sidebar follows it
+        // A pill hover marks tiles only; nothing in the editor follows it
         expect(initial).not.toHaveProperty('setHoveredFilterId');
         expect(initial).toHaveProperty('removeLastField');
         expect(initial).toHaveProperty('addFirstSqlColumn');
@@ -3038,7 +3037,7 @@ describe('ControlsSidebarProvider', () => {
 
     it('re-renders below a selector only when its slice changes', () => {
         const renders = { whole: 0, sliced: 0 };
-        const sidebar: { current: ControlsSidebarContextValue | null } = {
+        const editor: { current: ControlsEditorContextValue | null } = {
             current: null,
         };
         // A bailed-out consumer never reaches its children
@@ -3047,12 +3046,12 @@ describe('ControlsSidebarProvider', () => {
             return null;
         };
         const Whole: FC = () => {
-            sidebar.current = useControlsSidebar();
+            editor.current = useControlsEditor();
             return <Probe name="whole" />;
         };
         const Sliced: FC = () => {
-            useControlsSidebarSelector((c) => c.editing);
-            useControlsSidebarSelector((c) => c.updateFilter);
+            useControlsEditorSelector((c) => c.editing);
+            useControlsEditorSelector((c) => c.updateFilter);
             return <Probe name="sliced" />;
         };
         render(
@@ -3062,8 +3061,8 @@ describe('ControlsSidebarProvider', () => {
             </Wrapper>,
         );
         const current = () => {
-            if (sidebar.current === null) throw new Error('not rendered');
-            return sidebar.current;
+            if (editor.current === null) throw new Error('not rendered');
+            return editor.current;
         };
 
         act(() => current().open('a'));
@@ -3356,7 +3355,7 @@ const withValue = (filterRule: DashboardFilterRule): DashboardFilterRule => ({
     disabled: false,
 });
 
-describe('ControlsSidebarProvider in view mode', () => {
+describe('ControlsEditorProvider in view mode', () => {
     beforeEach(() => {
         saved.filters = initialFilters;
         latest.filters = initialFilters;
@@ -3460,7 +3459,7 @@ describe('ControlsSidebarProvider in view mode', () => {
         act(() => result.current.discard());
         expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
         expect(latest.changed).toBe(false);
-        expect(result.current.isSidebarOpen).toBe(false);
+        expect(result.current.isEditorOpen).toBe(false);
         expect(addFilterTracks()).toHaveLength(0);
     });
 
@@ -3483,7 +3482,7 @@ describe('ControlsSidebarProvider in view mode', () => {
         expect(latest.temporaryFilters.dimensions.map((r) => r.id)).toEqual([
             'own',
         ]);
-        expect(result.current.isSidebarOpen).toBe(false);
+        expect(result.current.isEditorOpen).toBe(false);
     });
 
     it('the X of their edited filter removes it and closes the editor', () => {
@@ -3494,7 +3493,7 @@ describe('ControlsSidebarProvider in view mode', () => {
         expect(latest.temporaryFilters.dimensions.map((r) => r.id)).toEqual([
             'two',
         ]);
-        expect(result.current.isSidebarOpen).toBe(false);
+        expect(result.current.isEditorOpen).toBe(false);
     });
 
     it("edits, puts back and removes a viewer's own filter", () => {
@@ -3592,7 +3591,7 @@ describe('ControlsSidebarProvider in view mode', () => {
     it('opens a saved filter and applies it as the shipped popover does, never to their own filters', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
-        expect(result.current.isSidebarOpen).toBe(true);
+        expect(result.current.isEditorOpen).toBe(true);
         act(() =>
             result.current.updateFilter(
                 getFilterRuleWithDisabledState(rule('a', ['9']), false),
@@ -3604,7 +3603,7 @@ describe('ControlsSidebarProvider in view mode', () => {
         expect(latest.filters.dimensions[0].values).toEqual(['9']);
         expect(latest.filters.dimensions[1]).toBe(initialFilters.dimensions[1]);
         expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
-        expect(result.current.isSidebarOpen).toBe(false);
+        expect(result.current.isEditorOpen).toBe(false);
     });
 
     it('drops a draft of a saved filter on Cancel', () => {
@@ -3639,7 +3638,7 @@ describe('ControlsSidebarProvider in view mode', () => {
             act(() => result.current.openNew());
             mockParams.current = { mode: 'edit' };
             rerender();
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(result.current.editingRule).toBeNull();
             expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
             expect(latest.filters).toEqual(initialFilters);
@@ -3647,7 +3646,7 @@ describe('ControlsSidebarProvider in view mode', () => {
 
             mockParams.current = { mode: 'view' };
             rerender();
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
         });
 
         it('keeps a new viewer filter with no value as any value', () => {
@@ -3656,7 +3655,7 @@ describe('ControlsSidebarProvider in view mode', () => {
             act(() => result.current.addFirstField(statusField));
             mockParams.current = { mode: 'edit' };
             rerender();
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(latest.temporaryFilters.dimensions).toEqual([
                 expect.objectContaining({ disabled: true }),
             ]);
@@ -3674,7 +3673,7 @@ describe('ControlsSidebarProvider in view mode', () => {
             );
             mockParams.current = { mode: 'edit' };
             rerender();
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(latest.temporaryFilters.dimensions).toHaveLength(1);
             expect(latest.filters).toEqual(initialFilters);
             expect(mockTrack).toHaveBeenCalledWith({
@@ -3685,7 +3684,7 @@ describe('ControlsSidebarProvider in view mode', () => {
             mockParams.current = { mode: 'view' };
             rerender();
             expect(latest.temporaryFilters.dimensions).toHaveLength(1);
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
         });
 
         it('keeps an editor filter in the saved filters on the way back to view mode', () => {
@@ -3701,7 +3700,7 @@ describe('ControlsSidebarProvider in view mode', () => {
                 name: EventName.ADD_FILTER_CLICKED,
                 properties: { mode: 'edit' },
             });
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
         });
 
         it('follows the mode an embed gives it, where no route says one', () => {
@@ -3720,13 +3719,13 @@ describe('ControlsSidebarProvider in view mode', () => {
             providerMode.isEditMode = true;
             rerender();
             expect(result.current.isViewer).toBe(false);
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(result.current.editing).toBeNull();
             expect(latest.temporaryFilters.dimensions).toHaveLength(1);
 
             providerMode.isEditMode = false;
             rerender();
-            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isEditorOpen).toBe(false);
             expect(result.current.editing).toBeNull();
         });
     });
@@ -3734,10 +3733,10 @@ describe('ControlsSidebarProvider in view mode', () => {
     it('closes the editor when the dashboard enters edit mode', () => {
         const { result, rerender } = setup();
         act(() => result.current.openNew());
-        expect(result.current.isSidebarOpen).toBe(true);
+        expect(result.current.isEditorOpen).toBe(true);
         mockParams.current = { mode: 'edit' };
         rerender();
-        expect(result.current.isSidebarOpen).toBe(false);
+        expect(result.current.isEditorOpen).toBe(false);
         expect(result.current.isViewer).toBe(false);
     });
 });
