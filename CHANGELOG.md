@@ -1,3 +1,10 @@
+# [3.251.0](https://github.com/lightdash/lightdash/compare/3.250.0...3.251.0) (2026-11-13)
+
+
+### Features
+
+* **mobile:** one-code mobile sign-in on Cloud ([#32502](https://github.com/lightdash/lightdash/issues/32502)) ([4a4e0b2](https://github.com/lightdash/lightdash/commit/4a4e0b2e9eb5c78b57368abd5cd0b57e5a1830b8))
+
 # [3.250.0](https://github.com/lightdash/lightdash/compare/3.249.0...3.250.0) (2026-11-13)
 
 
