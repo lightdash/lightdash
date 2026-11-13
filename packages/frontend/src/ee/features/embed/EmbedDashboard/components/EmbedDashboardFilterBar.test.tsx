@@ -80,14 +80,17 @@ vi.mock('../../../../../features/dashboardControls/SectionedFilters', () => ({
         viewerActions,
         editorActions,
         triggerClassName,
+        hiddenFilters = [],
     }: {
         viewerActions?: ReactNode;
         editorActions?: ReactNode;
         triggerClassName?: string;
+        hiddenFilters?: { id: string }[];
     }) => (
         <div
             data-testid="sectioned-filters"
             data-editor={editorActions !== undefined || undefined}
+            data-hidden-filters={hiddenFilters.map(({ id }) => id).join(',')}
             className={triggerClassName}
         >
             {viewerActions}
@@ -168,6 +171,7 @@ vi.mock('../../../../../features/dateZoom', () => ({
 const dashboard = (canAddFilters: boolean, areParametersEnabled = false) =>
     ({
         uuid: 'dashboard-1',
+        filters: { dimensions: [], metrics: [], tableCalculations: [] },
         canDateZoom: false,
         dashboardFiltersInteractivity: {
             enabled: FilterInteractivityValues.all,
@@ -333,10 +337,12 @@ describe('EmbedDashboardFilterBar', () => {
             canDateZoom,
             areParametersEnabled,
             isControlsEnabled = true,
+            token = {},
         }: {
             canDateZoom: boolean;
             areParametersEnabled: boolean;
             isControlsEnabled?: boolean;
+            token?: Partial<Dashboard & InteractivityOptions>;
         }) => {
             // A flat dashboard: no sections, no stored order
             const store = createDashboardTestStore({
@@ -359,6 +365,7 @@ describe('EmbedDashboardFilterBar', () => {
                             // Viewers may not add filters; an editor always can
                             ...dashboard(false, areParametersEnabled),
                             canDateZoom,
+                            ...token,
                         }}
                         shouldShowFilters
                         activeTiles={[]}
@@ -408,6 +415,45 @@ describe('EmbedDashboardFilterBar', () => {
                 expect(add).toHaveAttribute(
                     'data-with-parameters',
                     String(areParametersEnabled),
+                );
+            },
+        );
+
+        it.each([
+            {
+                enabled: FilterInteractivityValues.some,
+                allowedFilters: ['saved'],
+                hidden: 'hidden',
+            },
+            {
+                enabled: FilterInteractivityValues.all,
+                allowedFilters: undefined,
+                hidden: '',
+            },
+        ])(
+            'tells the sections which saved filters the token hides ($enabled)',
+            ({ enabled, allowedFilters, hidden }) => {
+                renderEditor({
+                    canDateZoom: false,
+                    areParametersEnabled: false,
+                    token: {
+                        filters: {
+                            dimensions: [
+                                { ...savedRule, id: 'hidden', sectionId: 'a' },
+                                savedRule,
+                            ],
+                            metrics: [{ ...savedRule, id: 'metric' }],
+                            tableCalculations: [],
+                        },
+                        dashboardFiltersInteractivity: {
+                            enabled,
+                            allowedFilters,
+                        },
+                    },
+                });
+                expect(screen.getByTestId('sectioned-filters')).toHaveAttribute(
+                    'data-hidden-filters',
+                    hidden,
                 );
             },
         );

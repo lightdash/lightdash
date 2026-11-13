@@ -2,6 +2,7 @@ import {
     FilterInteractivityValues,
     getFilterInteractivityValue,
     type Dashboard,
+    type DashboardFilterRule,
     type DashboardFilters,
     type InteractivityOptions,
 } from '@lightdash/common';
@@ -40,4 +41,27 @@ export const applyEmbedFilterInteractivity = (
 
     // If 'all', return filters as-is
     return filters;
+};
+
+const allRules = (filters: DashboardFilters): DashboardFilterRule[] => [
+    ...filters.dimensions,
+    ...filters.metrics,
+    ...filters.tableCalculations,
+];
+
+/** The saved rules an embedded dashboard's token keeps out of the store */
+export const getEmbedHiddenFilters = (
+    embedDashboard: Dashboard & InteractivityOptions,
+): DashboardFilterRule[] => {
+    const shownIds = new Set(
+        allRules(
+            applyEmbedFilterInteractivity(
+                embedDashboard.filters,
+                embedDashboard,
+            ),
+        ).map(({ id }) => id),
+    );
+    return allRules(embedDashboard.filters).filter(
+        ({ id }) => !shownIds.has(id),
+    );
 };
