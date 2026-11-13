@@ -219,7 +219,6 @@ export const SaveComposerChartModal: FC<Props> = ({
                     hideTitle: chart.chartConfig.type === ChartType.BIG_NUMBER,
                     composerChartUuid: composerChart.uuid,
                     chartName: values.name,
-                    chartSlug: composerChart.slug,
                 },
                 ...getDefaultChartTileSize(chart.chartConfig.type),
             };

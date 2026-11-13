@@ -96,7 +96,6 @@ describe('composer charts follow their dashboard on the real schema', () => {
                             title: 'Orders',
                             composerChartUuid,
                             chartName: null,
-                            chartSlug: null,
                         },
                     },
                 ],
@@ -155,6 +154,40 @@ describe('composer charts follow their dashboard on the real schema', () => {
         await expect(composerChartModel.get(deletedEarlier)).rejects.toThrow(
             NotFoundError,
         );
+    });
+
+    it('revives a deleted chart in place when an upload names its slug', async () => {
+        const { dashboard: oldOwner, composerChartUuid } =
+            await createDashboardWithChart();
+        const { dashboard: newOwner } = await createDashboardWithChart();
+        const { slug } = await composerChartModel.get(composerChartUuid);
+        await dashboardModel.softDelete(oldOwner.uuid, fixture.userUuid);
+
+        const existing = await composerChartModel.findIdentityBySlug(
+            fixture.projectUuid,
+            slug,
+        );
+        expect(existing).toEqual({ uuid: composerChartUuid, deleted: true });
+        await composerChartModel.writeFromCode({
+            existing,
+            slug,
+            projectUuid: fixture.projectUuid,
+            dashboardUuid: newOwner.uuid,
+            name: 'Revived',
+            description: null,
+            pipeline: pipeline('select status, 2 as total from orders'),
+            chart: storedChart,
+            createdByUserUuid: fixture.userUuid,
+        });
+
+        await expect(
+            composerChartModel.get(composerChartUuid),
+        ).resolves.toMatchObject({
+            slug,
+            name: 'Revived',
+            dashboardUuid: newOwner.uuid,
+            pipeline: pipeline('select status, 2 as total from orders'),
+        });
     });
 
     it('rolls a chart back to its version as of a dashboard version, to the microsecond', async () => {

@@ -87,8 +87,8 @@ describe('composer chart tiles uploaded as code', () => {
             resolve([uploaded('mine')], {
                 flagEnabled: false,
                 shownChartUuids: new Set(['mine-uuid']),
-            }),
-        ).toHaveLength(1);
+            })[0].properties,
+        ).toMatchObject({ composerChartUuid: 'mine-uuid' });
     });
 
     it('refuses a new tile when composer charts are off, naming the slug', () => {

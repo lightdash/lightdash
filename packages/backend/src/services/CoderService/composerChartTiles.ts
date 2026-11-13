@@ -20,7 +20,7 @@ export const toComposerChartTileAsCode = (
     { x, y, h, w, properties }: DashboardComposerChartTile,
     slugs: Pick<DashboardComposerChartTileAsCode, 'tabSlug' | 'tileSlug'>,
 ): DashboardComposerChartTileAsCode | null =>
-    properties.chartSlug === null
+    !properties.chartSlug
         ? null
         : {
               uuid: undefined,
