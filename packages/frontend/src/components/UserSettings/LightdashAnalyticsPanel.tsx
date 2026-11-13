@@ -73,7 +73,7 @@ const LightdashAnalyticsPanel = ({
         status.isSuccess && analyticsProject && projectUrlIdentifier;
     const heading = (
         <Stack gap="xs">
-            <Title order={1}>Usage analytics</Title>
+            <Title order={1}>Lightdash analytics</Title>
             <Text fz="sm" c="dimmed">
                 Track adoption and usage.
             </Text>
