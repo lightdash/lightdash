@@ -1,3 +1,11 @@
+# [3.241.0](https://github.com/lightdash/lightdash/compare/3.240.5...3.241.0) (2026-11-13)
+
+
+### Features
+
+* **embed:** give embed editors the dashboard controls editor ([#32500](https://github.com/lightdash/lightdash/issues/32500)) ([06337f7](https://github.com/lightdash/lightdash/commit/06337f789b93cc99bccefe66dac643df43453993))
+* **embed:** translate dashboard control names in embeds ([#32504](https://github.com/lightdash/lightdash/issues/32504)) ([7b2f8be](https://github.com/lightdash/lightdash/commit/7b2f8be7add849a6957dfc13e00442e92772e4bd))
+
 ## [3.240.5](https://github.com/lightdash/lightdash/compare/3.240.4...3.240.5) (2026-11-13)
 
 
