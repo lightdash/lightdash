@@ -220,6 +220,7 @@ describe('dashboard screenshots with composer chart tiles', () => {
             title: uuid,
             composerChartUuid: `chart-${uuid}`,
             chartName: null,
+            chartSlug: null,
         },
     });
 

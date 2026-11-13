@@ -88,6 +88,7 @@ describe('composer chart tiles in DashboardModel on the real schema', () => {
                         title: 'Orders',
                         composerChartUuid,
                         chartName: null,
+                        chartSlug: null,
                     },
                 },
             ]),
