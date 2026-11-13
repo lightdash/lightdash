@@ -163,6 +163,7 @@ import {
     type CalculateTotalKind,
     type CompiledCustomSqlDimension,
     type CompiledMetric,
+    type ComposerChartRunSource,
     type CustomDimension,
     type DocumentQueryReference,
     type DocumentSqlChart,
@@ -365,6 +366,7 @@ import type {
 } from '../CacheService/ICacheService';
 import { cacheMiss, CreateCacheResult } from '../CacheService/types';
 import type { CacheHitCacheResult } from '../CacheService/types';
+import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
 import { CsvService } from '../CsvService/CsvService';
 import { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import type { DocumentService } from '../DocumentService/DocumentService';
@@ -519,10 +521,15 @@ import {
     EstimateAsyncMetricQueryArgs,
     EstimateAsyncSqlQueryArgs,
     ExecuteAsyncSqlQueryArgs,
+    getComposerChartSource,
+    getDocumentQueryContext,
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
+    REQUEST_AUTHORITY,
     type BoundDuckdbQueryReferences,
     type CommonAsyncQueryArgs,
+    type ComposerAuthority,
+    type DocumentAuthority,
     type DownloadAsyncQueryResultsArgs,
     type DuckdbQueryColumns,
     type DuckdbQueryEngine,
@@ -548,6 +555,7 @@ import {
     type PreAggregateExecutionEngine,
     type PreAggregationRoute,
     type QueryHistoryActor,
+    type RequestAuthority,
     type RunAsyncPreAggregateQueryArgs,
     type RunAsyncWarehouseQueryArgs,
     type RunDuckdbQueryArgs,
@@ -659,6 +667,7 @@ type AsyncQueryExecutionPlan =
 
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
     getDocumentService: () => DocumentService;
+    getComposerChartService: () => Pick<ComposerChartService, 'assertCanView'>;
     contentDraftModel: ContentDraftModel;
     queryHistoryModel: QueryHistoryModel;
     downloadAuditModel: DownloadAuditModel;
@@ -710,6 +719,7 @@ type ExecuteAsyncQueryArgs = Pick<
     resultSource?: NonNullable<
         QueryHistory['requestParameters']['resultSource']
     >;
+    composerChartSource?: ComposerChartRunSource;
     identityEnabled?: boolean;
     // Single SQL seam: metric paths pass a QueryComposer, SQL-chart
     // paths a SqlQueryComposer — getSql() owns pivot wrapping for both.
@@ -912,6 +922,8 @@ export class AsyncQueryService extends ProjectService {
     private readonly getQuerySourceService: () => QuerySourceService;
     private readonly getDocumentService: () => DocumentService;
 
+    private readonly getComposerChartService: AsyncQueryServiceArguments['getComposerChartService'];
+
     protected readonly preAggregateStrategy: PreAggregateStrategy;
 
     private readonly externalSourceTableResolver: AsyncQueryServiceArguments['externalSourceTableResolver'];
@@ -936,6 +948,7 @@ export class AsyncQueryService extends ProjectService {
         this.composeEngineClient = args.composeEngineClient;
         this.getQuerySourceService = args.getQuerySourceService;
         this.getDocumentService = args.getDocumentService;
+        this.getComposerChartService = args.getComposerChartService;
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
         this.externalSourceTableResolver = args.externalSourceTableResolver;
@@ -2137,6 +2150,23 @@ export class AsyncQueryService extends ProjectService {
                     checkedContent.add(key);
                 }
             }
+            const composerSource = parameters?.composerChartSource;
+            if (
+                composerSource &&
+                !checkedContent.has(
+                    `composer:${composerSource.composerChartUuid}`,
+                )
+            ) {
+                assertRegisteredAccount(fresh);
+                await this.getComposerChartService().assertCanView(
+                    fresh,
+                    projectUuid,
+                    composerSource.composerChartUuid,
+                );
+                checkedContent.add(
+                    `composer:${composerSource.composerChartUuid}`,
+                );
+            }
             if (chartUuid && !checkedContent.has(`chart:${chartUuid}`)) {
                 await this.assertSavedChartQuerySourceAccess(
                     fresh,
@@ -2423,6 +2453,16 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 queryHistory.requestParameters.documentSource.documentUuid,
+            );
+        }
+        const composerSource =
+            queryHistory.requestParameters?.composerChartSource;
+        if (composerSource) {
+            assertRegisteredAccount(account);
+            await this.getComposerChartService().assertCanView(
+                account,
+                projectUuid,
+                composerSource.composerChartUuid,
             );
         }
         const { chartUuid, references } = getQuerySourceParameters(
@@ -4827,7 +4867,11 @@ export class AsyncQueryService extends ProjectService {
             dashboardTileId:
                 'tileUuid' in history.requestParameters
                     ? (history.requestParameters.tileUuid ?? null)
-                    : null,
+                    : (trustedResultParameters.composerChartSource?.tileUuid ??
+                      null),
+            ...(trustedResultParameters.composerChartSource
+                ? { chartKind: 'composer_chart' as const }
+                : {}),
         };
         const enriched = {
             ...history,
@@ -6976,6 +7020,8 @@ export class AsyncQueryService extends ProjectService {
                                                   resultEffectiveParameters,
                                                   resultSource:
                                                       args.resultSource,
+                                                  composerChartSource:
+                                                      args.composerChartSource,
                                               },
                                           ),
                                       controls,
@@ -7144,6 +7190,7 @@ export class AsyncQueryService extends ProjectService {
                             {
                                 resultEffectiveParameters,
                                 resultSource: args.resultSource,
+                                composerChartSource: args.composerChartSource,
                                 externalSourceReferences:
                                     externalSourceReference &&
                                     'tableUuid' in externalSourceReference
@@ -7839,7 +7886,7 @@ export class AsyncQueryService extends ProjectService {
                 mergeQuery: documentQueryContext.mergeQuery,
                 parameters: chart.parameters,
                 userAttributeOverrides: {},
-                documentQueryContext,
+                authority: { kind: 'document', context: documentQueryContext },
                 mode: { type: 'interactive' },
                 chart: {
                     chartConfig: getDocumentRuntimeChartConfig(
@@ -7857,7 +7904,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: documentQueryContext.metricQuery,
             parameters: chart.parameters,
             userAttributeOverrides: {},
-            documentQueryContext,
+            authority: { kind: 'document', context: documentQueryContext },
         });
     }
 
@@ -7981,17 +8028,30 @@ export class AsyncQueryService extends ProjectService {
         // We only check `exploreName` for chart embeds. Otherwise, CASL doesn't match
         // on condition checks that aren't set. If no `exploreName` is set in conditions,
         // CASL ignores it.
-        if (args.documentQueryContext) {
-            args.documentQueryContext.assertMetricQuery(
-                account,
-                projectUuid,
-                inputMetricQuery,
-                args.parameters,
-            );
-            return this.runAsyncMetricQueryWithoutPermissionCheck(
-                args,
-                organizationUuid,
-            );
+        const authority = args.authority ?? REQUEST_AUTHORITY;
+        switch (authority.kind) {
+            case 'composer':
+                // Its author's checks ran at save; the explore still loads under the viewer's attributes
+                authority.binding.assertExecution(account, projectUuid);
+                return this.runAsyncMetricQueryWithoutPermissionCheck(
+                    args,
+                    organizationUuid,
+                );
+            case 'document':
+                authority.context.assertMetricQuery(
+                    account,
+                    projectUuid,
+                    inputMetricQuery,
+                    args.parameters,
+                );
+                return this.runAsyncMetricQueryWithoutPermissionCheck(
+                    args,
+                    organizationUuid,
+                );
+            case 'request':
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
         }
         const auditedAbility = this.createAuditedAbility(account);
         const isForbidden = auditedAbility.cannot(
@@ -8067,7 +8127,7 @@ export class AsyncQueryService extends ProjectService {
             materializationRole,
             dashboardFilters,
             totalConfiguration,
-            documentQueryContext,
+            authority = REQUEST_AUTHORITY,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
         sourceQueryHistory?: QueryHistory,
@@ -8075,6 +8135,7 @@ export class AsyncQueryService extends ProjectService {
         dataAppSource?: ExecuteAsyncQueryRequestParams['dataAppSource'],
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
+        const documentQueryContext = getDocumentQueryContext(authority);
 
         const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
@@ -8374,6 +8435,7 @@ export class AsyncQueryService extends ProjectService {
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
+                composerChartSource: getComposerChartSource(authority),
                 identityEnabled,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
@@ -8667,7 +8729,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides: {},
             invalidateCache: invalidateCache ?? false,
             plans: { [totalsNodeId]: plan },
-            binding: null,
+            authority: REQUEST_AUTHORITY,
             aiAttribution: null,
         });
         const totals = queries.find((query) => query.nodeId === totalsNodeId);
@@ -11075,21 +11137,31 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         userAttributeOverrides,
         warehouseConnectionUuid: requestedConnectionUuid,
+        authority = REQUEST_AUTHORITY,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         const { organizationUuid, provisioningSource } =
             await this.projectModel.getSummary(projectUuid);
 
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('SqlRunner', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        switch (authority.kind) {
+            case 'composer':
+                // Runs its author's stored SQL, as a saved SQL chart tile does
+                authority.binding.assertExecution(account, projectUuid);
+                break;
+            case 'request':
+                if (
+                    this.createAuditedAbility(account).cannot(
+                        'manage',
+                        subject('SqlRunner', {
+                            organizationUuid,
+                            projectUuid,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError();
+                }
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
         }
 
         if (provisioningSource === 'analytics') {
@@ -11181,6 +11253,7 @@ export class AsyncQueryService extends ProjectService {
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
+                composerChartSource: getComposerChartSource(authority),
             },
             {
                 sql,
@@ -11768,37 +11841,14 @@ export class AsyncQueryService extends ProjectService {
         references,
         parameters,
         pivotConfiguration,
+        authority = REQUEST_AUTHORITY,
     }: ExecuteAsyncComposeSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
-        assertIsAccountWithOrg(account);
-
-        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ComposeSqlRunner,
-        });
-        if (!isEndpointEnabled) {
-            throw new ForbiddenError('Compose SQL queries are not enabled');
-        }
-
-        const projectSummary = await this.projectModel.getSummary(projectUuid);
-        const { organizationUuid } = projectSummary;
-
-        // Same ability that gates running a metric query from the explorer:
-        // interactive viewers and up, but not plain viewers.
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Explore', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        await this.assertCanRunComposeQueries(
+            account,
+            projectUuid,
+            authority,
+            'Compose SQL queries are not enabled',
+        );
 
         // User SQL runs on a session whose credentials reach only the results
         // it references, so a query that references nothing has nothing to
@@ -11819,6 +11869,7 @@ export class AsyncQueryService extends ProjectService {
             references,
             parameters,
             pivotConfiguration,
+            authority,
             plan: {
                 columns: { mode: 'discover' },
                 engine: 'scopedToReferencedResults',
@@ -11834,6 +11885,47 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: {},
             resolvedTimezone: null,
         };
+    }
+
+    /** The compose flag, and the ability that gates running a metric query from the explorer. */
+    private async assertCanRunComposeQueries(
+        account: Account,
+        projectUuid: string,
+        authority: RequestAuthority | ComposerAuthority,
+        disabledMessage: string,
+    ): Promise<void> {
+        assertIsAccountWithOrg(account);
+        switch (authority.kind) {
+            case 'composer':
+                // The author's Explore access was checked at save; per-source switches still apply
+                authority.binding.assertExecution(account, projectUuid);
+                return;
+            case 'request':
+                break;
+            default:
+                assertUnreachable(authority, 'Unknown query authority');
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
+        });
+        if (!enabled) {
+            throw new ForbiddenError(disabledMessage);
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        // Interactive viewers and up, but not plain viewers
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
     }
 
     /** Python queries run for at most this long inside the sandbox. */
@@ -11883,35 +11975,18 @@ export class AsyncQueryService extends ProjectService {
         references,
         parameters,
         invalidateCache,
+        authority = REQUEST_AUTHORITY,
     }: ExecuteAsyncPythonQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ComposeSqlRunner,
-        });
-        if (!isEndpointEnabled) {
-            throw new ForbiddenError('Python queries are not enabled');
-        }
-
-        const projectSummary = await this.projectModel.getSummary(projectUuid);
-        const { organizationUuid } = projectSummary;
-
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Explore', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        await this.assertCanRunComposeQueries(
+            account,
+            projectUuid,
+            authority,
+            'Python queries are not enabled',
+        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (Object.keys(references).length === 0) {
             throw new ParameterError(
@@ -12022,7 +12097,10 @@ export class AsyncQueryService extends ProjectService {
             undefined,
             undefined,
             querySurface,
-            { resultEntitlementFingerprint },
+            {
+                resultEntitlementFingerprint,
+                composerChartSource: getComposerChartSource(authority),
+            },
         );
         await this.queryHistoryModel.recordResultProducer(
             queryUuid,
@@ -13339,8 +13417,19 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         plan,
         invalidateCache,
+        authority = REQUEST_AUTHORITY,
     }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
+        switch (authority.kind) {
+            case 'composer':
+                authority.binding.assertExecution(account, projectUuid);
+                break;
+            case 'request':
+                // Callers gate their own entry; the duckdb engine trusts what it is handed
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
+        }
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const { organizationUuid } = projectSummary;
@@ -13463,7 +13552,10 @@ export class AsyncQueryService extends ProjectService {
             undefined,
             undefined,
             querySurface,
-            { resultEntitlementFingerprint },
+            {
+                resultEntitlementFingerprint,
+                composerChartSource: getComposerChartSource(authority),
+            },
         );
         this.prometheusMetrics?.trackQueryStateTransition(
             'new',
@@ -15308,7 +15400,7 @@ export class AsyncQueryService extends ProjectService {
         mode,
         pivotInput,
         userAttributeOverrides,
-        documentQueryContext,
+        authority = REQUEST_AUTHORITY,
     }: ExecuteMergeQueryInternalArgs): Promise<ApiExecuteAsyncMergeQueryResults> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } =
@@ -15328,7 +15420,7 @@ export class AsyncQueryService extends ProjectService {
                   })
                 : mergeQuery;
         const compiledMerge = await this.compileMergeQuery({
-            documentQueryContext,
+            authority,
             account,
             projectUuid,
             mergeQuery: effectiveMergeQuery,
@@ -15365,7 +15457,7 @@ export class AsyncQueryService extends ProjectService {
         })();
 
         const query = await this.submitMergeDag({
-            documentQueryContext,
+            authority,
             account,
             projectUuid,
             organizationUuid,
@@ -15406,9 +15498,9 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
         pivotConfiguration,
         compiledMerge,
-        documentQueryContext,
+        authority,
     }: {
-        documentQueryContext?: DocumentQueryContext;
+        authority: RequestAuthority | DocumentAuthority;
         account: Account;
         projectUuid: string;
         organizationUuid: string;
@@ -15459,8 +15551,8 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const requestParameters: ExecuteAsyncQueryRequestParams = {
-            ...(documentQueryContext
-                ? { documentSource: documentQueryContext.reference }
+            ...(authority.kind === 'document'
+                ? { documentSource: authority.context.reference }
                 : {}),
             context,
             invalidateCache,
@@ -15501,9 +15593,7 @@ export class AsyncQueryService extends ProjectService {
             },
             () =>
                 this.getQuerySourceService().submitQueries({
-                    binding: documentQueryContext
-                        ? { kind: 'document', context: documentQueryContext }
-                        : null,
+                    authority,
                     account,
                     projectUuid,
                     context,
@@ -15574,7 +15664,9 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         userAttributeOverrides,
         sourceTitleById,
+        authority,
     }: {
+        authority: RequestAuthority | ComposerAuthority;
         account: Account;
         projectUuid: string;
         nodeId: string | null;
@@ -15590,6 +15682,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             userAttributeOverrides,
             sourceTitleById,
+            authority,
         });
         if (!isRunnableCompiledMergeQuery(compiled)) {
             throw new ParameterError(
@@ -15616,6 +15709,7 @@ export class AsyncQueryService extends ProjectService {
         labelBySourceId,
         parameters,
         invalidateCache,
+        authority,
     }: {
         account: Account;
         projectUuid: string;
@@ -15627,6 +15721,7 @@ export class AsyncQueryService extends ProjectService {
         labelBySourceId: Record<string, string>;
         parameters: ParametersValuesMap;
         invalidateCache: boolean;
+        authority: RequestAuthority | ComposerAuthority;
     }): Promise<{ queryUuid: string }> {
         const { joinNode, references, plan } = this.buildMergeJoin({
             nodeId: COMPOSE_MERGE_JOIN_NODE_ID,
@@ -15653,6 +15748,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             invalidateCache,
             plan,
+            authority,
         });
     }
 

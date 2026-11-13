@@ -6,7 +6,9 @@ import {
     isCustomSqlDimension,
     isSqlTableCalculation,
 } from '../types/field';
+import { type DashboardFilters } from '../types/filter';
 import { MergeJoinType } from '../types/mergeQuery';
+import { type ParametersValuesMap } from '../types/parameters';
 import {
     getSourceQueryResultReferences,
     MAX_SOURCE_QUERIES_PER_SUBMISSION,
@@ -489,4 +491,46 @@ export type ComposerChart = {
 export type ApiComposerChartResponse = {
     status: 'ok';
     results: ComposerChart;
+};
+
+/** A bound run of a stored chart where a dashboard shows it; it never carries nodes. */
+export type ComposerChartRunRequest = {
+    dashboardUuid: string;
+    tileUuid: string;
+    dashboardFilters: DashboardFilters;
+    parameters: ParametersValuesMap;
+    /** The parameter keys this tile keeps as its own. */
+    excludedParameterKeys: string[];
+    invalidateCache: boolean;
+};
+
+const runRequestSchema = z.strictObject({
+    dashboardUuid: z.string(),
+    tileUuid: z.string(),
+    dashboardFilters: classicObject<DashboardFilters>(),
+    parameters: z.record(z.string(), z.unknown()),
+    excludedParameterKeys: z.array(z.string()),
+    invalidateCache: z.boolean(),
+});
+
+/** Strict parse of a run request: nothing it carries can add or change a node. */
+export const parseComposerChartRunRequest = (
+    request: unknown,
+): ComposerChartRunRequest => {
+    const result = runRequestSchema.safeParse(request);
+    if (!result.success) throw toParameterError('run request', result.error);
+    return result.data as ComposerChartRunRequest;
+};
+
+export type ComposerChartRunResults = {
+    queries: Array<{
+        nodeId: string;
+        sourceType: QuerySourceType;
+        queryUuid: string;
+    }>;
+};
+
+export type ApiComposerChartRunResponse = {
+    status: 'ok';
+    results: ComposerChartRunResults;
 };

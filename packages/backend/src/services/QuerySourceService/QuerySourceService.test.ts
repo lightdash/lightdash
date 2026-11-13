@@ -13,7 +13,10 @@ import {
     UnexpectedServerError,
     VizAggregationOptions,
     VizIndexType,
+    type ComposerChart,
+    type ComposerChartPipelineNode,
     type PivotConfiguration,
+    type RegisteredAccount,
     type SourceQuery,
 } from '@lightdash/common';
 import type { Mock } from 'vitest';
@@ -35,12 +38,21 @@ import {
     agentExecutionContext,
     createAgentExecutionContext,
 } from '../AiAccessService/agentExecutionContext';
-import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
-import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
+import type {
+    AsyncQueryService,
+    RunnableCompiledMergeQuery,
+} from '../AsyncQueryService/AsyncQueryService';
+import type {
+    DocumentAuthority,
+    DuckdbQueryPlan,
+    RequestAuthority,
+} from '../AsyncQueryService/types';
+import { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { QuerySourceRegistry } from './QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService';
 import { DuckdbQuerySource } from './sources/DuckdbQuerySource';
+import { MergeQuerySource } from './sources/MergeQuerySource';
 import { PythonQuerySource } from './sources/PythonQuerySource';
 import { SemanticLayerQuerySource } from './sources/SemanticLayerQuerySource';
 import { SqlQuerySource } from './sources/SqlQuerySource';
@@ -48,7 +60,6 @@ import type {
     QuerySourceClient,
     SourceQueryAiAttribution,
     SourceQueryExecutionContext,
-    SourceQueryRunBinding,
     SubmitSourceQueryArgs,
 } from './types';
 
@@ -58,13 +69,13 @@ const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
 const organizationUuid = 'test-org-uuid';
 const executionContext: SourceQueryExecutionContext & {
     aiAttribution: SourceQueryAiAttribution | null;
-    binding: SourceQueryRunBinding | null;
+    authority: RequestAuthority | DocumentAuthority;
 } = {
     parameters: {},
     userAttributeOverrides: {},
     invalidateCache: false,
     aiAttribution: null,
-    binding: null,
+    authority: { kind: 'request' },
 };
 
 const createFakeSource = (
@@ -584,7 +595,7 @@ describe('QuerySourceService', () => {
                 invalidateCache: false,
                 pivotConfiguration: null,
                 plan: null,
-                binding: null,
+                authority: { kind: 'request' },
             };
             const { userAttributeOverrides, ...withoutOverrides } = args;
             // @ts-expect-error omitting the overrides is a compile error, not a silent default
@@ -775,6 +786,78 @@ describe('QuerySourceService', () => {
                 });
             },
         );
+
+        it('refuses the status of a composer chart node once its reader cannot view the chart', async () => {
+            const { service, mocks, assertCanReadStoredResults } =
+                createService(createRegistryWithFakes().registry);
+            const row = {
+                queryUuid: 'composer-node',
+                status: QueryHistoryStatus.READY,
+                error: null,
+                requestParameters: {
+                    composerChartSource: {
+                        composerChartUuid: 'composer-chart-uuid',
+                        dashboardUuid: 'dashboard-uuid',
+                        tileUuid: 'tile-uuid',
+                    },
+                },
+            };
+            mocks.queryHistoryModel.get.mockResolvedValue(row);
+
+            await service.getSourceQueryStatuses(account, projectUuid, [
+                row.queryUuid,
+            ]);
+            expect(assertCanReadStoredResults).toHaveBeenCalledWith(
+                account,
+                projectUuid,
+                row,
+            );
+
+            assertCanReadStoredResults.mockRejectedValue(new ForbiddenError());
+            await expect(
+                service.getSourceQueryStatuses(account, projectUuid, [
+                    row.queryUuid,
+                ]),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('polls composer chart nodes with compose-sql-runner off, and nothing else', async () => {
+            const { service, mocks } = createService(
+                createRegistryWithFakes().registry,
+            );
+            mocks.featureFlagModel.get.mockResolvedValue({ enabled: false });
+            const stamped = {
+                queryUuid: 'composer-node',
+                status: QueryHistoryStatus.READY,
+                error: null,
+                requestParameters: {
+                    composerChartSource: {
+                        composerChartUuid: 'composer-chart-uuid',
+                        dashboardUuid: 'dashboard-uuid',
+                        tileUuid: 'tile-uuid',
+                    },
+                },
+            };
+            mocks.queryHistoryModel.get.mockImplementation(async (queryUuid) =>
+                queryUuid === stamped.queryUuid
+                    ? stamped
+                    : { ...stamped, queryUuid, requestParameters: {} },
+            );
+
+            await expect(
+                service.getSourceQueryStatuses(account, projectUuid, [
+                    stamped.queryUuid,
+                ]),
+            ).resolves.toMatchObject({
+                statuses: [{ queryUuid: stamped.queryUuid }],
+            });
+            await expect(
+                service.getSourceQueryStatuses(account, projectUuid, [
+                    stamped.queryUuid,
+                    'unbound-node',
+                ]),
+            ).rejects.toThrow('Multi-source queries are not enabled');
+        });
 
         it('rechecks a connection result after the slowest history finishes', async () => {
             const { service, mocks, assertCanReadStoredResults } =
@@ -1623,3 +1706,214 @@ it.each(['duckdb', 'external', 'pipeline'] as const)(
         ).rejects.toThrow('Raw SQL disabled');
     },
 );
+
+describe('composer bound run', () => {
+    const storedNodes: ComposerChartPipelineNode[] = [
+        {
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId: 'orders',
+            title: 'Orders',
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: [],
+        },
+        {
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId: 'payments',
+            title: 'Payments',
+            exploreName: 'payments',
+            dimensions: ['payments_status'],
+            metrics: [],
+        },
+        {
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'raw',
+            title: 'Raw',
+            sql: 'select 1 as n',
+        },
+        {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'joined',
+            title: 'Joined',
+            sql: 'select * from orders, raw',
+            references: ['orders', 'raw'],
+        },
+        {
+            sourceType: QuerySourceType.PYTHON,
+            nodeId: 'forecast',
+            title: 'Forecast',
+            code: 'def run(inputs, params):\n    return inputs["joined"]',
+            references: ['joined'],
+        },
+        {
+            sourceType: QuerySourceType.MERGE,
+            nodeId: 'merged',
+            title: 'Merged',
+            sources: [{ nodeId: 'orders' }, { nodeId: 'payments' }],
+            joinKey: [],
+            joinType: MergeJoinType.FULL,
+        },
+    ];
+    const bindingFor = (viewer: RegisteredAccount) =>
+        ComposerRunBinding.forAuthorizedViewer({
+            account: viewer,
+            chart: {
+                uuid: 'composer-chart-uuid',
+                projectUuid,
+                dashboardUuid: 'dashboard-uuid',
+                pipeline: {
+                    schemaVersion: 1,
+                    terminalNodeId: 'forecast',
+                    nodes: storedNodes,
+                },
+            } as ComposerChart,
+            tileUuid: 'tile-uuid',
+        });
+    const createBoundSources = () => {
+        const queryUuid = (nodeId: string) => ({
+            queryUuid: `${nodeId}-uuid`,
+            cacheMetadata: { cacheHit: false },
+        });
+        const asyncQueryService = {
+            executeAsyncMetricQuery: vi.fn(
+                async ({
+                    metricQuery,
+                }: {
+                    metricQuery: { exploreName: string };
+                }) => queryUuid(metricQuery.exploreName),
+            ),
+            executeAsyncSqlQuery: vi.fn(async () => queryUuid('raw')),
+            executeAsyncComposeSqlQuery: vi.fn(async () => queryUuid('joined')),
+            executeAsyncPythonQuery: vi.fn(async () => queryUuid('forecast')),
+            compileComposerMerge: vi.fn(
+                async () =>
+                    ({ coreSql: 'select 1' }) as RunnableCompiledMergeQuery,
+            ),
+            submitComposerMergeJoin: vi.fn(async () => queryUuid('merged')),
+        };
+        const asService = asyncQueryService as unknown as AsyncQueryService;
+        const registry = new QuerySourceRegistry();
+        registry.register(
+            new SemanticLayerQuerySource({
+                asyncQueryService: asService,
+                projectService: {} as ProjectService,
+            }),
+        );
+        registry.register(
+            new SqlQuerySource({
+                asyncQueryService: asService,
+                projectService: {} as ProjectService,
+            }),
+        );
+        registry.register(
+            new DuckdbQuerySource({ asyncQueryService: asService }),
+        );
+        registry.register(
+            new PythonQuerySource({ asyncQueryService: asService }),
+        );
+        registry.register(
+            new MergeQuerySource({ asyncQueryService: asService }),
+        );
+        return { registry, asyncQueryService };
+    };
+
+    it('runs exactly the stored nodes and hands every source the binding', async () => {
+        const { registry, asyncQueryService } = createBoundSources();
+        const { service } = createService(registry);
+        const binding = bindingFor(account);
+
+        const { queries } = await service.submitComposerRun({
+            account,
+            projectUuid,
+            binding,
+            invalidateCache: true,
+        });
+
+        expect(queries.map(({ nodeId }) => nodeId).sort()).toEqual(
+            storedNodes.map(({ nodeId }) => nodeId).sort(),
+        );
+        for (const execute of [
+            asyncQueryService.executeAsyncMetricQuery,
+            asyncQueryService.executeAsyncSqlQuery,
+            asyncQueryService.executeAsyncComposeSqlQuery,
+            asyncQueryService.executeAsyncPythonQuery,
+            asyncQueryService.submitComposerMergeJoin,
+        ]) {
+            expect(execute).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    authority: { kind: 'composer', binding },
+                    invalidateCache: true,
+                    context: QueryExecutionContext.DASHBOARD,
+                }),
+            );
+        }
+        expect(asyncQueryService.compileComposerMerge).toHaveBeenCalledWith(
+            expect.objectContaining({
+                authority: { kind: 'composer', binding },
+            }),
+        );
+    });
+
+    it("refuses a binding carried into another account's run", async () => {
+        const { registry, asyncQueryService } = createBoundSources();
+        const { service } = createService(registry);
+        const other = fromOauth(
+            { ...defaultSessionUser, userUuid: 'another-user' },
+            { accessToken: 'token', client: { id: 'client' } },
+        );
+
+        await expect(
+            service.submitComposerRun({
+                account: other,
+                projectUuid,
+                binding: bindingFor(account),
+                invalidateCache: false,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            asyncQueryService.executeAsyncMetricQuery,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('refuses an agent connection without Raw SQL on a chart with sql nodes', async () => {
+        const { registry, asyncQueryService } = createBoundSources();
+        const { service } = createService(registry);
+        const grant = grantFixture();
+        const agent = fromOauth(
+            defaultSessionUser,
+            { accessToken: 'token', client: { id: grant.clientId } },
+            null,
+            { ...grant, revision: grant.grantRevision },
+        );
+
+        await expect(
+            service.submitComposerRun({
+                account: agent,
+                projectUuid,
+                binding: bindingFor(agent),
+                invalidateCache: false,
+            }),
+        ).rejects.toThrow('Raw SQL');
+        expect(
+            asyncQueryService.executeAsyncMetricQuery,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('keeps per-source switches: a python node is refused with compose-sql-runner off', async () => {
+        const { registry, asyncQueryService } = createBoundSources();
+        const { service, mocks } = createService(registry);
+        mocks.featureFlagModel.get.mockResolvedValue({ enabled: false });
+
+        await expect(
+            service.submitComposerRun({
+                account,
+                projectUuid,
+                binding: bindingFor(account),
+                invalidateCache: false,
+            }),
+        ).rejects.toThrow('python queries are not enabled');
+        expect(
+            asyncQueryService.executeAsyncMetricQuery,
+        ).not.toHaveBeenCalled();
+    });
+});
