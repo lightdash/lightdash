@@ -206,3 +206,74 @@
         animation: none;
     }
 }
+
+/* A model or field is being dragged: the chat offers itself, and firms up once the drag is over it. */
+.panel[data-dragging] {
+    outline: 1px dashed var(--mantine-color-default-border);
+    outline-offset: -8px;
+}
+
+.panel[data-dropping] {
+    outline: 2px dashed var(--mantine-color-dimmed);
+}
+
+.dropHint {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--mantine-color-body) 85%, transparent);
+    backdrop-filter: blur(2px);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+    transition: color 120ms ease;
+}
+
+.panel[data-dropping] .dropHint {
+    color: var(--mantine-color-text);
+}
+
+.refChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 0 12px 8px;
+}
+
+.refChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    height: 24px;
+    padding: 0 2px 0 8px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 999px;
+    background: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+    font-size: 12px;
+}
+
+.refModel {
+    font-size: inherit;
+    color: var(--mantine-color-dimmed);
+}
+
+.refModel::after {
+    content: '/';
+    margin-left: 4px;
+}
+
+.refName {
+    font-size: inherit;
+    font-weight: 500;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}

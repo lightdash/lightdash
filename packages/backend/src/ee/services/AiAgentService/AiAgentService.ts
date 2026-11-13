@@ -1670,7 +1670,7 @@ export class AiAgentService extends BaseService {
                     key = `preview_environment:${item.previewProjectUuid}`;
                     break;
                 case 'semantic_model':
-                    key = `semantic_model:${item.modelName}`;
+                    key = `semantic_model:${item.modelName}:${item.fieldName ?? ''}`;
                     break;
                 case 'data_app_element':
                     key = dataAppElementContextKey(item);
@@ -13153,8 +13153,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                 }
                 case 'semantic_model':
                     return item.fieldName
-                        ? `- The person has field "${item.fieldName}" of model "${item.modelName}" open.`
-                        : `- The person has model "${item.modelName}" open.`;
+                        ? `- The person is looking at field "${item.fieldName}" of model "${item.modelName}".`
+                        : `- The person is looking at model "${item.modelName}".`;
                 case 'preview_environment': {
                     const name = item.projectName
                         ? ` (${item.projectName})`
