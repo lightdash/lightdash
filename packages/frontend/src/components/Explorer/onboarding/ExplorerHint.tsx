@@ -36,9 +36,12 @@ const ExplorerHint: FC<Props> = ({ name, target, title, body, position }) => {
 
     const isTourOpen = useIsExplorerTourOpen();
 
+    // Mount nothing until the hint is due, so it costs its host no renders
+    if (!isOpen || isTourOpen || !hasSeenTour()) return null;
+
     return (
         <Tour
-            active={isOpen && !isTourOpen && hasSeenTour()}
+            active
             onClose={closeTour}
             withOverlay={false}
             withScrollIntoView={false}
