@@ -1993,7 +1993,7 @@ export class SemanticStudioService extends BaseService {
             user.userUuid,
         );
         if (!workspace || workspace.projectUuid !== projectUuid) {
-            throw new NotFoundError('No such workspace');
+            throw new NotFoundError('No such change');
         }
         return workspace;
     }
@@ -2032,7 +2032,7 @@ export class SemanticStudioService extends BaseService {
             workspaceUuid,
         );
         if (!workspace.isMine) {
-            throw new ForbiddenError("This workspace is someone else's");
+            throw new ForbiddenError("This change is someone else's");
         }
         return workspace;
     }
@@ -2071,7 +2071,7 @@ export class SemanticStudioService extends BaseService {
     ): Promise<SemanticStudioWorkspace> {
         await this.getOwnWorkspace(user, projectUuid, workspaceUuid);
         const trimmed = name.trim().slice(0, 120);
-        if (!trimmed) throw new ParameterError('A workspace needs a name');
+        if (!trimmed) throw new ParameterError('A change needs a name');
         await this.workspaceModel.rename(
             { projectUuid, userUuid: user.userUuid },
             workspaceUuid,

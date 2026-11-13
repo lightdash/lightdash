@@ -92,7 +92,7 @@ const ChangesPanel: FC<{
                 >
                     <MantineIcon icon={IconArrowUpRight} size={14} />
                     <Box className={classes.rowLabel}>
-                        {workspace ? 'Back to workspace' : 'Review changes'}
+                        {workspace ? 'Back to the change' : 'Review changes'}
                     </Box>
                 </UnstyledButton>
             )}
