@@ -7,6 +7,9 @@ import {
     type ResponsiveGridLayoutProps,
 } from './gridUtils';
 
+/** How many bands the columns guide splits the grid into */
+const GUIDE_COLUMNS = 12;
+
 const sortedBreakpoints = (
     Object.entries(GRID_BREAKPOINTS) as [
         keyof typeof GRID_BREAKPOINTS,
@@ -72,6 +75,9 @@ export const useGridStyles = ({
             '--grid-cell-w': `${colWidth + GRID_MARGIN[0]}px`,
             '--grid-cell-h': `${rowHeight}px`,
             '--grid-col-w': `${colWidth}px`,
+            '--grid-guide-w': `${
+                ((colWidth + GRID_MARGIN[0]) * colCount) / GUIDE_COLUMNS
+            }px`,
             '--grid-row-h': `${rowHeight - GRID_MARGIN[1]}px`,
             '--grid-pad-x': `${GRID_CONTAINER_PADDING[0]}px`,
             '--grid-pad-y': `${GRID_CONTAINER_PADDING[1]}px`,
