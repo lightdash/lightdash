@@ -1,9 +1,4 @@
 import {
-    DashboardTileTypes,
-    FeatureFlags,
-    type Dashboard,
-} from '@lightdash/common';
-import {
     Button,
     Group,
     Menu,
@@ -12,56 +7,28 @@ import {
     type ButtonProps,
 } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
-import {
-    IconAppWindow,
-    IconChartBar,
-    IconHeading,
-    IconInfoCircle,
-    IconMarkdown,
-    IconNewSection,
-    IconPlus,
-    IconVideo,
-} from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
-import { useNavigate } from 'react-router';
-import {
-    selectDashboardFilters,
-    selectDashboardTiles,
-    selectHaveFiltersChanged,
-    selectHaveTilesChanged,
-    useDashboardSelector,
-} from '../../features/dashboard/store';
-import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
-import { useProjectUuid } from '../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../providers/App/useApp';
-import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { IconInfoCircle, IconNewSection, IconPlus } from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import {
     toHotkeyItems,
     type EditShortcut,
 } from '../common/Dashboard/editShortcuts';
 import MantineIcon from '../common/MantineIcon';
-import AddChartTilesModal from './TileForms/AddChartTilesModal';
-import { TileAddModal } from './TileForms/TileAddModal';
+import {
+    useAddTileOptions,
+    type AddTileOptionsArgs,
+} from './useAddTileOptions';
 
-type Props = {
-    onAddTiles: (
-        tiles: Dashboard['tiles'][number][],
-        // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
-        tileUuidMapping?: Record<string, string>,
-    ) => void;
+type Props = AddTileOptionsArgs & {
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
-    activeTabUuid?: string;
-    dashboardTabs?: Dashboard['tabs'];
-    allowedTileTypes?: DashboardTileTypes[];
-    chartSpaceUuids?: string[];
-    // Overrides the default "New chart" navigation (which leaves for the
-    // project's table picker). Embeds use this to build the chart in place.
-    onNewChart?: () => void;
     /** Opens the menu from the keyboard; omitted where the button has no shortcut */
     shortcut?: EditShortcut;
 } & Pick<ButtonProps, 'disabled' | 'radius'>;
+
+const SAVED_CHART_TOUR_PROPS = {
+    'data-tour-anchor': 'add-saved-chart',
+    'data-tour-hint': 'Choose Saved chart',
+};
 
 const AddTileButton: FC<Props> = ({
     onAddTiles,
@@ -81,72 +48,23 @@ const AddTileButton: FC<Props> = ({
             ? toHotkeyItems(shortcut, () => setIsMenuOpen((open) => !open))
             : [],
     );
-    const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
-    const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
-        useState<boolean>(false);
-    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
-    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
-    const haveTilesChanged = useDashboardSelector(selectHaveTilesChanged);
-    const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
-    const dashboard = useDashboardContext((c) => c.dashboard);
-
-    const { storeDashboard } = useDashboardStorage();
-    const navigate = useNavigate();
-    const projectRoute = useOptionalProjectRoute();
-    const { health } = useApp();
-    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
-    const dataAppsEnabled = dataAppsFlag.data?.enabled === true;
-    const isTileTypeAllowed = useCallback(
-        (tileType: DashboardTileTypes) =>
-            !allowedTileTypes || allowedTileTypes.includes(tileType),
-        [allowedTileTypes],
-    );
-    const showSavedCharts = isTileTypeAllowed(DashboardTileTypes.SAVED_CHART);
-    const showNewChart = onNewChart !== undefined || !allowedTileTypes;
-    const showDataApps =
-        dataAppsEnabled && isTileTypeAllowed(DashboardTileTypes.DATA_APP);
-    const showMarkdown = isTileTypeAllowed(DashboardTileTypes.MARKDOWN);
-    const showLoom = isTileTypeAllowed(DashboardTileTypes.LOOM);
+    const {
+        tileOptions,
+        canAddTile,
+        canAddTab,
+        maxTilesPerTab,
+        maxTabsPerDashboard,
+        modals,
+    } = useAddTileOptions({
+        onAddTiles,
+        activeTabUuid,
+        dashboardTabs,
+        allowedTileTypes,
+        chartSpaceUuids,
+        onNewChart,
+    });
     const showTabs = !allowedTileTypes;
-    const showHeading = isTileTypeAllowed(DashboardTileTypes.HEADING);
-
-    // Calculate current tiles in the active tab
-    const currentTabTilesCount = useMemo(() => {
-        if (!dashboardTiles) return 0;
-        if (!activeTabUuid) return dashboardTiles.length;
-        return dashboardTiles.filter((tile) => tile.tabUuid === activeTabUuid)
-            .length;
-    }, [dashboardTiles, activeTabUuid]);
-
-    // Get limits from health config
-    const maxTilesPerTab = health.data?.dashboard?.maxTilesPerTab || 50;
-    const maxTabsPerDashboard =
-        health.data?.dashboard?.maxTabsPerDashboard || 20;
-
-    // Calculate current tabs count
-    const currentTabsCount = useMemo(() => {
-        return dashboardTabs ? dashboardTabs.length : 1; // Default dashboard has 1 tab
-    }, [dashboardTabs]);
-
-    // Check if we can add a tile to current tab
-    const canAddTile = useMemo(() => {
-        return currentTabTilesCount < maxTilesPerTab;
-    }, [currentTabTilesCount, maxTilesPerTab]);
-
-    // Check if we can add a new tab
-    const canAddTab = useMemo(() => {
-        return currentTabsCount < maxTabsPerDashboard;
-    }, [currentTabsCount, maxTabsPerDashboard]);
-
-    const onAddTile = useCallback(
-        (tile: Dashboard['tiles'][number]) => {
-            onAddTiles([tile]);
-        },
-        [onAddTiles],
-    );
-    const projectUuid = useProjectUuid();
-    const projectUrlIdentifier =
-        projectRoute?.projectUrlIdentifier ?? projectUuid;
+    const headingOption = tileOptions.find(({ id }) => id === 'heading');
 
     return (
         <>
@@ -173,106 +91,38 @@ const AddTileButton: FC<Props> = ({
                     </Menu.Target>
                     <Menu.Dropdown>
                         <Menu.Label>Tiles</Menu.Label>
-                        {showSavedCharts && (
-                            <Menu.Item
-                                onClick={() =>
-                                    setIsAddChartTilesModalOpen(true)
-                                }
-                                leftSection={
-                                    <MantineIcon icon={IconChartBar} />
-                                }
-                                data-tour-anchor="add-saved-chart"
-                                data-tour-hint="Choose Saved chart"
-                            >
-                                Saved chart
-                            </Menu.Item>
-                        )}
-
-                        {showNewChart && (
-                            <Menu.Item
-                                onClick={() => {
-                                    if (onNewChart) {
-                                        // Modal supplies the dashboard via
-                                        // context; sessionStorage would also
-                                        // show the navbar's edit banner.
-                                        onNewChart();
-                                        return;
+                        {tileOptions
+                            .filter(({ id }) => id !== 'heading')
+                            .map((option) => (
+                                <Menu.Item
+                                    key={option.id}
+                                    onClick={option.onSelect}
+                                    leftSection={
+                                        <MantineIcon icon={option.icon} />
                                     }
-                                    storeDashboard(
-                                        dashboardTiles,
-                                        dashboardFilters,
-                                        haveTilesChanged,
-                                        haveFiltersChanged,
-                                        dashboard?.uuid,
-                                        dashboard?.name,
-                                        activeTabUuid,
-                                        dashboardTabs,
-                                        dashboard?.slug,
-                                    );
-                                    void navigate(
-                                        `/projects/${projectUrlIdentifier}/tables`,
-                                    );
-                                }}
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                            >
-                                <Group gap="xxs">
-                                    <Text fz="sm">New chart</Text>
-                                    <Tooltip
-                                        label={
-                                            onNewChart
-                                                ? 'Build a new chart and add it to this dashboard'
-                                                : 'Charts generated from here are exclusive to this dashboard'
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={IconInfoCircle}
-                                            color="dimmed"
-                                        />
-                                    </Tooltip>
-                                </Group>
-                            </Menu.Item>
-                        )}
+                                    {...(option.id === 'savedChart'
+                                        ? SAVED_CHART_TOUR_PROPS
+                                        : {})}
+                                >
+                                    {option.hint === null ? (
+                                        option.label
+                                    ) : (
+                                        <Group gap="xxs">
+                                            <Text fz="sm">{option.label}</Text>
+                                            <Tooltip label={option.hint}>
+                                                <MantineIcon
+                                                    icon={IconInfoCircle}
+                                                    color="dimmed"
+                                                />
+                                            </Tooltip>
+                                        </Group>
+                                    )}
+                                </Menu.Item>
+                            ))}
 
-                        {showDataApps && (
-                            <Menu.Item
-                                onClick={() =>
-                                    setAddTileType(DashboardTileTypes.DATA_APP)
-                                }
-                                leftSection={
-                                    <MantineIcon icon={IconAppWindow} />
-                                }
-                            >
-                                Data app
-                            </Menu.Item>
-                        )}
+                        {(showTabs || headingOption) && <Menu.Divider />}
 
-                        {showMarkdown && (
-                            <Menu.Item
-                                onClick={() =>
-                                    setAddTileType(DashboardTileTypes.MARKDOWN)
-                                }
-                                leftSection={
-                                    <MantineIcon icon={IconMarkdown} />
-                                }
-                            >
-                                Markdown
-                            </Menu.Item>
-                        )}
-
-                        {showLoom && (
-                            <Menu.Item
-                                onClick={() =>
-                                    setAddTileType(DashboardTileTypes.LOOM)
-                                }
-                                leftSection={<MantineIcon icon={IconVideo} />}
-                            >
-                                Loom video
-                            </Menu.Item>
-                        )}
-
-                        {(showTabs || showHeading) && <Menu.Divider />}
-
-                        {(showTabs || showHeading) && (
+                        {(showTabs || headingOption) && (
                             <Menu.Label>Elements</Menu.Label>
                         )}
                         {showTabs && (
@@ -286,14 +136,14 @@ const AddTileButton: FC<Props> = ({
                             </Menu.Item>
                         )}
 
-                        {showHeading && (
+                        {headingOption && (
                             <Menu.Item
-                                onClick={() =>
-                                    setAddTileType(DashboardTileTypes.HEADING)
+                                onClick={headingOption.onSelect}
+                                leftSection={
+                                    <MantineIcon icon={headingOption.icon} />
                                 }
-                                leftSection={<MantineIcon icon={IconHeading} />}
                             >
-                                Heading
+                                {headingOption.label}
                             </Menu.Item>
                         )}
                     </Menu.Dropdown>
@@ -344,28 +194,7 @@ const AddTileButton: FC<Props> = ({
                 </Tooltip>
             )}
 
-            {isAddChartTilesModalOpen && (
-                <AddChartTilesModal
-                    onClose={() => setIsAddChartTilesModalOpen(false)}
-                    onAddTiles={onAddTiles}
-                    spaceUuids={chartSpaceUuids}
-                />
-            )}
-
-            {addTileType === DashboardTileTypes.MARKDOWN ||
-            addTileType === DashboardTileTypes.LOOM ||
-            addTileType === DashboardTileTypes.HEADING ||
-            addTileType === DashboardTileTypes.DATA_APP ? (
-                <TileAddModal
-                    opened={!!addTileType}
-                    type={addTileType}
-                    onClose={() => setAddTileType(undefined)}
-                    onConfirm={(tile) => {
-                        onAddTile(tile);
-                        setAddTileType(undefined);
-                    }}
-                />
-            ) : null}
+            {modals}
         </>
     );
 };
