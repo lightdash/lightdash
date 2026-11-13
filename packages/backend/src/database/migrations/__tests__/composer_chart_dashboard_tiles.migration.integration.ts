@@ -265,4 +265,14 @@ describe('composer chart tiles in DashboardModel on the real schema', () => {
             addComposerTile(dashboard, foreignChartUuid),
         ).rejects.toThrow(/Composer chart not found/);
     });
+
+    it('refuses a composer tile pointing at a chart another dashboard owns', async () => {
+        const owner = await createDashboard(fixture);
+        const ownedChartUuid = await insertChart(fixture, owner.uuid);
+        const dashboard = await createDashboard(fixture);
+
+        await expect(
+            addComposerTile(dashboard, ownedChartUuid),
+        ).rejects.toThrow(/owned by another dashboard/);
+    });
 });

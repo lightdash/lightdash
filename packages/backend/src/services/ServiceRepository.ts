@@ -45,6 +45,7 @@ import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
+import { ComposerChartService } from './ComposerChartService/ComposerChartService';
 import { ContentAsCodeWritebackService } from './ContentAsCodeWritebackService/ContentAsCodeWritebackService';
 import { ContentService } from './ContentService/ContentService';
 import { ContentVerificationService } from './ContentVerificationService';
@@ -205,6 +206,7 @@ interface ServiceManifest {
     metricsExplorerService: MetricsExplorerService;
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
+    composerChartService: ComposerChartService;
     contentService: ContentService;
     recentContentService: RecentContentService;
     contentVerificationService: ContentVerificationService;
@@ -1992,6 +1994,19 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     schedulerModel: this.models.getSchedulerModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
+                }),
+        );
+    }
+
+    public getComposerChartService(): ComposerChartService {
+        return this.getService(
+            'composerChartService',
+            () =>
+                new ComposerChartService({
+                    composerChartModel: this.models.getComposerChartModel(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                 }),
         );

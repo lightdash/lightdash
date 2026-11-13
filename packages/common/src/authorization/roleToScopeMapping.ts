@@ -111,6 +111,7 @@ const BASE_ROLE_SCOPES = {
         'manage:PinnedItems',
         'manage:DashboardComments',
         'manage:Tags',
+        'manage:ComposerChart',
 
         // Broad SemanticViewer mgmt — promoted from the @space variant
         // when the user reaches editor tier. Granted at
