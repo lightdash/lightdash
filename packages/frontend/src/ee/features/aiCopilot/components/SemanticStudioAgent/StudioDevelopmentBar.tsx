@@ -15,10 +15,6 @@ import {
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
 import { ChangesSwitch } from '../../../../../features/semanticStudio/SemanticLayerDraft';
-import {
-    useActiveStudioWorkspace,
-    useStudioWorkspaceAction,
-} from '../../../../../features/semanticStudio/useStudioWorkspaces';
 import { useTryInExplore } from '../../../../../features/semanticStudio/useTryInExplore';
 import { useProject } from '../../../../../hooks/useProject';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
@@ -29,6 +25,7 @@ import {
 } from '../../hooks/useWritebackProgress';
 import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
 import { WRITEBACK_STEPS } from '../ChatElements/ToolCalls/writebackProgress';
+import { useFinishDiscardedWork } from './useSemanticStudioChat';
 import {
     type StudioPendingChange,
     type StudioPullRequest,
@@ -71,8 +68,7 @@ export const StudioDevelopmentBar: FC<{
     const [merging, setMerging] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isTrying, setIsTrying] = useDevelopmentView();
-    const activeWorkspace = useActiveStudioWorkspace(projectUuid);
-    const workspaceAction = useStudioWorkspaceAction(projectUuid);
+    const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
     const tryInExplore = useTryInExplore(projectUuid);
     const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
     const name = number ? `pull request #${number}` : 'the pull request';
@@ -204,13 +200,7 @@ export const StudioDevelopmentBar: FC<{
                                     setDiscarding(false);
                                     setIsTrying(false, null);
                                     // Discarded work leaves the list and stays as history.
-                                    if (activeWorkspace) {
-                                        workspaceAction.mutate({
-                                            kind: 'finish',
-                                            workspaceUuid:
-                                                activeWorkspace.workspaceUuid,
-                                        });
-                                    }
+                                    finishDiscardedWork();
                                 },
                             },
                         )

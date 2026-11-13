@@ -1,6 +1,7 @@
 import { useLocalStorage } from '@mantine/hooks';
 import { useCanEditSemanticLayer } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import {
+    useActiveStudioWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
@@ -20,6 +21,22 @@ export const useStoredStudioThread = (projectUuid: string) =>
         key: `semantic-studio-agent-thread-${projectUuid}`,
         defaultValue: null,
     });
+
+/** After a discard: ends the active workspace and closes its chat, so the next request starts a new one. */
+export const useFinishDiscardedWork = (projectUuid: string) => {
+    const [, setStored] = useStoredStudioThread(projectUuid);
+    const activeWorkspace = useActiveStudioWorkspace(projectUuid);
+    const { mutate } = useStudioWorkspaceAction(projectUuid);
+    return () => {
+        setStored(null);
+        if (activeWorkspace) {
+            mutate({
+                kind: 'finish',
+                workspaceUuid: activeWorkspace.workspaceUuid,
+            });
+        }
+    };
+};
 
 export const useStudioAgent = (projectUuid: string) => {
     const isEnabled = useCanEditSemanticLayer(projectUuid);
