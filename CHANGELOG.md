@@ -1,3 +1,15 @@
+## [3.254.1](https://github.com/lightdash/lightdash/compare/3.254.0...3.254.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* preserve scheduler shutdown in Rainbow previews ([#32535](https://github.com/lightdash/lightdash/issues/32535)) ([d6e0776](https://github.com/lightdash/lightdash/commit/d6e0776a386de4c4629f50f4da65d8d52fa35d3c))
+
+
+### Performance Improvements
+
+* **results:** yield to the event loop while streaming warehouse rows [d-f5d48aa4] ([#32443](https://github.com/lightdash/lightdash/issues/32443)) ([19b0530](https://github.com/lightdash/lightdash/commit/19b053012b15e61d0f360a199e38a18d520e05f9))
+
 # [3.254.0](https://github.com/lightdash/lightdash/compare/3.253.1...3.254.0) (2026-11-13)
 
 
