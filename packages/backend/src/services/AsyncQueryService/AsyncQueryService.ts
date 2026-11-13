@@ -7853,9 +7853,21 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async executeAsyncMetricQuery(
-        args: ExecuteAsyncMetricQueryArgs,
+        requestArgs: ExecuteAsyncMetricQueryArgs,
         reuseQueryUuid?: string,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
+        // A dashboard embed token can run Explore queries, so its parameter rules apply here too
+        const args =
+            isJwtUser(requestArgs.account) &&
+            requestArgs.account.access.content.type === 'dashboard'
+                ? {
+                      ...requestArgs,
+                      parameters: getEmbedParameterValues(
+                          requestArgs.account.access.parameters,
+                          requestArgs.parameters,
+                      ),
+                  }
+                : requestArgs;
         const {
             account,
             projectUuid,
