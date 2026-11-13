@@ -21,6 +21,10 @@ export const useLiveSourceSignInResult = ({
         const connected = searchParams.get('connected');
         const signInError = searchParams.get('signInError');
         if (!connected && !signInError) return;
+        // Cleared first, so onConnected can navigate elsewhere
+        searchParams.delete('connected');
+        searchParams.delete('signInError');
+        setSearchParams(searchParams, { replace: true });
         if (signInError) {
             showToastError({
                 title: 'Could not connect the source',
@@ -31,9 +35,6 @@ export const useLiveSourceSignInResult = ({
         } else {
             showToastSuccess({ title: 'Source connected' });
         }
-        searchParams.delete('connected');
-        searchParams.delete('signInError');
-        setSearchParams(searchParams, { replace: true });
     }, [
         searchParams,
         setSearchParams,
