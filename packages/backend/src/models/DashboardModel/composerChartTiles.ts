@@ -1,5 +1,7 @@
 import {
     DashboardTileTypes,
+    NotFoundError,
+    ParameterError,
     type CreateDashboard,
     type CreateDashboardComposerChartTile,
     type DashboardComposerChartTile,
@@ -9,7 +11,10 @@ import {
     ComposerChartsTableName,
     DashboardTileComposerChartsTableName,
 } from '../../database/entities/composerCharts';
-import { DashboardTilesTableName } from '../../database/entities/dashboards';
+import {
+    DashboardsTableName,
+    DashboardTilesTableName,
+} from '../../database/entities/dashboards';
 
 export function onComposerChartTile(this: Knex.JoinClause) {
     this.on(
@@ -52,30 +57,41 @@ export const toComposerChartTile = (
 
 export const insertComposerChartTiles = async (
     trx: Knex.Transaction,
+    dashboardId: number,
     dashboardVersionId: number,
     tiles: ReadonlyArray<CreateDashboard['tiles'][number] & { uuid: string }>,
 ) => {
-    const rows = tiles
-        .filter(
-            (
-                tile,
-            ): tile is CreateDashboardComposerChartTile & { uuid: string } =>
-                tile.type === DashboardTileTypes.COMPOSER_CHART,
+    const composerTiles = tiles.filter(
+        (tile): tile is CreateDashboardComposerChartTile & { uuid: string } =>
+            tile.type === DashboardTileTypes.COMPOSER_CHART,
+    );
+    if (composerTiles.length === 0) return;
+
+    const rows = composerTiles.map(({ uuid, properties }) => {
+        if (!properties.composerChartUuid) {
+            throw new ParameterError('Composer chart tile has no chart');
+        }
+        return {
+            dashboard_version_id: dashboardVersionId,
+            dashboard_tile_uuid: uuid,
+            composer_chart_uuid: properties.composerChartUuid,
+            title: properties.title ?? null,
+            hide_title: properties.hideTitle ?? false,
+        };
+    });
+    const chartUuids = [...new Set(rows.map((row) => row.composer_chart_uuid))];
+    const foundUuids = await trx(ComposerChartsTableName)
+        .whereIn('composer_chart_uuid', chartUuids)
+        .whereNull('deleted_at')
+        .whereIn(
+            'project_uuid',
+            trx(DashboardsTableName)
+                .select('project_uuid')
+                .where('dashboard_id', dashboardId),
         )
-        .flatMap(({ uuid, properties }) =>
-            properties.composerChartUuid
-                ? [
-                      {
-                          dashboard_version_id: dashboardVersionId,
-                          dashboard_tile_uuid: uuid,
-                          composer_chart_uuid: properties.composerChartUuid,
-                          title: properties.title ?? null,
-                          hide_title: properties.hideTitle ?? false,
-                      },
-                  ]
-                : [],
-        );
-    if (rows.length > 0) {
-        await trx(DashboardTileComposerChartsTableName).insert(rows);
+        .pluck('composer_chart_uuid');
+    if (foundUuids.length !== chartUuids.length) {
+        throw new NotFoundError('Composer chart not found');
     }
+    await trx(DashboardTileComposerChartsTableName).insert(rows);
 };

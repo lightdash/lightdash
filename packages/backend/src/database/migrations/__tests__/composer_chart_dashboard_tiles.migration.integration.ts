@@ -88,33 +88,45 @@ describe('composer chart tiles in DashboardModel on the real schema', () => {
     let model: DashboardModel;
     let fixture: Fixture;
 
-    const createDashboardWithComposerTile = async () => {
-        const created = await model.create(
-            fixture.spaceUuid,
+    const createDashboard = (owner: Fixture) =>
+        model.create(
+            owner.spaceUuid,
             {
                 name: 'Composer dashboard',
                 slug: `composer-dashboard-${randomUUID()}`,
                 tiles: [markdownTile],
                 tabs: [],
             },
-            { userUuid: fixture.userUuid },
-            fixture.projectUuid,
+            { userUuid: owner.userUuid },
+            owner.projectUuid,
         );
+
+    const insertChart = async (
+        owner: Fixture,
+        dashboardUuid: string,
+    ): Promise<string> => {
         const [{ composer_chart_uuid: composerChartUuid }] = await database(
             COMPOSER_CHARTS,
         )
             .insert({
-                project_uuid: fixture.projectUuid,
-                dashboard_uuid: created.uuid,
+                project_uuid: owner.projectUuid,
+                dashboard_uuid: dashboardUuid,
                 name: 'Orders by month',
                 slug: `orders-by-month-${randomUUID()}`,
-                created_by_user_uuid: fixture.userUuid,
+                created_by_user_uuid: owner.userUuid,
             })
             .returning('composer_chart_uuid');
-        const withComposerTile = await model.addVersion(
-            created.uuid,
-            toVersion(created, [
-                ...created.tiles,
+        return composerChartUuid;
+    };
+
+    const addComposerTile = (
+        dashboard: DashboardDAO,
+        composerChartUuid: string | null,
+    ) =>
+        model.addVersion(
+            dashboard.uuid,
+            toVersion(dashboard, [
+                ...dashboard.tiles,
                 {
                     uuid: randomUUID(),
                     type: DashboardTileTypes.COMPOSER_CHART,
@@ -133,7 +145,12 @@ describe('composer chart tiles in DashboardModel on the real schema', () => {
             { userUuid: fixture.userUuid },
             fixture.projectUuid,
         );
-        return { dashboard: withComposerTile, composerChartUuid };
+
+    const createDashboardWithComposerTile = async () => {
+        const created = await createDashboard(fixture);
+        const composerChartUuid = await insertChart(fixture, created.uuid);
+        const dashboard = await addComposerTile(created, composerChartUuid);
+        return { dashboard, composerChartUuid };
     };
 
     beforeAll(async () => {
@@ -225,5 +242,27 @@ describe('composer chart tiles in DashboardModel on the real schema', () => {
                 (tile) => tile.type === DashboardTileTypes.COMPOSER_CHART,
             )?.properties,
         ).toEqual(expect.objectContaining({ composerChartUuid }));
+    });
+
+    it('refuses a composer tile without a chart', async () => {
+        const dashboard = await createDashboard(fixture);
+
+        await expect(addComposerTile(dashboard, null)).rejects.toThrow(
+            /Composer chart tile has no chart/,
+        );
+    });
+
+    it("refuses a composer tile pointing at another project's chart", async () => {
+        const otherProject = await createFixture(database);
+        const otherDashboard = await createDashboard(otherProject);
+        const foreignChartUuid = await insertChart(
+            otherProject,
+            otherDashboard.uuid,
+        );
+        const dashboard = await createDashboard(fixture);
+
+        await expect(
+            addComposerTile(dashboard, foreignChartUuid),
+        ).rejects.toThrow(/Composer chart not found/);
     });
 });

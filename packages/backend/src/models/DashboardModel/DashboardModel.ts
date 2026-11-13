@@ -520,6 +520,7 @@ export class DashboardModel {
 
         await insertComposerChartTiles(
             trx,
+            dashboardId,
             versionId.dashboard_version_id,
             tilesWithUuids,
         );
