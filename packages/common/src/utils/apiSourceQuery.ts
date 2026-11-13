@@ -4,7 +4,7 @@ import {
     type ApiSourceFieldRule,
     type ApiSourcePushdown,
 } from '../types/apiSourceExplore';
-import { type FieldId } from '../types/field';
+import { isFilterableItem, type FieldId, type ItemsMap } from '../types/field';
 import {
     FilterOperator,
     flattenFilterGroup,
@@ -25,7 +25,9 @@ import {
     PROJECT_TIMEZONE_SETTING,
     USER_TIMEZONE_SETTING,
 } from '../types/timezone';
-import { getItemId } from './item';
+import { getFilterOperatorOptions } from './filterLabels';
+import { getFilterTypeFromItem } from './filters';
+import { getItemId, getItemLabelWithoutTableName } from './item';
 import { LIVE_SOURCE_INTEGRATION_PROFILES } from './liveSourceIntegrations';
 
 /** Why a metric query can't run on a live data source explore, with what to change. */
@@ -40,6 +42,41 @@ export type ApiSourceQueryContext = {
     isPivoted?: boolean;
     /** The date zoom granularity, e.g. `Week`; absent without date zoom. */
     dateZoomGranularity?: string;
+    /** The explore's fields, so refusals name them by label. */
+    itemsMap?: ItemsMap;
+};
+
+/** How refusals name fields and operators: as in the UI when the fields are known. */
+type IssueNames = {
+    field: (fieldId: FieldId) => string;
+    operator: (fieldId: FieldId, operator: FilterOperator) => string;
+    source: string;
+};
+
+const getIssueNames = (
+    apiSource: ApiSourceExplore,
+    itemsMap: ItemsMap = {},
+): IssueNames => {
+    const getItem = (fieldId: FieldId) =>
+        Object.hasOwn(itemsMap, fieldId) ? itemsMap[fieldId] : undefined;
+    return {
+        field: (fieldId) => {
+            const item = getItem(fieldId);
+            return item ? getItemLabelWithoutTableName(item) : `"${fieldId}"`;
+        },
+        operator: (fieldId, operator) => {
+            const item = getItem(fieldId);
+            const label =
+                item && isFilterableItem(item)
+                    ? getFilterOperatorOptions(
+                          getFilterTypeFromItem(item),
+                          item,
+                      ).find(({ value }) => value === operator)?.label
+                    : undefined;
+            return `"${label ?? operator}"`;
+        },
+        source: LIVE_SOURCE_INTEGRATION_PROFILES[apiSource.integration].label,
+    };
 };
 
 const getFieldRule = (
@@ -297,6 +334,7 @@ const SUB_DAY_UNITS = [
 const getFilterIssues = (
     apiSource: ApiSourceExplore,
     capabilities: ApiSourceCapabilities,
+    names: IssueNames,
     group: FilterGroup | undefined,
     kind: 'dimensions' | 'metrics',
 ): ApiSourceQueryIssue[] => {
@@ -355,8 +393,12 @@ const getFilterIssues = (
                         fieldId,
                         message:
                             operators.length === 0
-                                ? `"${fieldId}" can't be filtered on this live data source.`
-                                : `"${fieldId}" can't be filtered with "${rule.operator}". Use one of: ${operators.join(', ')}.`,
+                                ? `${names.field(fieldId)} can't be filtered on ${names.source}.`
+                                : `${names.field(fieldId)} can't use ${names.operator(fieldId, rule.operator)} on ${names.source}. Use one of: ${operators
+                                      .map((operator) =>
+                                          names.operator(fieldId, operator),
+                                      )
+                                      .join(', ')}.`,
                     },
                 ];
             }
@@ -374,7 +416,7 @@ const getFilterIssues = (
                     {
                         code: 'live_source.refused.multiple_values',
                         fieldId,
-                        message: `${LIVE_SOURCE_INTEGRATION_PROFILES[apiSource.integration].label} matches one value per filter; filter "${fieldId}" by one value at a time.`,
+                        message: `${names.source} matches one value per filter; filter ${names.field(fieldId)} by one value at a time.`,
                     },
                 ];
             }
@@ -456,6 +498,7 @@ const getDateRangeIssues = (
 
 const getIncompatibilityIssues = (
     apiSource: ApiSourceExplore,
+    names: IssueNames,
     metricQuery: MetricQuery,
 ): ApiSourceQueryIssue[] => {
     const used = new Set([
@@ -473,7 +516,7 @@ const getIncompatibilityIssues = (
             {
                 code: 'live_source.refused.field_combination',
                 fieldId: field,
-                message: `"${field}" can't be combined with "${other}": ${incompatibility.reason}`,
+                message: `${names.field(field)} can't be combined with ${names.field(other)}: ${incompatibility.reason}`,
             },
         ];
     });
@@ -511,14 +554,19 @@ export const getApiSourceQueryIssues = (
     context: ApiSourceQueryContext = {},
 ): ApiSourceQueryIssue[] => {
     const capabilities = getApiSourceCapabilities(apiSource);
+    const names = getIssueNames(apiSource, context.itemsMap);
     const { dimensions, metrics } = metricQuery.filters;
+    const filterIssues = (
+        group: FilterGroup | undefined,
+        kind: 'dimensions' | 'metrics',
+    ) => getFilterIssues(apiSource, capabilities, names, group, kind);
     return [
         ...getUnsupportedFeatureIssues(capabilities, metricQuery, context),
         ...getUnknownFieldIssues(apiSource, capabilities, metricQuery),
-        ...getFilterIssues(apiSource, capabilities, dimensions, 'dimensions'),
-        ...getFilterIssues(apiSource, capabilities, metrics, 'metrics'),
+        ...filterIssues(dimensions, 'dimensions'),
+        ...filterIssues(metrics, 'metrics'),
         ...getDateRangeIssues(apiSource, capabilities, dimensions),
-        ...getIncompatibilityIssues(apiSource, metricQuery),
+        ...getIncompatibilityIssues(apiSource, names, metricQuery),
         ...getSizeIssues(apiSource, metricQuery),
     ];
 };

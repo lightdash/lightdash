@@ -12700,6 +12700,7 @@ export class AsyncQueryService extends ProjectService {
             {
                 isPivoted: !!queryComposer.getPivotConfiguration(),
                 dateZoomGranularity: queryComposer.getDateZoom()?.granularity,
+                itemsMap: getItemMap(explore),
             },
         );
         if (issues.length > 0) {
