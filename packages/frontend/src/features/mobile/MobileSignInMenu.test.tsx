@@ -1,4 +1,8 @@
-import { MobileSignInCodeStatus, type ApiError } from '@lightdash/common';
+import {
+    LightdashMode,
+    MobileSignInCodeStatus,
+    type ApiError,
+} from '@lightdash/common';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
@@ -7,11 +11,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { MobileSignInMenu } from './MobileSignInMenu';
+import { MOBILE_SIGN_IN_STRINGS } from './mobileStrings';
 import { UPSELL_STRINGS } from './upsell/upsellStrings';
 
 vi.mock('../../api');
+const health = vi.hoisted(() => ({ mode: 'default' }));
 vi.mock('../../hooks/health/useHealth', () => ({
-    default: () => ({ data: { siteUrl: 'https://app.example.com' } }),
+    default: () => ({
+        data: { siteUrl: 'https://app.example.com', mode: health.mode },
+    }),
 }));
 const qrSignIn = vi.hoisted(() => ({ enabled: true }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
@@ -122,6 +130,7 @@ beforeEach(() => {
     window.history.replaceState({}, '', '/');
     api.mockReset();
     qrSignIn.enabled = true;
+    health.mode = LightdashMode.DEFAULT;
 });
 
 describe('MobileSignInMenu', () => {
@@ -241,6 +250,34 @@ describe('MobileSignInMenu', () => {
                 within(confirm).getByRole('button', { name: 'Decline' }),
             ).toHaveFocus(),
         );
+    });
+
+    it.each([1, 2, 3, 4, 5, 6] as const)(
+        'shows the Cloud install hint under the QR in pitch %s',
+        async (variation) => {
+            health.mode = LightdashMode.CLOUD_BETA;
+            window.history.replaceState({}, '', `/?mobileUpsell=${variation}`);
+            mockServer();
+            renderMenu(<MobileSignInMenu />);
+            await userEvent.click(openButton());
+            await screen.findByRole('img', { name: 'Sign-in QR code' });
+            const hint = screen.getByText(MOBILE_SIGN_IN_STRINGS.installHint);
+            expect(hint).toBeVisible();
+            expect(document.querySelector('[data-idle]')).not.toContainElement(
+                hint,
+            );
+        },
+    );
+
+    it('leaves the install hint out of the pitch outside Cloud', async () => {
+        window.history.replaceState({}, '', '/?mobileUpsell=2');
+        mockServer();
+        renderMenu(<MobileSignInMenu />);
+        await userEvent.click(openButton());
+        await screen.findByRole('img', { name: 'Sign-in QR code' });
+        expect(
+            screen.queryByText(MOBILE_SIGN_IN_STRINGS.installHint),
+        ).not.toBeInTheDocument();
     });
 
     it('pauses the pitch when the tab is hidden', async () => {

@@ -68,12 +68,7 @@
 .signIn {
     display: grid;
     gap: var(--mantine-spacing-sm);
-    margin-inline: -8px;
-    padding: 12px 8px;
     container: sign-in / inline-size;
-    border: 1px solid transparent;
-    border-radius: var(--mantine-radius-lg);
-    background: rgb(94 76 255 / 0.08);
 }
 
 .signInTitle {
@@ -88,6 +83,12 @@
     grid-template-columns: 160px minmax(0, 1fr);
     gap: var(--mantine-spacing-md);
     align-items: center;
+}
+
+.qrColumn {
+    display: grid;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
 }
 
 .qrColumn [data-used='true'] {

@@ -1,6 +1,7 @@
 import { Stack, Text, Title } from '@mantine/core';
 import { useDocumentVisibility } from '@mantine/hooks';
 import { type ReactNode } from 'react';
+import { MobileSignInInstallHint } from '../MobileSignInInstallHint';
 import { AskUpsell } from './AskUpsell';
 import { BrowseUpsell } from './BrowseUpsell';
 import { ChartFitUpsell } from './ChartFitUpsell';
@@ -72,7 +73,10 @@ const Pitch = ({
             <div className={classes.signIn}>
                 <div className={classes.signInTitle}>{title}</div>
                 <div className={classes.panel}>
-                    <div className={classes.qrColumn}>{qr}</div>
+                    <div className={classes.qrColumn}>
+                        {qr}
+                        {isIdle && <MobileSignInInstallHint />}
+                    </div>
                     <div className={classes.side} data-idle={isIdle}>
                         <div className={classes.stage} aria-hidden="true">
                             <Graphic />

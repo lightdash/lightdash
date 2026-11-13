@@ -101,6 +101,21 @@
     background: #4c3bdb;
 }
 
+.signInPopover .secondaryButton:global(.mantine-Button-root) {
+    border: 1px solid #d1ccff;
+    background: #d1ccff;
+    color: #1200b2;
+}
+
+.signInPopover .secondaryButton:global(.mantine-Button-root):hover {
+    border-color: #bdb5ff;
+    background: #bdb5ff;
+}
+
+.signInPopover .secondaryButton:global(.mantine-Button-root):disabled {
+    opacity: 0.6;
+}
+
 .signInButtonLabel {
     overflow: revert;
 }

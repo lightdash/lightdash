@@ -69,7 +69,11 @@ const MatchNumber: FC<{ value: string }> = ({ value }) => (
 const HiddenCode: FC<StepContext> = ({ signIn }) =>
     signIn.isMinting ? null : (
         <Group>
-            <Button size="xs" onClick={signIn.show}>
+            <Button
+                size="xs"
+                className={classes.secondaryButton}
+                onClick={signIn.show}
+            >
                 {S.showCode}
             </Button>
         </Group>
@@ -95,7 +99,12 @@ const FailedMint: FC<StepContext> = ({ signIn }) => (
             title={MOBILE_STRINGS.couldNotCreateCode}
             w="100%"
         />
-        <Button size="xs" variant="default" onClick={signIn.show}>
+        <Button
+            size="xs"
+            variant="default"
+            className={classes.secondaryButton}
+            onClick={signIn.show}
+        >
             {MOBILE_STRINGS.tryAgain}
         </Button>
     </Stack>
@@ -145,6 +154,7 @@ const ConfirmSignIn: FC<StepContext> = ({
                     ref={decline}
                     size="xs"
                     variant="default"
+                    className={classes.secondaryButton}
                     onClick={signIn.decline}
                     disabled={signIn.isDeciding}
                 >
@@ -173,6 +183,7 @@ const ApprovedNumber: FC<StepContext> = ({ signIn }) =>
             <Button
                 size="xs"
                 variant="default"
+                className={classes.secondaryButton}
                 onClick={signIn.decline}
                 loading={signIn.isDeciding}
             >
@@ -184,7 +195,11 @@ const ApprovedNumber: FC<StepContext> = ({ signIn }) =>
 const ExpiredCode: FC<StepContext> = ({ signIn }) => (
     <Stack gap="sm" align="flex-start">
         <Callout variant="warning" title={S.expired} w="100%" />
-        <Button size="xs" onClick={signIn.show}>
+        <Button
+            size="xs"
+            className={classes.secondaryButton}
+            onClick={signIn.show}
+        >
             {S.newCode}
         </Button>
     </Stack>
@@ -207,7 +222,12 @@ const DeclinedCode: FC<StepContext> = ({ signIn }) => (
             }
             w="100%"
         />
-        <Button size="xs" variant="default" onClick={signIn.show}>
+        <Button
+            size="xs"
+            variant="default"
+            className={classes.secondaryButton}
+            onClick={signIn.show}
+        >
             {S.newCode}
         </Button>
     </Stack>
@@ -223,7 +243,12 @@ const SignedIn: FC<StepContext> = ({ signIn, account, platform }) => (
         >
             {platform ? S.signedInAs(platform, account) : account}
         </Callout>
-        <Button size="xs" variant="default" onClick={signIn.show}>
+        <Button
+            size="xs"
+            variant="default"
+            className={classes.secondaryButton}
+            onClick={signIn.show}
+        >
             {S.anotherPhone}
         </Button>
     </Stack>
