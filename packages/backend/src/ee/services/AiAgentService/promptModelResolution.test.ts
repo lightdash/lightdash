@@ -1,4 +1,8 @@
-import { type AiAgentModelConfig, type SessionUser } from '@lightdash/common';
+import {
+    ParameterError,
+    type AiAgentModelConfig,
+    type SessionUser,
+} from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
@@ -100,7 +104,7 @@ const buildService = ({
 
     const storedModelConfig = () => createPrompt.mock.calls[0]?.[0].modelConfig;
 
-    return { service, storedModelConfig };
+    return { service, storedModelConfig, createPrompt };
 };
 
 const sendOnEachPath = {
@@ -232,16 +236,82 @@ const followUpOnEachPath = {
 describe.each(Object.entries(followUpOnEachPath))(
     'thread model on %s',
     (_, send) => {
-        it("keeps the thread's model when the user picked another one", async () => {
+        it.each([
+            {
+                setting: 'provider',
+                recorded: threadModel,
+                requested: { ...threadModel, modelProvider: 'openai' },
+            },
+            {
+                setting: 'model name',
+                recorded: threadModel,
+                requested: { ...threadModel, modelName: 'another-model' },
+            },
+            {
+                setting: 'reasoning enabled',
+                recorded: threadModel,
+                requested: { ...threadModel, reasoning: true },
+            },
+            {
+                setting: 'reasoning disabled',
+                recorded: { ...threadModel, reasoning: true },
+                requested: { ...threadModel, reasoning: false },
+            },
+            {
+                setting: 'reasoning omitted',
+                recorded: { ...threadModel, reasoning: true },
+                requested: threadModel,
+            },
+        ])(
+            'rejects a change to $setting before storing the prompt',
+            async ({ recorded, requested }) => {
+                const { service, createPrompt } = buildService({
+                    agentModelConfig: agentModel,
+                    organizationModelConfig: organizationModel,
+                    threadModelConfig: recorded,
+                });
+
+                await expect(send(service, requested)).rejects.toThrow(
+                    new ParameterError(
+                        "modelConfig must match the thread's model and reasoning settings. Omit modelConfig to continue this thread, or start a new thread to use a different configuration.",
+                    ),
+                );
+
+                expect(createPrompt).not.toHaveBeenCalled();
+            },
+        );
+
+        it.each([
+            {
+                setting: 'the same configuration',
+                recorded: threadModel,
+                requested: threadModel,
+            },
+            {
+                setting: 'reasoning omitted when recorded as false',
+                recorded: { ...threadModel, reasoning: false },
+                requested: threadModel,
+            },
+            {
+                setting: 'reasoning false when omitted from the recording',
+                recorded: threadModel,
+                requested: { ...threadModel, reasoning: false },
+            },
+            {
+                setting: 'reasoning enabled on both configurations',
+                recorded: { ...threadModel, reasoning: true },
+                requested: { ...threadModel, reasoning: true },
+            },
+        ])('accepts $setting', async ({ recorded, requested }) => {
             const { service, storedModelConfig } = buildService({
                 agentModelConfig: agentModel,
                 organizationModelConfig: organizationModel,
-                threadModelConfig: threadModel,
+                threadModelConfig: recorded,
             });
 
-            await send(service, pickedModel);
+            await send(service, requested);
 
-            expect(storedModelConfig()).toEqual(threadModel);
+            expect(storedModelConfig()).toEqual(recorded);
         });
 
         it("keeps the thread's model after the agent moved to another model", async () => {
