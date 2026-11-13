@@ -1,13 +1,21 @@
-/* Inset like a tile, which leaves half a grid gap on every side */
 .placeholder {
+    --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+
     position: absolute;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 5px;
     color: var(--mantine-color-dimmed);
-    animation: placeholder-in 120ms ease-out;
+    opacity: 1;
+    transition:
+        opacity 120ms var(--ease-out-strong),
+        color 120ms ease;
 
+    @starting-style {
+        opacity: 0;
+    }
+
+    /* Inset like a tile, which leaves half a grid gap on every side */
     &::before {
         content: '';
         position: absolute;
@@ -19,26 +27,31 @@
             background-color 120ms ease;
     }
 
-    &:hover::before,
     &:focus-visible::before,
     &[data-picker-open]::before {
         border-color: var(--mantine-color-ldGray-6);
         background-color: var(--mantine-color-default-hover);
     }
 
-    &:hover,
     &[data-picker-open] {
         color: var(--mantine-color-text);
     }
 
-    @media (prefers-reduced-motion: reduce) {
-        animation: none;
-    }
-}
+    @media (hover: hover) and (pointer: fine) {
+        &:hover::before {
+            border-color: var(--mantine-color-ldGray-6);
+            background-color: var(--mantine-color-default-hover);
+        }
 
-@keyframes placeholder-in {
-    from {
-        opacity: 0;
+        &:hover {
+            color: var(--mantine-color-text);
+        }
+    }
+
+    /* The label alone: the same scale on the whole ghost would move its edges
+       by tens of pixels */
+    &:active .label {
+        transform: scale(0.97);
     }
 }
 
@@ -49,6 +62,7 @@
     gap: var(--mantine-spacing-xxs);
     font-size: var(--mantine-font-size-sm);
     font-weight: 500;
+    transition: transform 100ms ease-out;
 }
 
 .option {
@@ -61,8 +75,17 @@
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
     text-align: center;
+    transition:
+        background-color 120ms ease,
+        transform 100ms ease-out;
 
-    &:hover {
-        background-color: var(--mantine-color-default-hover);
+    @media (hover: hover) and (pointer: fine) {
+        &:hover {
+            background-color: var(--mantine-color-default-hover);
+        }
+    }
+
+    &:active {
+        transform: scale(0.97);
     }
 }
