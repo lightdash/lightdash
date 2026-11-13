@@ -294,12 +294,55 @@ describe('parseComposerStoredChart', () => {
         ).toContain('custom chart types');
     });
 
-    test('refuses a chart type it cannot check', () => {
-        refusal(() =>
-            parseComposerStoredChart({
-                ...chart,
-                chartConfig: { type: ChartType.SANKEY, config: {} },
-            }),
-        );
+    test.each([
+        [
+            ChartType.TREEMAP,
+            { groupFieldIds: ['month'], sizeMetricId: 'revenue' },
+        ],
+        [
+            ChartType.GAUGE,
+            {
+                selectedField: 'revenue',
+                sections: [
+                    { min: 0, max: 1, color: '#000', maxFieldId: 'revenue' },
+                ],
+            },
+        ],
+        [ChartType.MAP, { locationFieldId: 'month', valueFieldId: 'revenue' }],
+        [
+            ChartType.SANKEY,
+            {
+                sourceFieldId: 'month',
+                targetFieldId: 'month',
+                metricFieldId: 'revenue',
+            },
+        ],
+        [ChartType.CUSTOM, { spec: { mark: 'bar' } }],
+    ])('accepts a %s chart naming its columns', (type, config) => {
+        const document = { ...chart, chartConfig: { type, config } };
+        expect(parseComposerStoredChart(document)).toEqual(document);
+    });
+
+    test.each([
+        [ChartType.TREEMAP, { colorMetricId: 'profit' }],
+        [
+            ChartType.GAUGE,
+            {
+                sections: [
+                    { min: 0, max: 1, color: '#000', minFieldId: 'profit' },
+                ],
+            },
+        ],
+        [ChartType.MAP, { latitudeFieldId: 'profit' }],
+        [ChartType.SANKEY, { metricFieldId: 'profit' }],
+    ])('refuses a %s chart naming a missing column', (type, config) => {
+        expect(
+            refusal(() =>
+                parseComposerStoredChart({
+                    ...chart,
+                    chartConfig: { type, config },
+                }),
+            ),
+        ).toContain('"profit"');
     });
 });

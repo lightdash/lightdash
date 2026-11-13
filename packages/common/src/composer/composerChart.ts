@@ -43,7 +43,6 @@ export type ComposerChartColumn = {
 export type ComposerStoredChart = {
     schemaVersion: 1;
     columns: ComposerChartColumn[];
-    /** Any classic config at the API; the parser refuses types it cannot check by name. */
     chartConfig: ChartConfig;
     pivotConfig: { columns: string[] } | null;
     tableConfig: { columnOrder: string[] };
@@ -275,7 +274,7 @@ const storedChartSchema = z.strictObject({
 const compact = (names: (string | undefined)[]): string[] =>
     names.filter((name): name is string => name !== undefined);
 
-/** Column names the chart config uses; refuses types whose names it cannot check. */
+/** Column names the chart config uses. */
 const getChartConfigNames = (chartConfig: ChartConfig): string[] => {
     switch (chartConfig.type) {
         case ChartType.CARTESIAN: {
@@ -316,13 +315,37 @@ const getChartConfigNames = (chartConfig: ChartConfig): string[] => {
                 'Composer charts do not support custom chart types yet',
             );
         case ChartType.TREEMAP:
+            return compact([
+                ...(chartConfig.config?.groupFieldIds ?? []),
+                chartConfig.config?.sizeMetricId,
+                chartConfig.config?.colorMetricId,
+            ]);
         case ChartType.GAUGE:
-        case ChartType.CUSTOM:
+            return compact([
+                chartConfig.config?.selectedField,
+                chartConfig.config?.maxFieldId,
+                ...(chartConfig.config?.sections ?? []).flatMap((section) => [
+                    section.minFieldId,
+                    section.maxFieldId,
+                ]),
+            ]);
         case ChartType.MAP:
+            return compact([
+                chartConfig.config?.latitudeFieldId,
+                chartConfig.config?.longitudeFieldId,
+                chartConfig.config?.locationFieldId,
+                chartConfig.config?.valueFieldId,
+                chartConfig.config?.sizeFieldId,
+            ]);
         case ChartType.SANKEY:
-            throw new ParameterError(
-                `Composer charts do not support the "${chartConfig.type}" chart type`,
-            );
+            return compact([
+                chartConfig.config?.sourceFieldId,
+                chartConfig.config?.targetFieldId,
+                chartConfig.config?.metricFieldId,
+            ]);
+        // A Vega-Lite spec names fields inside free-form JSON.
+        case ChartType.CUSTOM:
+            return [];
         default:
             return assertUnreachable(chartConfig, 'Unknown chart type');
     }
