@@ -1,7 +1,9 @@
 import {
+    ForbiddenError,
     NotFoundError,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
+    SEED_ORG_2,
     SEED_PROJECT,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -62,12 +64,16 @@ describe('AiAgentModel MCP server lifecycle', () => {
         return server;
     };
 
-    const createAgent = async (name: string, mcpServerUuids: string[]) => {
+    const createAgent = async (
+        name: string,
+        mcpServerUuids: string[],
+        organizationUuid = SEED_ORG_1.organization_uuid,
+    ) => {
         const agent = await model.createAgent({
             name,
             description: null,
             projectUuid: SEED_PROJECT.project_uuid,
-            organizationUuid: SEED_ORG_1.organization_uuid,
+            organizationUuid,
             tags: null,
             integrations: [],
             instruction: null,
@@ -82,6 +88,25 @@ describe('AiAgentModel MCP server lifecycle', () => {
         agentUuids.add(agent.uuid);
         return agent;
     };
+
+    it('checks project ownership before saving an agent and its servers', async () => {
+        const server = await createServer('Project server');
+        await expect(
+            createAgent(
+                'Agent with a different organization',
+                [server.uuid],
+                SEED_ORG_2.organization_uuid,
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        const agent = await createAgent('Agent in the project organization', [
+            server.uuid,
+        ]);
+        const servers = await model.getAgentMcpServersWithSensitiveData(
+            agent.uuid,
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        expect(servers.map(({ uuid }) => uuid)).toEqual([server.uuid]);
+    });
 
     const countRows = async (table: string, column: string, value: string) => {
         const row = await database(table)
