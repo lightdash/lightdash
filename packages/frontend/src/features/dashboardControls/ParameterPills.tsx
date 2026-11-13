@@ -1,6 +1,5 @@
 import {
     getControlTileUuids,
-    isParameterControlLockedInEmbed,
     resolveParameterDefault,
 } from '@lightdash/common';
 import { ActionIcon, Box, Button, Group, Text, Tooltip } from '@mantine/core';
@@ -18,7 +17,6 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import {
     selectDashboardEffectiveParameterValues,
-    selectEmbedDashboard,
     selectParameterControlInputs,
     selectSavedParameterControlIds,
     selectTileParameterReferences,
@@ -44,6 +42,7 @@ import { useControlsEditorSelector } from './useControlsEditor';
 import { useIsControlEdited } from './useIsControlEdited';
 import {
     getParameterEntryName,
+    useIsParameterControlLockedInEmbed,
     useParameterBarControls,
     type ParameterBar,
     type ParameterBarEntry,
@@ -453,21 +452,14 @@ export const ParameterPills: FC<Props> = ({
     const bar = useParameterBarControls();
     const isViewer = useParameterEditorSelector((c) => c.isViewer);
     const editingId = useParameterEditorSelector((c) => c.editingId);
-    const embedParameterInteractivity = useDashboardSelector(
-        (state) => selectEmbedDashboard(state)?.parameterInteractivity,
-    );
+    const isLockedInEmbed = useIsParameterControlLockedInEmbed();
     // A hidden control is an editor's to see; its value still applies.
     // An embed viewer also doesn't see the controls their token keeps from them.
     const passEntries = bar.entries.filter(
         (entry) =>
             !(
                 isViewer &&
-                (entry.control.hidden ||
-                    (embedParameterInteractivity !== undefined &&
-                        isParameterControlLockedInEmbed(
-                            embedParameterInteractivity,
-                            entry.control,
-                        )))
+                (entry.control.hidden || isLockedInEmbed(entry.control))
             ) &&
             (sectionId === undefined ||
                 (entry.isNeedsValue

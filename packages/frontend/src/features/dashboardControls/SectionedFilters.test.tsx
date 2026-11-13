@@ -33,6 +33,7 @@ import {
     dashboardEditActions,
     dashboardFiltersActions,
     dashboardParametersActions,
+    dashboardSourceActions,
     selectControlOrder,
     selectControlSections,
     selectHasControlOrderChanged,
@@ -3737,6 +3738,36 @@ describe('SectionedFilters', () => {
             expect(
                 screen.queryByRole('group', { name: 'Regions' }),
             ).not.toBeInTheDocument();
+        });
+
+        it('shows an embed viewer no capsule for a section of only controls their token locks', () => {
+            mockEditor.current = { isViewer: true, isEditorOpen: false };
+            const store = renderWithParameters(
+                [
+                    parameterControl('week', 'b'),
+                    parameterControl('region', 'a'),
+                ],
+                [],
+            );
+            expect(
+                screen.getByRole('group', { name: 'Regions' }),
+            ).toBeVisible();
+            act(() => {
+                store.dispatch(
+                    dashboardSourceActions.setEmbedDashboard({
+                        parameterInteractivity: {
+                            enabled: true,
+                            allowedParameters: ['region'],
+                        },
+                    } as Parameters<
+                        typeof dashboardSourceActions.setEmbedDashboard
+                    >[0]),
+                );
+            });
+            expect(
+                screen.queryByRole('group', { name: 'Regions' }),
+            ).not.toBeInTheDocument();
+            expect(screen.getByRole('group', { name: 'Dates' })).toBeVisible();
         });
 
         it('drags a control onto another to reorder, onto a section to join it, out to the bar to leave it', () => {

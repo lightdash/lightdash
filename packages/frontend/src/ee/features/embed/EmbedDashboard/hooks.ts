@@ -1,4 +1,10 @@
-import type { ApiError, EmbedDashboard } from '@lightdash/common';
+import {
+    getEmbedParameterValues,
+    isParameterAllowedInEmbed,
+    type ApiError,
+    type EmbedDashboard,
+    type ParametersValuesMap,
+} from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useDashboardRefresh } from '../../../../hooks/dashboard/useDashboardRefresh';
@@ -34,30 +40,57 @@ export const useEmbedDashboard = (
 };
 
 // Embedded tiles run with the dashboard's saved parameters, so the controls need them too.
-// The token's values sit over them in view mode; edit mode keeps them out of what gets saved.
+// The token's values sit over them in view mode, as the server applies them; edit mode keeps them out of what gets saved.
 export const useEmbedSavedParameters = (
     dashboard:
         | (Pick<EmbedDashboard, 'parameters'> &
               Partial<Pick<EmbedDashboard, 'parameterInteractivity'>>)
         | undefined,
     isEditMode: boolean = false,
+    // The viewer's values on the export page
+    exportParameters: ParametersValuesMap | undefined = undefined,
 ) => {
     const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
     const setParameterPicks = useDashboardContext((c) => c.setParameterPicks);
     useEffect(() => {
         if (!dashboard) return;
-        const tokenValues = isEditMode
+        const interactivity = isEditMode
             ? undefined
-            : dashboard.parameterInteractivity?.values;
+            : dashboard.parameterInteractivity;
+        const values = getEmbedParameterValues(interactivity, exportParameters);
         setSavedParameters({
             ...dashboard.parameters,
-            ...(tokenValues && toDashboardParameters(tokenValues)),
+            ...toDashboardParameters(values),
         });
         // Controls read picks, like a scheduled delivery's values
-        if (tokenValues && Object.keys(tokenValues).length > 0) {
-            setParameterPicks((picks) => ({ ...picks, ...tokenValues }));
+        const tokenKeys = Object.keys(interactivity?.values ?? {});
+        if (tokenKeys.length > 0) {
+            setParameterPicks((picks) => ({
+                ...picks,
+                ...Object.fromEntries(
+                    tokenKeys
+                        // A viewer's own pick stays for a parameter they may change
+                        .filter(
+                            (key) =>
+                                !(
+                                    key in picks &&
+                                    isParameterAllowedInEmbed(
+                                        interactivity,
+                                        key,
+                                    )
+                                ),
+                        )
+                        .map((key) => [key, values[key]]),
+                ),
+            }));
         }
-    }, [dashboard, isEditMode, setSavedParameters, setParameterPicks]);
+    }, [
+        dashboard,
+        isEditMode,
+        exportParameters,
+        setSavedParameters,
+        setParameterPicks,
+    ]);
 };
 
 // Reloads the saved dashboard in place when the host changes `refreshKey`,

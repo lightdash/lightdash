@@ -140,11 +140,18 @@ describe('useEmbedSavedParameters', () => {
         expect(setSavedParameters).not.toHaveBeenCalled();
     });
 
+    const parameters = {
+        status: { parameterName: 'status', value: 'shipped' },
+        region: { parameterName: 'region', value: 'EMEA' },
+    };
+    const updatePicks = (picks: Record<string, unknown>) =>
+        (
+            setParameterPicks.mock.calls[0][0] as (
+                current: Record<string, unknown>,
+            ) => Record<string, unknown>
+        )(picks);
+
     it('puts the token values over the saved parameters and picks them', () => {
-        const parameters = {
-            status: { parameterName: 'status', value: 'shipped' },
-            region: { parameterName: 'region', value: 'EMEA' },
-        };
         renderHook(() =>
             useEmbedSavedParameters({
                 parameters,
@@ -159,13 +166,64 @@ describe('useEmbedSavedParameters', () => {
             status: { parameterName: 'status', value: 'shipped' },
             region: { parameterName: 'region', value: 'APAC' },
         });
-        const updatePicks = setParameterPicks.mock.calls[0][0] as (
-            picks: Record<string, unknown>,
-        ) => Record<string, unknown>;
-        expect(updatePicks({ region: 'EMEA', other: 1 })).toEqual({
-            region: 'APAC',
-            other: 1,
+        expect(updatePicks({ other: 1 })).toEqual({ region: 'APAC', other: 1 });
+    });
+
+    it("keeps a viewer's pick for a parameter they may change, even an empty one", () => {
+        renderHook(() =>
+            useEmbedSavedParameters({
+                parameters,
+                parameterInteractivity: {
+                    enabled: true,
+                    allowedParameters: ['region', 'status'],
+                    values: { region: 'APAC', status: 'placed' },
+                },
+            }),
+        );
+
+        expect(updatePicks({ region: 'EMEA', status: null })).toEqual({
+            region: 'EMEA',
+            status: null,
         });
+    });
+
+    it("puts the token value over a viewer's pick for a parameter they may not change", () => {
+        renderHook(() =>
+            useEmbedSavedParameters({
+                parameters,
+                parameterInteractivity: {
+                    enabled: true,
+                    allowedParameters: ['status'],
+                    values: { region: 'APAC' },
+                },
+            }),
+        );
+
+        expect(updatePicks({ region: 'EMEA' })).toEqual({ region: 'APAC' });
+    });
+
+    it("exports a viewer's values over the token's only for the parameters they may change", () => {
+        renderHook(() =>
+            useEmbedSavedParameters(
+                {
+                    parameters,
+                    parameterInteractivity: {
+                        enabled: true,
+                        allowedParameters: ['status'],
+                        values: { region: 'APAC', status: 'placed' },
+                    },
+                },
+                false,
+                { region: 'LATAM', status: 'returned' },
+            ),
+        );
+
+        const exported = {
+            status: { parameterName: 'status', value: 'returned' },
+            region: { parameterName: 'region', value: 'APAC' },
+        };
+        expect(setSavedParameters).toHaveBeenCalledWith(exported);
+        expect(updatePicks({})).toEqual({ region: 'APAC', status: 'returned' });
     });
 
     it('keeps the token values out of edit mode', () => {
