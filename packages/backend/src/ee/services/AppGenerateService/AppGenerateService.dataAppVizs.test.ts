@@ -78,6 +78,7 @@ function buildService(
         savedChartModel?: unknown;
         savedChartService?: unknown;
         documentService?: unknown;
+        composerChartService?: unknown;
         featureFlags?: Record<string, boolean>;
         chartStudioAvailable?: boolean;
     } = {},
@@ -119,6 +120,9 @@ function buildService(
         } as never,
         coderService: {} as never,
         documentService: (overrides.documentService ?? {}) as never,
+        composerChartService: (overrides.composerChartService ?? {
+            countUsingDataAppViz: vi.fn().mockResolvedValue(0),
+        }) as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -161,7 +165,11 @@ function buildServiceWithRealAbility(
     appModel: unknown,
     role: OrganizationMemberRole,
     userUuid: string,
-    overrides: { savedChartModel?: unknown; savedChartService?: unknown } = {},
+    overrides: {
+        savedChartModel?: unknown;
+        savedChartService?: unknown;
+        composerChartService?: unknown;
+    } = {},
 ) {
     const service = buildService(appModel, overrides);
     const { builder } = getUserAbilityBuilder({
@@ -793,6 +801,169 @@ describe('AppGenerateService data app vizs', () => {
                     ),
                 ).rejects.toThrow(ForbiddenError);
                 expect(appModel.getVersion).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('rendering a composer chart', () => {
+            const ACCOUNT = {
+                user: { userUuid: 'viewer-1' },
+                organization: { organizationUuid: 'org-1' },
+            } as never;
+            const composerDeps = (
+                chartConfig: unknown = {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: 'data-app-viz-1',
+                        dataAppVizVersion: 2,
+                        fieldMapping: {},
+                    },
+                },
+                get = vi.fn().mockResolvedValue({ chart: { chartConfig } }),
+            ) => ({ composerChartService: { get }, get });
+            const pinnedAppModel = () => ({
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 4 })),
+            });
+
+            it('mints a token for the pinned version once the viewer can view the chart', async () => {
+                const appModel = pinnedAppModel();
+                const { get, ...deps } = composerDeps();
+                const service = buildService(appModel, deps);
+
+                const token =
+                    await service.getComposerChartDataAppVizPreviewToken(
+                        ACCOUNT,
+                        'project-1',
+                        'composer-chart-1',
+                        'data-app-viz-1',
+                        2,
+                    );
+
+                expect(get).toHaveBeenCalledWith(
+                    ACCOUNT,
+                    'project-1',
+                    'composer-chart-1',
+                );
+                expect(
+                    verifyPreviewToken(
+                        token,
+                        testLightdashSecrets,
+                        'data-app-viz-1',
+                        2,
+                    ),
+                ).toMatchObject({
+                    ok: true,
+                    payload: { userUuid: 'viewer-1', viewContext: 'chart' },
+                });
+            });
+
+            it('renders the version the chart pins', async () => {
+                const appModel = pinnedAppModel();
+                const service = buildService(appModel, composerDeps());
+
+                await expect(
+                    service.getComposerChartDataAppVizRenderMetadata(
+                        ACCOUNT,
+                        'project-1',
+                        'composer-chart-1',
+                        'data-app-viz-1',
+                    ),
+                ).resolves.toMatchObject({ state: 'ready', version: 2 });
+                expect(appModel.getLatestVersion).not.toHaveBeenCalled();
+            });
+
+            it('refuses a viewer who cannot view the chart before reading the type', async () => {
+                const appModel = pinnedAppModel();
+                const service = buildService(
+                    appModel,
+                    composerDeps(
+                        undefined,
+                        vi.fn().mockRejectedValue(new ForbiddenError()),
+                    ),
+                );
+
+                await expect(
+                    service.getComposerChartDataAppVizRenderMetadata(
+                        ACCOUNT,
+                        'project-1',
+                        'composer-chart-1',
+                        'data-app-viz-1',
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(appModel.findVisualizationApp).not.toHaveBeenCalled();
+            });
+
+            it.each([
+                [
+                    'another type',
+                    {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizUuid: 'another-viz',
+                            dataAppVizVersion: 2,
+                            fieldMapping: {},
+                        },
+                    },
+                ],
+                ['a built-in chart', { type: ChartType.TABLE }],
+            ])(
+                'refuses a chart whose current version renders %s',
+                async (_, chartConfig) => {
+                    const appModel = pinnedAppModel();
+                    const service = buildService(
+                        appModel,
+                        composerDeps(chartConfig),
+                    );
+
+                    await expect(
+                        service.getComposerChartDataAppVizPreviewToken(
+                            ACCOUNT,
+                            'project-1',
+                            'composer-chart-1',
+                            'data-app-viz-1',
+                            2,
+                        ),
+                    ).rejects.toThrow(
+                        'Not authorized to access this visualization',
+                    );
+                    expect(appModel.getVersion).not.toHaveBeenCalled();
+                },
+            );
+
+            it('refuses a token for a version other than the pin', async () => {
+                const appModel = pinnedAppModel();
+                const service = buildService(appModel, composerDeps());
+
+                await expect(
+                    service.getComposerChartDataAppVizPreviewToken(
+                        ACCOUNT,
+                        'project-1',
+                        'composer-chart-1',
+                        'data-app-viz-1',
+                        4,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+            });
+
+            it('authorizes an external fetch through the chart', async () => {
+                const appModel = pinnedAppModel();
+                const { get, ...deps } = composerDeps();
+                const service = buildService(appModel, deps);
+
+                await service.assertCanAccessDataAppVisualization(
+                    ACCOUNT,
+                    'project-1',
+                    'data-app-viz-1',
+                    { composerChartUuid: 'composer-chart-1' },
+                );
+                expect(get).toHaveBeenCalledOnce();
             });
         });
 
@@ -1698,6 +1869,55 @@ describe('getDataAppVizDeleteImpact', () => {
             service.getDataAppVizDeleteImpact(USER, 'project-1', 'missing-viz'),
         ).rejects.toThrow(NotFoundError);
         expect(countChartsUsingDataAppViz).not.toHaveBeenCalled();
+    });
+});
+
+describe('chart type impact counts include composer charts', () => {
+    const composerChartService = {
+        countUsingDataAppViz: vi.fn().mockResolvedValue(2),
+    };
+    const withComposerCharts = (savedChartModel: Record<string, unknown>) =>
+        buildServiceWithRealAbility(
+            {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+            },
+            OrganizationMemberRole.ADMIN,
+            'user-1',
+            { savedChartModel, composerChartService },
+        );
+
+    it('adds them to the delete count', async () => {
+        const { service, user } = withComposerCharts({
+            countChartsUsingDataAppViz: vi.fn().mockResolvedValue(3),
+        });
+        await expect(
+            service.getDataAppVizDeleteImpact(
+                user,
+                'project-1',
+                'data-app-viz-1',
+            ),
+        ).resolves.toEqual({ chartCount: 5 });
+        expect(composerChartService.countUsingDataAppViz).toHaveBeenCalledWith(
+            'project-1',
+            'data-app-viz-1',
+        );
+    });
+
+    it('adds them to the upgrade counts as pinned charts', async () => {
+        const { service, user } = withComposerCharts({
+            getDataAppVizUsageCounts: vi
+                .fn()
+                .mockResolvedValue({ chartCount: 5, pinnedChartCount: 3 }),
+        });
+        await expect(
+            service.getDataAppVizUpgradeImpact(
+                user,
+                'project-1',
+                'data-app-viz-1',
+            ),
+        ).resolves.toEqual({ chartCount: 7, pinnedChartCount: 5 });
     });
 });
 

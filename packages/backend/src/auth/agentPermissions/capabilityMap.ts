@@ -601,6 +601,12 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.getDataAppVizUpgradeImpact': [
         AgentCapability.ReadDiscover,
     ],
+    'AppGenerateController.getComposerChartDataAppVizPreviewToken': [
+        AgentCapability.ReadDiscover,
+    ],
+    'AppGenerateController.getComposerChartDataAppVizRenderMetadata': [
+        AgentCapability.ReadDiscover,
+    ],
     'AppGenerateController.getDocumentDataAppVizPreviewToken': [
         AgentCapability.ReadDiscover,
     ],

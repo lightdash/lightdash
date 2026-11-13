@@ -1,7 +1,9 @@
 import {
+    ChartType,
     DashboardTileTypes,
     QuerySourceType,
     SCREENSHOT_READY_INDICATOR_ID,
+    SEED_DATA_APP_VIZ,
     type CreateChartInDashboard,
     type SavedChart,
 } from '@lightdash/common';
@@ -154,5 +156,33 @@ test.describe('Composer charts on dashboards', () => {
             expect(drawing.texts).toContain('completed');
             expect(drawing).toEqual(await drawingOf('Classic'));
         }).toPass({ timeout: 30_000 });
+    });
+
+    test('draws a custom chart type on the tile', async ({ page, api }) => {
+        const custom = await createComposerDashboard(api, {
+            chart: {
+                ...chart,
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: SEED_DATA_APP_VIZ.appUuid,
+                        fieldMapping: { status: 'orders_status' },
+                    },
+                },
+            },
+        });
+        try {
+            const { dashboard } = custom;
+            await page.goto(
+                `/projects/${dashboard.projectUuid}/dashboards/${dashboard.uuid}/view`,
+            );
+            await expect(
+                page
+                    .getByTestId('composer-chart-visualization')
+                    .locator(`iframe[src*="${SEED_DATA_APP_VIZ.appUuid}"]`),
+            ).toBeVisible({ timeout: 30_000 });
+        } finally {
+            await deleteComposerDashboard(api, custom.dashboard.uuid);
+        }
     });
 });

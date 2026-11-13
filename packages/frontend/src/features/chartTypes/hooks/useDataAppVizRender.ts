@@ -23,6 +23,8 @@ type DataAppVizRenderTarget = {
     chartVersionUuid?: string | undefined;
     // Set when rendering a saved Document cell, which authorizes through the Document.
     document?: DocumentQueryReference | undefined;
+    // Set on a composer chart tile, which authorizes through the composer chart.
+    composerChartUuid?: string | undefined;
 };
 
 // Rendering a saved chart authorizes against that chart; the chart-less route is
@@ -30,8 +32,16 @@ type DataAppVizRenderTarget = {
 const getRenderBaseUrl = (
     projectUuid: string,
     dataAppVizUuid: string,
-    { isEmbedded, savedChartUuid, document }: DataAppVizRenderTarget,
+    {
+        isEmbedded,
+        savedChartUuid,
+        document,
+        composerChartUuid,
+    }: DataAppVizRenderTarget,
 ): string => {
+    if (!isEmbedded && composerChartUuid) {
+        return `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/composer-charts/${composerChartUuid}`;
+    }
     if (!isEmbedded && document) {
         return `/ee/projects/${projectUuid}/apps/visualizations/${dataAppVizUuid}/documents/${document.documentUuid}/charts/${encodeURIComponent(document.chartId)}`;
     }
@@ -67,7 +77,9 @@ const getRenderMetadataQuery = (
     const chartVersionQuery = getChartVersionQuery(target);
     if (chartVersionQuery) return chartVersionQuery;
 
-    return !target.savedChartUuid && pinnedVersion !== undefined
+    return !target.savedChartUuid &&
+        !target.composerChartUuid &&
+        pinnedVersion !== undefined
         ? `?version=${pinnedVersion}`
         : '';
 };
@@ -101,6 +113,7 @@ const getRenderMetadataQueryKey = (
     target.savedChartUuid,
     target.chartVersionUuid,
     target.document,
+    target.composerChartUuid,
     pinnedVersion,
 ];
 
@@ -158,6 +171,7 @@ export const useDataAppVizPreviewToken = (
             target.savedChartUuid,
             target.chartVersionUuid,
             target.document,
+            target.composerChartUuid,
         ],
         queryFn: async () => {
             const { token } = await lightdashApi<
@@ -185,7 +199,9 @@ export const useDataAppVizPreviewToken = (
             // Refresh its metadata once; unchanged versions retain the error.
             if (
                 error.error.statusCode === 403 &&
-                (target.savedChartUuid || target.document)
+                (target.savedChartUuid ||
+                    target.document ||
+                    target.composerChartUuid)
             ) {
                 void queryClient.invalidateQueries(
                     {

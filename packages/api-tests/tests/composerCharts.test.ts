@@ -6,6 +6,7 @@ import {
     FilterOperator,
     MergeJoinType,
     QuerySourceType,
+    SEED_DATA_APP_VIZ,
     SEED_PROJECT,
     type ComposerChart,
     type ComposerChartPipeline,
@@ -306,22 +307,130 @@ describe('Composer charts', () => {
         expect(refused.status).toBe(403);
     });
 
-    it('refuses a custom chart type by name', async () => {
-        const dashboard = await createDashboard();
-        const body = composerChartBody(dashboard.uuid);
-        const refused = await admin.post<{ error: { message: string } }>(
-            chartsUrl,
-            {
-                ...body,
-                chart: {
-                    ...body.chart,
-                    chartConfig: { type: ChartType.DATA_APP_VIZ },
+    describe('custom chart type', () => {
+        const vizUrl = `/api/v1/ee/projects/${projectUuid}/apps/visualizations/${SEED_DATA_APP_VIZ.appUuid}`;
+        const customChart = (
+            config: Record<string, unknown> = {},
+        ): CreateComposerChart['chart'] => ({
+            ...composerChartBody('').chart,
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: SEED_DATA_APP_VIZ.appUuid,
+                    fieldMapping: { status: 'orders_status' },
+                    ...config,
                 },
             },
-            { failOnStatusCode: false },
-        );
-        expect(refused.status).toBe(400);
-        expect(refused.body.error.message).toContain('custom chart types');
+        });
+        const createCustomChart = async () => {
+            const created = await createComposerDashboard(
+                apiClientSend(admin),
+                { chart: customChart() },
+            );
+            tracker.trackDashboard(created.dashboard.uuid);
+            return created.chart;
+        };
+        const renderUrl = (
+            chartUuid: string,
+            vizUuid = SEED_DATA_APP_VIZ.appUuid,
+        ) =>
+            `/api/v1/ee/projects/${projectUuid}/apps/visualizations/${vizUuid}/composer-charts/${chartUuid}`;
+
+        it('pins the latest renderable version when the chart names none', async () => {
+            const chart = await createCustomChart();
+            expect(chart.chart.chartConfig).toEqual({
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: SEED_DATA_APP_VIZ.appUuid,
+                    dataAppVizVersion: SEED_DATA_APP_VIZ.version,
+                    fieldMapping: { status: 'orders_status' },
+                },
+            });
+        });
+
+        it.each([
+            [
+                'an unknown slot',
+                {
+                    fieldMapping: {
+                        status: 'orders_status',
+                        size: 'orders_status',
+                    },
+                },
+                'size',
+            ],
+            [
+                'a version that does not render',
+                { dataAppVizVersion: 99 },
+                'version 99',
+            ],
+        ])('refuses %s, naming it', async (_, config, named) => {
+            const dashboard = await createDashboard();
+            const refused = await admin.post<{ error: { message: string } }>(
+                chartsUrl,
+                {
+                    ...composerChartBody(dashboard.uuid),
+                    chart: customChart(config),
+                },
+                { failOnStatusCode: false },
+            );
+            expect(refused.status).toBeGreaterThanOrEqual(400);
+            expect(refused.body.error.message).toContain(named);
+        });
+
+        it('renders for a dashboard viewer at the pinned version only, and for no one outside', async () => {
+            const chart = await createCustomChart();
+            const viewer = await loginAsViewer();
+
+            const metadata = await viewer.get<
+                Body<{ state: string; version?: number }>
+            >(`${renderUrl(chart.uuid)}/render-metadata`);
+            expect(metadata.status).toBe(200);
+            const token = await viewer.get(
+                `${renderUrl(chart.uuid)}/versions/${SEED_DATA_APP_VIZ.version}/preview-token`,
+            );
+            expect(token.status).toBe(200);
+
+            const otherVersion = await viewer.get(
+                `${renderUrl(chart.uuid)}/versions/${SEED_DATA_APP_VIZ.version + 1}/preview-token`,
+                { failOnStatusCode: false },
+            );
+            expect(otherVersion.status).toBe(403);
+            const otherType = await viewer.get(
+                `${renderUrl(chart.uuid, randomUUID())}/render-metadata`,
+                { failOnStatusCode: false },
+            );
+            expect(otherType.status).toBe(403);
+            const outsider = await anotherLogin();
+            const refused = await outsider.get(
+                `${renderUrl(chart.uuid)}/render-metadata`,
+                { failOnStatusCode: false },
+            );
+            expect(refused.status).toBe(403);
+        });
+
+        it("counts the chart in the type's delete and upgrade warnings", async () => {
+            const counts = async () => ({
+                deleted: (
+                    await admin.get<Body<{ chartCount: number }>>(
+                        `${vizUrl}/delete-impact`,
+                    )
+                ).body.results.chartCount,
+                upgraded: (
+                    await admin.get<
+                        Body<{ chartCount: number; pinnedChartCount: number }>
+                    >(`${vizUrl}/upgrade-impact`)
+                ).body.results,
+            });
+            const before = await counts();
+            await createCustomChart();
+            const after = await counts();
+            expect(after.deleted).toBe(before.deleted + 1);
+            expect(after.upgraded).toEqual({
+                chartCount: before.upgraded.chartCount + 1,
+                pinnedChartCount: before.upgraded.pinnedChartCount + 1,
+            });
+        });
     });
 
     describe('dashboard lifecycle', () => {

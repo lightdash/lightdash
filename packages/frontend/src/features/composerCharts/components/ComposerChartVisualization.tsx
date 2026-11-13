@@ -13,9 +13,11 @@ import MetricQueryDataProvider from '../../../components/MetricQueryData/MetricQ
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
+import { ComposerChartRenderTargetContext } from '../../chartTypes/composerChartRenderTarget';
 
 type Props = {
     projectUuid: string;
+    composerChartUuid: string | null;
     dashboardUuid: string | undefined;
     tileUuid: string;
     isTitleHidden: boolean;
@@ -31,6 +33,7 @@ type Props = {
 /** A stored composer chart drawn by the classic builders on a dashboard; no drill, underlying data or explore. */
 export const ComposerChartVisualization: FC<Props> = ({
     projectUuid,
+    composerChartUuid,
     dashboardUuid,
     tileUuid,
     isTitleHidden,
@@ -89,16 +92,20 @@ export const ComposerChartVisualization: FC<Props> = ({
                 unsavedMetricQuery={metricQuery}
                 isDashboard
             >
-                <LightdashVisualization
-                    className="sentry-block ph-no-capture"
-                    data-testid="composer-chart-visualization"
-                    isDashboard
-                    tileUuid={tileUuid}
-                    isTitleHidden={isTitleHidden}
-                    enableContextMenu={false}
-                    onScreenshotReady={onScreenshotReady}
-                    onScreenshotError={onScreenshotError}
-                />
+                <ComposerChartRenderTargetContext.Provider
+                    value={composerChartUuid ?? undefined}
+                >
+                    <LightdashVisualization
+                        className="sentry-block ph-no-capture"
+                        data-testid="composer-chart-visualization"
+                        isDashboard
+                        tileUuid={tileUuid}
+                        isTitleHidden={isTitleHidden}
+                        enableContextMenu={false}
+                        onScreenshotReady={onScreenshotReady}
+                        onScreenshotError={onScreenshotError}
+                    />
+                </ComposerChartRenderTargetContext.Provider>
             </VisualizationProvider>
         </MetricQueryDataProvider>
     );

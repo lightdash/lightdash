@@ -49,10 +49,12 @@ const columnsWithRole = (chart: ComposerStoredChart, fieldType: FieldType) =>
         .filter((column) => column.fieldType === fieldType)
         .map(({ reference }) => reference);
 
-/** Group-by columns the chart can split by; only cartesian charts split into series. */
+/** Group-by columns the chart can split by; cartesian charts and custom chart types split into series. */
 const getSplitColumns = (chart: ComposerStoredChart) => ({
     columns: chart.pivotConfig?.columns ?? [],
-    drawable: chart.chartConfig.type === ChartType.CARTESIAN,
+    drawable:
+        chart.chartConfig.type === ChartType.CARTESIAN ||
+        chart.chartConfig.type === ChartType.DATA_APP_VIZ,
 });
 
 const getTerminalNode = (pipeline: ComposerChartPipeline) => {

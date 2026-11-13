@@ -92,6 +92,7 @@ describe('getComposerChartSaveDraft', () => {
                 ),
                 columns,
                 metadata,
+                customChartType: null,
             }),
         );
 
@@ -110,6 +111,7 @@ describe('getComposerChartSaveDraft', () => {
                 ),
                 columns,
                 metadata,
+                customChartType: null,
             }),
         );
 
@@ -141,6 +143,7 @@ describe('getComposerChartSaveDraft', () => {
                 ),
                 columns,
                 metadata,
+                customChartType: null,
             }),
         );
 
@@ -223,6 +226,7 @@ describe('getComposerChartSaveDraft', () => {
                 config: answer(null),
                 columns,
                 metadata,
+                customChartType: null,
             }),
         );
 
@@ -241,6 +245,7 @@ describe('getComposerChartSaveDraft', () => {
                 config: answer(null),
                 columns: [{ reference: 'a.b', type: DimensionType.STRING }],
                 metadata,
+                customChartType: null,
             }),
         );
 
@@ -258,19 +263,6 @@ describe('getComposerChartSaveDraft', () => {
             answer(viz({ type: 'bar' })),
             [],
             'Waiting for the result to load',
-        ],
-        [
-            'with a custom chart type',
-            answer({
-                type: 'custom',
-                customChartTypeSlug: 'ribbon',
-                fieldMapping: { x: 'status' },
-                options: null,
-                dataAppVizUuid: 'viz-uuid',
-                dataAppVizVersion: 1,
-            }),
-            columns,
-            'Answers with a custom chart type cannot be saved to a dashboard yet',
         ],
         [
             'when a node it reads cannot run on a dashboard',
@@ -293,6 +285,7 @@ describe('getComposerChartSaveDraft', () => {
                 config,
                 columns: resultColumns,
                 metadata,
+                customChartType: null,
             }),
         ).toEqual({ status: 'unavailable', reason });
     });
@@ -359,4 +352,76 @@ describe('savesAsComposerChart', () => {
     ])('%s saves as a composer chart', (_, config) => {
         expect(savesAsComposerChart(config)).toBe(true);
     });
+});
+
+describe('getComposerChartSaveDraft with a custom chart type', () => {
+    const custom = answer({
+        type: 'custom',
+        customChartTypeSlug: 'ribbon',
+        fieldMapping: { category: 'month', value: 'revenue', series: 'status' },
+        options: { showLegend: false },
+        dataAppVizUuid: 'viz-uuid',
+        dataAppVizVersion: 3,
+    });
+    const slots = [
+        { name: 'category', type: 'dimension' as const },
+        { name: 'value', type: 'metric' as const },
+        { name: 'series', type: 'series' as const },
+    ];
+
+    test('keeps the pinned version, takes roles from slot kinds and splits on series slots', () => {
+        const { chart } = ready(
+            getComposerChartSaveDraft({
+                config: custom,
+                columns,
+                metadata,
+                customChartType: { status: 'ready', slots },
+            }),
+        );
+        expect(chart).toMatchObject({
+            columns: [
+                { reference: 'month', fieldType: FieldType.DIMENSION },
+                { reference: 'status', fieldType: FieldType.DIMENSION },
+                { reference: 'revenue', fieldType: FieldType.METRIC },
+            ],
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'viz-uuid',
+                    dataAppVizVersion: 3,
+                    fieldMapping: {
+                        category: 'month',
+                        value: 'revenue',
+                        series: 'status',
+                    },
+                    optionValues: { showLegend: false },
+                },
+            },
+            pivotConfig: { columns: ['status'] },
+        });
+        expect(parseComposerStoredChart(chart)).toEqual(chart);
+    });
+
+    test.each([
+        [null, 'Waiting for the custom chart type to load'],
+        [
+            {
+                status: 'unavailable' as const,
+                reason: 'The chart type was deleted',
+            },
+            'The chart type was deleted',
+        ],
+    ])(
+        'is unavailable while the type cannot be read',
+        (customChartType, reason) => {
+            expect(
+                getComposerChartSaveDraft({
+                    config: custom,
+                    columns,
+                    metadata,
+                    customChartType,
+                }),
+            ).toEqual({ status: 'unavailable', reason });
+        },
+    );
 });

@@ -254,6 +254,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                         <ComposerChartVisualization
                             key={chart?.versionUuid}
                             projectUuid={projectUuid}
+                            composerChartUuid={composerChartUuid}
                             dashboardUuid={dashboardUuid}
                             tileUuid={tile.uuid}
                             isTitleHidden={!!tile.properties.hideTitle}

@@ -121,6 +121,8 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'AppGenerateController.getAppPromoteDiff',
     'AppGenerateController.getAppThumbnailUrl',
     'AppGenerateController.getAppVersionThumbnailUrl',
+    'AppGenerateController.getComposerChartDataAppVizPreviewToken',
+    'AppGenerateController.getComposerChartDataAppVizRenderMetadata',
     'AppGenerateController.getDataAppAuthoringContext',
     'AppGenerateController.getDataAppVisualization',
     'AppGenerateController.getDataAppVizDeleteImpact',
