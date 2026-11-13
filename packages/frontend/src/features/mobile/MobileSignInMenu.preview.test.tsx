@@ -10,7 +10,6 @@ import {
     isPreviewBuild,
     parsePreviewSignInPhase,
     PREVIEW_SIGN_IN_PHASES,
-    previewSignInLabel,
 } from './previewSignInState';
 
 vi.mock('../../api');
@@ -103,9 +102,7 @@ describe('preview sign-in state', () => {
                     ignore: '[aria-live], script, style',
                 }),
             ).toBeInTheDocument();
-            expect(
-                screen.getByText(previewSignInLabel(phase)),
-            ).toBeInTheDocument();
+            expect(screen.queryByText(/Preview state/)).not.toBeInTheDocument();
             expect(api).not.toHaveBeenCalled();
         },
     );
@@ -122,14 +119,11 @@ describe('preview sign-in state', () => {
         expect(
             await screen.findByText(EXPECTED_TEXT.approved),
         ).toBeInTheDocument();
-        expect(
-            screen.getByText(previewSignInLabel('approved')),
-        ).toBeInTheDocument();
         await userEvent.keyboard('{Escape}');
         expect(api).not.toHaveBeenCalled();
     });
 
-    it('plays the scan from the idle placeholder with no API call', async () => {
+    it('shows the idle placeholder beside the pitch with no badge and no API call', async () => {
         renderMenu('?mobileUpsell=2&mobileSignInState=showing');
         await openMenu();
         expect(
@@ -142,17 +136,10 @@ describe('preview sign-in state', () => {
             'data-idle',
             'true',
         );
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Preview: simulate scan' }),
-        );
+        expect(screen.queryByText(/Preview state/)).not.toBeInTheDocument();
         expect(
-            await screen.findByRole('group', { name: EXPECTED_TEXT.claimed }),
-        ).toBeInTheDocument();
-        expect(document.querySelector('[data-idle]')).toHaveAttribute(
-            'data-idle',
-            'false',
-        );
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+            screen.queryByRole('button', { name: /simulate scan/i }),
+        ).not.toBeInTheDocument();
         expect(api).not.toHaveBeenCalled();
     });
 

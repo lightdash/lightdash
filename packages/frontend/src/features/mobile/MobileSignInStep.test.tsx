@@ -8,7 +8,6 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
-import { maskEmail } from './mobileFormat';
 import MobileSignInLandingPage from './MobileSignInLandingPage';
 import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_SIGN_IN_LANDING_STRINGS } from './mobileStrings';
@@ -68,20 +67,7 @@ const mockSignIn = (
 };
 
 const renderStep = () =>
-    renderWithProviders(
-        <MobileSignInStep
-            signIn={current}
-            host="app.example.com"
-            email="jo@example.com"
-        />,
-    );
-
-describe('maskEmail', () => {
-    it('keeps the first letter and the domain', () => {
-        expect(maskEmail('jo@example.com')).toBe('j••••@example.com');
-        expect(maskEmail(undefined)).toBeNull();
-    });
-});
+    renderWithProviders(<MobileSignInStep signIn={current} />);
 
 describe('MobileSignInStep', () => {
     it('offers Show sign-in code when the code is hidden', async () => {
@@ -133,7 +119,7 @@ describe('MobileSignInStep', () => {
         expect(screen.getByText('New code')).toBeInTheDocument();
     });
 
-    it('asks the user to confirm with the account, site, device and number', async () => {
+    it('asks the user to confirm with the device and no account email', async () => {
         const signIn = mockSignIn({
             phase: 'claimed',
             code,
@@ -143,8 +129,10 @@ describe('MobileSignInStep', () => {
         const dialog = await screen.findByRole('group', {
             name: 'A phone wants to sign in as you',
         });
-        expect(within(dialog).getByText('j••••@example.com')).toBeVisible();
-        expect(within(dialog).getByText('app.example.com')).toBeVisible();
+        expect(within(dialog).getByText('Device')).toBeVisible();
+        expect(within(dialog).getByText('iOS')).toBeVisible();
+        expect(within(dialog).queryByText('Account')).not.toBeInTheDocument();
+        expect(within(dialog).queryByText(/@/)).not.toBeInTheDocument();
         expect(within(dialog).getByText('iOS')).toBeVisible();
         expect(within(dialog).queryByText('4 7')).not.toBeInTheDocument();
         expect(
@@ -240,7 +228,8 @@ describe('MobileSignInStep', () => {
         });
         renderStep();
         expect(screen.getByText('Signed in on a phone')).toBeVisible();
-        expect(screen.getByText('iOS · j••••@example.com')).toBeVisible();
+        expect(screen.getByText('iOS')).toBeVisible();
+        expect(screen.queryByText(/@/)).not.toBeInTheDocument();
         await userEvent.click(
             screen.getByRole('button', { name: 'Sign in another phone' }),
         );

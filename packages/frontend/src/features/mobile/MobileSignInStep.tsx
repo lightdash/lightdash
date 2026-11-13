@@ -24,7 +24,6 @@ import {
 } from 'react';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
-import { maskEmail } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MobileSignInInstallHint } from './MobileSignInInstallHint';
 import { MOBILE_SIGN_IN_STRINGS as S, MOBILE_STRINGS } from './mobileStrings';
@@ -36,8 +35,6 @@ type SignIn = ReturnType<typeof useMobileSignInCode>;
 
 type StepContext = {
     signIn: SignIn;
-    site: string;
-    account: string;
     platform: string | null;
 };
 
@@ -112,12 +109,7 @@ const FailedMint: FC<StepContext> = ({ signIn }) => (
 
 const ShownCode: FC<StepContext> = () => <MobileSignInInstallHint />;
 
-const ConfirmSignIn: FC<StepContext> = ({
-    signIn,
-    site,
-    account,
-    platform,
-}) => {
+const ConfirmSignIn: FC<StepContext> = ({ signIn, platform }) => {
     const titleId = useId();
     const decline = useRef<HTMLButtonElement>(null);
     useEffect(() => {
@@ -133,22 +125,18 @@ const ConfirmSignIn: FC<StepContext> = ({
                     {S.confirm.description}
                 </Text>
             </Stack>
-            <Box component="dl" className={classes.confirmRows}>
-                {[
-                    [S.confirm.account, account],
-                    [S.confirm.site, site],
-                    ...(platform ? [[S.confirm.device, platform]] : []),
-                ].map(([label, value]) => (
-                    <Box key={label} className={classes.confirmRow}>
+            {platform && (
+                <Box component="dl" className={classes.confirmRows}>
+                    <Box className={classes.confirmRow}>
                         <Text component="dt" size="sm" c="dimmed">
-                            {label}
+                            {S.confirm.device}
                         </Text>
                         <Text component="dd" size="sm">
-                            {value}
+                            {platform}
                         </Text>
                     </Box>
-                ))}
-            </Box>
+                </Box>
+            )}
             <Group gap="xs">
                 <Button
                     ref={decline}
@@ -233,7 +221,7 @@ const DeclinedCode: FC<StepContext> = ({ signIn }) => (
     </Stack>
 );
 
-const SignedIn: FC<StepContext> = ({ signIn, account, platform }) => (
+const SignedIn: FC<StepContext> = ({ signIn, platform }) => (
     <Stack gap="sm" align="flex-start">
         <Callout
             variant="neutral"
@@ -241,7 +229,7 @@ const SignedIn: FC<StepContext> = ({ signIn, account, platform }) => (
             title={S.signedIn}
             w="100%"
         >
-            {platform ? S.signedInAs(platform, account) : account}
+            {platform}
         </Callout>
         <Button
             size="xs"
@@ -319,19 +307,10 @@ export const MobileSignInQr: FC<{
     ) : null;
 };
 
-export const MobileSignInDetails: FC<{
-    signIn: SignIn;
-    host: string;
-    email: string | undefined;
-}> = ({ signIn, host, email }) => {
+export const MobileSignInDetails: FC<{ signIn: SignIn }> = ({ signIn }) => {
     const PhaseView = PHASE_VIEWS[signIn.phase];
     return (
-        <PhaseView
-            signIn={signIn}
-            site={host}
-            account={maskEmail(email) ?? S.fallbackAccount}
-            platform={getPlatformLabel(signIn.state)}
-        />
+        <PhaseView signIn={signIn} platform={getPlatformLabel(signIn.state)} />
     );
 };
 
@@ -343,13 +322,11 @@ export const MobileSignInStatus: FC<{ signIn: SignIn }> = ({ signIn }) => (
 
 export const MobileSignInStep: FC<{
     signIn: SignIn;
-    host: string;
-    email: string | undefined;
     qrPlaceholder?: ReactNode;
-}> = ({ signIn, host, email, qrPlaceholder }) => (
+}> = ({ signIn, qrPlaceholder }) => (
     <Stack gap="sm">
         <MobileSignInQr signIn={signIn} placeholder={qrPlaceholder} />
-        <MobileSignInDetails signIn={signIn} host={host} email={email} />
+        <MobileSignInDetails signIn={signIn} />
         <MobileSignInStatus signIn={signIn} />
     </Stack>
 );

@@ -1,6 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
 import {
-    Badge,
     Button,
     getDefaultZIndex,
     Indicator,
@@ -19,11 +18,8 @@ import {
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useNavBarMenuProps } from '../../components/NavBar/NavBarPortalContext';
-import useHealth from '../../hooks/health/useHealth';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../providers/App/useApp';
 import { isSignInIdle } from './isSignInIdle';
-import { getHost } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { useMobileSignInSeen } from './mobileSignInSeen';
 import {
@@ -34,12 +30,7 @@ import {
 } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
 import { PreviewQrPattern } from './PreviewQrPattern';
-import {
-    PREVIEW_SIGN_IN_STRINGS,
-    previewSignInLabel,
-    usePreviewSignIn,
-    usePreviewSignInPhase,
-} from './previewSignInState';
+import { usePreviewSignIn, usePreviewSignInPhase } from './previewSignInState';
 import {
     useMobileUpsell,
     type MobileUpsellChoice,
@@ -80,8 +71,6 @@ const MobileSignInPopover: FC<{
     upsell: MobileUpsellChoice | null;
 }> = ({ withLabel, upsell }) => {
     const menuProps = useNavBarMenuProps();
-    const { user } = useApp();
-    const { data: health } = useHealth();
     const id = useId();
     const [opened, setOpened] = useState(false);
     const { seen, markSeen } = useMobileSignInSeen();
@@ -92,7 +81,6 @@ const MobileSignInPopover: FC<{
     const previewSignIn = usePreviewSignIn(preview.forced);
     const signIn = previewSignIn ?? liveSignIn;
     const isConfirming = signIn.phase === 'claimed';
-    const host = getHost(health?.siteUrl);
     const qrPlaceholder = previewSignIn ? <PreviewQrPattern /> : undefined;
     const dropdown = useRef<HTMLDivElement>(null);
     useKeepFocusInPopover(signIn.phase, dropdown);
@@ -166,32 +154,11 @@ const MobileSignInPopover: FC<{
                     variation={upsell}
                     isIdle={isSignInIdle(signIn)}
                     title={
-                        <>
-                            {previewSignIn && (
-                                <Badge color="orange" variant="light">
-                                    {previewSignInLabel(previewSignIn.phase)}
-                                </Badge>
-                            )}
-                            {previewSignIn?.phase === 'showing' && (
-                                <Button
-                                    size="compact-xs"
-                                    color="orange"
-                                    variant="light"
-                                    onClick={previewSignIn.show}
-                                >
-                                    {PREVIEW_SIGN_IN_STRINGS.simulateScan}
-                                </Button>
-                            )}
-                            <Title order={6}>
-                                {MOBILE_STRINGS.signInTitle}
-                            </Title>
-                        </>
+                        <Title order={6}>{MOBILE_STRINGS.signInTitle}</Title>
                     }
                     step={
                         <MobileSignInStep
                             signIn={signIn}
-                            host={host}
-                            email={user.data?.email}
                             qrPlaceholder={qrPlaceholder}
                         />
                     }
@@ -202,13 +169,7 @@ const MobileSignInPopover: FC<{
                             placeholder={qrPlaceholder}
                         />
                     }
-                    details={
-                        <MobileSignInDetails
-                            signIn={signIn}
-                            host={host}
-                            email={user.data?.email}
-                        />
-                    }
+                    details={<MobileSignInDetails signIn={signIn} />}
                     status={<MobileSignInStatus signIn={signIn} />}
                 />
             </Popover.Dropdown>

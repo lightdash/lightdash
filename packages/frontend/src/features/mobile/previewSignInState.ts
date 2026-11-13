@@ -29,11 +29,7 @@ export const PREVIEW_SIGN_IN_PHASES = [
 
 export type PreviewSignInPhase = (typeof PREVIEW_SIGN_IN_PHASES)[number];
 
-export const previewSignInLabel = (phase: MobileSignInPhase) =>
-    `Preview state: ${phase}`;
-
 export const PREVIEW_SIGN_IN_STRINGS = {
-    simulateScan: 'Preview: simulate scan',
     pattern: 'Preview only, not a code',
 } as const;
 
