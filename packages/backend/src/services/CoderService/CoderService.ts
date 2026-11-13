@@ -3523,7 +3523,11 @@ export class CoderService extends BaseService {
         const spacePathByUuid = new Map(
             spaces.map((space) => [space.uuid, space.path]),
         );
-        const found = new Set(charts.map((chart) => chart.slug));
+        const found = new Set(
+            charts
+                .filter((_, index) => viewable[index])
+                .map(({ slug }) => slug),
+        );
         return {
             composerCharts: await this.getComposerChartsAsCode(
                 projectUuid,

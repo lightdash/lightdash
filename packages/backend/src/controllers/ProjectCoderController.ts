@@ -61,6 +61,7 @@ import {
     type ScheduledDeliveryAsCode,
     type SpaceAsCode,
     type SqlChartAsCode,
+    type UUID,
     type VirtualViewAsCode,
 } from '@lightdash/common';
 import {
@@ -720,7 +721,7 @@ export class ProjectCoderController extends BaseController {
     @Get('/code/composerCharts')
     @OperationId('getCodeComposerCharts')
     async getComposerChartsAsCode(
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Request() req: express.Request,
         @Query() ids?: string[],
         @Query() offset?: number,
@@ -1162,7 +1163,7 @@ export class ProjectCoderController extends BaseController {
     @Post('/code/composerCharts/{slug}')
     @OperationId('upsertCodeComposerChart')
     async upsertComposerChartAsCode(
-        @Path() projectUuid: string,
+        @Path() projectUuid: UUID,
         @Path() slug: string,
         @Body()
         composerChart: ComposerChartAsCode & {
