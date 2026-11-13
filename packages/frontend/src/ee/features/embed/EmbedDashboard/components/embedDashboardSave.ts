@@ -12,10 +12,11 @@ import {
     type DashboardParameterControl,
     type DashboardTab,
     type DashboardTile,
+    type DashboardUnversionedFields,
+    type DashboardVersionedFields,
     type DateGranularity,
     type DateZoomConfig,
     type InteractivityOptions,
-    type UpdateDashboard,
 } from '@lightdash/common';
 import {
     getSavedDateZoomSettings,
@@ -263,7 +264,7 @@ export const buildEmbedDashboardUpdate = ({
     isAddFilterDisabled,
     isDateZoomDisabled: editedIsDateZoomDisabled,
     controlDrafts,
-}: Args): UpdateDashboard => {
+}: Args): DashboardVersionedFields & DashboardUnversionedFields => {
     const isDateZoomDisabled =
         editedIsDateZoomDisabled ??
         dashboard.config?.isDateZoomDisabled ??
