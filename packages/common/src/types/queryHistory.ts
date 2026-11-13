@@ -110,6 +110,8 @@ export type QueryResultReader = { authMethod: AuthType | null } & (
     | { kind: 'agent'; claim: AgentIdentityClaim }
 );
 
+export type AnalyticsActivityWindow = { start: string; end: string };
+
 export type QueryHistory = {
     agentIdentity: AgentIdentityClaim | null;
     warehouseConnectionUuid?: string | null;
@@ -133,6 +135,7 @@ export type QueryHistory = {
         agentConnectionExecution?: AgentConnectionExecution | null;
         /** Internal metadata, never trusted from request bodies or used in cache keys. */
         queryUsage?: QueryUsageMetadata;
+        analyticsActivityWindow?: AnalyticsActivityWindow;
         aiSignInCredentialUuid?: string;
         resultProducer?: QueryResultProducer;
         resultResearchRunUuid?: string;

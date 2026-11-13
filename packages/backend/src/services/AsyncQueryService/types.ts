@@ -9,6 +9,7 @@ import {
     PivotConfig,
     PivotConfiguration,
     type AgentIdentityClaim,
+    type AnalyticsActivityWindow,
     type AndFilterGroup,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiSourcePayload,
@@ -360,6 +361,7 @@ export type WarehouseExecutionSource =
     | WarehouseClientOverride['executionSource'];
 
 export type RunAsyncWarehouseQueryArgs = {
+    analyticsActivityWindow?: AnalyticsActivityWindow;
     authMethod?: QueryResultProducer['authMethod'];
     resultEntitlementFingerprint?: string | null;
     agentIdentity?: AgentIdentityClaim | null;
