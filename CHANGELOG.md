@@ -1,3 +1,30 @@
+# [3.246.0](https://github.com/lightdash/lightdash/compare/3.245.0...3.246.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **ai:** start a new Studio chat after discarding changes ([#32551](https://github.com/lightdash/lightdash/issues/32551)) ([51eb919](https://github.com/lightdash/lightdash/commit/51eb9190eb39ba7ee3ad35627f4dd04fe832ec18))
+
+
+### Features
+
+* **ai:** show a Studio workspace's stage as one compact label ([#32552](https://github.com/lightdash/lightdash/issues/32552)) ([f5a3b69](https://github.com/lightdash/lightdash/commit/f5a3b6926d88b4b19a6273b624597000b8761452))
+
+# [3.245.0](https://github.com/lightdash/lightdash/compare/3.244.1...3.245.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** dashboards tolerate a composer chart tile ([#32548](https://github.com/lightdash/lightdash/issues/32548)) ([7072954](https://github.com/lightdash/lightdash/commit/70729541586200c15794079f8be30c82fbb12c6a))
+
+## [3.244.1](https://github.com/lightdash/lightdash/compare/3.244.0...3.244.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **embed:** keep hidden filters in their section and place ([#32549](https://github.com/lightdash/lightdash/issues/32549)) ([ce9d4df](https://github.com/lightdash/lightdash/commit/ce9d4df5c00d9976a1f6063de13218e503ea5cba))
+* **export:** let headless PDF exports run as a service account ([#32446](https://github.com/lightdash/lightdash/issues/32446)) ([324736e](https://github.com/lightdash/lightdash/commit/324736e43c82008e8569542c08d462514a8d9e44))
+
 # [3.244.0](https://github.com/lightdash/lightdash/compare/3.243.0...3.244.0) (2026-11-13)
 
 

@@ -148,6 +148,7 @@
         "tileMenu.downloadData": "მონაცემების ჩამოტვირთვა",
         "tileMenu.exportImage": "სურათის ექსპორტი",
         "tileMenu.viewUnderlyingData": "ძირითადი მონაცემების ნახვა",
+        "tile.composerChart.notAvailable": "ეს დიაგრამა აქ ხელმისაწვდომი არ არის",
         "dateZoom.defaultZoom": "ნაგულისხმევი მასშტაბი",
         "dateZoom.none": "არცერთი",
         "dateZoom.viewModeTooltip": "დიაგრამები აჩვენებენ თარიღებს თავდაპირველი გრანულარობით.",

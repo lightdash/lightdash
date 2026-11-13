@@ -1015,6 +1015,38 @@ describe('EmbedDashboard editor controls', () => {
             ).not.toBeInTheDocument();
         });
 
+        it('cannot remove a section that holds a filter the token hides', async () => {
+            renderEmbed(true, {
+                ...dashboard,
+                filters: {
+                    ...dashboard.filters,
+                    dimensions: [
+                        ...dashboard.filters.dimensions,
+                        {
+                            ...dashboard.filters.dimensions[0],
+                            id: 'rule-2',
+                            sectionId: undefined,
+                        },
+                    ],
+                },
+                dashboardFiltersInteractivity: {
+                    enabled: 'some',
+                    allowedFilters: ['rule-2'],
+                },
+            } as unknown as Dashboard);
+            await userEvent.click(
+                await screen.findByRole('button', { name: 'Dates menu' }),
+            );
+            expect(
+                await screen.findByRole('menuitem', { name: 'Rename' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('menuitem', {
+                    name: /^(Ungroup|Remove section)/,
+                }),
+            ).not.toBeInTheDocument();
+        });
+
         it('gives a viewer who may not add filters no way to add, remove or arrange', async () => {
             renderEmbed(false, {
                 ...dashboard,

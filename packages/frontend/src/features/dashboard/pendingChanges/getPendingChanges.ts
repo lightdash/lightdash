@@ -87,6 +87,8 @@ const tileTypeName = (type: DashboardTileTypes): string => {
             return 'Heading';
         case DashboardTileTypes.DATA_APP:
             return 'Data app';
+        case DashboardTileTypes.COMPOSER_CHART:
+            return 'Composer chart';
         default:
             return assertUnreachable(type, `Unknown tile type ${type}`);
     }

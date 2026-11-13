@@ -1,3 +1,4 @@
+import { ServiceAccountScope } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { type LightdashConfig } from '../../config/parseConfig';
@@ -177,5 +178,61 @@ describe('ServiceAccountModel token lookup', () => {
             ['token', 'older secret'],
         ]);
         expect(tracker.history.select).toHaveLength(2);
+    });
+});
+
+describe('ServiceAccountModel save', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new ServiceAccountModel({
+        database: database as unknown as Knex,
+        lightdashConfig,
+    });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+        vi.clearAllMocks();
+    });
+
+    test('creates the service-account user row as inactive and internal', async () => {
+        tracker.on
+            .insert('users')
+            .responseOnce([{ user_id: 7, user_uuid: 'sa-user-uuid' }]);
+        tracker.on
+            .select('organizations')
+            .responseOnce([{ organization_id: 3 }]);
+        tracker.on.insert('organization_memberships').responseOnce([]);
+        tracker.on
+            .insert('service_accounts')
+            .responseOnce([serviceAccountRow('bcrypt:env:token')]);
+
+        await model.save(
+            undefined,
+            {
+                organizationUuid: 'org-uuid',
+                description: 'test account',
+                expiresAt: null,
+                scopes: [ServiceAccountScope.ORG_READ],
+            },
+            'token',
+        );
+
+        const userInsert = tracker.history.insert.find((query) =>
+            query.sql.startsWith('insert into "users"'),
+        );
+        expect(userInsert).toBeDefined();
+        const columns = userInsert!.sql
+            .slice(
+                userInsert!.sql.indexOf('(') + 1,
+                userInsert!.sql.indexOf(')'),
+            )
+            .split(',')
+            .map((column) => column.trim().replace(/"/g, ''));
+        expect(userInsert!.bindings[columns.indexOf('is_active')]).toBe(false);
+        expect(userInsert!.bindings[columns.indexOf('is_internal')]).toBe(true);
     });
 });

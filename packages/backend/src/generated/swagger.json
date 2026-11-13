@@ -6463,7 +6463,8 @@
                     "markdown",
                     "loom",
                     "heading",
-                    "data_app"
+                    "data_app",
+                    "composer_chart"
                 ],
                 "type": "string"
             },
@@ -10286,6 +10287,49 @@
                     }
                 ]
             },
+            "DashboardTileTypes.COMPOSER_CHART": {
+                "enum": ["composer_chart"],
+                "type": "string"
+            },
+            "DashboardComposerChartTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "chartName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "composerChartUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "hideTitle": {
+                                "type": "boolean"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["chartName", "composerChartUuid"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.COMPOSER_CHART"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardComposerChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardComposerChartTileProperties"
+                    }
+                ]
+            },
             "DashboardTile": {
                 "anyOf": [
                     {
@@ -10305,6 +10349,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardDataAppTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardComposerChartTile"
                     }
                 ]
             },
@@ -42971,6 +43018,7 @@
                 "enum": [
                     "non_chart_tile",
                     "sql_chart",
+                    "composer_chart",
                     "orphaned_chart",
                     "explore_resolution_error"
                 ],
@@ -63299,6 +63347,16 @@
                     }
                 ]
             },
+            "CreateDashboardComposerChartTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardComposerChartTileProperties"
+                    }
+                ]
+            },
             "Pick_UpdatedByUser.userUuid_": {
                 "properties": {
                     "userUuid": {
@@ -63367,6 +63425,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CreateDashboardDataAppTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardComposerChartTile"
                                 }
                             ]
                         },
@@ -75242,6 +75303,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CreateDashboardDataAppTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardComposerChartTile"
                                 }
                             ]
                         },
@@ -78561,7 +78625,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.244.0",
+        "version": "3.246.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

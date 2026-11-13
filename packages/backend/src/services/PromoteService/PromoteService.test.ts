@@ -1875,6 +1875,52 @@ describe('PromoteService promoting and mutating changes', () => {
         );
     });
 
+    test.each(['getPromoteDashboardDiff', 'promoteDashboard'] as const)(
+        '%s refuses a dashboard with a composer chart tile',
+        async (method) => {
+            const dashboardWithComposerTile = {
+                ...promotedDashboard.dashboard,
+                tiles: [
+                    ...promotedDashboard.dashboard.tiles,
+                    {
+                        uuid: 'composer-tile',
+                        type: DashboardTileTypes.COMPOSER_CHART,
+                        x: 0,
+                        y: 0,
+                        h: 3,
+                        w: 6,
+                        tabUuid: undefined,
+                        properties: {
+                            title: 'Composer',
+                            composerChartUuid: 'composer-chart-1',
+                        },
+                    },
+                ],
+            };
+            (
+                dashboardModel.getByIdOrSlug as import('vitest').Mock
+            ).mockImplementationOnce(async () => dashboardWithComposerTile);
+            (
+                dashboardModel.find as import('vitest').Mock
+            ).mockImplementationOnce(async () => [
+                existingUpstreamDashboard.dashboard,
+            ]);
+            (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+                async () => [existingUpstreamDashboard.space],
+            );
+
+            await expect(
+                service[method](
+                    userWithPromotePermissions,
+                    dashboardWithComposerTile.uuid,
+                    { projectUuid: promotedDashboard.projectUuid },
+                ),
+            ).rejects.toThrow(
+                /Dashboards with composer charts cannot be promoted yet/,
+            );
+        },
+    );
+
     test('getPromoteDashboardDiff rejects an unscoped slug matching multiple dashboards', async () => {
         (dashboardModel.find as import('vitest').Mock).mockImplementationOnce(
             async () => [

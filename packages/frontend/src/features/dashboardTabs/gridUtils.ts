@@ -672,7 +672,8 @@ export const getMobileGridLayout = (tiles: DashboardTile[]): Layout[] => {
                     : tile.type === DashboardTileTypes.LOOM
                       ? 4
                       : tile.type === DashboardTileTypes.SAVED_CHART ||
-                          tile.type === DashboardTileTypes.SQL_CHART
+                          tile.type === DashboardTileTypes.SQL_CHART ||
+                          tile.type === DashboardTileTypes.COMPOSER_CHART
                         ? Math.max(5, Math.min(Math.ceil(tile.h * 0.75), 8))
                         : Math.max(5, Math.min(tile.h, 8));
             const layout: Layout = {

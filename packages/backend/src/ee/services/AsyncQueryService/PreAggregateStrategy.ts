@@ -466,6 +466,14 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
                     tileType: tile.type,
                     ineligibleReason: TileIneligibleReason.SQL_CHART,
                 };
+            case DashboardTileTypes.COMPOSER_CHART:
+                return {
+                    status: 'ineligible',
+                    tileUuid: tile.uuid,
+                    tileName,
+                    tileType: tile.type,
+                    ineligibleReason: TileIneligibleReason.COMPOSER_CHART,
+                };
             case DashboardTileTypes.SAVED_CHART: {
                 const savedChartUuid = (
                     tile.properties as { savedChartUuid?: string }

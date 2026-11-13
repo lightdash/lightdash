@@ -5,6 +5,7 @@ import {
     ContentType,
     CreateDashboard,
     CreateDashboardChartTile,
+    CreateDashboardComposerChartTile,
     CreateDashboardDataAppTile,
     CreateDashboardHeadingTile,
     CreateDashboardLoomTile,
@@ -55,6 +56,10 @@ import { Knex } from 'knex';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { AppsTableName } from '../../database/entities/apps';
 import {
+    ComposerChartsTableName,
+    DashboardTileComposerChartsTableName,
+} from '../../database/entities/composerCharts';
+import {
     DashboardsTableName,
     DashboardTable,
     DashboardTabsTableName,
@@ -104,6 +109,12 @@ import {
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import { type OnContentVersionCreated } from '../OnContentVersionCreated';
+import {
+    insertComposerChartTiles,
+    onComposerChartTile,
+    onNonDeletedComposerChart,
+    toComposerChartTile,
+} from './composerChartTiles';
 import Transaction = Knex.Transaction;
 import { dismissOpenContentDrafts } from '../ContentDraftModel';
 import { cancelPendingContentReviewRequests } from '../ContentReviewRequestModel';
@@ -363,6 +374,7 @@ export class DashboardModel {
             | (CreateDashboardSqlChartTile & { uuid: string })
             | (CreateDashboardHeadingTile & { uuid: string })
             | (CreateDashboardDataAppTile & { uuid: string })
+            | (CreateDashboardComposerChartTile & { uuid: string })
         > = version.tiles.map((tile) => ({
             ...tile,
             uuid: tile.uuid || uuidv4(),
@@ -505,6 +517,13 @@ export class DashboardModel {
                 })),
             );
         }
+
+        await insertComposerChartTiles(
+            trx,
+            dashboardId,
+            versionId.dashboard_version_id,
+            tilesWithUuids,
+        );
 
         const tileUuids = tilesWithUuids.map((tile) => tile.uuid);
 
@@ -1348,6 +1367,7 @@ export class DashboardModel {
                     app_uuid: string | null;
                     app_slug: string | null;
                     data_app_deleted_at: Date | null;
+                    composer_chart_uuid: string | null;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -1361,7 +1381,8 @@ export class DashboardModel {
                 database.raw(
                     ` COALESCE(
                         ${SavedChartsTableName}.name,
-                        ${SavedSqlTableName}.name
+                        ${SavedSqlTableName}.name,
+                        ${ComposerChartsTableName}.name
                     ) AS name`,
                 ),
                 database.raw(
@@ -1381,7 +1402,8 @@ export class DashboardModel {
                         ${DashboardTileLoomsTableName}.title,
                         ${DashboardTileMarkdownsTableName}.title,
                         ${DashboardTileSqlChartTableName}.title,
-                        ${DashboardTileDataAppsTableName}.title
+                        ${DashboardTileDataAppsTableName}.title,
+                        ${DashboardTileComposerChartsTableName}.title
                     ) AS title`,
                 ),
                 database.raw(
@@ -1389,7 +1411,8 @@ export class DashboardModel {
                         ${DashboardTileLoomsTableName}.hide_title,
                         ${DashboardTileChartTableName}.hide_title,
                         ${DashboardTileSqlChartTableName}.hide_title,
-                        ${DashboardTileDataAppsTableName}.hide_title
+                        ${DashboardTileDataAppsTableName}.hide_title,
+                        ${DashboardTileComposerChartsTableName}.hide_title
                     ) AS hide_title`,
                 ),
                 `${DashboardTileLoomsTableName}.url`,
@@ -1398,6 +1421,7 @@ export class DashboardModel {
                 `${DashboardTileHeadingsTableName}.text`,
                 `${DashboardTileHeadingsTableName}.show_divider`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
+                `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
                 database.raw(`${AppsTableName}.slug AS app_slug`),
                 database.raw(
                     `${AppsTableName}.deleted_at AS data_app_deleted_at`,
@@ -1498,6 +1522,8 @@ export class DashboardModel {
                 `${DashboardTileDataAppsTableName}.app_uuid`,
                 `${AppsTableName}.app_id`,
             )
+            .leftJoin(DashboardTileComposerChartsTableName, onComposerChartTile)
+            .leftJoin(ComposerChartsTableName, onNonDeletedComposerChart)
             .where(
                 `${DashboardTilesTableName}.dashboard_version_id`,
                 dashboard.dashboard_version_id,
@@ -1589,6 +1615,7 @@ export class DashboardModel {
                     app_uuid,
                     app_slug,
                     data_app_deleted_at,
+                    composer_chart_uuid,
                 }) => {
                     const base: Omit<
                         DashboardDAO['tiles'][number],
@@ -1673,6 +1700,13 @@ export class DashboardModel {
                                         null,
                                 },
                             };
+                        case DashboardTileTypes.COMPOSER_CHART:
+                            return toComposerChartTile(base, {
+                                title,
+                                hide_title,
+                                composer_chart_uuid,
+                                name,
+                            });
                         default: {
                             return assertUnreachable(
                                 type,
@@ -2899,6 +2933,7 @@ export class DashboardModel {
                     app_uuid: string | null;
                     app_slug: string | null;
                     data_app_deleted_at: Date | null;
+                    composer_chart_uuid: string | null;
                 }[]
             >(
                 `${DashboardTilesTableName}.x_offset`,
@@ -2912,7 +2947,8 @@ export class DashboardModel {
                 this.database.raw(
                     ` COALESCE(
                         ${SavedChartsTableName}.name,
-                        ${SavedSqlTableName}.name
+                        ${SavedSqlTableName}.name,
+                        ${ComposerChartsTableName}.name
                     ) AS name`,
                 ),
                 this.database.raw(
@@ -2932,7 +2968,8 @@ export class DashboardModel {
                         ${DashboardTileLoomsTableName}.title,
                         ${DashboardTileMarkdownsTableName}.title,
                         ${DashboardTileSqlChartTableName}.title,
-                        ${DashboardTileDataAppsTableName}.title
+                        ${DashboardTileDataAppsTableName}.title,
+                        ${DashboardTileComposerChartsTableName}.title
                     ) AS title`,
                 ),
                 this.database.raw(
@@ -2940,7 +2977,8 @@ export class DashboardModel {
                         ${DashboardTileLoomsTableName}.hide_title,
                         ${DashboardTileChartTableName}.hide_title,
                         ${DashboardTileSqlChartTableName}.hide_title,
-                        ${DashboardTileDataAppsTableName}.hide_title
+                        ${DashboardTileDataAppsTableName}.hide_title,
+                        ${DashboardTileComposerChartsTableName}.hide_title
                     ) AS hide_title`,
                 ),
                 `${DashboardTileLoomsTableName}.url`,
@@ -2949,6 +2987,7 @@ export class DashboardModel {
                 `${DashboardTileHeadingsTableName}.text`,
                 `${DashboardTileHeadingsTableName}.show_divider`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
+                `${DashboardTileComposerChartsTableName}.composer_chart_uuid`,
                 this.database.raw(`${AppsTableName}.slug AS app_slug`),
                 this.database.raw(
                     `${AppsTableName}.deleted_at AS data_app_deleted_at`,
@@ -3041,6 +3080,8 @@ export class DashboardModel {
                 `${DashboardTileDataAppsTableName}.app_uuid`,
                 `${AppsTableName}.app_id`,
             )
+            .leftJoin(DashboardTileComposerChartsTableName, onComposerChartTile)
+            .leftJoin(ComposerChartsTableName, onNonDeletedComposerChart)
             .where(
                 `${DashboardTilesTableName}.dashboard_version_id`,
                 dashboard.dashboard_version_id,
@@ -3121,6 +3162,7 @@ export class DashboardModel {
                     app_uuid,
                     app_slug,
                     data_app_deleted_at,
+                    composer_chart_uuid,
                 }) => {
                     const base: Omit<
                         DashboardDAO['tiles'][number],
@@ -3205,6 +3247,13 @@ export class DashboardModel {
                                         null,
                                 },
                             };
+                        case DashboardTileTypes.COMPOSER_CHART:
+                            return toComposerChartTile(base, {
+                                title,
+                                hide_title,
+                                composer_chart_uuid,
+                                name,
+                            });
                         default: {
                             return assertUnreachable(
                                 type,
