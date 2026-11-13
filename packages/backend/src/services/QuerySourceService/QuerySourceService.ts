@@ -31,7 +31,13 @@ import { personaliseStoredSharedSignInError } from '../../utils/sharedSignInExpi
 import type { AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
 import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
-import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
+import {
+    REQUEST_AUTHORITY,
+    type DocumentAuthority,
+    type DuckdbQueryPlan,
+    type QueryRunAuthority,
+    type RequestAuthority,
+} from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { QuerySourceRegistry } from './QuerySourceRegistry';
@@ -39,7 +45,6 @@ import type {
     QuerySourceClient,
     SourceQueryAiAttribution,
     SourceQueryExecutionContext,
-    SourceQueryRunBinding,
     SourceQuerySubmissionResult,
 } from './types';
 
@@ -455,7 +460,7 @@ export class QuerySourceService extends BaseService {
             userAttributeOverrides,
             invalidateCache,
             plans: {},
-            binding: null,
+            authority: REQUEST_AUTHORITY,
             aiAttribution,
         });
         return {
@@ -491,7 +496,7 @@ export class QuerySourceService extends BaseService {
             userAttributeOverrides: {},
             invalidateCache,
             plans: {},
-            binding: { kind: 'composer', binding },
+            authority: { kind: 'composer', binding },
             aiAttribution: null,
         });
     }
@@ -504,13 +509,13 @@ export class QuerySourceService extends BaseService {
      */
     async submitQueries(
         args: SubmitQueriesArgs & {
-            binding: Extract<
-                SourceQueryRunBinding,
-                { kind: 'document' }
-            > | null;
+            authority?: RequestAuthority | DocumentAuthority;
         },
     ): Promise<{ queries: InternalSourceQuerySubmission[] }> {
-        return this.submit(args);
+        return this.submit({
+            ...args,
+            authority: args.authority ?? REQUEST_AUTHORITY,
+        });
     }
 
     private async submit({
@@ -523,10 +528,10 @@ export class QuerySourceService extends BaseService {
         userAttributeOverrides,
         invalidateCache,
         plans,
-        binding,
+        authority,
         aiAttribution,
     }: SubmitQueriesArgs & {
-        binding: SourceQueryRunBinding | null;
+        authority: QueryRunAuthority;
     }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         const ordered = this.validateQueries(queries, plans);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
@@ -557,7 +562,7 @@ export class QuerySourceService extends BaseService {
         await Promise.all(
             ordered.map(({ source, query }) =>
                 source.validateQuery?.({
-                    binding,
+                    authority,
                     account,
                     projectUuid,
                     query,
@@ -577,7 +582,7 @@ export class QuerySourceService extends BaseService {
         for (const entry of ordered) {
             // eslint-disable-next-line no-await-in-loop -- dependency order: later submits need earlier queryUuids
             const { queryUuid, cacheHit } = await entry.source.submitQuery({
-                binding,
+                authority,
                 account,
                 projectUuid,
                 context,

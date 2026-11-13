@@ -15,7 +15,7 @@ import type {
     SourceQuerySubmissionResult,
     SubmitSourceQueryArgs,
 } from '../types';
-import { getComposerRunBinding } from './composerRunBinding';
+import { getNodeAuthority } from './nodeAuthority';
 
 type DuckdbQuerySourceArguments = {
     asyncQueryService: AsyncQueryService;
@@ -135,7 +135,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
         invalidateCache,
         pivotConfiguration,
         plan,
-        binding,
+        authority,
     }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
 
@@ -152,7 +152,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
             : undefined;
 
         const args = {
-            ...getComposerRunBinding(binding),
+            authority: getNodeAuthority(authority),
             account,
             projectUuid,
             sql: sourceQuery.sql,

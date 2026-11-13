@@ -11,9 +11,10 @@ import type {
     SourceQuery,
     UserAttributeValueMap,
 } from '@lightdash/common';
-import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
-import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
-import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+import type {
+    DuckdbQueryPlan,
+    QueryRunAuthority,
+} from '../AsyncQueryService/types';
 
 export type ScanSchemaArgs = {
     account: Account;
@@ -36,11 +37,6 @@ export type SourceQueryExecutionContext = {
     invalidateCache: boolean;
 };
 
-/** Server-built proof that a submission runs a persisted chart; never built from a request. */
-export type SourceQueryRunBinding =
-    | { kind: 'document'; context: DocumentQueryContext }
-    | { kind: 'composer'; binding: ComposerRunBinding };
-
 /** The AI agent run a batch belongs to, for analytics. */
 export type SourceQueryAiAttribution = {
     aiAgentUuid: string | null;
@@ -54,7 +50,7 @@ export type SubmittedSourceQueries = Array<
 >;
 
 export type ValidateSourceQueryArgs = SourceQueryExecutionContext & {
-    binding: SourceQueryRunBinding | null;
+    authority: QueryRunAuthority;
     account: Account;
     projectUuid: string;
     query: SourceQuery;
@@ -62,7 +58,7 @@ export type ValidateSourceQueryArgs = SourceQueryExecutionContext & {
 };
 
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
-    binding: SourceQueryRunBinding | null;
+    authority: QueryRunAuthority;
     account: Account;
     projectUuid: string;
     context: QueryExecutionContext;

@@ -42,7 +42,11 @@ import type {
     AsyncQueryService,
     RunnableCompiledMergeQuery,
 } from '../AsyncQueryService/AsyncQueryService';
-import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
+import type {
+    DocumentAuthority,
+    DuckdbQueryPlan,
+    RequestAuthority,
+} from '../AsyncQueryService/types';
 import { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { QuerySourceRegistry } from './QuerySourceRegistry';
@@ -56,7 +60,6 @@ import type {
     QuerySourceClient,
     SourceQueryAiAttribution,
     SourceQueryExecutionContext,
-    SourceQueryRunBinding,
     SubmitSourceQueryArgs,
 } from './types';
 
@@ -66,13 +69,13 @@ const otherProjectUuid = '22222222-2222-4222-8222-222222222222';
 const organizationUuid = 'test-org-uuid';
 const executionContext: SourceQueryExecutionContext & {
     aiAttribution: SourceQueryAiAttribution | null;
-    binding: Extract<SourceQueryRunBinding, { kind: 'document' }> | null;
+    authority: RequestAuthority | DocumentAuthority;
 } = {
     parameters: {},
     userAttributeOverrides: {},
     invalidateCache: false,
     aiAttribution: null,
-    binding: null,
+    authority: { kind: 'request' },
 };
 
 const createFakeSource = (
@@ -592,7 +595,7 @@ describe('QuerySourceService', () => {
                 invalidateCache: false,
                 pivotConfiguration: null,
                 plan: null,
-                binding: null,
+                authority: { kind: 'request' },
             };
             const { userAttributeOverrides, ...withoutOverrides } = args;
             // @ts-expect-error omitting the overrides is a compile error, not a silent default
@@ -1838,14 +1841,16 @@ describe('composer bound run', () => {
         ]) {
             expect(execute).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    composerRunBinding: binding,
+                    authority: { kind: 'composer', binding },
                     invalidateCache: true,
                     context: QueryExecutionContext.DASHBOARD,
                 }),
             );
         }
         expect(asyncQueryService.compileComposerMerge).toHaveBeenCalledWith(
-            expect.objectContaining({ composerRunBinding: binding }),
+            expect.objectContaining({
+                authority: { kind: 'composer', binding },
+            }),
         );
     });
 

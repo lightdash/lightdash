@@ -23,7 +23,7 @@ import type {
     SubmittedSourceQueries,
     ValidateSourceQueryArgs,
 } from '../types';
-import { getComposerRunBinding } from './composerRunBinding';
+import { getNodeAuthority } from './nodeAuthority';
 
 type MergeQuerySourceArguments = {
     asyncQueryService: Pick<
@@ -143,7 +143,7 @@ export class MergeQuerySource implements QuerySourceClient {
                 ...getMergeNodeParameters(query, args.submission),
             };
             const compiled = await this.asyncQueryService.compileComposerMerge({
-                ...getComposerRunBinding(args.binding),
+                authority: getNodeAuthority(args.authority),
                 account: args.account,
                 projectUuid: args.projectUuid,
                 nodeId: query.nodeId ?? null,
@@ -193,7 +193,7 @@ export class MergeQuerySource implements QuerySourceClient {
         );
         const { queryUuid } =
             await this.asyncQueryService.submitComposerMergeJoin({
-                ...getComposerRunBinding(args.binding),
+                authority: getNodeAuthority(args.authority),
                 account: args.account,
                 projectUuid: args.projectUuid,
                 context: args.context,
