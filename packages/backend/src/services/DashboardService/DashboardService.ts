@@ -1298,13 +1298,17 @@ export class DashboardService
                         ? [explore]
                         : [];
                 });
-                const definitions = queryExplores.reduce<ParameterDefinitions>(
-                    (acc, explore) => ({
-                        ...acc,
-                        ...getExploreParameterDefinitions(explore),
-                    }),
-                    projectDefinitions,
-                );
+                // A project parameter wins over a model's unprefixed copy of its name, as in queries
+                const definitions = {
+                    ...queryExplores.reduce<ParameterDefinitions>(
+                        (acc, explore) => ({
+                            ...acc,
+                            ...getExploreParameterDefinitions(explore),
+                        }),
+                        {},
+                    ),
+                    ...projectDefinitions,
+                };
                 results.set(chart.uuid, {
                     parameterReferences,
                     parameterDefinitions: getReferencedParameterDefinitions(
