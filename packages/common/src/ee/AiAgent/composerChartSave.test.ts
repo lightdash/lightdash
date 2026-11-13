@@ -197,6 +197,7 @@ describe('getComposerChartSaveDraft', () => {
                         },
                     ],
                     metadata,
+                    customChartType: null,
                 }),
             );
             const pivotOf = (stage: SourceQuery | null) =>
