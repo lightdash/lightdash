@@ -33,6 +33,7 @@ export enum DashboardTileTypes {
     LOOM = 'loom',
     HEADING = 'heading',
     DATA_APP = 'data_app',
+    COMPOSER_CHART = 'composer_chart',
 }
 
 export type DashboardTilePosition = {
@@ -121,6 +122,18 @@ export type DashboardDataAppTileProperties = {
     };
 };
 
+export type DashboardComposerChartTileProperties = {
+    type: DashboardTileTypes.COMPOSER_CHART;
+    properties: {
+        title?: string;
+        hideTitle?: boolean;
+        // Null only when a tile lost its chart link, e.g. a preview copy.
+        composerChartUuid: string | null;
+        // Set by the backend on read.
+        chartName?: string | null;
+    };
+};
+
 export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
     DashboardMarkdownTileProperties;
 export type DashboardMarkdownTile = DashboardTileBase &
@@ -150,6 +163,11 @@ export type CreateDashboardDataAppTile = CreateDashboardTileBase &
 export type DashboardDataAppTile = DashboardTileBase &
     DashboardDataAppTileProperties;
 
+export type CreateDashboardComposerChartTile = CreateDashboardTileBase &
+    DashboardComposerChartTileProperties;
+export type DashboardComposerChartTile = DashboardTileBase &
+    DashboardComposerChartTileProperties;
+
 export type CreateDashboard = {
     name: string;
     description?: string;
@@ -160,6 +178,7 @@ export type CreateDashboard = {
         | CreateDashboardSqlChartTile
         | CreateDashboardHeadingTile
         | CreateDashboardDataAppTile
+        | CreateDashboardComposerChartTile
     >;
     filters?: DashboardFilters;
     parameters?: DashboardParameters;
@@ -179,7 +198,8 @@ export type DashboardTile =
     | DashboardLoomTile
     | DashboardSqlChartTile
     | DashboardHeadingTile
-    | DashboardDataAppTile;
+    | DashboardDataAppTile
+    | DashboardComposerChartTile;
 
 export const isDashboardChartTileType = (
     tile: DashboardTile,
@@ -204,6 +224,11 @@ export const isDashboardHeadingTileType = (
 export const isDashboardDataAppTileType = (
     tile: DashboardTile,
 ): tile is DashboardDataAppTile => tile.type === DashboardTileTypes.DATA_APP;
+
+export const isDashboardComposerChartTile = (
+    tile: DashboardTileBase,
+): tile is DashboardComposerChartTile =>
+    tile.type === DashboardTileTypes.COMPOSER_CHART;
 
 export type DashboardTab = {
     uuid: string;

@@ -1,5 +1,6 @@
 import {
     DashboardTileTypes,
+    type DashboardComposerChartTile,
     type DashboardDataAppTile,
     type DashboardTab,
 } from '@lightdash/common';
@@ -198,6 +199,51 @@ describe('dashboard screenshots with data app tiles', () => {
         act(() => result.current.markTileScreenshotReady('visible-app'));
         expect(result.current.isReadyForScreenshot).toBe(false);
         act(() => result.current.markTileScreenshotReady('orphan-app'));
+        expect(result.current.isReadyForScreenshot).toBe(true);
+        expect(result.current.expectedScreenshotTilesCount).toBe(2);
+    });
+});
+
+describe('dashboard screenshots with composer chart tiles', () => {
+    const composerTile = (
+        uuid: string,
+        tabUuid: string | null,
+    ): DashboardComposerChartTile => ({
+        uuid,
+        type: DashboardTileTypes.COMPOSER_CHART,
+        x: 0,
+        y: 0,
+        w: 12,
+        h: 6,
+        tabUuid,
+        properties: { title: uuid, composerChartUuid: `chart-${uuid}` },
+    });
+
+    it.each([
+        { name: 'active tab', selected: undefined, paged: false },
+        {
+            name: 'stacked selected tabs',
+            selected: ['first-tab'],
+            paged: false,
+        },
+        { name: 'paged selected tabs', selected: ['first-tab'], paged: true },
+    ])('waits for the composer tile in $name', ({ selected, paged }) => {
+        const { result } = renderStatus(
+            {
+                dashboardTiles: [
+                    composerTile('composer', 'first-tab'),
+                    appTile('app', 'first-tab'),
+                ],
+                dashboardTabs: tabs,
+                activeTab: tabs[0],
+                schedulerTabsSelected: selected,
+            },
+            `/minimal/dashboard/dashboard-uuid?exportPagedTabs=${paged}`,
+        );
+
+        act(() => result.current.markTileScreenshotReady('app'));
+        expect(result.current.isReadyForScreenshot).toBe(false);
+        act(() => result.current.markTileScreenshotReady('composer'));
         expect(result.current.isReadyForScreenshot).toBe(true);
         expect(result.current.expectedScreenshotTilesCount).toBe(2);
     });
