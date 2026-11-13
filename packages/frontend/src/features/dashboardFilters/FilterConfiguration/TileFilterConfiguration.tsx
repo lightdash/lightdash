@@ -1,5 +1,6 @@
 import {
     getItemId,
+    getItemLabel,
     interpolateUiString,
     isDashboardChartTileType,
     isDashboardDataAppTileType,
@@ -477,6 +478,11 @@ const TileFilterConfiguration: FC<Props> = ({
                     const isCheckboxDisabled = value.disabled && !value.checked;
                     const hasFiltersToShow =
                         value.sortedFilters && value.sortedFilters.length > 0;
+                    const selectedFieldLabel =
+                        value.targetType === 'field'
+                            ? value.selectedField &&
+                              getItemLabel(value.selectedField)
+                            : value.selectedField;
 
                     return (
                         <Box key={value.key} data-testid="tile-filter-item">
@@ -559,87 +565,113 @@ const TileFilterConfiguration: FC<Props> = ({
                             </Tooltip>
 
                             {hasFiltersToShow && (
-                                <Box
-                                    ml="xl"
-                                    mt="sm"
-                                    display={!value.checked ? 'none' : 'auto'}
+                                <Tooltip
+                                    label={selectedFieldLabel}
+                                    disabled={
+                                        !value.checked || !selectedFieldLabel
+                                    }
+                                    position="top-start"
+                                    openDelay={300}
+                                    multiline
+                                    maw="min(400px, calc(100vw - 24px))"
+                                    classNames={{
+                                        tooltip: classes.fieldLabelTooltip,
+                                    }}
+                                    events={{
+                                        hover: true,
+                                        focus: true,
+                                        touch: false,
+                                    }}
                                 >
-                                    {value.targetType === 'field' ? (
-                                        <FieldSelect
-                                            size="xs"
-                                            disabled={!value.checked}
-                                            item={value.selectedField}
-                                            items={value.sortedFilters ?? []}
-                                            comboboxProps={{
-                                                withinPortal: false,
-                                                classNames: {
-                                                    dropdown:
-                                                        classes.inlineDropdown,
-                                                },
-                                            }}
-                                            onDropdownOpen={
-                                                popoverProps?.onOpen
-                                            }
-                                            onDropdownClose={
-                                                popoverProps?.onClose
-                                            }
-                                            onChange={(newField) => {
-                                                onChange(
-                                                    FilterActions.ADD,
-                                                    value.tileUuid,
-                                                    newField
-                                                        ? {
-                                                              fieldId:
-                                                                  getItemId(
+                                    <Box
+                                        ml="xl"
+                                        mt="sm"
+                                        display={
+                                            !value.checked ? 'none' : 'auto'
+                                        }
+                                    >
+                                        {value.targetType === 'field' ? (
+                                            <FieldSelect
+                                                size="xs"
+                                                disabled={!value.checked}
+                                                item={value.selectedField}
+                                                items={
+                                                    value.sortedFilters ?? []
+                                                }
+                                                comboboxProps={{
+                                                    withinPortal: false,
+                                                    classNames: {
+                                                        dropdown:
+                                                            classes.inlineDropdown,
+                                                    },
+                                                }}
+                                                onDropdownOpen={
+                                                    popoverProps?.onOpen
+                                                }
+                                                onDropdownClose={
+                                                    popoverProps?.onClose
+                                                }
+                                                onChange={(newField) => {
+                                                    onChange(
+                                                        FilterActions.ADD,
+                                                        value.tileUuid,
+                                                        newField
+                                                            ? {
+                                                                  fieldId:
+                                                                      getItemId(
+                                                                          newField,
+                                                                      ),
+                                                                  tableName:
+                                                                      newField.table,
+                                                              }
+                                                            : undefined,
+                                                    );
+                                                }}
+                                            />
+                                        ) : (
+                                            <Select
+                                                w="100%"
+                                                size="xs"
+                                                searchable
+                                                withScrollArea={false}
+                                                leftSection={undefined}
+                                                allowDeselect={false}
+                                                comboboxProps={{
+                                                    withinPortal: false,
+                                                    classNames: {
+                                                        dropdown:
+                                                            classes.inlineDropdown,
+                                                    },
+                                                }}
+                                                onDropdownOpen={
+                                                    popoverProps?.onOpen
+                                                }
+                                                onDropdownClose={
+                                                    popoverProps?.onClose
+                                                }
+                                                value={
+                                                    value.selectedField ?? null
+                                                }
+                                                data={value.sortedFilters}
+                                                onChange={(newField) => {
+                                                    onChange(
+                                                        FilterActions.ADD,
+                                                        value.tileUuid,
+                                                        newField
+                                                            ? {
+                                                                  fieldId:
                                                                       newField,
-                                                                  ),
-                                                              tableName:
-                                                                  newField.table,
-                                                          }
-                                                        : undefined,
-                                                );
-                                            }}
-                                        />
-                                    ) : (
-                                        <Select
-                                            w="100%"
-                                            size="xs"
-                                            searchable
-                                            withScrollArea={false}
-                                            leftSection={undefined}
-                                            allowDeselect={false}
-                                            comboboxProps={{
-                                                withinPortal: false,
-                                                classNames: {
-                                                    dropdown:
-                                                        classes.inlineDropdown,
-                                                },
-                                            }}
-                                            onDropdownOpen={
-                                                popoverProps?.onOpen
-                                            }
-                                            onDropdownClose={
-                                                popoverProps?.onClose
-                                            }
-                                            value={value.selectedField ?? null}
-                                            data={value.sortedFilters}
-                                            onChange={(newField) => {
-                                                onChange(
-                                                    FilterActions.ADD,
-                                                    value.tileUuid,
-                                                    newField
-                                                        ? {
-                                                              fieldId: newField,
-                                                              tableName:
-                                                                  'mock_table',
-                                                              isSqlColumn: true,
-                                                          }
-                                                        : undefined,
-                                                );
-                                            }}
-                                        />
-                                    )}
-                                </Box>
+                                                                  tableName:
+                                                                      'mock_table',
+                                                                  isSqlColumn: true,
+                                                              }
+                                                            : undefined,
+                                                    );
+                                                }}
+                                            />
+                                        )}
+                                    </Box>
+                                </Tooltip>
                             )}
                         </Box>
                     );
