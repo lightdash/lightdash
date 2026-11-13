@@ -1,4 +1,4 @@
-import { Ability, AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import {
     AgentActorSurface,
     applyEmbedScopeAbilities,
@@ -10,6 +10,7 @@ import {
     FilterOperator,
     ForbiddenError,
     getItemId,
+    normalizeEmbedJwt,
     ProjectType,
     QueryExecutionContext,
     SchedulerFormat,
@@ -28,6 +29,12 @@ import {
     type SavedChartDAO,
     type SessionUser,
 } from '@lightdash/common';
+import { fromJwt, getAccountWriteContext } from '../../../auth/account';
+import {
+    buildAccount,
+    defaultSessionUser,
+    defaultUserAttributes,
+} from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
@@ -1319,20 +1326,145 @@ describe('EmbedService', () => {
             ).resolves.toMatchObject({ userUuid: mockUserUuid });
         });
 
-        test('still refuses other tokens without write spaces', async () => {
+        test('still requires source spaces for read-only AI tokens', async () => {
             await expect(
                 getEmbedWriteUser()(
                     {
-                        content: {
-                            type: 'dashboard',
-                            dashboardUuid: 'dashboard-uuid',
-                        },
-                        writeActions,
+                        content: { type: 'aiAgent', agentUuid: 'agent-uuid' },
+                        writeActions: { serviceAccountUserUuid: mockUserUuid },
                     },
                     mockOrganizationUuid,
                 ),
             ).rejects.toThrow('Embed token does not allow write actions');
         });
+    });
+
+    describe('read-only actors without write spaces', () => {
+        const contents: CreateEmbedJwt['content'][] = [
+            { type: 'dashboard', dashboardUuid: 'dashboard-uuid' },
+            { type: 'chart', contentId: 'chart-uuid' },
+            { type: 'metricsCatalog', projectUuid: mockProjectUuid },
+            { type: 'dataApp', appUuid: 'app-uuid' },
+        ];
+        const cases = contents.flatMap((content) =>
+            (['userUuid', 'serviceAccountUserUuid'] as const).flatMap(
+                (identity) =>
+                    (['actor', 'writeActions'] as const).map((field) => ({
+                        content,
+                        identity,
+                        field,
+                    })),
+            ),
+        );
+        test.each(cases)(
+            'resolves $content.type with $field.$identity without allowing writes',
+            async ({ content, identity, field }) => {
+                const actorUuid = '00000000-0000-4000-8000-000000000001';
+                const actor = {
+                    ...defaultSessionUser,
+                    userUuid: actorUuid,
+                    organizationUuid: mockOrganizationUuid,
+                    ability: new Ability<PossibleAbilities>([
+                        { action: 'manage', subject: 'all' },
+                    ]),
+                };
+                const resolveAccessBatch = vi.fn();
+                const scopedService = new EmbedService({
+                    ...EmbedServiceArgumentsMock,
+                    userModel: {
+                        findSessionUserAndOrgByUuid: vi
+                            .fn()
+                            .mockResolvedValue(actor),
+                        findServiceAccountByUserUuid: vi
+                            .fn()
+                            .mockResolvedValue({
+                                uuid: 'service-account-uuid',
+                                organizationUuid: mockOrganizationUuid,
+                            }),
+                    },
+                    projectModel: {
+                        getSummary: vi.fn().mockResolvedValue({
+                            organizationUuid: mockOrganizationUuid,
+                        }),
+                    },
+                    spacePermissionService: { resolveAccessBatch },
+                } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+                const serviceInternals = scopedService as unknown as {
+                    getEmbedWriteUser(
+                        token: CreateEmbedJwt,
+                        organizationUuid: string,
+                    ): Promise<SessionUser>;
+                    getEmbedWriteContext(
+                        token: CreateEmbedJwt,
+                        user: SessionUser,
+                        projectUuid: string,
+                        content: EmbedContent,
+                    ): Promise<AnonymousAccount['embedWriteContext']>;
+                };
+                const resolvedContent: EmbedContent = {
+                    ...content,
+                    chartUuids: ['chart-uuid'],
+                    explores: [],
+                };
+                const token = normalizeEmbedJwt({
+                    content,
+                    [field]: {
+                        [identity]: actorUuid,
+                        permissionsMode: 'roles',
+                    },
+                });
+                const user = await serviceInternals.getEmbedWriteUser(
+                    token,
+                    mockOrganizationUuid,
+                );
+                expect(user.userUuid).toBe(actorUuid);
+                const writeContext =
+                    await serviceInternals.getEmbedWriteContext(
+                        token,
+                        user,
+                        mockProjectUuid,
+                        resolvedContent,
+                    );
+                expect(writeContext).toEqual({
+                    canUpdateDashboard: false,
+                    canUpdateSavedChart: false,
+                    canCreateSavedChart: false,
+                    writableSpaces: [],
+                    canUseAiAgent: false,
+                });
+                const base = buildAccount({ accountType: 'jwt' });
+                const account = fromJwt({
+                    decodedToken: token,
+                    embed: {
+                        ...base.embed,
+                        projectUuid: mockProjectUuid,
+                        organization: {
+                            ...base.embed.organization,
+                            organizationUuid: mockOrganizationUuid,
+                        },
+                    },
+                    source: 'read-only-token',
+                    content: resolvedContent,
+                    userAttributes: defaultUserAttributes,
+                    embedWriteUser: user,
+                    embedWriteContext: writeContext,
+                });
+                expect(
+                    // eslint-disable-next-line lightdash/no-direct-ability-check -- Verifies the constructed account's raw capabilities.
+                    account.user.ability.can(
+                        'view',
+                        subject('EmbedCsvExport', {
+                            projectUuid: mockProjectUuid,
+                            organizationUuid: mockOrganizationUuid,
+                        }),
+                    ),
+                ).toBe(true);
+                expect(() => getAccountWriteContext(account)).toThrow(
+                    'Embed token does not allow write actions',
+                );
+                expect(resolveAccessBatch).not.toHaveBeenCalled();
+            },
+        );
     });
 
     describe('getEmbedWriteContext', () => {

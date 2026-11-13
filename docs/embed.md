@@ -115,10 +115,13 @@ does not revoke dashboard capabilities on tokens using default mode.
 
 `getEmbedWriteUser` loads the actor in the project's organization. A regular
 user must be active; a service-account actor must resolve to a service account
-in that organization. `writeActions.spaceUuid` is required for this actor path.
+in that organization. Without write spaces, the actor can still supply role-based
+embed capabilities, but content writes remain disabled. Read-only AI tokens retain
+their `sourceSpaceUuids` and `user.externalId` requirements.
 
-`getEmbedWriteContext` resolves access to that space, checks that it belongs to
-the embedded project, and evaluates the actor's relevant operation permissions.
+When write spaces are present, `getEmbedWriteContext` resolves their access, checks
+that they belong to the embedded project, and evaluates the actor's relevant
+operation permissions.
 Write services use `getAccountWriteContext` to obtain the registered actor and
 the signed destination-space constraint. A visible save/edit control is not
 itself authorization to write. Keep the viewer's query attributes separate
