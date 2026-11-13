@@ -32,7 +32,7 @@ import {
     type FileAndStageBindStatement,
     type RowStatement,
 } from 'snowflake-sdk';
-import { pipeline, Transform, Writable } from 'stream';
+import { pipeline } from 'stream';
 import * as Util from 'util';
 import { WarehouseCatalog } from '../types';
 import {
@@ -40,6 +40,7 @@ import {
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
 import { normalizeUnicode } from '../utils/sql';
+import { createRowBatchWriter } from '../utils/streamRows';
 import {
     normalizeSnowflakePrivateKey,
     SnowflakePrivateKeyError,
@@ -1671,34 +1672,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
                         pipeline(
                             stmt.streamRows(),
-                            new Transform({
-                                objectMode: true,
-                                highWaterMark: 1,
-                                transform(chunk, encoding, callback) {
-                                    callback(null, parseRow(chunk));
-                                },
-                            }),
-                            new Writable({
-                                objectMode: true,
-                                highWaterMark: 1,
-                                async write(chunk, encoding, callback) {
-                                    try {
-                                        rowCount += 1;
-                                        await resultsStreamCallback(
-                                            [chunk],
-                                            fields,
-                                        );
-                                        callback();
-                                    } catch (writeError) {
-                                        if (writeError instanceof Error) {
-                                            callback(writeError);
-                                        } else {
-                                            callback(
-                                                new Error(String(writeError)),
-                                            );
-                                        }
-                                    }
-                                },
+                            createRowBatchWriter(parseRow, async (rows) => {
+                                rowCount += rows.length;
+                                await resultsStreamCallback(rows, fields);
                             }),
                             (error) => {
                                 if (error) {
@@ -1824,31 +1800,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
                     pipeline(
                         stmt.streamRows(),
-                        new Transform({
-                            objectMode: true,
-                            transform(chunk, encoding, callback) {
-                                callback(null, parseRow(chunk));
-                            },
-                        }),
-                        new Writable({
-                            objectMode: true,
-                            async write(chunk, encoding, callback) {
-                                try {
-                                    await streamCallback({
-                                        fields,
-                                        rows: [chunk],
-                                    });
-                                    callback();
-                                } catch (writeError) {
-                                    // Pass error to pipeline which will reject the promise
-                                    if (writeError instanceof Error) {
-                                        callback(writeError);
-                                    } else {
-                                        callback(new Error(String(writeError)));
-                                    }
-                                }
-                            },
-                        }),
+                        createRowBatchWriter(parseRow, (rows) =>
+                            streamCallback({ fields, rows }),
+                        ),
                         (error) => {
                             if (error) {
                                 reject(error);
