@@ -5,6 +5,7 @@ import type {
 import type { RequestHandler } from 'express';
 import type { ContentAsCodeWriteback } from '../models/ContentAsCodeWritebackModel';
 import type { ContentDraft } from '../models/ContentDraftModel';
+import { assertNotComposerChartFile } from '../services/CoderService/composerChartsAsCode';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -21,6 +22,16 @@ export const CODE_WRITE_MIDDLEWARES: RequestHandler[] = [
     isAuthenticated,
     unauthorisedInDemo,
 ];
+
+// Before body validation, which would answer an old CLI's composer file with a bare 422
+export const refuseComposerChartFile: RequestHandler = (req, _res, next) => {
+    try {
+        assertNotComposerChartFile(req.params.slug, req.body);
+        next();
+    } catch (error) {
+        next(error);
+    }
+};
 
 export const codeSuccess = <Results>(
     results: Results,

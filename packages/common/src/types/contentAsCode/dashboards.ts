@@ -4,6 +4,7 @@ import type { ContentVerificationInfo } from '../contentVerification';
 import type {
     Dashboard,
     DashboardChartTileProperties,
+    DashboardComposerChartTileProperties,
     DashboardConfig,
     DashboardControlRefKind,
     DashboardControlSection,
@@ -79,6 +80,15 @@ export type DashboardSqlChartTileAsCode = DashboardTileAsCodeBase & {
     > & { chartSlug: string | null };
 };
 
+/** Names a composer chart the dashboard owns; the slug is looked up among composer charts only. */
+export type DashboardComposerChartTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.COMPOSER_CHART;
+    properties: Pick<
+        DashboardComposerChartTileProperties['properties'],
+        'title' | 'hideTitle'
+    > & { chartSlug: string };
+};
+
 export type DashboardMarkdownTileAsCode = DashboardTileAsCodeBase & {
     type: DashboardTileTypes.MARKDOWN;
     properties: DashboardMarkdownTileProperties['properties'];
@@ -112,6 +122,7 @@ export type DashboardDataAppTileAsCode = DashboardTileAsCodeBase & {
 export type DashboardTileAsCode =
     | DashboardChartTileAsCode
     | DashboardSqlChartTileAsCode
+    | DashboardComposerChartTileAsCode
     | DashboardMarkdownTileAsCode
     | DashboardLoomTileAsCode
     | DashboardHeadingTileAsCode

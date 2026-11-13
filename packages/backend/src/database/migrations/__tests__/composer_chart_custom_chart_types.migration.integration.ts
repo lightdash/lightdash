@@ -65,6 +65,7 @@ describe('composer charts using a custom chart type, on the real schema', () => 
     const createChart = (dashboardUuid: string, chart: ComposerStoredChart) =>
         composerChartModel.create({
             uuid: null,
+            slug: null,
             projectUuid: fixture.projectUuid,
             dashboardUuid,
             name: 'Orders by status',

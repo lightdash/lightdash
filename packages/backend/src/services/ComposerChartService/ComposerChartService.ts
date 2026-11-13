@@ -177,12 +177,26 @@ export class ComposerChartService extends BaseService {
         return parseComposerStoredChart({ ...chart, chartConfig });
     }
 
-    /** Shared by the create endpoint and, later, content-as-code upload. */
-    async create(
+    async isEnabled(user: {
+        userUuid: string;
+        organizationUuid: string;
+    }): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ComposerCharts,
+        });
+        return enabled;
+    }
+
+    /** The checks every submitted write runs; returns the documents to store. */
+    private async authorizeWrite(
         account: RegisteredAccount,
         projectUuid: string,
-        data: CreateComposerChart,
-    ): Promise<ComposerChart> {
+        data: Pick<CreateComposerChart, 'dashboardUuid' | 'pipeline' | 'chart'>,
+    ): Promise<{
+        pipeline: ComposerChartPipeline;
+        chart: ComposerStoredChart;
+    }> {
         const pipeline = parseComposerPipeline(data.pipeline);
         const input = parseComposerChartInput(data.chart);
 
@@ -191,14 +205,12 @@ export class ComposerChartService extends BaseService {
             projectUuid,
             data.dashboardUuid,
         );
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
+        if (
+            !(await this.isEnabled({
                 userUuid: account.user.userUuid,
                 organizationUuid: dashboardAccess.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ComposerCharts,
-        });
-        if (!enabled) {
+            }))
+        ) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
         if (
@@ -216,9 +228,42 @@ export class ComposerChartService extends BaseService {
         }
         this.assertCanWritePipeline(account, dashboardAccess, pipeline);
         const chart = await this.pinCustomChartType(projectUuid, input);
+        return { pipeline, chart };
+    }
 
+    /** The checks that need no dashboard, so an upload can refuse before creating one. */
+    async preflightWrite(
+        account: RegisteredAccount,
+        project: ProjectSubject,
+        data: Pick<CreateComposerChart, 'pipeline' | 'chart'>,
+    ): Promise<void> {
+        const pipeline = parseComposerPipeline(data.pipeline);
+        const input = parseComposerChartInput(data.chart);
+        if (
+            !(await this.isEnabled({
+                userUuid: account.user.userUuid,
+                organizationUuid: project.organizationUuid,
+            }))
+        ) {
+            throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
+        }
+        this.assertCanWritePipeline(account, project, pipeline);
+        await this.pinCustomChartType(project.projectUuid, input);
+    }
+
+    async create(
+        account: RegisteredAccount,
+        projectUuid: string,
+        data: CreateComposerChart,
+    ): Promise<ComposerChart> {
+        const { pipeline, chart } = await this.authorizeWrite(
+            account,
+            projectUuid,
+            data,
+        );
         const uuid = await this.composerChartModel.create({
             uuid: null,
+            slug: null,
             projectUuid,
             dashboardUuid: data.dashboardUuid,
             name: data.name,
@@ -228,6 +273,48 @@ export class ComposerChartService extends BaseService {
             createdByUserUuid: account.user.userUuid,
         });
         return this.composerChartModel.get(uuid);
+    }
+
+    /** Content-as-code upload; an existing chart stays on its dashboard. */
+    async writeFromCode(
+        account: RegisteredAccount,
+        projectUuid: string,
+        data: Omit<CreateComposerChart, 'dashboardUuid'> & {
+            slug: string;
+            /** Owner of a new or revived chart; an existing chart keeps its own. */
+            dashboardUuid: string | null;
+        },
+    ): Promise<string> {
+        const existing = await this.composerChartModel.findIdentityBySlug(
+            projectUuid,
+            data.slug,
+        );
+        const dashboardUuid =
+            existing && !existing.deleted
+                ? (await this.composerChartModel.getOwner(existing.uuid))
+                      .dashboardUuid
+                : data.dashboardUuid;
+        if (dashboardUuid === null) {
+            throw new ParameterError(
+                `Composer chart "${data.slug}" needs a dashboard to belong to`,
+            );
+        }
+        const { pipeline, chart } = await this.authorizeWrite(
+            account,
+            projectUuid,
+            { ...data, dashboardUuid },
+        );
+        return this.composerChartModel.writeFromCode({
+            existing,
+            slug: data.slug,
+            projectUuid,
+            dashboardUuid,
+            name: data.name,
+            description: data.description ?? null,
+            pipeline,
+            chart,
+            createdByUserUuid: account.user.userUuid,
+        });
     }
 
     /** Charts whose current version uses the custom chart type; the caller authorizes. */

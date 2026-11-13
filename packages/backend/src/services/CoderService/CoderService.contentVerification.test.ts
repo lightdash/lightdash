@@ -110,6 +110,8 @@ const buildService = () =>
         organizationMemberProfileModel: {} as never,
         userModel: {} as never,
         warehouseConnectionModel: {} as never,
+        composerChartModel: {} as never,
+        composerChartService: {} as never,
     });
 
 const callSync = (

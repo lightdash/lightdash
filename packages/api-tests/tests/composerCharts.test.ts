@@ -8,16 +8,19 @@ import {
     QuerySourceType,
     SEED_DATA_APP_VIZ,
     SEED_PROJECT,
+    ServiceAccountScope,
     type ComposerChart,
+    type ComposerChartAsCode,
     type ComposerChartPipeline,
     type ComposerChartRunRequest,
     type ComposerChartRunResults,
     type CreateComposerChart,
     type Dashboard,
+    type DashboardAsCode,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type ApiClient, type Body } from '../helpers/api-client';
+import { ApiClient, type Body } from '../helpers/api-client';
 import {
     anotherLogin,
     login,
@@ -804,6 +807,421 @@ describe('Composer charts', () => {
                     },
                 );
                 expect(classic.status).toBe(200);
+            } finally {
+                expect(
+                    (await admin.post(flagUrl, { enabled: true })).status,
+                ).toBe(200);
+            }
+        });
+    });
+    describe('content as code', () => {
+        const codeUrl = `/api/v1/projects/${projectUuid}/code`;
+
+        const downloadChart = async (slug: string, client = admin) => {
+            const resp = await client.get<
+                Body<{ composerCharts: ComposerChartAsCode[] }>
+            >(`${codeUrl}/composerCharts?ids=${slug}`);
+            expect(resp.status).toBe(200);
+            const [file] = resp.body.results.composerCharts;
+            expect(file).toBeDefined();
+            return file;
+        };
+
+        const downloadDashboard = async (slug: string) => {
+            const resp = await admin.get<
+                Body<{ dashboards: DashboardAsCode[] }>
+            >(`${codeUrl}/dashboards?ids=${slug}`);
+            expect(resp.status).toBe(200);
+            return resp.body.results.dashboards[0];
+        };
+
+        const uploadChart = (
+            file: ComposerChartAsCode,
+            client: Pick<ApiClient, 'post'> = admin,
+        ) =>
+            client.post<
+                Body<{ action: string; composerChartUuid: string }> & {
+                    error: { message: string };
+                }
+            >(`${codeUrl}/composerCharts/${file.slug}`, file, {
+                failOnStatusCode: false,
+            });
+
+        const uploadDashboard = (file: DashboardAsCode) =>
+            admin.post<Body<unknown> & { error: { message: string } }>(
+                `${codeUrl}/dashboards/${file.slug}`,
+                file,
+                { failOnStatusCode: false },
+            );
+
+        const composerTileOf = (file: DashboardAsCode) =>
+            file.tiles.find(
+                (tile) => tile.type === DashboardTileTypes.COMPOSER_CHART,
+            );
+
+        const withComposerTile = (
+            file: DashboardAsCode,
+            chartSlug: string,
+            type = DashboardTileTypes.COMPOSER_CHART,
+        ): DashboardAsCode =>
+            ({
+                ...file,
+                tiles: [
+                    {
+                        type,
+                        x: 0,
+                        y: 0,
+                        h: 6,
+                        w: 12,
+                        tabSlug: null,
+                        tileSlug: undefined,
+                        uuid: undefined,
+                        properties: { title: 'From code', chartSlug },
+                    },
+                ],
+            }) as DashboardAsCode;
+
+        it('downloads the dashboard tile and the chart as stored, and changes nothing on re-upload', async () => {
+            const { dashboard, chart } = await createDashboardWithSqlChart();
+            const dashboardFile = await downloadDashboard(dashboard.slug);
+            expect(composerTileOf(dashboardFile)?.properties).toEqual({
+                title: 'Orders',
+                hideTitle: false,
+                chartSlug: chart.slug,
+            });
+            const file = await downloadChart(chart.slug);
+            expect(file).toMatchObject({
+                contentType: 'composer_chart',
+                slug: chart.slug,
+                name: chart.name,
+                dashboardSlug: dashboard.slug,
+                pipeline: chart.pipeline,
+                chart: chart.chart,
+            });
+
+            const reuploaded = await uploadChart(file);
+            expect(reuploaded.status).toBe(200);
+            expect(reuploaded.body.results.action).toBe('no changes');
+            expect((await uploadDashboard(dashboardFile)).status).toBe(200);
+            expect((await getChart(chart.uuid)).body.results.versionUuid).toBe(
+                chart.versionUuid,
+            );
+            expect(await downloadChart(chart.slug)).toMatchObject({
+                pipeline: file.pipeline,
+                chart: file.chart,
+            });
+            expect(
+                composerChartUuidsOn(await getDashboard(dashboard.uuid)),
+            ).toEqual([chart.uuid]);
+        });
+
+        it('creates a chart from a file, which a dashboard file then names', async () => {
+            const dashboard = await createDashboard();
+            const { dashboard: source } = await createDashboardWithSqlChart();
+            const file = {
+                ...(await downloadChart(
+                    composerTileOf(await downloadDashboard(source.slug))!
+                        .properties.chartSlug!,
+                )),
+                slug: uniqueName('composer-code')
+                    .toLowerCase()
+                    .replace(/\W+/g, '-'),
+                dashboardSlug: dashboard.slug,
+            };
+            const created = await uploadChart(file);
+            expect(created.status).toBe(200);
+            expect(created.body.results.action).toBe('create');
+            const stored = (
+                await getChart(created.body.results.composerChartUuid)
+            ).body.results;
+            expect(stored).toMatchObject({
+                slug: file.slug,
+                dashboardUuid: dashboard.uuid,
+                pipeline: file.pipeline,
+            });
+
+            const named = await uploadDashboard(
+                withComposerTile(
+                    await downloadDashboard(dashboard.slug),
+                    file.slug,
+                ),
+            );
+            expect(named.status).toBe(200);
+            expect(
+                composerChartUuidsOn(await getDashboard(dashboard.uuid)),
+            ).toEqual([stored.uuid]);
+        });
+
+        it('creates a placeholder dashboard for a chart naming one that does not exist', async () => {
+            const { chart } = await createDashboardWithSqlChart();
+            const dashboardSlug = uniqueName('composer placeholder')
+                .toLowerCase()
+                .replace(/\W+/g, '-');
+            const file = {
+                ...(await downloadChart(chart.slug)),
+                slug: `${dashboardSlug}-chart`,
+                dashboardSlug,
+            };
+            const created = await uploadChart(file);
+            expect(created.status).toBe(200);
+            const stored = (
+                await getChart(created.body.results.composerChartUuid)
+            ).body.results;
+            tracker.trackDashboard(stored.dashboardUuid);
+            const placeholder = await getDashboard(stored.dashboardUuid);
+            expect(placeholder).toMatchObject({
+                slug: dashboardSlug,
+                tiles: [],
+            });
+        });
+
+        it('appends a version for a changed file, keeping the chart on its dashboard', async () => {
+            const { dashboard, chart } = await createDashboardWithSqlChart();
+            const other = await createDashboard();
+            const file = await downloadChart(chart.slug);
+            const changed = await uploadChart({
+                ...file,
+                name: 'Renamed from code',
+                dashboardSlug: other.slug,
+                chart: {
+                    ...file.chart,
+                    pivotConfig: { columns: ['orders_status'] },
+                },
+            });
+            expect(changed.status).toBe(200);
+            expect(changed.body.results.action).toBe('update');
+            const stored = (await getChart(chart.uuid)).body.results;
+            expect(stored.versionUuid).not.toBe(chart.versionUuid);
+            expect(stored).toMatchObject({
+                name: 'Renamed from code',
+                dashboardUuid: dashboard.uuid,
+                chart: { pivotConfig: { columns: ['orders_status'] } },
+            });
+            // A group-by round-trips like any other chart
+            const again = await uploadChart(await downloadChart(chart.slug));
+            expect(again.body.results.action).toBe('no changes');
+        });
+
+        it('writes a custom chart type as its slug and refuses one missing from the project', async () => {
+            const created = await createComposerDashboard(
+                apiClientSend(admin),
+                {
+                    chart: {
+                        ...composerChartBody('').chart,
+                        chartConfig: {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: {
+                                dataAppVizUuid: SEED_DATA_APP_VIZ.appUuid,
+                                fieldMapping: { status: 'orders_status' },
+                            },
+                        },
+                    },
+                },
+            );
+            tracker.trackDashboard(created.dashboard.uuid);
+            const file = await downloadChart(created.chart.slug);
+            const { chartConfig } = file.chart;
+            expect(chartConfig).toEqual({
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizSlug: expect.any(String),
+                    dataAppVizVersion: SEED_DATA_APP_VIZ.version,
+                    fieldMapping: { status: 'orders_status' },
+                },
+            });
+            expect((await uploadChart(file)).body.results.action).toBe(
+                'no changes',
+            );
+
+            const missing = await uploadChart({
+                ...file,
+                chart: {
+                    ...file.chart,
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizSlug: 'not-in-this-project',
+                            fieldMapping: { status: 'orders_status' },
+                        },
+                    },
+                },
+            });
+            expect(missing.status).toBe(404);
+            expect(missing.body.error.message).toContain('Upload it first');
+        });
+
+        it('resolves a composer tile among composer charts only, and fails naming a missing or foreign chart', async () => {
+            const { chart } = await createDashboardWithSqlChart();
+            const dashboard = await createDashboard();
+            const file = await downloadDashboard(dashboard.slug);
+
+            const foreign = await uploadDashboard(
+                withComposerTile(file, chart.slug),
+            );
+            expect(foreign.status).toBe(400);
+            expect(foreign.body.error.message).toContain(
+                `Composer chart "${chart.slug}" belongs to another dashboard`,
+            );
+
+            // A classic chart's slug is never a composer chart
+            const classicSlug =
+                'how-much-revenue-do-we-have-per-payment-method';
+            const missing = await uploadDashboard(
+                withComposerTile(file, classicSlug),
+            );
+            expect(missing.status).toBe(404);
+            expect(missing.body.error.message).toContain(
+                `Composer chart "${classicSlug}" was not found`,
+            );
+
+            // And a saved_chart tile never resolves to a composer chart
+            const classicTile = await uploadDashboard(
+                withComposerTile(
+                    file,
+                    chart.slug,
+                    DashboardTileTypes.SAVED_CHART,
+                ),
+            );
+            expect(classicTile.status).toBe(200);
+            const saved = await getDashboard(dashboard.uuid);
+            expect(composerChartUuidsOn(saved)).toEqual([]);
+            expect(saved.tiles.map(({ type }) => type)).toEqual([
+                DashboardTileTypes.SAVED_CHART,
+            ]);
+        });
+
+        it('refuses a chart with a sql or merge node to an org:edit service account, but lets it re-upload one unchanged', async () => {
+            const { chart } = await createDashboardWithSqlChart();
+            const file = await downloadChart(chart.slug);
+            const account = await admin.post<
+                Body<{ token: string; uuid: string }>
+            >('/api/v1/service-accounts', {
+                description: uniqueName('composer org:edit'),
+                expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+                scopes: [ServiceAccountScope.ORG_EDIT],
+            });
+            const serviceAccount = new ApiClient();
+            const post: Pick<ApiClient, 'post'>['post'] = (
+                path,
+                body,
+                options,
+            ) =>
+                serviceAccount.post(path, body, {
+                    ...options,
+                    headers: {
+                        Authorization: `Bearer ${account.body.results.token}`,
+                    },
+                });
+            try {
+                const unchanged = await uploadChart(file, { post });
+                expect(unchanged.status).toBe(200);
+                expect(unchanged.body.results.action).toBe('no changes');
+
+                const refused = await uploadChart(
+                    { ...file, name: 'Changed by a service account' },
+                    { post },
+                );
+                expect(refused.status).toBe(403);
+                expect(refused.body.error.message).toContain('SQL runner');
+
+                const merge = await uploadChart(
+                    {
+                        ...file,
+                        pipeline: {
+                            schemaVersion: 1,
+                            terminalNodeId: 'merged',
+                            nodes: everyKindPipeline.nodes.filter(
+                                ({ nodeId }) =>
+                                    ['amounts', 'counts', 'merged'].includes(
+                                        nodeId,
+                                    ),
+                            ),
+                        },
+                    },
+                    { post },
+                );
+                expect(merge.status).toBe(403);
+                expect(merge.body.error.message).toContain('merge');
+
+                // Refused before any write: no placeholder dashboard is left
+                const placeholderSlug = `${chart.slug}-never-created`;
+                const refusedNew = await uploadChart(
+                    {
+                        ...file,
+                        slug: `${placeholderSlug}-chart`,
+                        dashboardSlug: placeholderSlug,
+                    },
+                    { post },
+                );
+                expect(refusedNew.status).toBe(403);
+                const leftovers = await admin.get<
+                    Body<{ dashboards: unknown[] }>
+                >(`${codeUrl}/dashboards?ids=${placeholderSlug}`);
+                expect(leftovers.body.results.dashboards).toEqual([]);
+            } finally {
+                await admin.delete(
+                    `/api/v1/service-accounts/${account.body.results.uuid}`,
+                );
+            }
+        });
+
+        it('refuses a composer chart file on the classic chart route, as an old CLI sends it', async () => {
+            const { chart } = await createDashboardWithSqlChart();
+            const file = await downloadChart(chart.slug);
+            const refused = await admin.post<{ error: { message: string } }>(
+                `${codeUrl}/charts/${chart.slug}`,
+                file,
+                { failOnStatusCode: false },
+            );
+            expect(refused.status).toBe(400);
+            expect(refused.body.error.message).toContain('Upgrade your CLI');
+        });
+
+        it('with the flag off, downloads and keeps what exists but refuses new or changed composer content', async () => {
+            const { dashboard, chart } = await createDashboardWithSqlChart();
+            const empty = await createDashboard();
+            const file = await downloadChart(chart.slug);
+            const dashboardFile = await downloadDashboard(dashboard.slug);
+            expect((await admin.post(flagUrl, { enabled: false })).status).toBe(
+                200,
+            );
+            try {
+                expect(await downloadChart(chart.slug)).toMatchObject({
+                    pipeline: chart.pipeline,
+                });
+                expect((await uploadChart(file)).body.results.action).toBe(
+                    'no changes',
+                );
+                expect((await uploadDashboard(dashboardFile)).status).toBe(200);
+                expect(
+                    composerChartUuidsOn(await getDashboard(dashboard.uuid)),
+                ).toEqual([chart.uuid]);
+
+                const changed = await uploadChart({ ...file, name: 'Changed' });
+                expect(changed.status).toBe(403);
+                expect(changed.body.error.message).toContain(
+                    `composer chart "${chart.slug}" cannot be created or changed`,
+                );
+                const created = await uploadChart({
+                    ...file,
+                    slug: `${chart.slug}-new`,
+                    dashboardSlug: empty.slug,
+                });
+                expect(created.status).toBe(403);
+
+                const removed = await uploadDashboard({
+                    ...dashboardFile,
+                    tiles: [],
+                });
+                expect(removed.status).toBe(200);
+                expect(
+                    composerChartUuidsOn(await getDashboard(dashboard.uuid)),
+                ).toEqual([]);
+                const readded = await uploadDashboard(dashboardFile);
+                expect(readded.status).toBe(403);
+                expect(readded.body.error.message).toContain(
+                    `composer chart tile "${chart.slug}" cannot be added`,
+                );
             } finally {
                 expect(
                     (await admin.post(flagUrl, { enabled: true })).status,

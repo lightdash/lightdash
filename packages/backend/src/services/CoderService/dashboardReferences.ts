@@ -37,7 +37,8 @@ export const isAnyChartTile = (
 const getTileContentSlug = (
     tile: DashboardTile | DashboardTileAsCode,
 ): string | undefined => {
-    if (isAnyChartTile(tile)) return tile.properties.chartSlug ?? undefined;
+    if (isAnyChartTile(tile) || tile.type === DashboardTileTypes.COMPOSER_CHART)
+        return tile.properties.chartSlug ?? undefined;
     if (tile.type === DashboardTileTypes.DATA_APP)
         return tile.properties.appSlug ?? undefined;
     return undefined;
