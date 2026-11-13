@@ -1,7 +1,7 @@
 import { notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MantineProvider from './MantineProvider';
 import styles from './MantineProvider.module.css';
 
@@ -70,11 +70,11 @@ describe('MantineProvider notifications placement', () => {
 
 const SMALL_PORTRAIT_QUERY = '(max-width: 48em) and (min-height: 30.0625em)';
 
-const mockSmallPortrait = () =>
-    vi.spyOn(window, 'matchMedia').mockImplementation(
-        (query) =>
+const mockViewport = ({ isSmallPortrait }: { isSmallPortrait: boolean }) => {
+    window.matchMedia = vi.fn(
+        (query: string) =>
             ({
-                matches: query === SMALL_PORTRAIT_QUERY,
+                matches: isSmallPortrait && query === SMALL_PORTRAIT_QUERY,
                 media: query,
                 onchange: null,
                 addListener: () => {},
@@ -84,6 +84,7 @@ const mockSmallPortrait = () =>
                 dispatchEvent: () => true,
             }) as MediaQueryList,
     );
+};
 
 const getVisibleToastTitles = () =>
     Array.from(document.querySelectorAll('.mantine-Notification-title')).map(
@@ -103,28 +104,40 @@ const showToasts = (...ids: string[]) =>
     });
 
 describe('MantineProvider stacked toasts on small portrait screens', () => {
+    let originalMatchMedia: typeof window.matchMedia;
+
+    beforeEach(() => {
+        originalMatchMedia = window.matchMedia;
+    });
+
     afterEach(() => {
-        act(() => notifications.clean());
-        vi.restoreAllMocks();
+        act(() => {
+            notifications.clean();
+        });
+        window.matchMedia = originalMatchMedia;
     });
 
     it('shows one signed-out toast at a time and queues the rest', async () => {
-        mockSmallPortrait();
+        mockViewport({ isSmallPortrait: true });
         renderWithHealth({ isAuthenticated: false });
         showToasts('first', 'second');
         await waitFor(() => expect(getVisibleToastTitles()).toEqual(['first']));
 
-        act(() => notifications.hide('first'));
+        act(() => {
+            notifications.hide('first');
+        });
         await waitFor(() =>
             expect(getVisibleToastTitles()).toEqual(['second']),
         );
 
-        act(() => notifications.hide('second'));
+        act(() => {
+            notifications.hide('second');
+        });
         await waitFor(() => expect(getVisibleToastTitles()).toEqual([]));
     });
 
     it('keeps every toast visible when signed in', async () => {
-        mockSmallPortrait();
+        mockViewport({ isSmallPortrait: true });
         renderWithHealth({ isAuthenticated: true });
         showToasts('first', 'second');
         await waitFor(() =>
@@ -133,6 +146,7 @@ describe('MantineProvider stacked toasts on small portrait screens', () => {
     });
 
     it('keeps every signed-out toast visible on larger screens', async () => {
+        mockViewport({ isSmallPortrait: false });
         renderWithHealth({ isAuthenticated: false });
         showToasts('first', 'second');
         await waitFor(() =>
@@ -141,7 +155,7 @@ describe('MantineProvider stacked toasts on small portrait screens', () => {
     });
 
     it('releases queued toasts after a sign-in', async () => {
-        mockSmallPortrait();
+        mockViewport({ isSmallPortrait: true });
         const client = renderWithHealth({ isAuthenticated: false });
         showToasts('first', 'second');
         await waitFor(() => expect(getVisibleToastTitles()).toEqual(['first']));
