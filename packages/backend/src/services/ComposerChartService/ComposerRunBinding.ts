@@ -7,11 +7,7 @@ import {
     type RegisteredAccount,
 } from '@lightdash/common';
 
-/**
- * Server-only proof that a run executes a stored composer chart for a viewer
- * already authorized to view it. Its private constructor keeps it out of
- * request parsing; only ComposerChartService builds one.
- */
+/** Server-only proof a bound run executes a stored chart for an authorized viewer; only ComposerChartService builds one. */
 export class ComposerRunBinding {
     private constructor(
         private readonly userUuid: string,

@@ -5,6 +5,7 @@ import {
     FeatureNotEnabledError,
     ForbiddenError,
     getComposerPipelineWriteDeniedReason,
+    isDashboardComposerChartTile,
     NotFoundError,
     parseComposerChartRunRequest,
     parseComposerPipeline,
@@ -17,6 +18,7 @@ import {
     type ComposerChartRunResults,
     type CreateComposerChart,
     type RegisteredAccount,
+    type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
@@ -212,15 +214,11 @@ export class ComposerChartService extends BaseService {
         return this.composerChartModel.get(composerChartUuid);
     }
 
-    /**
-     * A bound run: the stored pipeline runs for anyone who can view the chart,
-     * and every node row is stamped with it. Filters and parameters are
-     * accepted and not applied yet.
-     */
+    /** A bound run for anyone who can view the chart; filters and parameters are not applied yet. */
     async run(
         account: RegisteredAccount,
-        projectUuid: string,
-        composerChartUuid: string,
+        projectUuid: UUID,
+        composerChartUuid: UUID,
         body: ComposerChartRunRequest,
     ): Promise<ComposerChartRunResults> {
         Sentry.setTag('lightdash.chartKind', 'composer');
@@ -237,9 +235,19 @@ export class ComposerChartService extends BaseService {
         if (!enabled) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
-        if (request.dashboardUuid !== dashboardUuid) {
+        const { tiles } = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
+        const shown = tiles.some(
+            (tile) =>
+                tile.uuid === request.tileUuid &&
+                isDashboardComposerChartTile(tile) &&
+                tile.properties.composerChartUuid === composerChartUuid,
+        );
+        if (request.dashboardUuid !== dashboardUuid || !shown) {
             throw new ForbiddenError(
-                'This composer chart is not on that dashboard',
+                'This composer chart is not on that dashboard tile',
             );
         }
         const binding = ComposerRunBinding.forAuthorizedViewer({

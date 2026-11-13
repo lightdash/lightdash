@@ -118,7 +118,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
-    /** Present only on a bound composer run: skips the write gates and stamps the row. */
+    /** Only on a bound composer run: skips the write gates and stamps the row. */
     composerRunBinding?: ComposerRunBinding;
     documentQueryContext?: DocumentQueryContext;
     metricQuery: MetricQuery;
@@ -211,7 +211,6 @@ export type PreAggregationRoute = {
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
-    /** Present only on a bound composer run: skips the write gates and stamps the row. */
     composerRunBinding?: ComposerRunBinding;
     sql: string;
     limit?: number;
@@ -241,7 +240,6 @@ export type EstimateAsyncSqlQueryArgs = Pick<
 >;
 
 export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
-    /** Present only on a bound composer run: skips the write gates and stamps the row. */
     composerRunBinding?: ComposerRunBinding;
     sql: string;
     limit?: number;
@@ -252,7 +250,6 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
-    /** Present only on a bound composer run: skips the write gates and stamps the row. */
     composerRunBinding?: ComposerRunBinding;
     /** Python source defining run(inputs, params) -> pandas.DataFrame. */
     code: string;
@@ -511,7 +508,6 @@ export type QueryHistoryActor = {
 };
 
 export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
-    /** Present only on a bound composer run: skips the write gates and stamps the row. */
     composerRunBinding?: ComposerRunBinding;
     sql: string;
     limit?: number;

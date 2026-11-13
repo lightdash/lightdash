@@ -3,6 +3,7 @@ import {
     AgentCapability,
     ChartType,
     CustomDimensionType,
+    DashboardTileTypes,
     FeatureNotEnabledError,
     FieldType,
     ForbiddenError,
@@ -173,6 +174,15 @@ const setup = ({ flagEnabled = true } = {}) => {
                 projectUuid,
                 organizationUuid,
                 spaceUuid: 'space-uuid',
+            })),
+            getByIdOrSlug: vi.fn(async () => ({
+                tiles: [
+                    {
+                        uuid: 'tile-uuid',
+                        type: DashboardTileTypes.COMPOSER_CHART,
+                        properties: { composerChartUuid: 'chart-uuid' },
+                    },
+                ],
             })),
         } as unknown as DashboardModel,
         featureFlagModel: {
@@ -373,6 +383,17 @@ describe('ComposerChartService.run', () => {
             service.run(viewer(), projectUuid, 'chart-uuid', {
                 ...runRequest,
                 dashboardUuid: 'another-dashboard',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('refuses a run naming a tile that does not show this chart', async () => {
+        const { service, submitComposerRun } = setupRun();
+        await expect(
+            service.run(viewer(), projectUuid, 'chart-uuid', {
+                ...runRequest,
+                tileUuid: 'another-tile',
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(submitComposerRun).not.toHaveBeenCalled();

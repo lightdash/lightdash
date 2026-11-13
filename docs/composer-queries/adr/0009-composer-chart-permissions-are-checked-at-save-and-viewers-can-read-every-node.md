@@ -25,3 +25,5 @@ SQL, error text and rows. This matches saved SQL charts and document charts.
 - If the author later loses a permission, the stored chart keeps running.
 - The stamp is re-checked against the chart's current owner on every read, so
   rows become unreadable when the chart is deleted or the viewer loses access.
+- A semantic-layer node skips the view-Explore check, as a classic dashboard
+  tile does; the viewer's user attributes still filter the explore it loads.

@@ -469,11 +469,7 @@ export class QuerySourceService extends BaseService {
         };
     }
 
-    /**
-     * The bound entry: runs exactly the binding's stored nodes, so nothing a
-     * request carries can add or change one. The binding's builder checked
-     * view on the chart; agent SQL rules and per-source switches still apply.
-     */
+    /** The bound entry: runs exactly the binding's stored nodes; agent SQL rules and per-source switches still apply. */
     async submitComposerRun({
         account,
         projectUuid,
@@ -704,13 +700,7 @@ export class QuerySourceService extends BaseService {
                         : null;
                 if ((connection || stamped) && !check)
                     throw new ForbiddenError();
-                if (check && !connection) {
-                    await check.assertCanReadStoredResults(
-                        account,
-                        projectUuid,
-                        queryHistory,
-                    );
-                } else if (check) {
+                if (check) {
                     await check.assertCanReadStoredResults(
                         account,
                         projectUuid,
