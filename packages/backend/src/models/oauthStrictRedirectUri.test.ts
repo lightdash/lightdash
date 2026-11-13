@@ -19,6 +19,7 @@ describe('isAllowedStrictRedirectUri', () => {
         'vscode://extension/callback',
         'vscode-insiders://extension/callback',
         'windsurf://extension/callback',
+        'claude://claude.ai/mcp-auth-callback/sdk',
     ])('allows %s', (uri) => {
         expect(isAllowedStrictRedirectUri(uri)).toBe(true);
     });
@@ -61,6 +62,7 @@ describe('matchesRedirectUriStrict', () => {
         'https://app.example.com/cb?flow=oauth',
         'com.lightdash.mobile:/oauth/callback',
         'cursor://anysphere.cursor-retrieval/oauth/callback',
+        'claude://claude.ai/mcp-auth-callback/sdk',
     ])('accepts exact %s', (uri) => {
         expect(matchesRedirectUriStrict(uri, uri)).toBe(true);
     });
