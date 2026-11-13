@@ -1,3 +1,15 @@
+## [3.253.1](https://github.com/lightdash/lightdash/compare/3.253.0...3.253.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* keep larger Analytics Parquet files on the bounded cache path ([#32536](https://github.com/lightdash/lightdash/issues/32536)) ([288d526](https://github.com/lightdash/lightdash/commit/288d5264f0312256880a7ba450a99fdc90954b42))
+
+
+### Performance Improvements
+
+* reduce memory and disk spill in analytics field usage ([#32099](https://github.com/lightdash/lightdash/issues/32099)) ([0ce6298](https://github.com/lightdash/lightdash/commit/0ce629852528d0c861e93ed018734801f0cd6533))
+
 # [3.253.0](https://github.com/lightdash/lightdash/compare/3.252.0...3.253.0) (2026-11-13)
 
 
