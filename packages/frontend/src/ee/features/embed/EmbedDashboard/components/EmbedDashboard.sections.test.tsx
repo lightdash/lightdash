@@ -1009,7 +1009,9 @@ describe('EmbedDashboard editor controls', () => {
                 await screen.findByRole('menuitem', { name: 'Rename' }),
             ).toBeInTheDocument();
             expect(
-                screen.queryByRole('menuitem', { name: /^Remove section/ }),
+                screen.queryByRole('menuitem', {
+                    name: /^(Ungroup|Remove section)/,
+                }),
             ).not.toBeInTheDocument();
         });
 

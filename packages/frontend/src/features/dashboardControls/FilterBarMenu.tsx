@@ -116,6 +116,9 @@ export const FilterBarMenu: FC<{
                         so clicks in the menu stay inside it and keep its edits */}
                     <Menu
                         position="bottom-start"
+                        withArrow
+                        arrowOffset={14}
+                        offset={1}
                         withinPortal={false}
                         transitionProps={MENU_TRANSITION}
                     >
