@@ -22,6 +22,7 @@ import {
     buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
+    canEmbedViewerResolveTileParameters,
     ChartType,
     CompiledDimension,
     CreateWarehouseCredentials,
@@ -10021,10 +10022,9 @@ export class AsyncQueryService extends ProjectService {
             appResolved.excludedParameterKeys !== undefined &&
             (appResolved.account.isRegisteredUser() ||
                 (isJwtUser(appResolved.account) &&
-                    getEmbedExcludedParameterKeys(
+                    canEmbedViewerResolveTileParameters(
                         appResolved.account.access.parameters,
-                        appResolved.excludedParameterKeys,
-                    ) !== undefined))
+                    )))
         ) {
             return {
                 dashboardValues: appResolved.parameters ?? {},

@@ -1,12 +1,8 @@
-import type {
-    ApiError,
-    DashboardParameters,
-    EmbedDashboard,
-    ParametersValuesMap,
-} from '@lightdash/common';
+import type { ApiError, EmbedDashboard } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useDashboardRefresh } from '../../../../hooks/dashboard/useDashboardRefresh';
+import { toDashboardParameters } from '../../../../providers/Dashboard/dashboardParametersUrl';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { postEmbedDashboard } from './api';
@@ -36,16 +32,6 @@ export const useEmbedDashboard = (
         // with backoff; real API errors (e.g. expired JWT) surface at once.
     });
 };
-
-const toDashboardParameters = (
-    values: ParametersValuesMap,
-): DashboardParameters =>
-    Object.fromEntries(
-        Object.entries(values).map(([parameterName, value]) => [
-            parameterName,
-            { parameterName, value },
-        ]),
-    );
 
 // Embedded tiles run with the dashboard's saved parameters, so the controls need them too.
 // The token's values sit over them in view mode; edit mode keeps them out of what gets saved.

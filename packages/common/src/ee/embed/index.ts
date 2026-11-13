@@ -513,10 +513,12 @@ export function isParameterAllowedInEmbed(
     if (!isParameterInteractivityEnabled(parameterInteractivityOptions)) {
         return false;
     }
-    const allowed = parameterInteractivityOptions?.allowedParameters;
-    return allowed === undefined || allowed === null
-        ? true
-        : allowed.includes(parameterName);
+    // No list means every parameter
+    return (
+        parameterInteractivityOptions?.allowedParameters?.includes(
+            parameterName,
+        ) ?? true
+    );
 }
 
 /** Whether an embed viewer is kept from a parameter control: it sets a parameter they may not change */
