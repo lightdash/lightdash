@@ -1,12 +1,5 @@
 import classes from './MobileUpsell.module.css';
-import {
-    BarChart,
-    LineChart,
-    Phone,
-    PixelPyramid,
-    Tile,
-    Window,
-} from './UpsellParts';
+import { BarChart, LineChart, Phone, Tile, Window } from './UpsellParts';
 import { UPSELL_GRAPHIC_STRINGS as S } from './upsellStrings';
 
 const Tiles = ({ className }: { className: string }) => (
@@ -25,7 +18,6 @@ const Tiles = ({ className }: { className: string }) => (
 
 export const DashboardUpsell = () => (
     <div className={`${classes.scene} ${classes.dashScene}`}>
-        <PixelPyramid />
         <Window className={classes.dashWindow}>
             <div className={classes.screenTitle}>{S.dashboard}</div>
             <Tiles className={classes.dashGrid} />

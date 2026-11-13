@@ -36,8 +36,7 @@ const PYRAMID = Array.from({ length: PYRAMID_SIZE }, (_, index) => {
     ];
 }).flat();
 
-const PYRAMID_BOX =
-    `0 0 ${PYRAMID_COLUMNS * PYRAMID_CELL} ${PYRAMID_ROWS * PYRAMID_CELL}`;
+const PYRAMID_BOX = `0 0 ${PYRAMID_COLUMNS * PYRAMID_CELL} ${PYRAMID_ROWS * PYRAMID_CELL}`;
 
 export const PixelPyramid = ({ className }: { className?: string }) => (
     <svg

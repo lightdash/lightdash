@@ -411,6 +411,7 @@
     position: absolute;
     top: 28px;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
     gap: 3px;
     width: 104px;
