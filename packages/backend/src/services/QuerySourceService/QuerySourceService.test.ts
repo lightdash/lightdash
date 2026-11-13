@@ -818,6 +818,44 @@ describe('QuerySourceService', () => {
             ).rejects.toThrow(ForbiddenError);
         });
 
+        it('polls composer chart nodes with compose-sql-runner off, and nothing else', async () => {
+            const { service, mocks } = createService(
+                createRegistryWithFakes().registry,
+            );
+            mocks.featureFlagModel.get.mockResolvedValue({ enabled: false });
+            const stamped = {
+                queryUuid: 'composer-node',
+                status: QueryHistoryStatus.READY,
+                error: null,
+                requestParameters: {
+                    composerChartSource: {
+                        composerChartUuid: 'composer-chart-uuid',
+                        dashboardUuid: 'dashboard-uuid',
+                        tileUuid: 'tile-uuid',
+                    },
+                },
+            };
+            mocks.queryHistoryModel.get.mockImplementation(async (queryUuid) =>
+                queryUuid === stamped.queryUuid
+                    ? stamped
+                    : { ...stamped, queryUuid, requestParameters: {} },
+            );
+
+            await expect(
+                service.getSourceQueryStatuses(account, projectUuid, [
+                    stamped.queryUuid,
+                ]),
+            ).resolves.toMatchObject({
+                statuses: [{ queryUuid: stamped.queryUuid }],
+            });
+            await expect(
+                service.getSourceQueryStatuses(account, projectUuid, [
+                    stamped.queryUuid,
+                    'unbound-node',
+                ]),
+            ).rejects.toThrow('Multi-source queries are not enabled');
+        });
+
         it('rechecks a connection result after the slowest history finishes', async () => {
             const { service, mocks, assertCanReadStoredResults } =
                 createService(createRegistryWithFakes().registry);
@@ -1806,6 +1844,9 @@ describe('composer bound run', () => {
                 }),
             );
         }
+        expect(asyncQueryService.compileComposerMerge).toHaveBeenCalledWith(
+            expect.objectContaining({ composerRunBinding: binding }),
+        );
     });
 
     it("refuses a binding carried into another account's run", async () => {

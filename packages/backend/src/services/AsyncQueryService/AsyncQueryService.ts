@@ -15492,7 +15492,9 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         userAttributeOverrides,
         sourceTitleById,
+        composerRunBinding,
     }: {
+        composerRunBinding?: ComposerRunBinding;
         account: Account;
         projectUuid: string;
         nodeId: string | null;
@@ -15508,6 +15510,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             userAttributeOverrides,
             sourceTitleById,
+            composerRunBinding,
         });
         if (!isRunnableCompiledMergeQuery(compiled)) {
             throw new ParameterError(

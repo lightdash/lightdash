@@ -527,6 +527,7 @@ import {
     withoutClientBindings,
     type CliDeploySelection,
 } from '../cliDeploy';
+import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import { inferCliDeploySource } from '../inferCliDeploySource';
@@ -9915,6 +9916,7 @@ export class ProjectService
     async compileQuery(
         args: {
             documentQueryContext?: DocumentQueryContext;
+            composerRunBinding?: ComposerRunBinding;
             account: Account;
             // ! TODO: we need to fix this type
             body: MetricQuery & {
@@ -9977,7 +9979,10 @@ export class ProjectService
         // Authorize custom SQL against the explore the query actually runs on
         // (the resolved source explore), not the client-supplied
         // metricQuery.exploreName, which may differ.
-        if (args.documentQueryContext) {
+        if (args.composerRunBinding) {
+            // The author's custom SQL rights were checked at save
+            args.composerRunBinding.assertExecution(account, projectUuid);
+        } else if (args.documentQueryContext) {
             args.documentQueryContext.assertMetricQuery(
                 account,
                 projectUuid,
@@ -10265,6 +10270,7 @@ export class ProjectService
      */
     async compileMergeQuery(args: {
         documentQueryContext?: DocumentQueryContext;
+        composerRunBinding?: ComposerRunBinding;
         account: Account;
         projectUuid: string;
         mergeQuery: MergeQuery;
@@ -10451,7 +10457,8 @@ export class ProjectService
         );
         if (
             mergeSqlTableCalculations.length > 0 &&
-            !args.documentQueryContext
+            !args.documentQueryContext &&
+            !args.composerRunBinding
         ) {
             const { organizationUuid } =
                 await this.projectModel.getSummary(projectUuid);
@@ -10515,6 +10522,7 @@ export class ProjectService
                 // source row cap, unsorted.
                 const compiled = await this.compileQuery({
                     documentQueryContext: args.documentQueryContext,
+                    composerRunBinding: args.composerRunBinding,
                     account,
                     projectUuid,
                     exploreName: resolvedMetricQuery.exploreName,

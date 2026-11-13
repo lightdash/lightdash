@@ -557,6 +557,7 @@ export class QuerySourceService extends BaseService {
         await Promise.all(
             ordered.map(({ source, query }) =>
                 source.validateQuery?.({
+                    binding,
                     account,
                     projectUuid,
                     query,
@@ -667,7 +668,6 @@ export class QuerySourceService extends BaseService {
         projectUuid: string,
         queryUuids: string[],
     ): Promise<ApiGetSourceQueryStatusResults> {
-        await this.throwIfComposeSqlRunnerDisabled(account);
         if (queryUuids.length === 0) {
             throw new ParameterError('Provide at least one query uuid');
         }
@@ -677,6 +677,10 @@ export class QuerySourceService extends BaseService {
             );
         }
 
+        let composeSqlRunnerCheck: Promise<void> | null = null;
+        const assertComposeSqlRunner = () =>
+            (composeSqlRunnerCheck ??=
+                this.throwIfComposeSqlRunnerDisabled(account));
         const connectionReader =
             account.authentication.type === 'oauth' &&
             account.authentication.agentConnectionGrant != null;
@@ -694,6 +698,8 @@ export class QuerySourceService extends BaseService {
                 const stamped =
                     queryHistory.requestParameters?.composerChartSource !==
                     undefined;
+                // Composer chart nodes are polled under the chart's own flag, checked at run
+                if (!stamped) await assertComposeSqlRunner();
                 const check =
                     connection || stamped
                         ? this.getAsyncQueryService?.()

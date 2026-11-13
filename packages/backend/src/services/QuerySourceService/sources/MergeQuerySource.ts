@@ -143,6 +143,7 @@ export class MergeQuerySource implements QuerySourceClient {
                 ...getMergeNodeParameters(query, args.submission),
             };
             const compiled = await this.asyncQueryService.compileComposerMerge({
+                ...getComposerRunBinding(args.binding),
                 account: args.account,
                 projectUuid: args.projectUuid,
                 nodeId: query.nodeId ?? null,

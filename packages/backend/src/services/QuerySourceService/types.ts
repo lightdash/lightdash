@@ -54,6 +54,7 @@ export type SubmittedSourceQueries = Array<
 >;
 
 export type ValidateSourceQueryArgs = SourceQueryExecutionContext & {
+    binding: SourceQueryRunBinding | null;
     account: Account;
     projectUuid: string;
     query: SourceQuery;
