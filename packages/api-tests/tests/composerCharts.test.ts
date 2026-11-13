@@ -2,7 +2,6 @@ import {
     ChartType,
     DashboardTileTypes,
     FeatureFlags,
-    FieldType,
     FilterOperator,
     QuerySourceType,
     SEED_PROJECT,
@@ -19,6 +18,12 @@ import {
     loginAsEditor,
     loginAsViewer,
 } from '../helpers/auth';
+import {
+    apiClientSend,
+    composerChartBody,
+    composerTile as composerTileFor,
+    createComposerDashboard,
+} from '../helpers/composerDashboard';
 import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
 const projectUuid = SEED_PROJECT.project_uuid;
@@ -37,50 +42,6 @@ const sqlPipeline: CreateComposerChart['pipeline'] = {
         },
     ],
 };
-
-const composerChartBody = (dashboardUuid: string): CreateComposerChart => ({
-    dashboardUuid,
-    name: 'Orders by status',
-    description: null,
-    pipeline: {
-        schemaVersion: 1,
-        terminalNodeId: 'orders',
-        nodes: [
-            {
-                sourceType: QuerySourceType.SEMANTIC_LAYER,
-                nodeId: 'orders',
-                title: 'Orders by status',
-                exploreName: 'orders',
-                dimensions: ['orders_status'],
-                metrics: ['orders_total_order_amount'],
-            },
-        ],
-    },
-    chart: {
-        schemaVersion: 1,
-        columns: [
-            { reference: 'orders_status', fieldType: FieldType.DIMENSION },
-            {
-                reference: 'orders_total_order_amount',
-                fieldType: FieldType.METRIC,
-            },
-        ],
-        chartConfig: {
-            type: ChartType.CARTESIAN,
-            config: {
-                layout: {
-                    xField: 'orders_status',
-                    yField: ['orders_total_order_amount'],
-                },
-                eChartsConfig: {},
-            },
-        },
-        pivotConfig: null,
-        tableConfig: {
-            columnOrder: ['orders_status', 'orders_total_order_amount'],
-        },
-    },
-});
 
 describe('Composer charts', () => {
     const tracker = new TestResourceTracker();
@@ -147,22 +108,7 @@ describe('Composer charts', () => {
         admin.patch<Body<Dashboard>>(
             `/api/v1/dashboards/${dashboard.uuid}`,
             {
-                tiles: [
-                    {
-                        uuid: randomUUID(),
-                        type: DashboardTileTypes.COMPOSER_CHART,
-                        x: 0,
-                        y: 0,
-                        h: 9,
-                        w: 12,
-                        tabUuid: null,
-                        properties: {
-                            title: 'Orders',
-                            composerChartUuid,
-                            chartName: null,
-                        },
-                    },
-                ],
+                tiles: [composerTileFor(composerChartUuid)],
                 filters: dashboard.filters,
                 tabs: dashboard.tabs,
             },
@@ -170,18 +116,11 @@ describe('Composer charts', () => {
         );
 
     const createDashboardWithSqlChart = async () => {
-        const dashboard = await createDashboard();
-        const resp = await admin.post<Body<ComposerChart>>(chartsUrl, {
-            ...composerChartBody(dashboard.uuid),
+        const created = await createComposerDashboard(apiClientSend(admin), {
             pipeline: sqlPipeline,
         });
-        expect(resp.status).toBe(201);
-        const updated = await addComposerTile(
-            dashboard,
-            resp.body.results.uuid,
-        );
-        expect(updated.status).toBe(200);
-        return { dashboard: updated.body.results, chart: resp.body.results };
+        tracker.trackDashboard(created.dashboard.uuid);
+        return created;
     };
 
     beforeAll(async () => {
@@ -201,8 +140,10 @@ describe('Composer charts', () => {
     });
 
     it('saves a chart onto a dashboard', async () => {
-        const dashboard = await createDashboard();
-        const chart = await createChart(dashboard.uuid);
+        const { dashboard, chart } = await createComposerDashboard(
+            apiClientSend(admin),
+        );
+        tracker.trackDashboard(dashboard.uuid);
         expect(chart).toMatchObject({
             projectUuid,
             dashboardUuid: dashboard.uuid,
@@ -212,8 +153,6 @@ describe('Composer charts', () => {
             chart: composerChartBody(dashboard.uuid).chart,
         });
 
-        const updated = await addComposerTile(dashboard, chart.uuid);
-        expect(updated.status).toBe(200);
         const loaded = await admin.get<Body<Dashboard>>(
             `/api/v1/dashboards/${dashboard.uuid}`,
         );
