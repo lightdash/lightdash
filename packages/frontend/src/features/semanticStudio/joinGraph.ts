@@ -112,8 +112,8 @@ export const cardinalityOf = (
     }
 };
 
-export const JOIN_NODE_WIDTH = 240;
-export const JOIN_NODE_HEIGHT = 76;
+const JOIN_NODE_WIDTH = 240;
+const JOIN_NODE_HEIGHT = 76;
 
 /** Left-to-right positions, top-left corners, base table first. */
 export const layoutJoinGraph = ({
