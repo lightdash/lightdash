@@ -3516,7 +3516,6 @@ const runUploadChangesPhase = async ({
     return updatedChanges;
 };
 
-// A composer chart file is told apart by its required contentType, never its shape
 const isComposerChartFile = (item: object): item is ComposerChartAsCode =>
     'contentType' in item &&
     item.contentType === ContentAsCodeTypeEnum.COMPOSER_CHART;
@@ -3548,6 +3547,14 @@ const upsertSingleItem = async <
             return 'skipped';
         }
         GlobalState.debug(`Upserting ${type} ${item.slug}`);
+        const body = JSON.stringify({
+            ...item,
+            skipSpaceCreate,
+            publicSpaceCreate,
+            force,
+            ...(spaceNames &&
+                Object.keys(spaceNames).length > 0 && { spaceNames }),
+        });
 
         if (isComposerChartFile(item)) {
             const { action } = await lightdashApi<
@@ -3555,15 +3562,7 @@ const upsertSingleItem = async <
             >({
                 method: 'POST',
                 url: `/api/v1/projects/${projectId}/code/composerCharts/${item.slug}`,
-                body: JSON.stringify({
-                    ...item,
-                    skipSpaceCreate,
-                    publicSpaceCreate,
-                    ...(spaceNames &&
-                        Object.keys(spaceNames).length > 0 && {
-                            spaceNames,
-                        }),
-                }),
+                body,
             });
             const key = `charts ${getPromoteAction(action)}`;
             changes[key] = (changes[key] ?? 0) + 1;
@@ -3582,14 +3581,7 @@ const upsertSingleItem = async <
         >({
             method: 'POST',
             url: endpoint,
-            body: JSON.stringify({
-                ...item,
-                skipSpaceCreate,
-                publicSpaceCreate,
-                force,
-                ...(spaceNames &&
-                    Object.keys(spaceNames).length > 0 && { spaceNames }),
-            }),
+            body,
         });
 
         GlobalState.debug(
