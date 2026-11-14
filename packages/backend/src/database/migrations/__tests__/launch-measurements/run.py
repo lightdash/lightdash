@@ -23,9 +23,7 @@ env.update(PNPM_CONFIG_VIRTUAL_STORE_TYPE='global', LIGHTDASH_SECRET=secrets.tok
            S3_BUCKET='measurement', S3_REGION='us-east-1', S3_ACCESS_KEY='measurement',
            S3_SECRET_KEY='measurement', NODE_ENV='test', TZ='UTC', EXPERIMENTAL_CACHE='true')
 if not env.get('PGHOST'):
-    inspected = json.loads(subprocess.check_output(['docker', 'inspect', 'ldenv-pg']))
-    password = next(v.split('=', 1)[1] for v in inspected[0]['Config']['Env'] if v.startswith('POSTGRES_PASSWORD='))
-    env.update(PGHOST='127.0.0.1', PGPORT='15432', PGUSER='postgres', PGPASSWORD=password, PGDATABASE='postgres')
+    raise SystemExit('PGHOST must be set to a Postgres server. Set PGPORT, PGUSER, PGPASSWORD and PGDATABASE for that server.')
 output = Path(args.json).resolve()
 output.parent.mkdir(parents=True, exist_ok=True)
 Path(args.markdown).resolve().parent.mkdir(parents=True, exist_ok=True)
