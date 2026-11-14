@@ -141,11 +141,7 @@
     width: 360px;
     height: var(--scene-height);
     translate: -50% 0;
-    scale: min(
-        1,
-        calc((100cqw - 24px) / 360px),
-        calc((100cqh - 16px) / var(--scene-height))
-    );
+    scale: 0.45;
     transform-origin: 50% 0;
     color: var(--mantine-color-white);
     font-size: 8px;
@@ -158,6 +154,17 @@
 
 .homeScene {
     --scene-height: 384px;
+    scale: 0.35;
+}
+
+@supports (scale: calc(1px / 1px)) {
+    .scene {
+        scale: min(
+            1,
+            calc((100cqw - 24px) / 360px),
+            calc((100cqh - 16px) / var(--scene-height))
+        );
+    }
 }
 
 .scene svg {
@@ -949,7 +956,7 @@
 
 @keyframes slideUp {
     from {
-        translate: 0 80px;
+        translate: 0 8px;
     }
 }
 
@@ -1004,14 +1011,14 @@
 @keyframes fanLeft {
     from {
         rotate: 0deg;
-        translate: 40px 80px;
+        translate: 40px 0;
     }
 }
 
 @keyframes fanRight {
     from {
         rotate: 0deg;
-        translate: -40px 80px;
+        translate: -40px 0;
     }
 }
 
