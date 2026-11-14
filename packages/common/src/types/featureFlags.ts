@@ -275,7 +275,7 @@ export enum FeatureFlags {
     DashboardFitToScreenDefault = 'dashboard-fit-to-screen-default',
     /**
      * Org-scoped, off: composer charts as dashboard tiles. Not for orgs embedding with
-     * @lightdash/sdk < TBD (first with PR #32548): older SDKs crash the whole embed.
+     * @lightdash/sdk < 3.245.0 (first with PR #32548): older SDKs crash the whole embed.
      */
     ComposerCharts = 'composer-charts',
 }
