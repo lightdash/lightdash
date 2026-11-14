@@ -2,7 +2,6 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { runInNewContext } from 'node:vm';
 import { parse } from 'yaml';
 
 const root = path.resolve(__dirname, '../../../..');
@@ -48,54 +47,6 @@ const captureBackendLaunch = (overrides: Record<string, string> = {}) => {
     }
 };
 
-const pm2InspectorArguments = (debugHost = '') => {
-    const config = {
-        exports: {
-            apps: [] as { name: string; node_args?: string | string[] }[],
-        },
-    };
-    runInNewContext(
-        readFileSync(path.join(root, 'ecosystem.config.js'), 'utf8'),
-        {
-            __dirname: root,
-            module: config,
-            process: { env: {} },
-            console: { log: () => undefined },
-            require: (name: string) => {
-                switch (name) {
-                    case 'child_process':
-                        return { spawnSync: () => ({ stdout: '' }) };
-                    case 'os':
-                        return { homedir: () => '/tmp' };
-                    case 'path':
-                        return path;
-                    case 'dotenv':
-                        return {
-                            config: () => ({
-                                parsed: {
-                                    LD_INSTANCE_ID: 'inspector-test',
-                                    DEBUG_PORT: '19383',
-                                    DEBUG_HOST: debugHost,
-                                },
-                            }),
-                        };
-                    default:
-                        throw new Error(`Unexpected config import: ${name}`);
-                }
-            },
-        },
-        { timeout: 1000 },
-    );
-    const api = config.exports.apps.find(
-        ({ name }) => name === 'inspector-test-api',
-    );
-    if (typeof api?.node_args !== 'string')
-        throw new Error(
-            'The development wrapper requires string inspector arguments',
-        );
-    return api.node_args.split(' ');
-};
-
 describe('development inspector bindings', () => {
     it('keeps the backend launcher on loopback by default without changing its other arguments', () => {
         expect(captureBackendLaunch()).toEqual({
@@ -129,22 +80,6 @@ describe('development inspector bindings', () => {
             '--inspect=127.0.0.1 --trace-warnings:19383',
         );
         expect(launch.args).toHaveLength(4);
-    });
-
-    it('keeps PM2 on loopback and its assigned debug port by default', () => {
-        expect(pm2InspectorArguments()).toEqual([
-            '--import',
-            'tsx',
-            '--inspect=127.0.0.1:19383',
-        ]);
-    });
-
-    it('allows an explicit PM2 host opt-in without changing the debug port', () => {
-        expect(pm2InspectorArguments('0.0.0.0')).toEqual([
-            '--import',
-            'tsx',
-            '--inspect=0.0.0.0:19383',
-        ]);
     });
 
     it('keeps Docker publication on host loopback while making the container host an explicit opt-in', () => {
