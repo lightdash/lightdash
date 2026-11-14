@@ -70,6 +70,8 @@ export type QueryUsageMetadata = {
     appVersion?: number | null;
     dashboardTileId: string | null;
     schedulerId: string | null;
+    /** Set only on a node of a bound composer chart run. */
+    chartKind?: 'composer_chart';
     semanticUsage?: SemanticQueryUsage;
     querySurface?: QuerySurface;
 };
@@ -159,6 +161,8 @@ export type QueryHistory = {
         };
         cacheSourceQueryUuid?: string;
         externalSourceReferences?: string[];
+        /** Stamps a node row of a bound composer chart run; readers re-check view on the chart. */
+        composerChartSource?: ComposerChartRunSource;
     };
     /** Resolved parameter values in effect for this execution (request values
      *  merged with defaults). Null on rows written before the column existed. */
@@ -220,4 +224,11 @@ export type DuckdbExecutionSpec = {
     /** Set when the run was served from another run over the same result files. */
     cacheHit: boolean;
     refusal: { kind: 'row_cap' } | null;
+};
+
+/** Dashboard and tile are where the chart was shown, for tracing only. */
+export type ComposerChartRunSource = {
+    composerChartUuid: string;
+    dashboardUuid: string;
+    tileUuid: string;
 };

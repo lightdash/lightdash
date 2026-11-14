@@ -34,4 +34,7 @@ export type DownloadOptions = {
     // Table chart "Show column total" — appends a warehouse-computed totals row
     // to unpivoted exports. Pivoted exports carry it in `pivotConfig`.
     showColumnTotals?: boolean;
+    // Table chart "Show subtotals" — adds a subtotal row per group to
+    // unpivoted XLSX exports.
+    showSubtotals?: boolean;
 };

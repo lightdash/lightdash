@@ -4,6 +4,7 @@ export const ALLOWED_STRICT_NATIVE_REDIRECT_SCHEMES: readonly string[] = [
     'vscode-insiders:',
     'windsurf:',
     'lightdash:',
+    'claude:',
 ];
 
 const loopbackUriPattern =

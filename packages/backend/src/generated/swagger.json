@@ -17790,6 +17790,25 @@
                     },
                     "parameterInteractivity": {
                         "properties": {
+                            "values": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ParametersValuesMap"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "hidden": {
+                                "type": "boolean",
+                                "nullable": true
+                            },
+                            "allowedParameters": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true
+                            },
                             "enabled": {
                                 "type": "boolean"
                             }
@@ -18437,6 +18456,25 @@
                                     },
                                     "parameterInteractivity": {
                                         "properties": {
+                                            "values": {
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/ParametersValuesMap"
+                                                    }
+                                                ],
+                                                "nullable": true
+                                            },
+                                            "hidden": {
+                                                "type": "boolean",
+                                                "nullable": true
+                                            },
+                                            "allowedParameters": {
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "type": "array",
+                                                "nullable": true
+                                            },
                                             "enabled": {
                                                 "type": "boolean"
                                             }
@@ -32645,6 +32683,9 @@
                         "type": "array"
                     },
                     "showColumnTotals": {
+                        "type": "boolean"
+                    },
+                    "showSubtotals": {
                         "type": "boolean"
                     }
                 },
@@ -75112,6 +75153,53 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentParameterSource": {
+                "type": "string",
+                "enum": ["project", "model"],
+                "description": "Where a parameter is defined: the project's lightdash.config.yml, or a dbt model"
+            },
+            "ContentParameter": {
+                "properties": {
+                    "source": {
+                        "$ref": "#/components/schemas/ContentParameterSource"
+                    },
+                    "currentValue": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ParameterValue"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The value saved on the chart or dashboard, else the definition's default; null when neither"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/LightdashProjectParameter"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["source", "currentValue", "config", "name"],
+                "type": "object",
+                "description": "A parameter a saved chart or dashboard uses, with what an integration needs to offer it"
+            },
+            "ApiChartParametersResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentParameter"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiSuccess_ProjectDefaults-or-undefined_": {
                 "properties": {
                     "results": {
@@ -75247,6 +75335,43 @@
                     }
                 },
                 "required": ["tiles"],
+                "type": "object"
+            },
+            "DashboardContentParameter": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ContentParameter"
+                    },
+                    {
+                        "properties": {
+                            "tileUuids": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "The dashboard tiles whose queries use this parameter"
+                            }
+                        },
+                        "required": ["tileUuids"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiDashboardParametersResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardContentParameter"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid-or-ownerUserUuid_": {
@@ -77929,6 +78054,89 @@
                 "required": ["chart", "pipeline", "name", "dashboardUuid"],
                 "type": "object"
             },
+            "ComposerChartRunResults": {
+                "properties": {
+                    "chartStageQueryUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The server-built series-split stage the chart draws from; null without a group-by."
+                    },
+                    "fields": {
+                        "$ref": "#/components/schemas/ItemsMap",
+                        "description": "The terminal node's fields map from its run; the tile draws a semantic-layer or merge result from it."
+                    },
+                    "queries": {
+                        "items": {
+                            "properties": {
+                                "queryUuid": {
+                                    "type": "string"
+                                },
+                                "sourceType": {
+                                    "$ref": "#/components/schemas/QuerySourceType"
+                                },
+                                "nodeId": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["queryUuid", "sourceType", "nodeId"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["chartStageQueryUuid", "fields", "queries"],
+                "type": "object"
+            },
+            "ApiComposerChartRunResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ComposerChartRunResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ComposerChartRunRequest": {
+                "properties": {
+                    "invalidateCache": {
+                        "type": "boolean"
+                    },
+                    "excludedParameterKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The parameter keys this tile keeps as its own."
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "dashboardFilters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "invalidateCache",
+                    "excludedParameterKeys",
+                    "parameters",
+                    "dashboardFilters",
+                    "tileUuid",
+                    "dashboardUuid"
+                ],
+                "type": "object",
+                "description": "A bound run of a stored chart where a dashboard shows it; it never carries nodes."
+            },
             "KnexPaginatedData_CatalogField-Array_": {
                 "properties": {
                     "pagination": {
@@ -79056,7 +79264,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.255.1",
+        "version": "3.259.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -122610,6 +122818,55 @@
                 ]
             }
         },
+        "/api/v2/projects/{projectUuid}/saved/{chartUuidOrSlug}/parameters": {
+            "get": {
+                "operationId": "getProjectSavedChartParameters",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiChartParametersResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the parameters a saved chart's query uses: each one's definition\n(label, type, options, default), its current value (saved on the chart,\nelse the default), and whether it is defined in the project or a model.\nRead from the saved query without running it.\n\nRun the chart with other values by passing `parameters` to the v2 query\nendpoints.",
+                "summary": "Get chart parameters",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "chartUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v2/projects/{projectUuid}/defaults": {
             "get": {
                 "operationId": "getProjectDefaults",
@@ -122910,6 +123167,55 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/dashboards/{dashboardUuidOrSlug}/parameters": {
+            "get": {
+                "operationId": "getProjectDashboardParameters",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDashboardParametersResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the parameters a dashboard's tiles use: each one's definition\n(label, type, options, default), its current value (saved on the\ndashboard, else the default), whether it is defined in the project or a\nmodel, and which tiles use it. Read from the saved queries without\nrunning them; tiles the user can't view are left out.\n\nRun the dashboard's charts with other values by passing `parameters` to\nthe v2 query endpoints.",
+                "summary": "Get dashboard parameters",
+                "tags": ["v2", "Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "dashboardUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/projects/{projectUuid}/dashboards/{dashboardUuidOrSlug}/comments": {
@@ -125238,6 +125544,65 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/composer-charts/{composerChartUuid}/run": {
+            "post": {
+                "operationId": "runComposerChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiComposerChartRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Runs a composer chart's stored pipeline where a dashboard shows it, for\nanyone who can view the chart. The request carries no nodes; each node's\nquery is polled with the standard results endpoint.",
+                "summary": "Run composer chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "composerChartUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ComposerChartRunRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/projects/{projectUuid}/dataCatalog/metrics-with-time-dimensions": {

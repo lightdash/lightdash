@@ -11,6 +11,16 @@
     border-radius: 0 var(--mantine-radius-md) var(--mantine-radius-md) 0;
 }
 
+@container chart-type-workspace (max-width: 40rem) {
+    .panel {
+        width: auto;
+        flex: 1 1 0;
+        border-left: 0;
+        border-top: 1px solid var(--mantine-color-default-border);
+        border-radius: 0 0 var(--mantine-radius-md) var(--mantine-radius-md);
+    }
+}
+
 /* Mid version switch these options still describe the version being left, so
    they stay readable but go inert until the previewed one's arrive. */
 .panel[data-stale='true'] {

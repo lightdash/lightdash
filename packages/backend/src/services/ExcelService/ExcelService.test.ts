@@ -20,6 +20,7 @@ import moment from 'moment';
 import os from 'os';
 import path from 'path';
 import { Readable } from 'stream';
+import zlib from 'zlib';
 import { ExcelService } from './ExcelService';
 
 // Mock data for testing
@@ -2335,6 +2336,203 @@ describe('ExcelService column totals row in xlsx export (PROD-9169)', () => {
         });
 
         expect(worksheet!.rowCount).toBe(2);
+    });
+});
+
+describe('ExcelService subtotal rows in xlsx export', () => {
+    const buildField = (
+        name: string,
+        fieldType: FieldType,
+        type: DimensionType | MetricType,
+    ) =>
+        ({
+            fieldType,
+            type,
+            name,
+            table: 'orders',
+            tableLabel: 'Orders',
+            label: name,
+            sql: '',
+            hidden: false,
+        }) as ItemsMap[string];
+    const store = buildField(
+        'store',
+        FieldType.DIMENSION,
+        DimensionType.STRING,
+    );
+    const product = buildField(
+        'product',
+        FieldType.DIMENSION,
+        DimensionType.STRING,
+    );
+    const revenue = buildField('revenue', FieldType.METRIC, MetricType.SUM);
+    const storeId = getItemId(store);
+    const productId = getItemId(product);
+    const revenueId = getItemId(revenue);
+    const fields = {
+        [storeId]: store,
+        [productId]: product,
+        [revenueId]: revenue,
+    };
+    const sortedFieldIds = [storeId, productId, revenueId];
+
+    const { streamJsonlToExcelFile } = ExcelService as unknown as {
+        streamJsonlToExcelFile: (
+            resultsStream: Readable,
+            tempFilePath: string,
+            headers: string[],
+            fields: ItemsMap,
+            onlyRaw: boolean,
+            sortedFieldIds: string[],
+            timezone?: string,
+            conditionalFormattings?: undefined,
+            minMaxMap?: undefined,
+            columnTotals?: Record<string, number>,
+            subtotalLevels?: {
+                dimensions: string[];
+                rows: Record<string, unknown>[];
+            }[],
+        ) => Promise<{ truncated: boolean }>;
+    };
+
+    const writeFile = async (onlyRaw: boolean) => {
+        const tempFilePath = path.join(
+            os.tmpdir(),
+            `excel-subtotals-test-${process.pid}-${onlyRaw}.xlsx`,
+        );
+        const rows = [
+            { [storeId]: 'A', [productId]: 'p1', [revenueId]: 10 },
+            { [storeId]: 'B', [productId]: 'p1', [revenueId]: 5 },
+            { [storeId]: 'A', [productId]: 'p2', [revenueId]: 20 },
+        ];
+        await streamJsonlToExcelFile(
+            Readable.from([rows.map((row) => JSON.stringify(row)).join('\n')]),
+            tempFilePath,
+            sortedFieldIds,
+            fields,
+            onlyRaw,
+            sortedFieldIds,
+            undefined,
+            undefined,
+            undefined,
+            { [revenueId]: 35 },
+            [
+                {
+                    dimensions: [storeId],
+                    rows: [
+                        { [storeId]: 'A', [revenueId]: 30 },
+                        { [storeId]: 'B', [revenueId]: 5 },
+                    ],
+                },
+            ],
+        );
+        return tempFilePath;
+    };
+
+    const writeAndReadBack = async (onlyRaw: boolean) => {
+        const tempFilePath = await writeFile(onlyRaw);
+        const workbook = new (await import('exceljs')).Workbook();
+        await workbook.xlsx.readFile(tempFilePath);
+        const worksheet = workbook.getWorksheet('Sheet1');
+        fs.unlinkSync(tempFilePath);
+        return worksheet!;
+    };
+
+    // exceljs recomputes `collapsed` on read, so the flag is checked in the raw sheet XML
+    const writeAndReadSheetXml = async () => {
+        const tempFilePath = await writeFile(false);
+        const zip = fs.readFileSync(tempFilePath);
+        fs.unlinkSync(tempFilePath);
+        const directoryEnd = zip.lastIndexOf(
+            Buffer.from([0x50, 0x4b, 0x05, 0x06]),
+        );
+        let offset = zip.readUInt32LE(directoryEnd + 16);
+        for (let i = 0; i < zip.readUInt16LE(directoryEnd + 10); i += 1) {
+            const nameLength = zip.readUInt16LE(offset + 28);
+            const name = zip.toString(
+                'utf8',
+                offset + 46,
+                offset + 46 + nameLength,
+            );
+            if (name === 'xl/worksheets/sheet1.xml') {
+                const localOffset = zip.readUInt32LE(offset + 42);
+                const dataStart =
+                    localOffset +
+                    30 +
+                    zip.readUInt16LE(localOffset + 26) +
+                    zip.readUInt16LE(localOffset + 28);
+                return zlib
+                    .inflateRawSync(
+                        zip.subarray(
+                            dataStart,
+                            dataStart + zip.readUInt32LE(offset + 20),
+                        ),
+                    )
+                    .toString('utf8');
+            }
+            offset +=
+                46 +
+                nameLength +
+                zip.readUInt16LE(offset + 30) +
+                zip.readUInt16LE(offset + 32);
+        }
+        throw new Error('Sheet XML not found');
+    };
+
+    it.each([false, true])(
+        'writes a bold subtotal row above each group (onlyRaw: %s)',
+        async (onlyRaw) => {
+            const worksheet = await writeAndReadBack(onlyRaw);
+            const values = worksheet
+                .getRows(2, worksheet.rowCount - 1)!
+                .map((row) => [1, 2, 3].map((col) => row.getCell(col).value));
+
+            expect(values).toEqual([
+                ['A', null, 30],
+                ['A', 'p1', 10],
+                ['A', 'p2', 20],
+                ['B', null, 5],
+                ['B', 'p1', 5],
+                ['Total', null, 35],
+            ]);
+            expect(
+                [2, 3, 5, 6].map(
+                    (rowNumber) =>
+                        worksheet.getRow(rowNumber).getCell(3).font?.bold ??
+                        false,
+                ),
+            ).toEqual([true, false, true, false]);
+        },
+    );
+
+    it('outlines each group under its subtotal row, collapsed', async () => {
+        const worksheet = await writeAndReadBack(false);
+
+        expect(worksheet.properties.outlineProperties).toEqual({
+            summaryBelow: false,
+            summaryRight: false,
+        });
+        const rows = [2, 3, 4, 5, 6, 7].map((rowNumber) =>
+            worksheet.getRow(rowNumber),
+        );
+        expect(rows.map((row) => row.outlineLevel)).toEqual([0, 1, 1, 0, 1, 0]);
+        expect(rows.map((row) => row.hidden)).toEqual([
+            false,
+            true,
+            true,
+            false,
+            true,
+            false,
+        ]);
+    });
+
+    it('flags only the subtotal rows as collapsed', async () => {
+        const sheetXml = await writeAndReadSheetXml();
+        const collapsedByRow = [...sheetXml.matchAll(/<row r="(\d+)"([^>]*)>/g)]
+            .filter(([, , attributes]) => attributes.includes('collapsed="1"'))
+            .map(([, rowNumber]) => Number(rowNumber));
+
+        expect(collapsedByRow).toEqual([2, 5]);
     });
 });
 

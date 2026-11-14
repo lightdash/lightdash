@@ -1,6 +1,7 @@
 import {
     buildWarehouseColumnTotals,
     buildWarehouseRowTotals,
+    getSubtotalDimensionGroups,
     getSubtotalKey,
     isApiError,
     QueryHistoryStatus,
@@ -299,26 +300,6 @@ export const useAsyncCalculateRowTotal = ({
 // Map keyed by `getSubtotalKey(dims)`; each entry is one flat row per
 // subtotal-group × pivot-value, with dimension raw values and metric numbers.
 export type GroupedSubtotals = Record<string, Record<string, number>[]>;
-
-// Mirrors the backend SubtotalsCalculator.prepareDimensionGroups: order the
-// non-pivot dimensions by columnOrder, drop the most-detailed (last) one, and
-// build the nesting prefixes that each get their own subtotal level.
-const getSubtotalDimensionGroups = (
-    dimensions: string[],
-    columnOrder: string[],
-    pivotDimensions: string[],
-): string[][] => {
-    const ordered = [...dimensions].sort((a, b) => {
-        const aIndex = columnOrder.indexOf(a);
-        const bIndex = columnOrder.indexOf(b);
-        if (aIndex === -1) return 1;
-        if (bIndex === -1) return -1;
-        return aIndex - bIndex;
-    });
-    const withoutPivot = ordered.filter((d) => !pivotDimensions.includes(d));
-    const toSubtotal = withoutPivot.slice(0, -1);
-    return toSubtotal.map((_, index) => toSubtotal.slice(0, index + 1));
-};
 
 const buildGroupedRowSubtotals = (
     entries: Array<[dimensions: string[], rows: ResultRow[]]>,
