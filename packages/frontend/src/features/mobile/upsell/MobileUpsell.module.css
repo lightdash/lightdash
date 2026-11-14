@@ -44,7 +44,7 @@
     border-radius: var(--mantine-radius-lg);
     background: #000000;
     color: var(--mantine-color-white);
-    container-type: inline-size;
+    container-type: size;
     isolation: isolate;
 }
 
@@ -135,18 +135,29 @@
 }
 
 .scene {
+    --scene-height: 280px;
     position: absolute;
-    inset: 0;
-    transform-origin: 50% 100%;
+    inset: 8px auto auto 50%;
+    width: 360px;
+    height: var(--scene-height);
+    translate: -50% 0;
+    scale: min(
+        1,
+        calc((100cqw - 24px) / 360px),
+        calc((100cqh - 16px) / var(--scene-height))
+    );
+    transform-origin: 50% 0;
     color: var(--mantine-color-white);
     font-size: 8px;
     line-height: 1.3;
 }
 
-@container (width < 360px) {
-    .scene {
-        scale: 0.82;
-    }
+.browseScene {
+    --scene-height: 184px;
+}
+
+.homeScene {
+    --scene-height: 384px;
 }
 
 .scene svg {
@@ -861,13 +872,13 @@
 
 .pairBack {
     left: calc(50% - 108px);
-    top: 30px;
+    top: 18px;
     rotate: -7deg;
 }
 
 .pairFront {
     left: calc(50% + 2px);
-    top: 24px;
+    top: 12px;
     rotate: 6deg;
 }
 

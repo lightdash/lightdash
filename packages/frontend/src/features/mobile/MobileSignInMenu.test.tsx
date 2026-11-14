@@ -141,13 +141,19 @@ describe('MobileSignInMenu', () => {
         '?mobileUpsell=7',
         '?mobileUpsell=01',
         '?mobileUpsell=1.0',
-    ])('keeps the default DOM for %s', async (search) => {
+    ])('shows the selected pitch by default for %s', async (search) => {
         window.history.replaceState({}, '', `/${search}`);
         mockServer();
         renderMenu(<MobileSignInMenu />);
         await userEvent.click(openButton());
         await screen.findByRole('img', { name: 'Sign-in QR code' });
-        expect(document.querySelector('[data-mobile-upsell]')).toBeNull();
+        expect(document.querySelector('[data-mobile-upsell]')).toHaveAttribute(
+            'data-mobile-upsell',
+            '6',
+        );
+        expect(
+            screen.getByRole('heading', { name: UPSELL_STRINGS[6].headline }),
+        ).toBeVisible();
         expect(screen.queryByRole('link')).not.toBeInTheDocument();
         expect(screen.getByText('Waiting for scan')).toHaveAttribute(
             'aria-live',

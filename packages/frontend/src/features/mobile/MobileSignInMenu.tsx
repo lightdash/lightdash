@@ -200,7 +200,7 @@ const MobileSignInPopover: FC<{
 export const MobileSignInMenu: FC<{ withLabel?: boolean }> = ({
     withLabel = false,
 }) => {
-    const upsell = useMobileUpsell();
+    const upsell = useMobileUpsell() ?? 6;
     const { data: qrSignInFlag } = useServerFeatureFlag(
         FeatureFlags.MobileQrSignIn,
     );
