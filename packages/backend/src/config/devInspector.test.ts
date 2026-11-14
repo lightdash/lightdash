@@ -91,7 +91,7 @@ const pm2InspectorArguments = (debugHost = '') => {
     );
     if (typeof api?.node_args !== 'string')
         throw new Error(
-            'The ldenv wrapper requires string inspector arguments',
+            'The development wrapper requires string inspector arguments',
         );
     return api.node_args.split(' ');
 };

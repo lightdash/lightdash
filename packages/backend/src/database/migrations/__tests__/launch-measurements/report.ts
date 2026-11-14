@@ -355,7 +355,7 @@ python3 packages/backend/src/database/migrations/__tests__/launch-measurements/r
 
 To compare a second clean run, add --compare /absolute/path/first-results.json with a different --json output. It fails if statement or returned-row counts differ and appends the comparison result to the report.
 
-The launcher reads ldenv-pg's password in memory and uses its localhost:15432 server unless PGHOST is supplied. For another server set PGHOST, PGPORT, PGUSER, PGPASSWORD and PGDATABASE. createMigratedDatabase creates and drops a uniquely named database cloned from the repository's migrated template. No existing application database is read or written. The template may need its initial migration build.
+The launcher requires a Postgres server. Set PGHOST, PGPORT, PGUSER, PGPASSWORD and PGDATABASE for that server. It stops with an error if PGHOST is not set. createMigratedDatabase creates and drops a uniquely named database cloned from the repository's migrated template. No existing application database is read or written. The template may need its initial migration build.
 
 Sizes: MEASURE_PROJECT_SIZES=1,50,200,500,1000; MEASURE_LIST_SIZES=1,10,50; MEASURE_EXPLORE_SIZES=10,100,500,2000; MEASURE_COMPILE_SIZES=100,500,2000; MEASURE_DIMENSIONS=40. Repetitions: MEASURE_REQUEST_RUNS=20 and MEASURE_APPROVAL_RUNS=10 (do not lower these for a gate run). For the default sizes, expect about three minutes on this machine with the existing migrated template; initial migrations can take longer. Output includes six adjacent isolated-memory JSON files. The database phase took ${number(Number(data.environment.databasePhaseSeconds))} seconds; allow additional time for six fresh memory forks and initial migration setup.
 
