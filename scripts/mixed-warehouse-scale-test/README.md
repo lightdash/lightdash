@@ -45,13 +45,13 @@ pass/fail matrix with per-scenario timings.
 
 | Warehouse | Where | Notes |
 | --- | --- | --- |
-| Postgres | ldenv Postgres, the Jaffle shop database | Real |
+| Postgres | a Postgres server, the Jaffle shop database | Real |
 | Trino | `examples/trino-dev` | Real, local |
 | DuckDB (DuckLake) | `~/.lightdash/ducklake-dev` | Real, local |
 | BigQuery | `bigquery` development bundle | Real |
 | Snowflake | `snowflake` development bundle | Real, read-only; keep queries small |
 | ClickHouse | `examples/mixed-warehouse-dev/docker-compose.yml` | Real, local |
-| Redshift | A database on the ldenv Postgres, through the Redshift client | **Stand-in**, not Redshift |
+| Redshift | A database on the Postgres server, through the Redshift client | **Stand-in**, not Redshift |
 | Athena | `athena` development bundle, small fixture tables | Real; set `ATHENA_WORKGROUP` |
 
 Not covered:
@@ -66,7 +66,7 @@ Not covered:
    then seed ClickHouse and the DuckLake fixture as described in
    `examples/mixed-warehouse-dev/README.md`.
 2. Create the Redshift stand-in database `redshift_standin` with a
-   `public.rs_orders` table on the ldenv Postgres.
+   `public.rs_orders` table on the Postgres server.
 3. Generate the fixture manifests with `dbt parse` (see the fixture READMEs).
 4. Give the instance a `dbt1.10` with every adapter on its `PATH`, so the
    server can run dbt for the GitHub sources: a venv with `dbt-core~=1.10`

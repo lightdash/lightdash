@@ -148,7 +148,7 @@ class Warehouses:
         env = self.env
         if kind == 'postgres':
             return {
-                'type': 'postgres', 'host': '127.0.0.1',
+                'type': 'postgres', 'host': env['PGHOST'],
                 'port': int(env['PGPORT']), 'user': env['PGUSER'],
                 'password': env['PGPASSWORD'], 'dbname': self.pg_database,
                 'schema': 'jaffle', 'sslmode': 'disable',
@@ -156,7 +156,7 @@ class Warehouses:
             }
         if kind == 'redshift':
             return {
-                'type': 'redshift', 'host': '127.0.0.1',
+                'type': 'redshift', 'host': env['PGHOST'],
                 'port': int(env['PGPORT']), 'user': env['PGUSER'],
                 'password': env['PGPASSWORD'], 'dbname': 'redshift_standin',
                 'schema': 'public', 'sslmode': 'disable',
@@ -995,8 +995,8 @@ class Runner:
 
 
 def prepare_physical_fixtures(env, pg_database):
-    psql = ['docker', 'exec', '-i', 'ldenv-pg', 'psql', '-U', env['PGUSER'], '-d', pg_database, '-v', 'ON_ERROR_STOP=1']
-    subprocess.run(psql, input=(
+    psql = ['psql', '-h', env['PGHOST'], '-p', env['PGPORT'], '-U', env['PGUSER'], '-d', pg_database, '-v', 'ON_ERROR_STOP=1']
+    subprocess.run(psql, env={**os.environ, 'PGPASSWORD': env['PGPASSWORD']}, input=(
         'create schema if not exists xref;\n'
         'create or replace view xref.pg_calendar as select d::date as calendar_date, extract(isodow from d)::int as day_of_week '
         "from generate_series(date '2024-01-01', date '2024-12-31', interval '1 day') d;\n"
@@ -1048,6 +1048,8 @@ def main():
     args = parser.parse_args()
 
     env = read_env(args.env_file)
+    if not env.get('PGHOST'):
+        raise SystemExit('Set PGHOST, PGPORT, PGUSER and PGPASSWORD in the env file to point at a Postgres server.')
     register_sensitive(env)
     api = Api(args.url, os.environ.get('LIGHTDASH_EMAIL', 'demo@lightdash.com'), os.environ.get('LIGHTDASH_PASSWORD', 'demo_password!'))
     out = Path(args.out) / args.mode
