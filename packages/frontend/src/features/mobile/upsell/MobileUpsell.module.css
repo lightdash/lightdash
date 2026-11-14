@@ -48,23 +48,6 @@
     isolation: isolate;
 }
 
-.stage::before,
-.stage::after {
-    content: '';
-    position: absolute;
-    pointer-events: none;
-}
-
-.stage::before {
-    inset: 0 16px;
-    border-inline: 1px solid var(--ld-guide);
-}
-
-.stage::after {
-    inset: 16px 0;
-    border-block: 1px solid var(--ld-guide);
-}
-
 .signIn {
     display: grid;
     gap: var(--mantine-spacing-sm);
@@ -248,10 +231,27 @@
     position: absolute;
     top: 22px;
     width: 112px;
-    height: 216px;
-    padding: 20px 8px 8px;
-    border: 3px solid var(--ld-bezel);
+    aspect-ratio: 71.5 / 147.5;
+    padding: 4px;
+    border: 1px solid #96999f;
     border-radius: 22px;
+    background: linear-gradient(
+        100deg,
+        #74777d,
+        #26282c 9%,
+        #101114 91%,
+        #8e9197
+    );
+    box-shadow:
+        inset 0 0 0 1px #393b40,
+        0 4px 12px rgb(0 0 0 / 0.45);
+}
+
+.phoneScreen {
+    height: 100%;
+    min-height: 0;
+    padding: 18px 5px 12px;
+    border-radius: 17px;
     background: var(--ld-screen);
     overflow: hidden;
 }
@@ -259,17 +259,90 @@
 .phone::before {
     content: '';
     position: absolute;
-    top: 6px;
+    z-index: 1;
+    top: 9px;
     left: 50%;
     width: 28px;
-    height: 7px;
-    border-radius: 4px;
-    background: var(--ld-bezel);
+    height: 8px;
+    border-radius: 8px;
+    background: #000;
+    box-shadow: inset -4px 0 0 -2px #182336;
     translate: -50% 0;
 }
 
+.phone::after {
+    content: '';
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    width: 32%;
+    height: 2px;
+    border-radius: 2px;
+    background: #d6d6d9;
+    translate: -50% 0;
+}
+
+.phoneButtons {
+    position: absolute;
+    inset: 0 -3px;
+    pointer-events: none;
+}
+
+.phoneButtons::before,
+.phoneButtons::after {
+    content: '';
+    position: absolute;
+    top: 51px;
+    width: 2px;
+    height: 25px;
+    border-radius: 2px;
+    background: #8e9197;
+}
+
+.phoneButtons::before {
+    right: 0;
+}
+
+.phoneButtons::after {
+    left: 0;
+    top: 37px;
+    height: 14px;
+    box-shadow: 0 19px #8e9197;
+}
+
+.phone[data-cutout='dot'] {
+    aspect-ratio: 72 / 152.8;
+    border-color: #83878b;
+    border-radius: 17px;
+    background: linear-gradient(
+        100deg,
+        #969b9e,
+        #353a3d 8%,
+        #24282b 92%,
+        #8b9094
+    );
+}
+
+.phone[data-cutout='dot'] .phoneScreen {
+    border-radius: 12px;
+}
+
 .phone[data-cutout='dot']::before {
-    width: 7px;
+    top: 10px;
+    width: 5px;
+    height: 5px;
+    border: 1px solid #252d38;
+    box-shadow: none;
+}
+
+.phone[data-cutout='dot'] .phoneButtons::before {
+    top: 39px;
+    height: 16px;
+    box-shadow: 0 28px #8e9197;
+}
+
+.phone[data-cutout='dot'] .phoneButtons::after {
+    display: none;
 }
 
 .window {
@@ -626,8 +699,6 @@
     left: calc(50% - 84px);
     top: 18px;
     width: 168px;
-    height: 236px;
-    padding-inline: 10px;
 }
 
 .homeHeader {
@@ -679,31 +750,31 @@
     animation: slideUp 0.8s var(--ld-ease) both;
 }
 
-.homeScene .homePhone > * {
+.homeScene .homePhone .phoneScreen > * {
     animation: rise 0.48s var(--ld-ease) both;
 }
 
-.homeScene .homePhone > :nth-child(1) {
+.homeScene .homePhone .phoneScreen > :nth-child(1) {
     animation-delay: 0.5s;
 }
 
-.homeScene .homePhone > :nth-child(2) {
+.homeScene .homePhone .phoneScreen > :nth-child(2) {
     animation-delay: 0.59s;
 }
 
-.homeScene .homePhone > :nth-child(3) {
+.homeScene .homePhone .phoneScreen > :nth-child(3) {
     animation-delay: 0.68s;
 }
 
-.homeScene .homePhone > :nth-child(4) {
+.homeScene .homePhone .phoneScreen > :nth-child(4) {
     animation-delay: 0.86s;
 }
 
-.homeScene .homePhone > :nth-child(5) {
+.homeScene .homePhone .phoneScreen > :nth-child(5) {
     animation-delay: 0.95s;
 }
 
-.homeScene .homePhone > :nth-child(6) {
+.homeScene .homePhone .phoneScreen > :nth-child(6) {
     animation-delay: 1.04s;
 }
 
@@ -739,29 +810,13 @@
 }
 
 .morph {
-    position: absolute;
     left: calc(50% - 56px);
-    top: 22px;
-    display: flex;
-    flex-direction: column;
-    width: 112px;
-    height: 216px;
-    padding: 20px 8px 76px;
-    border: 3px solid var(--ld-bezel);
-    border-radius: 22px;
-    background: var(--ld-screen);
 }
 
-.morph::before {
-    content: '';
-    position: absolute;
-    top: 6px;
-    left: 50%;
-    width: 28px;
-    height: 7px;
-    border-radius: 4px;
-    background: var(--ld-bezel);
-    translate: -50% 0;
+.morph .phoneScreen {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 76px;
 }
 
 .morph .chart {
@@ -785,17 +840,23 @@
     animation: fit 1.6s 0.8s var(--ld-ease) both;
 }
 
-.fitScene .morph::before {
+.fitScene .morph::before,
+.fitScene .morph::after,
+.fitScene .morph .phoneButtons {
     animation: appear 0.4s 2.2s steps(2, jump-none) both;
 }
 
 .pairBack,
 .pairFront {
+    width: 112px;
+    transform-origin: 50% 100%;
+}
+
+.pairBack .phoneScreen,
+.pairFront .phoneScreen {
     display: grid;
     align-content: start;
     gap: 5px;
-    width: 104px;
-    transform-origin: 50% 100%;
 }
 
 .pairBack {

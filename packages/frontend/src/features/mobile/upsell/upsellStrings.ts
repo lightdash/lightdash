@@ -20,8 +20,9 @@ export const UPSELL_STRINGS = {
         support: 'Saved charts redraw to fit a small screen.',
     },
     6: {
-        headline: 'On iOS and Android.',
-        support: 'Ask AI, dashboards and saved charts on either phone.',
+        headline: 'Get started with Lightdash Mobile',
+        support:
+            'Chat with your data on the go, access your charts offline and much more!',
     },
 } as const;
 

@@ -133,7 +133,8 @@ export const Phone = ({
     children: ReactNode;
 }) => (
     <div className={`${classes.phone} ${className}`} data-cutout={cutout}>
-        {children}
+        <span className={classes.phoneButtons} />
+        <div className={classes.phoneScreen}>{children}</div>
     </div>
 );
 

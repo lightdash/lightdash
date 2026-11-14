@@ -1,5 +1,5 @@
 import classes from './MobileUpsell.module.css';
-import { LineChart } from './UpsellParts';
+import { LineChart, Phone } from './UpsellParts';
 import { UPSELL_GRAPHIC_STRINGS as S } from './upsellStrings';
 
 export const ChartFitUpsell = () => (
@@ -8,9 +8,9 @@ export const ChartFitUpsell = () => (
         <i className={classes.corner} />
         <i className={classes.corner} />
         <i className={classes.corner} />
-        <div className={classes.morph}>
+        <Phone className={classes.morph}>
             <div className={classes.screenTitle}>{S.ordersByMonth}</div>
             <LineChart stretch />
-        </div>
+        </Phone>
     </div>
 );
