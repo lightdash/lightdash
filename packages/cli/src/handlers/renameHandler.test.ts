@@ -113,6 +113,40 @@ describe('renameHandler follow-up validation', () => {
             properties: payload.properties,
         }));
 
+    test.each([
+        ['ACCOUNT_ID', 'account_id'],
+        ['revenue_q1', 'Revenue_Q2'],
+    ])(
+        'passes the exact names from %s to %s to the rename API',
+        async (from, to) => {
+            mockApi(null);
+            const options = { ...baseOptions, from, to, dryRun: true };
+
+            await renameHandler(options);
+
+            expect(lightdashApi).toHaveBeenCalledWith({
+                method: 'POST',
+                url: `/api/v1/projects/${baseOptions.project}/rename`,
+                body: JSON.stringify(options),
+            });
+        },
+    );
+
+    test.each([
+        ['', 'new_name'],
+        ['../old_name', 'new_name'],
+        ['old_name', 'new-name'],
+        ['old_name', ''],
+    ])(
+        'rejects unsupported names from "%s" to "%s" before calling the rename API',
+        async (from, to) => {
+            await expect(
+                renameHandler({ ...baseOptions, from, to, dryRun: true }),
+            ).rejects.toThrow('Invalid input:');
+            expect(lightdashApi).not.toHaveBeenCalled();
+        },
+    );
+
     test.each([undefined, baseOptions.project])(
         'targets the environment project unless --project overrides it (%s)',
         async (explicitProject) => {
