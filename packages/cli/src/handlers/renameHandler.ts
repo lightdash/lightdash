@@ -115,11 +115,12 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
         GlobalState.logProjectInfo(config);
     }
 
-    const isValidInput = (input: string): boolean => /^[a-z_]+$/.test(input);
+    const isValidInput = (input: string): boolean =>
+        /^[a-zA-Z0-9_]+$/.test(input);
 
     if (!isValidInput(options.from) || !isValidInput(options.to)) {
         throw new Error(
-            'Invalid input: Only lowercase letters (a-z) and underscores (_) are allowed.',
+            'Invalid input: Use only letters (A-Z, a-z), digits (0-9), and underscores (_).',
         );
     }
     const project = await getProject(projectUuid);

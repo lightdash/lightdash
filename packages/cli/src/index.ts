@@ -1851,8 +1851,16 @@ program
     )
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .requiredOption('-t, --type <type>', 'model or field', RenameType.MODEL)
-    .requiredOption('--from <from>', 'Name to replace from', undefined)
-    .requiredOption('--to <to>', 'Name to replace to', undefined)
+    .requiredOption(
+        '--from <from>',
+        'Current name (letters A-Z and a-z, digits, and underscores)',
+        undefined,
+    )
+    .requiredOption(
+        '--to <to>',
+        'New name (letters A-Z and a-z, digits, and underscores)',
+        undefined,
+    )
     .option('--dry-run', 'Test the rename, no changes will be made', false)
     .option('--list', 'List all charts and dashboards that are renamed', false)
 
