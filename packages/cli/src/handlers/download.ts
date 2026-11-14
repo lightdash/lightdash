@@ -1214,7 +1214,7 @@ export const downloadContent = async (
     };
 };
 
-// A server from before composer charts has no route for them (404)
+// Agent connections have no grant for composer charts; older servers have no route (404)
 const downloadComposerCharts = async (
     ids: string[],
     projectId: string,
@@ -1223,6 +1223,7 @@ const downloadComposerCharts = async (
     nested: boolean,
     onProgress: (detail: string) => void,
 ): Promise<DownloadContentResult | null> => {
+    if (getAgentConnectionSelection() !== null) return null;
     try {
         return await downloadContent(
             ids,
@@ -2570,7 +2571,7 @@ export const downloadHandler = async (
                     detail: (result) =>
                         result
                             ? `${result.metadataEntries.length} downloaded`
-                            : 'not available on this server',
+                            : 'not available',
                 });
                 allMetadataEntries = [
                     ...allMetadataEntries,
