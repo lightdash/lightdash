@@ -1,0 +1,1020 @@
+.frame {
+    --ld-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --ld-guide: rgb(229 231 235 / 0.2);
+    --ld-line: rgb(229 231 235 / 0.12);
+    --ld-screen: #0d0d12;
+    --ld-card: #161825;
+    --ld-bezel: #2a2e43;
+    --ld-dim: rgb(255 255 255 / 0.6);
+    --ld-violet: #5e4cff;
+    --ld-violet-soft: #8b7fff;
+    --ld-violet-pale: #d1ccff;
+    --ld-ring: 0 0 0 2px rgb(94 76 255 / 0.35);
+    display: grid;
+    gap: var(--mantine-spacing-md);
+    min-width: 0;
+    max-height: calc(100dvh - 96px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: -12px;
+    padding: 12px;
+}
+
+.pitch {
+    display: grid;
+    gap: 4px;
+}
+
+.headline {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+}
+
+.support {
+    color: var(--mantine-color-dimmed);
+}
+
+.stage {
+    position: relative;
+    height: 184px;
+    overflow: hidden;
+    border-radius: var(--mantine-radius-lg);
+    background: #000000;
+    color: var(--mantine-color-white);
+    container-type: inline-size;
+    isolation: isolate;
+}
+
+.signIn {
+    display: grid;
+    gap: var(--mantine-spacing-sm);
+    container: sign-in / inline-size;
+}
+
+.signInTitle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--mantine-spacing-xs);
+    align-items: center;
+}
+
+.panel {
+    display: grid;
+    grid-template-columns: 160px minmax(0, 1fr);
+    gap: var(--mantine-spacing-md);
+    align-items: center;
+}
+
+.qrColumn {
+    display: grid;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+}
+
+.qrColumn [data-used='true'] {
+    opacity: 0.4;
+}
+
+.side {
+    display: grid;
+    min-width: 0;
+    margin: -4px;
+    padding: 4px;
+    overflow: hidden;
+}
+
+.side > * {
+    grid-area: 1 / 1;
+}
+
+.side .stage {
+    transition:
+        opacity 0.4s var(--ld-ease),
+        transform 0.4s var(--ld-ease),
+        visibility 0s;
+}
+
+.side[data-idle='false'] .stage {
+    opacity: 0;
+    transform: translateX(24px) scale(0.96);
+    visibility: hidden;
+    transition:
+        opacity 0.4s var(--ld-ease),
+        transform 0.4s var(--ld-ease),
+        visibility 0s 0.4s;
+}
+
+.sideStep {
+    align-self: center;
+    min-width: 0;
+    animation: rise 0.48s 0.24s var(--ld-ease) both;
+}
+
+@container sign-in (width < 440px) {
+    .panel {
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: start;
+    }
+
+    .side {
+        width: 100%;
+    }
+
+    .panel[data-step-active='true'] .qrColumn,
+    .panel[data-step-active='true'] .stage {
+        display: none;
+    }
+}
+
+.frame[data-paused='true'] *,
+.frame[data-paused='true'] *::before {
+    animation-play-state: paused !important;
+}
+
+.scene {
+    position: absolute;
+    inset: 0;
+    transform-origin: 50% 100%;
+    color: var(--mantine-color-white);
+    font-size: 8px;
+    line-height: 1.3;
+}
+
+@container (width < 360px) {
+    .scene {
+        scale: 0.82;
+    }
+}
+
+.scene svg {
+    display: block;
+    flex: none;
+}
+
+.pyramid {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 400px;
+    height: 50px;
+    translate: -50% 0;
+}
+
+.pyramid rect {
+    animation: pixel 0.3s steps(3, jump-none) var(--d) both;
+}
+
+.pixelBars {
+    width: 100%;
+    height: auto;
+}
+
+.pixelBars rect {
+    animation: pixel 0.24s steps(3, jump-none) var(--d) both;
+}
+
+.chart {
+    width: 100%;
+    height: auto;
+    color: var(--ld-violet-soft);
+    overflow: visible;
+}
+
+.axis {
+    stroke: var(--ld-line);
+}
+
+.area {
+    fill: currentColor;
+    opacity: 0.16;
+}
+
+.line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+}
+
+.bars rect {
+    fill: var(--ld-violet-soft);
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+}
+
+.bars rect:nth-child(even) {
+    fill: var(--ld-violet);
+}
+
+.spark {
+    width: 28px;
+    height: 10px;
+    color: var(--ld-violet-soft);
+}
+
+.spark path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+}
+
+.phone {
+    position: absolute;
+    top: 22px;
+    width: 112px;
+    aspect-ratio: 71.5 / 147.5;
+    padding: 4px;
+    border: 1px solid #96999f;
+    border-radius: 22px;
+    background: linear-gradient(
+        100deg,
+        #74777d,
+        #26282c 9%,
+        #101114 91%,
+        #8e9197
+    );
+    box-shadow:
+        inset 0 0 0 1px #393b40,
+        0 4px 12px rgb(0 0 0 / 0.45);
+}
+
+.phoneScreen {
+    height: 100%;
+    min-height: 0;
+    padding: 18px 5px 12px;
+    border-radius: 17px;
+    background: var(--ld-screen);
+    overflow: hidden;
+}
+
+.phone::before {
+    content: '';
+    position: absolute;
+    z-index: 1;
+    top: 9px;
+    left: 50%;
+    width: 28px;
+    height: 8px;
+    border-radius: 8px;
+    background: #000;
+    box-shadow: inset -4px 0 0 -2px #182336;
+    translate: -50% 0;
+}
+
+.phone::after {
+    content: '';
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    width: 32%;
+    height: 2px;
+    border-radius: 2px;
+    background: #d6d6d9;
+    translate: -50% 0;
+}
+
+.phoneButtons {
+    position: absolute;
+    inset: 0 -3px;
+    pointer-events: none;
+}
+
+.phoneButtons::before,
+.phoneButtons::after {
+    content: '';
+    position: absolute;
+    top: 51px;
+    width: 2px;
+    height: 25px;
+    border-radius: 2px;
+    background: #8e9197;
+}
+
+.phoneButtons::before {
+    right: 0;
+}
+
+.phoneButtons::after {
+    left: 0;
+    top: 37px;
+    height: 14px;
+    box-shadow: 0 19px #8e9197;
+}
+
+.phone[data-cutout='dot'] {
+    aspect-ratio: 72 / 152.8;
+    border-color: #83878b;
+    border-radius: 17px;
+    background: linear-gradient(
+        100deg,
+        #969b9e,
+        #353a3d 8%,
+        #24282b 92%,
+        #8b9094
+    );
+}
+
+.phone[data-cutout='dot'] .phoneScreen {
+    border-radius: 12px;
+}
+
+.phone[data-cutout='dot']::before {
+    top: 10px;
+    width: 5px;
+    height: 5px;
+    border: 1px solid #252d38;
+    box-shadow: none;
+}
+
+.phone[data-cutout='dot'] .phoneButtons::before {
+    top: 39px;
+    height: 16px;
+    box-shadow: 0 28px #8e9197;
+}
+
+.phone[data-cutout='dot'] .phoneButtons::after {
+    display: none;
+}
+
+.window {
+    position: absolute;
+    padding: 0 8px 8px;
+    border: 1px solid var(--ld-line);
+    border-radius: 8px;
+    background: var(--ld-screen);
+    overflow: hidden;
+}
+
+.windowBar {
+    display: flex;
+    gap: 3px;
+    height: 14px;
+    align-items: center;
+}
+
+.windowBar i {
+    width: 5px;
+    height: 5px;
+    background: var(--ld-guide);
+}
+
+.screenTitle {
+    margin-bottom: 6px;
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tile,
+.answer,
+.liftCard,
+.sheet,
+.homeRow {
+    border: 1px solid var(--ld-line);
+    background: var(--ld-card);
+}
+
+.tile {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    padding: 5px;
+    border-radius: 6px;
+}
+
+.tile > span,
+.answer > span,
+.liftCard > span {
+    overflow: hidden;
+    color: var(--ld-dim);
+    font-size: 7px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bubble {
+    width: fit-content;
+    max-width: 82px;
+    margin-left: auto;
+    padding: 4px 6px;
+    border-radius: 8px 8px 2px 8px;
+    background: var(--ld-violet);
+    color: var(--mantine-color-white);
+}
+
+.answer {
+    display: grid;
+    gap: 4px;
+    margin-top: 6px;
+    padding: 6px;
+    border-radius: 6px;
+}
+
+.askPhone {
+    left: calc(50% - 136px);
+}
+
+.reply {
+    position: relative;
+}
+
+.thinking {
+    position: absolute;
+    top: 8px;
+    left: 2px;
+    display: flex;
+    gap: 3px;
+    opacity: 0;
+}
+
+.thinking i {
+    width: 5px;
+    height: 5px;
+    background: var(--ld-violet-soft);
+}
+
+.liftCard {
+    position: absolute;
+    top: 30px;
+    left: calc(50% - 4px);
+    display: grid;
+    gap: 8px;
+    width: 140px;
+    padding: 10px;
+    border-color: var(--ld-violet-soft);
+    border-radius: 12px;
+    box-shadow: var(--ld-ring);
+    transform-origin: 0 100%;
+}
+
+.liftCard > span {
+    font-size: 9px;
+}
+
+.askScene .bubble {
+    animation: rise 0.48s 0.1s var(--ld-ease) both;
+}
+
+.askScene .thinking {
+    animation: think 0.9s 0.5s steps(3, jump-none) both;
+}
+
+.askScene .answer {
+    animation: rise 0.48s 1.2s var(--ld-ease) both;
+}
+
+.askScene .liftCard {
+    animation: lift 0.9s 2.3s var(--ld-ease) both;
+}
+
+.askScene .liftCard .pixelBars rect {
+    animation-delay: calc(var(--d) + 1000ms);
+}
+
+.dashWindow {
+    top: 18px;
+    left: calc(50% - 172px);
+    width: 212px;
+    height: 150px;
+}
+
+.dashGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+}
+
+.wideTile {
+    grid-column: 1 / -1;
+}
+
+.wideTile svg {
+    max-height: 26px;
+}
+
+.dashPhone {
+    left: calc(50% + 52px);
+}
+
+.dashViewport {
+    height: 156px;
+    overflow: hidden;
+}
+
+.dashColumn {
+    display: grid;
+    gap: 6px;
+    translate: 0 -48px;
+}
+
+.dashColumn .wideTile svg {
+    max-height: none;
+}
+
+.dashScene .dashPhone {
+    animation: slideUp 0.9s var(--ld-ease) both;
+}
+
+.dashScene .dashColumn > * {
+    animation: rise 0.48s var(--ld-ease) both;
+}
+
+.dashScene .dashColumn > :nth-child(1) {
+    animation-delay: 0.6s;
+}
+
+.dashScene .dashColumn > :nth-child(2) {
+    animation-delay: 0.69s;
+}
+
+.dashScene .dashColumn > :nth-child(3) {
+    animation-delay: 0.78s;
+}
+
+.dashScene .dashColumn {
+    animation: scroll 1.4s 2s ease-in-out both;
+}
+
+.dashScene .dashPhone .line {
+    animation: draw 1s 0.9s var(--ld-ease) both;
+}
+
+.sheet {
+    position: absolute;
+    top: 28px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 3px;
+    width: 104px;
+    height: 136px;
+    padding: 8px;
+    border-radius: 10px;
+}
+
+.sheet small {
+    color: var(--ld-dim);
+    font-size: 7px;
+    font-weight: 600;
+}
+
+.spacesSheet {
+    left: calc(50% - 174px);
+}
+
+.chartsSheet {
+    left: calc(50% - 52px);
+}
+
+.chartSheet {
+    left: calc(50% + 70px);
+    border-color: var(--ld-violet-soft);
+    box-shadow: var(--ld-ring);
+}
+
+.chartSheet .screenTitle {
+    white-space: normal;
+    font-size: 9px;
+}
+
+.link {
+    position: absolute;
+    top: 66px;
+    width: 18px;
+    height: 1px;
+    background: var(--ld-guide);
+    transform-origin: 0 50%;
+}
+
+.link i {
+    position: absolute;
+    top: -2px;
+    left: 100%;
+    width: 5px;
+    height: 5px;
+    background: var(--ld-violet-soft);
+    opacity: 0;
+}
+
+.firstLink {
+    left: calc(50% - 70px);
+}
+
+.secondLink {
+    left: calc(50% + 52px);
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 5px;
+    border-radius: 5px;
+}
+
+.row span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.row svg {
+    width: 11px;
+    height: 11px;
+}
+
+.picked {
+    background: rgb(94 76 255 / 0.22);
+    color: var(--ld-violet-pale);
+}
+
+.browseScene .spacesSheet .picked {
+    animation: pick 0.3s 0.5s steps(2, jump-none) both;
+}
+
+.browseScene .firstLink {
+    animation: link 0.32s 0.8s ease both;
+}
+
+.browseScene .firstLink i {
+    animation: packet 0.5s 1s var(--ld-ease) both;
+}
+
+.browseScene .chartsSheet {
+    animation: rise 0.48s 1s var(--ld-ease) both;
+}
+
+.browseScene .chartsSheet .picked {
+    animation: pick 0.3s 1.5s steps(2, jump-none) both;
+}
+
+.browseScene .secondLink {
+    animation: link 0.32s 1.8s ease both;
+}
+
+.browseScene .secondLink i {
+    animation: packet 0.5s 2s var(--ld-ease) both;
+}
+
+.browseScene .chartSheet {
+    animation: rise 0.48s 2s var(--ld-ease) both;
+}
+
+.browseScene .bars rect {
+    animation: grow 0.6s var(--ld-ease) both;
+}
+
+.browseScene .bars rect:nth-child(1) {
+    animation-delay: 2.4s;
+}
+
+.browseScene .bars rect:nth-child(2) {
+    animation-delay: 2.49s;
+}
+
+.browseScene .bars rect:nth-child(3) {
+    animation-delay: 2.58s;
+}
+
+.browseScene .bars rect:nth-child(4) {
+    animation-delay: 2.67s;
+}
+
+.homePhone {
+    left: calc(50% - 84px);
+    top: 18px;
+    width: 168px;
+}
+
+.homeHeader {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 4px 0 2px;
+    font-size: 9px;
+    font-weight: 600;
+}
+
+.homeHeader svg {
+    width: 11px;
+    height: 11px;
+}
+
+.homeRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: 6px;
+}
+
+.homeRow[data-current='true'] {
+    border-color: var(--ld-violet-soft);
+    box-shadow: var(--ld-ring);
+}
+
+.homeRow + .homeRow {
+    margin-top: 3px;
+}
+
+.homeRow > svg:first-child {
+    width: 11px;
+    height: 11px;
+    color: var(--ld-dim);
+}
+
+.homeRow span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.homeScene .homePhone {
+    animation: slideUp 0.8s var(--ld-ease) both;
+}
+
+.homeScene .homePhone .phoneScreen > * {
+    animation: rise 0.48s var(--ld-ease) both;
+}
+
+.homeScene .homePhone .phoneScreen > :nth-child(1) {
+    animation-delay: 0.5s;
+}
+
+.homeScene .homePhone .phoneScreen > :nth-child(2) {
+    animation-delay: 0.59s;
+}
+
+.homeScene .homePhone .phoneScreen > :nth-child(3) {
+    animation-delay: 0.68s;
+}
+
+.homeScene .homePhone .phoneScreen > :nth-child(4) {
+    animation-delay: 0.86s;
+}
+
+.homeScene .homePhone .phoneScreen > :nth-child(5) {
+    animation-delay: 0.95s;
+}
+
+.homeScene .homePhone .phoneScreen > :nth-child(6) {
+    animation-delay: 1.04s;
+}
+
+.homeScene .spark path {
+    animation: draw 1s 1.4s var(--ld-ease) both;
+}
+
+.corner {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    background: var(--ld-violet);
+}
+
+.corner:nth-child(1) {
+    top: 13px;
+    left: 13px;
+}
+
+.corner:nth-child(2) {
+    top: 13px;
+    right: 13px;
+}
+
+.corner:nth-child(3) {
+    bottom: 13px;
+    left: 13px;
+}
+
+.corner:nth-child(4) {
+    bottom: 13px;
+    right: 13px;
+}
+
+.morph {
+    left: calc(50% - 56px);
+}
+
+.morph .phoneScreen {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 76px;
+}
+
+.morph .chart {
+    flex: 1;
+    min-height: 0;
+}
+
+.chart[data-stretch='true'] path {
+    vector-effect: non-scaling-stroke;
+}
+
+.chart[data-stretch='true'] .line {
+    stroke-dasharray: none;
+}
+
+.fitScene .corner {
+    animation: pixel 0.3s 0.2s steps(3, jump-none) both;
+}
+
+.fitScene .morph {
+    animation: fit 1.6s 0.8s var(--ld-ease) both;
+}
+
+.fitScene .morph::before,
+.fitScene .morph::after,
+.fitScene .morph .phoneButtons {
+    animation: appear 0.4s 2.2s steps(2, jump-none) both;
+}
+
+.pairBack,
+.pairFront {
+    width: 112px;
+    transform-origin: 50% 100%;
+}
+
+.pairBack .phoneScreen,
+.pairFront .phoneScreen {
+    display: grid;
+    align-content: start;
+    gap: 5px;
+}
+
+.pairBack {
+    left: calc(50% - 108px);
+    top: 30px;
+    rotate: -7deg;
+}
+
+.pairFront {
+    left: calc(50% + 2px);
+    top: 24px;
+    rotate: 6deg;
+}
+
+.pairFront .answer {
+    margin-top: 0;
+}
+
+.pairScene .pairBack {
+    animation: fanLeft 1s 0.4s var(--ld-ease) both;
+}
+
+.pairScene .pairFront {
+    animation: fanRight 1s 0.6s var(--ld-ease) both;
+}
+
+.pairScene .line {
+    animation: draw 1.2s 1.4s var(--ld-ease) both;
+}
+
+.pairScene .bars rect {
+    animation: grow 0.6s 1.6s var(--ld-ease) both;
+}
+
+@keyframes pixel {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes rise {
+    from {
+        opacity: 0;
+        translate: 0 8px;
+    }
+}
+
+@keyframes think {
+    0% {
+        opacity: 0;
+    }
+    30%,
+    70% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes draw {
+    from {
+        stroke-dashoffset: 1;
+    }
+}
+
+@keyframes grow {
+    from {
+        transform: scaleY(0);
+    }
+}
+
+@keyframes lift {
+    from {
+        opacity: 0;
+        transform: translate(-56px, 40px) scale(0.5);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        translate: 0 80px;
+    }
+}
+
+@keyframes scroll {
+    from {
+        translate: 0 0;
+    }
+}
+
+@keyframes pick {
+    from {
+        background-color: transparent;
+    }
+}
+
+@keyframes link {
+    from {
+        transform: scaleX(0);
+    }
+}
+
+@keyframes packet {
+    from {
+        left: 0;
+        opacity: 1;
+    }
+    to {
+        left: 100%;
+        opacity: 0;
+    }
+}
+
+@keyframes fit {
+    from {
+        left: 16px;
+        top: 16px;
+        width: calc(100% - 32px);
+        height: calc(100% - 32px);
+        padding: 10px 12px;
+        border-width: 1px;
+        border-color: var(--ld-guide);
+        border-radius: 0;
+    }
+}
+
+@keyframes appear {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes fanLeft {
+    from {
+        rotate: 0deg;
+        translate: 40px 80px;
+    }
+}
+
+@keyframes fanRight {
+    from {
+        rotate: 0deg;
+        translate: -40px 80px;
+    }
+}
+
+@media (max-height: 760px) {
+    .stage {
+        height: 152px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .frame *,
+    .frame *::before,
+    .frame *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}

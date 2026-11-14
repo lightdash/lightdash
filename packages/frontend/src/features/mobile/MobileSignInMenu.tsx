@@ -2,9 +2,10 @@ import { FeatureFlags } from '@lightdash/common';
 import {
     Button,
     getDefaultZIndex,
+    Indicator,
     Popover,
-    Stack,
     Title,
+    type PopoverProps,
     Tooltip,
 } from '@mantine/core';
 import { IconDeviceMobile } from '@tabler/icons-react';
@@ -18,19 +19,45 @@ import {
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useNavBarMenuProps } from '../../components/NavBar/NavBarPortalContext';
-import useHealth from '../../hooks/health/useHealth';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../providers/App/useApp';
-import { getHost } from './mobileFormat';
+import { isSignInIdle } from './isSignInIdle';
 import classes from './MobileSettingsPage.module.css';
-import { MobileSignInStep } from './MobileSignInStep';
+import { useMobileSignInSeen } from './mobileSignInSeen';
+import {
+    MobileSignInDetails,
+    MobileSignInQr,
+    MobileSignInStatus,
+    MobileSignInStep,
+} from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
+import { PreviewQrPattern } from './PreviewQrPattern';
+import { usePreviewSignIn, usePreviewSignInPhase } from './previewSignInState';
+import {
+    useMobileUpsell,
+    type MobileUpsellChoice,
+} from './upsell/getMobileUpsell';
+import { MobileUpsellFrame } from './upsell/MobileUpsellFrame';
 import {
     useMobileSignInCode,
     type MobileSignInPhase,
 } from './useMobileSignInCode';
 
 const POPOVER_WIDTH = 'calc(min(420px, 100vw - 32px))';
+const PITCH_POPOVER_WIDTH = 'calc(min(508px, 100vw - 32px))';
+const SCREEN_GUTTER = 16;
+
+const fitInsideScreenGutter: Extract<
+    NonNullable<PopoverProps['middlewares']>['size'],
+    object
+> = {
+    apply: ({ elements }) => {
+        const reference = elements.reference.getBoundingClientRect();
+        const limit = document.documentElement.clientWidth - SCREEN_GUTTER;
+        const overflow = Math.max(0, reference.right - limit);
+        const width = Math.max(0, reference.width - 2 * overflow);
+        elements.floating.style.width = `${width}px`;
+    },
+};
 
 const hasLostFocus = () =>
     document.activeElement === null || document.activeElement === document.body;
@@ -54,31 +81,55 @@ const useKeepFocusInPopover = (
     }, [phase, dropdown]);
 };
 
-const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
+const MobileSignInPopover: FC<{
+    withLabel: boolean;
+    upsell: MobileUpsellChoice | null;
+}> = ({ withLabel, upsell }) => {
     const menuProps = useNavBarMenuProps();
-    const { user } = useApp();
-    const { data: health } = useHealth();
     const id = useId();
     const [opened, setOpened] = useState(false);
-    const signIn = useMobileSignInCode({ autoShow: opened });
+    const { seen, markSeen } = useMobileSignInSeen();
+    const preview = usePreviewSignInPhase();
+    const liveSignIn = useMobileSignInCode({
+        autoShow: opened && !preview.holdsMint,
+    });
+    const previewSignIn = usePreviewSignIn(preview.forced);
+    const signIn = previewSignIn ?? liveSignIn;
     const isConfirming = signIn.phase === 'claimed';
+    const qrPlaceholder = previewSignIn ? <PreviewQrPattern /> : undefined;
     const dropdown = useRef<HTMLDivElement>(null);
     useKeepFocusInPopover(signIn.phase, dropdown);
 
+    const open = () => {
+        setOpened(true);
+        markSeen();
+    };
+
     const close = () => {
         setOpened(false);
-        signIn.hide();
+        liveSignIn.hide();
     };
 
     return (
         <Popover
             id={id}
             opened={opened}
-            onChange={(next) => (next ? setOpened(true) : close())}
-            position="bottom-end"
+            onChange={(next) => (next ? open() : close())}
+            position={menuProps.withinPortal ? 'bottom-end' : 'bottom'}
             arrowOffset={16}
             offset={-2}
-            width={menuProps.withinPortal ? POPOVER_WIDTH : 'target'}
+            width={
+                menuProps.withinPortal
+                    ? upsell
+                        ? PITCH_POPOVER_WIDTH
+                        : POPOVER_WIDTH
+                    : undefined
+            }
+            middlewares={
+                menuProps.withinPortal
+                    ? undefined
+                    : { size: fitInsideScreenGutter }
+            }
             classNames={{ dropdown: classes.signInPopover }}
             zIndex={getDefaultZIndex('max')}
             trapFocus
@@ -103,22 +154,44 @@ const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
                         variant="default"
                         size="xs"
                         className={withLabel ? undefined : classes.headerButton}
-                        onClick={() => (opened ? close() : setOpened(true))}
+                        classNames={{ label: classes.signInButtonLabel }}
+                        onClick={() => (opened ? close() : open())}
                     >
-                        <MantineIcon icon={IconDeviceMobile} />
+                        <Indicator
+                            size={12}
+                            color="red"
+                            offset={1}
+                            disabled={seen}
+                        >
+                            <MantineIcon icon={IconDeviceMobile} />
+                        </Indicator>
                         {withLabel && ` ${MOBILE_STRINGS.signInTitle}`}
                     </Button>
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown ref={dropdown}>
-                <Stack gap="sm">
-                    <Title order={6}>{MOBILE_STRINGS.signInTitle}</Title>
-                    <MobileSignInStep
-                        signIn={signIn}
-                        host={getHost(health?.siteUrl)}
-                        email={user.data?.email}
-                    />
-                </Stack>
+                <MobileUpsellFrame
+                    variation={upsell}
+                    isIdle={isSignInIdle(signIn)}
+                    title={
+                        <Title order={6}>{MOBILE_STRINGS.signInTitle}</Title>
+                    }
+                    step={
+                        <MobileSignInStep
+                            signIn={signIn}
+                            qrPlaceholder={qrPlaceholder}
+                        />
+                    }
+                    qr={
+                        <MobileSignInQr
+                            signIn={signIn}
+                            keepUsed
+                            placeholder={qrPlaceholder}
+                        />
+                    }
+                    details={<MobileSignInDetails signIn={signIn} />}
+                    status={<MobileSignInStatus signIn={signIn} />}
+                />
             </Popover.Dropdown>
         </Popover>
     );
@@ -127,9 +200,10 @@ const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
 export const MobileSignInMenu: FC<{ withLabel?: boolean }> = ({
     withLabel = false,
 }) => {
+    const upsell = useMobileUpsell();
     const { data: qrSignInFlag } = useServerFeatureFlag(
         FeatureFlags.MobileQrSignIn,
     );
     if (!qrSignInFlag?.enabled) return null;
-    return <MobileSignInPopover withLabel={withLabel} />;
+    return <MobileSignInPopover withLabel={withLabel} upsell={upsell} />;
 };

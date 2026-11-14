@@ -2,14 +2,12 @@ import { Code, Group, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
-import useApp from '../../providers/App/useApp';
 import classes from './MobileSettingsPage.module.css';
 import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
 import { useMobileSignInCode } from './useMobileSignInCode';
 
 export const CloudMobileSignInView: FC<{ host: string }> = ({ host }) => {
-    const { user } = useApp();
     const signIn = useMobileSignInCode({ autoShow: true });
 
     return (
@@ -29,11 +27,7 @@ export const CloudMobileSignInView: FC<{ host: string }> = ({ host }) => {
                         size="sm"
                     />
                 </Group>
-                <MobileSignInStep
-                    signIn={signIn}
-                    host={host}
-                    email={user.data?.email}
-                />
+                <MobileSignInStep signIn={signIn} />
             </Stack>
         </SettingsCard>
     );

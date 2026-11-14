@@ -1,14 +1,25 @@
-import { MobileSignInCodeStatus, type ApiError } from '@lightdash/common';
+import {
+    LightdashMode,
+    MobileSignInCodeStatus,
+    type ApiError,
+} from '@lightdash/common';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { MobileSignInMenu } from './MobileSignInMenu';
+import { MOBILE_SIGN_IN_STRINGS } from './mobileStrings';
+import { UPSELL_STRINGS } from './upsell/upsellStrings';
 
 vi.mock('../../api');
+const health = vi.hoisted(() => ({ mode: 'default' }));
 vi.mock('../../hooks/health/useHealth', () => ({
-    default: () => ({ data: { siteUrl: 'https://app.example.com' } }),
+    default: () => ({
+        data: { siteUrl: 'https://app.example.com', mode: health.mode },
+    }),
 }));
 const qrSignIn = vi.hoisted(() => ({ enabled: true }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
@@ -103,19 +114,210 @@ const mockServer = ({
     };
 };
 
+const renderMenu = (ui: ReactElement) =>
+    renderWithProviders(
+        <MemoryRouter
+            initialEntries={[`/projects/p1/saved/c1${window.location.search}`]}
+        >
+            {ui}
+        </MemoryRouter>,
+    );
+
 const openButton = () =>
     screen.getByRole('button', { name: 'Sign in on your phone' });
 
 beforeEach(() => {
+    window.history.replaceState({}, '', '/');
     api.mockReset();
     qrSignIn.enabled = true;
+    health.mode = LightdashMode.DEFAULT;
 });
 
 describe('MobileSignInMenu', () => {
+    it.each([
+        '',
+        '?mobileUpsell=invalid',
+        '?mobileUpsell=0',
+        '?mobileUpsell=7',
+        '?mobileUpsell=01',
+        '?mobileUpsell=1.0',
+    ])('keeps the default DOM for %s', async (search) => {
+        window.history.replaceState({}, '', `/${search}`);
+        mockServer();
+        renderMenu(<MobileSignInMenu />);
+        await userEvent.click(openButton());
+        await screen.findByRole('img', { name: 'Sign-in QR code' });
+        expect(document.querySelector('[data-mobile-upsell]')).toBeNull();
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        expect(screen.getByText('Waiting for scan')).toHaveAttribute(
+            'aria-live',
+            'polite',
+        );
+    });
+
+    it.each([1, 2, 3, 4, 5, 6] as const)(
+        'shows pitch %s with the existing QR and status',
+        async (variation) => {
+            window.history.replaceState({}, '', `/?mobileUpsell=${variation}`);
+            mockServer();
+            renderMenu(<MobileSignInMenu />);
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            await userEvent.click(openButton());
+            expect(
+                screen.getByRole('heading', {
+                    name: UPSELL_STRINGS[variation].headline,
+                }),
+            ).toBeVisible();
+            await screen.findByRole('img', { name: 'Sign-in QR code' });
+            expect(screen.getByText('Waiting for scan')).toHaveAttribute(
+                'aria-live',
+                'polite',
+            );
+            const frame = document.querySelector('[data-mobile-upsell]');
+            expect(frame).toHaveAttribute(
+                'data-mobile-upsell',
+                String(variation),
+            );
+            expect(
+                frame?.querySelector('[aria-hidden="true"] svg'),
+            ).toBeInTheDocument();
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        },
+    );
+
+    it('keeps the sign-in QR as the only action and closes on Escape', async () => {
+        window.history.replaceState({}, '', '/?mobileUpsell=1');
+        const user = userEvent.setup();
+        const server = mockServer();
+        renderMenu(<MobileSignInMenu />);
+
+        await user.click(openButton());
+        const popover = await screen.findByRole('dialog', {
+            name: 'Sign in on your phone',
+        });
+        await within(popover).findByRole('img', { name: 'Sign-in QR code' });
+        expect(within(popover).queryByRole('link')).not.toBeInTheDocument();
+        expect(within(popover).queryByRole('button')).not.toBeInTheDocument();
+
+        await user.keyboard('{Escape}');
+
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(openButton()).toHaveFocus();
+        await waitFor(() =>
+            expect(server.deletes()).toEqual([
+                '/user/mobile/sign-in-codes/code-1',
+            ]),
+        );
+    });
+
+    it('shows the QR beside the pitch animation while waiting', async () => {
+        window.history.replaceState({}, '', '/?mobileUpsell=2');
+        mockServer();
+        renderMenu(<MobileSignInMenu />);
+        await userEvent.click(openButton());
+        const qr = await screen.findByRole('img', { name: 'Sign-in QR code' });
+        const side = document.querySelector('[data-idle]');
+        expect(side).toHaveAttribute('data-idle', 'true');
+        expect(document.querySelector('[data-step-active]')).toHaveAttribute(
+            'data-step-active',
+            'false',
+        );
+        expect(side?.querySelector('[aria-hidden="true"] svg')).not.toBeNull();
+        expect(side).not.toContainElement(qr);
+        expect(screen.getByText('Waiting for scan')).toHaveAttribute(
+            'aria-live',
+            'polite',
+        );
+    });
+
+    it('swaps the pitch for an inline confirm on scan, with no dialog', async () => {
+        window.history.replaceState({}, '', '/?mobileUpsell=2');
+        const user = userEvent.setup();
+        mockServer({ isClaimed: true });
+        renderMenu(<MobileSignInMenu />);
+        await user.click(openButton());
+        const confirm = await screen.findByRole('group', {
+            name: 'A phone wants to sign in as you',
+        });
+        const side = document.querySelector('[data-idle]');
+        expect(side).toHaveAttribute('data-idle', 'false');
+        expect(side).toContainElement(confirm);
+        expect(document.querySelector('[data-step-active]')).toHaveAttribute(
+            'data-step-active',
+            'true',
+        );
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(
+            screen.getByRole('img', { name: 'Sign-in QR code' }),
+        ).toBeInTheDocument();
+        await waitFor(() =>
+            expect(
+                within(confirm).getByRole('button', { name: 'Decline' }),
+            ).toHaveFocus(),
+        );
+    });
+
+    it.each([1, 2, 3, 4, 5, 6] as const)(
+        'shows the Cloud install hint under the QR in pitch %s',
+        async (variation) => {
+            health.mode = LightdashMode.CLOUD_BETA;
+            window.history.replaceState({}, '', `/?mobileUpsell=${variation}`);
+            mockServer();
+            renderMenu(<MobileSignInMenu />);
+            await userEvent.click(openButton());
+            await screen.findByRole('img', { name: 'Sign-in QR code' });
+            const hint = screen.getByText(MOBILE_SIGN_IN_STRINGS.installHint);
+            expect(hint).toBeVisible();
+            expect(document.querySelector('[data-idle]')).not.toContainElement(
+                hint,
+            );
+        },
+    );
+
+    it('leaves the install hint out of the pitch outside Cloud', async () => {
+        window.history.replaceState({}, '', '/?mobileUpsell=2');
+        mockServer();
+        renderMenu(<MobileSignInMenu />);
+        await userEvent.click(openButton());
+        await screen.findByRole('img', { name: 'Sign-in QR code' });
+        expect(
+            screen.queryByText(MOBILE_SIGN_IN_STRINGS.installHint),
+        ).not.toBeInTheDocument();
+    });
+
+    it('pauses the pitch when the tab is hidden', async () => {
+        window.history.replaceState({}, '', '/?mobileUpsell=1');
+        mockServer();
+        renderMenu(<MobileSignInMenu />);
+        await userEvent.click(openButton());
+        await screen.findByRole('img', { name: 'Sign-in QR code' });
+        Object.defineProperty(document, 'visibilityState', {
+            configurable: true,
+            value: 'hidden',
+        });
+        fireEvent(document, new Event('visibilitychange'));
+        expect(document.querySelector('[data-mobile-upsell]')).toHaveAttribute(
+            'data-paused',
+            'true',
+        );
+        Object.defineProperty(document, 'visibilityState', {
+            configurable: true,
+            value: 'visible',
+        });
+        fireEvent(document, new Event('visibilitychange'));
+        expect(document.querySelector('[data-mobile-upsell]')).toHaveAttribute(
+            'data-paused',
+            'false',
+        );
+    });
+
     it('renders nothing and mints nothing with mobile-qr-sign-in off', () => {
         qrSignIn.enabled = false;
         const server = mockServer();
-        const { container } = renderWithProviders(
+        const { container } = renderMenu(
             <div data-testid="header-group">
                 <MobileSignInMenu />
             </div>,
@@ -135,7 +337,7 @@ describe('MobileSignInMenu', () => {
     it('mints no code until the popover opens, then shows the sign-in step', async () => {
         const user = userEvent.setup();
         const server = mockServer();
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         expect(openButton()).toBeVisible();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -156,14 +358,26 @@ describe('MobileSignInMenu', () => {
                 name: 'Sign-in QR code',
             }),
         ).toBeInTheDocument();
-        expect(within(popover).getByText('Waiting for scan')).toBeVisible();
+        expect(within(popover).getByText('Waiting for scan')).toHaveAttribute(
+            'aria-live',
+            'polite',
+        );
         expect(server.mints()).toHaveLength(1);
     });
 
-    it('closes on Escape and cancels the unused code', async () => {
+    it.each([
+        '',
+        '?mobileUpsell=1',
+        '?mobileUpsell=2',
+        '?mobileUpsell=3',
+        '?mobileUpsell=4',
+        '?mobileUpsell=5',
+        '?mobileUpsell=6',
+    ])('closes on Escape and cancels the unused code %s', async (search) => {
+        window.history.replaceState({}, '', `/${search}`);
         const user = userEvent.setup();
         const server = mockServer();
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         await user.click(openButton());
         await screen.findByRole('img', { name: 'Sign-in QR code' });
@@ -185,7 +399,7 @@ describe('MobileSignInMenu', () => {
     it('cancels the code when the icon is clicked again', async () => {
         const user = userEvent.setup();
         const server = mockServer();
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         await user.click(openButton());
         await screen.findByRole('img', { name: 'Sign-in QR code' });
@@ -201,7 +415,7 @@ describe('MobileSignInMenu', () => {
     it('closes on a click outside and cancels the unused code', async () => {
         const user = userEvent.setup();
         const server = mockServer();
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         await user.click(openButton());
         await screen.findByRole('img', { name: 'Sign-in QR code' });
@@ -225,7 +439,7 @@ describe('MobileSignInMenu', () => {
                 error: { name: 'Error', statusCode: 500, message: 'boom' },
             } as ApiError,
         });
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         await user.click(openButton());
         await screen.findByText("Couldn't create the code");
@@ -238,27 +452,39 @@ describe('MobileSignInMenu', () => {
         expect(server.deletes()).toEqual([]);
     });
 
-    it('stays open while the user confirms a phone in the dialog', async () => {
-        const user = userEvent.setup();
-        const server = mockServer({ isClaimed: true });
-        renderWithProviders(<MobileSignInMenu />);
+    it.each([
+        '',
+        '?mobileUpsell=1',
+        '?mobileUpsell=2',
+        '?mobileUpsell=3',
+        '?mobileUpsell=4',
+        '?mobileUpsell=5',
+        '?mobileUpsell=6',
+    ])(
+        'stays open while the user confirms a phone inline %s',
+        async (search) => {
+            window.history.replaceState({}, '', `/${search}`);
+            const user = userEvent.setup();
+            const server = mockServer({ isClaimed: true });
+            renderMenu(<MobileSignInMenu />);
 
-        await user.click(openButton());
-        const confirm = await screen.findByRole('dialog', {
-            name: 'A phone wants to sign in as you',
-        });
-        await user.click(
-            within(confirm).getByRole('button', { name: 'Confirm' }),
-        );
+            await user.click(openButton());
+            const confirm = await screen.findByRole('group', {
+                name: 'A phone wants to sign in as you',
+            });
+            await user.click(
+                within(confirm).getByRole('button', { name: 'Confirm' }),
+            );
 
-        await waitFor(() => expect(server.approvals()).toHaveLength(1));
-        fireEvent.mouseDown(document.body);
-        fireEvent.keyDown(confirm, { key: 'Escape' });
-        expect(
-            screen.getByRole('dialog', { name: 'Sign in on your phone' }),
-        ).toBeInTheDocument();
-        expect(server.deletes()).toEqual([]);
-    });
+            await waitFor(() => expect(server.approvals()).toHaveLength(1));
+            fireEvent.mouseDown(document.body);
+            fireEvent.keyDown(confirm, { key: 'Escape' });
+            expect(
+                screen.getByRole('dialog', { name: 'Sign in on your phone' }),
+            ).toBeInTheDocument();
+            expect(server.deletes()).toEqual([]);
+        },
+    );
 
     it.each([
         ['Confirm', 'Type this number on your phone'],
@@ -271,10 +497,10 @@ describe('MobileSignInMenu', () => {
                 isClaimed: true,
                 appliesDecisions: true,
             });
-            renderWithProviders(<MobileSignInMenu />);
+            renderMenu(<MobileSignInMenu />);
 
             await user.click(openButton());
-            const confirm = await screen.findByRole('dialog', {
+            const confirm = await screen.findByRole('group', {
                 name: 'A phone wants to sign in as you',
             });
             await user.click(
@@ -287,7 +513,7 @@ describe('MobileSignInMenu', () => {
             await within(popover).findByText(nextText);
             await waitFor(() =>
                 expect(
-                    screen.queryByRole('dialog', {
+                    screen.queryByRole('group', {
                         name: 'A phone wants to sign in as you',
                     }),
                 ).not.toBeInTheDocument(),
@@ -316,7 +542,7 @@ describe('MobileSignInMenu', () => {
         user: ReturnType<typeof userEvent.setup>,
     ) => {
         await user.click(openButton());
-        const confirm = await screen.findByRole('dialog', {
+        const confirm = await screen.findByRole('group', {
             name: 'A phone wants to sign in as you',
         });
         await user.click(
@@ -335,10 +561,10 @@ describe('MobileSignInMenu', () => {
     it('moves focus back into the popover after the web Cancel, so Escape closes it', async () => {
         const user = userEvent.setup();
         mockServer({ isClaimed: true, appliesDecisions: true });
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         await user.click(openButton());
-        const confirm = await screen.findByRole('dialog', {
+        const confirm = await screen.findByRole('group', {
             name: 'A phone wants to sign in as you',
         });
         await user.click(
@@ -367,7 +593,7 @@ describe('MobileSignInMenu', () => {
     it('moves focus back into the popover after Show a new code by keyboard, so Escape closes it', async () => {
         const user = userEvent.setup();
         const server = mockServer({ isClaimed: true, appliesDecisions: true });
-        renderWithProviders(<MobileSignInMenu />);
+        renderMenu(<MobileSignInMenu />);
 
         const popover = await openDeclinedCode(user);
         await user.tab();

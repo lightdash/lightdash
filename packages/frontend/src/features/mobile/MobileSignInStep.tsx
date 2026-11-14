@@ -12,13 +12,18 @@ import {
     Text,
     VisuallyHidden,
 } from '@mantine/core';
-import { IconCircleCheck } from '@tabler/icons-react';
-import { lazy, Suspense, type FC } from 'react';
+import { IconCircleCheck, IconQrcodeOff } from '@tabler/icons-react';
+import {
+    lazy,
+    Suspense,
+    useEffect,
+    useId,
+    useRef,
+    type FC,
+    type ReactNode,
+} from 'react';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
-import MantineModal from '../../components/common/MantineModal';
-import AppColorSchemeScope from '../../components/NavBar/AppColorSchemeScope';
-import { maskEmail } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MobileSignInInstallHint } from './MobileSignInInstallHint';
 import { MOBILE_SIGN_IN_STRINGS as S, MOBILE_STRINGS } from './mobileStrings';
@@ -30,8 +35,6 @@ type SignIn = ReturnType<typeof useMobileSignInCode>;
 
 type StepContext = {
     signIn: SignIn;
-    site: string;
-    account: string;
     platform: string | null;
 };
 
@@ -61,13 +64,13 @@ const MatchNumber: FC<{ value: string }> = ({ value }) => (
 );
 
 const HiddenCode: FC<StepContext> = ({ signIn }) =>
-    signIn.isMinting ? (
-        <Box className={classes.qrFrame}>
-            <Loader size="sm" aria-label={MOBILE_STRINGS.creatingCode} />
-        </Box>
-    ) : (
+    signIn.isMinting ? null : (
         <Group>
-            <Button size="xs" onClick={signIn.show}>
+            <Button
+                size="xs"
+                className={classes.secondaryButton}
+                onClick={signIn.show}
+            >
                 {S.showCode}
             </Button>
         </Group>
@@ -93,31 +96,70 @@ const FailedMint: FC<StepContext> = ({ signIn }) => (
             title={MOBILE_STRINGS.couldNotCreateCode}
             w="100%"
         />
-        <Button size="xs" variant="default" onClick={signIn.show}>
+        <Button
+            size="xs"
+            variant="default"
+            className={classes.secondaryButton}
+            onClick={signIn.show}
+        >
             {MOBILE_STRINGS.tryAgain}
         </Button>
     </Stack>
 );
 
-const ShownCode: FC<StepContext> = ({ signIn }) =>
-    signIn.code ? (
-        <Group align="flex-start" gap="lg">
-            <Box className={classes.qrFrame}>
-                <Suspense fallback={<Loader size="sm" />}>
-                    <MobileAppQrCode
-                        value={signIn.code.signInUrl}
-                        label={S.qrLabel}
-                    />
-                </Suspense>
-            </Box>
-            <Stack gap="sm" className={classes.details}>
-                <Text size="sm">{MOBILE_STRINGS.waitingForScan}</Text>
-                <MobileSignInInstallHint />
-            </Stack>
-        </Group>
-    ) : null;
+const ShownCode: FC<StepContext> = () => <MobileSignInInstallHint />;
 
-const ClaimedNote: FC<StepContext> = () => null;
+const ConfirmSignIn: FC<StepContext> = ({ signIn, platform }) => {
+    const titleId = useId();
+    const decline = useRef<HTMLButtonElement>(null);
+    useEffect(() => {
+        decline.current?.focus();
+    }, []);
+    return (
+        <Stack gap="sm" role="group" aria-labelledby={titleId}>
+            <Stack gap={4}>
+                <Text id={titleId} size="sm" fw={600}>
+                    {S.confirm.title}
+                </Text>
+                <Text size="sm" c="dimmed">
+                    {S.confirm.description}
+                </Text>
+            </Stack>
+            {platform && (
+                <Box component="dl" className={classes.confirmRows}>
+                    <Box className={classes.confirmRow}>
+                        <Text component="dt" size="sm" c="dimmed">
+                            {S.confirm.device}
+                        </Text>
+                        <Text component="dd" size="sm">
+                            {platform}
+                        </Text>
+                    </Box>
+                </Box>
+            )}
+            <Group gap="xs">
+                <Button
+                    ref={decline}
+                    size="xs"
+                    variant="default"
+                    className={classes.secondaryButton}
+                    onClick={signIn.decline}
+                    disabled={signIn.isDeciding}
+                >
+                    {S.confirm.decline}
+                </Button>
+                <Button
+                    size="xs"
+                    className={classes.confirmButton}
+                    onClick={signIn.approve}
+                    loading={signIn.isDeciding}
+                >
+                    {S.confirm.approve}
+                </Button>
+            </Group>
+        </Stack>
+    );
+};
 
 const ApprovedNumber: FC<StepContext> = ({ signIn }) =>
     signIn.state?.matchNumber ? (
@@ -129,6 +171,7 @@ const ApprovedNumber: FC<StepContext> = ({ signIn }) =>
             <Button
                 size="xs"
                 variant="default"
+                className={classes.secondaryButton}
                 onClick={signIn.decline}
                 loading={signIn.isDeciding}
             >
@@ -140,7 +183,11 @@ const ApprovedNumber: FC<StepContext> = ({ signIn }) =>
 const ExpiredCode: FC<StepContext> = ({ signIn }) => (
     <Stack gap="sm" align="flex-start">
         <Callout variant="warning" title={S.expired} w="100%" />
-        <Button size="xs" onClick={signIn.show}>
+        <Button
+            size="xs"
+            className={classes.secondaryButton}
+            onClick={signIn.show}
+        >
             {S.newCode}
         </Button>
     </Stack>
@@ -163,13 +210,18 @@ const DeclinedCode: FC<StepContext> = ({ signIn }) => (
             }
             w="100%"
         />
-        <Button size="xs" variant="default" onClick={signIn.show}>
+        <Button
+            size="xs"
+            variant="default"
+            className={classes.secondaryButton}
+            onClick={signIn.show}
+        >
             {S.newCode}
         </Button>
     </Stack>
 );
 
-const SignedIn: FC<StepContext> = ({ signIn, account, platform }) => (
+const SignedIn: FC<StepContext> = ({ signIn, platform }) => (
     <Stack gap="sm" align="flex-start">
         <Callout
             variant="neutral"
@@ -177,9 +229,14 @@ const SignedIn: FC<StepContext> = ({ signIn, account, platform }) => (
             title={S.signedIn}
             w="100%"
         >
-            {platform ? S.signedInAs(platform, account) : account}
+            {platform}
         </Callout>
-        <Button size="xs" variant="default" onClick={signIn.show}>
+        <Button
+            size="xs"
+            variant="default"
+            className={classes.secondaryButton}
+            onClick={signIn.show}
+        >
             {S.anotherPhone}
         </Button>
     </Stack>
@@ -190,79 +247,86 @@ const PHASE_VIEWS: Record<SignIn['phase'], FC<StepContext>> = {
     refused: RefusedNotice,
     failed: FailedMint,
     showing: ShownCode,
-    claimed: ClaimedNote,
+    claimed: ConfirmSignIn,
     approved: ApprovedNumber,
     expired: ExpiredCode,
     declined: DeclinedCode,
     redeemed: SignedIn,
 };
 
-const ConfirmModal: FC<StepContext> = ({ signIn, site, account, platform }) => (
-    <MantineModal
-        opened={signIn.phase === 'claimed'}
-        onClose={signIn.decline}
-        title={S.confirm.title}
-        description={S.confirm.description}
-        role="alertdialog"
-        size="md"
-        withCloseButton={false}
-        modalRootProps={{ returnFocus: false }}
-        cancelLabel={S.confirm.decline}
-        onCancel={signIn.decline}
-        cancelDisabled={signIn.isDeciding}
-        confirmLabel={S.confirm.approve}
-        onConfirm={signIn.approve}
-        confirmLoading={signIn.isDeciding}
-    >
-        <Box component="dl" className={classes.confirmRows}>
-            {[
-                [S.confirm.account, account],
-                [S.confirm.site, site],
-                ...(platform ? [[S.confirm.device, platform]] : []),
-            ].map(([label, value]) => (
-                <Box key={label} className={classes.confirmRow}>
-                    <Text component="dt" size="sm" c="dimmed">
-                        {label}
-                    </Text>
-                    <Text component="dd" size="sm">
-                        {value}
-                    </Text>
-                </Box>
-            ))}
-        </Box>
-    </MantineModal>
-);
-
 const getAnnouncement = (signIn: SignIn): string => {
-    if (signIn.phase === 'showing' && signIn.isRefreshed) return S.refreshed;
+    if (signIn.phase === 'showing') {
+        return signIn.isRefreshed ? S.refreshed : MOBILE_STRINGS.waitingForScan;
+    }
+    if (signIn.phase === 'claimed') return S.confirm.title;
     if (signIn.phase === 'approved' && signIn.state?.matchNumber) {
         return `${S.typeOnPhone}: ${spellNumber(signIn.state.matchNumber)}`;
     }
     return '';
 };
 
-export const MobileSignInStep: FC<{
-    signIn: SignIn;
-    host: string;
-    email: string | undefined;
-}> = ({ signIn, host, email }) => {
-    const context: StepContext = {
-        signIn,
-        site: host,
-        account: maskEmail(email) ?? S.fallbackAccount,
-        platform: getPlatformLabel(signIn.state),
-    };
-    const PhaseView = PHASE_VIEWS[signIn.phase];
+const USED_CODE_PHASES: SignIn['phase'][] = ['claimed', 'approved'];
 
+export const MobileSignInQr: FC<{
+    signIn: SignIn;
+    keepUsed?: boolean;
+    placeholder?: ReactNode;
+}> = ({ signIn, keepUsed = false, placeholder }) => {
+    if (signIn.phase === 'hidden' && signIn.isMinting) {
+        return (
+            <Box className={classes.qrFrame}>
+                <Loader size="sm" aria-label={MOBILE_STRINGS.creatingCode} />
+            </Box>
+        );
+    }
+    const isUsed = USED_CODE_PHASES.includes(signIn.phase);
+    const isShown = signIn.phase === 'showing' || (keepUsed && isUsed);
+    if (isShown && !signIn.code && placeholder) {
+        return (
+            <Box className={classes.qrFrame} data-used={isUsed}>
+                {placeholder}
+            </Box>
+        );
+    }
+    if (signIn.code && isShown) {
+        return (
+            <Box className={classes.qrFrame} data-used={isUsed}>
+                <Suspense fallback={<Loader size="sm" />}>
+                    <MobileAppQrCode
+                        value={signIn.code.signInUrl}
+                        label={S.qrLabel}
+                    />
+                </Suspense>
+            </Box>
+        );
+    }
+    return keepUsed ? (
+        <Box className={classes.qrFrame} data-used>
+            <MantineIcon icon={IconQrcodeOff} size="xl" color="dimmed" />
+        </Box>
+    ) : null;
+};
+
+export const MobileSignInDetails: FC<{ signIn: SignIn }> = ({ signIn }) => {
+    const PhaseView = PHASE_VIEWS[signIn.phase];
     return (
-        <Stack gap="sm">
-            <PhaseView {...context} />
-            <AppColorSchemeScope>
-                <ConfirmModal {...context} />
-            </AppColorSchemeScope>
-            <VisuallyHidden aria-live="polite">
-                {getAnnouncement(signIn)}
-            </VisuallyHidden>
-        </Stack>
+        <PhaseView signIn={signIn} platform={getPlatformLabel(signIn.state)} />
     );
 };
+
+export const MobileSignInStatus: FC<{ signIn: SignIn }> = ({ signIn }) => (
+    <VisuallyHidden aria-live="polite">
+        {getAnnouncement(signIn)}
+    </VisuallyHidden>
+);
+
+export const MobileSignInStep: FC<{
+    signIn: SignIn;
+    qrPlaceholder?: ReactNode;
+}> = ({ signIn, qrPlaceholder }) => (
+    <Stack gap="sm">
+        <MobileSignInQr signIn={signIn} placeholder={qrPlaceholder} />
+        <MobileSignInDetails signIn={signIn} />
+        <MobileSignInStatus signIn={signIn} />
+    </Stack>
+);
