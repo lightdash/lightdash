@@ -1551,6 +1551,7 @@ describe.each([
             },
             'validateProjectCreationPermissions',
         ).mockResolvedValue(true);
+        vi.spyOn(f.service, 'getPreviewExpiresAt').mockResolvedValue(null);
         return { f, persist };
     };
     const create = (
@@ -1623,6 +1624,7 @@ describe.each([
         ['a changed tunnel host', { sshTunnelHost: 'other-bastion' }],
         ['a changed tunnel port', { sshTunnelPort: 2222 }],
         ['a changed tunnel user', { sshTunnelUser: 'other-user' }],
+        ['a different public key', { sshTunnelPublicKey: 'other-public-key' }],
     ])('does not carry the parent key to %s', async (_case, patch) => {
         const { f, persist } = build('pasted');
         await expect(
@@ -1651,5 +1653,112 @@ describe.each([
             sshTunnelPrivateKey: 'parent-private-key',
         });
         expect(f.sshKeyPairModel.find).not.toHaveBeenCalled();
+    });
+    test('does not inherit when the upstream project is gone', async () => {
+        const { f, persist } = build('legacy');
+        f.projectModel.getSummary.mockRejectedValue(
+            new NotFoundError('upstream not found'),
+        );
+        await expect(create(f)).rejects.toMatchObject({
+            statusCode: 400,
+            message: SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+        });
+        expect(persist).not.toHaveBeenCalled();
+    });
+    test('keeps a private key the preview sends itself', async () => {
+        const { f, persist } = build('pasted');
+        await expect(
+            create(f, {
+                warehouseConnection: {
+                    ...incoming,
+                    ...tunnel,
+                    sshTunnelPrivateKey: 'preview-private-key',
+                } as CreateWarehouseCredentials,
+            }),
+        ).rejects.toThrow(persistStop);
+        expect(persisted(persist)).toMatchObject({
+            sshTunnelPrivateKey: 'preview-private-key',
+        });
+        expectNoParentSecrets(persisted(persist));
+    });
+    test('copies nothing when the preview opts out of the tunnel', async () => {
+        const { f, persist } = build('pasted');
+        await expect(
+            create(f, {
+                warehouseConnection: {
+                    ...incoming,
+                    useSshTunnel: false,
+                } as CreateWarehouseCredentials,
+            }),
+        ).rejects.toThrow(persistStop);
+        expect(persisted(persist)).toMatchObject({ useSshTunnel: false });
+        expect(persisted(persist)).not.toHaveProperty('sshTunnelPrivateKey');
+        expectNoParentSecrets(persisted(persist));
+    });
+    test('copies nothing when the parent does not use the tunnel', async () => {
+        const { f, persist } = build('pasted');
+        f.projectModel.getWarehouseCredentialsForBinding.mockResolvedValue({
+            ...parent,
+            useSshTunnel: false,
+        } as CreateWarehouseCredentials);
+        await expect(create(f)).rejects.toThrow(persistStop);
+        expect(persisted(persist)).toMatchObject({ useSshTunnel: false });
+        expect(persisted(persist)).not.toHaveProperty('sshTunnelPrivateKey');
+        expectNoParentSecrets(persisted(persist));
+    });
+    test('keeps the inherited key out of the response and the logs', async () => {
+        const { f } = build('pasted');
+        const { logger } = f.service as unknown as {
+            logger: Record<string, (...args: unknown[]) => unknown>;
+        };
+        const levels = ['error', 'warn', 'info', 'debug', 'log'] as const;
+        const logged = [
+            ...levels.map((level) => vi.spyOn(logger, level)),
+            ...levels.map((level) => vi.spyOn(console, level)),
+        ];
+        const stubbed = [
+            'copyConnectionsFromMultiUpstream',
+            'copyPreviewDbtSources',
+            'recordPreviewCredentialOwnership',
+            'trackProjectCreated',
+            'runPostProjectCreationProvisioning',
+            'copyUserAccessOnPreview',
+        ].map((method) =>
+            vi
+                .spyOn(
+                    f.service as unknown as Record<string, () => Promise<null>>,
+                    method,
+                )
+                .mockResolvedValue(null),
+        );
+        const persist = vi.fn(async (..._args: unknown[]) => 'preview-uuid');
+        const { warehouseConnection: _secret, ...publicProject } = f.project;
+        Object.assign(f.projectModel, {
+            createWithOptionalCredentials: persist,
+            get: vi.fn(async () => publicProject),
+        });
+        try {
+            const response = await create(f, {
+                warehouseConnection: incoming,
+                copyContent: false,
+            });
+            expect(
+                (
+                    persist.mock.calls[0]?.[2] as {
+                        warehouseConnection?: CreateWarehouseCredentials;
+                    }
+                ).warehouseConnection,
+            ).toMatchObject({ sshTunnelPrivateKey: 'parent-private-key' });
+            expect(JSON.stringify(response)).not.toContain(
+                'parent-private-key',
+            );
+            for (const spy of logged) {
+                expect(JSON.stringify(spy.mock.calls)).not.toContain(
+                    'parent-private-key',
+                );
+            }
+        } finally {
+            [...logged, ...stubbed].forEach((spy) => spy.mockRestore());
+        }
     });
 });
