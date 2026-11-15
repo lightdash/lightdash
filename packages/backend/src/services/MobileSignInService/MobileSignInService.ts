@@ -432,7 +432,7 @@ export class MobileSignInService extends BaseService {
             user.userUuid,
         );
         if (!rate.allowed) {
-            this.logMintRateLimited(user, rate);
+            this.logMintRateLimited(user, rate, reason);
             throw new TooManyRequestsError('Too many sign-in codes', {
                 reason: MobileSignInRefusal.RATE_LIMITED,
                 retryAfterSeconds: rate.retryAfterSeconds,
@@ -634,10 +634,12 @@ export class MobileSignInService extends BaseService {
     private logMintRateLimited(
         user: SessionUser,
         rate: Extract<RateLimitResult, { allowed: false }>,
+        reason: MobileSignInMintReason,
     ): void {
         try {
             Logger.warn(MINT_RATE_LIMITED_LOG_MESSAGE, {
                 code: 'rate_limited',
+                reason,
                 retryAfterSeconds: rate.retryAfterSeconds,
                 version: VERSION,
                 buildHash: getFrontendBuildHash(),
@@ -648,7 +650,7 @@ export class MobileSignInService extends BaseService {
             });
         } catch (error) {
             try {
-                Logger.error(MINT_RATE_LIMITED_LOG_FAILURE_MESSAGE, {
+                Logger.warn(MINT_RATE_LIMITED_LOG_FAILURE_MESSAGE, {
                     errorName: error instanceof Error ? error.name : 'unknown',
                 });
             } catch {

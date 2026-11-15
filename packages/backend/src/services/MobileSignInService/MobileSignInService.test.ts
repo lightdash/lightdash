@@ -7,6 +7,7 @@ import {
     MobileSignInRefusal,
     NotFoundError,
     TooManyRequestsError,
+    type MobileSignInMintReason,
     type SessionUser,
 } from '@lightdash/common';
 import { createHash, randomBytes } from 'crypto';
@@ -369,15 +370,25 @@ describe('MobileSignInService.mint rate limit log record', () => {
         }
     };
 
-    const refuse = (service: MobileSignInService, user: SessionUser) =>
+    const refuse = (
+        service: MobileSignInService,
+        user: SessionUser,
+        reason: MobileSignInMintReason = 'auto_refresh',
+    ) =>
         service
-            .mint(user, 'session-0000', 'auto_refresh')
+            .mint(user, 'session-0000', reason)
             .catch((caught: unknown) => caught);
 
     const rateLimitedCalls = (spy: MockInstance) =>
         (spy.mock.calls as [string, Record<string, unknown>][]).filter(
             ([message]) =>
                 message === 'Mobile sign-in code minting rate limited',
+        );
+
+    const failureReportCalls = (spy: MockInstance) =>
+        (spy.mock.calls as [string, Record<string, unknown>][]).filter(
+            ([message]) =>
+                message === 'Failed to log mobile sign-in mint rate limit',
         );
 
     let warn: MockInstance;
@@ -423,6 +434,7 @@ describe('MobileSignInService.mint rate limit log record', () => {
                 'attempts',
                 'buildHash',
                 'code',
+                'reason',
                 'retryAfterSeconds',
                 'timestamp',
                 'version',
@@ -431,6 +443,7 @@ describe('MobileSignInService.mint rate limit log record', () => {
         );
         expect(record).toMatchObject({
             code: 'rate_limited',
+            reason: 'auto_refresh',
             retryAfterSeconds: 3582,
             attempts: 41,
             windowStartedAt: '2026-11-09T12:00:00.000Z',
@@ -442,6 +455,18 @@ describe('MobileSignInService.mint rate limit log record', () => {
         expect(typeof record.version).toBe('string');
         expect((record.version as string).length).toBeGreaterThan(0);
         expect(record.accountHandle).toMatch(/^[0-9a-f]{16}$/);
+    });
+
+    it('records the mint reason the client sent', async () => {
+        const { service } = createService({ rateAllowed: false });
+        await refuse(service, sessionUser, 'show');
+        await refuse(service, sessionUser, 'auto_refresh');
+
+        expect(
+            rateLimitedCalls(warn).map(
+                ([, record]) => (record as { reason: string }).reason,
+            ),
+        ).toEqual(['show', 'auto_refresh']);
     });
 
     it('logs one record per refusal and counts denied attempts', async () => {
@@ -540,11 +565,14 @@ describe('MobileSignInService.mint rate limit log record', () => {
             });
         };
 
-        it('still refuses with the same 429 when the logger throws', async () => {
-            warn.mockImplementation(() => {
-                throw new Error(
-                    `logger down for ${userUuid} ${sessionUser.email}`,
-                );
+        it('still refuses with the same 429 when the logger throws and reports the failure at warn level', async () => {
+            warn.mockImplementation((message: unknown) => {
+                if (message === 'Mobile sign-in code minting rate limited') {
+                    throw new Error(
+                        `logger down for ${userUuid} ${sessionUser.email}`,
+                    );
+                }
+                return Logger;
             });
             const { service, mobileSignInCodeModel } = createService({
                 rateAllowed: false,
@@ -554,12 +582,16 @@ describe('MobileSignInService.mint rate limit log record', () => {
 
             expectUnchangedRefusal(error);
             expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
-            expect(errorSpy).toHaveBeenCalledTimes(1);
-            expect(errorSpy).toHaveBeenCalledWith(
-                'Failed to log mobile sign-in mint rate limit',
-                { errorName: 'Error' },
-            );
-            const serialised = JSON.stringify(errorSpy.mock.calls);
+            expect(rateLimitedCalls(warn)).toHaveLength(1);
+            const failureCalls = failureReportCalls(warn);
+            expect(failureCalls).toEqual([
+                [
+                    'Failed to log mobile sign-in mint rate limit',
+                    { errorName: 'Error' },
+                ],
+            ]);
+            expect(errorSpy).not.toHaveBeenCalled();
+            const serialised = JSON.stringify(failureCalls);
             expect(serialised).not.toContain(userUuid);
             expect(serialised).not.toContain(sessionUser.email!);
         });
@@ -574,19 +606,25 @@ describe('MobileSignInService.mint rate limit log record', () => {
 
             expectUnchangedRefusal(error);
             expect(rateLimitedCalls(warn)).toHaveLength(0);
-            expect(errorSpy).toHaveBeenCalledTimes(1);
+            expect(failureReportCalls(warn)).toEqual([
+                [
+                    'Failed to log mobile sign-in mint rate limit',
+                    { errorName: 'TypeError' },
+                ],
+            ]);
+            expect(errorSpy).not.toHaveBeenCalled();
         });
 
         it('still refuses with the same 429 when the failure report also throws', async () => {
             warn.mockImplementation(() => {
                 throw new Error('logger down');
             });
-            errorSpy.mockImplementation(() => {
-                throw new Error('logger down');
-            });
             const { service } = createService({ rateAllowed: false });
 
             expectUnchangedRefusal(await refuse(service, sessionUser));
+            expect(rateLimitedCalls(warn)).toHaveLength(1);
+            expect(failureReportCalls(warn)).toHaveLength(1);
+            expect(errorSpy).not.toHaveBeenCalled();
         });
     });
 });
