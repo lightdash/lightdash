@@ -34,6 +34,7 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // scope authoritative. Opt-in only; QA enables via feature_flag_overrides.
     CommercialFeatureFlags.PatScopeAuthoritative,
     FeatureFlags.EnableTimezoneSupport,
+    FeatureFlags.MobileSignInSourceProject,
 ]);
 
 export const ALL_FEATURE_FLAG_IDS: readonly string[] = [

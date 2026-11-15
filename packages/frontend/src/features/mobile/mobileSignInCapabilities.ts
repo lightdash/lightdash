@@ -27,7 +27,10 @@ export const supportsMobileSignInSourceProject = async (): Promise<boolean> => {
         return await Promise.race([
             discovery,
             new Promise<boolean>((resolve) => {
-                timeout = setTimeout(() => resolve(false), DISCOVERY_TIMEOUT_MS);
+                timeout = setTimeout(
+                    () => resolve(false),
+                    DISCOVERY_TIMEOUT_MS,
+                );
             }),
         ]);
     } catch {

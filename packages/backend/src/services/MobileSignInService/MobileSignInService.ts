@@ -1034,7 +1034,7 @@ export class MobileSignInService extends BaseService {
                 codeUuid: row.mobile_sign_in_code_uuid,
                 clientId: row.client_id,
                 reportedPlatform: row.reported_platform,
-                sourceProjectUuid: row.source_project_uuid ?? null,
+                sourceProjectUuid: row.sign_in_source_project_uuid ?? null,
             },
         };
     }

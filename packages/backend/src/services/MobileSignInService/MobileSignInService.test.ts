@@ -146,17 +146,15 @@ const createService = ({
         mobileAppLinkModel: { incrementRateCounter, getRateCount },
         now,
         featureFlagModel: featureFlagModel ?? {
-            get: vi.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId === 'mobile-sign-in-source-project'
-                            ? sourceProjectEnabled
-                            : featureFlagId === 'mobile-qr-sign-in'
-                              ? qrSignInEnabled
-                              : flagEnabled,
-                }),
-            ),
+            get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => {
+                let enabled = flagEnabled;
+                if (featureFlagId === 'mobile-sign-in-source-project') {
+                    enabled = sourceProjectEnabled;
+                } else if (featureFlagId === 'mobile-qr-sign-in') {
+                    enabled = qrSignInEnabled;
+                }
+                return { id: featureFlagId, enabled };
+            }),
         },
         userModel,
         oauthModel: { getClient: vi.fn(async () => client as never) },
@@ -2091,22 +2089,29 @@ describe('MobileSignInService source project contract', () => {
         type: ProjectType.DEFAULT,
     } as Project;
 
-    it.each([undefined, null])('keeps legacy minting for %s', async (source) => {
-        const getProject = vi.fn();
-        const { service, mobileSignInCodeModel } = createService({ getProject });
-        await service.mint(sessionUser, 'session', 'show', source);
-        expect(getProject).not.toHaveBeenCalled();
-        expect(mobileSignInCodeModel.mint).toHaveBeenCalledWith({
-            userUuid,
-            organizationUuid,
-            sessionId: 'session',
-            sourceProjectUuid: null,
-        });
-    });
+    it.each([undefined, null])(
+        'keeps legacy minting for %s',
+        async (source) => {
+            const getProject = vi.fn();
+            const { service, mobileSignInCodeModel } = createService({
+                getProject,
+            });
+            await service.mint(sessionUser, 'session', 'show', source);
+            expect(getProject).not.toHaveBeenCalled();
+            expect(mobileSignInCodeModel.mint).toHaveBeenCalledWith({
+                userUuid,
+                organizationUuid,
+                sessionId: 'session',
+                sourceProjectUuid: null,
+            });
+        },
+    );
 
     it('validates access and stores the canonical project with advertising off', async () => {
         const getProject = vi.fn().mockResolvedValue(project);
-        const { service, mobileSignInCodeModel } = createService({ getProject });
+        const { service, mobileSignInCodeModel } = createService({
+            getProject,
+        });
         await service.mint(
             sessionUser,
             'session',
@@ -2157,14 +2162,19 @@ describe('MobileSignInService source project contract', () => {
         { ...project, organizationUuid: 'other-org' },
         { ...project, type: ProjectType.PREVIEW },
         { ...project, type: ProjectType.TRAINING },
-    ])('rejects a source outside the organisation or DEFAULT type', async (invalidProject) => {
-        const getProject = vi.fn().mockResolvedValue(invalidProject);
-        const { service, mobileSignInCodeModel } = createService({ getProject });
-        await expect(
-            service.mint(sessionUser, 'session', 'show', sourceProjectUuid),
-        ).rejects.toBeInstanceOf(ParameterError);
-        expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
-    });
+    ])(
+        'rejects a source outside the organisation or DEFAULT type',
+        async (invalidProject) => {
+            const getProject = vi.fn().mockResolvedValue(invalidProject);
+            const { service, mobileSignInCodeModel } = createService({
+                getProject,
+            });
+            await expect(
+                service.mint(sessionUser, 'session', 'show', sourceProjectUuid),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+        },
+    );
 
     it.each([undefined, null, sourceProjectUuid])(
         'carries only stored source metadata on redeem: %s',
@@ -2173,7 +2183,10 @@ describe('MobileSignInService source project contract', () => {
                 model: {
                     redeem: vi.fn().mockResolvedValue({
                         outcome: 'redeemed',
-                        row: { ...codeRow, source_project_uuid: source },
+                        row: {
+                            ...codeRow,
+                            sign_in_source_project_uuid: source,
+                        },
                     }),
                 },
             });
@@ -2194,10 +2207,14 @@ describe('MobileSignInService source project contract', () => {
     it.each([false, true])(
         'advertises only static support when enabled=%s',
         async (enabled) => {
-            const { service } = createService({ sourceProjectEnabled: enabled });
+            const { service } = createService({
+                sourceProjectEnabled: enabled,
+            });
             expect(await service.getCapabilities()).toEqual({
                 schemaVersion: 1,
-                capabilities: enabled ? { mobile_sign_in_source_project: 1 } : {},
+                capabilities: enabled
+                    ? { mobile_sign_in_source_project: 1 }
+                    : {},
             });
         },
     );

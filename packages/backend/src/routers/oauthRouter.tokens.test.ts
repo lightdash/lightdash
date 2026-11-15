@@ -10,8 +10,8 @@ import { getTracker, MockClient } from 'knex-mock-client';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { OAuth2Model } from '../models/OAuth2Model';
 import type { UserModel } from '../models/UserModel';
-import { OAuthService } from '../services/OAuthService/OAuthService';
 import * as mobileGrant from '../services/OAuthService/managedSignIn/microsoftTokenExchangeGrantType';
+import { OAuthService } from '../services/OAuthService/OAuthService';
 import oauthRouter from './oauthRouter';
 
 const config = {
@@ -56,7 +56,9 @@ const callRoute = async (
         body,
         services: {
             getOauthService: () => service,
-            getMobileSignInService: () => ({ getClientAddress: () => '127.0.0.1' }),
+            getMobileSignInService: () => ({
+                getClientAddress: () => '127.0.0.1',
+            }),
         },
     } as unknown as Request;
     const res = {
@@ -271,57 +273,65 @@ describe('source project token response contract', () => {
         { include: 'true', source: undefined, expected: false },
         { include: 'true', source: sourceProjectUuid, expected: true },
         { include: true, source: sourceProjectUuid, expected: true },
-    ])('keeps the response contract for $include and $source', async ({
-        include,
-        source,
-        expected,
-    }) => {
-        vi.spyOn(mobileGrant, 'getTokenRequestSourceProject').mockReturnValue(
-            source,
-        );
-        vi.spyOn(service, 'token').mockResolvedValue({
-            accessToken: 'access',
-            refreshToken: 'refresh',
-            scope: ['read'],
-            client: { id: 'mobile', grants: [TOKEN_EXCHANGE_GRANT_TYPE] },
-            user: { userId: 42 },
-        });
-        const res = await callRoute('/token', {
-            ...mobileRequest,
-            ...(include === undefined ? {} : { include_source_project: include }),
-        });
-        expect(JSON.stringify(res.json.mock.calls[0][0])).toBe(
-            JSON.stringify({
-                access_token: 'access',
-                token_type: 'Bearer',
-                refresh_token: 'refresh',
-                scope: 'read',
-                ...(expected ? { source_project_uuid: sourceProjectUuid } : {}),
-            }),
-        );
-    });
+    ])(
+        'keeps the response contract for $include and $source',
+        async ({ include, source, expected }) => {
+            vi.spyOn(
+                mobileGrant,
+                'getTokenRequestSourceProject',
+            ).mockReturnValue(source);
+            vi.spyOn(service, 'token').mockResolvedValue({
+                accessToken: 'access',
+                refreshToken: 'refresh',
+                scope: ['read'],
+                client: { id: 'mobile', grants: [TOKEN_EXCHANGE_GRANT_TYPE] },
+                user: { userId: 42 },
+            });
+            const res = await callRoute('/token', {
+                ...mobileRequest,
+                ...(include === undefined
+                    ? {}
+                    : { include_source_project: include }),
+            });
+            expect(JSON.stringify(res.json.mock.calls[0][0])).toBe(
+                JSON.stringify({
+                    access_token: 'access',
+                    token_type: 'Bearer',
+                    refresh_token: 'refresh',
+                    scope: 'read',
+                    ...(expected
+                        ? { source_project_uuid: sourceProjectUuid }
+                        : {}),
+                }),
+            );
+        },
+    );
 
     it.each([
         { ...mobileRequest, grant_type: 'refresh_token' },
         { ...mobileRequest, subject_token_type: 'other' },
         { grant_type: 'authorization_code', subject_token_type: 'other' },
-    ])('does not add source context to another grant: %j', async (requestBody) => {
-        vi.spyOn(mobileGrant, 'getTokenRequestSourceProject').mockReturnValue(
-            sourceProjectUuid,
-        );
-        vi.spyOn(service, 'token').mockResolvedValue({
-            accessToken: 'access',
-            refreshToken: 'refresh',
-            scope: ['read'],
-            client: { id: 'client', grants: ['refresh_token'] },
-            user: { userId: 42 },
-        });
-        const res = await callRoute('/token', {
-            ...requestBody,
-            include_source_project: 'true',
-        });
-        expect(res.json.mock.calls[0][0]).not.toHaveProperty(
-            'source_project_uuid',
-        );
-    });
+    ])(
+        'does not add source context to another grant: %j',
+        async (requestBody) => {
+            vi.spyOn(
+                mobileGrant,
+                'getTokenRequestSourceProject',
+            ).mockReturnValue(sourceProjectUuid);
+            vi.spyOn(service, 'token').mockResolvedValue({
+                accessToken: 'access',
+                refreshToken: 'refresh',
+                scope: ['read'],
+                client: { id: 'client', grants: ['refresh_token'] },
+                user: { userId: 42 },
+            });
+            const res = await callRoute('/token', {
+                ...requestBody,
+                include_source_project: 'true',
+            });
+            expect(res.json.mock.calls[0][0]).not.toHaveProperty(
+                'source_project_uuid',
+            );
+        },
+    );
 });

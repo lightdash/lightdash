@@ -16,7 +16,7 @@ export type DbMobileSignInCode = {
     code_hash: string;
     user_uuid: string;
     organization_uuid: string;
-    source_project_uuid: string | null;
+    sign_in_source_project_uuid: string | null;
     session_id_hash: string;
     approval_nonce_hash: string;
     status: DbMobileSignInCodeStatus;
@@ -42,7 +42,7 @@ type DbMobileSignInCodeInsert = Pick<
     | 'organization_uuid'
     | 'session_id_hash'
     | 'approval_nonce_hash'
-    | 'source_project_uuid'
+    | 'sign_in_source_project_uuid'
 > & {
     expires_at: Date | Knex.Raw;
 };
@@ -50,7 +50,7 @@ type DbMobileSignInCodeInsert = Pick<
 type Updatable<T> = { [K in keyof T]?: T[K] | Knex.Raw };
 
 type DbMobileSignInCodeUpdate = Updatable<
-    Omit<DbMobileSignInCode, 'source_project_uuid'>
+    Omit<DbMobileSignInCode, 'sign_in_source_project_uuid'>
 >;
 
 export type MobileSignInCodesTable = Knex.CompositeTableType<

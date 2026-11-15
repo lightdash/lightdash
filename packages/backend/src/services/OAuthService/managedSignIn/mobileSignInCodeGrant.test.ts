@@ -364,10 +364,14 @@ it.each([null, '12345678-1234-4abc-8abc-123456789abc'])(
         expect(getTokenRequestSourceProject(request)).toBe(
             sourceProjectUuid ?? undefined,
         );
-        expect(getTokenRequestSourceProject(createRequest(body))).toBeUndefined();
+        expect(
+            getTokenRequestSourceProject(createRequest(body)),
+        ).toBeUndefined();
         expect(token).not.toHaveProperty('source_project_uuid');
         expect(saveToken).toHaveBeenCalledWith(
-            expect.not.objectContaining({ source_project_uuid: expect.anything() }),
+            expect.not.objectContaining({
+                source_project_uuid: expect.anything(),
+            }),
             expect.anything(),
             expect.anything(),
         );

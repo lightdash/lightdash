@@ -153,7 +153,7 @@ export class MobileSignInCodeModel {
             code_hash: sha256(code),
             user_uuid: args.userUuid,
             organization_uuid: args.organizationUuid,
-            source_project_uuid: args.sourceProjectUuid ?? null,
+            sign_in_source_project_uuid: args.sourceProjectUuid ?? null,
             session_id_hash: sha256(args.sessionId),
             approval_nonce_hash: sha256(approvalNonce),
             expires_at: this.secondsFromNow(MOBILE_SIGN_IN_CODE_TTL_SECONDS),

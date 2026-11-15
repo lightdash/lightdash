@@ -828,37 +828,46 @@ describe('FeatureFlagModel', () => {
 });
 
 describe('mobile source project advertising', () => {
-    it.each([false, true])('is off by default with previews=%s', async (enabled) => {
-        const model = buildModel(
-            {
-                previewFeatureFlags: {
-                    ...lightdashConfigMock.previewFeatureFlags,
-                    enabled,
+    it.each([false, true])(
+        'is off by default with previews=%s',
+        async (enabled) => {
+            const model = buildModel(
+                {
+                    previewFeatureFlags: {
+                        ...lightdashConfigMock.previewFeatureFlags,
+                        enabled,
+                    },
                 },
-            },
-            buildFakeDatabase({}),
-        );
-        expect(
-            await model.get({
-                featureFlagId: FeatureFlags.MobileSignInSourceProject,
-            }),
-        ).toEqual({ id: FeatureFlags.MobileSignInSourceProject, enabled: false });
-    });
+                buildFakeDatabase({}),
+            );
+            expect(
+                await model.get({
+                    featureFlagId: FeatureFlags.MobileSignInSourceProject,
+                }),
+            ).toEqual({
+                id: FeatureFlags.MobileSignInSourceProject,
+                enabled: false,
+            });
+        },
+    );
 
-    it.each([false, true])('uses the deployment database default: %s', async (enabled) => {
-        const model = buildModel(
-            {
-                previewFeatureFlags: {
-                    ...lightdashConfigMock.previewFeatureFlags,
-                    enabled: false,
+    it.each([false, true])(
+        'uses the deployment database default: %s',
+        async (enabled) => {
+            const model = buildModel(
+                {
+                    previewFeatureFlags: {
+                        ...lightdashConfigMock.previewFeatureFlags,
+                        enabled: false,
+                    },
                 },
-            },
-            buildFakeDatabase({ flag: { default_enabled: enabled } }),
-        );
-        expect(
-            await model.get({
-                featureFlagId: FeatureFlags.MobileSignInSourceProject,
-            }),
-        ).toEqual({ id: FeatureFlags.MobileSignInSourceProject, enabled });
-    });
+                buildFakeDatabase({ flag: { default_enabled: enabled } }),
+            );
+            expect(
+                await model.get({
+                    featureFlagId: FeatureFlags.MobileSignInSourceProject,
+                }),
+            ).toEqual({ id: FeatureFlags.MobileSignInSourceProject, enabled });
+        },
+    );
 });

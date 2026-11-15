@@ -185,7 +185,10 @@ beforeEach(() => {
     uninstallBridge = installFakeTimerBridge();
     setVisibility('visible');
     api.mockReset();
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('discovery unavailable')));
+    vi.stubGlobal(
+        'fetch',
+        vi.fn().mockRejectedValue(new Error('discovery unavailable')),
+    );
 });
 
 afterEach(() => {
@@ -634,20 +637,38 @@ describe('source project discovery for each mint', () => {
         null,
         {},
         { schemaVersion: 1, capabilities: {} },
-        { schemaVersion: 2, capabilities: { mobile_sign_in_source_project: 1 } },
-        { schemaVersion: '1', capabilities: { mobile_sign_in_source_project: 1 } },
-        { schemaVersion: 1, capabilities: { mobile_sign_in_source_project: true } },
-        { schemaVersion: 1, capabilities: { mobile_sign_in_source_project: 2 } },
-        { schemaVersion: 1, capabilities: { mobile_sign_in_source_project: '1' } },
-    ])('falls back to the legacy mint for unknown support: %j', async (payload) => {
-        const server = mockServer();
-        discover(payload);
-        const { result } = renderSourceSignIn();
-        act(() => result.current.show());
-        await waitFor(() =>
-            expect(server.mints()).toEqual([{ reason: 'show' }]),
-        );
-    });
+        {
+            schemaVersion: 2,
+            capabilities: { mobile_sign_in_source_project: 1 },
+        },
+        {
+            schemaVersion: '1',
+            capabilities: { mobile_sign_in_source_project: 1 },
+        },
+        {
+            schemaVersion: 1,
+            capabilities: { mobile_sign_in_source_project: true },
+        },
+        {
+            schemaVersion: 1,
+            capabilities: { mobile_sign_in_source_project: 2 },
+        },
+        {
+            schemaVersion: 1,
+            capabilities: { mobile_sign_in_source_project: '1' },
+        },
+    ])(
+        'falls back to the legacy mint for unknown support: %j',
+        async (payload) => {
+            const server = mockServer();
+            discover(payload);
+            const { result } = renderSourceSignIn();
+            act(() => result.current.show());
+            await waitFor(() =>
+                expect(server.mints()).toEqual([{ reason: 'show' }]),
+            );
+        },
+    );
 
     it.each(['network', 'http', 'json', 'timeout'])(
         'never blocks mint on discovery failure: %s',

@@ -8,13 +8,13 @@ export const classification = {
 export async function up(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '60s'");
     await knex.schema.alterTable('mobile_sign_in_codes', (table) => {
-        table.uuid('source_project_uuid').nullable();
+        table.uuid('sign_in_source_project_uuid').nullable();
     });
 }
 
 export async function down(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '60s'");
     await knex.schema.alterTable('mobile_sign_in_codes', (table) => {
-        table.dropColumn('source_project_uuid');
+        table.dropColumn('sign_in_source_project_uuid');
     });
 }
