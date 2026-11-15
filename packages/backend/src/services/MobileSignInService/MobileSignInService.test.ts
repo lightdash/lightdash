@@ -9,7 +9,9 @@ import {
     TooManyRequestsError,
     type SessionUser,
 } from '@lightdash/common';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
+import type { MockInstance } from 'vitest';
+import Logger from '../../logging/logger';
 import { hashMobileAppLinkKey } from '../../models/MobileAppLinkModel';
 import {
     isMobileSignInCode,
@@ -58,7 +60,9 @@ const createService = ({
         redirectUris: ['com.lightdash.mobile://oauth/callback'],
     },
     now = () => new Date('2026-11-09T12:00:18.000Z'),
+    lightdashSecret = 'test-lightdash-secret-0000',
 }: {
+    lightdashSecret?: string;
     now?: () => Date;
     flagEnabled?: boolean;
     qrSignInEnabled?: boolean;
@@ -113,6 +117,7 @@ const createService = ({
             smtp: smtp ? ({} as never) : undefined,
             mode,
             trustProxy: true,
+            lightdashSecret,
         },
         mobileSignInCodeModel,
         mobileAppLinkModel: { incrementRateCounter, getRateCount },
@@ -335,6 +340,179 @@ describe('MobileSignInService.mint', () => {
             windowStartedAt: new Date('2026-11-09T12:00:00.000Z'),
         });
         expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+    });
+});
+
+describe('MobileSignInService.mint rate limit log record', () => {
+    const fixtureIp = '203.0.113.77';
+    const nonce = 'nonce-0000-test';
+    const secretStrings = [
+        userUuid,
+        organizationUuid,
+        sessionUser.email!,
+        code,
+        nonce,
+        verifier,
+        challenge,
+        fixtureIp,
+        'session-0000',
+    ];
+
+    const mintMany = async (
+        service: MobileSignInService,
+        user: SessionUser,
+        times: number,
+    ) => {
+        for (let i = 0; i < times; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            await service.mint(user, 'session-0000', 'auto_refresh');
+        }
+    };
+
+    const refuse = (service: MobileSignInService, user: SessionUser) =>
+        service
+            .mint(user, 'session-0000', 'auto_refresh')
+            .catch((caught: unknown) => caught);
+
+    const rateLimitedCalls = (spy: MockInstance) =>
+        (spy.mock.calls as [string, Record<string, unknown>][]).filter(
+            ([message]) =>
+                message === 'Mobile sign-in code minting rate limited',
+        );
+
+    let warn: MockInstance;
+
+    beforeEach(() => {
+        warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+    });
+
+    afterEach(() => {
+        warn.mockRestore();
+    });
+
+    it('logs no record for allowed mints, including the 40th', async () => {
+        const { service } = createService();
+        await mintMany(service, sessionUser, 40);
+        expect(rateLimitedCalls(warn)).toHaveLength(0);
+    });
+
+    it('logs exactly one structured record on the 41st attempt and leaves the error unchanged', async () => {
+        const { service, mobileSignInCodeModel } = createService();
+        await mintMany(service, sessionUser, 40);
+
+        const error = await refuse(service, sessionUser);
+
+        expect(error).toBeInstanceOf(TooManyRequestsError);
+        expect((error as TooManyRequestsError).statusCode).toBe(429);
+        expect((error as TooManyRequestsError).message).toBe(
+            'Too many sign-in codes',
+        );
+        expect((error as TooManyRequestsError).data).toEqual({
+            reason: MobileSignInRefusal.RATE_LIMITED,
+            retryAfterSeconds: 3582,
+        });
+        expect(mobileSignInCodeModel.mint).toHaveBeenCalledTimes(40);
+
+        const calls = rateLimitedCalls(warn);
+        expect(calls).toHaveLength(1);
+        const [message, record] = calls[0] as [string, Record<string, unknown>];
+        expect(message).toBe('Mobile sign-in code minting rate limited');
+        expect(Object.keys(record).sort()).toEqual(
+            [
+                'accountHandle',
+                'attempts',
+                'buildHash',
+                'code',
+                'retryAfterSeconds',
+                'timestamp',
+                'version',
+                'windowStartedAt',
+            ].sort(),
+        );
+        expect(record).toMatchObject({
+            code: 'rate_limited',
+            retryAfterSeconds: 3582,
+            attempts: 41,
+            windowStartedAt: '2026-11-09T12:00:00.000Z',
+            timestamp: '2026-11-09T12:00:18.000Z',
+        });
+        expect(record.retryAfterSeconds).toBe(
+            (error as TooManyRequestsError).data.retryAfterSeconds,
+        );
+        expect(typeof record.version).toBe('string');
+        expect((record.version as string).length).toBeGreaterThan(0);
+        expect(record.accountHandle).toMatch(/^[0-9a-f]{16}$/);
+    });
+
+    it('logs one record per refusal and counts denied attempts', async () => {
+        const { service } = createService();
+        await mintMany(service, sessionUser, 40);
+        await refuse(service, sessionUser);
+        await refuse(service, sessionUser);
+
+        const calls = rateLimitedCalls(warn);
+        expect(calls).toHaveLength(2);
+        expect(
+            calls.map(
+                ([, record]) => (record as { attempts: number }).attempts,
+            ),
+        ).toEqual([41, 42]);
+    });
+
+    it('uses a keyed, stable handle that differs per user and from a plain hash', async () => {
+        const other = {
+            ...sessionUser,
+            userUuid: 'user-1111-other',
+            email: 'other-user@example.test',
+        } as SessionUser;
+        const handles: string[] = [];
+        for (const [user, lightdashSecret] of [
+            [sessionUser, 'test-lightdash-secret-0000'],
+            [sessionUser, 'test-lightdash-secret-0000'],
+            [other, 'test-lightdash-secret-0000'],
+            [sessionUser, 'different-secret-1111'],
+        ] as const) {
+            warn.mockClear();
+            const { service } = createService({
+                rateAllowed: false,
+                lightdashSecret,
+            });
+            // eslint-disable-next-line no-await-in-loop
+            await refuse(service, user);
+            const [[, record]] = rateLimitedCalls(warn) as [
+                [string, { accountHandle: string }],
+            ];
+            handles.push(record.accountHandle);
+        }
+        const [first, again, otherUser, otherSecret] = handles;
+        expect(first).toMatch(/^[0-9a-f]{16}$/);
+        expect(again).toBe(first);
+        expect(otherUser).not.toBe(first);
+        expect(otherSecret).not.toBe(first);
+        const plain = createHash('sha256').update(userUuid).digest('hex');
+        expect(first).not.toBe(plain.slice(0, 16));
+    });
+
+    it('never puts an identifier or secret in the record or the logger arguments', async () => {
+        const { service } = createService();
+        await mintMany(service, sessionUser, 40);
+        await refuse(service, sessionUser);
+
+        const serialisedCalls = JSON.stringify(warn.mock.calls);
+        const [[, record]] = rateLimitedCalls(warn);
+        const serialisedRecord = JSON.stringify(record);
+        secretStrings.forEach((secret) => {
+            expect(serialisedCalls).not.toContain(secret);
+            expect(serialisedRecord).not.toContain(secret);
+        });
+        expect(serialisedCalls).not.toContain('test-lightdash-secret-0000');
+        expect(serialisedCalls).not.toMatch(/\b\d{1,3}(\.\d{1,3}){3}\b/);
+    });
+
+    it('logs nothing when the mint is refused before the limiter', async () => {
+        const { service } = createService({ flagEnabled: false });
+        await refuse(service, sessionUser);
+        expect(rateLimitedCalls(warn)).toHaveLength(0);
     });
 });
 

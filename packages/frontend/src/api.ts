@@ -264,6 +264,8 @@ const requestResponse = async <T extends ApiResponse>(
         },
     );
 
+    let rateLimitRetryAfter: string | null = null;
+
     return fetch(finalizeUrl(`${apiPrefix}${url}`, embed), {
         method,
         headers: finalizeHeaders(headers, embed, sentryTrace),
@@ -273,6 +275,8 @@ const requestResponse = async <T extends ApiResponse>(
         .then((r) => {
             recordServerBuildHash(r);
             if (!r.ok) {
+                rateLimitRetryAfter =
+                    r.status === 429 ? r.headers.get('Retry-After') : null;
                 return parseErrorBody(r).then((d) => {
                     throw d;
                 });
@@ -342,6 +346,9 @@ const requestResponse = async <T extends ApiResponse>(
                               0,
                               1000,
                           ),
+                          ...(rateLimitRetryAfter !== null && {
+                              retryAfter: rateLimitRetryAfter,
+                          }),
                       },
             );
             // only store last MAX_NETWORK_HISTORY requests
