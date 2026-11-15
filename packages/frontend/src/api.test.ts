@@ -360,10 +360,20 @@ describe('networkHistory rate limited requests', () => {
         networkHistory.length = 0;
     });
 
-    it('keeps the typed body and the Retry-After header of a 429 and rejects as before', async () => {
+    const bodyWithoutRetryAfterSeconds = {
+        status: 'error',
+        error: {
+            name: 'TooManyRequestsError',
+            statusCode: 429,
+            message: 'Too many requests',
+            data: {},
+        },
+    };
+
+    it('records the retry seconds from the typed 429 body with no Retry-After header and rejects as before', async () => {
         const scope = nock(BASE_API_URL)
             .post(`/api/v1${mintUrl}`)
-            .reply(429, rateLimitedBody, { 'Retry-After': '1800' });
+            .reply(429, rateLimitedBody);
 
         await expect(
             sharedLightdashApi({
@@ -388,10 +398,10 @@ describe('networkHistory rate limited requests', () => {
         );
     });
 
-    it('records no retry metadata when a 429 carries no Retry-After header', async () => {
+    it('prefers the typed body over a Retry-After header', async () => {
         const scope = nock(BASE_API_URL)
             .post(`/api/v1${mintUrl}`)
-            .reply(429, rateLimitedBody);
+            .reply(429, rateLimitedBody, { 'Retry-After': '60' });
 
         await expect(
             sharedLightdashApi({
@@ -403,10 +413,49 @@ describe('networkHistory rate limited requests', () => {
 
         scope.done();
 
+        expect(networkHistory[0]).toMatchObject({ retryAfter: '1800' });
+    });
+
+    it('falls back to the Retry-After header when the body carries no retry seconds', async () => {
+        const scope = nock(BASE_API_URL)
+            .post(`/api/v1${mintUrl}`)
+            .reply(429, bodyWithoutRetryAfterSeconds, { 'Retry-After': '60' });
+
+        await expect(
+            sharedLightdashApi({
+                method: 'POST',
+                url: mintUrl,
+                body: JSON.stringify({ reason: 'show' }),
+            }),
+        ).rejects.toEqual(bodyWithoutRetryAfterSeconds);
+
+        scope.done();
+
+        expect(networkHistory[0]).toMatchObject({
+            status: 429,
+            retryAfter: '60',
+        });
+    });
+
+    it('records no retry metadata when a 429 carries neither body seconds nor a Retry-After header', async () => {
+        const scope = nock(BASE_API_URL)
+            .post(`/api/v1${mintUrl}`)
+            .reply(429, bodyWithoutRetryAfterSeconds);
+
+        await expect(
+            sharedLightdashApi({
+                method: 'POST',
+                url: mintUrl,
+                body: JSON.stringify({ reason: 'show' }),
+            }),
+        ).rejects.toEqual(bodyWithoutRetryAfterSeconds);
+
+        scope.done();
+
         expect(networkHistory).toHaveLength(1);
         expect(networkHistory[0]).not.toHaveProperty('retryAfter');
         expect(JSON.parse(networkHistory[0].error)).toEqual(
-            rateLimitedBody.error,
+            bodyWithoutRetryAfterSeconds.error,
         );
     });
 
@@ -421,7 +470,7 @@ describe('networkHistory rate limited requests', () => {
                         name: 'UnexpectedServerError',
                         statusCode: 503,
                         message: 'Unavailable',
-                        data: {},
+                        data: { retryAfterSeconds: 30 },
                     },
                 },
                 { 'Retry-After': '30' },
