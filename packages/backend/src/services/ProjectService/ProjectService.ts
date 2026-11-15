@@ -16310,6 +16310,9 @@ export class ProjectService
                 subject('Project', {
                     organizationUuid: project.organizationUuid,
                     projectUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
                 }),
             )
         ) {
