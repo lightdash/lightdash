@@ -9,6 +9,7 @@ import type { MobileSignInService } from '../../MobileSignInService/MobileSignIn
 import type { ManagedSignInService } from './ManagedSignInService';
 import {
     createMicrosoftTokenExchangeGrantType,
+    getTokenRequestSourceProject,
     MobileSignInGrantError,
     setTokenRequestClientIp,
 } from './microsoftTokenExchangeGrantType';
@@ -49,6 +50,7 @@ const redemption = {
         codeUuid: 'code-0000-test',
         clientId: 'client-0000-test',
         reportedPlatform: 'ios',
+        sourceProjectUuid: null as string | null,
     },
 };
 
@@ -347,3 +349,27 @@ describe('mobile sign-in code grant scope', () => {
         expect(saveToken).not.toHaveBeenCalled();
     });
 });
+
+it.each([null, '12345678-1234-4abc-8abc-123456789abc'])(
+    'keeps source metadata on the exchange request only: %s',
+    async (sourceProjectUuid) => {
+        const { grant, saveToken } = createGrant({
+            redeem: vi.fn().mockResolvedValue({
+                ...redemption,
+                metadata: { ...redemption.metadata, sourceProjectUuid },
+            }),
+        });
+        const request = createRequest(body);
+        const token = await grant.handle(request, client);
+        expect(getTokenRequestSourceProject(request)).toBe(
+            sourceProjectUuid ?? undefined,
+        );
+        expect(getTokenRequestSourceProject(createRequest(body))).toBeUndefined();
+        expect(token).not.toHaveProperty('source_project_uuid');
+        expect(saveToken).toHaveBeenCalledWith(
+            expect.not.objectContaining({ source_project_uuid: expect.anything() }),
+            expect.anything(),
+            expect.anything(),
+        );
+    },
+);

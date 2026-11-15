@@ -8,6 +8,7 @@ import {
     isMobileSignInMintReason,
     MobileSignInRefusal,
     ParameterError,
+    type MintMobileSignInCodeRequest,
 } from '@lightdash/common';
 import {
     Body,
@@ -29,10 +30,6 @@ import { lightdashConfig } from '../config/lightdashConfig';
 import { isAuthenticated } from './authentication';
 import { hasApprovalBrowserSession } from './authentication/agentConnectionApproval';
 import { BaseController } from './baseController';
-
-type MintMobileSignInCodeRequest = {
-    reason: 'show' | 'auto_refresh';
-};
 
 type DecideMobileSignInCodeRequest = {
     nonce: string;
@@ -97,7 +94,12 @@ export class MobileSignInController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getMobileSignInService()
-                .mint(toSessionUser(req.account), sessionId, body.reason),
+                .mint(
+                    toSessionUser(req.account),
+                    sessionId,
+                    body.reason,
+                    body.sourceProjectUuid,
+                ),
         };
     }
 

@@ -468,3 +468,20 @@ fallback. Turning the flag off later
 does not hide tiles already added. Iframe embeds and the web app are not
 affected. Check an organisation's SDK versions in request logs before enabling:
 `sdkVersion`, or `clientVersion` for SDKs older than 0.2617.0.
+
+### Mobile sign-in source project
+
+`mobile-sign-in-source-project` is off by default, including previews. It only
+controls static advertising at `GET /api/v1/mobile/sign-in-capabilities`.
+This anonymous endpoint resolves the deployment default without user or
+organisation context. Set the instance default in Console or use the generic
+ENV enable list. User and organisation overrides do not apply. The normal ENV
+precedence applies; ENV changes need an API restart. Database changes apply to
+the next discovery request. Responses have `Cache-Control: no-store`.
+
+Mint and mobile token exchange accept the optional fields with advertising off.
+Mint validates project access, organisation and DEFAULT type. Token exchange
+returns stored context only when `include_source_project=true`. Disabling the
+flag does not change issued codes or tokens. The web makes one uncached,
+bounded discovery request for each mint attempt and falls back to the legacy
+mint shape on any unknown or failed result. It retains no positive result.

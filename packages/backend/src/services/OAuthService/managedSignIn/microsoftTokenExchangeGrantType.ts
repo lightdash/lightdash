@@ -35,6 +35,12 @@ export class MobileSignInGrantError extends OAuthError {
     }
 }
 
+const tokenRequestSourceProjects = new WeakMap<OAuth2Server.Request, string>();
+
+export const getTokenRequestSourceProject = (
+    request: OAuth2Server.Request,
+): string | undefined => tokenRequestSourceProjects.get(request);
+
 const tokenRequestClientIps = new WeakMap<OAuth2Server.Request, string>();
 
 export const setTokenRequestClientIp = (
@@ -183,6 +189,12 @@ export const createMicrosoftTokenExchangeGrantType = (
                     },
                     mobileContext,
                 );
+                if (redemption.metadata.sourceProjectUuid) {
+                    tokenRequestSourceProjects.set(
+                        request,
+                        redemption.metadata.sourceProjectUuid,
+                    );
+                }
                 return {
                     user: redemption.user,
                     onIssued: () =>

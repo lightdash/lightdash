@@ -180,6 +180,42 @@ describe('MobileSignInCodeModel (PostgreSQL)', () => {
         ).toBeGreaterThan(100);
     });
 
+    it('keeps source metadata through claim, approval and redemption', async () => {
+        const sourceProjectUuid = randomUUID();
+        const minted = await model.mint({
+            userUuid,
+            organizationUuid,
+            sessionId,
+            sourceProjectUuid,
+        });
+        expect((await row(minted.code))?.source_project_uuid).toBe(
+            sourceProjectUuid,
+        );
+        const claimed = await claim(minted.code);
+        if (claimed.outcome !== 'claimed') throw new Error('claim failed');
+        expect(claimed.row.source_project_uuid).toBe(sourceProjectUuid);
+        await approve(minted.codeUuid, minted.approvalNonce);
+        const redeemed = await redeem(minted.code, claimed.row.match_number!);
+        expect(redeemed.outcome).toBe('redeemed');
+        if (redeemed.outcome !== 'redeemed') throw new Error('redeem failed');
+        expect(redeemed.row.source_project_uuid).toBe(sourceProjectUuid);
+    });
+
+    it('stores null for old mint requests and resets context on replacement', async () => {
+        const old = await mint();
+        expect((await row(old.code))?.source_project_uuid).toBeNull();
+        const contextual = await model.mint({
+            userUuid,
+            organizationUuid,
+            sessionId,
+            sourceProjectUuid: randomUUID(),
+        });
+        expect(await row(old.code)).toBeUndefined();
+        const replacement = await mint();
+        expect(await row(contextual.code)).toBeUndefined();
+        expect((await row(replacement.code))?.source_project_uuid).toBeNull();
+    });
+
     it('lets exactly one of two racing claims win', async () => {
         const minted = await mint();
         const results = await Promise.all([

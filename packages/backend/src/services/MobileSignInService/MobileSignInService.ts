@@ -10,7 +10,10 @@ import {
     MobileSignInCodeStatus,
     MobileSignInRefusal,
     NotFoundError,
+    ParameterError,
+    ProjectType,
     TooManyRequestsError,
+    type MobileSignInCapabilities,
     type MobileSignInClaimResponse,
     type MobileSignInCode,
     type MobileSignInCodeState,
@@ -22,7 +25,9 @@ import {
 } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { type Request } from 'express';
+import { validate as isUuid } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { fromSession } from '../../auth/account/account';
 import { getFrontendBuildHash } from '../../buildHash';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -49,6 +54,7 @@ import { UserModel } from '../../models/UserModel';
 import { getClientAddress } from '../../utils/clientAddress';
 import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import type { UserService } from '../UserService';
 import { MobileSignInOAuthError } from './MobileSignInOAuthError';
 
@@ -175,6 +181,7 @@ export type MobileSignInRedemption = {
         codeUuid: string;
         clientId: string | null;
         reportedPlatform: string | null;
+        sourceProjectUuid: string | null;
     };
 };
 
@@ -193,6 +200,7 @@ type MobileSignInServiceArguments = {
     userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
     oauthModel: Pick<OAuth2Model, 'getClient'>;
     getUserService: () => Pick<UserService, 'getManagedSignIn'>;
+    getProjectService: () => Pick<ProjectService, 'getProject'>;
     analytics: Pick<LightdashAnalytics, 'track'>;
 };
 
@@ -222,6 +230,8 @@ export class MobileSignInService extends BaseService {
 
     private readonly analytics: MobileSignInServiceArguments['analytics'];
 
+    private readonly getProjectService: MobileSignInServiceArguments['getProjectService'];
+
     constructor(args: MobileSignInServiceArguments) {
         super({ serviceName: 'MobileSignInService' });
         this.lightdashConfig = args.lightdashConfig;
@@ -233,6 +243,7 @@ export class MobileSignInService extends BaseService {
         this.oauthModel = args.oauthModel;
         this.getUserService = args.getUserService;
         this.analytics = args.analytics;
+        this.getProjectService = args.getProjectService;
     }
 
     private track(
@@ -426,13 +437,48 @@ export class MobileSignInService extends BaseService {
         return null;
     }
 
+    async getCapabilities(): Promise<MobileSignInCapabilities> {
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.MobileSignInSourceProject,
+        });
+        return {
+            schemaVersion: 1,
+            capabilities: enabled ? { mobile_sign_in_source_project: 1 } : {},
+        };
+    }
+
     async mint(
         user: SessionUser,
         sessionId: string,
         reason: MobileSignInMintReason,
+        sourceProjectUuid?: string | null,
     ): Promise<MobileSignInCode> {
         const refusal = await this.refusal(user, MOBILE_PLATFORMS);
         if (refusal) throw MobileSignInService.refusalError(refusal);
+        let validatedSourceProjectUuid: string | null = null;
+        if (sourceProjectUuid !== undefined && sourceProjectUuid !== null) {
+            if (
+                typeof sourceProjectUuid !== 'string' ||
+                !isUuid(sourceProjectUuid)
+            ) {
+                throw new ParameterError(
+                    'sourceProjectUuid must be a project UUID',
+                );
+            }
+            const project = await this.getProjectService().getProject(
+                sourceProjectUuid,
+                fromSession(user, sessionId),
+            );
+            if (
+                project.type !== ProjectType.DEFAULT ||
+                project.organizationUuid !== user.organizationUuid
+            ) {
+                throw new ParameterError(
+                    'sourceProjectUuid must be an accessible default project',
+                );
+            }
+            validatedSourceProjectUuid = project.projectUuid;
+        }
         const rate = await this.consumeRate(
             MOBILE_SIGN_IN_RATE_LIMITS.mintPerUser,
             user.userUuid,
@@ -448,6 +494,7 @@ export class MobileSignInService extends BaseService {
             userUuid: user.userUuid,
             organizationUuid: user.organizationUuid!,
             sessionId,
+            sourceProjectUuid: validatedSourceProjectUuid,
         });
         const expiresInSeconds = Math.max(
             0,
@@ -987,6 +1034,7 @@ export class MobileSignInService extends BaseService {
                 codeUuid: row.mobile_sign_in_code_uuid,
                 clientId: row.client_id,
                 reportedPlatform: row.reported_platform,
+                sourceProjectUuid: row.source_project_uuid ?? null,
             },
         };
     }

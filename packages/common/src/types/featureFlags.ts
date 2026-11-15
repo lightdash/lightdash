@@ -260,6 +260,7 @@ export enum FeatureFlags {
      * endpoints. Off by default until an app release supports QR sign-in.
      */
     MobileQrSignIn = 'mobile-qr-sign-in',
+    MobileSignInSourceProject = 'mobile-sign-in-source-project',
     /**
      * Organization-scoped, off by default: BigQuery workload identity federation.
      * Only enable on instances whose pods run as their own Google service account.

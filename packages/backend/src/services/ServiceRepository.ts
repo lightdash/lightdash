@@ -834,6 +834,7 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     oauthModel: this.models.getOauthModel(),
                     getUserService: () => this.getUserService(),
+                    getProjectService: () => this.getProjectService(),
                     analytics: this.context.lightdashAnalytics,
                 }),
         );

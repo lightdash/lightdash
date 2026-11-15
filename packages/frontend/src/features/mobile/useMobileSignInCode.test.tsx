@@ -185,9 +185,11 @@ beforeEach(() => {
     uninstallBridge = installFakeTimerBridge();
     setVisibility('visible');
     api.mockReset();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('discovery unavailable')));
 });
 
 afterEach(() => {
+    vi.unstubAllGlobals();
     uninstallBridge();
     vi.useRealTimers();
 });
@@ -589,5 +591,117 @@ describe('useMobileSignInCode', () => {
         await waitFor(() => expect(server.mints()).toHaveLength(2));
         await advance(TTL_MS - 5000);
         expect(server.mints()).toHaveLength(2);
+    });
+});
+
+describe('source project discovery for each mint', () => {
+    const sourceProjectUuid = '12345678-1234-4abc-8abc-123456789abc';
+    const positive = {
+        schemaVersion: 1,
+        capabilities: { mobile_sign_in_source_project: 1 },
+    };
+    const discover = (payload: unknown, ok = true) => {
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok,
+            json: async () => payload,
+        });
+        vi.stubGlobal('fetch', fetchMock);
+        return fetchMock;
+    };
+    const renderSourceSignIn = () =>
+        renderHookWithProviders(() =>
+            useMobileSignInCode({ sourceProjectUuid }),
+        );
+
+    it('sends the active project only after exact positive uncached discovery', async () => {
+        const server = mockServer();
+        const fetchMock = discover(positive);
+        const { result } = renderSourceSignIn();
+        act(() => result.current.show());
+        await waitFor(() => expect(server.mints()).toHaveLength(1));
+        expect(server.mints()).toEqual([{ reason: 'show', sourceProjectUuid }]);
+        expect(fetchMock).toHaveBeenCalledWith(
+            expect.stringContaining('/api/v1/mobile/sign-in-capabilities'),
+            expect.objectContaining({
+                cache: 'no-store',
+                credentials: 'omit',
+                signal: expect.any(AbortSignal),
+            }),
+        );
+    });
+
+    it.each([
+        null,
+        {},
+        { schemaVersion: 1, capabilities: {} },
+        { schemaVersion: 2, capabilities: { mobile_sign_in_source_project: 1 } },
+        { schemaVersion: '1', capabilities: { mobile_sign_in_source_project: 1 } },
+        { schemaVersion: 1, capabilities: { mobile_sign_in_source_project: true } },
+        { schemaVersion: 1, capabilities: { mobile_sign_in_source_project: 2 } },
+        { schemaVersion: 1, capabilities: { mobile_sign_in_source_project: '1' } },
+    ])('falls back to the legacy mint for unknown support: %j', async (payload) => {
+        const server = mockServer();
+        discover(payload);
+        const { result } = renderSourceSignIn();
+        act(() => result.current.show());
+        await waitFor(() =>
+            expect(server.mints()).toEqual([{ reason: 'show' }]),
+        );
+    });
+
+    it.each(['network', 'http', 'json', 'timeout'])(
+        'never blocks mint on discovery failure: %s',
+        async (failure) => {
+            const server = mockServer();
+            const fetchMock = discover(positive, failure !== 'http');
+            if (failure === 'network') {
+                fetchMock.mockRejectedValue(new Error('offline'));
+            }
+            if (failure === 'json') {
+                fetchMock.mockResolvedValue({
+                    ok: true,
+                    json: async () => {
+                        throw new Error('invalid JSON');
+                    },
+                });
+            }
+            if (failure === 'timeout') {
+                fetchMock.mockReturnValue(new Promise(() => {}));
+            }
+            const { result } = renderSourceSignIn();
+            act(() => result.current.show());
+            if (failure === 'timeout') await advance(501);
+            await waitFor(() =>
+                expect(server.mints()).toEqual([{ reason: 'show' }]),
+            );
+        },
+    );
+
+    it('does not reuse a positive result for the next mint', async () => {
+        const server = mockServer();
+        const fetchMock = discover(positive);
+        const { result } = renderSourceSignIn();
+        act(() => result.current.show());
+        await waitFor(() => expect(server.mints()).toHaveLength(1));
+        act(() => result.current.hide());
+        fetchMock.mockRejectedValue(new Error('offline'));
+        act(() => result.current.show());
+        await waitFor(() => expect(server.mints()).toHaveLength(2));
+        expect(server.mints()).toEqual([
+            { reason: 'show', sourceProjectUuid },
+            { reason: 'show' },
+        ]);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not discover or send a field without an active project', async () => {
+        const server = mockServer();
+        const fetchMock = discover(positive);
+        const { result } = renderHookWithProviders(() => useMobileSignInCode());
+        act(() => result.current.show());
+        await waitFor(() =>
+            expect(server.mints()).toEqual([{ reason: 'show' }]),
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 });

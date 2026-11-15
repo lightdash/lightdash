@@ -144,6 +144,7 @@ export class MobileSignInCodeModel {
         userUuid: string;
         organizationUuid: string;
         sessionId: string;
+        sourceProjectUuid?: string | null;
     }): Promise<MintedMobileSignInCode> {
         const code = randomBytes(32).toString('base64url');
         const approvalNonce = randomBytes(32).toString('base64url');
@@ -152,6 +153,7 @@ export class MobileSignInCodeModel {
             code_hash: sha256(code),
             user_uuid: args.userUuid,
             organization_uuid: args.organizationUuid,
+            source_project_uuid: args.sourceProjectUuid ?? null,
             session_id_hash: sha256(args.sessionId),
             approval_nonce_hash: sha256(approvalNonce),
             expires_at: this.secondsFromNow(MOBILE_SIGN_IN_CODE_TTL_SECONDS),

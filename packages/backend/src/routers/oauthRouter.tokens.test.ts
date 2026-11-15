@@ -1,4 +1,8 @@
-import { CLI_PERSONAL_SESSION_LIFETIME_SECONDS } from '@lightdash/common';
+import {
+    CLI_PERSONAL_SESSION_LIFETIME_SECONDS,
+    MOBILE_SIGN_IN_CODE_TOKEN_TYPE,
+    TOKEN_EXCHANGE_GRANT_TYPE,
+} from '@lightdash/common';
 import { createHash } from 'crypto';
 import type { Request, RequestHandler, Response } from 'express';
 import knex from 'knex';
@@ -7,6 +11,7 @@ import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { OAuth2Model } from '../models/OAuth2Model';
 import type { UserModel } from '../models/UserModel';
 import { OAuthService } from '../services/OAuthService/OAuthService';
+import * as mobileGrant from '../services/OAuthService/managedSignIn/microsoftTokenExchangeGrantType';
 import oauthRouter from './oauthRouter';
 
 const config = {
@@ -31,7 +36,10 @@ const service = new OAuthService({
     userModel: {} as UserModel,
     oauthModel: model,
 });
-const callRoute = async (path: string, body: Record<string, string>) => {
+const callRoute = async (
+    path: string,
+    body: Record<string, string | boolean>,
+) => {
     const stack = oauthRouter.stack as {
         route?: { path: string; stack: { handle: RequestHandler }[] };
     }[];
@@ -46,7 +54,10 @@ const callRoute = async (path: string, body: Record<string, string>) => {
         },
         query: {},
         body,
-        services: { getOauthService: () => service },
+        services: {
+            getOauthService: () => service,
+            getMobileSignInService: () => ({ getClientAddress: () => '127.0.0.1' }),
+        },
     } as unknown as Request;
     const res = {
         json: vi.fn(),
@@ -245,3 +256,72 @@ it.each(['lightdash-cli', 'other-client'])(
         }
     },
 );
+
+describe('source project token response contract', () => {
+    const sourceProjectUuid = '12345678-1234-4abc-8abc-123456789abc';
+    const mobileRequest = {
+        grant_type: TOKEN_EXCHANGE_GRANT_TYPE,
+        subject_token_type: MOBILE_SIGN_IN_CODE_TOKEN_TYPE,
+    };
+    it.each([
+        { include: undefined, source: sourceProjectUuid, expected: false },
+        { include: 'false', source: sourceProjectUuid, expected: false },
+        { include: false, source: sourceProjectUuid, expected: false },
+        { include: '1', source: sourceProjectUuid, expected: false },
+        { include: 'true', source: undefined, expected: false },
+        { include: 'true', source: sourceProjectUuid, expected: true },
+        { include: true, source: sourceProjectUuid, expected: true },
+    ])('keeps the response contract for $include and $source', async ({
+        include,
+        source,
+        expected,
+    }) => {
+        vi.spyOn(mobileGrant, 'getTokenRequestSourceProject').mockReturnValue(
+            source,
+        );
+        vi.spyOn(service, 'token').mockResolvedValue({
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            scope: ['read'],
+            client: { id: 'mobile', grants: [TOKEN_EXCHANGE_GRANT_TYPE] },
+            user: { userId: 42 },
+        });
+        const res = await callRoute('/token', {
+            ...mobileRequest,
+            ...(include === undefined ? {} : { include_source_project: include }),
+        });
+        expect(JSON.stringify(res.json.mock.calls[0][0])).toBe(
+            JSON.stringify({
+                access_token: 'access',
+                token_type: 'Bearer',
+                refresh_token: 'refresh',
+                scope: 'read',
+                ...(expected ? { source_project_uuid: sourceProjectUuid } : {}),
+            }),
+        );
+    });
+
+    it.each([
+        { ...mobileRequest, grant_type: 'refresh_token' },
+        { ...mobileRequest, subject_token_type: 'other' },
+        { grant_type: 'authorization_code', subject_token_type: 'other' },
+    ])('does not add source context to another grant: %j', async (requestBody) => {
+        vi.spyOn(mobileGrant, 'getTokenRequestSourceProject').mockReturnValue(
+            sourceProjectUuid,
+        );
+        vi.spyOn(service, 'token').mockResolvedValue({
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            scope: ['read'],
+            client: { id: 'client', grants: ['refresh_token'] },
+            user: { userId: 42 },
+        });
+        const res = await callRoute('/token', {
+            ...requestBody,
+            include_source_project: 'true',
+        });
+        expect(res.json.mock.calls[0][0]).not.toHaveProperty(
+            'source_project_uuid',
+        );
+    });
+});
