@@ -124,6 +124,8 @@ type RateLimitResult =
 
 const MINT_RATE_LIMITED_LOG_MESSAGE =
     'Mobile sign-in code minting rate limited';
+const MINT_RATE_LIMITED_LOG_FAILURE_MESSAGE =
+    'Failed to log mobile sign-in mint rate limit';
 const MINT_RATE_LIMITED_HANDLE_LABEL = 'mobile-sign-in-429-log-handle:v1';
 const MINT_RATE_LIMITED_HANDLE_LENGTH = 16;
 
@@ -633,16 +635,26 @@ export class MobileSignInService extends BaseService {
         user: SessionUser,
         rate: Extract<RateLimitResult, { allowed: false }>,
     ): void {
-        Logger.warn(MINT_RATE_LIMITED_LOG_MESSAGE, {
-            code: 'rate_limited',
-            retryAfterSeconds: rate.retryAfterSeconds,
-            version: VERSION,
-            buildHash: getFrontendBuildHash(),
-            accountHandle: this.mintRateLimitedHandle(user.userUuid),
-            attempts: rate.attempts,
-            windowStartedAt: rate.windowStartedAt.toISOString(),
-            timestamp: this.now().toISOString(),
-        });
+        try {
+            Logger.warn(MINT_RATE_LIMITED_LOG_MESSAGE, {
+                code: 'rate_limited',
+                retryAfterSeconds: rate.retryAfterSeconds,
+                version: VERSION,
+                buildHash: getFrontendBuildHash(),
+                accountHandle: this.mintRateLimitedHandle(user.userUuid),
+                attempts: rate.attempts,
+                windowStartedAt: rate.windowStartedAt.toISOString(),
+                timestamp: this.now().toISOString(),
+            });
+        } catch (error) {
+            try {
+                Logger.error(MINT_RATE_LIMITED_LOG_FAILURE_MESSAGE, {
+                    errorName: error instanceof Error ? error.name : 'unknown',
+                });
+            } catch {
+                return;
+            }
+        }
     }
 
     private async consumeRate(

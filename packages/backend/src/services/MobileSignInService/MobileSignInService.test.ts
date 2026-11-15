@@ -514,6 +514,81 @@ describe('MobileSignInService.mint rate limit log record', () => {
         await refuse(service, sessionUser);
         expect(rateLimitedCalls(warn)).toHaveLength(0);
     });
+
+    describe('when writing the record fails', () => {
+        let errorSpy: MockInstance;
+
+        beforeEach(() => {
+            errorSpy = vi
+                .spyOn(Logger, 'error')
+                .mockImplementation(() => Logger);
+        });
+
+        afterEach(() => {
+            errorSpy.mockRestore();
+        });
+
+        const expectUnchangedRefusal = (error: unknown) => {
+            expect(error).toBeInstanceOf(TooManyRequestsError);
+            expect((error as TooManyRequestsError).statusCode).toBe(429);
+            expect((error as TooManyRequestsError).message).toBe(
+                'Too many sign-in codes',
+            );
+            expect((error as TooManyRequestsError).data).toEqual({
+                reason: MobileSignInRefusal.RATE_LIMITED,
+                retryAfterSeconds: 3582,
+            });
+        };
+
+        it('still refuses with the same 429 when the logger throws', async () => {
+            warn.mockImplementation(() => {
+                throw new Error(
+                    `logger down for ${userUuid} ${sessionUser.email}`,
+                );
+            });
+            const { service, mobileSignInCodeModel } = createService({
+                rateAllowed: false,
+            });
+
+            const error = await refuse(service, sessionUser);
+
+            expectUnchangedRefusal(error);
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+            expect(errorSpy).toHaveBeenCalledTimes(1);
+            expect(errorSpy).toHaveBeenCalledWith(
+                'Failed to log mobile sign-in mint rate limit',
+                { errorName: 'Error' },
+            );
+            const serialised = JSON.stringify(errorSpy.mock.calls);
+            expect(serialised).not.toContain(userUuid);
+            expect(serialised).not.toContain(sessionUser.email!);
+        });
+
+        it('still refuses with the same 429 when building the record throws', async () => {
+            const { service } = createService({
+                rateAllowed: false,
+                lightdashSecret: null as unknown as string,
+            });
+
+            const error = await refuse(service, sessionUser);
+
+            expectUnchangedRefusal(error);
+            expect(rateLimitedCalls(warn)).toHaveLength(0);
+            expect(errorSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('still refuses with the same 429 when the failure report also throws', async () => {
+            warn.mockImplementation(() => {
+                throw new Error('logger down');
+            });
+            errorSpy.mockImplementation(() => {
+                throw new Error('logger down');
+            });
+            const { service } = createService({ rateAllowed: false });
+
+            expectUnchangedRefusal(await refuse(service, sessionUser));
+        });
+    });
 });
 
 describe('MobileSignInService analytics', () => {
