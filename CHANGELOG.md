@@ -1,3 +1,10 @@
+## [3.261.1](https://github.com/lightdash/lightdash/compare/3.261.0...3.261.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* remove the phone QR panel after sign-in ([7b16298](https://github.com/lightdash/lightdash/commit/7b162981b0375c735c250a40746967eb156eaca9))
+
 # [3.261.0](https://github.com/lightdash/lightdash/compare/3.260.0...3.261.0) (2026-11-15)
 
 
