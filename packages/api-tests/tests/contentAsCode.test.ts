@@ -4,9 +4,12 @@ import {
     DashboardAsCode,
     SEED_PROJECT,
     SqlChartAsCode,
+    type ApiDashboardAsCodeListResponse,
+    type ApiDashboardAsCodeUpsertResponse,
 } from '@lightdash/common';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
+import { randomUUID } from 'node:crypto';
 import * as path from 'path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient } from '../helpers/api-client';
@@ -208,8 +211,12 @@ describe('Dashboards as Code API', () => {
         // uuid, and on download it is converted back to the slug.
         const controlUuid = '11111111-1111-4111-8111-111111111111';
         const targetSlug = 'how-many-orders-we-have-over-time';
+        const slug = `date-zoom-round-trip-${randomUUID()}`;
         const dashboardWithDateZoom = {
             ...dashboardAsCode,
+            name: 'Date zoom round-trip fixture',
+            slug,
+            skipSpaceCreate: true,
             config: {
                 isDateZoomDisabled: false,
                 dateZoomConfig: {
@@ -231,36 +238,44 @@ describe('Dashboards as Code API', () => {
             },
         };
 
-        const uploadResponse = await admin.post<any>(
-            `/api/v1/projects/${projectUuid}/code/dashboards/${dashboardAsCode.slug}`,
-            dashboardWithDateZoom,
-        );
+        const uploadResponse =
+            await admin.post<ApiDashboardAsCodeUpsertResponse>(
+                `/api/v1/projects/${projectUuid}/code/dashboards/${slug}`,
+                dashboardWithDateZoom,
+            );
         expect(uploadResponse.status).toBe(200);
-        expect(uploadResponse.body.results.dashboards[0].action).toBe('update');
+        const created = uploadResponse.body.results.dashboards[0];
+        expect(created.action).toBe('create');
+        expect(created.data.slug).toBe(slug);
 
-        const downloadResponse = await admin.get<any>(
-            `/api/v1/projects/${projectUuid}/code/dashboards?ids=${dashboardAsCode.slug}`,
-        );
-        expect(downloadResponse.status).toBe(200);
-        const downloaded = downloadResponse.body.results.dashboards[0];
+        try {
+            const downloadResponse =
+                await admin.get<ApiDashboardAsCodeListResponse>(
+                    `/api/v1/projects/${projectUuid}/code/dashboards?ids=${slug}`,
+                );
+            expect(downloadResponse.status).toBe(200);
+            const [downloaded] = downloadResponse.body.results.dashboards;
 
-        // Control definition survives, keyed by its own uuid
-        expect(downloaded.config.dateZoomConfig.controls).toEqual([
-            {
-                uuid: controlUuid,
-                name: 'Orders zoom',
-                granularity: 'Week',
-            },
-        ]);
+            // Control definition survives, keyed by its own uuid
+            expect(downloaded.config?.dateZoomConfig?.controls).toEqual([
+                {
+                    uuid: controlUuid,
+                    name: 'Orders zoom',
+                    granularity: 'Week',
+                },
+            ]);
 
-        // tileTargets survives the round-trip, re-keyed back to the tile slug
-        expect(downloaded.config.dateZoomConfig.tileTargets).toEqual({
-            [targetSlug]: {
-                controlUuid,
-                fieldId: 'orders_order_date',
-                tableName: 'orders',
-            },
-        });
+            // tileTargets survives the round-trip, re-keyed back to the tile slug
+            expect(downloaded.config?.dateZoomConfig?.tileTargets).toEqual({
+                [targetSlug]: {
+                    controlUuid,
+                    fieldId: 'orders_order_date',
+                    tableName: 'orders',
+                },
+            });
+        } finally {
+            await admin.delete(`/api/v1/dashboards/${created.data.uuid}`);
+        }
     });
 });
 
