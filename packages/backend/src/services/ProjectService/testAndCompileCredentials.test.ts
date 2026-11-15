@@ -15,6 +15,7 @@ import {
     type CreateDatabricksCredentials,
     type CreatePostgresCredentials,
     type CreateProject,
+    type CreateProjectOptionalCredentials,
     type CreateRedshiftCredentials,
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
@@ -1475,5 +1476,180 @@ describe.each([
             sshTunnelPrivateKey: 'parent-private-key',
         });
         expectNoParentSecrets(saved(f, 1));
+    });
+});
+
+describe.each([
+    {
+        name: 'Postgres',
+        incoming: {
+            type: WarehouseTypes.POSTGRES,
+            host: 'warehouse',
+            port: 5432,
+            dbname: 'analytics',
+            schema: 'preview',
+            user: 'developer',
+            password: 'fresh-password',
+        } satisfies CreatePostgresCredentials,
+    },
+    {
+        name: 'Redshift IAM',
+        incoming: {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'redshift',
+            port: 5439,
+            dbname: 'analytics',
+            schema: 'preview',
+            user: 'developer',
+            authenticationType: RedshiftAuthenticationType.IAM,
+            region: 'eu-west-1',
+            clusterIdentifier: 'cluster',
+            accessKeyId: 'fresh-key',
+            secretAccessKey: 'fresh-secret',
+            sessionToken: 'fresh-session',
+        } satisfies CreateRedshiftCredentials,
+    },
+])('preview CLI creation under a $name SSH tunnel parent', ({ incoming }) => {
+    const tunnel = {
+        useSshTunnel: true,
+        sshTunnelHost: 'bastion',
+        sshTunnelPort: 22,
+        sshTunnelUser: 'tunnel',
+        sshTunnelPublicKey: 'organization-public-key',
+    };
+    const parent = {
+        ...incoming,
+        ...tunnel,
+        password: 'parent-password',
+        accessKeyId: 'parent-key',
+        secretAccessKey: 'parent-secret',
+        sessionToken: 'parent-session',
+        sshTunnelPrivateKey: 'parent-private-key',
+    } as CreateWarehouseCredentials;
+    const persistStop = new Error('stop after preview persistence');
+    const build = (keyPair: 'owned' | 'legacy' | 'pasted' = 'pasted') => {
+        const f = setup(parent, { preview: true });
+        if (keyPair === 'legacy') {
+            f.sshKeyPairModel.find.mockResolvedValue({
+                publicKey: tunnel.sshTunnelPublicKey,
+                organizationUuid: null,
+                privateKey: 'legacy-pair-private-key',
+            });
+        }
+        if (keyPair === 'pasted') {
+            f.sshKeyPairModel.find.mockResolvedValue(null);
+        }
+        const persist = vi.fn(async (..._args: unknown[]) => {
+            throw persistStop;
+        });
+        Object.assign(f.projectModel, {
+            createWithOptionalCredentials: persist,
+        });
+        vi.spyOn(
+            f.service as unknown as {
+                validateProjectCreationPermissions: () => Promise<boolean>;
+            },
+            'validateProjectCreationPermissions',
+        ).mockResolvedValue(true);
+        return { f, persist };
+    };
+    const create = (
+        f: ReturnType<typeof setup>,
+        data: Partial<CreateProjectOptionalCredentials> = {
+            warehouseConnection: incoming,
+        },
+    ) =>
+        f.service.createWithoutCompile(
+            workerUser,
+            {
+                name: 'Preview',
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: 'upstream',
+                dbtConnection: { type: DbtProjectType.NONE },
+                dbtVersion: f.project.dbtVersion,
+                ...data,
+            } as CreateProjectOptionalCredentials,
+            RequestMethod.CLI,
+        );
+    const persisted = (persist: ReturnType<typeof build>['persist']) =>
+        (
+            persist.mock.calls[0]?.[2] as
+                | { warehouseConnection?: CreateWarehouseCredentials }
+                | undefined
+        )?.warehouseConnection;
+    const expectNoParentSecrets = (value: unknown) =>
+        expect(JSON.stringify(value ?? null)).not.toMatch(
+            /parent-(password|key|secret|session)"/,
+        );
+
+    test('carries the parent key for the inherited public key without a key-pair lookup', async () => {
+        const { f, persist } = build('owned');
+        await expect(create(f)).rejects.toThrow(persistStop);
+        expect(persisted(persist)).toMatchObject({
+            ...incoming,
+            ...tunnel,
+            sshTunnelPrivateKey: 'parent-private-key',
+        });
+        expect(f.sshKeyPairModel.find).not.toHaveBeenCalled();
+        expectNoParentSecrets(persisted(persist));
+    });
+    test.each(['legacy', 'pasted'] as const)(
+        'creates a preview from a %s key through the carried parent key',
+        async (keyPair) => {
+            const { f, persist } = build(keyPair);
+            await expect(create(f)).rejects.toThrow(persistStop);
+            expect(persisted(persist)).toMatchObject({
+                ...tunnel,
+                sshTunnelPrivateKey: 'parent-private-key',
+            });
+            expectNoParentSecrets(persisted(persist));
+        },
+    );
+    test('does not inherit from an upstream in another organisation', async () => {
+        const { f, persist } = build('legacy');
+        f.projectModel.getSummary.mockResolvedValue({
+            ...f.project,
+            organizationUuid: 'other-organisation',
+        });
+        await expect(create(f)).rejects.toMatchObject({
+            statusCode: 400,
+            message: SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+        });
+        expect(persist).not.toHaveBeenCalled();
+    });
+    test.each([
+        ['a changed warehouse host', { host: 'moved-warehouse' }],
+        ['a changed warehouse port', { port: 6543 }],
+        ['a changed tunnel host', { sshTunnelHost: 'other-bastion' }],
+        ['a changed tunnel port', { sshTunnelPort: 2222 }],
+        ['a changed tunnel user', { sshTunnelUser: 'other-user' }],
+    ])('does not carry the parent key to %s', async (_case, patch) => {
+        const { f, persist } = build('pasted');
+        await expect(
+            create(f, {
+                warehouseConnection: {
+                    ...incoming,
+                    ...patch,
+                } as CreateWarehouseCredentials,
+            }),
+        ).rejects.toMatchObject({
+            statusCode: 400,
+            message: SSH_TUNNEL_KEY_UNKNOWN_MESSAGE,
+        });
+        expect(persist).not.toHaveBeenCalled();
+    });
+    test('copies the parent connection with its key under --no-warehouse-credentials', async () => {
+        const { f, persist } = build('pasted');
+        await expect(
+            create(f, {
+                warehouseConnection: undefined,
+                copyWarehouseConnectionFromUpstreamProject: true,
+            }),
+        ).rejects.toThrow(persistStop);
+        expect(persisted(persist)).toMatchObject({
+            ...tunnel,
+            sshTunnelPrivateKey: 'parent-private-key',
+        });
+        expect(f.sshKeyPairModel.find).not.toHaveBeenCalled();
     });
 });
