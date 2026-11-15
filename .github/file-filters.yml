@@ -16,6 +16,7 @@ cli:
 
 frontend:
   - "packages/frontend/**/*"
+  - "packages/api-tests/helpers/composerDashboard.ts"
   - "packages/e2e/tests/app/**/*"
   - "packages/e2e/tests/api/**/*"
   - "packages/e2e/support/**/*"

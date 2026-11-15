@@ -14,6 +14,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiSourcePayload,
     type CacheMetadata,
+    type ComposerChartRunSource,
     type ConditionalFormattingConfig,
     type DashboardFilters,
     type DateZoom,
@@ -51,9 +52,38 @@ import type {
     QueryComposer,
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
+import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import type { MeteredApiConnector } from '../QuerySourceService/api/ApiConnector';
 import type { QueryPollingSource } from './queryPollingSource';
+
+/** Who vouches for a query's content: the caller, or a stored chart the caller may view. */
+export type RequestAuthority = { kind: 'request' };
+export type DocumentAuthority = {
+    kind: 'document';
+    context: DocumentQueryContext;
+};
+export type ComposerAuthority = {
+    kind: 'composer';
+    binding: ComposerRunBinding;
+};
+export type QueryRunAuthority =
+    | RequestAuthority
+    | DocumentAuthority
+    | ComposerAuthority;
+
+export const REQUEST_AUTHORITY: RequestAuthority = { kind: 'request' };
+
+export const getDocumentQueryContext = (
+    authority: QueryRunAuthority,
+): DocumentQueryContext | undefined =>
+    authority.kind === 'document' ? authority.context : undefined;
+
+/** The trusted stamp a bound composer run leaves on its query history row. */
+export const getComposerChartSource = (
+    authority: QueryRunAuthority,
+): ComposerChartRunSource | undefined =>
+    authority.kind === 'composer' ? authority.binding.stamp : undefined;
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
@@ -99,6 +129,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     expirationSecondsOverride?: number;
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
+    showSubtotals?: boolean;
 };
 
 export type ScheduleDownloadAsyncQueryResultsArgs = Omit<
@@ -117,7 +148,8 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
-    documentQueryContext?: DocumentQueryContext;
+    /** Absent means the caller's own query, under every write gate. */
+    authority?: QueryRunAuthority;
     metricQuery: MetricQuery;
     limit?: number | null | undefined;
     dataAppPreviewToken?: string;
@@ -208,6 +240,7 @@ export type PreAggregationRoute = {
 };
 
 export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
+    authority?: RequestAuthority | ComposerAuthority;
     sql: string;
     limit?: number;
     pivotConfiguration?: PivotConfiguration;
@@ -236,6 +269,7 @@ export type EstimateAsyncSqlQueryArgs = Pick<
 >;
 
 export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
+    authority?: RequestAuthority | ComposerAuthority;
     sql: string;
     limit?: number;
     /** Table name -> queryUuid of a previous async query to expose as that table. */
@@ -245,6 +279,7 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
+    authority?: RequestAuthority | ComposerAuthority;
     /** Python source defining run(inputs, params) -> pandas.DataFrame. */
     code: string;
     limit?: number;
@@ -268,7 +303,7 @@ export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
-    documentQueryContext?: DocumentQueryContext;
+    authority?: RequestAuthority | DocumentAuthority;
     mergeQuery: MergeQuery;
     mode: MergeQueryExecutionMode;
     chart?: MergeQueryChart;
@@ -502,6 +537,7 @@ export type QueryHistoryActor = {
 };
 
 export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
+    authority?: RequestAuthority | ComposerAuthority;
     sql: string;
     limit?: number;
     /** Table name -> queryUuid of a previous async query to expose as that table. */

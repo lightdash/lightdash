@@ -179,12 +179,7 @@ validate_slot_ports() {
     compute_ports "$slot"
 
     # Only check per-instance ports (shared services are not our concern)
-    local all_ports="$PG_PORT $API_PORT $SCHEDULER_PORT $DEBUG_PORT $SDK_TEST_PORT $MAPLE_PORT $PROMETHEUS_PORT"
-    # Amp reserves the declared portal port before this script runs. It is not
-    # an application listener, so allow the matching frontend slot in an orb.
-    if [ "${LD_FRONTEND_PORT_RESERVED:-}" != true ] || [ "$FRONTEND_PORT" != "${PORT:-}" ]; then
-        all_ports="$FRONTEND_PORT $all_ports"
-    fi
+    local all_ports="$FRONTEND_PORT $PG_PORT $API_PORT $SCHEDULER_PORT $DEBUG_PORT $SDK_TEST_PORT $MAPLE_PORT $PROMETHEUS_PORT"
 
     local port_list
     port_list=$(printf '%s\n' $all_ports | paste -sd, -)

@@ -7,6 +7,7 @@ import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 export const useTileVirtualViewSavedParameters = (
     tileUuid: string,
     explore: ApiExploreResults | undefined,
+    isMergedChart: boolean,
 ) => {
     const setTileVirtualViewSavedParameters = useDashboardContext(
         (c) => c.setTileVirtualViewSavedParameters,
@@ -18,9 +19,17 @@ export const useTileVirtualViewSavedParameters = (
     useEffect(() => {
         // While the explore loads, keep the listed values; a chart swap clears them in the store
         if (!isEnabled || !explore) return;
+        // A merged chart's other queries have explores this tile never loads: a partial answer
         setTileVirtualViewSavedParameters(
             tileUuid,
             explore.savedParameterValues ?? {},
+            isMergedChart,
         );
-    }, [explore, isEnabled, setTileVirtualViewSavedParameters, tileUuid]);
+    }, [
+        explore,
+        isEnabled,
+        isMergedChart,
+        setTileVirtualViewSavedParameters,
+        tileUuid,
+    ]);
 };

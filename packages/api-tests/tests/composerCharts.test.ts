@@ -4,9 +4,13 @@ import {
     FeatureFlags,
     FieldType,
     FilterOperator,
+    MergeJoinType,
     QuerySourceType,
     SEED_PROJECT,
     type ComposerChart,
+    type ComposerChartPipeline,
+    type ComposerChartRunRequest,
+    type ComposerChartRunResults,
     type CreateComposerChart,
     type Dashboard,
 } from '@lightdash/common';
@@ -19,11 +23,83 @@ import {
     loginAsEditor,
     loginAsViewer,
 } from '../helpers/auth';
+import {
+    apiClientSend,
+    composerChartBody,
+    composerTile as composerTileFor,
+    createComposerDashboard,
+} from '../helpers/composerDashboard';
 import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
 const projectUuid = SEED_PROJECT.project_uuid;
 const chartsUrl = `/api/v2/projects/${projectUuid}/composer-charts`;
 const flagUrl = `/api/v2/feature-flag/${FeatureFlags.ComposerCharts}`;
+
+const runRequest = (
+    dashboardUuid: string,
+    tileUuid: string,
+): ComposerChartRunRequest => ({
+    dashboardUuid,
+    tileUuid,
+    dashboardFilters: { dimensions: [], metrics: [], tableCalculations: [] },
+    parameters: {},
+    excludedParameterKeys: [],
+    invalidateCache: false,
+});
+
+// One node of every kind a viewer may not write themselves, except python,
+// whose sandbox previews do not run
+const everyKindPipeline: ComposerChartPipeline = {
+    schemaVersion: 1,
+    terminalNodeId: 'summary',
+    nodes: [
+        {
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId: 'amounts',
+            title: 'Amounts',
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: ['orders_total_order_amount'],
+        },
+        {
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId: 'counts',
+            title: 'Counts',
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: ['orders_unique_order_count'],
+        },
+        {
+            sourceType: QuerySourceType.MERGE,
+            nodeId: 'merged',
+            title: 'Merged',
+            sources: [{ nodeId: 'amounts' }, { nodeId: 'counts' }],
+            joinKey: [
+                {
+                    name: 'status',
+                    fieldIdBySourceId: {
+                        amounts: 'orders_status',
+                        counts: 'orders_status',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.FULL,
+        },
+        {
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'raw',
+            title: 'Raw orders',
+            sql: 'SELECT status, amount FROM postgres.jaffle.orders',
+        },
+        {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'summary',
+            title: 'Summary',
+            sql: 'SELECT raw.status, count(*) AS n FROM raw JOIN merged ON raw.status = merged.merge_status GROUP BY 1',
+            references: ['raw', 'merged'],
+        },
+    ],
+};
 
 const sqlPipeline: CreateComposerChart['pipeline'] = {
     schemaVersion: 1,
@@ -37,50 +113,6 @@ const sqlPipeline: CreateComposerChart['pipeline'] = {
         },
     ],
 };
-
-const composerChartBody = (dashboardUuid: string): CreateComposerChart => ({
-    dashboardUuid,
-    name: 'Orders by status',
-    description: null,
-    pipeline: {
-        schemaVersion: 1,
-        terminalNodeId: 'orders',
-        nodes: [
-            {
-                sourceType: QuerySourceType.SEMANTIC_LAYER,
-                nodeId: 'orders',
-                title: 'Orders by status',
-                exploreName: 'orders',
-                dimensions: ['orders_status'],
-                metrics: ['orders_total_order_amount'],
-            },
-        ],
-    },
-    chart: {
-        schemaVersion: 1,
-        columns: [
-            { reference: 'orders_status', fieldType: FieldType.DIMENSION },
-            {
-                reference: 'orders_total_order_amount',
-                fieldType: FieldType.METRIC,
-            },
-        ],
-        chartConfig: {
-            type: ChartType.CARTESIAN,
-            config: {
-                layout: {
-                    xField: 'orders_status',
-                    yField: ['orders_total_order_amount'],
-                },
-                eChartsConfig: {},
-            },
-        },
-        pivotConfig: null,
-        tableConfig: {
-            columnOrder: ['orders_status', 'orders_total_order_amount'],
-        },
-    },
-});
 
 describe('Composer charts', () => {
     const tracker = new TestResourceTracker();
@@ -147,22 +179,7 @@ describe('Composer charts', () => {
         admin.patch<Body<Dashboard>>(
             `/api/v1/dashboards/${dashboard.uuid}`,
             {
-                tiles: [
-                    {
-                        uuid: randomUUID(),
-                        type: DashboardTileTypes.COMPOSER_CHART,
-                        x: 0,
-                        y: 0,
-                        h: 9,
-                        w: 12,
-                        tabUuid: null,
-                        properties: {
-                            title: 'Orders',
-                            composerChartUuid,
-                            chartName: null,
-                        },
-                    },
-                ],
+                tiles: [composerTileFor(composerChartUuid)],
                 filters: dashboard.filters,
                 tabs: dashboard.tabs,
             },
@@ -170,18 +187,41 @@ describe('Composer charts', () => {
         );
 
     const createDashboardWithSqlChart = async () => {
-        const dashboard = await createDashboard();
-        const resp = await admin.post<Body<ComposerChart>>(chartsUrl, {
-            ...composerChartBody(dashboard.uuid),
+        const created = await createComposerDashboard(apiClientSend(admin), {
             pipeline: sqlPipeline,
         });
-        expect(resp.status).toBe(201);
-        const updated = await addComposerTile(
-            dashboard,
-            resp.body.results.uuid,
-        );
-        expect(updated.status).toBe(200);
-        return { dashboard: updated.body.results, chart: resp.body.results };
+        tracker.trackDashboard(created.dashboard.uuid);
+        return created;
+    };
+
+    const runUrl = (composerChartUuid: string) =>
+        `${chartsUrl}/${composerChartUuid}/run`;
+
+    const createRunnableDashboard = async () => {
+        const created = await createComposerDashboard(apiClientSend(admin), {
+            pipeline: everyKindPipeline,
+        });
+        tracker.trackDashboard(created.dashboard.uuid);
+        return { ...created, tileUuid: created.dashboard.tiles[0].uuid };
+    };
+
+    const pollRows = async (client: ApiClient, queryUuid: string) => {
+        for (let attempt = 0; attempt < 120; attempt += 1) {
+            const resp = await client.get<
+                Body<{ status: string; rows: unknown[]; error?: string }>
+            >(`/api/v2/projects/${projectUuid}/query/${queryUuid}`);
+            const { status } = resp.body.results;
+            if (status === 'ready') return resp.body.results.rows;
+            if (status === 'error') {
+                throw new Error(
+                    `Node query failed: ${resp.body.results.error}`,
+                );
+            }
+            await new Promise((resolve) => {
+                setTimeout(resolve, 500);
+            });
+        }
+        throw new Error(`Node query ${queryUuid} did not complete`);
     };
 
     beforeAll(async () => {
@@ -201,8 +241,10 @@ describe('Composer charts', () => {
     });
 
     it('saves a chart onto a dashboard', async () => {
-        const dashboard = await createDashboard();
-        const chart = await createChart(dashboard.uuid);
+        const { dashboard, chart } = await createComposerDashboard(
+            apiClientSend(admin),
+        );
+        tracker.trackDashboard(dashboard.uuid);
         expect(chart).toMatchObject({
             projectUuid,
             dashboardUuid: dashboard.uuid,
@@ -212,8 +254,6 @@ describe('Composer charts', () => {
             chart: composerChartBody(dashboard.uuid).chart,
         });
 
-        const updated = await addComposerTile(dashboard, chart.uuid);
-        expect(updated.status).toBe(200);
         const loaded = await admin.get<Body<Dashboard>>(
             `/api/v1/dashboards/${dashboard.uuid}`,
         );
@@ -402,6 +442,264 @@ describe('Composer charts', () => {
             expect(deleted.status).toBe(200);
 
             expect((await getChart(chart.uuid)).status).toBe(404);
+        });
+    });
+
+    describe('bound run', () => {
+        it('lets a dashboard viewer run every node, sql, merge and duckdb included, and read its rows', async () => {
+            const { dashboard, chart, tileUuid } =
+                await createRunnableDashboard();
+            const viewer = await loginAsViewer();
+            // The viewer cannot run SQL or compose queries of their own
+            const ownSql = await viewer.post(
+                `/api/v2/projects/${projectUuid}/query/sql`,
+                { sql: 'SELECT 1' },
+                { failOnStatusCode: false },
+            );
+            expect(ownSql.status).toBe(403);
+
+            const run = await viewer.post<Body<ComposerChartRunResults>>(
+                runUrl(chart.uuid),
+                runRequest(dashboard.uuid, tileUuid),
+            );
+            expect(run.status).toBe(200);
+            expect(
+                run.body.results.queries.map(({ nodeId }) => nodeId).sort(),
+            ).toEqual(
+                everyKindPipeline.nodes.map(({ nodeId }) => nodeId).sort(),
+            );
+            for (const { queryUuid } of run.body.results.queries) {
+                // eslint-disable-next-line no-await-in-loop
+                expect(
+                    (await pollRows(viewer, queryUuid)).length,
+                ).toBeGreaterThan(0);
+            }
+        });
+
+        it('refuses a run request carrying nodes, or naming a chart its dashboard does not own', async () => {
+            const { dashboard, chart, tileUuid } =
+                await createRunnableDashboard();
+            const withNodes = await admin.post<{ error: { message: string } }>(
+                runUrl(chart.uuid),
+                {
+                    ...runRequest(dashboard.uuid, tileUuid),
+                    nodes: [
+                        {
+                            sourceType: QuerySourceType.SQL,
+                            nodeId: 'raw',
+                            sql: 'SELECT 1',
+                        },
+                    ],
+                },
+                { failOnStatusCode: false },
+            );
+            expect(withNodes.status).toBe(400);
+            expect(withNodes.body.error.message).toContain('nodes');
+
+            const other = await createRunnableDashboard();
+            const otherChart = await admin.post(
+                runUrl(other.chart.uuid),
+                runRequest(dashboard.uuid, tileUuid),
+                { failOnStatusCode: false },
+            );
+            expect(otherChart.status).toBe(403);
+        });
+
+        it('refuses a run from another organization', async () => {
+            const { dashboard, chart, tileUuid } =
+                await createRunnableDashboard();
+            const outsider = await anotherLogin();
+            const refused = await outsider.post(
+                runUrl(chart.uuid),
+                runRequest(dashboard.uuid, tileUuid),
+                { failOnStatusCode: false },
+            );
+            expect(refused.status).toBe(403);
+        });
+
+        it('returns a semantic-layer chart’s own fields, so the tile draws the project’s labels and formats', async () => {
+            const { dashboard, chart } = await createComposerDashboard(
+                apiClientSend(admin),
+            );
+            tracker.trackDashboard(dashboard.uuid);
+            const viewer = await loginAsViewer();
+            const run = await viewer.post<Body<ComposerChartRunResults>>(
+                runUrl(chart.uuid),
+                runRequest(dashboard.uuid, dashboard.tiles[0].uuid),
+            );
+            expect(run.status).toBe(200);
+            expect(run.body.results.chartStageQueryUuid).toBeNull();
+            expect(run.body.results.fields).toMatchObject({
+                orders_status: {
+                    table: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                },
+                orders_total_order_amount: {
+                    table: 'orders',
+                    fieldType: FieldType.METRIC,
+                },
+            });
+        });
+
+        it('runs a one-node semantic-layer chart to the same rows as the classic query', async () => {
+            const { dashboard, chart } = await createComposerDashboard(
+                apiClientSend(admin),
+            );
+            tracker.trackDashboard(dashboard.uuid);
+            const run = await admin.post<Body<ComposerChartRunResults>>(
+                runUrl(chart.uuid),
+                runRequest(dashboard.uuid, dashboard.tiles[0].uuid),
+            );
+            expect(run.status).toBe(200);
+            const [node] = chart.pipeline.nodes;
+            if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
+                throw new Error('Expected a semantic-layer node');
+            }
+            const classic = await admin.post<Body<{ queryUuid: string }>>(
+                `/api/v2/projects/${projectUuid}/query/metric-query`,
+                {
+                    context: 'exploreView',
+                    query: {
+                        exploreName: node.exploreName,
+                        dimensions: node.dimensions,
+                        metrics: node.metrics,
+                        filters: {},
+                        sorts: [],
+                        limit: 500,
+                        tableCalculations: [],
+                    },
+                },
+            );
+            expect(classic.status).toBe(200);
+            const sortedRaw = (rows: unknown[]) =>
+                JSON.stringify(
+                    (rows as Record<string, { value: { raw: unknown } }>[])
+                        .map((row) =>
+                            Object.fromEntries(
+                                Object.entries(row).map(([id, { value }]) => [
+                                    id,
+                                    value.raw,
+                                ]),
+                            ),
+                        )
+                        .sort((a, b) =>
+                            JSON.stringify(a).localeCompare(JSON.stringify(b)),
+                        ),
+                );
+            expect(
+                sortedRaw(
+                    await pollRows(
+                        admin,
+                        run.body.results.queries[0].queryUuid,
+                    ),
+                ),
+            ).toBe(
+                sortedRaw(
+                    await pollRows(admin, classic.body.results.queryUuid),
+                ),
+            );
+        });
+
+        it('runs a group-by as a server-built pivot stage whose rows a viewer can read', async () => {
+            const { dashboard, chart } = await createComposerDashboard(
+                apiClientSend(admin),
+                {
+                    pipeline: {
+                        schemaVersion: 1,
+                        terminalNodeId: 'orders',
+                        nodes: [
+                            {
+                                sourceType: QuerySourceType.SQL,
+                                nodeId: 'orders',
+                                title: 'Orders by status and size',
+                                sql: "SELECT status, CASE WHEN amount > 10 THEN 'big' ELSE 'small' END AS size, sum(amount) AS total FROM postgres.jaffle.orders GROUP BY 1, 2",
+                            },
+                        ],
+                    },
+                    chart: {
+                        schemaVersion: 1,
+                        columns: [
+                            {
+                                reference: 'status',
+                                fieldType: FieldType.DIMENSION,
+                            },
+                            {
+                                reference: 'size',
+                                fieldType: FieldType.DIMENSION,
+                            },
+                            { reference: 'total', fieldType: FieldType.METRIC },
+                        ],
+                        chartConfig: {
+                            type: ChartType.CARTESIAN,
+                            config: {
+                                layout: {
+                                    xField: 'status',
+                                    yField: ['total'],
+                                },
+                                eChartsConfig: {},
+                            },
+                        },
+                        pivotConfig: { columns: ['size'] },
+                        tableConfig: { columnOrder: [] },
+                    },
+                },
+            );
+            tracker.trackDashboard(dashboard.uuid);
+            const viewer = await loginAsViewer();
+            const run = await viewer.post<Body<ComposerChartRunResults>>(
+                runUrl(chart.uuid),
+                runRequest(dashboard.uuid, dashboard.tiles[0].uuid),
+            );
+            expect(run.status).toBe(200);
+            const { chartStageQueryUuid, queries } = run.body.results;
+            if (!chartStageQueryUuid) {
+                throw new Error('No series-split stage ran');
+            }
+            expect(queries.map(({ queryUuid }) => queryUuid)).toContain(
+                chartStageQueryUuid,
+            );
+            expect(
+                (await pollRows(viewer, chartStageQueryUuid)).length,
+            ).toBeGreaterThan(0);
+        });
+
+        it('refuses a run with the flag off while classic queries still run', async () => {
+            const { dashboard, chart, tileUuid } =
+                await createRunnableDashboard();
+            expect((await admin.post(flagUrl, { enabled: false })).status).toBe(
+                200,
+            );
+            try {
+                const refused = await admin.post<{
+                    error: { data?: { featureFlagId?: string } };
+                }>(runUrl(chart.uuid), runRequest(dashboard.uuid, tileUuid), {
+                    failOnStatusCode: false,
+                });
+                expect(refused.status).toBe(403);
+                expect(refused.body.error.data?.featureFlagId).toBe(
+                    FeatureFlags.ComposerCharts,
+                );
+                const classic = await admin.post(
+                    `/api/v2/projects/${projectUuid}/query/metric-query`,
+                    {
+                        context: 'dashboardView',
+                        query: {
+                            exploreName: 'orders',
+                            dimensions: ['orders_status'],
+                            metrics: ['orders_total_order_amount'],
+                            filters: {},
+                            sorts: [],
+                            limit: 10,
+                            tableCalculations: [],
+                        },
+                    },
+                );
+                expect(classic.status).toBe(200);
+            } finally {
+                expect(
+                    (await admin.post(flagUrl, { enabled: true })).status,
+                ).toBe(200);
+            }
         });
     });
 });

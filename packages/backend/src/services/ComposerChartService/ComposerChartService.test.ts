@@ -3,6 +3,7 @@ import {
     AgentCapability,
     ChartType,
     CustomDimensionType,
+    DashboardTileTypes,
     FeatureNotEnabledError,
     FieldType,
     ForbiddenError,
@@ -19,8 +20,10 @@ import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import type { ComposerChartModel } from '../../models/ComposerChartModel';
 import type { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { ComposerChartService } from './ComposerChartService';
+import type { ComposerRunBinding } from './ComposerRunBinding';
 
 const projectUuid = grantFixture().approvedProjectUuids[0];
 const organizationUuid = defaultSessionUser.organizationUuid!;
@@ -149,6 +152,18 @@ const createBody = (
 });
 
 const setup = ({ flagEnabled = true } = {}) => {
+    const querySourceService = {
+        submitComposerRun: vi.fn(
+            async ({ binding }: { binding: ComposerRunBinding }) => ({
+                queries: binding.nodes.map(({ nodeId, sourceType }) => ({
+                    nodeId,
+                    sourceType,
+                    queryUuid: `${nodeId}-query`,
+                    cacheHit: false,
+                })),
+            }),
+        ),
+    };
     const composerChartModel = {
         create: vi.fn(async () => 'chart-uuid'),
         get: vi.fn(async () => ({ uuid: 'chart-uuid' })),
@@ -160,6 +175,15 @@ const setup = ({ flagEnabled = true } = {}) => {
                 projectUuid,
                 organizationUuid,
                 spaceUuid: 'space-uuid',
+            })),
+            getByIdOrSlug: vi.fn(async () => ({
+                tiles: [
+                    {
+                        uuid: 'tile-uuid',
+                        type: DashboardTileTypes.COMPOSER_CHART,
+                        properties: { composerChartUuid: 'chart-uuid' },
+                    },
+                ],
             })),
         } as unknown as DashboardModel,
         featureFlagModel: {
@@ -177,8 +201,14 @@ const setup = ({ flagEnabled = true } = {}) => {
                 admins: [],
             })),
         } as unknown as SpacePermissionService,
+        queryHistoryModel: {
+            getByQueryUuid: vi.fn(async (queryUuid: string) => ({
+                fields: { [`${queryUuid}_field`]: {} },
+            })),
+        } as unknown as QueryHistoryModel,
+        getQuerySourceService: () => querySourceService,
     });
-    return { service, composerChartModel };
+    return { service, composerChartModel, querySourceService };
 };
 
 describe('ComposerChartService.create', () => {
@@ -274,5 +304,168 @@ describe('ComposerChartService.create', () => {
         );
         await service.create(account, projectUuid, createBody(PIPELINES.sql));
         expect(composerChartModel.create).toHaveBeenCalledOnce();
+    });
+});
+
+describe('ComposerChartService.run', () => {
+    const viewer = () =>
+        sessionAccount(
+            new Ability<PossibleAbilities>([
+                { subject: 'Dashboard', action: 'view' as const },
+            ]),
+        );
+    const runRequest = {
+        dashboardUuid,
+        tileUuid: 'tile-uuid',
+        dashboardFilters: {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        },
+        parameters: {},
+        excludedParameterKeys: [],
+        invalidateCache: false,
+    };
+    const setupRun = (
+        options: {
+            flagEnabled?: boolean;
+            chart?: CreateComposerChart['chart'];
+        } = {},
+    ) => {
+        const { service, composerChartModel, querySourceService } =
+            setup(options);
+        const body = createBody(PIPELINES.python);
+        const stored = body.pipeline;
+        Object.assign(composerChartModel, {
+            getOwner: vi.fn(async () => ({ projectUuid, dashboardUuid })),
+            get: vi.fn(async () => ({
+                uuid: 'chart-uuid',
+                projectUuid,
+                dashboardUuid,
+                pipeline: stored,
+                chart: options.chart ?? body.chart,
+            })),
+        });
+        const { submitComposerRun } = querySourceService;
+        return { service, stored, submitComposerRun };
+    };
+
+    test('runs the stored pipeline for a dashboard viewer and returns every node query', async () => {
+        const { service, stored, submitComposerRun } = setupRun();
+        const account = viewer();
+        const result = await service.run(
+            account,
+            projectUuid,
+            'chart-uuid',
+            runRequest,
+        );
+        expect(result.queries.map(({ nodeId }) => nodeId)).toEqual(
+            stored.nodes.map(({ nodeId }) => nodeId),
+        );
+        const { binding } = submitComposerRun.mock.calls[0][0];
+        expect(binding.nodes).toEqual(stored.nodes);
+        expect(binding.stamp).toEqual({
+            composerChartUuid: 'chart-uuid',
+            dashboardUuid,
+            tileUuid: 'tile-uuid',
+        });
+        expect(() =>
+            binding.assertExecution(account, projectUuid),
+        ).not.toThrow();
+        expect(() =>
+            binding.assertExecution(account, 'another-project'),
+        ).toThrow(ForbiddenError);
+        expect(result.chartStageQueryUuid).toBeNull();
+    });
+
+    test('returns the terminal node’s fields map from its run', async () => {
+        const { service } = setupRun();
+        const result = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            runRequest,
+        );
+        expect(result.fields).toEqual({ 'result-query_field': {} });
+    });
+
+    test('runs a server-built series-split stage after the terminal node for a chart with a group-by', async () => {
+        const { service, stored, submitComposerRun } = setupRun({
+            chart: {
+                schemaVersion: 1,
+                columns: [
+                    { reference: 'month', fieldType: FieldType.DIMENSION },
+                    { reference: 'method', fieldType: FieldType.DIMENSION },
+                    { reference: 'n', fieldType: FieldType.METRIC },
+                ],
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: { xField: 'month', yField: ['n'] },
+                        eChartsConfig: { series: [] },
+                    },
+                },
+                pivotConfig: { columns: ['method'] },
+                tableConfig: { columnOrder: [] },
+            },
+        });
+        const result = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            runRequest,
+        );
+        const { binding } = submitComposerRun.mock.calls[0][0];
+        expect(binding.nodes.slice(0, -1)).toEqual(stored.nodes);
+        expect(binding.nodes.at(-1)).toMatchObject({
+            nodeId: 'chart_stage',
+            sourceType: QuerySourceType.DUCKDB,
+            references: { node_result: 'result' },
+        });
+        expect(result.chartStageQueryUuid).toBe('chart_stage-query');
+        expect(result.fields).toEqual({ 'result-query_field': {} });
+    });
+
+    test('refuses a caller who cannot view the owning dashboard', async () => {
+        const { service, submitComposerRun } = setupRun();
+        await expect(
+            service.run(
+                sessionAccount(new Ability<PossibleAbilities>([])),
+                projectUuid,
+                'chart-uuid',
+                runRequest,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('refuses a run naming a dashboard that does not own the chart', async () => {
+        const { service, submitComposerRun } = setupRun();
+        await expect(
+            service.run(viewer(), projectUuid, 'chart-uuid', {
+                ...runRequest,
+                dashboardUuid: 'another-dashboard',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('refuses a run naming a tile that does not show this chart', async () => {
+        const { service, submitComposerRun } = setupRun();
+        await expect(
+            service.run(viewer(), projectUuid, 'chart-uuid', {
+                ...runRequest,
+                tileUuid: 'another-tile',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('is refused with the composer-charts flag off', async () => {
+        const { service, submitComposerRun } = setupRun({ flagEnabled: false });
+        await expect(
+            service.run(viewer(), projectUuid, 'chart-uuid', runRequest),
+        ).rejects.toThrow(FeatureNotEnabledError);
+        expect(submitComposerRun).not.toHaveBeenCalled();
     });
 });

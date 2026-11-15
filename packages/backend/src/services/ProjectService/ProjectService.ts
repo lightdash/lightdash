@@ -520,6 +520,10 @@ import {
     getContentWriteAgentIdentity,
 } from '../AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
+import {
+    REQUEST_AUTHORITY,
+    type QueryRunAuthority,
+} from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import {
     NO_CLI_DEPLOY_SELECTION,
@@ -528,7 +532,6 @@ import {
     type CliDeploySelection,
 } from '../cliDeploy';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
-import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import { inferCliDeploySource } from '../inferCliDeploySource';
 import {
     MultiConnectionCompiler,
@@ -9914,7 +9917,7 @@ export class ProjectService
 
     async compileQuery(
         args: {
-            documentQueryContext?: DocumentQueryContext;
+            authority?: QueryRunAuthority;
             account: Account;
             // ! TODO: we need to fix this type
             body: MetricQuery & {
@@ -9977,22 +9980,33 @@ export class ProjectService
         // Authorize custom SQL against the explore the query actually runs on
         // (the resolved source explore), not the client-supplied
         // metricQuery.exploreName, which may differ.
-        if (args.documentQueryContext) {
-            args.documentQueryContext.assertMetricQuery(
-                account,
-                projectUuid,
-                metricQuery,
-                parameters,
-            );
-        } else {
-            await this.assertCustomSqlAuthorizedForQuery({
-                account,
-                projectUuid,
-                organizationUuid,
-                exploreName: sourceExplore.name,
-                metricQuery,
-                customSqlProvenanceChartUuid: args.customSqlProvenanceChartUuid,
-            });
+        const authority = args.authority ?? REQUEST_AUTHORITY;
+        switch (authority.kind) {
+            case 'composer':
+                // The author's custom SQL rights were checked at save
+                authority.binding.assertExecution(account, projectUuid);
+                break;
+            case 'document':
+                authority.context.assertMetricQuery(
+                    account,
+                    projectUuid,
+                    metricQuery,
+                    parameters,
+                );
+                break;
+            case 'request':
+                await this.assertCustomSqlAuthorizedForQuery({
+                    account,
+                    projectUuid,
+                    organizationUuid,
+                    exploreName: sourceExplore.name,
+                    metricQuery,
+                    customSqlProvenanceChartUuid:
+                        args.customSqlProvenanceChartUuid,
+                });
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
         }
 
         // Pre-aggregate routing: compile against the pre-agg explore when cache is enabled and there's a match
@@ -10264,7 +10278,7 @@ export class ProjectService
      * explorer shows them against the offending query row.
      */
     async compileMergeQuery(args: {
-        documentQueryContext?: DocumentQueryContext;
+        authority?: QueryRunAuthority;
         account: Account;
         projectUuid: string;
         mergeQuery: MergeQuery;
@@ -10282,12 +10296,24 @@ export class ProjectService
             userAttributeOverrides,
         } = args;
 
-        args.documentQueryContext?.assertMergeQuery(
-            account,
-            projectUuid,
-            mergeQuery,
-            parameters,
-        );
+        const authority = args.authority ?? REQUEST_AUTHORITY;
+        switch (authority.kind) {
+            case 'document':
+                authority.context.assertMergeQuery(
+                    account,
+                    projectUuid,
+                    mergeQuery,
+                    parameters,
+                );
+                break;
+            case 'composer':
+                authority.binding.assertExecution(account, projectUuid);
+                break;
+            case 'request':
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
+        }
 
         // One metadata load feeds validation, output typing and display
         // labels. Metric sources resolve through their explore (query-defined
@@ -10449,23 +10475,30 @@ export class ProjectService
         const mergeSqlTableCalculations = mergeQuery.tableCalculations.filter(
             (calculation) => !calculation.formula,
         );
-        if (
-            mergeSqlTableCalculations.length > 0 &&
-            !args.documentQueryContext
-        ) {
-            const { organizationUuid } =
-                await this.projectModel.getSummary(projectUuid);
-            await this.assertCustomSqlAuthorizedForQuery({
-                account,
-                projectUuid,
-                organizationUuid,
-                exploreName: resolvedSources[0].metricQuery.exploreName,
-                metricQuery: {
-                    tableCalculations: mergeSqlTableCalculations,
-                    customDimensions: [],
-                    additionalMetrics: [],
-                },
-            });
+        switch (authority.kind) {
+            case 'document':
+            case 'composer':
+                // Their SQL calculations were authorized when saved
+                break;
+            case 'request':
+                if (mergeSqlTableCalculations.length > 0) {
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(projectUuid);
+                    await this.assertCustomSqlAuthorizedForQuery({
+                        account,
+                        projectUuid,
+                        organizationUuid,
+                        exploreName: resolvedSources[0].metricQuery.exploreName,
+                        metricQuery: {
+                            tableCalculations: mergeSqlTableCalculations,
+                            customDimensions: [],
+                            additionalMetrics: [],
+                        },
+                    });
+                }
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
         }
 
         // Each leg runs whole: the merged statement sorts and limits, and a
@@ -10514,7 +10547,7 @@ export class ProjectService
                 // from. This is the statement the leg runs: whole, at the
                 // source row cap, unsorted.
                 const compiled = await this.compileQuery({
-                    documentQueryContext: args.documentQueryContext,
+                    authority,
                     account,
                     projectUuid,
                     exploreName: resolvedMetricQuery.exploreName,

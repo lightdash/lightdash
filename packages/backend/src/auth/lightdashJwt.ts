@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     getErrorMessage,
     isDashboardUuidContent,
+    ParameterInteractivityOptionsSchema,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -77,6 +78,24 @@ export function decodeLightdashJwt(
             throw new ForbiddenError(
                 'Use either writeSpaceUuids or the deprecated spaceUuid, not both',
             );
+        }
+
+        // Parameter rules are authorization claims too; `enabled` stays log-only for legacy tokens.
+        const parameterInteractivity =
+            decodedToken.content &&
+            'parameterInteractivity' in decodedToken.content
+                ? decodedToken.content.parameterInteractivity
+                : undefined;
+        if (parameterInteractivity) {
+            ParameterInteractivityOptionsSchema.pick({
+                allowedParameters: true,
+                hidden: true,
+                values: true,
+            }).parse({
+                allowedParameters: parameterInteractivity.allowedParameters,
+                hidden: parameterInteractivity.hidden,
+                values: parameterInteractivity.values,
+            });
         }
 
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation

@@ -805,6 +805,7 @@ export type QueryCompletedEvent = BaseTrack & {
         responseTimingBasis?: 'request' | 'query_submission' | null;
         workloadOrigin?: string;
         dashboardTileId?: string | null;
+        chartKind?: 'classic_chart' | 'composer_chart' | null;
         appId?: string | null;
         appVersion?: number | null;
         requestId?: string | null;

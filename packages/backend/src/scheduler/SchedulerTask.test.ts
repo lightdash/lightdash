@@ -46,6 +46,7 @@ import {
     type LearnSandboxCommandPayload,
     type MetricQuery,
     type NotificationPayloadBase,
+    type ParameterInteractivityOptions,
     type ParametersValuesMap,
     type ReadyQueryResultsPage,
     type ScheduledDeliveryPayload,
@@ -2040,12 +2041,16 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
         exportParameters,
         tileParameters,
         embedParametersEnabled,
+        embedParameters = embedParametersEnabled === undefined
+            ? undefined
+            : { enabled: embedParametersEnabled },
         legacyDashboard = false,
     }: {
         dashboardControlsEnabled: boolean;
         exportParameters?: ParametersValuesMap;
         tileParameters?: ExportContentPayload['tileParameters'];
         embedParametersEnabled?: boolean;
+        embedParameters?: ParameterInteractivityOptions;
         legacyDashboard?: boolean;
     }) => {
         const executeAsyncDashboardChartQuery = vi
@@ -2148,8 +2153,8 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
             undefined,
             {
                 user: { id: 'user-1' },
-                isJwtUser: () => embedParametersEnabled !== undefined,
-                access: { parameters: { enabled: embedParametersEnabled } },
+                isJwtUser: () => embedParameters !== undefined,
+                access: { parameters: embedParameters },
                 organization: { organizationUuid: 'org-1' },
             },
         );
@@ -2256,6 +2261,77 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
                 'tile-2': { 'orders.status': 'placed' },
             },
         );
+    });
+
+    describe('embed export parameters', () => {
+        const everyTile = (parameters: ParametersValuesMap) => ({
+            'tile-1': parameters,
+            'tile-2': parameters,
+        });
+
+        it('layers saved values, then token values, then the viewer values', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    embedParameters: {
+                        enabled: true,
+                        values: { 'orders.status': 'token', region: 'EU' },
+                    },
+                    exportParameters: { region: 'US', channel: 'web' },
+                }),
+            ).resolves.toEqual(
+                everyTile({
+                    'orders.status': 'token',
+                    region: 'US',
+                    channel: 'web',
+                }),
+            );
+        });
+
+        it('drops a viewer value the token does not allow', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    embedParameters: {
+                        enabled: true,
+                        allowedParameters: ['region'],
+                    },
+                    exportParameters: {
+                        region: 'US',
+                        'orders.status': 'injected',
+                    },
+                }),
+            ).resolves.toEqual(
+                everyTile({ 'orders.status': 'placed', region: 'US' }),
+            );
+        });
+
+        it('keeps token values but drops viewer values without interactivity', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    embedParameters: {
+                        enabled: false,
+                        values: { region: 'EU' },
+                    },
+                    exportParameters: {
+                        region: 'US',
+                        'orders.status': 'injected',
+                    },
+                }),
+            ).resolves.toEqual(
+                everyTile({ 'orders.status': 'placed', region: 'EU' }),
+            );
+        });
+
+        it('a non-embed export replaces the saved values with the exported ones', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    exportParameters: { region: 'US' },
+                }),
+            ).resolves.toEqual(everyTile({ region: 'US' }));
+        });
     });
 });
 

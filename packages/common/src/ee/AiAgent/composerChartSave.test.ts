@@ -2,6 +2,8 @@ import {
     parseComposerPipeline,
     parseComposerStoredChart,
 } from '../../composer/composerChart';
+import { getComposerChartPivotStage } from '../../composer/composerChartDraw';
+import { getComposerNodeSorts } from '../../composer/composerResultChart';
 import { DimensionType, FieldType } from '../../types/field';
 import { MergeJoinType } from '../../types/mergeQuery';
 import { QuerySourceType, type SourceQuery } from '../../types/querySources';
@@ -12,6 +14,7 @@ import {
     getComposerChartSaveDraft,
     savesAsComposerChart,
 } from './composerChartSave';
+import { getComposerChartStage } from './composerChartVizConfig';
 import {
     composerChartVizConfigSchemaPersisted,
     type ComposerBuiltinChartVizConfig,
@@ -149,6 +152,70 @@ describe('getComposerChartSaveDraft', () => {
         ]);
         expect(parsed.pivotConfig).toEqual({ columns: ['status'] });
     });
+
+    test.each([
+        viz({
+            type: 'bar',
+            x: 'orders_order_date_month',
+            y: ['orders_total_order_amount'],
+            groupBy: ['orders_status'],
+            stack: true,
+        }),
+        viz({
+            type: 'area',
+            x: 'orders_order_date_month',
+            y: ['orders_total_order_amount'],
+            groupBy: ['orders_status'],
+        }),
+    ])(
+        'the saved chart pivots like the $type answer it came from',
+        (vizConfig) => {
+            const sorted: SourceQuery = {
+                ...orders,
+                sorts: [
+                    { fieldId: 'orders_total_order_amount', descending: true },
+                ],
+            };
+            const { pipeline, chart } = ready(
+                getComposerChartSaveDraft({
+                    config: answer(vizConfig, [sorted], 'orders'),
+                    columns: [
+                        {
+                            reference: 'orders_status',
+                            type: DimensionType.STRING,
+                        },
+                        {
+                            reference: 'orders_order_date_month',
+                            type: DimensionType.DATE,
+                        },
+                        {
+                            reference: 'orders_total_order_amount',
+                            type: DimensionType.NUMBER,
+                        },
+                    ],
+                    metadata,
+                }),
+            );
+            const pivotOf = (stage: SourceQuery | null) =>
+                stage?.sourceType === QuerySourceType.DUCKDB
+                    ? stage.pivotConfiguration
+                    : null;
+
+            const answerPivot = pivotOf(
+                getComposerChartStage({
+                    vizConfig,
+                    customChartTypeSlots: [],
+                    sorts: getComposerNodeSorts(sorted),
+                    nodeId: 'chart_stage',
+                    source: 'orders',
+                }),
+            );
+            expect(answerPivot).toMatchObject({ foldOverflowGroups: true });
+            expect(
+                pivotOf(getComposerChartPivotStage(pipeline, chart)),
+            ).toEqual(answerPivot);
+        },
+    );
 
     test('a table, or no viz config, keeps every column with numbers as metrics', () => {
         const { chart } = ready(

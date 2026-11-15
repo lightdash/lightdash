@@ -10,7 +10,7 @@ import {
     canAddDashboardFiltersInEmbed,
     getDefaultChartTileSize,
     isFilterInteractivityEnabled,
-    isParameterInteractivityEnabled,
+    isParameterInteractivityVisible,
     isTileInEmbedExport,
     translateDashboardControlNames,
     type DashboardFilters,
@@ -48,7 +48,7 @@ import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../../../../components/DashboardTiles/UnmetRequirementsPlaceholder';
-import DashboardComposerChartTile from '../../../../../features/composerCharts/components/DashboardComposerChartTile';
+import { ComposerChartNotAvailableTile } from '../../../../../features/composerCharts/components/DashboardComposerChartTile';
 import {
     selectActiveTab,
     selectDashboardFilters,
@@ -406,7 +406,7 @@ const EmbedDashboardGrid: FC<{
                                 />
                             ) : tile.type ===
                               DashboardTileTypes.COMPOSER_CHART ? (
-                                <DashboardComposerChartTile
+                                <ComposerChartNotAvailableTile
                                     key={tile.uuid}
                                     minimal
                                     tile={tile}
@@ -628,7 +628,11 @@ const EmbedDashboard: FC<{
         }
     }, [dashboard, setDashboardTiles]);
 
-    useEmbedSavedParameters(dashboard);
+    useEmbedSavedParameters(
+        dashboard,
+        isEditMode,
+        isMinimal ? exportParameters : undefined,
+    );
 
     useEffect(() => {
         if (!dashboard || isEditMode) return;
@@ -842,7 +846,7 @@ const EmbedDashboard: FC<{
         isDateZoomDisabled !== savedIsDateZoomDisabled;
     // As the bar decides which kinds it shows
     const canDateZoom = dashboard?.canDateZoom === true;
-    const areParametersAllowed = isParameterInteractivityEnabled(
+    const areParametersAllowed = isParameterInteractivityVisible(
         dashboard?.parameterInteractivity,
     );
     const filtersInteractivity = dashboard?.dashboardFiltersInteractivity;

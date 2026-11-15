@@ -1,6 +1,7 @@
 import { ParameterError } from '../types/errors';
 import { ChartType } from '../types/savedCharts';
 import {
+    parseComposerChartRunRequest,
     parseComposerPipeline,
     parseComposerStoredChart,
 } from './composerChart';
@@ -344,5 +345,33 @@ describe('parseComposerStoredChart', () => {
                 }),
             ),
         ).toContain('"profit"');
+    });
+});
+
+describe('parseComposerChartRunRequest', () => {
+    const request = {
+        dashboardUuid: 'dashboard-uuid',
+        tileUuid: 'tile-uuid',
+        dashboardFilters: {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        },
+        parameters: { region: 'east' },
+        excludedParameterKeys: [],
+        invalidateCache: false,
+    };
+
+    it('accepts the tile-shaped request', () => {
+        expect(parseComposerChartRunRequest(request)).toEqual(request);
+    });
+
+    it.each([
+        ['nodes', { nodes: [{ sourceType: 'sql', sql: 'select 1' }] }],
+        ['pipeline', { pipeline: {} }],
+    ])('refuses a request carrying %s', (key, extra) => {
+        expect(() =>
+            parseComposerChartRunRequest({ ...request, ...extra }),
+        ).toThrow(key);
     });
 });
