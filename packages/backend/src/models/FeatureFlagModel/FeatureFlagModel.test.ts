@@ -156,6 +156,7 @@ const buildFakeWriteDatabase = ({
 
 describe('FeatureFlagModel', () => {
     describe.each([
+        FeatureFlags.MobileQrSignIn,
         FeatureFlags.DbtPartialParse,
         FeatureFlags.AgentIdentity,
         FeatureFlags.BigqueryWorkloadIdentityAuth,
@@ -827,47 +828,60 @@ describe('FeatureFlagModel', () => {
     });
 });
 
-describe('mobile source project advertising', () => {
-    it.each([false, true])(
-        'is off by default with previews=%s',
-        async (enabled) => {
-            const model = buildModel(
-                {
-                    previewFeatureFlags: {
-                        ...lightdashConfigMock.previewFeatureFlags,
-                        enabled,
-                    },
-                },
-                buildFakeDatabase({}),
-            );
-            expect(
-                await model.get({
-                    featureFlagId: FeatureFlags.MobileSignInSourceProject,
-                }),
-            ).toEqual({
-                id: FeatureFlags.MobileSignInSourceProject,
-                enabled: false,
-            });
-        },
-    );
-
+describe('mobile QR deployment defaults', () => {
     it.each([false, true])(
         'uses the deployment database default: %s',
         async (enabled) => {
             const model = buildModel(
-                {
-                    previewFeatureFlags: {
-                        ...lightdashConfigMock.previewFeatureFlags,
-                        enabled: false,
-                    },
-                },
+                { previewFeatureFlags: { enabled: false } },
                 buildFakeDatabase({ flag: { default_enabled: enabled } }),
             );
             expect(
-                await model.get({
-                    featureFlagId: FeatureFlags.MobileSignInSourceProject,
-                }),
-            ).toEqual({ id: FeatureFlags.MobileSignInSourceProject, enabled });
+                await model.get({ featureFlagId: FeatureFlags.MobileQrSignIn }),
+            ).toEqual({ id: FeatureFlags.MobileQrSignIn, enabled });
         },
     );
+
+    it('resolves Console overrides with only organization context and no ENV enable', async () => {
+        const rows: FakeRows = {
+            flag: { default_enabled: false },
+            orgOverride: {
+                organization_uuid: dbUser.organizationUuid,
+                enabled: true,
+            },
+        };
+        const model = buildModel(
+            {
+                previewFeatureFlags: { enabled: false },
+                enabledFeatureFlags: new Set(),
+                disabledFeatureFlags: new Set(),
+            },
+            buildFakeDatabase(rows),
+        );
+        const get = (organizationUuid = dbUser.organizationUuid) =>
+            model.get({
+                featureFlagId: FeatureFlags.MobileQrSignIn,
+                user: { organizationUuid },
+            });
+        expect((await get()).enabled).toBe(true);
+        expect((await get('other-org')).enabled).toBe(false);
+        rows.orgOverride!.enabled = false;
+        expect((await get()).enabled).toBe(false);
+    });
+
+    it('preserves preview enablement and organization opt-out', async () => {
+        const rows: FakeRows = {};
+        const model = buildModel(
+            { previewFeatureFlags: { enabled: true } },
+            buildFakeDatabase(rows),
+        );
+        const get = () =>
+            model.get({
+                featureFlagId: FeatureFlags.MobileQrSignIn,
+                user: { organizationUuid: dbUser.organizationUuid },
+            });
+        expect((await get()).enabled).toBe(true);
+        rows.orgOverride = { enabled: false };
+        expect((await get()).enabled).toBe(false);
+    });
 });

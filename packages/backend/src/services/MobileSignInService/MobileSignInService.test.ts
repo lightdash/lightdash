@@ -63,7 +63,6 @@ const codeRow = {
 const createService = ({
     flagEnabled = true,
     qrSignInEnabled = true,
-    sourceProjectEnabled = false,
     getProject = vi.fn<(...args: unknown[]) => Promise<Project>>(),
     mode = LightdashMode.CLOUD_BETA,
     managed = false,
@@ -84,7 +83,6 @@ const createService = ({
     now?: () => Date;
     flagEnabled?: boolean;
     qrSignInEnabled?: boolean;
-    sourceProjectEnabled?: boolean;
     getProject?: (...args: unknown[]) => Promise<Project>;
     mode?: LightdashMode;
     managed?: boolean;
@@ -130,9 +128,17 @@ const createService = ({
         rateAllowed ? (counts.get(counterKey(args)) ?? 0) : 1000,
     );
     const track = vi.fn();
-    const userModel = {
-        findSessionUserAndOrgByUuid: vi.fn(async () => user),
+    const effectiveFeatureFlagModel = featureFlagModel ?? {
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled:
+                featureFlagId === 'mobile-qr-sign-in'
+                    ? qrSignInEnabled
+                    : flagEnabled,
+        })),
     };
+    const findSessionUserAndOrgByUuid = vi.fn(async () => user);
+    const userModel = { findSessionUserAndOrgByUuid };
     const service = new MobileSignInService({
         analytics: { track },
         lightdashConfig: {
@@ -145,17 +151,7 @@ const createService = ({
         mobileSignInCodeModel,
         mobileAppLinkModel: { incrementRateCounter, getRateCount },
         now,
-        featureFlagModel: featureFlagModel ?? {
-            get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => {
-                let enabled = flagEnabled;
-                if (featureFlagId === 'mobile-sign-in-source-project') {
-                    enabled = sourceProjectEnabled;
-                } else if (featureFlagId === 'mobile-qr-sign-in') {
-                    enabled = qrSignInEnabled;
-                }
-                return { id: featureFlagId, enabled };
-            }),
-        },
+        featureFlagModel: effectiveFeatureFlagModel,
         userModel,
         oauthModel: { getClient: vi.fn(async () => client as never) },
         getUserService: () => ({ getManagedSignIn }),
@@ -163,6 +159,8 @@ const createService = ({
     });
     return {
         service,
+        featureFlagModel: effectiveFeatureFlagModel,
+        findSessionUserAndOrgByUuid,
         mobileSignInCodeModel,
         incrementRateCounter,
         getManagedSignIn,
@@ -1549,20 +1547,23 @@ describe('MobileSignInService mobile-qr-sign-in flag', () => {
         };
     };
 
-    it('refuses to create a code when the flag is off', async () => {
-        const { service, mobileSignInCodeModel } = offService();
-        const error = await service
-            .mint(sessionUser, 'session-0000', 'show')
-            .catch((caught: unknown) => caught);
-        expect(error).toBeInstanceOf(ForbiddenError);
-        expect((error as ForbiddenError).message).toBe(
-            'Sign in with a QR code is turned off for this organization',
-        );
-        expect((error as ForbiddenError).data).toEqual({
-            reason: MobileSignInRefusal.QR_SIGN_IN_DISABLED,
-        });
-        expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
-    });
+    it.each([undefined, '12345678-1234-4abc-8abc-123456789abc'])(
+        'refuses to create a code when the flag is off with source %s',
+        async (sourceProjectUuid) => {
+            const { service, mobileSignInCodeModel } = offService();
+            const error = await service
+                .mint(sessionUser, 'session-0000', 'show', sourceProjectUuid)
+                .catch((caught: unknown) => caught);
+            expect(error).toBeInstanceOf(ForbiddenError);
+            expect((error as ForbiddenError).message).toBe(
+                'Sign in with a QR code is turned off for this organization',
+            );
+            expect((error as ForbiddenError).data).toEqual({
+                reason: MobileSignInRefusal.QR_SIGN_IN_DISABLED,
+            });
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+        },
+    );
 
     it.each(['approved', 'declined'] as const)(
         'refuses to record %s when the flag is off',
@@ -1609,10 +1610,17 @@ describe('MobileSignInService mobile-qr-sign-in flag', () => {
             redeem: vi.fn(async () => ({ outcome: 'redeemed', row: codeRow })),
             decide: vi.fn(async () => ({ outcome: 'decided', row: codeRow })),
         };
-        const { service } = createService({ qrSignInEnabled: true, model });
+        const { service, featureFlagModel } = createService({
+            qrSignInEnabled: true,
+            model,
+        });
         await expect(
             service.mint(sessionUser, 'session-0000', 'show'),
         ).resolves.toMatchObject({ codeUuid: 'code-0000-test' });
+        expect(featureFlagModel.get).toHaveBeenCalledWith({
+            featureFlagId: 'mobile-qr-sign-in',
+            user: { organizationUuid },
+        });
         await expect(service.claim(claimBody, {})).resolves.toMatchObject({
             interval: 2,
         });
@@ -2205,17 +2213,31 @@ describe('MobileSignInService source project contract', () => {
     );
 
     it.each([false, true])(
-        'advertises only static support when enabled=%s',
+        'advertises protocol support without resolving flags or users when QR enabled=%s',
         async (enabled) => {
-            const { service } = createService({
-                sourceProjectEnabled: enabled,
+            const getProject = vi.fn();
+            const {
+                service,
+                featureFlagModel,
+                findSessionUserAndOrgByUuid,
+                getManagedSignIn,
+                mobileSignInCodeModel,
+                track,
+            } = createService({
+                qrSignInEnabled: enabled,
+                flagEnabled: enabled,
+                getProject,
             });
             expect(await service.getCapabilities()).toEqual({
                 schemaVersion: 1,
-                capabilities: enabled
-                    ? { mobile_sign_in_source_project: 1 }
-                    : {},
+                capabilities: { mobile_sign_in_source_project: 1 },
             });
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(findSessionUserAndOrgByUuid).not.toHaveBeenCalled();
+            expect(getProject).not.toHaveBeenCalled();
+            expect(getManagedSignIn).not.toHaveBeenCalled();
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+            expect(track).not.toHaveBeenCalled();
         },
     );
 });

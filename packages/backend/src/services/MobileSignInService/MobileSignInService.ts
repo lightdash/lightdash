@@ -438,12 +438,9 @@ export class MobileSignInService extends BaseService {
     }
 
     async getCapabilities(): Promise<MobileSignInCapabilities> {
-        const { enabled } = await this.featureFlagModel.get({
-            featureFlagId: FeatureFlags.MobileSignInSourceProject,
-        });
         return {
             schemaVersion: 1,
-            capabilities: enabled ? { mobile_sign_in_source_project: 1 } : {},
+            capabilities: { mobile_sign_in_source_project: 1 },
         };
     }
 

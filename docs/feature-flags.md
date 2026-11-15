@@ -469,19 +469,24 @@ does not hide tiles already added. Iframe embeds and the web app are not
 affected. Check an organisation's SDK versions in request logs before enabling:
 `sdkVersion`, or `clientVersion` for SDKs older than 0.2617.0.
 
-### Mobile sign-in source project
+### Mobile QR sign-in and source project support
 
-`mobile-sign-in-source-project` is off by default, including previews. It only
-controls static advertising at `GET /api/v1/mobile/sign-in-capabilities`.
-This anonymous endpoint resolves the deployment default without user or
-organisation context. Set the instance default in Console or use the generic
-ENV enable list. User and organisation overrides do not apply. The normal ENV
-precedence applies; ENV changes need an API restart. Database changes apply to
-the next discovery request. Responses have `Cache-Control: no-store`.
+`mobile-qr-sign-in` is the only QR sign-in feature flag. Authenticated backend
+availability and mint checks resolve it for the user's organisation through the
+standard resolver. The web menu uses the server-resolved flag. Console organisation
+overrides work with ENV enable unset. Deployment defaults and generic ENV precedence
+apply as described above. Console changes apply to the next backend check and UI
+refetch; ENV changes require an API restart. Other mobile settings, mode, user and
+project access checks still apply.
 
-Mint and mobile token exchange accept the optional fields with advertising off.
-Mint validates project access, organisation and DEFAULT type. Token exchange
-returns stored context only when `include_source_project=true`. Disabling the
-flag does not change issued codes or tokens. The web makes one uncached,
-bounded discovery request for each mint attempt and falls back to the legacy
-mint shape on any unknown or failed result. It retains no positive result.
+`GET /api/v1/mobile/sign-in-capabilities` advertises implemented protocol support,
+not QR availability or permission. Its static response always has `schemaVersion: 1`
+and `capabilities.mobile_sign_in_source_project: 1`, independent of flags, sessions,
+users and organisations. It resolves no flags and sends `Cache-Control: no-store`.
+
+Mint validates optional source project access, organisation and DEFAULT type.
+Token exchange returns stored context only when `include_source_project=true`.
+The web makes one uncached, bounded discovery request per mint attempt with a source
+project. Unknown or failed discovery uses the exact legacy mint shape. It retains
+no positive result. Disabling QR sign-in still refuses mint and normal QR actions;
+static protocol discovery grants no access and issues no code or token.
