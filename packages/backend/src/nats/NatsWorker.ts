@@ -78,6 +78,7 @@ const FETCH_EXPIRES_MS = 1000;
 export const SHUTDOWN_GRACE_MS = 5000;
 const DATABASE_RETRY_MS = 1000;
 const ACK_PROGRESS_INTERVAL_MS = 5 * 1000;
+const CALLER_GONE_CHECK_INTERVAL_MS = 5 * 1000;
 const EXHAUSTED_DELIVERY_ERROR =
     'Query delivery attempts exhausted. Completion could not be confirmed. Please retry the query.';
 
@@ -318,11 +319,7 @@ export class NatsWorker {
         });
         try {
             await QueryHistoryModel.withQueryExecution(ownership, () =>
-                this.processMessage(
-                    trackedMessage,
-                    workerId,
-                    controller.signal,
-                ),
+                this.processMessage(trackedMessage, workerId, controller),
             );
         } finally {
             this.inFlight.delete(originalMessage);
@@ -332,7 +329,7 @@ export class NatsWorker {
     private async processMessage(
         message: JsMsg,
         workerId: string | undefined,
-        signal: AbortSignal,
+        controller: AbortController,
     ): Promise<void> {
         const workerLabel = workerId ?? 'unknown';
         const parsed = this.parseMessage(message);
@@ -376,7 +373,7 @@ export class NatsWorker {
                 workerLabel,
                 runQuery,
                 parsed,
-                signal,
+                controller,
             );
         } finally {
             this.runningQueries.delete(runId);
@@ -552,8 +549,9 @@ export class NatsWorker {
             onConnectionClaimed?: () => void,
         ) => Promise<boolean>,
         parsed: ParsedMessage | null,
-        signal: AbortSignal,
+        controller: AbortController,
     ): Promise<void> {
+        const { signal } = controller;
         if (!parsed) {
             NatsWorker.logMessageAction(
                 message,
@@ -610,14 +608,24 @@ export class NatsWorker {
                                             await this.applyQuerySentryContext(
                                                 parsed.payload.queryUuid,
                                             );
-                                        return runQuery(
-                                            parsed.payload.queryUuid,
-                                            workerLabel,
-                                            parsed.payload.queryTags,
-                                            () => {
-                                                isConnectionQuery = true;
-                                            },
-                                        );
+                                        const stopCallerCheck =
+                                            this.abortWhenCallerIsGone(
+                                                message,
+                                                parsed.payload.queryUuid,
+                                                controller,
+                                            );
+                                        try {
+                                            return await runQuery(
+                                                parsed.payload.queryUuid,
+                                                workerLabel,
+                                                parsed.payload.queryTags,
+                                                () => {
+                                                    isConnectionQuery = true;
+                                                },
+                                            );
+                                        } finally {
+                                            stopCallerCheck();
+                                        }
                                     },
                                 ),
                             ),
@@ -734,6 +742,56 @@ export class NatsWorker {
                 );
             }
         }
+    }
+
+    private abortWhenCallerIsGone(
+        message: JsMsg,
+        queryUuid: string,
+        controller: AbortController,
+    ): () => void {
+        const startedAt = Date.now();
+        const execution = QueryHistoryModel.getQueryExecution(queryUuid);
+        let isChecking = false;
+        let isStopped = false;
+        const abortIfCallerIsGone = async () => {
+            const queryHistory =
+                await this.queryHistoryModel.getByQueryUuid(queryUuid);
+            if (
+                isStopped ||
+                controller.signal.aborted ||
+                queryHistory?.status !== QueryHistoryStatus.CANCELLED
+            ) {
+                return;
+            }
+            const rowsFetched = execution?.rowsFetched ?? 0;
+            Logger.info('query.abandoned_abort', {
+                queryUuid,
+                phase: rowsFetched > 0 ? 'fetch' : 'query',
+                rowsFetched,
+                elapsedMs: Date.now() - startedAt,
+            });
+            NatsWorker.logMessageAction(
+                message,
+                queryUuid,
+                'term',
+                'caller gone',
+            );
+            message.term();
+            controller.abort();
+        };
+        const interval = setInterval(() => {
+            if (isChecking || controller.signal.aborted) return;
+            isChecking = true;
+            abortIfCallerIsGone()
+                .finally(() => {
+                    isChecking = false;
+                })
+                .catch(() => undefined);
+        }, CALLER_GONE_CHECK_INTERVAL_MS);
+        return () => {
+            isStopped = true;
+            clearInterval(interval);
+        };
     }
 
     private async spawnWorkerLoop(

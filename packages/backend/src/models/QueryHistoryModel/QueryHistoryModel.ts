@@ -71,6 +71,7 @@ export type QueryExecutionOwnership = {
     signal: AbortSignal;
     claimedAt: Date | null;
     pendingClaim: Promise<number> | null;
+    rowsFetched: number;
 };
 
 export class QueryExecutionOwnershipLostError extends Error {
@@ -210,7 +211,13 @@ export class QueryHistoryModel {
         queryUuid: string,
         signal: AbortSignal,
     ): QueryExecutionOwnership {
-        return { queryUuid, signal, claimedAt: null, pendingClaim: null };
+        return {
+            queryUuid,
+            signal,
+            claimedAt: null,
+            pendingClaim: null,
+            rowsFetched: 0,
+        };
     }
 
     static withQueryExecution<T>(

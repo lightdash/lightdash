@@ -5782,6 +5782,13 @@ export class AsyncQueryService extends ProjectService {
                                           QueryHistoryModel.assertQueryExecutionActive(
                                               queryUuid,
                                           );
+                                          const execution =
+                                              QueryHistoryModel.getQueryExecution(
+                                                  queryUuid,
+                                              );
+                                          if (execution)
+                                              execution.rowsFetched +=
+                                                  rows.length;
                                           hasWrittenRows = true;
                                           return resultsStream.write(rows);
                                       }
