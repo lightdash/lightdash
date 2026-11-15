@@ -173,6 +173,7 @@ const MobileSignInPopover: FC<{
                 <MobileUpsellFrame
                     variation={upsell}
                     isIdle={isSignInIdle(signIn)}
+                    isSignedIn={signIn.phase === 'redeemed'}
                     title={
                         <Title order={6}>{MOBILE_STRINGS.signInTitle}</Title>
                     }

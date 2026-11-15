@@ -2,6 +2,7 @@ import {
     LightdashMode,
     MobileSignInCodeStatus,
     type ApiError,
+    type MobileSignInCodeState,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -35,10 +36,14 @@ type Call = { url: string; method: string };
 const mockServer = ({
     mintError,
     isClaimed = false,
+    isRedeemed = false,
+    device = { platform: 'ios', clientName: 'Lightdash iOS' },
     appliesDecisions = false,
 }: {
     mintError?: ApiError;
     isClaimed?: boolean;
+    isRedeemed?: boolean;
+    device?: MobileSignInCodeState['device'];
     appliesDecisions?: boolean;
 } = {}) => {
     const calls: Call[] = [];
@@ -90,18 +95,17 @@ const mockServer = ({
                     : MobileSignInCodeStatus.CLAIMED;
             return {
                 codeUuid: 'code-1',
-                status:
-                    decision === 'decline'
-                        ? MobileSignInCodeStatus.DECLINED
-                        : isClaimed
-                          ? claimedStatus
-                          : MobileSignInCodeStatus.PENDING,
+                status: isRedeemed
+                    ? MobileSignInCodeStatus.REDEEMED
+                    : decision === 'decline'
+                      ? MobileSignInCodeStatus.DECLINED
+                      : isClaimed
+                        ? claimedStatus
+                        : MobileSignInCodeStatus.PENDING,
                 expiresAt: new Date(Date.now() + 120_000).toISOString(),
                 matchNumber: decision === 'approve' ? '47' : null,
                 declinedBy: decision === 'decline' ? 'web' : null,
-                device: isClaimed
-                    ? { platform: 'ios', clientName: 'Lightdash iOS' }
-                    : null,
+                device: isClaimed || isRedeemed ? device : null,
             };
         },
     );
@@ -267,7 +271,7 @@ describe('MobileSignInMenu', () => {
     });
 
     it.each([1, 2, 3, 4, 5, 6] as const)(
-        'shows the Cloud install hint under the QR in pitch %s',
+        'omits the Cloud install hint and keeps the QR in pitch %s',
         async (variation) => {
             health.mode = LightdashMode.CLOUD_BETA;
             window.history.replaceState({}, '', `/?mobileUpsell=${variation}`);
@@ -275,11 +279,62 @@ describe('MobileSignInMenu', () => {
             renderMenu(<MobileSignInMenu />);
             await userEvent.click(openButton());
             await screen.findByRole('img', { name: 'Sign-in QR code' });
-            const hint = screen.getByText(MOBILE_SIGN_IN_STRINGS.installHint);
-            expect(hint).toBeVisible();
-            expect(document.querySelector('[data-idle]')).not.toContainElement(
-                hint,
+            expect(
+                screen.queryByText(MOBILE_SIGN_IN_STRINGS.installHint),
+            ).not.toBeInTheDocument();
+        },
+    );
+
+    it.each([
+        ['ios', 'iOS'],
+        ['android', 'Android'],
+        ['unknown', null],
+        [null, null],
+    ] as const)(
+        'removes the QR panel after sign-in on %s and starts a new code',
+        async (platform, label) => {
+            const user = userEvent.setup();
+            const server = mockServer({
+                isRedeemed: true,
+                device: platform
+                    ? { platform, clientName: 'Test phone' }
+                    : null,
+            });
+            renderMenu(<MobileSignInMenu />);
+
+            await user.click(openButton());
+            expect(
+                await screen.findByText('Signed in on a phone'),
+            ).toBeVisible();
+            if (label) expect(screen.getByText(label)).toBeVisible();
+            else {
+                expect(screen.queryByText('iOS')).not.toBeInTheDocument();
+                expect(screen.queryByText('Android')).not.toBeInTheDocument();
+            }
+            expect(
+                screen.queryByRole('img', { name: 'Sign-in QR code' }),
+            ).not.toBeInTheDocument();
+            expect(
+                document.querySelector('[data-used]'),
+            ).not.toBeInTheDocument();
+            expect(
+                document.querySelector('[data-step-active]'),
+            ).not.toBeInTheDocument();
+
+            await user.click(
+                screen.getByRole('button', { name: 'Sign in another phone' }),
             );
+
+            expect(
+                await screen.findByRole('img', { name: 'Sign-in QR code' }),
+            ).toBeVisible();
+            expect(server.mints()).toHaveLength(2);
+            expect(
+                screen.queryByText('Signed in on a phone'),
+            ).not.toBeInTheDocument();
+            expect(
+                document.querySelector('[data-step-active]'),
+            ).toHaveAttribute('data-step-active', 'false');
         },
     );
 
