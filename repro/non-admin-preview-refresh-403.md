@@ -26,6 +26,10 @@ Each actor calls the API with a personal access token and the CLI request header
 | d | Org admin | Org admin |
 | d | Org admin | Non-admin user |
 | e | Org member with a custom upstream role that has `create:Project@preview` and `update:Project@self` but not `update:Project` | Same user |
+| e | Org member with the project developer role on the upstream project through a group | Same user |
+| e | Org member with an org-level custom role that has `create:Project@preview` and `update:Project@self` but not `update:Project` | Same user |
+
+For each PATCH project that the server accepts, the script also polls the compile job (`GET /api/v1/jobs/{jobUuid}`), as the CLI does.
 
 ## How to run
 

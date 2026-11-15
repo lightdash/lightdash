@@ -72,7 +72,14 @@ const projects = must(
     await request(admin, 'GET', '/api/v1/org/projects'),
     'list projects',
 );
-const upstream = projects.find((project) => project.type === 'DEFAULT');
+const upstream = must(
+    await request(
+        admin,
+        'GET',
+        `/api/v1/projects/${projects.find((project) => project.type === 'DEFAULT').projectUuid}`,
+    ),
+    'upstream project',
+);
 results.setup.push({
     adminRole: me.role,
     organizationUuid: me.organizationUuid,
@@ -90,13 +97,11 @@ const createUser = async (key, orgRole) => {
         }),
         `invite ${key}`,
     );
-    const password = `Rp1-${randomBytes(12).toString('hex')}`;
-    const registered = await request(sessionAuth(''), 'POST', '/api/v1/user', {
-        inviteCode: invite.inviteCode,
-        firstName: 'Repro',
-        lastName: key,
-        password,
-    });
+    const registered = await request(
+        sessionAuth(''),
+        'POST',
+        `/api/v1/invite-links/${invite.inviteCode}/activate`,
+    );
     const user = must(registered, `register ${key}`);
     const cookie = cookieHeaderFromResponse(registered.response);
     const pat = must(
@@ -138,14 +143,42 @@ const grantProjectRole = async (user, role) => {
     });
 };
 
-const grantCustomProjectRole = async (user) => {
+const grantGroupProjectRole = async (user, role) => {
+    const group = await request(admin, 'POST', '/api/v1/org/groups', {
+        name: `repro-${RUN}-group`,
+        members: [{ userUuid: user.userUuid }],
+    });
+    results.setup.push({
+        user: user.key,
+        group: 'create',
+        status: group.status,
+        message: messageOf(group),
+    });
+    if (group.status >= 300) return false;
+    const access = await request(
+        admin,
+        'POST',
+        `/api/v1/groups/${group.json.results.uuid}/projects/${upstream.projectUuid}`,
+        { role },
+    );
+    results.setup.push({
+        user: user.key,
+        groupUpstreamProjectRole: role,
+        status: access.status,
+        message: messageOf(access),
+    });
+    return access.status < 300;
+};
+
+const grantCustomRole = async (user, level) => {
     const created = await request(
         admin,
         'POST',
         `/api/v2/orgs/${me.organizationUuid}/roles`,
         {
-            name: `repro-${RUN}-preview-self`,
+            name: `repro-${RUN}-preview-self-${level}`,
             description: 'Repro: preview creation plus update:Project@self only',
+            level,
             scopes: [
                 'view:Project',
                 'create:Project@preview',
@@ -155,7 +188,8 @@ const grantCustomProjectRole = async (user) => {
                 'manage:DeployProject@self',
                 'create:Job',
                 'create:Job@self',
-                'view:JobStatus',
+                'view:Job@self',
+                'view:JobStatus@self',
             ],
         },
     );
@@ -170,8 +204,10 @@ const grantCustomProjectRole = async (user) => {
     const assigned = await request(
         admin,
         'POST',
-        `/api/v2/projects/${upstream.projectUuid}/roles/assignments/user/${user.userUuid}`,
-        { roleId, sendEmail: false },
+        level === 'organization'
+            ? `/api/v2/orgs/${me.organizationUuid}/roles/assignments/user/${user.userUuid}`
+            : `/api/v2/projects/${upstream.projectUuid}/roles/assignments/user/${user.userUuid}`,
+        level === 'organization' ? { roleId } : { roleId, sendEmail: false },
     );
     results.setup.push({
         user: user.key,
@@ -265,6 +301,39 @@ const refreshAsCli = async (scenario, actor, previewUuid, createdBy) => {
         message: messageOf(update),
         getProjectStatus: project.status,
     });
+
+    const jobUuid = update.json?.results?.jobUuid;
+    if (!jobUuid) return;
+    let job = await request(actor.cli, 'GET', `/api/v1/jobs/${jobUuid}`);
+    for (
+        let attempt = 0;
+        attempt < 30 &&
+        job.status < 300 &&
+        !['DONE', 'ERROR'].includes(job.json?.results?.jobStatus);
+        attempt += 1
+    ) {
+        await new Promise((resolve) => {
+            setTimeout(resolve, 2000);
+        });
+        job = await request(actor.cli, 'GET', `/api/v1/jobs/${jobUuid}`);
+    }
+    const failedStep = job.json?.results?.steps?.find(
+        (step) => step.stepStatus === 'ERROR',
+    );
+    results.scenarios.push({
+        scenario,
+        actor: actor.key,
+        actorRole: actor.role,
+        createdBy,
+        previewUuid,
+        endpoint: 'GET /api/v1/jobs/{jobUuid} (compile job from PATCH project)',
+        jobUuid,
+        status: job.status,
+        message:
+            job.status < 300
+                ? `jobStatus=${job.json.results.jobStatus}${failedStep ? ` step ${failedStep.stepType}: ${failedStep.stepError}` : ''}`
+                : messageOf(job),
+    });
 };
 
 const adminPat = must(
@@ -298,7 +367,16 @@ orgMember.role = 'org member, no project role (non-creator)';
 const selfScope = await createUser('selfscope', 'member');
 selfScope.role =
     'org member + upstream custom role (create:Project@preview, update:Project@self, no update:Project)';
-const hasSelfScope = await grantCustomProjectRole(selfScope);
+const hasSelfScope = await grantCustomRole(selfScope, 'project');
+
+const groupDev = await createUser('groupdev', 'member');
+groupDev.role = 'org member + upstream project developer through a group';
+const hasGroupDev = await grantGroupProjectRole(groupDev, 'developer');
+
+const orgSelfScope = await createUser('orgselfscope', 'member');
+orgSelfScope.role =
+    'org custom role (create:Project@preview, update:Project@self, no update:Project)';
+const hasOrgSelfScope = await grantCustomRole(orgSelfScope, 'organization');
 
 const projectDevPreview = await createPreview(projectDev, 'projdev');
 if (projectDevPreview) {
@@ -341,6 +419,33 @@ if (hasSelfScope) {
             selfScope,
             selfScopePreview,
             'selfscope',
+        );
+    }
+}
+
+if (hasGroupDev) {
+    const groupDevPreview = await createPreview(groupDev, 'groupdev');
+    if (groupDevPreview) {
+        await refreshAsCli(
+            'e:creator-group-developer',
+            groupDev,
+            groupDevPreview,
+            'groupdev',
+        );
+    }
+}
+
+if (hasOrgSelfScope) {
+    const orgSelfScopePreview = await createPreview(
+        orgSelfScope,
+        'orgselfscope',
+    );
+    if (orgSelfScopePreview) {
+        await refreshAsCli(
+            'e:creator-org-self-scope',
+            orgSelfScope,
+            orgSelfScopePreview,
+            'orgselfscope',
         );
     }
 }
