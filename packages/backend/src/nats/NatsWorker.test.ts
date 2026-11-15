@@ -4,12 +4,12 @@ import {
     type QueryHistory,
 } from '@lightdash/common';
 import { StringCodec, type JsMsg } from 'nats';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type NatsClient } from '../clients/NatsClient';
 import Logger from '../logging/logger';
 import {
     QueryExecutionOwnershipLostError,
-    type QueryHistoryModel,
+    QueryHistoryModel,
 } from '../models/QueryHistoryModel/QueryHistoryModel';
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { registerPreAggregateStream, STREAM_CONFIGS } from './natsConfig';
@@ -566,5 +566,128 @@ describe('NatsWorker subject dispatch', () => {
         asyncQueryService.runAsyncWarehouseQueryFromHistory.mockResolvedValue(
             true,
         );
+    });
+
+    describe('when the caller is gone', () => {
+        const BATCHES = 10;
+        const ROWS_PER_BATCH = 100;
+        const BATCH_MS = 1400;
+
+        const runFetchingQuery = async (statusOnCheck: QueryHistoryStatus) => {
+            vi.spyOn(Logger, 'info');
+            const message = jobMessage(STREAM_CONFIGS.warehouse.subjects.query);
+            const uploadResults = vi.fn();
+            const writeFinalResult = vi.fn();
+            let rowsFetched = 0;
+            const fetchBatches = async (remaining: number): Promise<void> => {
+                if (remaining === 0) return;
+                await new Promise((resolve) => {
+                    setTimeout(resolve, BATCH_MS);
+                });
+                QueryHistoryModel.assertQueryExecutionActive('query-1');
+                rowsFetched += ROWS_PER_BATCH;
+                Object.assign(QueryHistoryModel.getQueryExecution('query-1')!, {
+                    rowsFetched,
+                });
+                await fetchBatches(remaining - 1);
+            };
+            asyncQueryService.runAsyncWarehouseQueryFromHistory.mockImplementationOnce(
+                async () => {
+                    await fetchBatches(BATCHES);
+                    QueryHistoryModel.assertQueryExecutionActive('query-1');
+                    uploadResults();
+                    writeFinalResult();
+                    return true;
+                },
+            );
+            let statusReads = 0;
+            queryHistoryModel.getByQueryUuid.mockImplementation(async () => {
+                statusReads += 1;
+                if (statusReads === 1) return undefined;
+                if (statusReads === 2) throw new Error('history unavailable');
+                return { status: statusOnCheck } as QueryHistory;
+            });
+            const startedAt = Date.now();
+            let handlerMs = -1;
+            const handling = buildWorker()
+                .handleMessage(message, 'worker-1')
+                .then(() => {
+                    handlerMs = Date.now() - startedAt;
+                });
+            await vi.advanceTimersByTimeAsync(60_000);
+            await handling;
+            return {
+                measured: {
+                    rowsFetched,
+                    resultUploads: uploadResults.mock.calls.length,
+                    finalWrites: writeFinalResult.mock.calls.length,
+                    handlerMs,
+                    acks: vi.mocked(message.ack).mock.calls.length,
+                    terms: vi.mocked(message.term).mock.calls.length,
+                    naks: vi.mocked(message.nak).mock.calls.length,
+                },
+            };
+        };
+
+        beforeEach(() => {
+            vi.useFakeTimers();
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        it('stops the row loop and skips the upload and the final write', async () => {
+            const { measured } = await runFetchingQuery(
+                QueryHistoryStatus.CANCELLED,
+            );
+            expect(measured).toEqual({
+                rowsFetched: 700,
+                resultUploads: 0,
+                finalWrites: 0,
+                handlerMs: 11_200,
+                acks: 0,
+                terms: 1,
+                naks: 0,
+            });
+        });
+
+        it('logs the abandoned query with its phase, rows and run time', async () => {
+            await runFetchingQuery(QueryHistoryStatus.CANCELLED);
+            expect(Logger.info).toHaveBeenCalledWith('query.abandoned_abort', {
+                queryUuid: 'query-1',
+                phase: 'fetch',
+                rowsFetched: 700,
+                elapsedMs: 10_000,
+            });
+            expect(Logger.warn).toHaveBeenCalledWith(
+                'NATS query message disposition',
+                {
+                    queryUuid: 'query-1',
+                    deliveryCount: 1,
+                    action: 'term',
+                    reason: 'caller gone',
+                },
+            );
+        });
+
+        it('lets the query finish while the caller still waits', async () => {
+            const { measured } = await runFetchingQuery(
+                QueryHistoryStatus.EXECUTING,
+            );
+            expect(measured).toEqual({
+                rowsFetched: BATCHES * ROWS_PER_BATCH,
+                resultUploads: 1,
+                finalWrites: 1,
+                handlerMs: BATCHES * BATCH_MS,
+                acks: 1,
+                terms: 0,
+                naks: 0,
+            });
+            expect(Logger.info).not.toHaveBeenCalledWith(
+                'query.abandoned_abort',
+                expect.anything(),
+            );
+        });
     });
 });

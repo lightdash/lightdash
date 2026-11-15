@@ -12179,6 +12179,54 @@ describe('AsyncQueryService', () => {
         );
     });
 
+    test('counts the rows a worker execution fetches', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            projectModel: {
+                ...projectModel,
+                ...singleRouteProjectModelMethods,
+                getWarehouseCredentialsForProject: vi.fn(
+                    async () => warehouseClientMock.credentials,
+                ),
+                getWarehouseClientFromCredentials: vi.fn(() => ({
+                    ...warehouseClientMock,
+                    runQuery: vi.fn(async () => resultsWith1Row),
+                })),
+            } as unknown as ProjectModel,
+        });
+        const ownership = QueryHistoryModel.createQueryExecution(
+            'query',
+            new AbortController().signal,
+        );
+        const stream = {
+            write: vi.fn(),
+            close: vi.fn(async () => undefined),
+        };
+        vi.spyOn(
+            service.resultsStorageClient,
+            'createUploadStream',
+        ).mockReturnValue(stream as never);
+        await QueryHistoryModel.withQueryExecution(ownership, () =>
+            service.runAsyncWarehouseQuery({
+                userUuid: sessionAccount.user.id,
+                organizationUuid: 'org',
+                isPreviewProject: false,
+                isRegisteredUser: true,
+                onboardingFlow: 'legacy',
+                projectUuid,
+                query: 'SELECT 1',
+                fieldsMap: {},
+                usedParameters: null,
+                queryTags: { query_context: QueryExecutionContext.EXPLORE },
+                queryUuid: 'query',
+                cacheKey: 'cache',
+                queryCreatedAt: new Date(),
+                displayTimezone: null,
+            }),
+        );
+        expect(stream.write).toHaveBeenCalledOnce();
+        expect(ownership).toMatchObject({ rowsFetched: 1 });
+    });
+
     test.each([false, true])(
         'terminal usage waits for upload and READY persistence (upload failure=%s)',
         async (uploadFails) => {
