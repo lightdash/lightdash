@@ -13,8 +13,10 @@ import { TimeFrames } from '../types/timeFrames';
 import {
     convertAdditionalMetric,
     getCompatibleDashboardMetrics,
+    getHandWrittenAdditionalMetrics,
     getMissingAdditionalMetricReferences,
     mergeDashboardCustomMetrics,
+    resolveAdditionalMetricsSql,
 } from './additionalMetrics';
 
 const baseTable: CompiledTable = {
@@ -469,5 +471,125 @@ describe('getCompatibleDashboardMetrics', () => {
             explore,
         );
         expect(result.map((m) => m.name)).toEqual(['custom_metric', 'wrapped']);
+    });
+});
+
+describe('resolveAdditionalMetricsSql', () => {
+    const tables: Explore['tables'] = {
+        orders: {
+            ...baseTable,
+            dimensions: {
+                amount: { name: 'amount', sql: '${TABLE}.amount' },
+            },
+            metrics: {
+                total: {
+                    name: 'total',
+                    table: 'orders',
+                    sql: '${TABLE}.amount',
+                },
+            },
+        } as unknown as CompiledTable,
+    };
+
+    it('takes SQL from the base dimension when the custom metric has none', () => {
+        const [resolved] = resolveAdditionalMetricsSql(
+            [
+                {
+                    name: 'avg_amount',
+                    table: 'orders',
+                    type: MetricType.AVERAGE,
+                    sql: '',
+                    baseDimensionName: 'amount',
+                },
+            ],
+            tables,
+        );
+
+        expect(resolved.sql).toBe('${TABLE}.amount');
+    });
+
+    it('takes SQL from the base metric for period-over-period metrics', () => {
+        const [resolved] = resolveAdditionalMetricsSql(
+            [
+                {
+                    name: 'total_previous',
+                    table: 'orders',
+                    type: MetricType.SUM_DISTINCT,
+                    sql: '',
+                    generationType: 'periodOverPeriod',
+                    baseMetricId: 'orders_total',
+                    timeDimensionId: 'orders_created_at',
+                    granularity: TimeFrames.MONTH,
+                    periodOffset: 1,
+                },
+            ],
+            tables,
+        );
+
+        expect(resolved.sql).toBe('${TABLE}.amount');
+    });
+
+    it('keeps existing SQL and leaves unresolvable metrics empty', () => {
+        const resolved = resolveAdditionalMetricsSql(
+            [
+                {
+                    name: 'custom',
+                    table: 'orders',
+                    type: MetricType.SUM,
+                    sql: '${TABLE}.other',
+                    baseDimensionName: 'amount',
+                },
+                {
+                    name: 'unknown',
+                    table: 'orders',
+                    type: MetricType.SUM,
+                    sql: '',
+                    baseDimensionName: 'missing',
+                },
+            ],
+            tables,
+        );
+
+        expect(resolved.map((m) => m.sql)).toEqual(['${TABLE}.other', '']);
+    });
+});
+
+describe('getHandWrittenAdditionalMetrics', () => {
+    const tables: Explore['tables'] = {
+        orders: {
+            ...baseTable,
+            dimensions: {
+                amount: { name: 'amount', sql: '${TABLE}.amount' },
+            },
+        } as unknown as CompiledTable,
+    };
+    const metric = (name: string, sql: string): AdditionalMetric => ({
+        name,
+        table: 'orders',
+        type: MetricType.SUM,
+        sql,
+    });
+
+    it('keeps only metrics whose SQL is not a modelled field definition', () => {
+        const handWritten = getHandWrittenAdditionalMetrics(
+            [
+                metric('by_definition', '${TABLE}.amount'),
+                metric('by_reference', '${orders.amount}'),
+                { ...metric('by_base', ''), baseDimensionName: 'amount' },
+                metric('written', '(SELECT 4242 + 1)'),
+            ],
+            tables,
+        );
+
+        expect(handWritten.map(({ name }) => name)).toEqual(['written']);
+    });
+
+    it('treats a modelled definition from another table as hand-written', () => {
+        expect(
+            getHandWrittenAdditionalMetrics(
+                [{ ...metric('elsewhere', '${TABLE}.amount'), table: 'other' }],
+                tables,
+            ),
+        ).toHaveLength(1);
     });
 });

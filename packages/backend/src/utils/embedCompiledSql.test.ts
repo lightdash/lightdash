@@ -3,17 +3,12 @@ import {
     FieldType,
     MetricType,
     SupportedDbtAdapter,
-    TimeFrames,
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
     type ItemsMap,
 } from '@lightdash/common';
-import {
-    redactExploreSql,
-    redactItemsMapSql,
-    resolveAdditionalMetricsSql,
-} from './embedCompiledSql';
+import { redactExploreSql, redactItemsMapSql } from './embedCompiledSql';
 
 const dimension: CompiledDimension = {
     fieldType: FieldType.DIMENSION,
@@ -119,71 +114,5 @@ describe('redactItemsMapSql', () => {
             compiledSql: '',
         });
         expect(redacted.double_total).toBe(tableCalculation);
-    });
-});
-
-describe('resolveAdditionalMetricsSql', () => {
-    const { tables } = explore;
-
-    it('takes SQL from the base dimension when the custom metric has none', () => {
-        const [resolved] = resolveAdditionalMetricsSql(
-            [
-                {
-                    name: 'avg_amount',
-                    table: 'orders',
-                    type: MetricType.AVERAGE,
-                    sql: '',
-                    baseDimensionName: 'amount',
-                },
-            ],
-            tables,
-        );
-
-        expect(resolved.sql).toBe('${TABLE}.amount');
-    });
-
-    it('takes SQL from the base metric for period-over-period metrics', () => {
-        const [resolved] = resolveAdditionalMetricsSql(
-            [
-                {
-                    name: 'total_previous',
-                    table: 'orders',
-                    type: MetricType.SUM_DISTINCT,
-                    sql: '',
-                    generationType: 'periodOverPeriod',
-                    baseMetricId: 'orders_total',
-                    timeDimensionId: 'orders_created_at',
-                    granularity: TimeFrames.MONTH,
-                    periodOffset: 1,
-                },
-            ],
-            tables,
-        );
-
-        expect(resolved.sql).toBe('${TABLE}.amount');
-    });
-
-    it('keeps existing SQL and leaves unresolvable metrics empty', () => {
-        const resolved = resolveAdditionalMetricsSql(
-            [
-                {
-                    name: 'custom',
-                    table: 'orders',
-                    type: MetricType.SUM,
-                    sql: '${TABLE}.other',
-                    baseDimensionName: 'amount',
-                },
-                {
-                    name: 'unknown',
-                    table: 'orders',
-                    type: MetricType.SUM,
-                    sql: '',
-                    baseDimensionName: 'missing',
-                },
-            ],
-            tables,
-        );
-
-        expect(resolved.map((m) => m.sql)).toEqual(['${TABLE}.other', '']);
     });
 });

@@ -5,6 +5,7 @@ import {
     flattenFilterGroup,
     getApiSourceQueryIssues,
     getItemId,
+    getItemMap,
     ParameterError,
     type ApiConnectorType,
     type ApiSourceExplore,
@@ -315,7 +316,10 @@ export const assertApiSourceQuery = (
     context: ApiSourceQueryContext = {},
 ): ApiSourceExplore => {
     const apiSource = getApiSourceExplore(explore);
-    const issues = getApiSourceQueryIssues(apiSource, metricQuery, context);
+    const issues = getApiSourceQueryIssues(apiSource, metricQuery, {
+        itemsMap: getItemMap(explore),
+        ...context,
+    });
     if (issues.length > 0) {
         throw toApiSourceQueryError(issues);
     }

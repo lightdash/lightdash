@@ -1,5 +1,6 @@
 import {
     type AndFilterGroup,
+    type ApiSourceExplore,
     type FilterableItem,
     type FilterRule,
     type ItemsMap,
@@ -36,6 +37,8 @@ export type FiltersContext<T extends DefaultFieldsMap = DefaultFieldsMap> = {
     popoverProps?: FilterPopoverProps;
     parameterValues?: ParametersValuesMap;
     metricQueryTimezone?: string;
+    /** The live data source's rules, so filters offer only what it runs. */
+    apiSource?: ApiSourceExplore | null;
 };
 
 const Context = createContext<FiltersContext | undefined>(undefined);

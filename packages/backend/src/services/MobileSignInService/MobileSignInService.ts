@@ -299,19 +299,21 @@ export class MobileSignInService extends BaseService {
         return getClientAddress(req, this.lightdashConfig.trustProxy);
     }
 
-    private async isEnabled(organizationUuid: string): Promise<boolean> {
+    private async isEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
         const flag = await this.featureFlagModel.get({
-            user: { organizationUuid },
+            user,
             featureFlagId: FeatureFlags.MobileSettings,
         });
         return flag.enabled;
     }
 
     private async isQrSignInEnabled(
-        organizationUuid: string,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<boolean> {
         const flag = await this.featureFlagModel.get({
-            user: { organizationUuid },
+            user,
             featureFlagId: FeatureFlags.MobileQrSignIn,
         });
         return flag.enabled;
@@ -331,22 +333,23 @@ export class MobileSignInService extends BaseService {
     }
 
     private async availability(
-        organizationUuid: string | undefined,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<MobileSignInRefusal | null> {
         if (!this.isSupportedMode())
             return MobileSignInRefusal.FEATURE_DISABLED;
-        if (!organizationUuid) return MobileSignInRefusal.ORGANIZATION_REQUIRED;
-        if (!(await this.isEnabled(organizationUuid))) {
+        if (!user.organizationUuid)
+            return MobileSignInRefusal.ORGANIZATION_REQUIRED;
+        if (!(await this.isEnabled(user))) {
             return MobileSignInRefusal.FEATURE_DISABLED;
         }
-        if (!(await this.isQrSignInEnabled(organizationUuid))) {
+        if (!(await this.isQrSignInEnabled(user))) {
             return MobileSignInRefusal.QR_SIGN_IN_DISABLED;
         }
         return null;
     }
 
     private async assertAvailableFor(user: SessionUser): Promise<void> {
-        const refusal = await this.availability(user.organizationUuid);
+        const refusal = await this.availability(user);
         if (refusal) throw MobileSignInService.refusalError(refusal);
     }
 
@@ -370,7 +373,10 @@ export class MobileSignInService extends BaseService {
         }
         const owner = await this.mobileSignInCodeModel.findOwner(code);
         if (!owner) return null;
-        const refusal = await this.availability(owner.organization_uuid);
+        const refusal = await this.availability({
+            userUuid: owner.user_uuid,
+            organizationUuid: owner.organization_uuid,
+        });
         if (refusal) throw MobileSignInService.deniedForPhone(refusal);
         return owner;
     }
@@ -406,7 +412,7 @@ export class MobileSignInService extends BaseService {
         user: SessionUser,
         platforms: readonly MobileSignInPlatform[],
     ): Promise<MobileSignInRefusal | null> {
-        const unavailable = await this.availability(user.organizationUuid);
+        const unavailable = await this.availability(user);
         if (unavailable) return unavailable;
         if (!user.isActive) {
             return MobileSignInRefusal.FEATURE_DISABLED;

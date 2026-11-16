@@ -461,10 +461,10 @@ credentials are refreshed from the CLI; saved previews are not changed.
 charts shown as dashboard tiles.
 
 Rollout rule: do not enable it for an organisation that embeds dashboards with
-`@lightdash/sdk` until its apps run version **TBD** or later, the first SDK
-release containing PR #32548. Replace TBD with that version once it is
-published. Older SDKs throw on the unknown `composer_chart` tile type, and the
-whole embedded dashboard shows the error fallback. Turning the flag off later
+`@lightdash/sdk` until its apps run version **3.245.0** or later, the first
+SDK release containing PR #32548. Older SDKs throw on the unknown
+`composer_chart` tile type, and the whole embedded dashboard shows the error
+fallback. Turning the flag off later
 does not hide tiles already added. Iframe embeds and the web app are not
 affected. Check an organisation's SDK versions in request logs before enabling:
 `sdkVersion`, or `clientVersion` for SDKs older than 0.2617.0.

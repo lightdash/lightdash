@@ -625,6 +625,42 @@ describe('ExternalConnectionModel', () => {
         });
     });
 
+    describe('softDelete', () => {
+        it('deletes the secret and call log but keeps the connection row', async () => {
+            tracker.on.update(ExternalConnectionsTableName).response(1);
+            tracker.on.delete(AppExternalConnectionsTableName).response(0);
+            tracker.on.delete(ExternalConnectionSecretsTableName).response(1);
+            tracker.on.delete(ApiSourceCallsTableName).response(3);
+
+            await model.softDelete(CONNECTION_UUID);
+
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update[0].sql).toContain('deleted_at');
+            const deletedTables = tracker.history.delete.map(
+                ({ sql }) => sql.match(/delete from "(\w+)"/)?.[1],
+            );
+            expect(deletedTables).toEqual([
+                AppExternalConnectionsTableName,
+                ExternalConnectionSecretsTableName,
+                ApiSourceCallsTableName,
+            ]);
+            expect(
+                tracker.history.delete.every(({ bindings }) =>
+                    bindings.includes(CONNECTION_UUID),
+                ),
+            ).toBe(true);
+        });
+
+        it('deletes nothing when the connection is missing or already deleted', async () => {
+            tracker.on.update(ExternalConnectionsTableName).response(0);
+
+            await expect(model.softDelete(CONNECTION_UUID)).rejects.toThrow(
+                'External connection not found',
+            );
+            expect(tracker.history.delete).toHaveLength(0);
+        });
+    });
+
     describe('rotateSecret', () => {
         it('encrypts and upserts the new secret, stamping rotated_at', async () => {
             tracker.on
