@@ -379,7 +379,7 @@ const DraftActions: FC<{
 };
 
 /** Switches what the person's own queries read: the live models, or those with their changes on top. */
-export const ChangesSwitch: FC<{
+const ChangesSwitch: FC<{
     isOnMyChanges: boolean;
     onChange: (next: boolean) => void;
     /** Why it cannot be switched right now; shown disabled with this as its tooltip. */
@@ -565,7 +565,9 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                 </Menu.Target>
                 <Menu.Dropdown>
                     {tryModel ? (
-                        <Menu.Item onClick={() => tryInExplore(tryModel, null)}>
+                        <Menu.Item
+                            onClick={() => tryInExplore(tryModel, null, null)}
+                        >
                             Try in Explore
                         </Menu.Item>
                     ) : null}

@@ -175,15 +175,6 @@
     margin-bottom: -14px;
 }
 
-.totals:empty {
-    display: none;
-}
-
-/* Totals share the card's left edge instead of their own inset. */
-.totals > * {
-    padding-inline: 0;
-}
-
 .fileName {
     display: flex;
     align-items: center;

@@ -1,18 +1,11 @@
-import { Button, Center, Group, Loader, Stack, Text } from '@mantine/core';
-import {
-    IconArrowUpRight,
-    IconFile,
-    IconFileCode,
-    IconTable,
-} from '@tabler/icons-react';
+import { Center, Group, Loader, Stack, Text } from '@mantine/core';
+import { IconFile, IconFileCode, IconTable } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     ModelFieldChanges,
-    ModelTotals,
     PullRequestUsage,
 } from '../../../../../features/semanticStudio/ModelFieldChanges';
-import { useTryInExplore } from '../../../../../features/semanticStudio/useTryInExplore';
 import { usePullRequestDiff } from '../../hooks/usePullRequestDiff';
 import {
     splitPatchIntoFiles,
@@ -62,7 +55,6 @@ export const PullRequestChanges: FC<{
         commitSha,
         true,
     );
-    const tryInExplore = useTryInExplore(projectUuid);
     const files = useMemo(
         () => (data?.diff ? splitPatchIntoFiles(data.diff) : []),
         [data],
@@ -111,38 +103,14 @@ export const PullRequestChanges: FC<{
                                     {model}
                                 </Text>
                                 <LineCounts files={modelFiles} />
-                                <Button
-                                    size="compact-xs"
-                                    variant="subtle"
-                                    color="gray"
-                                    ml="auto"
-                                    rightSection={
-                                        <MantineIcon
-                                            icon={IconArrowUpRight}
-                                            size={12}
-                                        />
-                                    }
-                                    onClick={() =>
-                                        tryInExplore(model, previewProjectUuid)
-                                    }
-                                >
-                                    Try in Explore
-                                </Button>
                             </Group>
                             <Stack gap="sm" className={classes.modelBody}>
                                 <ModelFieldChanges
                                     projectUuid={projectUuid}
                                     model={model}
                                     previewProjectUuid={previewProjectUuid}
+                                    cacheKey={commitSha ?? prUrl}
                                 />
-                                <div className={classes.totals}>
-                                    <ModelTotals
-                                        projectUuid={projectUuid}
-                                        model={model}
-                                        previewProjectUuid={previewProjectUuid}
-                                        cacheKey={commitSha ?? prUrl}
-                                    />
-                                </div>
                                 {modelFiles.map((file) => (
                                     <FileBlock key={file.key} file={file} />
                                 ))}

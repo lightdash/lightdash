@@ -48,6 +48,7 @@ import {
 } from '../../../hooks/useProjectAiAgents';
 import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
+import { PullRequestCardTryIt } from '../../SemanticStudioAgent/TryItButton';
 import styles from './AiEditDbtProjectToolCall.module.css';
 import { isMergeable } from './pullRequestActions';
 import {
@@ -771,15 +772,21 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         </PullRequestViewMenu>
                         {/* In Studio the workspace holds the changes and the bar merges them; the card points there. */}
                         {quiet && isOpen ? (
-                            <Button
-                                size="compact-xs"
-                                variant="default"
-                                onClick={() =>
-                                    setSearchParams({ view: 'changes' })
-                                }
-                            >
-                                View changes
-                            </Button>
+                            <>
+                                <PullRequestCardTryIt
+                                    projectUuid={projectUuid}
+                                    prUrl={metadata.prUrl}
+                                />
+                                <Button
+                                    size="compact-xs"
+                                    variant="default"
+                                    onClick={() =>
+                                        setSearchParams({ view: 'changes' })
+                                    }
+                                >
+                                    View changes
+                                </Button>
+                            </>
                         ) : null}
                         {!isBitbucket && !(quiet && isOpen) && (
                             <PullRequestActionButtons

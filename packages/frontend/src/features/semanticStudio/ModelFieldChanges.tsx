@@ -1,5 +1,4 @@
-import { getItemId, type Metric } from '@lightdash/common';
-import { Badge, Group, Stack, Text } from '@mantine/core';
+import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { useQueries } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -7,17 +6,16 @@ import {
     DEVELOPMENT_PREVIEW_HEADER,
     DEVELOPMENT_VIEW_HEADER,
 } from './developmentView';
-import { CompareTotals, FieldUsage } from './DraftInsights';
-import { pickComparedMetrics } from './metricComparison';
+import { FieldUsage } from './DraftInsights';
+import { describeShift } from './metricComparison';
+import { findTouchedFields, type FieldChange } from './modelFieldDiff';
+import { modelVersionQuery } from './useFieldChangesInDevelopment';
+import { LIVE_HEADERS, useTotals } from './useMetricTotals';
 import {
-    diffModelFields,
-    findTouchedFields,
-    type FieldChange,
-} from './modelFieldDiff';
-import {
-    modelVersionQuery,
-    useModelVersion,
-} from './useFieldChangesInDevelopment';
+    developmentHeadersFor,
+    findChangedFieldIds,
+    useModelFieldChanges,
+} from './useModelFieldChanges';
 import { useSemanticLayerFieldUsage } from './useSemanticLayerModel';
 
 const KINDS: Record<FieldChange['kind'], { label: string; color: string }> = {
@@ -26,29 +24,48 @@ const KINDS: Record<FieldChange['kind'], { label: string; color: string }> = {
     removed: { label: 'Removed', color: 'red' },
 };
 
-/** What the person's changes do to this model's fields, in plain words: added, changed with what differs, removed. */
+/** What the person's changes do to this model's fields, in plain words, with each new or changed metric's total next to it. */
 export const ModelFieldChanges: FC<{
     projectUuid: string;
     model: string;
     /** The preview project that holds the changes, for a pull request that has one. */
     previewProjectUuid: string | null;
-}> = ({ projectUuid, model, previewProjectUuid }) => {
-    const live = useModelVersion(projectUuid, model, {
-        [DEVELOPMENT_VIEW_HEADER]: 'false',
-    });
-    const mine = useModelVersion(projectUuid, model, {
-        [DEVELOPMENT_VIEW_HEADER]: 'true',
-        ...(previewProjectUuid
-            ? { [DEVELOPMENT_PREVIEW_HEADER]: previewProjectUuid }
-            : {}),
-    });
-    const changes = useMemo(
-        () =>
-            // A model that is new has no live version to read.
-            mine.data && (live.data || live.isError)
-                ? diffModelFields(live.data ?? null, mine.data)
-                : null,
-        [live.data, live.isError, mine.data],
+    /** The pull request's latest commit, so totals are read again after it moves. */
+    cacheKey: string;
+}> = ({ projectUuid, model, previewProjectUuid, cacheKey }) => {
+    const { live, mine, changes } = useModelFieldChanges(
+        projectUuid,
+        model,
+        previewProjectUuid,
+    );
+    const metricIds = useMemo(() => {
+        if (!mine || !changes) return new Map<string, string>();
+        return new Map(
+            [...findChangedFieldIds(mine, changes)]
+                .filter(([, { isMetric }]) => isMetric)
+                .map(([key, { id }]) => [key, id]),
+        );
+    }, [mine, changes]);
+    const ids = [...metricIds.values()];
+    // Asking live for a metric it does not have fails the whole query.
+    const liveIds = (changes ?? [])
+        .filter(({ key, kind }) => kind === 'changed' && metricIds.has(key))
+        .map(({ key }) => metricIds.get(key) ?? key);
+    const after = useTotals(
+        projectUuid,
+        model,
+        ids,
+        developmentHeadersFor(previewProjectUuid),
+        ids.length > 0,
+        cacheKey,
+    );
+    const before = useTotals(
+        projectUuid,
+        model,
+        liveIds,
+        LIVE_HEADERS,
+        liveIds.length > 0,
+        cacheKey,
     );
     if (!changes) return null;
     if (changes.length === 0) {
@@ -58,9 +75,39 @@ export const ModelFieldChanges: FC<{
             </Text>
         );
     }
+    const renderTotal = (key: string, kind: FieldChange['kind']) => {
+        const id = metricIds.get(key);
+        if (!id || after.isError) return null;
+        const value = after.data?.[id];
+        const old = kind === 'changed' ? before.data?.[id] : undefined;
+        const shift = old && value ? describeShift(old.raw, value.raw) : null;
+        return (
+            <Tooltip
+                label={
+                    old
+                        ? 'Total over every row, live and with your changes.'
+                        : 'Total over every row, with your changes.'
+                }
+            >
+                <Text fz="xs" ml="auto" flex="none" ta="right">
+                    {old ? (
+                        <Text span inherit c="dimmed">
+                            {old.formatted} →{' '}
+                        </Text>
+                    ) : null}
+                    {value?.formatted ?? '…'}
+                    {shift ? (
+                        <Text span inherit c="orange" ml={6}>
+                            {shift}
+                        </Text>
+                    ) : null}
+                </Text>
+            </Tooltip>
+        );
+    };
     return (
         <Stack gap={6}>
-            {live.data ? null : (
+            {live ? null : (
                 <Text fz="xs" c="dimmed">
                     This model is new.
                 </Text>
@@ -78,62 +125,15 @@ export const ModelFieldChanges: FC<{
                             {attributes.join(', ')}
                         </Text>
                     ) : null}
+                    {renderTotal(key, kind)}
                 </Group>
             ))}
+            {after.isError ? (
+                <Text fz="xs" c="dimmed">
+                    Could not run the totals: {after.error.error.message}
+                </Text>
+            ) : null}
         </Stack>
-    );
-};
-
-/** The model's new and changed metrics as totals, live against the pull request's version. */
-export const ModelTotals: FC<{
-    projectUuid: string;
-    model: string;
-    previewProjectUuid: string | null;
-    /** The pull request's latest commit, so totals are read again after it moves. */
-    cacheKey: string;
-}> = ({ projectUuid, model, previewProjectUuid, cacheKey }) => {
-    const developmentHeaders = {
-        [DEVELOPMENT_VIEW_HEADER]: 'true',
-        ...(previewProjectUuid
-            ? { [DEVELOPMENT_PREVIEW_HEADER]: previewProjectUuid }
-            : {}),
-    };
-    const live = useModelVersion(projectUuid, model, {
-        [DEVELOPMENT_VIEW_HEADER]: 'false',
-    });
-    const mine = useModelVersion(projectUuid, model, developmentHeaders);
-    const compared = useMemo(() => {
-        if (!mine.data || (!live.data && !live.isError)) return null;
-        const table = mine.data.tables[mine.data.baseTable];
-        if (!table) return null;
-        const changes = diffModelFields(live.data ?? null, mine.data);
-        const kindOf = (metric: Metric) =>
-            changes.find(({ key }) => key === `${table.name}.${metric.name}`)
-                ?.kind;
-        const metrics: Metric[] = Object.values(table.metrics);
-        const isNewModel = !live.data;
-        const picked = pickComparedMetrics(
-            metrics,
-            new Set(metrics.filter(kindOf).map(({ name }) => name)),
-            isNewModel,
-        );
-        return {
-            metrics: picked,
-            isNewModel,
-            liveMetricIds: picked
-                .filter((metric) => kindOf(metric) !== 'new')
-                .map((metric) => getItemId(metric)),
-        };
-    }, [live.data, live.isError, mine.data]);
-    if (!compared) return null;
-    return (
-        <CompareTotals
-            projectUuid={projectUuid}
-            exploreName={model}
-            developmentHeaders={developmentHeaders}
-            cacheKey={cacheKey}
-            {...compared}
-        />
     );
 };
 

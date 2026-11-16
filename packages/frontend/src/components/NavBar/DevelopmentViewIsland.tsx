@@ -100,6 +100,21 @@ const ChangesPanel: FC<{
     );
 };
 
+/** Names the pull request being tried, so it reads as which change, not just that one is on. */
+const IslandLabel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const pullRequest = useStudioPullRequest(projectUuid);
+    const number = pullRequest?.isOpen
+        ? /\/(\d+)\/?$/.exec(pullRequest.prUrl)?.[1]
+        : undefined;
+    return (
+        <>
+            {number
+                ? `Seeing your changes from #${number}`
+                : 'Seeing your changes'}
+        </>
+    );
+};
+
 /** Floats over every page while queries read the person's unpublished models, so a number is never mistaken for a live one; opens upward to show what changed. */
 export const DevelopmentViewIsland = () => {
     const [, setIsOn] = useDevelopmentView();
@@ -142,7 +157,11 @@ export const DevelopmentViewIsland = () => {
                     onClick={toggle}
                 >
                     <Box className={classes.pulse} />
-                    Viewing my changes
+                    {projectUuid ? (
+                        <IslandLabel projectUuid={projectUuid} />
+                    ) : (
+                        'Seeing your changes'
+                    )}
                     <MantineIcon
                         icon={IconChevronUp}
                         size={12}
@@ -160,7 +179,7 @@ export const DevelopmentViewIsland = () => {
                         className={classes.exit}
                         onClick={() => setIsOn(false)}
                     >
-                        Switch to live
+                        Back to live
                     </UnstyledButton>
                 </Tooltip>
             </Box>
