@@ -8717,7 +8717,7 @@ export class ProjectService
         try {
             const { enabled } = await this.featureFlagModel.get({
                 user: { organizationUuid },
-                featureFlagId: FeatureFlags.SemanticStudioCodeMode,
+                featureFlagId: FeatureFlags.SemanticStudioEditing,
             });
             if (!enabled) return;
             const commitSha = await adapter.findHeadCommit();

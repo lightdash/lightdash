@@ -17716,14 +17716,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                           promptProject.projectUuid,
                       )
                     : null;
+                // Studio saves a dbt change with a script wherever Studio itself is on for the person.
                 const semanticStudioCodeMode =
                     semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
-                    (
-                        await this.featureFlagService.get({
-                            user,
-                            featureFlagId: FeatureFlags.SemanticStudioCodeMode,
-                        })
-                    ).enabled;
+                    semanticStudioStatus.enabled;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&

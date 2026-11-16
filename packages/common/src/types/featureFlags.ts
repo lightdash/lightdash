@@ -191,16 +191,10 @@ export enum FeatureFlags {
     /**
      * Keeps the models of a project that has no dbt connection on the server,
      * and lets the Semantic Studio agent draft changes to them for a person to
-     * apply. Off by default; organization-scoped.
+     * apply. On a GitHub dbt project it also saves changes with a script
+     * committed through the GitHub API. Off by default; organization-scoped.
      */
     SemanticStudioEditing = 'semantic-studio-editing',
-
-    /**
-     * Saves a Semantic Studio change to a GitHub dbt repository with a script
-     * run in an in-process sandbox, committed through the GitHub API, instead
-     * of a coding-agent sandbox. Off by default; organization-scoped.
-     */
-    SemanticStudioCodeMode = 'semantic-studio-code-mode',
 
     /**
      * Configurable retention for AI agent threads. Off by default; enabled
