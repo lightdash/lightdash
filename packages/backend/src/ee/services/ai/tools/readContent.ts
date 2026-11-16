@@ -117,7 +117,7 @@ export const getReadContent = ({
                 const note =
                     read.type === type
                         ? null
-                        : `No ${type} "${slug}" was found; "${slug}" is a ${read.type}, so the ${read.type} was returned. Use type ${read.type} for further calls.`;
+                        : `No ${type} "${slug}" could be read; returned the ${read.type} "${slug}" instead. Use type ${read.type} for further calls to it.`;
                 const structuredContent = toStructuredContent(read);
                 const metadata = {
                     status: 'success' as const,

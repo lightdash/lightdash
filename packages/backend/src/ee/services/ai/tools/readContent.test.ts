@@ -187,7 +187,7 @@ describe('readContent tool', () => {
             expect(result).toHaveProperty(
                 'result',
                 expect.stringContaining(
-                    'No chart "orders-per-month" was found; "orders-per-month" is a sql_chart, so the sql_chart was returned. Use type sql_chart for further calls.',
+                    'No chart "orders-per-month" could be read; returned the sql_chart "orders-per-month" instead. Use type sql_chart for further calls to it.',
                 ),
             );
         });
@@ -241,6 +241,18 @@ describe('readContent tool', () => {
                 expect(await output).toHaveProperty('metadata.status', status);
             },
         );
+
+        it('does not pick a match while another type failed to answer', async () => {
+            const { output } = executeWith({
+                sql_chart: sqlChartRead,
+                dashboard: new Error('Connection timed out'),
+            });
+
+            expect(await output).toHaveProperty(
+                'result',
+                expect.stringContaining('chart was not found'),
+            );
+        });
 
         it('does not reveal a match the user may not read', async () => {
             const { output } = executeWith({

@@ -2965,7 +2965,7 @@ describe('AiAgentToolsService', () => {
                 patch: [{ op: 'replace', path: '/name', value: 'Orders' }],
             }),
         ).rejects.toThrow(
-            'No chart "orders-by-status" was found; "orders-by-status" is a sql_chart. Edit it with type sql_chart.',
+            'No chart "orders-by-status" could be edited; "orders-by-status" is a sql_chart. Edit it with type sql_chart.',
         );
         expect(upsertChart).not.toHaveBeenCalled();
         expect(upsertSqlChart).not.toHaveBeenCalled();

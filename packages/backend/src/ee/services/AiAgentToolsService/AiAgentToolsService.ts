@@ -3672,7 +3672,7 @@ export class AiAgentToolsService extends BaseService {
                     });
                 if (foundType !== type) {
                     throw new NotFoundError(
-                        `No ${type} "${slug}" was found; "${slug}" is a ${foundType}. Edit it with type ${foundType}.`,
+                        `No ${type} "${slug}" could be edited; "${slug}" is a ${foundType}. Edit it with type ${foundType}.`,
                     );
                 }
                 // Charts can be persisted with a null `chartConfig.config` (e.g.
