@@ -1570,6 +1570,85 @@ describe('downloadHandler analytics', () => {
     });
 });
 
+describe('downloadHandler linked composer charts', () => {
+    beforeEach(() => {
+        vi.mocked(lightdashApi).mockReset();
+    });
+
+    it('fetches a dashboard composer tile as a composer chart, never as a classic chart of the same slug', async () => {
+        const tmpDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'linked-composer-'),
+        );
+        const page = { missingIds: [], spaces: [], offset: 1, total: 1 };
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.startsWith('/api/v1/health'))
+                return { version: '0.0.0' } as never;
+            if (url === '/api/v1/projects/project-uuid')
+                return { name: 'Test project' } as never;
+            if (url.includes('/code/dashboards?'))
+                return {
+                    ...page,
+                    dashboards: [
+                        {
+                            contentType: ContentAsCodeType.DASHBOARD,
+                            version: 1,
+                            slug: 'ops',
+                            name: 'Ops',
+                            spaceSlug: 'shared',
+                            tabs: [],
+                            tiles: [
+                                {
+                                    type: 'composer_chart',
+                                    properties: {
+                                        title: 'A',
+                                        chartSlug: 'orders',
+                                    },
+                                },
+                                {
+                                    type: 'saved_chart',
+                                    properties: { chartSlug: 'classic-a' },
+                                },
+                            ],
+                        },
+                    ],
+                } as never;
+            if (url.includes('/code/composerCharts?'))
+                return { ...page, composerCharts: [] } as never;
+            if (url.includes('/code/charts?'))
+                return { ...page, charts: [] } as never;
+            if (url.includes('/code/sqlCharts?'))
+                return { ...page, sqlCharts: [] } as never;
+            throw new Error(`Unexpected request: ${url}`);
+        });
+
+        try {
+            await downloadHandler(
+                makeDownloadHandlerOptions({
+                    dashboards: ['ops'],
+                    skipCharts: false,
+                    skipDashboards: false,
+                    path: tmpDir,
+                }),
+            );
+
+            const urls = vi
+                .mocked(lightdashApi)
+                .mock.calls.map(([{ url }]) => url);
+            const requested = (route: string) =>
+                urls
+                    .filter((url) => url.includes(`/code/${route}?`))
+                    .map((url) =>
+                        new URL(url, 'http://x').searchParams.getAll('ids'),
+                    );
+            expect(requested('composerCharts')).toEqual([['orders']]);
+            expect(requested('charts')).toEqual([['classic-a']]);
+            expect(requested('sqlCharts')).toEqual([['classic-a']]);
+        } finally {
+            await fs.rm(tmpDir, { recursive: true, force: true });
+        }
+    });
+});
+
 describe('downloadHandler failures', () => {
     const unavailableError = new LightdashError({
         message:
