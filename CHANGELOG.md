@@ -1,3 +1,11 @@
+## [3.268.5](https://github.com/lightdash/lightdash/compare/3.268.4...3.268.5) (2026-11-16)
+
+
+### Bug Fixes
+
+* **composer:** draw a composer tile's target select like the field select ([#32655](https://github.com/lightdash/lightdash/issues/32655)) ([8fdc566](https://github.com/lightdash/lightdash/commit/8fdc5664a34d505b4c3112de9a60cf1d5e99d395))
+* **data-apps:** let Viewers run queries whose filters could not be read ([#32637](https://github.com/lightdash/lightdash/issues/32637)) ([f25ee93](https://github.com/lightdash/lightdash/commit/f25ee93d2bee71ea3aeef45c2e39f129c93d79c3)), closes [#32590](https://github.com/lightdash/lightdash/issues/32590)
+
 ## [3.268.4](https://github.com/lightdash/lightdash/compare/3.268.3...3.268.4) (2026-11-16)
 
 
