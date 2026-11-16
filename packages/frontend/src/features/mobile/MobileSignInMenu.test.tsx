@@ -243,34 +243,23 @@ describe('MobileSignInMenu', () => {
     });
 
     it.each([LightdashMode.DEFAULT, LightdashMode.CLOUD_BETA])(
-        'shows the scan to install, scan again to sign in steps under the code in %s mode',
+        'shows the install then scan again hint under the code in %s mode',
         async (mode) => {
             health.mode = mode;
             const user = userEvent.setup();
             const server = mockServer();
             renderMenu(<MobileSignInMenu />);
             await user.click(openButton());
-            await screen.findByRole('img', { name: 'Sign-in QR code' });
-            const steps = screen.getByRole('list', {
-                name: MOBILE_SIGN_IN_STRINGS.rescanSteps.title,
+            const qr = await screen.findByRole('img', {
+                name: 'Sign-in QR code',
             });
-            const items = within(steps).getAllByRole('listitem');
-            expect(items.map((item) => item.textContent)).toEqual([
-                MOBILE_SIGN_IN_STRINGS.rescanSteps.install,
-                MOBILE_SIGN_IN_STRINGS.rescanSteps.signIn,
-            ]);
-            const illustrations = items.flatMap((item) => [
-                ...item.querySelectorAll('svg'),
-            ]);
-            expect(illustrations).toHaveLength(2);
-            illustrations.forEach((icon) => {
-                expect(icon.closest('[aria-hidden="true"]')).not.toBeNull();
-            });
-            const arrows = steps.querySelectorAll(
-                ':scope > li[aria-hidden="true"]',
+            const hint = screen.getByText(MOBILE_SIGN_IN_STRINGS.rescanHint);
+            expect(hint).toBeVisible();
+            expect(hint.closest('[aria-hidden="true"]')).toBeNull();
+            expect(hint.parentElement).toContainElement(qr);
+            expect(document.querySelector('[data-idle]')).not.toContainElement(
+                hint,
             );
-            expect(arrows).toHaveLength(1);
-            expect(arrows[0].querySelectorAll('svg')).toHaveLength(1);
 
             await user.click(openButton());
             await waitFor(() =>
@@ -282,7 +271,7 @@ describe('MobileSignInMenu', () => {
         },
     );
 
-    it('removes the steps once a phone scans the code', async () => {
+    it('removes the hint once a phone scans the code', async () => {
         mockServer({ isClaimed: true });
         renderMenu(<MobileSignInMenu />);
         await userEvent.click(openButton());
@@ -290,9 +279,7 @@ describe('MobileSignInMenu', () => {
             name: 'A phone wants to sign in as you',
         });
         expect(
-            screen.queryByRole('list', {
-                name: MOBILE_SIGN_IN_STRINGS.rescanSteps.title,
-            }),
+            screen.queryByText(MOBILE_SIGN_IN_STRINGS.rescanHint),
         ).not.toBeInTheDocument();
     });
 

@@ -52,10 +52,7 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     }),
 }));
 
-const stepsList = () =>
-    screen.queryByRole('list', {
-        name: MOBILE_SIGN_IN_STRINGS.rescanSteps.title,
-    });
+const hint = () => screen.queryByText(MOBILE_SIGN_IN_STRINGS.rescanHint);
 
 const renderOpenMenu = async () => {
     renderWithProviders(
@@ -73,20 +70,20 @@ beforeEach(() => {
     signIn.current = null;
 });
 
-describe('MobileSignInMenu steps while a code is minted', () => {
-    it('shows the steps while the first code is created', async () => {
+describe('MobileSignInMenu hint while a code is minted', () => {
+    it('shows the hint while the first code is created', async () => {
         signIn.current = mintingSignIn(null);
         await renderOpenMenu();
-        expect(stepsList()).toBeInTheDocument();
+        expect(hint()).toBeInTheDocument();
     });
 
-    it('hides the steps when the idle stop leaves a refresh mint pending', async () => {
+    it('hides the hint when the idle stop leaves a refresh mint pending', async () => {
         signIn.current = mintingSignIn(CODE);
         await renderOpenMenu();
         expect(document.querySelector('[data-idle]')).toHaveAttribute(
             'data-idle',
             'true',
         );
-        expect(stepsList()).not.toBeInTheDocument();
+        expect(hint()).not.toBeInTheDocument();
     });
 });

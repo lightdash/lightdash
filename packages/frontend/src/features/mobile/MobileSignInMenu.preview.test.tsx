@@ -109,18 +109,16 @@ describe('preview sign-in state', () => {
     );
 
     it.each(PREVIEW_SIGN_IN_PHASES)(
-        'shows the rescan steps only while the code waits: %s',
+        'shows the rescan hint only while the code waits: %s',
         async (phase) => {
             renderMenu(`?mobileSignInState=${phase}`);
             await openMenu();
             await screen.findByText(EXPECTED_TEXT[phase], {
                 ignore: '[aria-live], script, style',
             });
-            const steps = screen.queryByRole('list', {
-                name: MOBILE_SIGN_IN_STRINGS.rescanSteps.title,
-            });
-            if (phase === 'showing') expect(steps).toBeInTheDocument();
-            else expect(steps).not.toBeInTheDocument();
+            const hint = screen.queryByText(MOBILE_SIGN_IN_STRINGS.rescanHint);
+            if (phase === 'showing') expect(hint).toBeInTheDocument();
+            else expect(hint).not.toBeInTheDocument();
         },
     );
 

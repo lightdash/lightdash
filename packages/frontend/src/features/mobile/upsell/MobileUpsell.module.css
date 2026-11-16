@@ -113,55 +113,6 @@
     animation: rise 0.48s 0.24s var(--ld-ease) both;
 }
 
-.rescan {
-    display: grid;
-    gap: var(--mantine-spacing-xs);
-}
-
-.rescanSteps {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    gap: var(--mantine-spacing-xs);
-    align-items: center;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.rescanStep {
-    display: flex;
-    gap: var(--mantine-spacing-xs);
-    align-items: center;
-    min-width: 0;
-    padding: var(--mantine-spacing-xs);
-    border-radius: var(--mantine-radius-md);
-    animation: rescanTint 4s infinite;
-}
-
-.rescanArrow {
-    display: grid;
-    place-items: center;
-    color: var(--mantine-color-dimmed);
-}
-
-.rescanScreen {
-    display: grid;
-    flex: none;
-    place-items: center;
-    width: 24px;
-    height: 40px;
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: 6px;
-    background: var(--mantine-color-body);
-    color: var(--mantine-color-dimmed);
-    animation: rescanRing 4s infinite;
-}
-
-.rescanStep:nth-child(3),
-.rescanStep:nth-child(3) .rescanScreen {
-    animation-delay: 2s;
-}
-
 @container sign-in (width < 440px) {
     .panel {
         grid-template-columns: minmax(0, 1fr);
@@ -170,14 +121,6 @@
 
     .side {
         width: 100%;
-    }
-
-    .rescanSteps {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .rescanArrow svg {
-        rotate: 90deg;
     }
 
     .panel[data-step-active='true'] .qrColumn,
@@ -964,32 +907,6 @@
 
 .pairScene .bars rect {
     animation: grow 0.6s 1.6s var(--ld-ease) both;
-}
-
-@keyframes rescanTint {
-    0%,
-    46% {
-        background-color: var(--mantine-color-default-hover);
-    }
-    50%,
-    100% {
-        background-color: transparent;
-    }
-}
-
-@keyframes rescanRing {
-    0%,
-    46% {
-        border-color: var(--ld-violet-soft);
-        box-shadow: var(--ld-ring);
-        color: var(--ld-violet-soft);
-    }
-    50%,
-    100% {
-        border-color: var(--mantine-color-default-border);
-        box-shadow: none;
-        color: var(--mantine-color-dimmed);
-    }
 }
 
 @keyframes pixel {

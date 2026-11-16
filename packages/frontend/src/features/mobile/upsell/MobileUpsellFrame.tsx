@@ -1,6 +1,7 @@
 import { Stack, Text, Title } from '@mantine/core';
 import { useDocumentVisibility } from '@mantine/hooks';
 import { type ReactNode } from 'react';
+import { MOBILE_SIGN_IN_STRINGS } from '../mobileStrings';
 import { AskUpsell } from './AskUpsell';
 import { BrowseUpsell } from './BrowseUpsell';
 import { ChartFitUpsell } from './ChartFitUpsell';
@@ -9,7 +10,6 @@ import { type MobileUpsellChoice } from './getMobileUpsell';
 import classes from './MobileUpsell.module.css';
 import { PinnedUpsell } from './PinnedUpsell';
 import { PlatformsUpsell } from './PlatformsUpsell';
-import { RescanSteps } from './RescanSteps';
 import { UPSELL_STRINGS } from './upsellStrings';
 
 type SignInParts = {
@@ -80,7 +80,14 @@ const Pitch = ({
                     details
                 ) : (
                     <div className={classes.panel} data-step-active={!isIdle}>
-                        <div className={classes.qrColumn}>{qr}</div>
+                        <div className={classes.qrColumn}>
+                            {qr}
+                            {isWaitingForScan && (
+                                <Text fz="xs" c="dimmed">
+                                    {MOBILE_SIGN_IN_STRINGS.rescanHint}
+                                </Text>
+                            )}
+                        </div>
                         <div className={classes.side} data-idle={isIdle}>
                             <div className={classes.stage} aria-hidden="true">
                                 <Graphic />
@@ -93,7 +100,6 @@ const Pitch = ({
                         </div>
                     </div>
                 )}
-                {isWaitingForScan && <RescanSteps />}
                 {status}
             </div>
         </div>
