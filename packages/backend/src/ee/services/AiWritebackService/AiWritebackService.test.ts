@@ -6262,4 +6262,24 @@ describe('AiWritebackService.canReadSourceCode', () => {
             ).resolves.toBe(expected);
         },
     );
+
+    it('returns false when the installation lookup fails', async () => {
+        const service = buildService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    organizationUuid: ORG,
+                    dbtConnection: { type: DbtProjectType.GITHUB },
+                }),
+            },
+            githubAppInstallationsModel: {
+                findInstallationId: vi
+                    .fn()
+                    .mockRejectedValue(new Error('decrypt failed')),
+            },
+        });
+
+        await expect(
+            service.canReadSourceCode({ user: user(true), projectUuid: 'p1' }),
+        ).resolves.toBe(false);
+    });
 });
