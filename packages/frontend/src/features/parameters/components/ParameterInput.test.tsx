@@ -50,6 +50,31 @@ describe('ParameterInput', () => {
         },
     );
 
+    it.each([
+        { multiple: false, default: 'last_30d', shown: 'Last 30 days' },
+        {
+            multiple: true,
+            default: ['last_30d', 'last_12m'],
+            shown: 'Last 30 days, Last 12 months',
+        },
+    ])(
+        'shows the default option label in the placeholder (multiple: $multiple)',
+        ({ multiple, default: defaultValue, shown }) => {
+            const { getByPlaceholderText } = renderParameter({
+                label: 'Period',
+                multiple,
+                default: defaultValue,
+                options: [
+                    { label: 'Last 30 days', value: 'last_30d' },
+                    { label: 'Last 12 months', value: 'last_12m' },
+                ],
+            });
+            expect(
+                getByPlaceholderText(`${shown} (default)`),
+            ).toBeInTheDocument();
+        },
+    );
+
     it('does not duplicate an existing labelled default option', async () => {
         const { container, getByRole } = renderParameter({
             label: 'Status',

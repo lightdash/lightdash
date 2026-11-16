@@ -35,6 +35,7 @@ import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValuesSafely,
 } from '../../../hooks/useFieldValues';
+import { getParameterDisplayValue } from '../utils/parameterDisplayValue';
 import ParameterDateInput from './ParameterDateInput';
 import styles from './ParameterInput.module.css';
 
@@ -168,18 +169,12 @@ export const ParameterInput: FC<ParameterInputProps> = ({
 
     const placeholder = useMemo(() => {
         const resolvedDefault = resolveParameterDefault(parameter);
-        const defaultValues = resolvedDefault
-            ? Array.isArray(resolvedDefault)
+        if (!resolvedDefault) return 'Choose value...';
+        const shownDefault =
+            parameter.multiple || !Array.isArray(resolvedDefault)
                 ? resolvedDefault
-                : [resolvedDefault]
-            : undefined;
-        return defaultValues
-            ? `${
-                  parameter.multiple
-                      ? defaultValues.join(', ')
-                      : defaultValues[0]
-              } (default)`
-            : 'Choose value...';
+                : resolvedDefault[0];
+        return `${getParameterDisplayValue(parameter, shownDefault)} (default)`;
     }, [parameter]);
 
     const currentStringValues = useMemo((): string[] => {
