@@ -455,9 +455,7 @@ export const getComposerCustomMetricExploreNames = (
 
 /**
  * Why the author may not write this pipeline, null when they may. The server
- * refuses with it and the client disables Save with it. `exploreTables` holds
- * the tables of each explore named by getComposerCustomMetricExploreNames; a
- * missing one counts its custom metrics as hand-written.
+ * refuses with it and the client disables Save with it.
  */
 export const getComposerPipelineWriteDeniedReason = (
     pipeline: ComposerChartPipeline,
@@ -508,18 +506,23 @@ export const getComposerPipelineWriteDeniedReason = (
     }
     if (
         pipeline.nodes.some((node) => {
-            if (node.sourceType === QuerySourceType.SEMANTIC_LAYER) {
-                return (node.tableCalculations ?? []).some(
-                    isSqlTableCalculation,
-                );
+            switch (node.sourceType) {
+                case QuerySourceType.SEMANTIC_LAYER:
+                    return (node.tableCalculations ?? []).some(
+                        isSqlTableCalculation,
+                    );
+                case QuerySourceType.MERGE:
+                    // A merge calculation without a formula is SQL
+                    return (node.tableCalculations ?? []).some(
+                        (calculation) => !calculation.formula,
+                    );
+                case QuerySourceType.SQL:
+                case QuerySourceType.DUCKDB:
+                case QuerySourceType.PYTHON:
+                    return false;
+                default:
+                    return assertUnreachable(node, 'Unknown composer node');
             }
-            if (node.sourceType === QuerySourceType.MERGE) {
-                // A merge calculation without a formula is SQL
-                return (node.tableCalculations ?? []).some(
-                    (calculation) => !calculation.formula,
-                );
-            }
-            return false;
         }) &&
         cannotManage('CustomSqlTableCalculations')
     ) {

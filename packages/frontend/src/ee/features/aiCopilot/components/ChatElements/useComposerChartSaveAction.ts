@@ -129,7 +129,7 @@ export const useComposerChartSaveAction = ({
                 projectUuid,
             }),
         );
-    // Only a user without custom fields needs custom metric SQL compared to the model
+    // Custom metric SQL is compared to the model only for a user without custom fields
     const metricExploreNames =
         draft.status === 'unavailable' || !cannotManage('CustomFields')
             ? []
@@ -158,6 +158,14 @@ export const useComposerChartSaveAction = ({
         return {
             kind: 'save',
             disabledReason: draft.reason,
+            draft: null,
+            link,
+        };
+    }
+    if (metricExplores.some((explore) => explore === undefined)) {
+        return {
+            kind: 'save',
+            disabledReason: 'Checking the custom metrics this answer uses',
             draft: null,
             link,
         };

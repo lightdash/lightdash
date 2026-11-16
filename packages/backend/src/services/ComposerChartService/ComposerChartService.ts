@@ -33,6 +33,7 @@ import {
     type ComposerStoredChart,
     type CreateComposerChart,
     type DashboardAvailableFiltersTile,
+    type Explore,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type RegisteredAccount,
@@ -125,6 +126,27 @@ export class ComposerChartService extends BaseService {
         );
     }
 
+    private async getCustomMetricExploreTables(
+        account: RegisteredAccount,
+        projectUuid: string,
+        pipeline: ComposerChartPipeline,
+    ): Promise<Record<string, Explore['tables']>> {
+        const entries = await Promise.all(
+            getComposerCustomMetricExploreNames(pipeline).map(
+                async (exploreName) => {
+                    const explore =
+                        await this.getAsyncQueryService().getExplore(
+                            account,
+                            projectUuid,
+                            exploreName,
+                        );
+                    return [exploreName, explore.tables] as const;
+                },
+            ),
+        );
+        return Object.fromEntries(entries);
+    }
+
     private async assertCanWritePipeline(
         account: RegisteredAccount,
         { organizationUuid, projectUuid }: ProjectSubject,
@@ -136,22 +158,12 @@ export class ComposerChartService extends BaseService {
                 'manage',
                 subject(subjectName, { organizationUuid, projectUuid }),
             );
-        // Only an author without custom fields needs custom metric SQL compared to the model
+        // Custom metric SQL is compared to the model only for an author without custom fields
         const exploreTables = cannotManage('CustomFields')
-            ? Object.fromEntries(
-                  await Promise.all(
-                      getComposerCustomMetricExploreNames(pipeline).map(
-                          async (exploreName) => {
-                              const explore =
-                                  await this.getAsyncQueryService().getExplore(
-                                      account,
-                                      projectUuid,
-                                      exploreName,
-                                  );
-                              return [exploreName, explore.tables] as const;
-                          },
-                      ),
-                  ),
+            ? await this.getCustomMetricExploreTables(
+                  account,
+                  projectUuid,
+                  pipeline,
               )
             : {};
         const deniedReason = getComposerPipelineWriteDeniedReason(

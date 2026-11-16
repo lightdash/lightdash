@@ -277,7 +277,7 @@ export const resolveAdditionalMetricsSql = (
 const modelledSqlKey = (table: string, sql: string) =>
     JSON.stringify([table, sql]);
 
-/** Custom metrics whose SQL is not exactly a modelled field's definition; only these need manage custom fields. */
+/** Custom metrics whose SQL is not exactly a modelled field's definition. */
 export const getHandWrittenAdditionalMetrics = (
     additionalMetrics: AdditionalMetric[],
     tables: Explore['tables'],
