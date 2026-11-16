@@ -1,3 +1,11 @@
+## [3.268.3](https://github.com/lightdash/lightdash/compare/3.268.2...3.268.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** give agents the real data app slug from content tools ([#32654](https://github.com/lightdash/lightdash/issues/32654)) ([b6fc46b](https://github.com/lightdash/lightdash/commit/b6fc46b82270edb96ac47ef817dad4eb6e715edb))
+* **ai:** give agents the real data app slug from content tools ([#32654](https://github.com/lightdash/lightdash/issues/32654)) ([bed36e8](https://github.com/lightdash/lightdash/commit/bed36e8d72abf2883dd3fe05400d2ed7fb4aa675))
+
 ## [3.268.2](https://github.com/lightdash/lightdash/compare/3.268.1...3.268.2) (2026-11-16)
 
 
