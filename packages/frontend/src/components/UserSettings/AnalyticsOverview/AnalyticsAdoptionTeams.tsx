@@ -60,6 +60,7 @@ export const AnalyticsAdoptionTeams = ({
                 memberIds: [],
             })),
     );
+    const [baseRevision] = useState(config.revision);
     const [primary, setPrimary] = useState(config.primary);
     const [teamId, setTeamId] = useState<string | null>(teams[0]?.id ?? null);
     const [memberSearch, setMemberSearch] = useState('');
@@ -129,11 +130,12 @@ export const AnalyticsAdoptionTeams = ({
             ),
         );
         save.mutate({
-            revision: config.revision,
+            revision: baseRevision,
             teams,
             primary: primaryTeams,
         });
     };
+    const stale = config.revision !== baseRevision;
     const invalid = teams.some(
         ({ name, groupIds, memberIds }) =>
             !name.trim() || (groupIds.length === 0 && memberIds.length === 0),
@@ -263,10 +265,10 @@ export const AnalyticsAdoptionTeams = ({
                     {config.teams !== null ? (
                         <Button
                             variant="subtle"
-                            disabled={save.isLoading}
+                            disabled={save.isLoading || stale}
                             onClick={() =>
                                 save.mutate({
-                                    revision: config.revision,
+                                    revision: baseRevision,
                                     teams: null,
                                     primary: {},
                                 })
@@ -282,7 +284,7 @@ export const AnalyticsAdoptionTeams = ({
                             Cancel
                         </Button>
                         <Button
-                            disabled={invalid}
+                            disabled={invalid || stale}
                             loading={save.isLoading}
                             onClick={saveTeams}
                         >
