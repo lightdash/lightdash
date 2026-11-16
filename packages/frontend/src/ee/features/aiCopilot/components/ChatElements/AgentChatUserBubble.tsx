@@ -33,6 +33,8 @@ import {
     getPromptContextItemHref,
     getPromptContextItemKey,
 } from './contentReferenceUtils';
+import { ThreadImageGrid } from './ThreadImageCard';
+import { ThreadImageReference } from './ThreadImageReference';
 import { isPlainLeftClick } from './useDataAppPreviewLink';
 
 type Props = {
@@ -88,8 +90,15 @@ export const UserBubble: FC<Props> = ({
     });
     // Review entities share one quiet grouped card; everything else stays a chip.
     const reviewContext = remainingContext.filter(isReviewEntityItem);
+    // Several images line up in a grid; a single one sits with the other chips.
+    const images = remainingContext.flatMap((item) =>
+        item.type === 'thread_image' ? [item] : [],
+    );
+    const imageGrid = images.length > 1 ? images : [];
     const otherContext = remainingContext.filter(
-        (item) => !isReviewEntityItem(item),
+        (item) =>
+            !isReviewEntityItem(item) &&
+            !(item.type === 'thread_image' && imageGrid.length > 0),
     );
 
     return (
@@ -138,6 +147,19 @@ export const UserBubble: FC<Props> = ({
                     align="flex-end"
                     className={styles.contextGroup}
                 >
+                    {imageGrid.length > 0 && (
+                        <Box w="100%" maw={640}>
+                            <ThreadImageGrid>
+                                {imageGrid.map((item) => (
+                                    <ThreadImageReference
+                                        key={item.fileUuid}
+                                        item={item}
+                                        layout="grid"
+                                    />
+                                ))}
+                            </ThreadImageGrid>
+                        </Box>
+                    )}
                     {otherContext.length > 0 && (
                         <Group gap="xs" wrap="wrap" justify="flex-end">
                             {otherContext.map((item, idx) => (
