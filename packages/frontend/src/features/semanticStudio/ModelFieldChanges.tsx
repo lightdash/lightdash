@@ -1,4 +1,4 @@
-import { Badge, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Group, Stack, Text, Tooltip } from '@mantine/core';
 import { useQueries } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -18,10 +18,13 @@ import {
 } from './useModelFieldChanges';
 import { useSemanticLayerFieldUsage } from './useSemanticLayerModel';
 
-const KINDS: Record<FieldChange['kind'], { label: string; color: string }> = {
-    new: { label: 'New', color: 'green' },
-    changed: { label: 'Changed', color: 'orange' },
-    removed: { label: 'Removed', color: 'red' },
+const KINDS: Record<
+    FieldChange['kind'],
+    { label: string; sign: string; color: string }
+> = {
+    new: { label: 'New', sign: '+', color: 'green' },
+    changed: { label: 'Changed', sign: '~', color: 'orange' },
+    removed: { label: 'Removed', sign: '−', color: 'red' },
 };
 
 /** What the person's changes do to this model's fields, in plain words, with each new or changed metric's total next to it. */
@@ -89,7 +92,7 @@ export const ModelFieldChanges: FC<{
                         : 'Total over every row, with your changes.'
                 }
             >
-                <Text fz="xs" ml="auto" flex="none" ta="right">
+                <Text fz="xs" flex="none">
                     {old ? (
                         <Text span inherit c="dimmed">
                             {old.formatted} →{' '}
@@ -113,10 +116,18 @@ export const ModelFieldChanges: FC<{
                 </Text>
             )}
             {changes.map(({ key, label, kind, attributes }) => (
-                <Group key={key} gap="xs" wrap="nowrap">
-                    <Badge size="sm" color={KINDS[kind].color} flex="none">
-                        {KINDS[kind].label}
-                    </Badge>
+                <Group key={key} gap={8} wrap="nowrap">
+                    <Text
+                        fz="xs"
+                        ff="monospace"
+                        fw={600}
+                        w={8}
+                        flex="none"
+                        c={`${KINDS[kind].color}.7`}
+                        aria-label={KINDS[kind].label}
+                    >
+                        {KINDS[kind].sign}
+                    </Text>
                     <Text fz="xs" fw={500} truncate>
                         {label}
                     </Text>

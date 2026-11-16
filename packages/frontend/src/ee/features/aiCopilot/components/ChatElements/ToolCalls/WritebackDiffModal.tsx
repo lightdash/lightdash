@@ -219,6 +219,9 @@ export const FileDiff: FC<{ patch: string }> = ({ patch }) => {
                     unsafeCSS: '[data-diffs-header] { display: none; }',
                     // A thin rule between hunks; the count of lines left out adds nothing here.
                     hunkSeparators: 'simple',
+                    // Quiet like the draft diffs: a bar marks a changed line, and only the changed words light up.
+                    diffIndicators: 'bars',
+                    lineDiffType: 'word',
                     theme:
                         colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light',
                 }}
