@@ -61,10 +61,16 @@ const useRemainingHeight = () => {
             );
         measure();
         window.addEventListener('resize', measure);
-        // Catches the page above the box changing height, which moves the box
+        // The box moves when anything above it changes height, which resizes the
+        // boxes that contain both, so every ancestor is watched
         const observer = new ResizeObserver(measure);
-        observer.observe(document.body);
-        if (element.parentElement) observer.observe(element.parentElement);
+        for (
+            let ancestor = element.parentElement;
+            ancestor;
+            ancestor = ancestor.parentElement
+        ) {
+            observer.observe(ancestor);
+        }
         return () => {
             window.removeEventListener('resize', measure);
             observer.disconnect();
