@@ -8,6 +8,7 @@ import {
     FieldType,
     ForbiddenError,
     getComposerPipelineWriteDeniedReason,
+    getComposerSavedParameterValues,
     getDataAppVizChartConfigErrors,
     getErrorMessage,
     getExploreParameterDefinitions,
@@ -54,7 +55,6 @@ import {
     applyDashboardFiltersToComposerNodes,
     applyDashboardParametersToComposerNodes,
     getComposerParameterReferences,
-    getComposerSavedParameterValues,
     getSemanticExploreNames,
     type ComposerNodeExplores,
 } from './composerTileInputs';
@@ -704,10 +704,16 @@ export class ComposerChartService extends BaseService {
         );
         const queryUuidOf = (nodeId: string | null) =>
             queries.find((query) => query.nodeId === nodeId)?.queryUuid ?? null;
-        const terminalQueryUuid = queryUuidOf(chart.pipeline.terminalNodeId);
-        const terminalQuery = terminalQueryUuid
-            ? await this.queryHistoryModel.getByQueryUuid(terminalQueryUuid)
-            : undefined;
+        const histories = await Promise.all(
+            queries.map(({ queryUuid }) =>
+                this.queryHistoryModel.getByQueryUuid(queryUuid),
+            ),
+        );
+        const terminalQuery = histories.find(
+            (history) =>
+                history?.queryUuid ===
+                queryUuidOf(chart.pipeline.terminalNodeId),
+        );
         return {
             queries: queries.map(({ nodeId, sourceType, queryUuid }) => ({
                 nodeId,
@@ -722,6 +728,10 @@ export class ComposerChartService extends BaseService {
             parameterReferences: getComposerParameterReferences(
                 resolved.nodes,
                 exploreByNodeId,
+            ),
+            usedParameterValues: histories.reduce<ParametersValuesMap>(
+                (acc, history) => ({ ...acc, ...history?.usedParameters }),
+                {},
             ),
         };
     }

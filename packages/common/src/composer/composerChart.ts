@@ -537,6 +537,18 @@ export const parseComposerChartRunRequest = (
     return result.data as ComposerChartRunRequest;
 };
 
+/** The values saved on the semantic-layer nodes, as one chart's saved values */
+export const getComposerSavedParameterValues = (
+    nodes: ComposerChartPipelineNode[],
+): ParametersValuesMap =>
+    nodes.reduce<ParametersValuesMap>(
+        (acc, node) =>
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                ? { ...acc, ...node.parameters }
+                : acc,
+        {},
+    );
+
 export type ComposerChartRunResults = {
     queries: Array<{
         nodeId: string;
@@ -553,6 +565,8 @@ export type ComposerChartRunResults = {
     appliedDashboardFiltersByNodeId: Record<string, DashboardFilters>;
     /** The parameters the tile reports to its dashboard: its non-Python nodes' references. */
     parameterReferences: string[];
+    /** The parameter values the node queries ran with. */
+    usedParameterValues: ParametersValuesMap;
 };
 
 export type ApiComposerChartRunResponse = {

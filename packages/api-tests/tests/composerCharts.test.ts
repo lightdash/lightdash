@@ -938,6 +938,10 @@ describe('Composer charts', () => {
                 'currency',
                 'date_custom_parameter',
             ]);
+            expect(late.results.usedParameterValues).toEqual({
+                date_custom_parameter: '2100-01-01',
+                currency: 'eur',
+            });
         });
 
         it('a dashboard filter reaches every semantic-layer node with the field and replaces a node rule on it', async () => {
