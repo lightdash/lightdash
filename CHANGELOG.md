@@ -1,3 +1,10 @@
+# [3.275.0](https://github.com/lightdash/lightdash/compare/3.274.0...3.275.0) (2026-11-16)
+
+
+### Features
+
+* copy an entire column from the underlying values table ([#32673](https://github.com/lightdash/lightdash/issues/32673)) ([38c87b7](https://github.com/lightdash/lightdash/commit/38c87b73c73fe3ff96a5b40747c87fe4983699b0))
+
 # [3.274.0](https://github.com/lightdash/lightdash/compare/3.273.0...3.274.0) (2026-11-16)
 
 
