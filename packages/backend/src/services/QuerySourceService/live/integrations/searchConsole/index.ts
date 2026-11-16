@@ -2,7 +2,10 @@ import { ApiConnectorType, ParameterError } from '@lightdash/common';
 import { z } from 'zod';
 import { ALL_PUSHDOWN_REFUSED } from '../../../api/ApiConnector';
 import { getIsoDateInTimeZone } from '../../../api/apiDateRange';
-import { defineLiveIntegration } from '../../defineLiveIntegration';
+import {
+    defineLiveIntegration,
+    jsonRequest,
+} from '../../defineLiveIntegration';
 import { toGoogleApiError } from '../google/errors';
 import { assertGoogleSignIn } from '../google/signIn';
 import { compileSearchConsoleQuery } from './compile';
@@ -31,7 +34,7 @@ export const searchConsoleIntegration = defineLiveIntegration({
         connector: z.literal(ApiConnectorType.SEARCH_CONSOLE),
         siteUrl: z.string(),
     }),
-    origin: SEARCH_CONSOLE_ORIGIN,
+    origins: [SEARCH_CONSOLE_ORIGIN],
     // The token already limits the source to sites the account can read.
     access: () => ({
         pathPrefixes: [SEARCH_CONSOLE_SITES_PATH],
@@ -80,7 +83,7 @@ export const searchConsoleIntegration = defineLiveIntegration({
     checkAuth: (connection) => assertGoogleSignIn(LABEL, connection),
     describeTarget: ({ settings: { siteUrl } }) =>
         `Search Console site ${siteUrl}`,
-    request: searchConsoleRequestSchema,
+    parseRequest: jsonRequest(LABEL, searchConsoleRequestSchema),
     compile: ({ explore, metricQuery, now }) =>
         compileSearchConsoleQuery({
             explore,

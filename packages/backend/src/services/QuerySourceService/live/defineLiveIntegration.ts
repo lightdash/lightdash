@@ -4,6 +4,7 @@ import {
     type ApiConnectorType,
     type ApiSourceOf,
     type ExternalConnectionAuthType,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { type z } from 'zod';
 import {
@@ -23,6 +24,7 @@ import {
     assertApiSourceOrigin,
     type ApiSourceCompileArgs,
     type ApiSourceIntegration,
+    type ApiSourceScan,
 } from '../api/ApiSourceIntegration';
 
 /** How hard Lightdash may call the API, and how much one call may return. */
@@ -35,6 +37,8 @@ export type LiveLimits = ApiConnectorLimits & {
 
 /** The calls `run` makes, with the connection's credentials and limits applied. */
 export type LiveCalls = {
+    /** Sends one call; a status outside 2xx throws the integration's `toError`. */
+    send(request: ApiConnectorRequest): Promise<ApiConnectorResponse>;
     /**
      * Sends one call and returns its body, checked against `response`. A
      * status outside 2xx throws the integration's `toError`.
@@ -61,6 +65,7 @@ export type LiveRunResult = {
 
 export type LiveConnectionCheck = {
     type: ExternalConnectionAuthType;
+    origin: string;
     oauthTokenUrl?: string | null;
 };
 
@@ -73,8 +78,8 @@ export type LiveIntegration<C extends ApiConnectorType, Request> = {
     label: string;
     /** The shape stored on the connection. */
     settings: z.ZodType<ApiSourceOf<C>>;
-    /** The only host a source may call. */
-    origin: string;
+    /** The hosts a source may call; several when the API has regions. */
+    origins: readonly [string, ...string[]];
     /** What a source may call on `origin`, whatever its stored connection says. */
     access: (settings: ApiSourceOf<C>) => {
         pathPrefixes: string[];
@@ -100,8 +105,11 @@ export type LiveIntegration<C extends ApiConnectorType, Request> = {
         origin: string;
         targetLabel: string | null;
     }) => string;
-    /** One request, as compile writes it and as an agent may send it raw. */
-    request: z.ZodType<Request>;
+    /**
+     * Reads one query, as compile writes it and as an agent may send it raw.
+     * Throws a ParameterError saying what to fix; `jsonRequest` covers JSON.
+     */
+    parseRequest: (query: string) => Request;
     compile: (args: ApiSourceCompileArgs) => CompiledApiSourceQuery;
     run: (args: LiveRunArgs<C, Request>) => Promise<LiveRunResult>;
     /** Turns a response outside 2xx into an error that says what to change. */
@@ -109,32 +117,51 @@ export type LiveIntegration<C extends ApiConnectorType, Request> = {
         response: ApiConnectorResponse,
         settings: ApiSourceOf<C>,
     ) => Error;
+    /** Reads fields the API reports itself; omitted when every field is built in. */
+    scan?: {
+        read: (args: {
+            settings: ApiSourceOf<C>;
+            calls: LiveCalls;
+        }) => Promise<ApiSourceScan>;
+        withScannedFields: (
+            definition: ApiSourceExploreDefinition,
+            scan: ApiSourceScan,
+        ) => ApiSourceExploreDefinition;
+        /** Scanned fields kept out of the default field list. */
+        isInternalField?: (apiName: string) => boolean;
+    };
+    /** Defaults to DuckDB, which only runs the compiled explore's SQL shape. */
+    warehouseSqlBuilder?: WarehouseSqlBuilder;
 };
 
-const parseRequest = <Request>(
-    label: string,
-    schema: z.ZodType<Request>,
-    query: string,
-): Request => {
-    let json: unknown;
-    try {
-        json = JSON.parse(query);
-    } catch {
-        throw new ParameterError(`The ${label} request must be a JSON object`);
-    }
-    const parsed = schema.safeParse(json);
-    if (!parsed.success) {
-        const [issue] = parsed.error.issues;
-        throw new ParameterError(
-            issue.path.length === 0 && issue.code === 'custom'
-                ? issue.message
-                : `Invalid ${label} request at ${
-                      issue.path.join('.') || 'the top level'
-                  }: ${issue.message}`,
-        );
-    }
-    return parsed.data;
-};
+/**
+ * Reads a JSON request checked by `schema`. `name` names it in errors, as
+ * in "The GA4 report request must be a JSON object".
+ */
+export const jsonRequest =
+    <Request>(name: string, schema: z.ZodType<Request>) =>
+    (query: string): Request => {
+        let json: unknown;
+        try {
+            json = JSON.parse(query);
+        } catch {
+            throw new ParameterError(
+                `The ${name} request must be a JSON object`,
+            );
+        }
+        const parsed = schema.safeParse(json);
+        if (!parsed.success) {
+            const [issue] = parsed.error.issues;
+            throw new ParameterError(
+                issue.path.length === 0 && issue.code === 'custom'
+                    ? issue.message
+                    : `Invalid ${name} request at ${
+                          issue.path.join('.') || 'the top level'
+                      }: ${issue.message}`,
+            );
+        }
+        return parsed.data;
+    };
 
 const isOk = (status: number) => status >= 200 && status < 300;
 
@@ -142,7 +169,7 @@ const isOk = (status: number) => status >= 200 && status < 300;
 export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
     live: LiveIntegration<C, Request>,
 ): ApiSourceIntegration<C> => {
-    const { label, limits } = live;
+    const { label, limits, scan } = live;
     return {
         connector: live.connector,
         settingsSchema: live.settings,
@@ -167,19 +194,33 @@ export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
         },
         validateConnection: ({ apiSource, type, origin, oauthTokenUrl }) => {
             live.validate(apiSource);
-            assertApiSourceOrigin(label, origin, live.origin);
-            live.checkAuth({ type, oauthTokenUrl });
+            assertApiSourceOrigin(label, origin, live.origins);
+            live.checkAuth({ type, origin, oauthTokenUrl });
         },
         describeTarget: ({ apiSource, origin, targetLabel }) =>
             live.describeTarget({ settings: apiSource, origin, targetLabel }),
         compile: live.compile,
-        createConnector: (settings, send) => {
+        ...(live.warehouseSqlBuilder
+            ? { warehouseSqlBuilder: live.warehouseSqlBuilder }
+            : {}),
+        ...(scan
+            ? {
+                  withScannedFields: scan.withScannedFields,
+                  isInternalField: scan.isInternalField,
+              }
+            : {}),
+        createConnector: (settings, transport) => {
+            const send = async (request: ApiConnectorRequest) => {
+                const response = await transport(request);
+                if (!isOk(response.status)) {
+                    throw live.toError(response, settings);
+                }
+                return response;
+            };
             const calls: LiveCalls = {
+                send,
                 fetch: async (request, schema) => {
                     const response = await send(request);
-                    if (!isOk(response.status)) {
-                        throw live.toError(response, settings);
-                    }
                     const parsed = schema.safeParse(response.body);
                     if (!parsed.success) {
                         throw new UnexpectedServerError(
@@ -217,11 +258,7 @@ export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
                                 `limit must be between 1 and ${limits.maxRows} rows`,
                             );
                         }
-                        const request = parseRequest(
-                            label,
-                            live.request,
-                            payload.query,
-                        );
+                        const request = live.parseRequest(payload.query);
                         const result = await live.run({
                             settings,
                             request,
@@ -231,6 +268,7 @@ export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
                         return { bytesRead: null, ...result };
                     },
                 },
+                ...(scan ? { scan: () => scan.read({ settings, calls }) } : {}),
             };
         },
     };

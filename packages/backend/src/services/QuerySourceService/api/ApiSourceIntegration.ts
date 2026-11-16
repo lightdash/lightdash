@@ -116,13 +116,16 @@ export type ApiSourceIntegration<
     isInternalField?(apiName: string): boolean;
 };
 
-/** Sources only ever talk to their integration's own host. */
+/** Sources only ever talk to their integration's own hosts. */
 export const assertApiSourceOrigin = (
     label: string,
     origin: string,
-    expected: string,
+    expected: string | readonly string[],
 ) => {
-    if (origin.replace(/\/+$/, '') !== expected) {
-        throw new ParameterError(`${label} connections must use ${expected}`);
+    const origins = typeof expected === 'string' ? [expected] : expected;
+    if (!origins.includes(origin.replace(/\/+$/, ''))) {
+        throw new ParameterError(
+            `${label} connections must use ${origins.join(' or ')}`,
+        );
     }
 };
