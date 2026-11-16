@@ -302,3 +302,19 @@ export const getHandWrittenAdditionalMetrics = (
         (metric) => !modelled.has(modelledSqlKey(metric.table, metric.sql)),
     );
 };
+
+/** Hand-written custom metrics whose SQL the chart had not already saved. */
+export const getNewHandWrittenAdditionalMetrics = (
+    additionalMetrics: AdditionalMetric[],
+    savedAdditionalMetrics: AdditionalMetric[],
+    tables: Explore['tables'],
+): AdditionalMetric[] => {
+    const saved = new Set(
+        resolveAdditionalMetricsSql(savedAdditionalMetrics, tables).map(
+            (metric) => modelledSqlKey(metric.table, metric.sql),
+        ),
+    );
+    return getHandWrittenAdditionalMetrics(additionalMetrics, tables).filter(
+        (metric) => !saved.has(modelledSqlKey(metric.table, metric.sql)),
+    );
+};

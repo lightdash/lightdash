@@ -184,6 +184,7 @@ import { getAvailableParameterDefinitions } from '../ProjectService/parameters';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
+import { getCustomMetricExploreTables } from '../SavedChartsService/customMetricExploreTables';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
 import {
@@ -414,9 +415,27 @@ export class CoderService extends BaseService {
 
     static getChartContentAsCodePermissionChecks(
         nextChart: ChartAsCode,
-        currentChart?: CurrentChartSqlItems,
+        currentChart: CurrentChartSqlItems | undefined,
+        exploreTables: Explore['tables'],
     ): ContentAsCodeSqlPermissionCheckResult[] {
-        return getChartContentAsCodePermissionChecks(nextChart, currentChart);
+        return getChartContentAsCodePermissionChecks(
+            nextChart,
+            currentChart,
+            exploreTables,
+        );
+    }
+
+    private async getCustomMetricExploreTables(
+        projectUuid: string,
+        chart: ChartAsCode,
+    ): Promise<Explore['tables']> {
+        return chart.metricQuery.additionalMetrics?.length
+            ? getCustomMetricExploreTables(
+                  this.projectModel,
+                  projectUuid,
+                  chart.metricQuery.exploreName,
+              )
+            : {};
     }
 
     directAccessService: DirectAccessService;
@@ -547,6 +566,7 @@ export class CoderService extends BaseService {
         const missingChecks = checks.filter(({ check }) => {
             switch (check) {
                 case 'customSqlDimension':
+                case 'customMetricSql':
                     return auditedAbility.cannot(
                         'manage',
                         subject('CustomFields', {
@@ -4719,6 +4739,11 @@ export class CoderService extends BaseService {
                 CoderService.handleContentAsCodeSqlPermissionChecks({
                     checks: CoderService.getChartContentAsCodePermissionChecks(
                         chartWithDefaults,
+                        undefined,
+                        await this.getCustomMetricExploreTables(
+                            projectUuid,
+                            chartWithDefaults,
+                        ),
                     ),
                     auditedAbility,
                     project,
@@ -4985,6 +5010,10 @@ export class CoderService extends BaseService {
                     chartWithDefaults,
                     currentChart ??
                         (await this.savedChartModel.get(chart.uuid)),
+                    await this.getCustomMetricExploreTables(
+                        projectUuid,
+                        chartWithDefaults,
+                    ),
                 ),
                 auditedAbility,
                 project,

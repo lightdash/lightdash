@@ -31,6 +31,7 @@ import {
     getDimensionMapFromTables,
     getItemId,
     getMissingAdditionalMetricReferences,
+    getNewHandWrittenAdditionalMetrics,
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     GoogleSheetsTransientError,
@@ -68,6 +69,7 @@ import {
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
+    type AdditionalMetric,
     type ChartFieldUpdates,
     type ContentDraftStaleness,
     type ContentVerificationInfo,
@@ -140,6 +142,7 @@ import {
     mergeDraftIntoChart,
     type ChartDraftOverlay,
 } from './chartDraftOverlay';
+import { getCustomMetricExploreTables } from './customMetricExploreTables';
 
 type SavedChartServiceArguments = {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
@@ -1046,6 +1049,27 @@ export class SavedChartService
         }
     }
 
+    private async hasNewHandWrittenCustomMetrics(
+        projectUuid: string,
+        metricQuery: Pick<MetricQuery, 'exploreName' | 'additionalMetrics'>,
+        savedAdditionalMetrics: AdditionalMetric[],
+    ): Promise<boolean> {
+        const additionalMetrics = metricQuery.additionalMetrics ?? [];
+        if (additionalMetrics.length === 0) return false;
+        const tables = await getCustomMetricExploreTables(
+            this.projectModel,
+            projectUuid,
+            metricQuery.exploreName,
+        );
+        return (
+            getNewHandWrittenAdditionalMetrics(
+                additionalMetrics,
+                savedAdditionalMetrics,
+                tables,
+            ).length > 0
+        );
+    }
+
     async createVersion(
         account: Account,
         savedChartUuid: string,
@@ -1066,6 +1090,7 @@ export class SavedChartService
                 dimensions: oldChartDimensions,
                 customDimensions: oldCustomDimensions,
                 tableCalculations: oldTableCalculations,
+                additionalMetrics: oldAdditionalMetrics,
             },
         } = existingChart;
 
@@ -1211,6 +1236,26 @@ export class SavedChartService
             projectUuid,
             chartVersion.metricQuery,
         );
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { savedChartUuid },
+                }),
+            ) &&
+            (await this.hasNewHandWrittenCustomMetrics(
+                projectUuid,
+                chartVersion.metricQuery,
+                oldAdditionalMetrics ?? [],
+            ))
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with new or modified custom metrics written in SQL',
+            );
+        }
 
         const verificationAfterUpdate =
             await this.getVerificationAfterChartUpdate({
@@ -2492,6 +2537,22 @@ export class SavedChartService
             projectUuid,
             chartToSave.metricQuery,
         );
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', { organizationUuid, projectUuid }),
+            ) &&
+            (await this.hasNewHandWrittenCustomMetrics(
+                projectUuid,
+                chartToSave.metricQuery,
+                [],
+            ))
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with custom metrics written in SQL',
+            );
+        }
 
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,

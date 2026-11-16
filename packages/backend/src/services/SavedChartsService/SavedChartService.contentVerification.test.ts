@@ -531,6 +531,107 @@ describe('SavedChartService - Content Verification', () => {
 
             expect(savedChartModel.create).not.toHaveBeenCalled();
         });
+
+        describe('custom metric SQL', () => {
+            const explore = {
+                tables: {
+                    orders: {
+                        name: 'orders',
+                        dimensions: {
+                            amount: { name: 'amount', sql: '${TABLE}.amount' },
+                        },
+                        metrics: {},
+                    },
+                },
+            } as unknown as Explore;
+            const metric = (sql: string) => ({
+                name: 'total',
+                label: 'Total',
+                table: 'orders',
+                type: MetricType.SUM,
+                sql,
+            });
+            const withMetric = (sql: string) => ({
+                ...baseChart.metricQuery,
+                additionalMetrics: [metric(sql)],
+            });
+            const chartEditor = fromSession(
+                {
+                    ...adminUser,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'SavedChart', action: ['view', 'update'] },
+                        { subject: 'VerifiedContent', action: 'manage' },
+                    ]),
+                },
+                'session-cookie',
+            );
+
+            beforeEach(() => {
+                vi.mocked(projectModel.getExploreFromCache).mockResolvedValue(
+                    explore,
+                );
+                savedChartModel.get.mockResolvedValueOnce({
+                    ...savedChartData,
+                    metricQuery: {
+                        ...savedChartData.metricQuery,
+                        additionalMetrics: [metric('(SELECT 4242)')],
+                    },
+                } as never);
+            });
+
+            afterEach(() => {
+                vi.mocked(projectModel.getExploreFromCache).mockImplementation(
+                    async () => null,
+                );
+                savedChartModel.get.mockImplementation(
+                    async () => savedChartData,
+                );
+            });
+
+            it('rejects hand-written custom metric SQL on create without CustomFields permission', async () => {
+                await expect(
+                    service.create(account, 'project-uuid', {
+                        ...baseChart,
+                        metricQuery: withMetric('(SELECT 4242 + 1)'),
+                    }),
+                ).rejects.toThrow(
+                    'User cannot save queries with custom metrics written in SQL',
+                );
+                expect(savedChartModel.create).not.toHaveBeenCalled();
+            });
+
+            it('allows a custom metric over a modelled field on create', async () => {
+                await service.create(account, 'project-uuid', {
+                    ...baseChart,
+                    metricQuery: withMetric('${TABLE}.amount'),
+                });
+                expect(savedChartModel.create).toHaveBeenCalled();
+            });
+
+            it('rejects new hand-written custom metric SQL on update without CustomFields permission', async () => {
+                await expect(
+                    service.createVersion(chartEditor, 'chart-uuid', {
+                        tableName: baseChart.tableName,
+                        metricQuery: withMetric('(SELECT 4242 + 1)'),
+                        chartConfig: baseChart.chartConfig,
+                        tableConfig: baseChart.tableConfig,
+                    }),
+                ).rejects.toThrow(
+                    'User cannot save queries with new or modified custom metrics written in SQL',
+                );
+                expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+            });
+
+            it('allows unchanged hand-written custom metric SQL on update', async () => {
+                await service.createVersion(chartEditor, 'chart-uuid', {
+                    tableName: baseChart.tableName,
+                    metricQuery: withMetric('(SELECT 4242)'),
+                    chartConfig: baseChart.chartConfig,
+                    tableConfig: baseChart.tableConfig,
+                });
+                expect(savedChartModel.createVersion).toHaveBeenCalled();
+            });
+        });
     });
 
     describe('Preserve verification on edit', () => {

@@ -3194,6 +3194,38 @@ describe('DashboardService', () => {
                 [{ uuid: affectedChart.uuid, name: affectedChart.name }],
             );
             savedChartModel.get.mockResolvedValue(affectedChart as never);
+            projectModel.getExploreFromCache.mockResolvedValue({
+                tables: {
+                    orders: {
+                        name: 'orders',
+                        dimensions: {
+                            amount: { name: 'amount', sql: '${TABLE}.amount' },
+                        },
+                        metrics: {},
+                    },
+                },
+            } as never);
+        });
+
+        afterEach(() => {
+            projectModel.getExploreFromCache.mockReset();
+        });
+
+        test('rejects hand-written SQL without CustomFields permission', async () => {
+            await expect(
+                service.updateCustomMetric(user, dashboardUuid, {
+                    metric: {
+                        ...registryMetric,
+                        sql: '(SELECT 4242 + 1)',
+                    } as never,
+                }),
+            ).rejects.toThrowError(
+                'User cannot save custom metrics written in SQL',
+            );
+            expect(
+                dashboardModel.updateLatestVersionConfig,
+            ).not.toHaveBeenCalled();
+            expect(savedChartModel.createVersion).not.toHaveBeenCalled();
         });
 
         test('swaps the registry entry and re-versions the affected charts', async () => {

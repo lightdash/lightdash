@@ -30,6 +30,7 @@ import {
     getErrorMessage,
     getExploreParameterDefinitions,
     getItemId,
+    getNewHandWrittenAdditionalMetrics,
     getParameterMirror,
     getParameterReferences,
     getQueryParameterReferences,
@@ -156,6 +157,7 @@ import type { ComposerChartService } from '../ComposerChartService/ComposerChart
 import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
 import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import type { ProjectService } from '../ProjectService/ProjectService';
+import { getCustomMetricExploreTables } from '../SavedChartsService/customMetricExploreTables';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -3719,6 +3721,35 @@ export class DashboardService
         const affected = await Promise.all(
             affectedCharts.map((chart) => this.savedChartModel.get(chart.uuid)),
         );
+
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            const newHandWritten = await Promise.all(
+                affected.map(async (chart) =>
+                    getNewHandWrittenAdditionalMetrics(
+                        [metric],
+                        chart.metricQuery.additionalMetrics ?? [],
+                        await getCustomMetricExploreTables(
+                            this.projectModel,
+                            chart.projectUuid,
+                            chart.metricQuery.exploreName,
+                        ),
+                    ),
+                ),
+            );
+            if (newHandWritten.some((metrics) => metrics.length > 0)) {
+                throw new ForbiddenError(
+                    'User cannot save custom metrics written in SQL',
+                );
+            }
+        }
 
         const updatedRegistry = [
             ...registry.slice(0, existingIndex),
