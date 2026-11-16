@@ -3229,6 +3229,25 @@ describe('DashboardService', () => {
             expect(savedChartModel.createVersion).not.toHaveBeenCalled();
         });
 
+        test('rejects hand-written SQL on a shared metric no chart uses', async () => {
+            dashboardModel.getDashboardOwnedChartsUsingMetric.mockResolvedValueOnce(
+                [],
+            );
+            await expect(
+                service.updateCustomMetric(user, dashboardUuid, {
+                    metric: {
+                        ...registryMetric,
+                        sql: '(SELECT 4242 + 1)',
+                    } as never,
+                }),
+            ).rejects.toThrowError(
+                'Custom metrics written in SQL need permission to manage custom fields: Avg amount',
+            );
+            expect(
+                dashboardModel.updateLatestVersionConfig,
+            ).not.toHaveBeenCalled();
+        });
+
         test('swaps the registry entry and re-versions the affected charts', async () => {
             const result = await service.updateCustomMetric(
                 user,

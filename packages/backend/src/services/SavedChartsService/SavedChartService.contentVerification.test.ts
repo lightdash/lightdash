@@ -582,11 +582,8 @@ describe('SavedChartService - Content Verification', () => {
                     },
                 } as never);
 
-            beforeEach(() => {
-                projectService.getExplore.mockResolvedValueOnce(explore);
-            });
-
             it('rejects hand-written custom metric SQL on create without CustomFields permission', async () => {
+                projectService.getExplore.mockResolvedValueOnce(explore);
                 await expect(
                     service.create(account, 'project-uuid', {
                         ...baseChart,
@@ -604,6 +601,7 @@ describe('SavedChartService - Content Verification', () => {
             });
 
             it('allows a custom metric over a modelled field on create', async () => {
+                projectService.getExplore.mockResolvedValueOnce(explore);
                 await service.create(account, 'project-uuid', {
                     ...baseChart,
                     metricQuery: withMetric('${TABLE}.amount'),
@@ -612,6 +610,7 @@ describe('SavedChartService - Content Verification', () => {
             });
 
             it('rejects new hand-written custom metric SQL on update without CustomFields permission', async () => {
+                projectService.getExplore.mockResolvedValueOnce(explore);
                 savedWithMetric();
                 await expect(
                     service.createVersion(chartEditor, 'chart-uuid', {
@@ -626,7 +625,7 @@ describe('SavedChartService - Content Verification', () => {
                 expect(savedChartModel.createVersion).not.toHaveBeenCalled();
             });
 
-            it('allows unchanged hand-written custom metric SQL on update', async () => {
+            it('allows unchanged hand-written custom metric SQL on update without loading the explore', async () => {
                 savedWithMetric();
                 await service.createVersion(chartEditor, 'chart-uuid', {
                     tableName: baseChart.tableName,
@@ -635,6 +634,7 @@ describe('SavedChartService - Content Verification', () => {
                     tableConfig: baseChart.tableConfig,
                 });
                 expect(savedChartModel.createVersion).toHaveBeenCalled();
+                expect(projectService.getExplore).not.toHaveBeenCalled();
             });
         });
     });

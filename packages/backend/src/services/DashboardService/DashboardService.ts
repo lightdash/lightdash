@@ -3738,22 +3738,37 @@ export class DashboardService
                 }),
             )
         ) {
+            // A metric no chart uses has no explore to compare against
             const account = fromSession(user);
-            const newHandWritten = await Promise.all(
-                affected.map(async (chart) =>
-                    getNewHandWrittenAdditionalMetrics(
-                        [metric],
-                        chart.metricQuery.additionalMetrics ?? [],
-                        await getCustomMetricExploreTables(
-                            () => this.projectService,
-                            account,
-                            chart.projectUuid,
-                            chart.metricQuery,
-                        ),
-                    ),
-                ),
-            );
-            if (newHandWritten.some((metrics) => metrics.length > 0)) {
+            const savedMetric = registry[existingIndex];
+            const tablesPerChart =
+                affected.length > 0
+                    ? await Promise.all(
+                          affected.map((chart) =>
+                              getCustomMetricExploreTables(
+                                  () => this.projectService,
+                                  account,
+                                  chart.projectUuid,
+                                  {
+                                      exploreName:
+                                          chart.metricQuery.exploreName,
+                                      additionalMetrics: [metric],
+                                  },
+                                  [savedMetric],
+                              ),
+                          ),
+                      )
+                    : [{}];
+            if (
+                tablesPerChart.some(
+                    (tables) =>
+                        getNewHandWrittenAdditionalMetrics(
+                            [metric],
+                            [savedMetric],
+                            tables,
+                        ).length > 0,
+                )
+            ) {
                 throw new ForbiddenError(
                     getCustomMetricSqlPermissionMessage([metric]),
                 );

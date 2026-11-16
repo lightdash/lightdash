@@ -1084,6 +1084,7 @@ export class SavedChartService
                 account,
                 projectContext.projectUuid,
                 metricQuery,
+                savedAdditionalMetrics,
             ),
         );
         if (newHandWritten.length > 0) {

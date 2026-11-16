@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AdditionalMetric,
     AgentCapability,
     AlertAsCode,
     AlreadyExistsError,
@@ -425,11 +426,30 @@ export class CoderService extends BaseService {
         );
     }
 
-    private async getChartExploreTables(
-        account: Account,
-        projectUuid: string,
-        chart: ChartAsCode,
-    ): Promise<Explore['tables']> {
+    private async getChartExploreTables({
+        account,
+        auditedAbility,
+        project,
+        chart,
+        savedAdditionalMetrics,
+    }: {
+        account: Account;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        project: Pick<Project, 'projectUuid' | 'organizationUuid'>;
+        chart: ChartAsCode;
+        savedAdditionalMetrics: AdditionalMetric[];
+    }): Promise<Explore['tables']> {
+        if (
+            auditedAbility.can(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            )
+        ) {
+            return {};
+        }
         return getCustomMetricExploreTables(
             () => {
                 if (!this.projectService) {
@@ -440,8 +460,9 @@ export class CoderService extends BaseService {
                 return this.projectService;
             },
             account,
-            projectUuid,
+            project.projectUuid,
             chart.metricQuery,
+            savedAdditionalMetrics,
         );
     }
 
@@ -4747,11 +4768,13 @@ export class CoderService extends BaseService {
                     checks: CoderService.getChartContentAsCodePermissionChecks(
                         chartWithDefaults,
                         null,
-                        await this.getChartExploreTables(
-                            options.account ?? fromSession(user),
-                            projectUuid,
-                            chartWithDefaults,
-                        ),
+                        await this.getChartExploreTables({
+                            account: options.account ?? fromSession(user),
+                            auditedAbility,
+                            project,
+                            chart: chartWithDefaults,
+                            savedAdditionalMetrics: [],
+                        }),
                     ),
                     auditedAbility,
                     project,
@@ -5013,16 +5036,20 @@ export class CoderService extends BaseService {
         });
 
         if (!canUploadAnyContent) {
+            const savedChart =
+                currentChart ?? (await this.savedChartModel.get(chart.uuid));
             CoderService.handleContentAsCodeSqlPermissionChecks({
                 checks: CoderService.getChartContentAsCodePermissionChecks(
                     chartWithDefaults,
-                    currentChart ??
-                        (await this.savedChartModel.get(chart.uuid)),
-                    await this.getChartExploreTables(
-                        options.account ?? fromSession(user),
-                        projectUuid,
-                        chartWithDefaults,
-                    ),
+                    savedChart,
+                    await this.getChartExploreTables({
+                        account: options.account ?? fromSession(user),
+                        auditedAbility,
+                        project,
+                        chart: chartWithDefaults,
+                        savedAdditionalMetrics:
+                            savedChart.metricQuery.additionalMetrics ?? [],
+                    }),
                 ),
                 auditedAbility,
                 project,
