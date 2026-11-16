@@ -346,6 +346,7 @@
 .root[data-variant='inline'] .attachments {
     max-height: rem(172px);
     overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .root[data-variant='inline'][data-has-attachments] {
