@@ -24,6 +24,19 @@ import {
 /** The viewer's explore of each semantic-layer node, keyed by node id. */
 export type ComposerNodeExplores = Record<string, Explore>;
 
+/** The explores the semantic-layer nodes read, each once */
+export const getSemanticExploreNames = (
+    nodes: ComposerChartPipelineNode[],
+): string[] => [
+    ...new Set(
+        nodes.flatMap((node) =>
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                ? [node.exploreName]
+                : [],
+        ),
+    ),
+];
+
 /** The values saved on the semantic-layer nodes, as one chart's saved values */
 export const getComposerSavedParameterValues = (
     nodes: ComposerChartPipelineNode[],

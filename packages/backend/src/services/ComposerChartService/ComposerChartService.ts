@@ -48,6 +48,7 @@ import {
     applyDashboardParametersToComposerNodes,
     getComposerParameterReferences,
     getComposerSavedParameterValues,
+    getSemanticExploreNames,
     type ComposerNodeExplores,
 } from './composerTileInputs';
 
@@ -274,16 +275,13 @@ export class ComposerChartService extends BaseService {
                         await this.assertCanView(account, projectUuid, uuid);
                         const { pipeline } =
                             await this.composerChartModel.get(uuid);
-                        const exploreNames = pipeline.nodes.flatMap((node) =>
-                            node.sourceType === QuerySourceType.SEMANTIC_LAYER
-                                ? [node.exploreName]
-                                : [],
-                        );
                         return [
                             {
                                 uuid,
                                 projectUuid,
-                                exploreNames: [...new Set(exploreNames)],
+                                exploreNames: getSemanticExploreNames(
+                                    pipeline.nodes,
+                                ),
                             },
                         ];
                     } catch (error) {
@@ -404,15 +402,7 @@ export class ComposerChartService extends BaseService {
         pipeline: ComposerChartPipeline,
     ): Promise<ComposerNodeExplores> {
         const asyncQueryService = this.getAsyncQueryService();
-        const names = [
-            ...new Set(
-                pipeline.nodes.flatMap((node) =>
-                    node.sourceType === QuerySourceType.SEMANTIC_LAYER
-                        ? [node.exploreName]
-                        : [],
-                ),
-            ),
-        ];
+        const names = getSemanticExploreNames(pipeline.nodes);
         const explores = new Map(
             await Promise.all(
                 names.map(
