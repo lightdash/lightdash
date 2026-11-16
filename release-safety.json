@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.262.0",
-  "previousVersion": "3.261.2",
-  "releaseDate": "2026-11-16T08:02:49.275Z",
+  "version": "3.263.0",
+  "previousVersion": "3.262.0",
+  "releaseDate": "2026-11-16T08:14:21.534Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,12 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "POST /api/v2/projects/{projectUuid}/dashboards/tile-parameter-references — removed the request property `tiles/items/savedChartUuid`",
-        "POST /api/v2/projects/{projectUuid}/dashboards/tile-parameter-references — removed the request property `tiles/items/savedSqlUuid`",
-        "POST /api/v2/projects/{projectUuid}/dashboards/tile-parameter-references — removed the request property `tiles/items/tileUuid`"
-      ],
-      "advisoryCount": 3
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

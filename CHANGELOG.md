@@ -1,3 +1,10 @@
+# [3.263.0](https://github.com/lightdash/lightdash/compare/3.262.0...3.263.0) (2026-11-16)
+
+
+### Features
+
+* **composer:** custom chart types on composer charts ([#32600](https://github.com/lightdash/lightdash/issues/32600)) ([a958993](https://github.com/lightdash/lightdash/commit/a958993347d94812fb40ef626c7e23661a1eb7df))
+
 # [3.262.0](https://github.com/lightdash/lightdash/compare/3.261.2...3.262.0) (2026-11-16)
 
 
