@@ -46,6 +46,20 @@ export const useContainerSize = (): Size & { ref: (element: HTMLDivElement | nul
             observer.disconnect();
         };
     }, [element]);
+    // A change of size made by the page itself (the box given a new height as the view changes) is taken up before
+    // paint, so nothing is drawn for the old size first; only resizes from outside wait to settle
+    useLayoutEffect(() => {
+        const next = readSize(element);
+        if (!element || next === null) return;
+        setMeasured((previous) =>
+            previous !== null &&
+            previous.element === element &&
+            Math.abs(previous.width - next.width) <= MIN_CHANGE_PX &&
+            Math.abs(previous.height - next.height) <= MIN_CHANGE_PX
+                ? previous
+                : { ...next, element },
+        );
+    });
     const size = measured !== null && measured.element === element ? measured : null;
     return { ref: setElement, width: size?.width ?? 0, height: size?.height ?? 0, isMeasured: size !== null };
 };
