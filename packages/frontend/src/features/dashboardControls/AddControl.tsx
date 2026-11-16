@@ -161,12 +161,18 @@ export const AddControl: FC<Props> = ({
         const tiles = selectDashboardTiles(state);
         return (
             tiles !== undefined &&
-            selectTileQuerySources(state).every(
-                (source) =>
+            // A failed listing is settled, as in useSyncParameterControls
+            selectTileQuerySources(state).every((source) => {
+                const key = JSON.stringify(source);
+                return (
                     state.parameters.tileListedParameterSources[
                         source.tileUuid
-                    ] === JSON.stringify(source),
-            )
+                    ] === key ||
+                    state.parameters.tileFailedParameterSources[
+                        source.tileUuid
+                    ] === key
+                );
+            })
         );
     });
     const getUiString = useUiStrings();
