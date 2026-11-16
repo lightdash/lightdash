@@ -18408,6 +18408,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    EmbedActor: {
+        dataType: 'refAlias',
+        type: { ref: 'EmbedWriteActions', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateEmbedJwt: {
         dataType: 'refAlias',
         type: {
@@ -18429,6 +18434,7 @@ const models: TsoaRoute.Models = {
                     additionalProperties: { dataType: 'string' },
                 },
                 writeActions: { ref: 'EmbedWriteActions' },
+                actor: { ref: 'EmbedActor' },
                 content: {
                     dataType: 'union',
                     subSchemas: [

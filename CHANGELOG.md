@@ -1,3 +1,11 @@
+## [3.265.2](https://github.com/lightdash/lightdash/compare/3.265.1...3.265.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **embedding:** align exports and actor configuration ([#32507](https://github.com/lightdash/lightdash/issues/32507)) ([a588597](https://github.com/lightdash/lightdash/commit/a5885976c06f564cc34581428232d1b94bd13ee3))
+* prefer production projects in MCP context guidance ([#32545](https://github.com/lightdash/lightdash/issues/32545)) ([f18e1d2](https://github.com/lightdash/lightdash/commit/f18e1d2d2feacf9e8d7dc5fe53d9eb251af3b0db))
+
 ## [3.265.1](https://github.com/lightdash/lightdash/compare/3.265.0...3.265.1) (2026-11-16)
 
 
