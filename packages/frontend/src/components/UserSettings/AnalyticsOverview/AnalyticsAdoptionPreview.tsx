@@ -43,11 +43,12 @@ const MIN_APP_HEIGHT = 480;
 const APP_BOTTOM_GAP = 16;
 
 // The height left in the window below where the box starts, so the app fits on screen without scrolling the page
-const useRemainingHeight = () => {
+// While the box is hidden its place on the page means nothing, so the last height is kept
+const useRemainingHeight = (active: boolean) => {
     const [element, setElement] = useState<HTMLDivElement | null>(null);
     const [height, setHeight] = useState(MIN_APP_HEIGHT);
     useLayoutEffect(() => {
-        if (!element) return undefined;
+        if (!element || !active) return undefined;
         const measure = () =>
             setHeight(
                 Math.max(
@@ -75,14 +76,16 @@ const useRemainingHeight = () => {
             window.removeEventListener('resize', measure);
             observer.disconnect();
         };
-    }, [element]);
+    }, [element, active]);
     return { ref: setElement, height };
 };
 
 export const AnalyticsAdoptionPreview = ({
     projectUuid,
+    active = true,
 }: {
     projectUuid: string;
+    active?: boolean;
 }) => {
     const app = useGetApp(projectUuid, ADOPTION_APP_SLUG);
     const latest = app.data?.pages[0];
@@ -95,7 +98,7 @@ export const AnalyticsAdoptionPreview = ({
         'standalone',
     );
     const origin = usePreviewOrigin();
-    const fit = useRemainingHeight();
+    const fit = useRemainingHeight(active);
 
     if (
         app.isError ||

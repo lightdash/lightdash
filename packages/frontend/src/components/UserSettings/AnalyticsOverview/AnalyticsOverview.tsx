@@ -407,8 +407,22 @@ const AnalyticsOverview = ({
                 </Group>
                 {/* Once opened, the Adoption app stays loaded behind the other tabs, so coming back to it is instant */}
                 {hasOpenedAdoption && (
-                    <Box pt="sm" display={isAdoption ? undefined : 'none'}>
-                        <AnalyticsAdoptionPreview projectUuid={projectUuid} />
+                    // Hidden by clipping, not by removing it from the layout: the app keeps its size behind the
+                    // other tabs, so nothing in it is measured or drawn again on the way back
+                    <Box
+                        pt={isAdoption ? 'sm' : 0}
+                        h={isAdoption ? undefined : 0}
+                        style={
+                            isAdoption
+                                ? undefined
+                                : { overflow: 'hidden', visibility: 'hidden' }
+                        }
+                        aria-hidden={!isAdoption || undefined}
+                    >
+                        <AnalyticsAdoptionPreview
+                            projectUuid={projectUuid}
+                            active={isAdoption}
+                        />
                     </Box>
                 )}
                 <Tabs.Panel value={activeTab} pt={isAdoption ? 0 : 'lg'}>
