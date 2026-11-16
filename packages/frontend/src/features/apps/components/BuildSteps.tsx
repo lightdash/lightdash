@@ -17,9 +17,11 @@ type Props = {
     reasoning: string[];
     /** Marks the latest work as in progress. */
     isLive: boolean;
+    /** Shows only the step running now; the rest stay folded. */
+    latestOnly: boolean;
 };
 
-/** Reasoning as a step row: latest thought inline, the rest on click. */
+/** Reasoning as a step row: latest thought inline, all of it on click. */
 const ThinkingStep: FC<{
     texts: string[];
     isLive: boolean;
@@ -40,7 +42,7 @@ const ThinkingStep: FC<{
                 w="100%"
             >
                 <Box component="span" className={classes.stepIcon}>
-                    <MantineIcon icon={IconBulb} size={13} stroke={1.7} />
+                    <MantineIcon icon={IconBulb} size={13} stroke={1.6} />
                 </Box>
                 <Text
                     size="xs"
@@ -49,24 +51,27 @@ const ThinkingStep: FC<{
                 >
                     {isLive ? 'Thinking' : 'Thought it through'}
                 </Text>
+                {preview && !open && (
+                    <Text
+                        size="xs"
+                        fs="italic"
+                        truncate
+                        className={classes.stepTarget}
+                    >
+                        {preview}
+                    </Text>
+                )}
                 <MantineIcon
                     icon={IconChevronRight}
                     size={11}
-                    className={classes.activityChevron}
+                    stroke={1.6}
+                    className={classes.stepChevron}
                     data-open={open || undefined}
                 />
             </UnstyledButton>
-            {/* One text block that unclamps in place, so opening never swaps content. */}
-            {preview && (
-                <Text
-                    size="xs"
-                    lineClamp={open ? undefined : 2}
-                    className={classes.thinkingLive}
-                    data-open={open || undefined}
-                >
-                    {open
-                        ? texts.map((t) => stripMarkdown(t)).join('\n\n')
-                        : preview}
+            {open && (
+                <Text size="xs" fs="italic" className={classes.thinkingBody}>
+                    {texts.map((t) => stripMarkdown(t)).join('\n\n')}
                 </Text>
             )}
         </Box>
@@ -97,7 +102,7 @@ const GroupStep: FC<{ group: BuildStepGroup; isCurrent: boolean }> = ({
                         GROUP_ICON_STEP[group.kind] || group.label,
                     )}
                     size={13}
-                    stroke={1.7}
+                    stroke={1.6}
                 />
             </Box>
             <Text
@@ -116,7 +121,8 @@ const GroupStep: FC<{ group: BuildStepGroup; isCurrent: boolean }> = ({
                 <MantineIcon
                     icon={IconChevronRight}
                     size={11}
-                    className={classes.activityChevron}
+                    stroke={1.6}
+                    className={classes.stepChevron}
                     data-open={open || undefined}
                 />
             )}
@@ -158,23 +164,26 @@ const GroupStep: FC<{ group: BuildStepGroup; isCurrent: boolean }> = ({
 };
 
 /** Tool steps grouped by kind of work; each group expands to its targets. */
-const BuildSteps: FC<Props> = ({ steps, reasoning, isLive }) => {
+const BuildSteps: FC<Props> = ({ steps, reasoning, isLive, latestOnly }) => {
     const { groups, currentIndex } = groupBuildSteps(steps, isLive);
+    const showThinking =
+        reasoning.length > 0 && (!latestOnly || groups.length === 0);
+    const firstShown = latestOnly ? Math.max(groups.length - 1, 0) : 0;
 
     return (
         <Box component="ol" className={classes.steps}>
-            {reasoning.length > 0 && (
+            {showThinking && (
                 <ThinkingStep
                     texts={reasoning}
                     isLive={isLive}
                     isCurrent={isLive && groups.length === 0}
                 />
             )}
-            {groups.map((group, i) => (
+            {groups.slice(firstShown).map((group, i) => (
                 <GroupStep
                     key={`${group.kind}-${group.label}`}
                     group={group}
-                    isCurrent={i === currentIndex}
+                    isCurrent={firstShown + i === currentIndex}
                 />
             ))}
         </Box>

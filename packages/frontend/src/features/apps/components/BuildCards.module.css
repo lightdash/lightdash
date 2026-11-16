@@ -4,7 +4,11 @@
 }
 
 .cardHeader {
+    display: block;
     padding: 7px 12px 4px;
+    border-radius: 10px;
+    text-align: left;
+    font-family: var(--mantine-font-family);
 }
 
 .cardSection {
@@ -19,7 +23,6 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
 }
 
 .step {
@@ -27,7 +30,7 @@
     align-items: center;
     gap: 8px;
     min-width: 0;
-    height: 22px;
+    height: 24px;
     color: var(--mantine-color-ldGray-8);
 }
 
@@ -41,7 +44,7 @@
     justify-content: center;
     width: 14px;
     flex-shrink: 0;
-    color: var(--mantine-color-ldGray-7);
+    color: var(--mantine-color-ldGray-6);
 }
 
 .stepVerb {
@@ -52,18 +55,33 @@
 .stepTarget {
     min-width: 0;
     font-size: var(--mantine-font-size-xs);
-    color: var(--mantine-color-ldGray-7);
+    color: var(--mantine-color-dimmed);
 }
 
-.thinkingLive {
-    margin: 0 0 4px 22px;
-    color: var(--mantine-color-ldGray-8);
-    white-space: pre-line;
+.stepChevron {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-6);
+    opacity: 0.4;
+    transition:
+        transform 180ms ease,
+        opacity 180ms ease;
+}
 
-    &[data-open] {
-        max-height: 240px;
-        overflow-y: auto;
-    }
+.step:hover .stepChevron,
+.stepChevron[data-open] {
+    opacity: 1;
+}
+
+.stepChevron[data-open] {
+    transform: rotate(90deg);
+}
+
+.thinkingBody {
+    max-height: 240px;
+    overflow-y: auto;
+    margin: 0 0 4px 22px;
+    color: var(--mantine-color-ldGray-7);
+    white-space: pre-line;
 }
 
 .stepTargets {
@@ -119,15 +137,30 @@
     font-family: var(--mantine-font-family);
 }
 
+.workingStage {
+    color: var(--mantine-color-dimmed);
+}
+
+.activityIcon {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-7);
+}
+
 .activityLabel {
     flex-shrink: 0;
-    color: var(--mantine-color-ldGray-8);
+    color: var(--mantine-color-text);
 }
 
 .activityChevron {
     flex-shrink: 0;
     color: var(--mantine-color-ldGray-6);
+    opacity: 0.8;
     transition: transform 200ms ease;
+}
+
+.activityHeader:hover .activityChevron,
+.cardHeader:hover .activityChevron {
+    opacity: 1;
 }
 
 .activityChevron[data-open] {
@@ -313,7 +346,12 @@
 
 /* Narrow chat: keep the label; the counts live in the expanded log. */
 .buildLogCount {
-    color: var(--mantine-color-ldGray-7);
+    color: var(--mantine-color-dimmed);
+
+    &::before {
+        content: '·';
+        margin-right: 6px;
+    }
 }
 
 @container build-log (max-width: 300px) {

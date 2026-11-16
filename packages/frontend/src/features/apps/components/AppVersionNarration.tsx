@@ -1,5 +1,5 @@
 import { Box, Collapse, Group, Text, UnstyledButton } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import { IconAppWindow, IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ReasoningHistoryRow } from '../../../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
@@ -38,7 +38,13 @@ const BuildLogRow: FC<{
                 aria-expanded={open}
                 title={`${label} · ${timeAgo}`}
             >
-                <Group gap="xs" wrap="nowrap">
+                <Group gap={8} wrap="nowrap">
+                    <MantineIcon
+                        icon={IconAppWindow}
+                        size={13}
+                        stroke={1.6}
+                        className={classes.activityIcon}
+                    />
                     <Text size="xs" fw={500} className={classes.activityLabel}>
                         {label}
                     </Text>
@@ -65,6 +71,7 @@ const BuildLogRow: FC<{
                         steps={narration.activity}
                         reasoning={narration.reasoning}
                         isLive={false}
+                        latestOnly={false}
                     />
                 </Box>
             </Collapse>
@@ -82,11 +89,16 @@ const ActivityLogRow: FC<{ steps: string[] }> = ({ steps }) => {
                 onClick={() => setOpen((prev) => !prev)}
                 aria-expanded={open}
             >
-                <Group gap="xs" wrap="nowrap">
+                <Group gap={8} wrap="nowrap">
                     <Text size="xs" fw={500} className={classes.activityLabel}>
                         Activity
                     </Text>
-                    <Text size="xs" c="dimmed" truncate miw={0}>
+                    <Text
+                        size="xs"
+                        truncate
+                        miw={0}
+                        className={classes.buildLogCount}
+                    >
                         {steps.length}{' '}
                         {steps.length === 1 ? 'action' : 'actions'}
                     </Text>
@@ -101,7 +113,12 @@ const ActivityLogRow: FC<{ steps: string[] }> = ({ steps }) => {
             </UnstyledButton>
             <Collapse expanded={open} transitionDuration={200}>
                 <Box className={classes.activityBody}>
-                    <BuildSteps steps={steps} reasoning={[]} isLive={false} />
+                    <BuildSteps
+                        steps={steps}
+                        reasoning={[]}
+                        isLive={false}
+                        latestOnly={false}
+                    />
                 </Box>
             </Collapse>
         </Box>
