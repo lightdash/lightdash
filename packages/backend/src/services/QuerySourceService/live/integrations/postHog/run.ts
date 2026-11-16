@@ -10,14 +10,15 @@ import {
     type ApiSourceOf,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { LiveColumn, LiveHttpResponse } from '../../connector';
+import { assertMaxRows } from '../../integration';
 import {
-    assertMaxRows,
     type LiveCalls,
+    type LiveColumn,
+    type LiveHttpResponse,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../defineLiveIntegration';
-import type { LiveScanResult } from '../../integration';
+    type LiveScanResult,
+} from '../../types';
 import {
     POSTHOG_MAX_SCANNED_PROPERTIES,
     type PostHogPropertyKind,

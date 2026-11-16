@@ -394,11 +394,9 @@ import {
     validatePagination,
 } from '../ProjectService/resultsPagination';
 import type {
-    LiveConnector,
-    LiveConnectorCall,
-    LiveConnectorResult,
-    MeteredLiveConnector,
-} from '../QuerySourceService/live/connector';
+    LiveQueryCall,
+    MeteredLiveSource,
+} from '../QuerySourceService/live/calls';
 import {
     assertLiveResultComplete,
     compileLiveMetricQuery,
@@ -411,8 +409,12 @@ import {
     isLiveSourceErrorReportable,
     type LiveQueryOutcome,
 } from '../QuerySourceService/live/query/outcome';
+import {
+    runLiveRequest,
+    type LiveQueryResult,
+} from '../QuerySourceService/live/query/run';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
-import type { ApiConnectorResolver } from '../QuerySourceService/sources/ApiQuerySource';
+import type { LiveSourceResolver } from '../QuerySourceService/sources/ApiQuerySource';
 import {
     buildResultsCacheStats,
     getContextsInGroup,
@@ -685,8 +687,8 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     /** Lazy: the query source registry is built over this service. */
     getQuerySourceService: () => QuerySourceService;
     preAggregateStrategy?: PreAggregateStrategy;
-    /** EE resolver for live data source connectors; absent in OSS. */
-    getApiSourceConnector?: ApiConnectorResolver;
+    /** EE resolver for live data sources; absent in OSS. */
+    getLiveSourceForExplore?: LiveSourceResolver;
     /** EE resolver for external tables; absent in OSS. */
     externalSourceTableResolver?: (
         projectUuid: string,
@@ -738,8 +740,8 @@ type ExecuteAsyncQueryArgs = Pick<
     organizationUuid?: string;
 };
 
-/** Turns a connector's rows into the rows and columns a result stores. */
-type ApiResultShaper = (result: LiveConnectorResult) => {
+/** Turns a live query's rows into the rows and columns a result stores. */
+type ApiResultShaper = (result: LiveQueryResult) => {
     rows: Record<string, unknown>[];
     columns: ResultColumns;
 };
@@ -929,7 +931,7 @@ export class AsyncQueryService extends ProjectService {
 
     private readonly externalSourceTableResolver: AsyncQueryServiceArguments['externalSourceTableResolver'];
 
-    private readonly getApiSourceConnector: AsyncQueryServiceArguments['getApiSourceConnector'];
+    private readonly getLiveSourceForExplore: AsyncQueryServiceArguments['getLiveSourceForExplore'];
 
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
@@ -953,7 +955,7 @@ export class AsyncQueryService extends ProjectService {
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
         this.externalSourceTableResolver = args.externalSourceTableResolver;
-        this.getApiSourceConnector = args.getApiSourceConnector;
+        this.getLiveSourceForExplore = args.getLiveSourceForExplore;
     }
 
     /**
@@ -6864,7 +6866,7 @@ export class AsyncQueryService extends ProjectService {
     ): Promise<ExecuteAsyncQueryReturn> {
         await this.assertOrganizationNotBlocked(args.account);
         if (args.queryComposer.getExplore().type === ExploreType.API_SOURCE) {
-            return this.executePreparedApiSourceQuery(
+            return this.executePreparedLiveQuery(
                 args,
                 requestParameters,
                 organizationUuid,
@@ -12630,7 +12632,7 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         connectionUuid,
-        connector,
+        source,
         payload,
         context,
         querySurface,
@@ -12659,11 +12661,11 @@ export class AsyncQueryService extends ProjectService {
             context,
             parameters: parameters ?? {},
         };
-        const { queryUuid } = await this.submitApiQuery({
+        const { queryUuid } = await this.submitLiveQuery({
             account,
             projectUuid,
             organizationUuid,
-            connector,
+            source,
             payload,
             limit: effectiveLimit,
             cacheKeySql: JSON.stringify({
@@ -12784,7 +12786,7 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
-    private async executePreparedApiSourceQuery(
+    private async executePreparedLiveQuery(
         args: PreparedAsyncQueryArgs,
         requestParameters: ExecuteAsyncQueryRequestParams,
         organizationUuid: string,
@@ -12828,7 +12830,7 @@ export class AsyncQueryService extends ProjectService {
             });
             throw toLiveQueryError(issues);
         }
-        if (!this.getApiSourceConnector) {
+        if (!this.getLiveSourceForExplore) {
             throw new ForbiddenError('Live data sources are not enabled');
         }
         await this.assertApiQuerySourcesEnabled(account);
@@ -12836,7 +12838,7 @@ export class AsyncQueryService extends ProjectService {
 
         const metricQuery = queryComposer.getMetricQuery();
         const fields = queryComposer.getFields();
-        const connector = await this.getApiSourceConnector(
+        const source = await this.getLiveSourceForExplore(
             account,
             projectUuid,
             apiSource.connectionUuid,
@@ -12847,11 +12849,11 @@ export class AsyncQueryService extends ProjectService {
             timezone: queryComposer.getTimezone() ?? 'UTC',
             now: new Date(),
         });
-        const { queryUuid, reusable } = await this.submitApiQuery({
+        const { queryUuid, reusable } = await this.submitLiveQuery({
             account,
             projectUuid,
             organizationUuid,
-            connector,
+            source,
             payload: { kind: 'query', query: compiled.query },
             limit: compiled.requestLimit,
             // The compiled request has every relative date resolved, so it
@@ -12868,7 +12870,10 @@ export class AsyncQueryService extends ProjectService {
                 false,
             history: { fields, requestParameters, metricQuery, explore },
             toResult: (result) => {
-                const { label, maxRows } = connector.describe();
+                const {
+                    label,
+                    limits: { maxRows },
+                } = source.integration;
                 assertLiveResultComplete({
                     compiled,
                     hasMoreRows: result.hasMoreRows,
@@ -12897,11 +12902,11 @@ export class AsyncQueryService extends ProjectService {
      * for the same request. `history.fields` null derives fields from the
      * result columns.
      */
-    private async submitApiQuery({
+    private async submitLiveQuery({
         account,
         projectUuid,
         organizationUuid,
-        connector,
+        source,
         payload,
         limit,
         cacheKeySql,
@@ -12914,7 +12919,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account;
         projectUuid: string;
         organizationUuid: string;
-        connector: MeteredLiveConnector;
+        source: MeteredLiveSource;
         payload: ApiSourcePayload;
         limit: number;
         cacheKeySql: string;
@@ -13047,7 +13052,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 organizationUuid,
                 context,
-                connector: connector.describe().connector,
+                connector: source.integration.connector,
                 queryCreatedAt,
                 outcome: 'ok',
                 errorMessage: null,
@@ -13058,7 +13063,7 @@ export class AsyncQueryService extends ProjectService {
                 truncated: null,
                 cacheHit: true,
             });
-            void connector.logCall({
+            void source.logCall({
                 queryUuid,
                 context,
                 query: payload.query,
@@ -13075,12 +13080,12 @@ export class AsyncQueryService extends ProjectService {
             return { queryUuid, reusable };
         }
 
-        void this.runApiQuery({
+        void this.runLiveQuery({
             account,
             queryUuid,
             projectUuid,
             organizationUuid,
-            connector,
+            source,
             payload,
             limit,
             cacheKey,
@@ -13100,12 +13105,12 @@ export class AsyncQueryService extends ProjectService {
         return { queryUuid, reusable: null };
     }
 
-    private async runApiQuery({
+    private async runLiveQuery({
         account,
         queryUuid,
         projectUuid,
         organizationUuid,
-        connector,
+        source,
         payload,
         limit,
         cacheKey,
@@ -13119,7 +13124,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string;
         projectUuid: string;
         organizationUuid: string;
-        connector: MeteredLiveConnector;
+        source: MeteredLiveSource;
         payload: ApiSourcePayload;
         limit: number;
         cacheKey: string;
@@ -13130,7 +13135,7 @@ export class AsyncQueryService extends ProjectService {
         exploreName: string | null;
         toResult: ApiResultShaper;
     }): Promise<void> {
-        const { connector: connectorType } = connector.describe();
+        const connectorType = source.integration.connector;
         const attributes = {
             'lightdash.queryUuid': queryUuid,
             'lightdash.projectUuid': projectUuid,
@@ -13148,7 +13153,7 @@ export class AsyncQueryService extends ProjectService {
                 let executeMs: number | null = null;
                 const logCall = (
                     call: Pick<
-                        LiveConnectorCall,
+                        LiveQueryCall,
                         | 'outcome'
                         | 'errorMessage'
                         | 'rowCount'
@@ -13156,7 +13161,7 @@ export class AsyncQueryService extends ProjectService {
                         | 'truncated'
                     >,
                 ) =>
-                    void connector.logCall({
+                    void source.logCall({
                         queryUuid,
                         context,
                         query: payload.query,
@@ -13173,19 +13178,13 @@ export class AsyncQueryService extends ProjectService {
                             name: 'api.query.execute',
                             attributes,
                         },
-                        () =>
-                            this.executeApiConnector(
-                                connector,
-                                connectorType,
-                                payload,
-                                limit,
-                            ),
+                        () => this.executeLiveRequest(source, payload, limit),
                     );
                     executeMs = Date.now() - startedAt;
                     span.setAttributes({
                         'lightdash.rowCount': result.rows.length,
                         'lightdash.truncated': result.hasMoreRows,
-                        'lightdash.apiCalls': connector.usage().apiCalls,
+                        'lightdash.apiCalls': source.usage().apiCalls,
                         ...(result.bytesRead !== null
                             ? { 'lightdash.bytesRead': result.bytesRead }
                             : {}),
@@ -13391,17 +13390,20 @@ export class AsyncQueryService extends ProjectService {
         return latest;
     }
 
-    /** One connector call, measured by outcome; rethrows what it caught. */
-    private async executeApiConnector(
-        connector: LiveConnector,
-        connectorType: ApiConnectorType,
+    /** One live query, measured by outcome; rethrows what it caught. */
+    private async executeLiveRequest(
+        source: MeteredLiveSource,
         payload: ApiSourcePayload,
         limit: number,
-    ): Promise<LiveConnectorResult> {
+    ): Promise<LiveQueryResult> {
+        const connectorType = source.integration.connector;
         const startedAt = Date.now();
         this.prometheusMetrics?.trackApiSourceInflight(connectorType, 1);
         try {
-            const result = await connector.execute({ payload, limit });
+            const result = await runLiveRequest(source, {
+                query: payload.query,
+                limit,
+            });
             this.prometheusMetrics?.observeApiSourceRequest(
                 connectorType,
                 'ok',

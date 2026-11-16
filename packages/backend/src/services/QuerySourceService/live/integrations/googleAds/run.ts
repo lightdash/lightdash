@@ -4,9 +4,12 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { LiveColumn } from '../../connector';
-import type { LiveRunArgs, LiveRunResult } from '../../defineLiveIntegration';
 import { readRowsWithinCap } from '../../query/rows';
+import {
+    type LiveColumn,
+    type LiveRunArgs,
+    type LiveRunResult,
+} from '../../types';
 import { GOOGLE_ADS_MICROS_FIELDS } from './explores';
 
 export const GOOGLE_ADS_ORIGIN = 'https://googleads.googleapis.com';

@@ -8,8 +8,9 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { linkedInAdsIntegration } from '.';
-import type { LiveTransport } from '../../connector';
+import { type LiveTransport } from '../../calls';
 import { buildLiveExplore } from '../../explores/definition';
+import { connectLiveSource } from '../../liveSource.mock';
 import { compileLinkedInAdsQuery } from './compile';
 import { LINKEDIN_ADS_PERFORMANCE_EXPLORE } from './explores';
 import { LINKEDIN_ADS_MAX_QUERY_ROWS } from './run';
@@ -24,7 +25,7 @@ const explore = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.LINKEDIN_ADS,
     baseVersion: 1,
-    capabilities: linkedInAdsIntegration.baseLayer.capabilities,
+    capabilities: linkedInAdsIntegration.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),
@@ -67,11 +68,12 @@ const compile = (metricQuery: MetricQuery) => {
     return { ...compiled, request: JSON.parse(compiled.query) };
 };
 
-const createConnector = (send: LiveTransport) =>
-    linkedInAdsIntegration.createConnector(
+const connect = (send: LiveTransport) =>
+    connectLiveSource(
+        linkedInAdsIntegration,
         { connector: ApiConnectorType.LINKEDIN_ADS, adAccountId: '1' },
         send,
-    ).connector;
+    );
 
 const between = (start: string, end: string) =>
     filtered(rule('date', FilterOperator.IN_BETWEEN, [start, end]));
@@ -215,7 +217,7 @@ describe('compileLinkedInAdsQuery', () => {
                     metrics: [field('clicks')],
                 }),
             );
-            const connector = createConnector(async ({ path }) => ({
+            const source = connect(async ({ path }) => ({
                 status: 200,
                 headers: {},
                 body: path.endsWith('/adCampaigns')
@@ -238,8 +240,8 @@ describe('compileLinkedInAdsQuery', () => {
                           ],
                       },
             }));
-            const { rows } = await connector.execute({
-                payload: { kind: 'query', query: request },
+            const { rows } = await source.run({
+                query: request,
                 limit: 10,
             });
             expect(
@@ -310,7 +312,7 @@ describe('compileLinkedInAdsQuery', () => {
                 ...filtered(rule('campaign_id', FilterOperator.EQUALS, ['11'])),
             }),
         );
-        const connector = createConnector(async () => ({
+        const source = connect(async () => ({
             status: 200,
             headers: {},
             body: {
@@ -325,8 +327,8 @@ describe('compileLinkedInAdsQuery', () => {
                 ],
             },
         }));
-        const { rows } = await connector.execute({
-            payload: { kind: 'query', query: request },
+        const { rows } = await source.run({
+            query: request,
             limit: 10,
         });
         expect(

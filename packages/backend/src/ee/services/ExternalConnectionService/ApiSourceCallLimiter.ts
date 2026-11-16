@@ -1,7 +1,12 @@
 import { TooManyRequestsError } from '@lightdash/common';
 import { randomUUID } from 'node:crypto';
-import type { LiveCallLimits } from '../../../services/QuerySourceService/live/connector';
+import { type LiveLimits } from '../../../services/QuerySourceService/live/types';
 import type { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
+
+type LiveCallLimits = Pick<
+    LiveLimits,
+    'concurrentCalls' | 'callsPerMinute' | 'callsPerHour'
+>;
 
 type CallLimiterModel = Pick<
     ExternalConnectionModel,

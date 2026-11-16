@@ -4,8 +4,7 @@ import {
     TimeFrames,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { ALL_PUSHDOWN_REFUSED } from '../../connector';
-import { defineLiveIntegration } from '../../defineLiveIntegration';
+import { ALL_PUSHDOWN_REFUSED, defineLiveIntegration } from '../../integration';
 import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { assertGoogleSignIn } from '../google/signIn';
 import { compileGoogleAdsQuery } from './compile';

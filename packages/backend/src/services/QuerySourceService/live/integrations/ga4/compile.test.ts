@@ -22,7 +22,7 @@ const buildExplore = (definition = GA4_REPORT_EXPLORE) =>
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.GA4,
         baseVersion: 1,
-        capabilities: ga4Integration.baseLayer.capabilities,
+        capabilities: ga4Integration.capabilities,
         warehouseSqlBuilder: warehouseSqlBuilderFromType(
             SupportedDbtAdapter.DUCKDB,
         ),

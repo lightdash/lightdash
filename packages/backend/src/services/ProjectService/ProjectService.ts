@@ -542,6 +542,7 @@ import {
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
 import { compileLiveMetricQuery } from '../QuerySourceService/live/explores/build';
+import { assertLiveQuery } from '../QuerySourceService/live/explores/definition';
 import { resolveCliPreviewDeploy } from '../resolveCliPreviewDeploy';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
@@ -9957,6 +9958,10 @@ export class ProjectService
             metricQuery,
             projectTimezone: await this.getQueryTimezoneForProject(projectUuid),
             userTimezone: getAccountUserTimezone(account),
+        });
+        // The same refusals the query itself gets
+        assertLiveQuery(explore, metricQuery, {
+            isPivoted: !!pivotConfiguration,
         });
         const { query } = compileLiveMetricQuery({
             explore,

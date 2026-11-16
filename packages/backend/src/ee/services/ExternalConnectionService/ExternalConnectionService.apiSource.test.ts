@@ -16,6 +16,7 @@ import {
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
 } from '../../../services/QuerySourceService/live/explores/fields';
+import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { type DeletedLiveSource } from '../../models/ExternalConnectionModel';
@@ -299,14 +300,10 @@ beforeEach(() => {
 describe('ExternalConnectionService api sources', () => {
     it('runs a PostHog query through the guarded fetch with the stored key', async () => {
         const { service } = buildService();
-        const connector = await service.getApiConnector(
-            account,
-            'proj-1',
-            'conn-1',
-        );
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
 
-        const result = await connector.execute({
-            payload: { kind: 'query', query: 'SELECT 1 AS a' },
+        const result = await runLiveRequest(source, {
+            query: 'SELECT 1 AS a',
             limit: 10,
         });
 
@@ -323,7 +320,7 @@ describe('ExternalConnectionService api sources', () => {
             connections: [posthogConnection({ apiSource: null })],
         });
         await expect(
-            service.getApiConnector(account, 'proj-1', 'conn-1'),
+            service.getLiveSource(account, 'proj-1', 'conn-1'),
         ).rejects.toThrow(ParameterError);
     });
 
@@ -332,14 +329,14 @@ describe('ExternalConnectionService api sources', () => {
             connections: [posthogConnection({ kind: 'data_app' })],
         });
         await expect(
-            service.getApiConnector(account, 'proj-1', 'conn-1'),
+            service.getLiveSource(account, 'proj-1', 'conn-1'),
         ).rejects.toThrow(ParameterError);
     });
 
     it('refuses an account that cannot view the connection', async () => {
         const { service } = buildService({ canView: false });
         await expect(
-            service.getApiConnector(account, 'proj-1', 'conn-1'),
+            service.getLiveSource(account, 'proj-1', 'conn-1'),
         ).rejects.toThrow(ForbiddenError);
     });
 
@@ -348,33 +345,19 @@ describe('ExternalConnectionService api sources', () => {
             new SecureFetchError('timeout', 'timed out'),
         );
         const { service } = buildService();
-        const connector = await service.getApiConnector(
-            account,
-            'proj-1',
-            'conn-1',
-        );
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
         await expect(
-            connector.execute({
-                payload: { kind: 'query', query: 'SELECT 1 AS a' },
-                limit: 10,
-            }),
+            runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 }),
         ).rejects.toThrow(TimeoutError);
     });
 
     it('logs a finished query with what its calls cost', async () => {
         const { service, externalConnectionModel } = buildService();
-        const connector = await service.getApiConnector(
-            account,
-            'proj-1',
-            'conn-1',
-        );
-        await connector.execute({
-            payload: { kind: 'query', query: 'SELECT 1 AS a' },
-            limit: 10,
-        });
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        await runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 });
         const { bodyText } = await mockSecureFetch.mock.results[0].value;
 
-        await connector.logCall({
+        await source.logCall({
             queryUuid: 'query-1',
             context: QueryExecutionContext.AI,
             query: 'SELECT 1 AS a',
@@ -417,25 +400,18 @@ describe('ExternalConnectionService api sources', () => {
         externalConnectionModel.insertApiSourceCall.mockRejectedValue(
             new Error('database is down'),
         );
-        const connector = await service.getApiConnector(
-            account,
-            'proj-1',
-            'conn-1',
-        );
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
         await expect(
-            connector.execute({
-                payload: { kind: 'query', query: 'SELECT 1 AS a' },
-                limit: 10,
-            }),
+            runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 }),
         ).rejects.toThrow(TimeoutError);
 
-        expect(connector.usage()).toEqual({
+        expect(source.usage()).toEqual({
             apiCalls: 1,
             responseBytes: 0,
             providerStatus: null,
         });
         await expect(
-            connector.logCall({
+            source.logCall({
                 queryUuid: 'query-1',
                 context: QueryExecutionContext.AI,
                 query: 'SELECT 1 AS a',
@@ -1698,11 +1674,11 @@ describe('ExternalConnectionService live source explores', () => {
 
     it('answers explore queries for accounts that cannot view the connection', async () => {
         const { service } = buildService({ canView: false });
-        const connector = await service.getApiSourceConnector(
+        const source = await service.getLiveSourceForExplore(
             account,
             'proj-1',
             'conn-1',
         );
-        expect(connector.describe().connector).toBe(ApiConnectorType.POSTHOG);
+        expect(source.integration.connector).toBe(ApiConnectorType.POSTHOG);
     });
 });

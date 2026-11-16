@@ -9,9 +9,9 @@ import {
     type Explore,
     type MetricQuery,
 } from '@lightdash/common';
-import { type LiveScanResult } from '../integration';
 import { compileSearchConsoleQuery } from '../integrations/searchConsole/compile';
 import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from '../integrations/searchConsole/run';
+import { type LiveScanResult } from '../types';
 import {
     buildLiveExplores,
     compileLiveMetricQuery,
@@ -24,6 +24,7 @@ import {
     toPeriodStart,
     toScannedLiveSourceFields,
 } from './build';
+import { assertLiveQuery } from './definition';
 import { getInitialLiveSourceFieldEdits } from './fields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
@@ -316,16 +317,14 @@ describe('compileLiveMetricQuery', () => {
         expect(Object.keys(getItemMap(explore))).not.toContain(plan);
 
         const compile = (overrides: Partial<MetricQuery>) => () =>
-            compileLiveMetricQuery({
+            assertLiveQuery(
                 explore,
-                metricQuery: query(
+                query(
                     explore,
                     { dimensions: ['event'], metrics: ['event_count'] },
                     overrides,
                 ),
-                timezone: 'UTC',
-                now,
-            });
+            );
         const refusal = `"${plan}" isn't available from this live data source.`;
         expect(compile({ dimensions: [event, plan] })).toThrow(refusal);
         expect(

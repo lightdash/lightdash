@@ -10,6 +10,7 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { metaAdsIntegration } from '.';
 import { buildLiveExplore } from '../../explores/definition';
+import { connectLiveSource } from '../../liveSource.mock';
 import { compileMetaAdsQuery } from './compile';
 import { META_ADS_INSIGHTS_EXPLORE } from './explores';
 import { META_ADS_MAX_QUERY_ROWS } from './run';
@@ -23,7 +24,7 @@ const explore = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.META_ADS,
     baseVersion: 1,
-    capabilities: metaAdsIntegration.baseLayer.capabilities,
+    capabilities: metaAdsIntegration.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),
@@ -143,7 +144,8 @@ describe('compileMetaAdsQuery', () => {
                 dimensions: [field('objective'), field('campaign_id')],
             });
             const { query: compiled, fieldIdsByColumn } = compile(metricQuery);
-            const { connector } = metaAdsIntegration.createConnector(
+            const source = connectLiveSource(
+                metaAdsIntegration,
                 { connector: ApiConnectorType.META_ADS, adAccountId: '123' },
                 async () => ({
                     status: 200,
@@ -165,8 +167,8 @@ describe('compileMetaAdsQuery', () => {
                     },
                 }),
             );
-            const { rows } = await connector.execute({
-                payload: { kind: 'query', query: compiled },
+            const { rows } = await source.run({
+                query: compiled,
                 limit: 10,
             });
             expect(

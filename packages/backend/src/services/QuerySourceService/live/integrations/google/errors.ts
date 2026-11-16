@@ -5,7 +5,7 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { LiveHttpResponse } from '../../connector';
+import { type LiveHttpResponse } from '../../types';
 
 const googleErrorSchema = z.object({
     error: z.object({

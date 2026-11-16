@@ -4,14 +4,14 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { LiveColumn } from '../../connector';
+import { assertMaxRows } from '../../integration';
 import {
-    assertMaxRows,
     type LiveCalls,
+    type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../defineLiveIntegration';
-import type { LiveScanResult } from '../../integration';
+    type LiveScanResult,
+} from '../../types';
 
 export const GA4_DATA_ORIGIN = 'https://analyticsdata.googleapis.com';
 

@@ -8,13 +8,14 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { LiveColumn, LiveHttpResponse } from '../../connector';
-import type {
-    LiveCalls,
-    LiveRunArgs,
-    LiveRunResult,
-} from '../../defineLiveIntegration';
 import { tooManyRowsError } from '../../query/rows';
+import {
+    type LiveCalls,
+    type LiveColumn,
+    type LiveHttpResponse,
+    type LiveRunArgs,
+    type LiveRunResult,
+} from '../../types';
 import {
     LINKEDIN_ADS_CAMPAIGN_COLUMNS,
     LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS,

@@ -6,11 +6,8 @@ import {
     WarehouseConnectionError,
 } from '@lightdash/common';
 import { linkedInAdsIntegration } from '.';
-import type {
-    LiveConnector,
-    LiveHttpRequest,
-    LiveHttpResponse,
-} from '../../connector';
+import { connectLiveSource } from '../../liveSource.mock';
+import { type LiveHttpRequest, type LiveHttpResponse } from '../../types';
 import {
     getLinkedInAdsCampaignGroupsPath,
     getLinkedInAdsCampaignsPath,
@@ -35,16 +32,17 @@ const element = (id: string, day: number, impressions: number) => ({
     costInLocalCurrency: '19.91',
 });
 
-const createConnector = (
-    respond: (request: LiveHttpRequest) => LiveHttpResponse,
-) => {
+type LiveSource = ReturnType<typeof connectLiveSource>;
+
+const connect = (respond: (request: LiveHttpRequest) => LiveHttpResponse) => {
     const send = vi.fn(async (request: LiveHttpRequest) => respond(request));
     return {
         send,
-        connector: linkedInAdsIntegration.createConnector(
+        source: connectLiveSource(
+            linkedInAdsIntegration,
             { connector: ApiConnectorType.LINKEDIN_ADS, adAccountId: ACCOUNT },
             send,
-        ).connector,
+        ),
     };
 };
 
@@ -57,18 +55,18 @@ const REQUEST = {
 };
 
 const execute = (
-    connector: LiveConnector,
+    source: LiveSource,
     request: Record<string, unknown>,
     limit = 100,
 ) =>
-    connector.execute({
-        payload: { kind: 'query', query: JSON.stringify(request) },
+    source.run({
+        query: JSON.stringify(request),
         limit,
     });
 
 describe('linkedInAdsIntegration run', () => {
     it('sends Rest.li syntax with the connection account and joins names', async () => {
-        const { connector, send } = createConnector((request) => {
+        const { source, send } = connect((request) => {
             if (request.path === LINKEDIN_ADS_ANALYTICS_PATH) {
                 return jsonResponse({ elements: [element('11', 1, 54)] });
             }
@@ -85,7 +83,7 @@ describe('linkedInAdsIntegration run', () => {
             }
             return jsonResponse({ elements: [{ id: 7, name: 'Brand' }] });
         });
-        const result = await execute(connector, {
+        const result = await execute(source, {
             ...REQUEST,
             campaigns: ['11'],
         });
@@ -115,10 +113,10 @@ describe('linkedInAdsIntegration run', () => {
     });
 
     it('makes no lookup when only ids are selected', async () => {
-        const { connector, send } = createConnector(() =>
+        const { source, send } = connect(() =>
             jsonResponse({ elements: [element('11', 1, 5)] }),
         );
-        await execute(connector, {
+        await execute(source, {
             ...REQUEST,
             dimensions: ['campaign.id'],
         });
@@ -126,7 +124,7 @@ describe('linkedInAdsIntegration run', () => {
     });
 
     it('pages through campaigns', async () => {
-        const { connector, send } = createConnector((request) => {
+        const { source, send } = connect((request) => {
             if (request.path === LINKEDIN_ADS_ANALYTICS_PATH) {
                 return jsonResponse({ elements: [element('12', 1, 5)] });
             }
@@ -137,7 +135,7 @@ describe('linkedInAdsIntegration run', () => {
                       metadata: { nextPageToken: 'tok/en' },
                   });
         });
-        const result = await execute(connector, {
+        const result = await execute(source, {
             ...REQUEST,
             dimensions: ['campaign.name'],
         });
@@ -146,7 +144,7 @@ describe('linkedInAdsIntegration run', () => {
     });
 
     it('turns months into their first day and keeps group pivots', async () => {
-        const { connector } = createConnector(() =>
+        const { source } = connect(() =>
             jsonResponse({
                 elements: [
                     {
@@ -157,7 +155,7 @@ describe('linkedInAdsIntegration run', () => {
                 ],
             }),
         );
-        const result = await execute(connector, {
+        const result = await execute(source, {
             ...REQUEST,
             pivot: 'CAMPAIGN_GROUP',
             timeGranularity: 'MONTHLY',
@@ -170,15 +168,15 @@ describe('linkedInAdsIntegration run', () => {
     });
 
     it('rejects a request naming another account', async () => {
-        const { connector, send } = createConnector(() => jsonResponse({}));
+        const { source, send } = connect(() => jsonResponse({}));
         await expect(
-            execute(connector, { ...REQUEST, accounts: ['1'] }),
+            execute(source, { ...REQUEST, accounts: ['1'] }),
         ).rejects.toThrow(ParameterError);
         expect(send).not.toHaveBeenCalled();
     });
 
     it('refuses rather than cutting 15,000 elements, and flags a smaller limit', async () => {
-        const full = createConnector(() =>
+        const full = connect(() =>
             jsonResponse({
                 elements: Array.from({ length: 15_000 }, () =>
                     element('1', 1, 1),
@@ -186,19 +184,19 @@ describe('linkedInAdsIntegration run', () => {
             }),
         );
         await expect(
-            execute(full.connector, {
+            execute(full.source, {
                 ...REQUEST,
                 dimensions: ['campaign.id'],
             }),
         ).rejects.toThrow('more than 14,999 rows');
 
-        const small = createConnector(() =>
+        const small = connect(() =>
             jsonResponse({
                 elements: [element('1', 1, 1), element('1', 2, 1)],
             }),
         );
         const result = await execute(
-            small.connector,
+            small.source,
             { ...REQUEST, dimensions: ['campaign.id'] },
             1,
         );
@@ -207,7 +205,7 @@ describe('linkedInAdsIntegration run', () => {
     });
 
     it('refuses an account with too many campaigns to look up', async () => {
-        const { connector } = createConnector((request) =>
+        const { source } = connect((request) =>
             request.path === LINKEDIN_ADS_ANALYTICS_PATH
                 ? jsonResponse({ elements: [element('1', 1, 1)] })
                 : jsonResponse({
@@ -216,7 +214,7 @@ describe('linkedInAdsIntegration run', () => {
                   }),
         );
         await expect(
-            execute(connector, { ...REQUEST, dimensions: ['campaign.name'] }),
+            execute(source, { ...REQUEST, dimensions: ['campaign.name'] }),
         ).rejects.toThrow('more campaigns than one query can look up');
     });
 
@@ -225,19 +223,17 @@ describe('linkedInAdsIntegration run', () => {
         [403, WarehouseConnectionError, `ad account ${ACCOUNT}`],
         [429, TooManyRequestsError, 'rate limit'],
     ])('maps a %s response', async (status, errorClass, message) => {
-        const { connector } = createConnector(() =>
+        const { source } = connect(() =>
             jsonResponse({ message: 'nope', status }, status),
         );
-        const result = execute(connector, REQUEST);
+        const result = execute(source, REQUEST);
         await expect(result).rejects.toBeInstanceOf(errorClass);
         await expect(result).rejects.toThrow(message);
     });
 
     it('looks up campaign groups only when a name is asked for', async () => {
-        const { connector, send } = createConnector(() =>
-            jsonResponse({ elements: [] }),
-        );
-        await execute(connector, { ...REQUEST, dimensions: ['campaign.id'] });
+        const { source, send } = connect(() => jsonResponse({ elements: [] }));
+        await execute(source, { ...REQUEST, dimensions: ['campaign.id'] });
         expect(
             send.mock.calls.some(
                 ([request]) =>

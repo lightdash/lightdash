@@ -1,5 +1,5 @@
 import { DimensionType, WarehouseQueryError } from '@lightdash/common';
-import type { LiveConnectorResult } from '../../connector';
+import { type LiveQueryResult } from '../../query/run';
 import {
     POSTHOG_EVENTS_QUERY,
     POSTHOG_PROPERTY_KEYS_QUERY,
@@ -13,7 +13,7 @@ const now = new Date('2026-11-02T10:00:00Z');
 const result = (
     rows: Record<string, unknown>[],
     hasMoreRows = false,
-): LiveConnectorResult => ({ columns: [], rows, hasMoreRows, bytesRead: null });
+): LiveQueryResult => ({ columns: [], rows, hasMoreRows, bytesRead: null });
 
 const eventsResult = result(
     [
@@ -26,7 +26,7 @@ const eventsResult = result(
 
 describe('scanPostHogSchema', () => {
     it('maps event counts and property keys from two HogQL calls', async () => {
-        const execute = vi
+        const runQuery = vi
             .fn()
             .mockResolvedValueOnce(eventsResult)
             .mockResolvedValueOnce(
@@ -35,11 +35,8 @@ describe('scanPostHogSchema', () => {
                     { property_key: 'plan tier', occurrences: 12 },
                 ]),
             );
-        const getConnector = vi.fn().mockResolvedValue({ execute });
 
-        await expect(
-            scanPostHogSchema(getConnector, () => now),
-        ).resolves.toEqual({
+        await expect(scanPostHogSchema(runQuery, () => now)).resolves.toEqual({
             status: 'ready',
             scannedAt: now,
             windowDays: 30,
@@ -50,35 +47,30 @@ describe('scanPostHogSchema', () => {
             eventsTruncated: true,
             propertyKeys: ['$browser', 'plan tier'],
         });
-        expect(getConnector).toHaveBeenCalledTimes(2);
-        expect(execute.mock.calls.map(([args]) => args.payload.query)).toEqual([
+        expect(runQuery).toHaveBeenCalledTimes(2);
+        expect(runQuery.mock.calls.map(([args]) => args.query)).toEqual([
             POSTHOG_EVENTS_QUERY,
             POSTHOG_PROPERTY_KEYS_QUERY,
         ]);
     });
 
     it('keeps the events when the property scan fails', async () => {
-        const execute = vi
+        const runQuery = vi
             .fn()
             .mockResolvedValueOnce(eventsResult)
             .mockRejectedValueOnce(new WarehouseQueryError('Unknown function'));
 
-        const scan = await scanPostHogSchema(
-            async () => ({ execute }),
-            () => now,
-        );
+        const scan = await scanPostHogSchema(runQuery, () => now);
 
         expect(scan).toMatchObject({ status: 'ready', propertyKeys: null });
     });
 
     it('fails when the event scan fails', async () => {
-        const execute = vi
+        const runQuery = vi
             .fn()
             .mockRejectedValue(new WarehouseQueryError('Bad key'));
 
-        await expect(
-            scanPostHogSchema(async () => ({ execute })),
-        ).rejects.toThrow('Bad key');
+        await expect(scanPostHogSchema(runQuery)).rejects.toThrow('Bad key');
         expect(toFailedScan(new Error('Bad key'), () => now)).toEqual({
             status: 'failed',
             scannedAt: now,

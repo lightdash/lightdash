@@ -1,8 +1,11 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
 import { z } from 'zod';
-import type { LiveColumn } from '../../connector';
-import type { LiveRunArgs, LiveRunResult } from '../../defineLiveIntegration';
 import { tooManyRowsError } from '../../query/rows';
+import {
+    type LiveColumn,
+    type LiveRunArgs,
+    type LiveRunResult,
+} from '../../types';
 
 export const YOUTUBE_ANALYTICS_ORIGIN =
     'https://youtubeanalytics.googleapis.com';

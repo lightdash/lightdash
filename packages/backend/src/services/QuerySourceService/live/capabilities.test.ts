@@ -18,14 +18,10 @@ import {
     type LiveSourceRefusalCode,
     type MetricQuery,
 } from '@lightdash/common';
-import { type LiveCapabilities } from './connector';
-import {
-    buildLiveExplores,
-    compileLiveMetricQuery,
-    getLiveBaseLayer,
-} from './explores/build';
+import { buildLiveExplores, getLiveBaseLayer } from './explores/build';
 import { assertLiveQuery } from './explores/definition';
 import { getInitialLiveSourceFieldEdits } from './explores/fields';
+import { type LiveCapabilities } from './types';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
 // One entry per integration, with the built-in fields every case uses, by
@@ -567,16 +563,6 @@ describe('live data source capabilities keep their refusals', () => {
                             },
                         });
                     }
-                }
-                if (messages.length > 0 && !context) {
-                    expect(() =>
-                        compileLiveMetricQuery({
-                            explore,
-                            metricQuery,
-                            timezone: 'UTC',
-                            now: new Date('2026-11-06T12:00:00Z'),
-                        }),
-                    ).toThrow(messages.join(' '));
                 }
             },
         );

@@ -3,7 +3,6 @@ import {
     assertUnreachable,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
-import { type LiveIntegration } from './integration';
 import { ga4Integration } from './integrations/ga4';
 import { googleAdsIntegration } from './integrations/googleAds';
 import { linkedInAdsIntegration } from './integrations/linkedInAds';
@@ -11,6 +10,7 @@ import { metaAdsIntegration } from './integrations/metaAds';
 import { postHogIntegration } from './integrations/postHog';
 import { searchConsoleIntegration } from './integrations/searchConsole';
 import { youtubeAnalyticsIntegration } from './integrations/youtubeAnalytics';
+import { type LiveIntegration } from './types';
 
 /** One entry per integration; a missing one fails typecheck. */
 const LIVE_INTEGRATIONS: {
@@ -50,7 +50,6 @@ export const parseStoredApiSource = (
     if (!Object.hasOwn(LIVE_INTEGRATIONS, connector)) {
         return null;
     }
-    const parsed =
-        getLiveIntegration(connector).settingsSchema.safeParse(value);
+    const parsed = getLiveIntegration(connector).settings.safeParse(value);
     return parsed.success ? parsed.data : null;
 };

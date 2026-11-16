@@ -7,7 +7,8 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { ga4Integration } from '.';
-import type { LiveHttpResponse } from '../../connector';
+import { connectLiveSource } from '../../liveSource.mock';
+import { type LiveHttpResponse } from '../../types';
 import { getGa4ReportPath } from './run';
 
 const jsonResponse = (
@@ -16,19 +17,20 @@ const jsonResponse = (
     headers: Record<string, string> = {},
 ): LiveHttpResponse => ({ status, headers, body });
 
-const createConnector = (response: LiveHttpResponse) => {
+const connect = (response: LiveHttpResponse) => {
     const send = vi.fn().mockResolvedValue(response);
     return {
         send,
-        connector: ga4Integration.createConnector(
+        source: connectLiveSource(
+            ga4Integration,
             { connector: ApiConnectorType.GA4, propertyId: '123456' },
             send,
-        ).connector,
+        ),
     };
 };
 
 const query = (request: Record<string, unknown>) => ({
-    payload: { kind: 'query' as const, query: JSON.stringify(request) },
+    query: JSON.stringify(request),
     limit: 2,
 });
 
@@ -63,9 +65,9 @@ const request = {
 
 describe('ga4Integration run', () => {
     it('runs the report on the property, asking for one row more than the limit', async () => {
-        const { connector, send } = createConnector(jsonResponse(report));
+        const { source, send } = connect(jsonResponse(report));
 
-        await connector.execute(query(request));
+        await source.run(query(request));
 
         expect(send).toHaveBeenCalledWith({
             method: 'POST',
@@ -78,9 +80,9 @@ describe('ga4Integration run', () => {
     });
 
     it('maps headers to columns, dates to ISO and metrics to numbers', async () => {
-        const { connector } = createConnector(jsonResponse(report));
+        const { source } = connect(jsonResponse(report));
 
-        const result = await connector.execute(query(request));
+        const result = await source.run(query(request));
 
         expect(result.columns).toEqual([
             { name: 'date', type: DimensionType.DATE },
@@ -106,7 +108,7 @@ describe('ga4Integration run', () => {
     });
 
     it('reports truncation from rowCount when the page is full', async () => {
-        const { connector } = createConnector(
+        const { source } = connect(
             jsonResponse({
                 ...report,
                 rows: report.rows.slice(0, 2),
@@ -114,26 +116,26 @@ describe('ga4Integration run', () => {
             }),
         );
 
-        const result = await connector.execute(query(request));
+        const result = await source.run(query(request));
 
         expect(result.hasMoreRows).toBe(false);
         expect(
             (
-                await createConnector(
+                await connect(
                     jsonResponse({
                         ...report,
                         rows: report.rows.slice(0, 2),
                         rowCount: 500,
                     }),
-                ).connector.execute(query(request))
+                ).source.run(query(request))
             ).hasMoreRows,
         ).toBe(true);
     });
 
     it('uses a smaller limit from the request', async () => {
-        const { connector, send } = createConnector(jsonResponse(report));
+        const { source, send } = connect(jsonResponse(report));
 
-        const result = await connector.execute(query({ ...request, limit: 1 }));
+        const result = await source.run(query({ ...request, limit: 1 }));
 
         expect(send.mock.calls[0][0].body).toEqual({
             ...request,
@@ -145,14 +147,14 @@ describe('ga4Integration run', () => {
     });
 
     it('returns no rows for an empty report', async () => {
-        const { connector } = createConnector(
+        const { source } = connect(
             jsonResponse({
                 dimensionHeaders: [{ name: 'country' }],
                 metricHeaders: [{ name: 'sessions' }],
             }),
         );
 
-        const result = await connector.execute(
+        const result = await source.run(
             query({ ...request, dimensions: [{ name: 'country' }] }),
         );
 
@@ -183,11 +185,11 @@ describe('ga4Integration run', () => {
             'GA4 API name',
         ],
     ])('refuses an invalid request %#', async (raw, message) => {
-        const { connector, send } = createConnector(jsonResponse(report));
+        const { source, send } = connect(jsonResponse(report));
 
         await expect(
-            connector.execute({
-                payload: { kind: 'query', query: raw },
+            source.run({
+                query: raw,
                 limit: 2,
             }),
         ).rejects.toThrow(message);
@@ -195,7 +197,7 @@ describe('ga4Integration run', () => {
     });
 
     it('refuses fields that collapse to the same column', async () => {
-        const { connector } = createConnector(
+        const { source } = connect(
             jsonResponse({
                 dimensionHeaders: [
                     { name: 'customEvent:plan' },
@@ -206,16 +208,16 @@ describe('ga4Integration run', () => {
             }),
         );
 
-        await expect(connector.execute(query(request))).rejects.toThrow(
+        await expect(source.run(query(request))).rejects.toThrow(
             ParameterError,
         );
     });
 
     it('refuses a limit outside the report size', async () => {
-        const { connector } = createConnector(jsonResponse(report));
+        const { source } = connect(jsonResponse(report));
 
         await expect(
-            connector.execute({ ...query(request), limit: 25_000 }),
+            source.run({ ...query(request), limit: 25_000 }),
         ).rejects.toThrow('limit must be between 1 and 24999 rows');
     });
 
@@ -247,9 +249,9 @@ describe('ga4Integration run', () => {
             'Google Analytics quota exceeded',
         ],
     ])('explains a Google error %#', async (response, ErrorClass, message) => {
-        const { connector } = createConnector(response);
+        const { source } = connect(response);
 
-        const execution = connector.execute(query(request));
+        const execution = source.run(query(request));
         await expect(execution).rejects.toThrow(ErrorClass);
         await expect(execution).rejects.toThrow(message);
     });

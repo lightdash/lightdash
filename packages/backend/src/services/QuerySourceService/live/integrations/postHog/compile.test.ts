@@ -33,7 +33,7 @@ const buildExplore = (definition = POSTHOG_EVENTS_EXPLORE) =>
         connectionUuid: 'connection-uuid',
         integration: ApiConnectorType.POSTHOG,
         baseVersion: 1,
-        capabilities: postHogIntegration.baseLayer.capabilities,
+        capabilities: postHogIntegration.capabilities,
         warehouseSqlBuilder,
     });
 

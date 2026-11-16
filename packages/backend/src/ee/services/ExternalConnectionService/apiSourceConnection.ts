@@ -3,6 +3,10 @@ import {
     type ExternalConnectionApiSource,
     type ExternalConnectionAuthType,
 } from '@lightdash/common';
+import {
+    getLiveAccessRules,
+    validateLiveConnection,
+} from '../../../services/QuerySourceService/live/integration';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 
 /**
@@ -18,7 +22,8 @@ export const withApiSourceAccessRules = <
     config.apiSource
         ? {
               ...config,
-              ...getLiveIntegration(config.apiSource.connector).getAccessRules(
+              ...getLiveAccessRules(
+                  getLiveIntegration(config.apiSource.connector),
                   config.apiSource,
               ),
           }
@@ -43,7 +48,7 @@ export const validateApiSourceConnection = ({
         }
         return;
     }
-    getLiveIntegration(apiSource.connector).validateConnection({
+    validateLiveConnection(getLiveIntegration(apiSource.connector), {
         apiSource,
         type,
         origin,

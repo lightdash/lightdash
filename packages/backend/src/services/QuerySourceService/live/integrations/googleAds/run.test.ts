@@ -7,7 +7,8 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { googleAdsIntegration } from '.';
-import type { LiveConnector, LiveHttpResponse } from '../../connector';
+import { connectLiveSource } from '../../liveSource.mock';
+import { type LiveHttpResponse } from '../../types';
 import { getGoogleAdsSearchPath, GOOGLE_ADS_MAX_QUERY_ROWS } from './run';
 
 const jsonResponse = (
@@ -16,23 +17,26 @@ const jsonResponse = (
     headers: Record<string, string> = {},
 ): LiveHttpResponse => ({ status, headers, body });
 
-const createConnector = (response: LiveHttpResponse) => {
+type LiveSource = ReturnType<typeof connectLiveSource>;
+
+const connect = (response: LiveHttpResponse) => {
     const send = vi.fn().mockResolvedValue(response);
     return {
         send,
-        connector: googleAdsIntegration.createConnector(
+        source: connectLiveSource(
+            googleAdsIntegration,
             {
                 connector: ApiConnectorType.GOOGLE_ADS,
                 customerId: '1234567890',
                 loginCustomerId: null,
             },
             send,
-        ).connector,
+        ),
     };
 };
 
-const run = (connector: LiveConnector, query: string, limit = 2) =>
-    connector.execute({ payload: { kind: 'query', query }, limit });
+const run = (source: LiveSource, query: string, limit = 2) =>
+    source.run({ query, limit });
 
 const CAMPAIGN_QUERY =
     "SELECT segments.date, campaign.name, ad_group.id, metrics.cost_micros, metrics.clicks, metrics.ctr FROM ad_group WHERE segments.date BETWEEN '2026-10-01' AND '2026-10-28' LIMIT 2";
@@ -72,9 +76,9 @@ const adGroupPage = {
 
 describe('googleAdsIntegration run', () => {
     it('searches the account, asking for one row more than the limit', async () => {
-        const { connector, send } = createConnector(jsonResponse(adGroupPage));
+        const { source, send } = connect(jsonResponse(adGroupPage));
 
-        const result = await run(connector, CAMPAIGN_QUERY);
+        const result = await run(source, CAMPAIGN_QUERY);
 
         expect(send).toHaveBeenCalledWith({
             method: 'POST',
@@ -88,9 +92,9 @@ describe('googleAdsIntegration run', () => {
     });
 
     it('reads nested camelCase rows into GAQL columns and converts micros', async () => {
-        const { connector } = createConnector(jsonResponse(adGroupPage));
+        const { source } = connect(jsonResponse(adGroupPage));
 
-        const result = await run(connector, CAMPAIGN_QUERY);
+        const result = await run(source, CAMPAIGN_QUERY);
 
         expect(result.rows[0]).toEqual({
             'segments.date': '2026-10-01',
@@ -111,7 +115,7 @@ describe('googleAdsIntegration run', () => {
     });
 
     it('converts every money metric but not conversion value', async () => {
-        const { connector } = createConnector(
+        const { source } = connect(
             jsonResponse({
                 results: [
                     {
@@ -127,7 +131,7 @@ describe('googleAdsIntegration run', () => {
         );
 
         const { rows } = await run(
-            connector,
+            source,
             'SELECT metrics.average_cpc, metrics.average_cpm, metrics.cost_per_conversion, metrics.conversions_value FROM customer',
         );
 
@@ -140,12 +144,12 @@ describe('googleAdsIntegration run', () => {
     });
 
     it('keeps a metric the API left out as missing, not zero', async () => {
-        const { connector } = createConnector(
+        const { source } = connect(
             jsonResponse({ results: [{ metrics: {} }] }),
         );
 
         const { rows } = await run(
-            connector,
+            source,
             'SELECT metrics.search_impression_share FROM customer',
         );
 
@@ -153,21 +157,18 @@ describe('googleAdsIntegration run', () => {
     });
 
     it('reports no rows when the API returns none', async () => {
-        const { connector } = createConnector(jsonResponse({}));
+        const { source } = connect(jsonResponse({}));
 
-        const result = await run(
-            connector,
-            'SELECT metrics.clicks FROM customer',
-        );
+        const result = await run(source, 'SELECT metrics.clicks FROM customer');
 
         expect(result).toMatchObject({ rows: [], hasMoreRows: false });
     });
 
     it('lets a smaller LIMIT in the query win and replaces it', async () => {
-        const { connector, send } = createConnector(jsonResponse(adGroupPage));
+        const { source, send } = connect(jsonResponse(adGroupPage));
 
         const result = await run(
-            connector,
+            source,
             'SELECT metrics.clicks FROM customer LIMIT 1',
             100,
         );
@@ -180,9 +181,9 @@ describe('googleAdsIntegration run', () => {
     });
 
     it('adds a LIMIT when the query has none', async () => {
-        const { connector, send } = createConnector(jsonResponse({}));
+        const { source, send } = connect(jsonResponse({}));
 
-        await run(connector, 'SELECT metrics.clicks FROM customer', 5);
+        await run(source, 'SELECT metrics.clicks FROM customer', 5);
 
         expect(send.mock.calls[0][0].body).toEqual({
             query: 'SELECT metrics.clicks FROM customer LIMIT 6',
@@ -190,7 +191,7 @@ describe('googleAdsIntegration run', () => {
     });
 
     it('refuses more rows than one query can return instead of cutting them off', async () => {
-        const { connector, send } = createConnector(
+        const { source, send } = connect(
             jsonResponse({
                 results: Array.from(
                     { length: GOOGLE_ADS_MAX_QUERY_ROWS + 1 },
@@ -200,7 +201,7 @@ describe('googleAdsIntegration run', () => {
         );
 
         await expect(
-            run(connector, 'SELECT metrics.clicks FROM campaign', 50_000),
+            run(source, 'SELECT metrics.clicks FROM campaign', 50_000),
         ).rejects.toThrow(/more than 9,999 rows/);
         expect(send.mock.calls[0][0].body).toEqual({
             query: 'SELECT metrics.clicks FROM campaign LIMIT 10000',
@@ -208,10 +209,10 @@ describe('googleAdsIntegration run', () => {
     });
 
     it('answers a large limit when the rows fit', async () => {
-        const { connector } = createConnector(jsonResponse(adGroupPage));
+        const { source } = connect(jsonResponse(adGroupPage));
 
         const result = await run(
-            connector,
+            source,
             'SELECT metrics.clicks FROM campaign',
             50_000,
         );
@@ -225,17 +226,17 @@ describe('googleAdsIntegration run', () => {
         ['SELECT *', 'SELECT * FROM campaign'],
         ['PARAMETERS', 'SELECT metrics.clicks FROM customer PARAMETERS a=b'],
     ])('refuses %s', async (_, query) => {
-        const { connector, send } = createConnector(jsonResponse({}));
+        const { source, send } = connect(jsonResponse({}));
 
-        await expect(run(connector, query)).rejects.toThrow(ParameterError);
+        await expect(run(source, query)).rejects.toThrow(ParameterError);
         expect(send).not.toHaveBeenCalled();
     });
 
     it('fails on a response in an unexpected shape', async () => {
-        const { connector } = createConnector(jsonResponse({ results: 'no' }));
+        const { source } = connect(jsonResponse({ results: 'no' }));
 
         await expect(
-            run(connector, 'SELECT metrics.clicks FROM customer'),
+            run(source, 'SELECT metrics.clicks FROM customer'),
         ).rejects.toThrow(/unexpected shape/);
     });
 
@@ -263,12 +264,12 @@ describe('googleAdsIntegration run', () => {
         });
 
         it('explains a rejected query with the reason from the failure details', async () => {
-            const { connector } = createConnector(
+            const { source } = connect(
                 jsonResponse(failure('Cannot select metrics.x with y.'), 400),
             );
 
             const error = await run(
-                connector,
+                source,
                 'SELECT metrics.clicks FROM customer',
             ).catch((e) => e);
 
@@ -279,7 +280,7 @@ describe('googleAdsIntegration run', () => {
         });
 
         it('keeps the top-level message when there are no details', async () => {
-            const { connector } = createConnector(
+            const { source } = connect(
                 jsonResponse(
                     {
                         error: {
@@ -292,12 +293,12 @@ describe('googleAdsIntegration run', () => {
             );
 
             await expect(
-                run(connector, 'SELECT metrics.clicks FROM customer'),
+                run(source, 'SELECT metrics.clicks FROM customer'),
             ).rejects.toThrow(WarehouseConnectionError);
         });
 
         it('reports exhausted quota as rate limiting', async () => {
-            const { connector } = createConnector(
+            const { source } = connect(
                 jsonResponse(
                     {
                         error: {
@@ -311,7 +312,7 @@ describe('googleAdsIntegration run', () => {
             );
 
             await expect(
-                run(connector, 'SELECT metrics.clicks FROM customer'),
+                run(source, 'SELECT metrics.clicks FROM customer'),
             ).rejects.toThrow(TooManyRequestsError);
         });
     });

@@ -10,6 +10,7 @@ import {
 import { createHash } from 'node:crypto';
 import { buildAccount } from '../../../auth/account/account.mock';
 import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
+import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { ExternalConnectionService } from './ExternalConnectionService';
 import { OAuthAuthorizationCodeTokenClient } from './OAuthAuthorizationCodeTokenClient';
@@ -479,19 +480,12 @@ describe('Google sign-in for live sources', () => {
             }),
         );
 
-        const connector = await service.getApiConnector(
-            account,
-            'proj-1',
-            'conn-1',
-        );
-        const result = await connector.execute({
-            payload: {
-                kind: 'query',
-                query: JSON.stringify({
-                    startDate: '2026-10-01',
-                    endDate: '2026-10-28',
-                }),
-            },
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        const result = await runLiveRequest(source, {
+            query: JSON.stringify({
+                startDate: '2026-10-01',
+                endDate: '2026-10-28',
+            }),
             limit: 10,
         });
 

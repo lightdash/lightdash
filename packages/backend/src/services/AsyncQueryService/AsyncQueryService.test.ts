@@ -2080,9 +2080,8 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 context: QueryExecutionContext.AI,
                 connectionUuid: 'connection-uuid',
-                connector: {
-                    describe: () => ({ connector: 'posthog' }),
-                    execute: vi.fn(),
+                source: {
+                    integration: { connector: 'posthog' },
                     usage: () => ({
                         apiCalls: 0,
                         responseBytes: 0,
@@ -2220,9 +2219,8 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 context: QueryExecutionContext.AI,
                 connectionUuid: 'connection-uuid',
-                connector: {
-                    describe: () => ({ connector: 'posthog' }),
-                    execute: vi.fn(),
+                source: {
+                    integration: { connector: 'posthog' },
                     usage: () => ({
                         apiCalls: 0,
                         responseBytes: 0,
@@ -2268,12 +2266,12 @@ describe('AsyncQueryService', () => {
         };
 
         const setup = (composer: Partial<QueryComposer> = {}) => {
-            const connector = {
-                describe: vi.fn(() => ({ label: 'GA4', maxRows: 100000 })),
+            const source = {
+                integration: { label: 'GA4', limits: { maxRows: 100000 } },
             };
-            const getApiSourceConnector = vi.fn(async () => connector);
+            const getLiveSourceForExplore = vi.fn(async () => source);
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                getApiSourceConnector,
+                getLiveSourceForExplore,
                 featureFlagModel: {
                     get: vi.fn(async ({ featureFlagId }) => ({
                         id: featureFlagId,
@@ -2282,11 +2280,11 @@ describe('AsyncQueryService', () => {
                 } as unknown as FeatureFlagModel,
             } as never);
             (service as AnyType).assertOrganizationNotBlocked = vi.fn();
-            const submitApiQuery = vi.fn(async () => ({
+            const submitLiveQuery = vi.fn(async () => ({
                 queryUuid: 'live-query-uuid',
                 reusable: null,
             }));
-            (service as AnyType).submitApiQuery = submitApiQuery;
+            (service as AnyType).submitLiveQuery = submitLiveQuery;
             const queryComposer = {
                 ...createQueryComposerMock({
                     explore: apiExplore,
@@ -2309,18 +2307,18 @@ describe('AsyncQueryService', () => {
                 );
             return {
                 execute,
-                getApiSourceConnector,
-                connector,
-                submitApiQuery,
+                getLiveSourceForExplore,
+                source,
+                submitLiveQuery,
             };
         };
 
         test('answers the query with one request to the integration instead of the warehouse', async () => {
             const {
                 execute,
-                getApiSourceConnector,
-                connector,
-                submitApiQuery,
+                getLiveSourceForExplore,
+                source,
+                submitLiveQuery,
             } = setup();
 
             await expect(execute()).resolves.toEqual({
@@ -2332,13 +2330,13 @@ describe('AsyncQueryService', () => {
                 },
             });
 
-            expect(getApiSourceConnector).toHaveBeenCalledExactlyOnceWith(
+            expect(getLiveSourceForExplore).toHaveBeenCalledExactlyOnceWith(
                 sessionAccount,
                 projectUuid,
                 CONNECTION_UUID,
             );
-            const [[submitted]] = submitApiQuery.mock.calls as AnyType;
-            expect(submitted.connector).toBe(connector);
+            const [[submitted]] = submitLiveQuery.mock.calls as AnyType;
+            expect(submitted.source).toBe(source);
             expect(JSON.parse(submitted.payload.query)).toMatchObject({
                 dimensions: [{ name: 'sessionDefaultChannelGroup' }],
                 metrics: [{ name: 'sessions' }],
@@ -2357,11 +2355,11 @@ describe('AsyncQueryService', () => {
         });
 
         test('passes the live explore so its results are fingerprinted like the read check', async () => {
-            const { execute, submitApiQuery } = setup();
+            const { execute, submitLiveQuery } = setup();
 
             await execute();
 
-            const [[submitted]] = submitApiQuery.mock.calls as AnyType;
+            const [[submitted]] = submitLiveQuery.mock.calls as AnyType;
             expect(submitted.history.explore).toBe(apiExplore);
         });
 
@@ -2388,14 +2386,14 @@ describe('AsyncQueryService', () => {
             (service as AnyType).isResultIdentityEnabled = vi.fn(
                 async () => true,
             );
-            (service as AnyType).runApiQuery = vi.fn(async () => undefined);
+            (service as AnyType).runLiveQuery = vi.fn(async () => undefined);
             const requestParameters = { query: apiMetricQuery };
 
-            await (service as AnyType).submitApiQuery({
+            await (service as AnyType).submitLiveQuery({
                 account: sessionAccount,
                 projectUuid,
                 organizationUuid: 'org-uuid',
-                connector: { describe: () => ({ connector: 'ga4' }) },
+                source: { integration: { connector: 'ga4' } },
                 payload: { kind: 'query', query: '{}' },
                 limit: 10,
                 cacheKeySql: '{}',
@@ -2434,7 +2432,7 @@ describe('AsyncQueryService', () => {
         });
 
         test('refuses a pivot before calling the integration', async () => {
-            const { execute, getApiSourceConnector } = setup({
+            const { execute, getLiveSourceForExplore } = setup({
                 getPivotConfiguration: () => ({
                     indexColumn: undefined,
                     valuesColumns: [],
@@ -2444,7 +2442,7 @@ describe('AsyncQueryService', () => {
             } as never);
 
             await expect(execute()).rejects.toThrow(ParameterError);
-            expect(getApiSourceConnector).not.toHaveBeenCalled();
+            expect(getLiveSourceForExplore).not.toHaveBeenCalled();
         });
     });
 
@@ -24729,9 +24727,8 @@ describe('fresh stored result read boundary', () => {
             projectUuid,
             context: QueryExecutionContext.AI,
             connectionUuid: 'connection-uuid',
-            connector: {
-                describe: () => ({ connector: 'posthog' }),
-                execute: vi.fn(),
+            source: {
+                integration: { connector: 'posthog' },
                 usage: () => ({
                     apiCalls: 0,
                     responseBytes: 0,

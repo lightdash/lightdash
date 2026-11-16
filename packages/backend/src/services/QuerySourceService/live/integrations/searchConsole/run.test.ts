@@ -7,7 +7,8 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { searchConsoleIntegration } from '.';
-import type { LiveHttpResponse } from '../../connector';
+import { connectLiveSource } from '../../liveSource.mock';
+import { type LiveHttpResponse } from '../../types';
 import { getSearchConsoleQueryPath } from './run';
 
 const jsonResponse = (
@@ -16,22 +17,23 @@ const jsonResponse = (
     headers: Record<string, string> = {},
 ): LiveHttpResponse => ({ status, headers, body });
 
-const createConnector = (response: LiveHttpResponse) => {
+const connect = (response: LiveHttpResponse) => {
     const send = vi.fn().mockResolvedValue(response);
     return {
         send,
-        connector: searchConsoleIntegration.createConnector(
+        source: connectLiveSource(
+            searchConsoleIntegration,
             {
                 connector: ApiConnectorType.SEARCH_CONSOLE,
                 siteUrl: 'https://lightdash.com/',
             },
             send,
-        ).connector,
+        ),
     };
 };
 
 const query = (request: Record<string, unknown>) => ({
-    payload: { kind: 'query' as const, query: JSON.stringify(request) },
+    query: JSON.stringify(request),
     limit: 2,
 });
 
@@ -63,9 +65,9 @@ const topQueries = {
 
 describe('searchConsoleIntegration run', () => {
     it('sends the request to the site, asking for one row more than the limit', async () => {
-        const { connector, send } = createConnector(jsonResponse(topQueries));
+        const { source, send } = connect(jsonResponse(topQueries));
 
-        const result = await connector.execute(
+        const result = await source.run(
             query({
                 startDate: '2026-10-01',
                 endDate: '2026-10-28',
@@ -114,9 +116,9 @@ describe('searchConsoleIntegration run', () => {
     });
 
     it('uses a smaller row limit from the request', async () => {
-        const { connector, send } = createConnector(jsonResponse(topQueries));
+        const { source, send } = connect(jsonResponse(topQueries));
 
-        const result = await connector.execute(
+        const result = await source.run(
             query({
                 startDate: '2026-10-01',
                 endDate: '2026-10-28',
@@ -133,7 +135,7 @@ describe('searchConsoleIntegration run', () => {
     });
 
     it('returns site totals when there are no dimensions', async () => {
-        const { connector } = createConnector(
+        const { source } = connect(
             jsonResponse({
                 rows: [
                     { clicks: 25, impressions: 590, ctr: 0.042, position: 3 },
@@ -141,7 +143,7 @@ describe('searchConsoleIntegration run', () => {
             }),
         );
 
-        const result = await connector.execute(
+        const result = await source.run(
             query({ startDate: '2026-10-01', endDate: '2026-10-28' }),
         );
 
@@ -152,8 +154,8 @@ describe('searchConsoleIntegration run', () => {
     });
 
     it('returns no rows when the site has no data for the range', async () => {
-        const { connector } = createConnector(jsonResponse({}));
-        const result = await connector.execute(
+        const { source } = connect(jsonResponse({}));
+        const result = await source.run(
             query({ startDate: '2026-10-01', endDate: '2026-10-02' }),
         );
         expect(result.rows).toEqual([]);
@@ -200,9 +202,9 @@ describe('searchConsoleIntegration run', () => {
             'must not be after endDate',
         ],
     ])('refuses an invalid request: %s', async (raw, message) => {
-        const { connector, send } = createConnector(jsonResponse({}));
-        const run = connector.execute({
-            payload: { kind: 'query', query: raw },
+        const { source, send } = connect(jsonResponse({}));
+        const run = source.run({
+            query: raw,
             limit: 10,
         });
         await expect(run).rejects.toBeInstanceOf(ParameterError);
@@ -245,8 +247,8 @@ describe('searchConsoleIntegration run', () => {
             'Search Console quota exceeded: Quota exceeded. Retry in a minute.',
         ],
     ])('explains a %s response', async (response, errorClass, message) => {
-        const { connector } = createConnector(response);
-        const run = connector.execute(
+        const { source } = connect(response);
+        const run = source.run(
             query({ startDate: '2026-10-01', endDate: '2026-10-28' }),
         );
         await expect(run).rejects.toBeInstanceOf(errorClass);

@@ -9,7 +9,9 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { postHogIntegration } from '.';
-import type { LiveHttpResponse, LiveTransport } from '../../connector';
+import { type LiveTransport } from '../../calls';
+import { connectLiveSource } from '../../liveSource.mock';
+import { type LiveHttpResponse } from '../../types';
 import {
     clickHouseTypeToDimensionType,
     getPostHogPropertyDefinitionsPrefix,
@@ -51,43 +53,35 @@ const jsonResponse = (
     headers: Record<string, string> = {},
 ): LiveHttpResponse => ({ status, headers, body });
 
-const createConnector = (response: LiveHttpResponse) => {
+const connect = (response: LiveHttpResponse) => {
     const send = vi.fn().mockResolvedValue(response);
     return {
-        connector: postHogIntegration.createConnector(
+        source: connectLiveSource(
+            postHogIntegration,
             { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
             send,
-        ).connector,
+        ),
         send,
     };
 };
 
-const query = (hogql: string) => ({ kind: 'query' as const, query: hogql });
-
 describe('postHogIntegration run', () => {
-    it('describes itself as an L5 HogQL connector', () => {
-        const { connector } = createConnector(jsonResponse({}));
-        expect(connector.describe()).toEqual({
-            connector: ApiConnectorType.POSTHOG,
-            label: 'PostHog',
-            maxRows: 49_999,
+    it('describes itself as an L5 HogQL integration', () => {
+        expect(postHogIntegration.label).toBe('PostHog');
+        expect(postHogIntegration.limits).toEqual({
+            concurrentCalls: 3,
+            callsPerMinute: 240,
+            callsPerHour: 2_400,
+            callsPerQuery: 1,
             timeoutMs: 45_000,
-            limits: {
-                concurrentCalls: 3,
-                callsPerMinute: 240,
-                callsPerHour: 2_400,
-                callsPerQuery: 1,
-            },
-            capabilities: postHogIntegration.baseLayer.capabilities,
+            maxRows: 49_999,
         });
     });
 
     it('wraps the query to ask for one row more than the limit', async () => {
-        const { connector, send } = createConnector(
-            jsonResponse(weeklyActiveUsers),
-        );
-        await connector.execute({
-            payload: query('SELECT 1 AS a;  '),
+        const { source, send } = connect(jsonResponse(weeklyActiveUsers));
+        await source.run({
+            query: 'SELECT 1 AS a;  ',
             limit: 500,
         });
 
@@ -105,13 +99,13 @@ describe('postHogIntegration run', () => {
     });
 
     it('maps columns, types and rows', async () => {
-        const { connector } = createConnector(
+        const { source } = connect(
             jsonResponse(weeklyActiveUsers, 200, {
                 'x-posthog-query-bytes-read': '12392719',
             }),
         );
-        const result = await connector.execute({
-            payload: query('SELECT week, wau, events FROM weekly'),
+        const result = await source.run({
+            query: 'SELECT week, wau, events FROM weekly',
             limit: 500,
         });
 
@@ -132,9 +126,9 @@ describe('postHogIntegration run', () => {
     });
 
     it('flags truncation and keeps only limit rows', async () => {
-        const { connector } = createConnector(jsonResponse(weeklyActiveUsers));
-        const result = await connector.execute({
-            payload: query('SELECT week, wau, events FROM weekly'),
+        const { source } = connect(jsonResponse(weeklyActiveUsers));
+        const result = await source.run({
+            query: 'SELECT week, wau, events FROM weekly',
             limit: 2,
         });
 
@@ -144,7 +138,7 @@ describe('postHogIntegration run', () => {
     });
 
     it('stores arrays and maps as JSON strings', async () => {
-        const { connector } = createConnector(
+        const { source } = connect(
             jsonResponse({
                 columns: ['arr', 'm'],
                 types: [
@@ -155,8 +149,8 @@ describe('postHogIntegration run', () => {
                 error: null,
             }),
         );
-        const result = await connector.execute({
-            payload: query('SELECT [1,2] AS arr, map(1, 2) AS m'),
+        const result = await source.run({
+            query: 'SELECT [1,2] AS arr, map(1, 2) AS m',
             limit: 10,
         });
 
@@ -164,7 +158,7 @@ describe('postHogIntegration run', () => {
     });
 
     it('asks for an alias when a column name is not identifier-safe', async () => {
-        const { connector } = createConnector(
+        const { source } = connect(
             jsonResponse({
                 columns: ['event', 'count()'],
                 types: [
@@ -177,8 +171,8 @@ describe('postHogIntegration run', () => {
         );
 
         await expect(
-            connector.execute({
-                payload: query('SELECT event, count() FROM events'),
+            source.run({
+                query: 'SELECT event, count() FROM events',
                 limit: 10,
             }),
         ).rejects.toThrow(
@@ -189,10 +183,10 @@ describe('postHogIntegration run', () => {
     });
 
     it.each([0, 1.5, 50_000])('rejects a limit of %s', async (limit) => {
-        const { connector, send } = createConnector(jsonResponse({}));
+        const { source, send } = connect(jsonResponse({}));
         await expect(
-            connector.execute({
-                payload: query('SELECT 1'),
+            source.run({
+                query: 'SELECT 1',
                 limit,
             }),
         ).rejects.toThrow(ParameterError);
@@ -200,20 +194,20 @@ describe('postHogIntegration run', () => {
     });
 
     it('rejects an empty query', async () => {
-        const { connector } = createConnector(jsonResponse({}));
+        const { source } = connect(jsonResponse({}));
         await expect(
-            connector.execute({
-                payload: query(' ; '),
+            source.run({
+                query: ' ; ',
                 limit: 10,
             }),
         ).rejects.toThrow(ParameterError);
     });
 
     it('shifts syntax error positions back to the caller query', async () => {
-        const { connector } = createConnector(jsonResponse(syntaxError, 400));
-        const error = await connector
-            .execute({
-                payload: query('SELEC event FROM events'),
+        const { source } = connect(jsonResponse(syntaxError, 400));
+        const error = await source
+            .run({
+                query: 'SELEC event FROM events',
                 limit: 10,
             })
             .catch((e) => e);
@@ -235,19 +229,17 @@ describe('postHogIntegration run', () => {
         [504, TimeoutError],
         [500, UnexpectedServerError],
     ])('maps status %s to %s', async (status, ErrorClass) => {
-        const { connector } = createConnector(
-            jsonResponse({ detail: 'nope' }, status),
-        );
+        const { source } = connect(jsonResponse({ detail: 'nope' }, status));
         await expect(
-            connector.execute({
-                payload: query('SELECT 1 AS a'),
+            source.run({
+                query: 'SELECT 1 AS a',
                 limit: 10,
             }),
         ).rejects.toThrow(ErrorClass);
     });
 
     it('passes Retry-After through on 429', async () => {
-        const { connector } = createConnector(
+        const { source } = connect(
             jsonResponse(
                 {
                     code: 'api_queries_budget_exceeded',
@@ -257,9 +249,9 @@ describe('postHogIntegration run', () => {
                 { 'retry-after': '30' },
             ),
         );
-        const error = await connector
-            .execute({
-                payload: query('SELECT 1 AS a'),
+        const error = await source
+            .run({
+                query: 'SELECT 1 AS a',
                 limit: 10,
             })
             .catch((e) => e);
@@ -271,10 +263,11 @@ describe('postHogIntegration run', () => {
 
 describe('postHogIntegration scan', () => {
     const scanWith = (send: LiveTransport) =>
-        postHogIntegration.createConnector(
+        connectLiveSource(
+            postHogIntegration,
             { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
             send,
-        ).scan!();
+        ).scan();
 
     it('reads event and person property definitions page by page', async () => {
         const send = vi.fn(async ({ query: params }) =>

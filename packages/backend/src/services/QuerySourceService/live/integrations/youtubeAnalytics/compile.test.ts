@@ -10,6 +10,7 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { youtubeAnalyticsIntegration } from '.';
 import { buildLiveExplore } from '../../explores/definition';
+import { connectLiveSource } from '../../liveSource.mock';
 import { compileYoutubeAnalyticsQuery } from './compile';
 import { YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE } from './explores';
 
@@ -23,7 +24,7 @@ const explore = buildLiveExplore({
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.YOUTUBE_ANALYTICS,
     baseVersion: 1,
-    capabilities: youtubeAnalyticsIntegration.baseLayer.capabilities,
+    capabilities: youtubeAnalyticsIntegration.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),
@@ -87,7 +88,8 @@ describe('compileYoutubeAnalyticsQuery', () => {
 
     it('produces a request the connector accepts and maps back to fields', async () => {
         const { query: request, fieldIdsByColumn } = compile(query());
-        const { connector } = youtubeAnalyticsIntegration.createConnector(
+        const source = connectLiveSource(
+            youtubeAnalyticsIntegration,
             {
                 connector: ApiConnectorType.YOUTUBE_ANALYTICS,
                 channelId: 'UCaaaaaaaaaaaaaaaaaaaaaa',
@@ -104,8 +106,8 @@ describe('compileYoutubeAnalyticsQuery', () => {
                 },
             }),
         );
-        const { rows } = await connector.execute({
-            payload: { kind: 'query', query: request },
+        const { rows } = await source.run({
+            query: request,
             limit: 10,
         });
         expect(

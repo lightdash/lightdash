@@ -5,11 +5,11 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { ALL_PUSHDOWN_REFUSED } from '../../connector';
 import {
+    ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
     jsonRequest,
-} from '../../defineLiveIntegration';
+} from '../../integration';
 import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { compileMetaAdsQuery } from './compile';
 import { toMetaAdsError } from './errors';

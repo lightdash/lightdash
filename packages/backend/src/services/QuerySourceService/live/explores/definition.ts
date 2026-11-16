@@ -27,7 +27,7 @@ import {
     type TimeFrames,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { type LiveCapabilities } from '../connector';
+import { type LiveCapabilities } from '../types';
 
 type ApiSourceFieldDefinition = {
     /** Stable within the explore: saved charts reference it forever, so never rename it. */

@@ -7,8 +7,7 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { z } from 'zod';
-import { ALL_PUSHDOWN_REFUSED } from '../../connector';
-import { defineLiveIntegration } from '../../defineLiveIntegration';
+import { ALL_PUSHDOWN_REFUSED, defineLiveIntegration } from '../../integration';
 import { compilePostHogQuery } from './compile';
 import {
     isInternalPostHogProperty,

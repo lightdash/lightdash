@@ -4,10 +4,11 @@ import {
     type ExternalConnectionApiSource,
     type MetricQuery,
 } from '@lightdash/common';
-import type { LiveHttpResponse } from './connector';
 import { buildLiveExplores, compileLiveMetricQuery } from './explores/build';
 import { getInitialLiveSourceFieldEdits } from './explores/fields';
+import { connectLiveSource } from './liveSource.mock';
 import { getLiveIntegration } from './registry';
+import { type LiveHttpResponse } from './types';
 
 /**
  * Checks every integration in the registry keeps the contract the rest of
@@ -58,10 +59,12 @@ const SERVER_ERROR: LiveHttpResponse = {
 
 const connect = (settings: ExternalConnectionApiSource) => {
     const send = vi.fn().mockResolvedValue(SERVER_ERROR);
-    const { connector } = getLiveIntegration(
-        settings.connector,
-    ).createConnector(settings, send);
-    return { send, connector };
+    const source = connectLiveSource(
+        getLiveIntegration(settings.connector),
+        settings,
+        send,
+    );
+    return { send, source };
 };
 
 describe.each(Object.values(SAMPLE_SETTINGS))(
@@ -70,16 +73,14 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         const integration = getLiveIntegration(settings.connector);
 
         test('stores its settings as they are', () => {
-            expect(integration.settingsSchema.parse(settings)).toEqual(
-                settings,
-            );
+            expect(integration.settings.parse(settings)).toEqual(settings);
         });
 
         test('refuses a limit that is not a positive number before calling', async () => {
-            const { send, connector } = connect(settings);
+            const { send, source } = connect(settings);
             await expect(
-                connector.execute({
-                    payload: { kind: 'query', query: '' },
+                source.run({
+                    query: '',
                     limit: 0,
                 }),
             ).rejects.toBeInstanceOf(ParameterError);
@@ -87,10 +88,10 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         });
 
         test('refuses an empty request before calling', async () => {
-            const { send, connector } = connect(settings);
+            const { send, source } = connect(settings);
             await expect(
-                connector.execute({
-                    payload: { kind: 'query', query: '' },
+                source.run({
+                    query: '',
                     limit: 10,
                 }),
             ).rejects.toBeInstanceOf(ParameterError);
@@ -109,7 +110,7 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
                     isExistingSource: true,
                 }),
             });
-            const [metric] = integration.baseLayer.definitions[0].metrics;
+            const [metric] = integration.explores[0].metrics;
             const metricQuery: MetricQuery = {
                 exploreName: explore.name,
                 dimensions: [],
@@ -126,9 +127,9 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
                 now: new Date('2026-11-06T12:00:00Z'),
             });
 
-            const { send, connector } = connect(settings);
-            const run = connector.execute({
-                payload: { kind: 'query', query: compiled.query },
+            const { send, source } = connect(settings);
+            const run = source.run({
+                query: compiled.query,
                 limit: compiled.requestLimit,
             });
 

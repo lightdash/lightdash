@@ -7,7 +7,8 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { metaAdsIntegration } from '.';
-import type { LiveConnector, LiveHttpResponse } from '../../connector';
+import { connectLiveSource } from '../../liveSource.mock';
+import { type LiveHttpResponse } from '../../types';
 import { META_ADS_MAX_QUERY_ROWS } from './run';
 
 const jsonResponse = (body: unknown, status = 200): LiveHttpResponse => ({
@@ -16,15 +17,18 @@ const jsonResponse = (body: unknown, status = 200): LiveHttpResponse => ({
     body,
 });
 
-const createConnector = (...responses: LiveHttpResponse[]) => {
+type LiveSource = ReturnType<typeof connectLiveSource>;
+
+const connect = (...responses: LiveHttpResponse[]) => {
     const send = vi.fn();
     responses.forEach((response) => send.mockResolvedValueOnce(response));
     return {
         send,
-        connector: metaAdsIntegration.createConnector(
+        source: connectLiveSource(
+            metaAdsIntegration,
             { connector: ApiConnectorType.META_ADS, adAccountId: '123' },
             send,
-        ).connector,
+        ),
     };
 };
 
@@ -35,12 +39,12 @@ const BASE_REQUEST = {
 };
 
 const execute = (
-    connector: LiveConnector,
+    source: LiveSource,
     request: Record<string, unknown> = BASE_REQUEST,
     limit = 2,
 ) =>
-    connector.execute({
-        payload: { kind: 'query', query: JSON.stringify(request) },
+    source.run({
+        query: JSON.stringify(request),
         limit,
     });
 
@@ -59,11 +63,11 @@ const page = (
 
 describe('metaAdsIntegration run', () => {
     it('reads the Insights edge of the ad account with the query parameters', async () => {
-        const { connector, send } = createConnector(
+        const { source, send } = connect(
             jsonResponse(page([{ campaign_name: 'Spring', spend: '12.5' }])),
         );
 
-        await execute(connector, {
+        await execute(source, {
             ...BASE_REQUEST,
             time_increment: 1,
             breakdowns: ['country'],
@@ -96,7 +100,7 @@ describe('metaAdsIntegration run', () => {
     });
 
     it('turns numeric strings into numbers and ctr into a fraction', async () => {
-        const { connector } = createConnector(
+        const { source } = connect(
             jsonResponse(
                 page([
                     {
@@ -111,7 +115,7 @@ describe('metaAdsIntegration run', () => {
             ),
         );
 
-        const result = await execute(connector, {
+        const result = await execute(source, {
             ...BASE_REQUEST,
             time_increment: 1,
             fields: ['spend', 'impressions', 'ctr', 'reach'],
@@ -129,7 +133,7 @@ describe('metaAdsIntegration run', () => {
     });
 
     it('reads one action type out of an action list, and leaves others empty', async () => {
-        const { connector, send } = createConnector(
+        const { source, send } = connect(
             jsonResponse(
                 page([
                     {
@@ -145,7 +149,7 @@ describe('metaAdsIntegration run', () => {
             ),
         );
 
-        const result = await execute(connector, {
+        const result = await execute(source, {
             ...BASE_REQUEST,
             fields: [
                 'actions:omni_purchase',
@@ -171,11 +175,11 @@ describe('metaAdsIntegration run', () => {
     });
 
     it('starts monthly rows on the first of the month, even mid-range', async () => {
-        const { connector } = createConnector(
+        const { source } = connect(
             jsonResponse(page([{ date_start: '2026-10-15', spend: '5' }])),
         );
 
-        const result = await execute(connector, {
+        const result = await execute(source, {
             ...BASE_REQUEST,
             time_increment: 'monthly',
             fields: ['spend'],
@@ -185,9 +189,9 @@ describe('metaAdsIntegration run', () => {
     });
 
     it('declares the columns it returns', async () => {
-        const { connector } = createConnector(jsonResponse(page([])));
+        const { source } = connect(jsonResponse(page([])));
 
-        const result = await execute(connector, {
+        const result = await execute(source, {
             ...BASE_REQUEST,
             time_increment: 1,
             fields: ['campaign_name', 'spend', 'actions:lead'],
@@ -204,7 +208,7 @@ describe('metaAdsIntegration run', () => {
     });
 
     it('pages with the cursor until it has more rows than the limit', async () => {
-        const { connector, send } = createConnector(
+        const { source, send } = connect(
             jsonResponse(
                 page([{ spend: '1' }, { spend: '2' }], { next: true }),
             ),
@@ -212,7 +216,7 @@ describe('metaAdsIntegration run', () => {
         );
 
         const result = await execute(
-            connector,
+            source,
             { ...BASE_REQUEST, fields: ['spend'] },
             2,
         );
@@ -227,12 +231,10 @@ describe('metaAdsIntegration run', () => {
     });
 
     it('reports a complete result when the pages end within the limit', async () => {
-        const { connector, send } = createConnector(
-            jsonResponse(page([{ spend: '1' }])),
-        );
+        const { source, send } = connect(jsonResponse(page([{ spend: '1' }])));
 
         const result = await execute(
-            connector,
+            source,
             { ...BASE_REQUEST, fields: ['spend'] },
             5,
         );
@@ -250,13 +252,13 @@ describe('metaAdsIntegration run', () => {
                 { next: true },
             ),
         );
-        const { connector, send } = createConnector(
+        const { source, send } = connect(
             ...Array.from({ length: 10 }, () => fullPage),
         );
 
         await expect(
             execute(
-                connector,
+                source,
                 { ...BASE_REQUEST, fields: ['spend'] },
                 META_ADS_MAX_QUERY_ROWS,
             ),
@@ -290,22 +292,20 @@ describe('metaAdsIntegration run', () => {
             'The date range starts after it ends',
         ],
     ])('refuses %s', async (_name, query, message) => {
-        const { connector, send } = createConnector();
+        const { source, send } = connect();
 
-        await expect(
-            connector.execute({ payload: { kind: 'query', query }, limit: 2 }),
-        ).rejects.toThrow(ParameterError);
-        await expect(
-            connector.execute({ payload: { kind: 'query', query }, limit: 2 }),
-        ).rejects.toThrow(message);
+        await expect(source.run({ query, limit: 2 })).rejects.toThrow(
+            ParameterError,
+        );
+        await expect(source.run({ query, limit: 2 })).rejects.toThrow(message);
         expect(send).not.toHaveBeenCalled();
     });
 
     it('refuses a limit past the cap', async () => {
-        const { connector } = createConnector();
+        const { source } = connect();
 
         await expect(
-            execute(connector, BASE_REQUEST, META_ADS_MAX_QUERY_ROWS + 1),
+            execute(source, BASE_REQUEST, META_ADS_MAX_QUERY_ROWS + 1),
         ).rejects.toThrow(
             `limit must be between 1 and ${META_ADS_MAX_QUERY_ROWS}`,
         );
@@ -369,17 +369,17 @@ describe('metaAdsIntegration run', () => {
             /returned 500: Internal/,
         ],
     ])('explains %s', async (_name, status, error, errorClass, message) => {
-        const makeConnector = () =>
-            createConnector(jsonResponse({ error }, status)).connector;
+        const makeSource = () =>
+            connect(jsonResponse({ error }, status)).source;
 
-        await expect(execute(makeConnector())).rejects.toThrow(errorClass);
-        await expect(execute(makeConnector())).rejects.toThrow(message);
+        await expect(execute(makeSource())).rejects.toThrow(errorClass);
+        await expect(execute(makeSource())).rejects.toThrow(message);
     });
 
     it('fails clearly on a response in an unexpected shape', async () => {
-        const { connector } = createConnector(jsonResponse({ rows: [] }));
+        const { source } = connect(jsonResponse({ rows: [] }));
 
-        await expect(execute(connector)).rejects.toThrow(
+        await expect(execute(source)).rejects.toThrow(
             'Meta Ads returned a response in an unexpected shape',
         );
     });

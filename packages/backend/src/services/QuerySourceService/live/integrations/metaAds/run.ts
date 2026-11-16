@@ -4,13 +4,13 @@ import {
     getMetaAdsInsightsPath,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { LiveColumn } from '../../connector';
+import { assertMaxRows } from '../../integration';
+import { readRowsWithinCap } from '../../query/rows';
 import {
-    assertMaxRows,
+    type LiveColumn,
     type LiveRunArgs,
     type LiveRunResult,
-} from '../../defineLiveIntegration';
-import { readRowsWithinCap } from '../../query/rows';
+} from '../../types';
 import { META_ADS_BREAKDOWNS } from './explores';
 
 const LABEL = 'Meta Ads';

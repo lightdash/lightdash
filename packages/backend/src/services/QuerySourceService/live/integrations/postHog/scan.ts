@@ -4,7 +4,7 @@ import {
     type ApiSourceSchemaScan,
     type QuerySourceSchemaTable,
 } from '@lightdash/common';
-import type { LiveConnector } from '../../connector';
+import { type LiveQueryResult } from '../../query/run';
 
 export const POSTHOG_SCAN_WINDOW_DAYS = 30;
 const MAX_EVENTS = 1_000;
@@ -35,26 +35,25 @@ FROM (
 GROUP BY property_key
 ORDER BY occurrences DESC`;
 
-/** Each query needs its own connector: a metered connector allows one call per query. */
-type GetConnector = () => Promise<Pick<LiveConnector, 'execute'>>;
+/** Each call runs as its own query: a metered source allows one call per query. */
+export type RunLiveQuery = (args: {
+    query: string;
+    limit: number;
+}) => Promise<LiveQueryResult>;
 
 /** Two HogQL calls: event names with counts, then property keys from a sample. */
 export const scanPostHogSchema = async (
-    getConnector: GetConnector,
+    runQuery: RunLiveQuery,
     now: () => Date = () => new Date(),
 ): Promise<ApiSourceSchemaScan> => {
-    const events = await (
-        await getConnector()
-    ).execute({
-        payload: { kind: 'query', query: POSTHOG_EVENTS_QUERY },
+    const events = await runQuery({
+        query: POSTHOG_EVENTS_QUERY,
         limit: MAX_EVENTS,
     });
     let propertyKeys: string[] | null;
     try {
-        const properties = await (
-            await getConnector()
-        ).execute({
-            payload: { kind: 'query', query: POSTHOG_PROPERTY_KEYS_QUERY },
+        const properties = await runQuery({
+            query: POSTHOG_PROPERTY_KEYS_QUERY,
             limit: MAX_PROPERTY_KEYS,
         });
         propertyKeys = properties.rows.flatMap(({ property_key: key }) =>

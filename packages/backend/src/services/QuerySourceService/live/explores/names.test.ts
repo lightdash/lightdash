@@ -4,7 +4,7 @@ import {
     getItemMap,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
-import { type LiveScanResult } from '../integration';
+import { type LiveScanResult } from '../types';
 import {
     buildLiveExplores,
     getLiveBaseLayer,

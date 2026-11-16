@@ -4,11 +4,11 @@ import {
     TimeFrames,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { ALL_PUSHDOWN_REFUSED } from '../../connector';
 import {
+    ALL_PUSHDOWN_REFUSED,
     defineLiveIntegration,
     jsonRequest,
-} from '../../defineLiveIntegration';
+} from '../../integration';
 import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { toGoogleApiError } from '../google/errors';
 import { assertGoogleSignIn } from '../google/signIn';

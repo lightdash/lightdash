@@ -1,10 +1,7 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
 import { z } from 'zod';
-import {
-    assertMaxRows,
-    type LiveRunArgs,
-    type LiveRunResult,
-} from '../../defineLiveIntegration';
+import { assertMaxRows } from '../../integration';
+import { type LiveRunArgs, type LiveRunResult } from '../../types';
 
 export const SEARCH_CONSOLE_ORIGIN = 'https://searchconsole.googleapis.com';
 export const SEARCH_CONSOLE_SITES_PATH = '/webmasters/v3/sites/';

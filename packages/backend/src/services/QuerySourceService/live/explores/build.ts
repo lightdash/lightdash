@@ -16,11 +16,10 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
 import { isPlainObject, memoize } from 'es-toolkit/compat';
-import { type LiveBaseLayer, type LiveScanResult } from '../integration';
 import { tooManyRowsError } from '../query/rows';
 import { getLiveIntegration } from '../registry';
+import { type LiveCapabilities, type LiveScanResult } from '../types';
 import {
-    assertLiveQuery,
     buildLiveExplore,
     type CompiledLiveQuery,
     type LiveExploreDefinition,
@@ -66,8 +65,27 @@ export const getLegacyLiveSourceName = (
     connectionUuid: string,
 ) => `${connector}_${connectionUuid.replace(/-/g, '').slice(0, 8)}`;
 
-export const getLiveBaseLayer = (connector: ApiConnectorType): LiveBaseLayer =>
-    getLiveIntegration(connector).baseLayer;
+/** What every source of an integration starts from, before scans and edits. */
+export type LiveBaseLayer = {
+    baseVersion: number;
+    /** The integration's own declaration, shared by every model. */
+    capabilities: LiveCapabilities;
+    definitions: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
+    plannedModelNames: readonly string[];
+};
+
+export const getLiveBaseLayer = (
+    connector: ApiConnectorType,
+): LiveBaseLayer => {
+    const { capabilities, explores, plannedModelNames } =
+        getLiveIntegration(connector);
+    return {
+        baseVersion: 1,
+        capabilities,
+        definitions: explores,
+        plannedModelNames,
+    };
+};
 
 /** The wide model of an integration, which scans and field edits apply to. */
 export const getLiveWideDefinition = (
@@ -98,14 +116,14 @@ export const toScannedLiveSourceFields = (
     scan: LiveScanResult,
 ): ScannedLiveSourceField[] => {
     const definition = getLiveWideDefinition(connector);
-    const { withScannedFields, isInternalField } =
-        getLiveIntegration(connector);
-    const scanned = withScannedFields?.(definition, scan) ?? definition;
+    const { scan: scanning } = getLiveIntegration(connector);
+    const scanned = scanning?.withScannedFields(definition, scan) ?? definition;
     const builtInNames = new Set([
         ...definition.dimensions.map(({ name }) => name),
         ...definition.metrics.map(({ name }) => name),
     ]);
-    const isInternal = (apiName: string) => isInternalField?.(apiName) ?? false;
+    const isInternal = (apiName: string) =>
+        scanning?.isInternalField?.(apiName) ?? false;
     return [
         ...scanned.dimensions
             .filter(({ name }) => !builtInNames.has(name))
@@ -230,7 +248,7 @@ export const describeLiveTarget = (
     targetLabel: string | null,
 ): string =>
     getLiveIntegration(apiSource.connector).describeTarget({
-        apiSource,
+        settings: apiSource,
         origin,
         targetLabel,
     });
@@ -277,7 +295,11 @@ export const buildLiveExplores = ({
     ];
 };
 
-/** Compiles a metric query on a live data source explore into its integration's request. */
+/**
+ * Compiles a metric query on a live data source explore into its
+ * integration's request. Callers refuse the query first, with
+ * `assertLiveQuery` or the composer-aware check, so it runs once.
+ */
 export const compileLiveMetricQuery = ({
     explore,
     metricQuery,
@@ -295,7 +317,6 @@ export const compileLiveMetricQuery = ({
             `"${explore.name}" isn't a live data source explore`,
         );
     }
-    assertLiveQuery(explore, metricQuery);
     return getLiveIntegration(integration).compile({
         explore,
         metricQuery,
