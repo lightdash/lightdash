@@ -238,7 +238,9 @@ describe('Agents page loading boundary', () => {
             });
             const view = renderPage(undefined, client);
             await screen.findByText('Permissions');
-            fireEvent.click(screen.getByRole('radio', { name: 'Custom' }));
+            fireEvent.click(
+                screen.getByRole('radio', { name: 'Custom scope' }),
+            );
             fireEvent.click(
                 screen.getByRole('switch', { name: 'Delete content' }),
             );
@@ -432,7 +434,7 @@ describe('Agents page loading boundary', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByText(
-                'Rules for every project in this organization. Set who agents run as on each warehouse, and what agents can do. Agents are Ask AI, the Slack agent, MCP clients and the CLI.',
+                "Organization-wide rules for agents. Agents are Ask AI, the Slack agent, MCP clients and the CLI. Each project's shared agent account is in that project's settings.",
             ),
         ).toBeInTheDocument();
     });
@@ -757,7 +759,7 @@ describe('Agents page identity integration', () => {
         const chips = await screen.findAllByRole('button', {
             name: /: agents run as/,
         });
-        fireEvent.click(screen.getByRole('radio', { name: 'Custom' }));
+        fireEvent.click(screen.getByRole('radio', { name: 'Custom scope' }));
         const permissionsSave = screen.getByRole('button', {
             name: 'Review and save',
         });

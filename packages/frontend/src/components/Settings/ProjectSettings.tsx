@@ -230,7 +230,7 @@ const ProjectSettings: FC<{
                           element: (
                               <ProjectSettingsPage
                                   title="Agent identity"
-                                  description="Set up the shared agent account for this project. Organization settings decide when agents use it."
+                                  description="The shared agent account for this project only. The organization Agents page sets who agents run as and what they can do."
                               >
                                   <ProjectAgentIdentityPage
                                       key={project.projectUuid}
