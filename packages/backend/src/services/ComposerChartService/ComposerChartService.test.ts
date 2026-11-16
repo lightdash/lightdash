@@ -526,8 +526,8 @@ describe('ComposerChartService.run', () => {
 });
 
 describe('ComposerChartService.getParameterReferences', () => {
-    const setupLookup = () => {
-        const { service, composerChartModel } = setup();
+    const setupLookup = ({ flagEnabled = true } = {}) => {
+        const { service, composerChartModel } = setup({ flagEnabled });
         const nodes = [
             semantic({ parameters: { region: 'eu' } }),
             {
@@ -569,6 +569,21 @@ describe('ComposerChartService.getParameterReferences', () => {
             virtualViewSavedValues: {},
             error: null,
         });
+    });
+
+    test('refuses the lookup while composer charts are off', async () => {
+        await expect(
+            setupLookup({ flagEnabled: false }).getParameterReferences(
+                sessionAccount(
+                    new Ability<PossibleAbilities>([
+                        { subject: 'Dashboard', action: 'view' as const },
+                    ]),
+                ),
+                projectUuid,
+                ['chart-uuid'],
+                projectDefinitions,
+            ),
+        ).rejects.toThrow(FeatureNotEnabledError);
     });
 
     test('fails a chart the viewer cannot view', async () => {

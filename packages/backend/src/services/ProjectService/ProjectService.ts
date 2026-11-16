@@ -143,7 +143,7 @@ import {
     isAiAccessQueryContext,
     isAwsIamRoleArn,
     isCartesianChartConfig,
-    isComposerChartAvailableFiltersTile,
+    isComposerChartTileRequest,
     isCustomDimension,
     isCustomSqlDimension,
     isDateItem,
@@ -16462,7 +16462,7 @@ export class ProjectService
             },
             async () => {
                 const savedQueryUuids = tiles.flatMap((tile) =>
-                    isComposerChartAvailableFiltersTile(tile)
+                    isComposerChartTileRequest(tile)
                         ? []
                         : [tile.savedChartUuid],
                 );
@@ -16624,7 +16624,7 @@ export class ProjectService
             },
         );
         const chartUuidOf = (tile: DashboardAvailableFiltersTile) =>
-            isComposerChartAvailableFiltersTile(tile)
+            isComposerChartTileRequest(tile)
                 ? tile.composerChartUuid
                 : tile.savedChartUuid;
 
@@ -16657,10 +16657,9 @@ export class ProjectService
 
         const savedQueryFilters = tiles.reduce<
             DashboardAvailableFilters['savedQueryFilters']
-        >((acc, savedChartUuidAndTileUuid) => {
+        >((acc, tile) => {
             const filterResult = allFilters.find(
-                (result) =>
-                    result.uuid === chartUuidOf(savedChartUuidAndTileUuid),
+                (result) => result.uuid === chartUuidOf(tile),
             );
             if (!filterResult || !filterResult.filters.length) return acc;
 
@@ -16670,16 +16669,15 @@ export class ProjectService
             );
             return {
                 ...acc,
-                [savedChartUuidAndTileUuid.tileUuid]: filterIndexes,
+                [tile.tileUuid]: filterIndexes,
             };
         }, {});
 
         const savedQueryMetricFilters = tiles.reduce<
             DashboardAvailableFilters['savedQueryMetricFilters']
-        >((acc, savedChartUuidAndTileUuid) => {
+        >((acc, tile) => {
             const filterResult = allFilters.find(
-                (result) =>
-                    result.uuid === chartUuidOf(savedChartUuidAndTileUuid),
+                (result) => result.uuid === chartUuidOf(tile),
             );
             if (!filterResult || !filterResult.metricFilters.length) return acc;
 
@@ -16689,7 +16687,7 @@ export class ProjectService
             );
             return {
                 ...acc,
-                [savedChartUuidAndTileUuid.tileUuid]: metricIndexes,
+                [tile.tileUuid]: metricIndexes,
             };
         }, {});
 

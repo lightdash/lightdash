@@ -36,7 +36,7 @@ import {
     getReferencedParameterDefinitions,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
-    isComposerChartTileParameterReferencesTile,
+    isComposerChartTileRequest,
     isDashboardChartTileType,
     isDashboardComposerChartTile,
     isDashboardControlOrder,
@@ -1336,13 +1336,11 @@ export class DashboardService
         projectDefinitions: ParameterDefinitions,
     ): Promise<DashboardTileParameterReferences[]> {
         const savedSources = sources.flatMap((tile) =>
-            tile && !isComposerChartTileParameterReferencesTile(tile)
-                ? [tile]
-                : [],
+            tile && !isComposerChartTileRequest(tile) ? [tile] : [],
         );
         const composerUuids = uniq(
             sources.flatMap((tile) =>
-                tile && isComposerChartTileParameterReferencesTile(tile)
+                tile && isComposerChartTileRequest(tile)
                     ? [tile.composerChartUuid]
                     : [],
             ),
@@ -1387,7 +1385,7 @@ export class DashboardService
                     ),
                 };
             }
-            const result = isComposerChartTileParameterReferencesTile(source)
+            const result = isComposerChartTileRequest(source)
                 ? composerResults(source.composerChartUuid)
                 : (source.savedChartUuid &&
                       chartResults(source.savedChartUuid)) ||

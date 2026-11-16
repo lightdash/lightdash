@@ -9,7 +9,7 @@ import {
     getErrorMessage,
     getExploreParameterDefinitions,
     getReferencedParameterDefinitions,
-    isComposerChartAvailableFiltersTile,
+    isComposerChartTileRequest,
     isDashboardComposerChartTile,
     NotFoundError,
     parseComposerChartRunRequest,
@@ -27,6 +27,7 @@ import {
     type CreateComposerChart,
     type DashboardAvailableFiltersTile,
     type ParameterDefinitions,
+    type ParametersValuesMap,
     type RegisteredAccount,
     type UUID,
 } from '@lightdash/common';
@@ -255,12 +256,15 @@ export class ComposerChartService extends BaseService {
         const uuids = [
             ...new Set(
                 tiles.flatMap((tile) =>
-                    isComposerChartAvailableFiltersTile(tile)
+                    isComposerChartTileRequest(tile)
                         ? [tile.composerChartUuid]
                         : [],
                 ),
             ),
         ];
+        if (uuids.length === 0 || !(await this.isEnabledFor(account))) {
+            return [];
+        }
         const sources = await Promise.all(
             uuids.map(
                 async (uuid): Promise<ComposerAvailableFilterSource[]> => {
@@ -296,7 +300,6 @@ export class ComposerChartService extends BaseService {
         return sources.flat();
     }
 
-    /** The viewer's explore of each semantic-layer node, loaded with their user attributes. */
     /** Each chart's parameters for the dashboard's tile lookup, read from its stored nodes without a run. */
     async getParameterReferences(
         account: Account,
@@ -305,6 +308,10 @@ export class ComposerChartService extends BaseService {
         projectDefinitions: ParameterDefinitions,
     ): Promise<Map<string, ChartParameterReferencesResult>> {
         assertRegisteredAccount(account);
+        // With the flag off the tile can't run, so it offers no controls either
+        if (!(await this.isEnabledFor(account))) {
+            throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
+        }
         const results = await Promise.all(
             composerChartUuids.map(
                 async (
@@ -331,9 +338,12 @@ export class ComposerChartService extends BaseService {
                             );
                         // A project parameter wins over a model's copy of its name, as on saved charts
                         const definitions = {
-                            ...Object.assign(
+                            ...explores.reduce<ParameterDefinitions>(
+                                (acc, explore) => ({
+                                    ...acc,
+                                    ...getExploreParameterDefinitions(explore),
+                                }),
                                 {},
-                                ...explores.map(getExploreParameterDefinitions),
                             ),
                             ...projectDefinitions,
                         };
@@ -350,13 +360,14 @@ export class ComposerChartService extends BaseService {
                                     getComposerSavedParameterValues(
                                         pipeline.nodes,
                                     ),
-                                virtualViewSavedValues: Object.assign(
-                                    {},
-                                    ...explores.map(
-                                        (explore) =>
-                                            explore.savedParameterValues ?? {},
+                                virtualViewSavedValues:
+                                    explores.reduce<ParametersValuesMap>(
+                                        (acc, explore) => ({
+                                            ...acc,
+                                            ...explore.savedParameterValues,
+                                        }),
+                                        {},
                                     ),
-                                ),
                                 error: null,
                             },
                         ];
@@ -375,6 +386,18 @@ export class ComposerChartService extends BaseService {
         return new Map(results);
     }
 
+    private async isEnabledFor(account: RegisteredAccount): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ComposerCharts,
+        });
+        return enabled;
+    }
+
+    /** The viewer's explore of each semantic-layer node, loaded with their user attributes. */
     private async getNodeExplores(
         account: RegisteredAccount,
         { organizationUuid, projectUuid }: ProjectSubject,

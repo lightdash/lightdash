@@ -1,10 +1,11 @@
 import {
     DashboardTileTypes,
-    isComposerChartAvailableFiltersTile,
-    isComposerChartTileParameterReferencesTile,
+    isComposerChartTileRequest,
     isDashboardChartTileType,
     isDashboardComposerChartTile,
     isDashboardSqlChartTile,
+    type ComposerChartTileRequest,
+    type DashboardTile,
     type DashboardTileParameterReferencesTile,
     type DateZoomConfig,
     type DashboardAvailableFiltersTile,
@@ -75,6 +76,27 @@ export const selectHasTilesThatSupportFilters = (state: DashboardStoreState) =>
 export const selectTileUuidsKey = (state: DashboardStoreState) =>
     state.edit.tiles?.map((tile) => tile.uuid).join(',');
 
+const selectIsEmbed = (state: DashboardStoreState) => !!state.source.embedToken;
+
+// Embeds never draw a composer chart tile, so callers skip this there
+const composerChartTileRequests = (
+    tile: DashboardTile,
+): ComposerChartTileRequest[] =>
+    isDashboardComposerChartTile(tile) && tile.properties.composerChartUuid
+        ? [
+              {
+                  tileType: DashboardTileTypes.COMPOSER_CHART,
+                  tileUuid: tile.uuid,
+                  composerChartUuid: tile.properties.composerChartUuid,
+              },
+          ]
+        : [];
+
+const composerChartTileRequestKey = ({
+    tileUuid,
+    composerChartUuid,
+}: ComposerChartTileRequest) => `${tileUuid}:composer:${composerChartUuid}`;
+
 /**
  * Changes only when the chart-tile mapping changes, not when tiles are moved
  * or resized, so a drag doesn't re-run the filter chain.
@@ -84,14 +106,12 @@ export const selectSavedChartUuidsAndTileUuidsKey = (
 ) =>
     selectSavedChartUuidsAndTileUuids(state)
         ?.map((tile) =>
-            isComposerChartAvailableFiltersTile(tile)
-                ? `${tile.tileUuid}:composer:${tile.composerChartUuid}`
+            isComposerChartTileRequest(tile)
+                ? composerChartTileRequestKey(tile)
                 : `${tile.tileUuid}:${tile.savedChartUuid}`,
         )
         .sort()
         .join(',') ?? '';
-
-const selectIsEmbed = (state: DashboardStoreState) => !!state.source.embedToken;
 
 /** Chart tiles, and outside embeds composer chart tiles, whose fields the filter pickers offer */
 export const selectSavedChartUuidsAndTileUuids = createSelector(
@@ -108,19 +128,7 @@ export const selectSavedChartUuidsAndTileUuids = createSelector(
                         savedChartUuid: tile.properties.savedChartUuid,
                     },
                 ];
-            if (
-                !isEmbed &&
-                isDashboardComposerChartTile(tile) &&
-                tile.properties.composerChartUuid
-            )
-                return [
-                    {
-                        tileType: DashboardTileTypes.COMPOSER_CHART,
-                        tileUuid: tile.uuid,
-                        composerChartUuid: tile.properties.composerChartUuid,
-                    },
-                ];
-            return [];
+            return isEmbed ? [] : composerChartTileRequests(tile);
         }),
     // Moving or resizing a tile keeps the mapping, and everything derived from it
     { memoizeOptions: { resultEqualityCheck: isEqual } },
@@ -150,19 +158,7 @@ export const selectTileQuerySources = createSelector(
                         savedSqlUuid: tile.properties.savedSqlUuid,
                     },
                 ];
-            if (
-                !isEmbed &&
-                isDashboardComposerChartTile(tile) &&
-                tile.properties.composerChartUuid
-            )
-                return [
-                    {
-                        tileType: DashboardTileTypes.COMPOSER_CHART,
-                        tileUuid: tile.uuid,
-                        composerChartUuid: tile.properties.composerChartUuid,
-                    },
-                ];
-            return [];
+            return isEmbed ? [] : composerChartTileRequests(tile);
         }) ?? [],
 );
 
@@ -172,8 +168,8 @@ export const selectTileQuerySourcesKey = createSelector(
     (sources) =>
         sources
             .map((source) =>
-                isComposerChartTileParameterReferencesTile(source)
-                    ? `${source.tileUuid}:composer:${source.composerChartUuid}`
+                isComposerChartTileRequest(source)
+                    ? composerChartTileRequestKey(source)
                     : `${source.tileUuid}:${source.savedChartUuid ?? ''}:${source.savedSqlUuid ?? ''}`,
             )
             .sort()

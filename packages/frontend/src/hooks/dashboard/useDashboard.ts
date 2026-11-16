@@ -15,7 +15,7 @@ import {
     type ExportContentFormat,
     type ExportContentRequest,
     type ParametersValuesMap,
-    isComposerChartAvailableFiltersTile,
+    isComposerChartTileRequest,
     type DashboardAvailableFiltersTile,
     type SavedChartsInfoForDashboardAvailableFilters,
     type SchedulerCsvOptions,
@@ -152,9 +152,7 @@ export const useDashboardsAvailableFilters = (
                       projectUuid,
                       // Embeds draw no composer tile
                       savedChartUuidsAndTileUuids.flatMap((tile) =>
-                          isComposerChartAvailableFiltersTile(tile)
-                              ? []
-                              : [tile],
+                          isComposerChartTileRequest(tile) ? [] : [tile],
                       ),
                   )
                 : postDashboardsAvailableFilters(

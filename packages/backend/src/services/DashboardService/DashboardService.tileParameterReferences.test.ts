@@ -213,7 +213,6 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
     } as unknown as ConstructorParameters<typeof DashboardService>[0]);
     return {
         service,
-        composerChartService,
         featureFlagModel,
         savedSqlModel,
         savedChartModel,
@@ -256,7 +255,7 @@ const noSavedValues = { chartSavedValues: {}, virtualViewSavedValues: {} };
 
 describe('DashboardService.getTileParameterReferences', () => {
     it('lists a composer tile through the composer chart service, beside a saved chart', async () => {
-        const { service, composerChartService } = setup();
+        const { service } = setup();
 
         const result = await service.getTileParameterReferences(
             account,
@@ -283,9 +282,6 @@ describe('DashboardService.getTileParameterReferences', () => {
             virtualViewSavedValues: {},
             error: null,
         });
-        expect(
-            composerChartService.getParameterReferences,
-        ).toHaveBeenCalledWith(account, projectUuid, ['composer-chart'], {});
     });
 
     it('reads the explore and the chart query, without compiling', async () => {

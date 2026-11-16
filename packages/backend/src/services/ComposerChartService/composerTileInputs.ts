@@ -28,13 +28,12 @@ export type ComposerNodeExplores = Record<string, Explore>;
 export const getComposerSavedParameterValues = (
     nodes: ComposerChartPipelineNode[],
 ): ParametersValuesMap =>
-    Object.assign(
-        {},
-        ...nodes.map((node) =>
+    nodes.reduce<ParametersValuesMap>(
+        (acc, node) =>
             node.sourceType === QuerySourceType.SEMANTIC_LAYER
-                ? (node.parameters ?? {})
-                : {},
-        ),
+                ? { ...acc, ...node.parameters }
+                : acc,
+        {},
     );
 
 const hasRules = (filters: DashboardFilters) =>
