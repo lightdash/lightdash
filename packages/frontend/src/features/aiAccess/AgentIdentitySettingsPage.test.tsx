@@ -434,7 +434,7 @@ describe('Agents page loading boundary', () => {
         ).toBeInTheDocument();
         expect(
             screen.getByText(
-                "Organization-wide rules for agents. Agents are Ask AI, the Slack agent, MCP clients and the CLI. Each project's shared agent account is in that project's settings.",
+                "These rules apply to every project in this organization. Agents are Ask AI, the Slack agent, MCP clients and the CLI. Each project's shared agent account is in that project's settings.",
             ),
         ).toBeInTheDocument();
     });

@@ -167,7 +167,7 @@ describe('reviewed agent permissions', () => {
             selection: null,
         },
         {
-            name: 'saved Custom',
+            name: 'saved Custom scope',
             choice: 'Custom scope',
             capabilities: all,
             selection: null,
@@ -314,7 +314,7 @@ describe('reviewed agent permissions', () => {
         expect(screen.getByText('× 6 more')).toBeInTheDocument();
         expect(api).not.toHaveBeenCalled();
     });
-    it('opens Custom from the preset with every capability enabled', () => {
+    it('opens Custom scope from the preset with every capability enabled', () => {
         renderSection();
         choose('Read and query only');
         custom();
@@ -425,7 +425,7 @@ describe('reviewed agent permissions', () => {
         expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
         expect(
             screen.getByText(
-                'These limits apply to every role, custom roles included.',
+                'These permissions apply to every role, custom roles included.',
             ),
         ).toBeInTheDocument();
         expect(screen.getByText('1 unsaved change')).toBeInTheDocument();

@@ -9,9 +9,9 @@ import { agentPermissionChoiceLabels } from './agentPermissionLabels';
 import classes from './AgentPermissionsSection.module.css';
 
 const descriptions: Record<AgentPermissionChoice, string> = {
-    person: 'No extra limits. Agents can do everything the person can do.',
-    read: 'Agents can find content, query data and export results. They cannot create, change, share or delete content.',
-    custom: 'Pick each capability. All start on. Agents still never do more than the person can.',
+    person: 'Agents can do everything the person can do in Lightdash. This level adds no limits.',
+    read: 'Agents can find content, query data and export results. They cannot create, change, share or delete Lightdash content.',
+    custom: 'Pick each capability. Agents still never do more than the person can in Lightdash.',
 };
 const choices: AgentPermissionChoice[] = ['person', 'read', 'custom'];
 export const AgentCapabilityChoices = ({
