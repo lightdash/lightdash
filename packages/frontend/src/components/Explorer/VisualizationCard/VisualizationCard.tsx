@@ -287,6 +287,16 @@ const VisualizationCard: FC<Props> = memo((props) => {
     });
 
     const isStale = useIsResultsStale();
+    // Until the first results arrive every chart shows one loading state,
+    // not its own empty state followed by its own loader
+    const isFirstLoad =
+        hasSelectedFields &&
+        !missingRequiredParameters?.length &&
+        ((isLoadingQueryResults && (resultsData?.rows.length ?? 0) === 0) ||
+            (!resultsData?.metricQuery &&
+                !isEditMode &&
+                !query.isError &&
+                !queryResults.error));
     const isChoosingChartType =
         useExplorerSelector(selectChartSidebarStep) === 'choose';
     // A chart can plot dimensions on its y-axis, so it only counts as empty
@@ -642,7 +652,22 @@ const VisualizationCard: FC<Props> = memo((props) => {
                             {isLoadingQueryResults && (
                                 <RunningBar label="Running query" />
                             )}
-                            {isStale ? (
+                            {isFirstLoad ? (
+                                <Box
+                                    className={classes.staleCover}
+                                    role="status"
+                                >
+                                    <Stack gap="xs" align="center">
+                                        <ExploreIdleIllustration
+                                            variant="chart"
+                                            loading
+                                        />
+                                        <Text fz="sm" fw={500}>
+                                            Loading chart
+                                        </Text>
+                                    </Stack>
+                                </Box>
+                            ) : isStale ? (
                                 <Box className={classes.staleCover}>
                                     <Stack gap="xs" align="center">
                                         <ExploreIdleIllustration variant="chart" />
