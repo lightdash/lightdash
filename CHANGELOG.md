@@ -1,3 +1,12 @@
+# [3.267.0](https://github.com/lightdash/lightdash/compare/3.266.3...3.267.0) (2026-11-16)
+
+
+### Features
+
+* **live-sources:** hide filters a live data source can't run ([#32583](https://github.com/lightdash/lightdash/issues/32583)) ([a64d628](https://github.com/lightdash/lightdash/commit/a64d628d77ec2f93baf9d12a2213d5ef4a6d82e1))
+* **live-sources:** name fields and operators as the UI does in filter refusals ([#32582](https://github.com/lightdash/lightdash/issues/32582)) ([d134bcb](https://github.com/lightdash/lightdash/commit/d134bcb74e82d7a90a7e7072ddb5876d0d566fa5))
+* **live-sources:** support is after and is before date filters on Search Console ([#32581](https://github.com/lightdash/lightdash/issues/32581)) ([aea9ce3](https://github.com/lightdash/lightdash/commit/aea9ce3558552e51b1c0dec4cf19650e35e995ea))
+
 ## [3.266.3](https://github.com/lightdash/lightdash/compare/3.266.2...3.266.3) (2026-11-16)
 
 
