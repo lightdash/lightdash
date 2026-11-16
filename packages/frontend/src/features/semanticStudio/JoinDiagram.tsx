@@ -12,6 +12,7 @@ import {
     Loader,
     Paper,
     Stack,
+    Switch,
     Text,
 } from '@mantine/core';
 import { IconTable, IconX } from '@tabler/icons-react';
@@ -46,6 +47,12 @@ import {
     toJoinGraph,
     type JoinTableNode,
 } from './joinGraph';
+import {
+    toModelLineage,
+    withLineage,
+    type LineageCard,
+    type LineageRole,
+} from './lineageGraph';
 
 type TableNodeData = JoinTableNode & {
     /** Another table is selected and this one is off its path to the base. */
@@ -55,8 +62,23 @@ type TableNodeData = JoinTableNode & {
 
 type TableFlowNode = Node<TableNodeData, 'table'>;
 
+type ModelNodeData = LineageCard & { isDimmed: boolean };
+
+type ModelFlowNode = Node<ModelNodeData, 'model'>;
+
+type FlowNode = TableFlowNode | ModelFlowNode;
+
+const LINEAGE_ROLE_LABELS: Record<LineageRole, string> = {
+    base: 'Base table',
+    joined: 'Joined table',
+    upstream: 'Upstream dbt model',
+    downstream: 'Downstream dbt model',
+    other: 'dbt model',
+};
+
 /** Global so the stylesheet can target them; edges take no CSS module class. */
 const EDGE_ACTIVE_CLASS = 'join-edge-active';
+const EDGE_LINEAGE_CLASS = 'join-edge-lineage';
 const edgeRelationshipClass = (table: JoinTableNode) =>
     `join-edge-${table.relationship ?? 'unset'}`;
 
@@ -75,9 +97,10 @@ const RELATIONSHIPS = [
     { key: 'unset', label: 'not set' },
 ] as const;
 
-const RelationshipLegend: FC<{ present: ReadonlySet<string> }> = ({
-    present,
-}) => (
+const RelationshipLegend: FC<{
+    present: ReadonlySet<string>;
+    showLineage: boolean;
+}> = ({ present, showLineage }) => (
     <Panel position="bottom-right" className={classes.legend}>
         {RELATIONSHIPS.filter(({ key }) => present.has(key)).map(
             ({ key, label }) => (
@@ -93,6 +116,18 @@ const RelationshipLegend: FC<{ present: ReadonlySet<string> }> = ({
                 </Group>
             ),
         )}
+        {showLineage ? (
+            <Group gap={6} wrap="nowrap">
+                <Box
+                    component="span"
+                    className={classes.legendLine}
+                    data-relationship="lineage"
+                />
+                <Text component="span" fz="xs" c="dimmed">
+                    built from (dbt)
+                </Text>
+            </Group>
+        ) : null}
     </Panel>
 );
 
@@ -191,7 +226,48 @@ const TableNode: FC<NodeProps<TableFlowNode>> = ({ data }) => (
     </Paper>
 );
 
-const nodeTypes: NodeTypes = { table: TableNode };
+/** A dbt model the explore does not read, drawn muted beside its tables. */
+const ModelNode: FC<NodeProps<ModelFlowNode>> = ({ data }) => (
+    <Paper
+        w={JOIN_NODE_WIDTH}
+        h={JOIN_NODE_HEIGHT}
+        className={clsx(classes.node, classes.modelNode)}
+        data-dimmed={data.isDimmed}
+    >
+        <Handle
+            type="target"
+            position={Position.Left}
+            className={classes.handle}
+        />
+        <Group
+            gap="xs"
+            wrap="nowrap"
+            align="flex-start"
+            className={classes.nodeHead}
+        >
+            <Box className={classes.nodeIcon}>
+                <MantineIcon icon={IconTable} size={14} />
+            </Box>
+            <Box className={classes.nodeText}>
+                <Text component="span" className={classes.nodeTitle} truncate>
+                    {data.id}
+                </Text>
+            </Box>
+        </Group>
+        <Group gap="xs" wrap="nowrap" className={classes.nodeFooter}>
+            <Text component="span" fz="xs" c="dimmed">
+                {LINEAGE_ROLE_LABELS[data.role]}
+            </Text>
+        </Group>
+        <Handle
+            type="source"
+            position={Position.Right}
+            className={classes.handle}
+        />
+    </Paper>
+);
+
+const nodeTypes: NodeTypes = { table: TableNode, model: ModelNode };
 const edgeTypes: EdgeTypes = { join: DefaultEdge };
 
 // Centred; never larger than 100%, and wide graphs stay readable and pan.
@@ -311,18 +387,50 @@ export const JoinDiagram: FC<{ projectUuid: string; exploreName: string }> = ({
         projectUuid,
     );
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [showLineage, setShowLineage] = useState(false);
     const graph = useMemo(
         () => (explore ? toJoinGraph(explore) : null),
         [explore],
     );
+    const lineage = useMemo(
+        () =>
+            explore && graph
+                ? withLineage(graph, toModelLineage(explore))
+                : null,
+        [explore, graph],
+    );
+    const hasLineage = !!lineage && lineage.links.length > 0;
+    const isLineageShown = hasLineage && showLineage;
     const positions = useMemo(
-        () => (graph ? layoutJoinGraph(graph) : null),
-        [graph],
+        () =>
+            graph
+                ? layoutJoinGraph(
+                      isLineageShown && lineage
+                          ? {
+                                tables: [
+                                    ...graph.tables,
+                                    ...lineage.cards.map(({ nodeId }) => ({
+                                        id: nodeId,
+                                    })),
+                                ],
+                                links: [...graph.links, ...lineage.links],
+                            }
+                          : graph,
+                  )
+                : null,
+        [graph, lineage, isLineageShown],
     );
     const flow = useMemo(() => {
         if (!graph || !positions) return null;
-        const path = selectedId ? pathToBase(graph.tables, selectedId) : null;
-        const nodes = graph.tables.map<TableFlowNode>((table) => ({
+        const path = selectedId
+            ? new Set([
+                  ...pathToBase(graph.tables, selectedId),
+                  ...(isLineageShown && lineage
+                      ? lineage.relatedTo(selectedId)
+                      : []),
+              ])
+            : null;
+        const tableNodes = graph.tables.map<TableFlowNode>((table) => ({
             id: table.id,
             type: 'table',
             position: positions.get(table.id) ?? { x: 0, y: 0 },
@@ -332,8 +440,36 @@ export const JoinDiagram: FC<{ projectUuid: string; exploreName: string }> = ({
                 isSelected: table.id === selectedId,
             },
         }));
+        const modelNodes =
+            isLineageShown && lineage
+                ? lineage.cards.map<ModelFlowNode>((card) => ({
+                      id: card.nodeId,
+                      type: 'model',
+                      position: positions.get(card.nodeId) ?? { x: 0, y: 0 },
+                      data: {
+                          ...card,
+                          isDimmed: path !== null && !path.has(card.nodeId),
+                      },
+                  }))
+                : [];
+        const nodes: FlowNode[] = [...tableNodes, ...modelNodes];
         const tableById = new Map(graph.tables.map((t) => [t.id, t]));
-        const edges = graph.links.map<Edge>((link) => {
+        const lineageEdges =
+            isLineageShown && lineage
+                ? lineage.links.map<Edge>((link) => ({
+                      id: link.id,
+                      source: link.source,
+                      target: link.target,
+                      type: 'join',
+                      className: clsx(
+                          EDGE_LINEAGE_CLASS,
+                          path?.has(link.source) &&
+                              path.has(link.target) &&
+                              EDGE_ACTIVE_CLASS,
+                      ),
+                  }))
+                : [];
+        const joinEdges = graph.links.map<Edge>((link) => {
             const target = tableById.get(link.target);
             return {
                 id: link.id,
@@ -353,8 +489,8 @@ export const JoinDiagram: FC<{ projectUuid: string; exploreName: string }> = ({
                 .filter(({ isBase }) => !isBase)
                 .map(({ relationship }) => relationship ?? 'unset'),
         );
-        return { nodes, edges, present };
-    }, [graph, positions, selectedId]);
+        return { nodes, edges: [...joinEdges, ...lineageEdges], present };
+    }, [graph, lineage, isLineageShown, positions, selectedId]);
 
     if (isInitialLoading) {
         return (
@@ -370,7 +506,8 @@ export const JoinDiagram: FC<{ projectUuid: string; exploreName: string }> = ({
         <Box className={classes.root}>
             <Paper withBorder className={classes.canvas}>
                 <ReactFlowProvider>
-                    <ReactFlow<TableFlowNode, Edge>
+                    <ReactFlow<FlowNode, Edge>
+                        key={isLineageShown ? 'lineage' : 'joins'}
                         className={clsx(
                             reactFlowStyles.reactFlow,
                             classes.flow,
@@ -381,11 +518,12 @@ export const JoinDiagram: FC<{ projectUuid: string; exploreName: string }> = ({
                         edgeTypes={edgeTypes}
                         fitView
                         fitViewOptions={FIT_VIEW_OPTIONS}
-                        onNodeClick={(_, node) =>
+                        onNodeClick={(_, node) => {
+                            if (node.type !== 'table') return;
                             setSelectedId((current) =>
                                 current === node.id ? null : node.id,
-                            )
-                        }
+                            );
+                        }}
                         onPaneClick={() => setSelectedId(null)}
                         minZoom={0.25}
                         maxZoom={1.5}
@@ -400,8 +538,28 @@ export const JoinDiagram: FC<{ projectUuid: string; exploreName: string }> = ({
                     >
                         <Background />
                         <Controls showInteractive={false} />
-                        {flow.present.size > 0 ? (
-                            <RelationshipLegend present={flow.present} />
+                        {hasLineage ? (
+                            <Panel
+                                position="top-left"
+                                className={classes.toggle}
+                            >
+                                <Switch
+                                    size="xs"
+                                    label="Show dbt lineage"
+                                    checked={isLineageShown}
+                                    onChange={(event) =>
+                                        setShowLineage(
+                                            event.currentTarget.checked,
+                                        )
+                                    }
+                                />
+                            </Panel>
+                        ) : null}
+                        {flow.present.size > 0 || isLineageShown ? (
+                            <RelationshipLegend
+                                present={flow.present}
+                                showLineage={isLineageShown}
+                            />
                         ) : null}
                     </ReactFlow>
                 </ReactFlowProvider>

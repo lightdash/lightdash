@@ -1,6 +1,7 @@
 import { type CompiledTable, type Explore } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { relatedModels, toModelLineage } from './lineageGraph';
+import { toJoinGraph } from './joinGraph';
+import { relatedModels, toModelLineage, withLineage } from './lineageGraph';
 
 const model = (name: string) => ({ name, type: 'model' as const });
 
@@ -103,6 +104,59 @@ describe('relatedModels', () => {
             'raw',
             'stg',
             'summary',
+        ]);
+    });
+});
+
+describe('withLineage', () => {
+    // stg_sales -> sales_targets, read twice under two aliases; sales_targets -> report
+    const deals = table('deals', {
+        lineageGraph: { deals: [model('stg_deals')], stg_deals: [] },
+    });
+    const segment = table('segment_targets', {
+        originalName: 'sales_targets',
+        lineageGraph: {
+            sales_targets: [model('stg_sales')],
+            stg_sales: [],
+            report: [model('sales_targets')],
+        },
+    });
+    const industry = table('industry_targets', {
+        originalName: 'sales_targets',
+        lineageGraph: segment.lineageGraph,
+    });
+    const source = {
+        ...explore([deals, segment, industry], []),
+        joinedTables: ['segment_targets', 'industry_targets'].map((name) => ({
+            table: name,
+            sqlOn: `\${deals.id} = \${${name}.id}`,
+            compiledSqlOn: '',
+        })),
+    };
+    const result = withLineage(toJoinGraph(source), toModelLineage(source));
+
+    it('draws only models the explore does not read as cards', () => {
+        expect(result.cards.map(({ nodeId }) => nodeId).sort()).toEqual([
+            'dbt:report',
+            'dbt:stg_deals',
+            'dbt:stg_sales',
+        ]);
+    });
+
+    it('links models to every table that reads them', () => {
+        expect(result.links.map(({ id }) => id).sort()).toEqual([
+            'lineage:dbt:stg_deals->deals',
+            'lineage:dbt:stg_sales->industry_targets',
+            'lineage:dbt:stg_sales->segment_targets',
+            'lineage:industry_targets->dbt:report',
+            'lineage:segment_targets->dbt:report',
+        ]);
+    });
+
+    it('relates a table to its upstream and downstream models', () => {
+        expect([...result.relatedTo('deals')].sort()).toEqual([
+            'dbt:stg_deals',
+            'deals',
         ]);
     });
 });

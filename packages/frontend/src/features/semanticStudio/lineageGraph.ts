@@ -1,6 +1,6 @@
 /** The dbt models behind an explore's tables, and the models built from them, as one graph. */
 import { type Explore, type LineageGraph } from '@lightdash/common';
-import { type JoinLink } from './joinGraph';
+import { type JoinGraph, type JoinLink } from './joinGraph';
 
 /** Where a model sits relative to the explore. */
 export type LineageRole =
@@ -18,7 +18,7 @@ export type LineageModelNode = {
     role: LineageRole;
 };
 
-type ModelLineage = { models: LineageModelNode[]; links: JoinLink[] };
+export type ModelLineage = { models: LineageModelNode[]; links: JoinLink[] };
 
 /** Every model reachable from `start` by following `next`. */
 const reachable = (
@@ -107,4 +107,57 @@ export const toModelLineage = (
         role: roleOf(id),
     }));
     return { models, links: linkList };
+};
+
+/** A dbt model drawn beside the explore's tables. */
+export type LineageCard = LineageModelNode & { nodeId: string };
+
+export type JoinsWithLineage = {
+    /** Models the explore does not read; the ones it reads are its tables. */
+    cards: LineageCard[];
+    /** "Built from" edges, between table and model node ids. */
+    links: JoinLink[];
+    /** For a node id, every node upstream or downstream of it in dbt. */
+    relatedTo: (nodeId: string) => Set<string>;
+};
+
+const cardId = (model: string) => `dbt:${model}`;
+
+/** Lays dbt lineage over the join graph: a model the explore reads is its table's node. */
+export const withLineage = (
+    graph: JoinGraph,
+    lineage: ModelLineage,
+): JoinsWithLineage => {
+    const tablesByModel = graph.tables.reduce((map, table) => {
+        const model = table.modelName ?? table.id;
+        map.set(model, [...(map.get(model) ?? []), table.id]);
+        return map;
+    }, new Map<string, string[]>());
+    const nodeIdsOf = (model: string) =>
+        tablesByModel.get(model) ?? [cardId(model)];
+    const modelByNodeId = new Map(
+        lineage.models.flatMap(({ id }) =>
+            nodeIdsOf(id).map((nodeId) => [nodeId, id] as const),
+        ),
+    );
+    const cards = lineage.models
+        .filter(({ id }) => !tablesByModel.has(id))
+        .map<LineageCard>((model) => ({ ...model, nodeId: cardId(model.id) }));
+    const links = lineage.links.flatMap(({ source, target }) =>
+        nodeIdsOf(source).flatMap((from) =>
+            nodeIdsOf(target).map<JoinLink>((to) => ({
+                id: `lineage:${from}->${to}`,
+                source: from,
+                target: to,
+            })),
+        ),
+    );
+    const relatedTo = (nodeId: string) => {
+        const model = modelByNodeId.get(nodeId);
+        if (!model) return new Set([nodeId]);
+        return new Set(
+            [...relatedModels(lineage.links, model)].flatMap(nodeIdsOf),
+        );
+    };
+    return { cards, links, relatedTo };
 };

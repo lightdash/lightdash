@@ -124,6 +124,7 @@
     --join-one-to-many: var(--mantine-color-violet-6);
     --join-many-to-many: var(--mantine-color-yellow-7);
     --join-unset: var(--mantine-color-ldGray-4);
+    --join-lineage: var(--mantine-color-ldGray-4);
 }
 
 .flow :global(.react-flow__edge) path {
@@ -149,6 +150,13 @@
 .flow :global(.join-edge-unset) path {
     stroke: var(--join-unset);
     stroke-dasharray: 4 3;
+}
+
+/* "Built from" edges between dbt models and the explore's tables. */
+.flow :global(.join-edge-lineage) path {
+    stroke: var(--join-lineage);
+    stroke-width: 1;
+    stroke-dasharray: 2 3;
 }
 
 /* Edges on the selected table's path to the base table. */
@@ -191,6 +199,30 @@
 
 .legendLine[data-relationship='unset'] {
     border-top-style: dashed;
+}
+
+.legendLine[data-relationship='lineage'] {
+    border-top: 1px dotted var(--join-lineage);
+}
+
+.toggle {
+    padding: 4px 8px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-body);
+}
+
+/* dbt models the explore does not read: present but quieter than its tables. */
+.modelNode {
+    border-style: dashed;
+    cursor: default;
+}
+
+.modelNode .nodeTitle {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 400;
+    color: var(--mantine-color-dimmed);
 }
 
 .details {
