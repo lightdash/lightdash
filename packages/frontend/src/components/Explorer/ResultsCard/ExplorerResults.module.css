@@ -55,6 +55,12 @@
 .results:not([data-grouped]) [class*='tableHeaderBoldLabel'] {
     color: var(--mantine-color-text);
     font-weight: 500;
+    /* Two lines at most; the header tooltip has the full name */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: anywhere;
 }
 
 /* The icon flows with the name's first word */

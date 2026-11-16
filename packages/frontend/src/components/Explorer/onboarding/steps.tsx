@@ -18,7 +18,7 @@ export const EXPLORER_TOUR_STEPS: ExplorerTourStep[] = [
     {
         target: '.mantine-Card-root:has([data-testid="Chart-card-expand"])',
         title: 'Or drag a field here',
-        body: 'Drop a field on Chart or Results to add it and run the query. On Chart it also picks a chart type for you.',
+        body: 'Drop a field on Chart or Results to add it and run the query. On Chart it also picks a chart type for you. Drop it on Filters to filter by it.',
         position: 'bottom',
     },
     {

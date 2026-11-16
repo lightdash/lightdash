@@ -46,6 +46,7 @@ import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useExploreWarehouseConnection } from '../../../hooks/useExploreWarehouseConnection';
+import { useAddFilter } from '../../../hooks/useFilters';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
@@ -54,6 +55,7 @@ import FiltersForm from '../../common/Filters';
 import { getConditionalRuleLabelFromItem } from '../../common/Filters/FilterInputs/utils';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
+import { useFieldDrop } from '../fieldDrag';
 import classes from './FiltersCard.module.css';
 import { useFieldsWithSuggestions } from './useFieldsWithSuggestions';
 
@@ -382,6 +384,15 @@ const QueryAFiltersCard: FC = memo(() => {
         return renderExpression(filterExpression);
     }, [processedFilters, visibleFields]);
 
+    const addFilter = useAddFilter();
+    // A field dropped on the card becomes a new, empty filter on it
+    const fieldDrop = useFieldDrop(({ fieldId }) => {
+        const field = fieldsWithSuggestions[fieldId];
+        if (isEditMode && field && isFilterableField(field)) {
+            addFilter(field, undefined);
+        }
+    });
+
     // Nothing to filter until there is a field or a filter to show
     const isInactive = totalActiveFilters === 0 && !hasSelectedFields;
 
@@ -389,6 +400,8 @@ const QueryAFiltersCard: FC = memo(() => {
         <CollapsableCard
             isOpen={filterIsOpen && !isInactive}
             title="Filters"
+            dropProps={isEditMode ? fieldDrop.dropProps : undefined}
+            isDropActive={fieldDrop.isOver}
             disabled={
                 !tableName ||
                 isInactive ||
