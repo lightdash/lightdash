@@ -58,6 +58,11 @@ describe('generateChartAsCodeSchema', () => {
         const swagger = {
             components: {
                 schemas: {
+                    ComposerChartAsCode: {
+                        type: 'object',
+                        required: ['contentType'],
+                        properties: { contentType: { type: 'string' } },
+                    },
                     SqlChartAsCode: {
                         type: 'object',
                         required: ['sql', 'version'],
@@ -181,6 +186,11 @@ describe('generateChartAsCodeSchema', () => {
         const swagger = {
             components: {
                 schemas: {
+                    ComposerChartAsCode: {
+                        type: 'object',
+                        required: ['contentType'],
+                        properties: { contentType: { type: 'string' } },
+                    },
                     SqlChartAsCode: {
                         type: 'object',
                         required: ['sql', 'version'],
@@ -227,10 +237,15 @@ describe('generateChartAsCodeSchema', () => {
         });
     });
 
-    test('buildChartAsCodeSchema picks the SQL chart or semantic layer chart shape with if/then/else', () => {
+    test('buildChartAsCodeSchema picks the composer, SQL or semantic layer chart shape with if/then/else', () => {
         const swagger = {
             components: {
                 schemas: {
+                    ComposerChartAsCode: {
+                        type: 'object',
+                        required: ['contentType'],
+                        properties: { contentType: { type: 'string' } },
+                    },
                     SqlChartAsCode: {
                         type: 'object',
                         required: ['sql', 'version'],
@@ -253,8 +268,12 @@ describe('generateChartAsCodeSchema', () => {
         const schema = buildChartAsCodeSchema(swagger);
         const defs = schema.$defs as Record<string, JsonObject>;
 
-        expect(schema.then).toEqual({ $ref: '#/$defs/SqlChartAsCode' });
-        expect(schema.else).toEqual({ $ref: '#/$defs/ChartAsCode' });
+        expect(schema.then).toEqual({ $ref: '#/$defs/ComposerChartAsCode' });
+        expect(schema.else).toMatchObject({
+            // oxlint-disable-next-line unicorn/no-thenable -- JSON Schema keyword
+            then: { $ref: '#/$defs/SqlChartAsCode' },
+            else: { $ref: '#/$defs/ChartAsCode' },
+        });
         expect(schema.properties).toBeUndefined();
         expect(defs.SqlChartAsCode).toMatchObject({
             additionalProperties: false,

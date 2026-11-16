@@ -55,6 +55,12 @@ const dashboardAsCodeSchema = z.object({
                     title: z.string(),
                 }),
             }),
+            z.object({
+                type: z.literal(DashboardTileTypes.COMPOSER_CHART),
+                properties: z.object({
+                    title: z.string(),
+                }),
+            }),
         ]),
     ),
 });

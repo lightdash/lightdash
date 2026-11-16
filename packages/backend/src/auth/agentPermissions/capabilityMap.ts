@@ -1451,6 +1451,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.ReadDiscover,
     ],
     'ProjectCoderController.getSpacesAsCode': [AgentCapability.ReadDiscover],
+    'ProjectCoderController.getComposerChartsAsCode': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectCoderController.getSqlChartsAsCode': [AgentCapability.ReadDiscover],
     'ProjectCoderController.getVirtualViewsAsCode': [
         AgentCapability.ReadDiscover,
@@ -1562,6 +1565,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Publish,
     ],
     'ProjectCoderController.upsertSpaceAsCode': [AgentCapability.ContentWrite],
+    'ProjectCoderController.upsertComposerChartAsCode': [
+        AgentCapability.ContentWrite,
+    ],
     'ProjectCoderController.upsertSqlChartAsCode': [
         AgentCapability.RawSql,
         AgentCapability.ContentWrite,

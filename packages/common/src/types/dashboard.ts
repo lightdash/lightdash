@@ -131,6 +131,8 @@ export type DashboardComposerChartTileProperties = {
         composerChartUuid: string | null;
         // Set by the backend on read.
         chartName: string | null;
+        // Set by the backend on read; optional so older clients' saves validate.
+        chartSlug?: string | null;
     };
 };
 

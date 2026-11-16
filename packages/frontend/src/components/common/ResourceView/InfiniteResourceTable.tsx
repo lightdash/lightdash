@@ -124,9 +124,17 @@ type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
     };
     showDataAppVersionStatus?: boolean;
     errorStateTitle?: string;
+    /** Sort applied until the user picks one; defaults to last updated, newest first */
+    initialSorting?: ContentTableSortingState;
 };
 
 const defaultSpaces: SpaceSummary[] = [];
+const defaultInitialSorting: ContentTableSortingState = [
+    {
+        id: ColumnVisibility.UPDATED_AT,
+        desc: true,
+    },
+];
 
 // Self-contained search input: holds the typed value locally and only lifts the
 // debounced value to the parent, so keystrokes don't re-render the whole table.
@@ -200,6 +208,7 @@ const InfiniteResourceTable = ({
     contentView,
     showDataAppVersionStatus = false,
     errorStateTitle,
+    initialSorting = defaultInitialSorting,
     ...contentTableProps
 }: ResourceView2Props) => {
     const compact = useMatches(
@@ -489,12 +498,6 @@ const InfiniteResourceTable = ({
                     </Group>
                 );
             },
-        },
-    ];
-    const initialSorting: ContentTableSortingState = [
-        {
-            id: ColumnVisibility.UPDATED_AT,
-            desc: true,
         },
     ];
     const [sorting, setSorting] =

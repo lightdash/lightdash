@@ -7,6 +7,7 @@ import {
     FeatureNotEnabledError,
     FieldType,
     ForbiddenError,
+    getComposerCustomMetricExploreNames,
     getComposerPipelineWriteDeniedReason,
     getDataAppVizChartConfigErrors,
     getErrorMessage,
@@ -32,6 +33,7 @@ import {
     type ComposerStoredChart,
     type CreateComposerChart,
     type DashboardAvailableFiltersTile,
+    type Explore,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type RegisteredAccount,
@@ -56,6 +58,7 @@ import {
     getComposerParameterReferences,
     getComposerSavedParameterValues,
     getSemanticExploreNames,
+    withSqlColumnFilters,
     type ComposerNodeExplores,
 } from './composerTileInputs';
 
@@ -124,19 +127,50 @@ export class ComposerChartService extends BaseService {
         );
     }
 
-    private assertCanWritePipeline(
+    private async getCustomMetricExploreTables(
+        account: RegisteredAccount,
+        projectUuid: string,
+        pipeline: ComposerChartPipeline,
+    ): Promise<Record<string, Explore['tables']>> {
+        const entries = await Promise.all(
+            getComposerCustomMetricExploreNames(pipeline).map(
+                async (exploreName) => {
+                    const explore =
+                        await this.getAsyncQueryService().getExplore(
+                            account,
+                            projectUuid,
+                            exploreName,
+                        );
+                    return [exploreName, explore.tables] as const;
+                },
+            ),
+        );
+        return Object.fromEntries(entries);
+    }
+
+    private async assertCanWritePipeline(
         account: RegisteredAccount,
         { organizationUuid, projectUuid }: ProjectSubject,
         pipeline: ComposerChartPipeline,
     ) {
         const ability = this.createAuditedAbility(account);
+        const cannotManage = (subjectName: CaslSubjectNames) =>
+            ability.cannot(
+                'manage',
+                subject(subjectName, { organizationUuid, projectUuid }),
+            );
+        // Custom metric SQL is compared to the model only for an author without custom fields
+        const exploreTables = cannotManage('CustomFields')
+            ? await this.getCustomMetricExploreTables(
+                  account,
+                  projectUuid,
+                  pipeline,
+              )
+            : {};
         const deniedReason = getComposerPipelineWriteDeniedReason(
             pipeline,
-            (subjectName: CaslSubjectNames) =>
-                ability.cannot(
-                    'manage',
-                    subject(subjectName, { organizationUuid, projectUuid }),
-                ),
+            cannotManage,
+            exploreTables,
         );
         if (deniedReason) throw new ForbiddenError(deniedReason);
 
@@ -204,12 +238,26 @@ export class ComposerChartService extends BaseService {
         return parseComposerStoredChart({ ...chart, chartConfig });
     }
 
-    /** Shared by the create endpoint and, later, content-as-code upload. */
-    async create(
+    async isEnabled(user: {
+        userUuid: string;
+        organizationUuid: string;
+    }): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ComposerCharts,
+        });
+        return enabled;
+    }
+
+    /** The checks every submitted write runs; returns the documents to store. */
+    private async authorizeWrite(
         account: RegisteredAccount,
         projectUuid: string,
-        data: CreateComposerChart,
-    ): Promise<ComposerChart> {
+        data: Pick<CreateComposerChart, 'dashboardUuid' | 'pipeline' | 'chart'>,
+    ): Promise<{
+        pipeline: ComposerChartPipeline;
+        chart: ComposerStoredChart;
+    }> {
         const pipeline = parseComposerPipeline(data.pipeline);
         const input = parseComposerChartInput(data.chart);
 
@@ -218,14 +266,12 @@ export class ComposerChartService extends BaseService {
             projectUuid,
             data.dashboardUuid,
         );
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
+        if (
+            !(await this.isEnabled({
                 userUuid: account.user.userUuid,
                 organizationUuid: dashboardAccess.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ComposerCharts,
-        });
-        if (!enabled) {
+            }))
+        ) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
         if (
@@ -241,11 +287,44 @@ export class ComposerChartService extends BaseService {
                 "You don't have permission to update this dashboard",
             );
         }
-        this.assertCanWritePipeline(account, dashboardAccess, pipeline);
+        await this.assertCanWritePipeline(account, dashboardAccess, pipeline);
         const chart = await this.pinCustomChartType(projectUuid, input);
+        return { pipeline, chart };
+    }
 
+    /** The checks that need no dashboard, so an upload can refuse before creating one. */
+    async preflightWrite(
+        account: RegisteredAccount,
+        project: ProjectSubject,
+        data: Pick<CreateComposerChart, 'pipeline' | 'chart'>,
+    ): Promise<void> {
+        const pipeline = parseComposerPipeline(data.pipeline);
+        const input = parseComposerChartInput(data.chart);
+        if (
+            !(await this.isEnabled({
+                userUuid: account.user.userUuid,
+                organizationUuid: project.organizationUuid,
+            }))
+        ) {
+            throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
+        }
+        await this.assertCanWritePipeline(account, project, pipeline);
+        await this.pinCustomChartType(project.projectUuid, input);
+    }
+
+    async create(
+        account: RegisteredAccount,
+        projectUuid: string,
+        data: CreateComposerChart,
+    ): Promise<ComposerChart> {
+        const { pipeline, chart } = await this.authorizeWrite(
+            account,
+            projectUuid,
+            data,
+        );
         const uuid = await this.composerChartModel.create({
             uuid: null,
+            slug: null,
             projectUuid,
             dashboardUuid: data.dashboardUuid,
             name: data.name,
@@ -255,6 +334,48 @@ export class ComposerChartService extends BaseService {
             createdByUserUuid: account.user.userUuid,
         });
         return this.composerChartModel.get(uuid);
+    }
+
+    /** Content-as-code upload; an existing chart stays on its dashboard. */
+    async writeFromCode(
+        account: RegisteredAccount,
+        projectUuid: string,
+        data: Omit<CreateComposerChart, 'dashboardUuid'> & {
+            slug: string;
+            /** Owner of a new or revived chart; an existing chart keeps its own. */
+            dashboardUuid: string | null;
+        },
+    ): Promise<string> {
+        const existing = await this.composerChartModel.findIdentityBySlug(
+            projectUuid,
+            data.slug,
+        );
+        const dashboardUuid =
+            existing && !existing.deleted
+                ? (await this.composerChartModel.getOwner(existing.uuid))
+                      .dashboardUuid
+                : data.dashboardUuid;
+        if (dashboardUuid === null) {
+            throw new ParameterError(
+                `Composer chart "${data.slug}" needs a dashboard to belong to`,
+            );
+        }
+        const { pipeline, chart } = await this.authorizeWrite(
+            account,
+            projectUuid,
+            { ...data, dashboardUuid },
+        );
+        return this.composerChartModel.writeFromCode({
+            existing,
+            slug: data.slug,
+            projectUuid,
+            dashboardUuid,
+            name: data.name,
+            description: data.description ?? null,
+            pipeline,
+            chart,
+            createdByUserUuid: account.user.userUuid,
+        });
     }
 
     /** Charts whose current version uses the custom chart type; the caller authorizes. */
@@ -591,6 +712,7 @@ export class ComposerChartService extends BaseService {
             chart,
             tileUuid: request.tileUuid,
             resolved,
+            dashboardFilters,
         });
         const { queries } = await traceSpan(
             {
@@ -621,6 +743,35 @@ export class ComposerChartService extends BaseService {
         const terminalQuery = terminalQueryUuid
             ? await this.queryHistoryModel.getByQueryUuid(terminalQueryUuid)
             : undefined;
+        // A SQL node's columns are discovered before its query is queued
+        const sqlColumnsByNodeId = Object.fromEntries(
+            await Promise.all(
+                queries
+                    .filter(
+                        ({ sourceType }) => sourceType === QuerySourceType.SQL,
+                    )
+                    .map(async ({ nodeId, queryUuid }) => {
+                        const history =
+                            await this.queryHistoryModel.getByQueryUuid(
+                                queryUuid,
+                            );
+                        return [
+                            nodeId,
+                            Object.values(history?.originalColumns ?? {}),
+                        ] as const;
+                    }),
+            ),
+        );
+        const applied = withSqlColumnFilters(filtered, {
+            tileUuid: request.tileUuid,
+            dashboardFilters,
+            sqlColumnsByNodeId: Object.fromEntries(
+                Object.entries(sqlColumnsByNodeId).map(([nodeId, columns]) => [
+                    nodeId,
+                    columns.map((column) => column.reference),
+                ]),
+            ),
+        });
         return {
             queries: queries.map(({ nodeId, sourceType, queryUuid }) => ({
                 nodeId,
@@ -629,9 +780,16 @@ export class ComposerChartService extends BaseService {
             })),
             fields: terminalQuery?.fields ?? {},
             chartStageQueryUuid: queryUuidOf(binding.chartStageNodeId),
-            appliedDashboardFilters: filtered.appliedDashboardFilters,
+            appliedDashboardFilters: applied.appliedDashboardFilters,
             appliedDashboardFiltersByNodeId:
-                filtered.appliedDashboardFiltersByNodeId,
+                applied.appliedDashboardFiltersByNodeId,
+            sqlColumns: [
+                ...new Map(
+                    Object.values(sqlColumnsByNodeId)
+                        .flat()
+                        .map((column) => [column.reference, column]),
+                ).values(),
+            ],
             parameterReferences: getComposerParameterReferences(
                 resolved.nodes,
                 exploreByNodeId,

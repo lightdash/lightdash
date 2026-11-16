@@ -3,6 +3,7 @@ import {
     createDashboardFilterRuleFromField,
     createDashboardFilterRuleFromSqlColumn,
     getItemId,
+    isDashboardComposerChartTile,
     isDashboardDataAppTileType,
     isField,
     isFilterableField,
@@ -257,7 +258,13 @@ const FilterConfiguration: FC<Props> = ({
                                   )
                                 : undefined;
 
-                            if (defaultColumn) {
+                            // A composer tile has both: a field filter keeps a field when one fits
+                            const prefersField =
+                                !!defaultField &&
+                                !!tile &&
+                                isDashboardComposerChartTile(tile) &&
+                                !draftState.target.isSqlColumn;
+                            if (defaultColumn && !prefersField) {
                                 // Set SQL chart fallback column
                                 target = {
                                     fieldId: defaultColumn.reference,

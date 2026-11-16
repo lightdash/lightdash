@@ -2169,7 +2169,10 @@ export const getAgentTools = (
                 listDataAppConnections: dependencies.listDataAppConnections,
             }),
         editDbtProject: () =>
-            getEditDbtProject({ editDbtProject: dependencies.editDbtProject }),
+            getEditDbtProject({
+                editDbtProject: dependencies.editDbtProject,
+                acceptsScript: args.semanticStudioCodeMode,
+            }),
         editProjectContext: () =>
             getEditProjectContext({
                 editProjectContext: dependencies.editProjectContext,
@@ -2594,6 +2597,7 @@ const getCapabilitySectionArgs = (
     availableSkills: getAvailableSkills(args, loadout),
     // The content tools also load for Documents alone; chart guidance needs chart saves.
     canSaveCharts: args.enableContentTools,
+    customSqlPermissions: args.customSqlPermissions,
     enableDocumentNudges: areDocumentNudgesEnabled(args),
     // Custom charts reach Documents through findCustomChartTypes and
     // exportChartAsCode, so the guidance needs both tools.
@@ -2711,6 +2715,7 @@ export const getAgentMessages = (
         canRunSql: args.canRunSql,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
+        semanticStudioCodeMode: args.semanticStudioCodeMode,
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
         liveSources: args.liveSources,

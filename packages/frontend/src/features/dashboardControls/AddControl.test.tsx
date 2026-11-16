@@ -805,6 +805,37 @@ describe('AddControl with parameters', () => {
         expect(screen.getByRole('button', { name: 'Add' })).toBeEnabled();
     });
 
+    it('offers parameters once every tile is listed or failed its listing', async () => {
+        const { store, user } = setup({ discoveryPending: true });
+        const [listed, failed] = ['tile-1', 'tile-2'].map((tileUuid) =>
+            JSON.stringify({
+                tileUuid,
+                savedChartUuid: `chart-${tileUuid}`,
+                savedSqlUuid: null,
+            }),
+        );
+        act(() => {
+            store.dispatch(
+                dashboardParametersActions.addDiscoveredParameterReferences({
+                    chartSavedValues: {},
+                    virtualViewSavedValues: {},
+                    references: { 'tile-1': references['tile-1'] },
+                    definitions,
+                    sources: { 'tile-1': listed },
+                }),
+            );
+            store.dispatch(
+                dashboardParametersActions.markParameterReferencesFailed({
+                    'tile-2': failed,
+                }),
+            );
+        });
+        await user.click(screen.getByRole('button', { name: 'Add' }));
+        expect(
+            screen.getByRole('menuitem', { name: /^Parameter/ }),
+        ).toBeInTheDocument();
+    });
+
     it('does not make a viewer wait for parameter discovery', () => {
         setup({ discoveryPending: true, isViewer: true });
         expect(

@@ -237,6 +237,7 @@ import {
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
     RequestMethod,
+    resolveAdditionalMetricsSql,
     resolveDashboardTileParameters,
     resolveDbtVersion,
     ResolvedProjectColorPalette,
@@ -450,6 +451,7 @@ import {
     type CompilableDbtSource,
 } from '../../projectAdapters/CompileGroup';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import { DbtGitProjectAdapter } from '../../projectAdapters/dbtGitProjectAdapter';
 import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
@@ -487,11 +489,7 @@ import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoC
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
-import {
-    redactExploreSql,
-    redactFieldSql,
-    resolveAdditionalMetricsSql,
-} from '../../utils/embedCompiledSql';
+import { redactExploreSql, redactFieldSql } from '../../utils/embedCompiledSql';
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
@@ -612,6 +610,7 @@ import {
 } from './analyticsProject/analyticsProjectClient';
 import { createAnalyticsExplores } from './analyticsProject/createAnalyticsExplores';
 import { classifyConnectionTestError } from './classifyConnectionTestError';
+import { saveCompiledDbtManifest } from './compiledDbtManifest';
 import {
     credentialsForListedDatabase,
     findListedCatalogDatabase,
@@ -7152,6 +7151,11 @@ export class ProjectService
                                     true, // allowPartialCompilation
                                     exploreNaming !== undefined,
                                 ));
+                            await this.saveCompiledDbtManifestBestEffort(
+                                projectUuid,
+                                user.organizationUuid,
+                                compileAdapter,
+                            );
                             timings.compileExplores.end = performance.now();
                             timings.getConfig.start = performance.now();
                             const lightdashProjectConfig =
@@ -8419,6 +8423,8 @@ export class ProjectService
         projectUuid: string,
         manifest: DbtManifest,
         lightdashConfigYaml: string | null,
+        /** The models to compile by unique id; null compiles them all. */
+        selectedModelIds: string[] | null = null,
     ): Promise<(Explore | ExploreError)[]> {
         const {
             project,
@@ -8466,6 +8472,9 @@ export class ProjectService
                         },
                         dbtVersion: resolveDbtVersion(dbtVersionOption),
                         analytics: this.analytics,
+                        ...(selectedModelIds === null
+                            ? {}
+                            : { selectedModelIds }),
                     });
                     try {
                         return await adapter.compileAllExplores(
@@ -8685,6 +8694,38 @@ export class ProjectService
         } catch (error) {
             this.logger.warn(
                 `Failed to persist merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    /** Keeps what a single-source dbt compile parsed, so Semantic Studio's code mode can change its YAML without running dbt. */
+    private async saveCompiledDbtManifestBestEffort(
+        projectUuid: string,
+        organizationUuid: string,
+        adapter: ProjectAdapter,
+    ): Promise<void> {
+        if (
+            !(adapter instanceof DbtGitProjectAdapter) ||
+            adapter.lastManifest === null ||
+            !this.fileStorageClient.isEnabled()
+        ) {
+            return;
+        }
+        try {
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.SemanticStudioEditing,
+            });
+            if (!enabled) return;
+            const commitSha = await adapter.findHeadCommit();
+            if (commitSha === null) return;
+            await saveCompiledDbtManifest(this.fileStorageClient, projectUuid, {
+                commitSha,
+                manifest: projectMergedManifest(adapter.lastManifest),
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to keep the compiled dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
             );
         }
     }
@@ -10492,7 +10533,7 @@ export class ProjectService
         switch (authority.kind) {
             case 'document':
             case 'composer':
-                // Their SQL calculations were authorized when saved
+                // Checked as the author at save: a document compiles its merge, a composer chart runs its write check
                 break;
             case 'request':
                 if (mergeSqlTableCalculations.length > 0) {
@@ -13321,26 +13362,27 @@ export class ProjectService
                     ),
                     account.authentication.type,
                 );
-                const isUserCacheEnabled =
-                    this.lightdashConfig.results.autocompleteEnabled &&
+                const canUseCache =
                     !!user.userUuid &&
                     !skipAiAccessCache &&
                     (!identityEnabled ||
                         resultProducer.agentIdentity === null) &&
                     getAiExecutionCredentialUuid(aiPlan ?? null) === null;
+                const cacheState = canUseCache
+                    ? await this.projectModel.getResultsCacheState(projectUuid)
+                    : null;
+                // Autocomplete caching follows the project's results cache setting
+                const autocompleteCache = cacheState?.enabled
+                    ? cacheState
+                    : null;
+                const isUserCacheEnabled = autocompleteCache !== null;
 
                 const userUuid = getCacheUserUuid(
                     warehouseCredentials,
                     user.userUuid,
                 );
 
-                const cacheGeneration = isUserCacheEnabled
-                    ? (
-                          await this.projectModel.getResultsCacheSettings(
-                              projectUuid,
-                          )
-                      ).cacheGeneration
-                    : 0;
+                const cacheGeneration = autocompleteCache?.cacheGeneration ?? 0;
                 const hashParts = [
                     projectUuid,
                     userUuid,
@@ -13356,12 +13398,9 @@ export class ProjectService
                         : null,
                 );
 
-                if (!forceRefresh && isUserCacheEnabled) {
+                if (!forceRefresh && autocompleteCache !== null) {
                     const stringResults = await this.s3CacheClient
-                        .getIfFresh(
-                            queryHash,
-                            this.lightdashConfig.results.cacheStateTimeSeconds,
-                        )
+                        .getIfFresh(queryHash, autocompleteCache.ttlSeconds)
                         .catch(() => undefined);
                     if (stringResults) {
                         try {
@@ -13676,6 +13715,11 @@ export class ProjectService
                                 true, // allowPartialCompilation
                                 exploreNaming !== undefined,
                             ));
+                        await this.saveCompiledDbtManifestBestEffort(
+                            projectUuid,
+                            project.organizationUuid,
+                            adapter,
+                        );
                         const lightdashProjectConfig =
                             await adapter.getLightdashProjectConfig(
                                 trackingParams,

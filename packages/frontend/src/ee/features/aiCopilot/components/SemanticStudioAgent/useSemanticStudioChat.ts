@@ -1,10 +1,13 @@
 import { useLocalStorage } from '@mantine/hooks';
+import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { useCanEditSemanticLayer } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import {
     useActiveStudioWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
+import useToaster from '../../../../../hooks/toaster/useToaster';
+import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
 export type StoredThread = { threadUuid: string; agentUuid: string };
@@ -21,6 +24,30 @@ export const useStoredStudioThread = (projectUuid: string) =>
         key: `semantic-studio-agent-thread-${projectUuid}`,
         defaultValue: null,
     });
+
+/** A Studio chat's thread; one that no longer exists is forgotten instead of failing on every load. */
+export const useStudioThread = (
+    projectUuid: string,
+    agentUuid: string | undefined,
+    threadUuid: string | undefined,
+) => {
+    const [, setStored] = useStoredStudioThread(projectUuid);
+    const { showToastApiError } = useToaster();
+    return useAiAgentThread(projectUuid, agentUuid, threadUuid, {
+        onError: ({ error }) => {
+            if (error.name === 'AiAgentNotFoundError') {
+                setStored((current) =>
+                    current?.threadUuid === threadUuid ? null : current,
+                );
+            } else if (!getAiAccessRefusal(error)) {
+                showToastApiError({
+                    title: 'Failed to fetch AI agent thread',
+                    apiError: error,
+                });
+            }
+        },
+    });
+};
 
 /** After a discard: ends the active workspace and closes its chat, so the next request starts a new one. */
 export const useFinishDiscardedWork = (projectUuid: string) => {

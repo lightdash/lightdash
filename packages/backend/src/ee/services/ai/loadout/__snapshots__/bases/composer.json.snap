@@ -13,7 +13,6 @@
         "listKnowledgeDocuments",
         "listProjects",
         "query",
-        "readPinnedThread",
         "resolveUrl",
         "runSavedChart",
         "searchFieldValues",

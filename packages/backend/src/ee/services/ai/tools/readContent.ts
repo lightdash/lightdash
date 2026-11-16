@@ -10,6 +10,7 @@ import { tool, type FlexibleSchema } from 'ai';
 import { z } from 'zod';
 import type { ReadContentFn } from '../types/aiAgentDependencies';
 import { toAbsoluteHref } from '../utils/absoluteHref';
+import { readWithContentTypeFallback } from '../utils/contentTypeFallback';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 
@@ -31,12 +32,15 @@ const contentResult = ({
     content,
     href,
     type,
+    note,
 }: {
     content: unknown;
     href: string;
     type: ReadContentResult['type'];
+    note: string | null;
 }) =>
     [
+        ...(note ? [note] : []),
         `<${type} href="${href}" />`,
         ...(type === 'dashboard' ? [DASHBOARD_READ_HINT] : []),
         '---',
@@ -87,16 +91,33 @@ export const getReadContent = ({
         execute: async (args) => {
             const { slug, type } = args;
             try {
-                (documentsEnabled
+                const argsSchema = documentsEnabled
                     ? mcpReadContentArgsSchema
-                    : toolReadContentArgsSchema
-                ).parse(args);
-                // chartId only applies to Documents; ignore it elsewhere.
-                const getReadArgs = (): Parameters<ReadContentFn>[0] =>
-                    type === 'document'
-                        ? { type, slug, chartId: args.chartId ?? null }
-                        : { slug, type };
-                const read = await readContent(getReadArgs());
+                    : toolReadContentArgsSchema;
+                argsSchema.parse(args);
+                const { value: read } = await readWithContentTypeFallback({
+                    slug,
+                    type,
+                    types: argsSchema.shape.type.options,
+                    read: (readType) =>
+                        readContent(
+                            readType === 'document'
+                                ? {
+                                      type: readType,
+                                      slug,
+                                      // chartId only applies to a requested Document.
+                                      chartId:
+                                          type === 'document'
+                                              ? (args.chartId ?? null)
+                                              : null,
+                                  }
+                                : { slug, type: readType },
+                        ),
+                });
+                const note =
+                    read.type === type
+                        ? null
+                        : `No ${type} "${slug}" could be read; returned the ${read.type} "${slug}" instead. Use type ${read.type} for further calls to it.`;
                 const structuredContent = toStructuredContent(read);
                 const metadata = {
                     status: 'success' as const,
@@ -123,6 +144,7 @@ export const getReadContent = ({
                                 : read.content,
                         href: absoluteHref,
                         type: structuredContent.type,
+                        note,
                     }),
                     metadata,
                     structuredContent,

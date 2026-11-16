@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AbilityAction,
+    assertDashboardWithinLimits,
     assertRegisteredAccount,
     buildMergeQueryFromMergeDefinition,
     BulkActionable,
@@ -2427,6 +2428,10 @@ export class DashboardService
         DashboardService.assertControlOrder(
             createDashboard.config?.controlOrder,
         );
+        assertDashboardWithinLimits(
+            { tiles: createDashboard.tiles, tabs: createDashboard.tabs ?? [] },
+            this.lightdashConfig.dashboard,
+        );
         const newDashboard = await this.dashboardModel.create(
             space.uuid,
             createDashboard,
@@ -2652,6 +2657,7 @@ export class DashboardService
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+        assertDashboardWithinLimits(dashboard, this.lightdashConfig.dashboard);
 
         const newTabsMap = dashboard.tabs.map((tab) => ({
             uuid: tab.uuid,
@@ -3245,6 +3251,16 @@ export class DashboardService
             projectUuid: existingDashboardDao.projectUuid,
             organizationUuid: existingDashboardDao.organizationUuid,
         });
+
+        if (isDashboardVersionedFields(incomingFields)) {
+            assertDashboardWithinLimits(
+                {
+                    tiles: incomingFields.tiles,
+                    tabs: incomingFields.tabs ?? [],
+                },
+                this.lightdashConfig.dashboard,
+            );
+        }
 
         if (
             isDashboardVersionedFields(incomingFields) &&
@@ -4967,6 +4983,10 @@ export class DashboardService
         if (!targetVersion) {
             throw new NotFoundError('Dashboard version not found');
         }
+        assertDashboardWithinLimits(
+            targetVersion,
+            this.lightdashConfig.dashboard,
+        );
 
         const agentIdentity = getContentWriteAgentIdentity({
             userUuid: user.userUuid,
@@ -5141,6 +5161,10 @@ export class DashboardService
                 'Dashboard tile positions must cover every chart within the 36-column grid without overlap.',
             );
         }
+        assertDashboardWithinLimits(
+            { tiles: data.charts.map(() => ({})), tabs: [] },
+            this.lightdashConfig.dashboard,
+        );
         // 1. Create empty dashboard
         const emptyDashboard: CreateDashboard = {
             name: data.name,

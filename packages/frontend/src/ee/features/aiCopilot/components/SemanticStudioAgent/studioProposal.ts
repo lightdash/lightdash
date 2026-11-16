@@ -1,4 +1,7 @@
-import { type AiAgentThread } from '@lightdash/common';
+import {
+    isToolEditDbtProjectResult,
+    type AiAgentThread,
+} from '@lightdash/common';
 
 const DIFF_BLOCK = /```(?:diff|patch)[^\n]*\n([\s\S]*?)```/g;
 
@@ -6,7 +9,17 @@ const DIFF_BLOCK = /```(?:diff|patch)[^\n]*\n([\s\S]*?)```/g;
 export const getOpenProposal = (
     messages: AiAgentThread['messages'],
 ): string[] => {
-    const last = messages.findLast(({ role }) => role === 'assistant');
+    // A reply still being written or saved keeps the last one's proposal, so the change stays in view until the pull request has it.
+    const last = messages.findLast(
+        (message) =>
+            message.role === 'assistant' &&
+            message.status !== 'pending' &&
+            !message.toolResults.some(
+                (result) =>
+                    isToolEditDbtProjectResult(result) &&
+                    result.metadata.status === 'pending',
+            ),
+    );
     if (
         last?.role !== 'assistant' ||
         last.toolCalls.some(({ toolName }) => toolName === 'editDbtProject')

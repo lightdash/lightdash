@@ -18,6 +18,7 @@ import {
     MergeJoinType,
     MetricType,
     OrganizationMemberRole,
+    ParameterError,
     PossibleAbilities,
     PromotionAction,
     reconcileDashboardControlOrder,
@@ -179,6 +180,8 @@ const buildService = (overrides: AnyType = {}) =>
         organizationMemberProfileModel: {} as AnyType,
         userModel: {} as AnyType,
         warehouseConnectionModel: {} as never,
+        composerChartModel: {} as never,
+        composerChartService: {} as never,
         ...overrides,
     });
 
@@ -785,6 +788,31 @@ const registerContentAccessTests = (
         expect(service.promoteService.getPromoteCharts).not.toHaveBeenCalled();
     });
 
+    it('rejects an upload over the tiles-per-tab limit before writing', async () => {
+        const service = buildService();
+        const getOrCreateSpace = vi.spyOn(service, 'getOrCreateSpace');
+        const user = makeUser([{ subject: 'ContentAsCode', action: 'manage' }]);
+        const markdownTile = {
+            type: 'markdown',
+            x: 0,
+            y: 0,
+            w: 6,
+            h: 3,
+            properties: { title: 'Note', content: 'text' },
+        };
+
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
+                ...dashboardAsCode,
+                tiles: Array(
+                    lightdashConfigMock.dashboard.maxTilesPerTab + 1,
+                ).fill(markdownTile),
+            } as unknown as DashboardAsCode),
+        ).rejects.toThrow(ParameterError);
+        expect(getOrCreateSpace).not.toHaveBeenCalled();
+        expect(service.dashboardModel.create).not.toHaveBeenCalled();
+    });
+
     it('does not let ContentAsCode alone create dashboards in a space', async () => {
         const service = buildService();
         vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
@@ -1117,51 +1145,6 @@ const registerContentAccessTests = (
             ).toEqual({ ...expectedConfig, controlOrder: savedOrder });
         },
     );
-    it('refuses to overwrite a dashboard holding composer chart tiles', async () => {
-        const service = buildService();
-        vi.mocked(service.dashboardModel.find).mockResolvedValue([
-            { uuid: 'dashboard-uuid' } as AnyType,
-        ]);
-        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
-            uuid: 'dashboard-uuid',
-            slug: 'dashboard',
-            name: 'Dashboard',
-            spaceUuid: SPACE_UUID,
-            tabs: [],
-            tiles: [
-                {
-                    uuid: 'composer-tile',
-                    type: DashboardTileTypes.COMPOSER_CHART,
-                    x: 0,
-                    y: 0,
-                    h: 3,
-                    w: 6,
-                    tabUuid: null,
-                    properties: { composerChartUuid: 'composer-chart-1' },
-                },
-            ],
-            filters: { dimensions: [], metrics: [], tableCalculations: [] },
-            config: { isDateZoomDisabled: false },
-        } as AnyType);
-        const user = makeUser([
-            { subject: 'ContentAsCode', action: 'create' },
-            {
-                subject: 'Dashboard',
-                action: 'update',
-                conditions: { projectUuid: PROJECT_UUID },
-            },
-        ]);
-
-        await expect(
-            service.upsertDashboard(
-                user,
-                PROJECT_UUID,
-                dashboardAsCode.slug,
-                dashboardAsCode as unknown as DashboardAsCode,
-            ),
-        ).rejects.toThrow(/has composer chart tiles/);
-    });
-
     it('keeps the saved dimension filter ids of the dashboard it overwrites', async () => {
         const service = buildService();
         const target = { fieldId: 'orders_status', tableName: 'orders' };

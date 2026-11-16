@@ -21,6 +21,12 @@
 // Implementing an external interface (just-bash's IFileSystem) whose read-only
 // stubs and pure path helpers legitimately don't touch instance state.
 /* eslint-disable class-methods-use-this */
+import {
+    DbtProjectType,
+    type DbtGithubProjectConfig,
+    type DbtGitlabProjectConfig,
+    type DbtProjectConfig,
+} from '@lightdash/common';
 import type { FsStat, IFileSystem } from 'just-bash';
 import { RepoFileSystem } from './repoFileSystem';
 import type { RepoCodeSearchMatch, RepoFs } from './RepoFs';
@@ -50,6 +56,13 @@ export type RepoOwnerSearchFn = (
 /** The `/dbt` mount key — a repo named `dbt` would collide, so dbt wins and the
  *  system prompt documents `/dbt` as the dbt project. */
 export const DBT_MOUNT = 'dbt';
+
+/** `/dbt` mounts only GitHub and GitLab dbt connections, the hosts with a read-only repo source. */
+export const hasDbtMount = (
+    connection: DbtProjectConfig,
+): connection is DbtGithubProjectConfig | DbtGitlabProjectConfig =>
+    connection.type === DbtProjectType.GITHUB ||
+    connection.type === DbtProjectType.GITLAB;
 
 /** Max files a single command may read before it's stopped and steered to
  *  `search`. Each read is a GitHub Contents round-trip, so an unscoped

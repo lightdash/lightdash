@@ -62,9 +62,11 @@ export const useExploreByProjectUuid = (
 /** Loads several explores through the shared cache; the array is stable while their data is. */
 export const useExploreQueries = (
     exploreNames: (string | undefined)[],
+    projectUuidOverride?: string,
 ): (ApiExploreResults | undefined)[] => {
     const lightdashApi = useLightdashApi();
-    const projectUuid = useProjectUuid();
+    const routeProjectUuid = useProjectUuid();
+    const projectUuid = projectUuidOverride ?? routeProjectUuid;
     const setErrorResponse = useQueryError();
     const uniqueNames = [...new Set(exploreNames)];
     const queries = useQueries({

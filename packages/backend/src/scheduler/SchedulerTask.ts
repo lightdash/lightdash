@@ -1957,6 +1957,7 @@ export default class SchedulerTask {
                                         expirationSecondsOverride,
                                     },
                                     this.schedulerPollingOptions,
+                                    dashboardUuid,
                                 );
                             return {
                                 chartName: chart.name,
@@ -2043,6 +2044,7 @@ export default class SchedulerTask {
                                         expirationSecondsOverride,
                                     },
                                     this.schedulerPollingOptions,
+                                    dashboardUuid,
                                 );
                             return {
                                 chartName: chart.name,

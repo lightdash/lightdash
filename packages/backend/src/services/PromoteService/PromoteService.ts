@@ -1,6 +1,7 @@
 import { Ability, subject } from '@casl/ability';
 import {
     AlreadyExistsError,
+    assertDashboardWithinLimits,
     ChartSummary,
     ChartType,
     ConflictError,
@@ -2910,7 +2911,10 @@ export class PromoteService extends BaseService {
             space: upstreamSpace,
             spaceAccessContext: upstreamCtx,
         };
-        assertDashboardIsPromotable(dashboard);
+        // Content-as-code upload reuses this path within one project
+        if (dashboard.projectUuid !== upstreamProjectUuid) {
+            assertDashboardIsPromotable(dashboard);
+        }
 
         return { promotedDashboard, upstreamDashboard };
     }
@@ -2957,6 +2961,10 @@ export class PromoteService extends BaseService {
                 user.organizationUuid!,
                 promotedDashboard,
                 upstreamDashboard,
+            );
+            assertDashboardWithinLimits(
+                dashboard,
+                this.lightdashConfig.dashboard,
             );
 
             // Check permissions for all chart tiles

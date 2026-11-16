@@ -134,6 +134,7 @@ describe('composer chart tiles in DashboardModel on the real schema', () => {
                     hideTitle: false,
                     composerChartUuid,
                     chartName: 'Orders by month',
+                    chartSlug: expect.stringMatching(/^orders-by-month-/),
                 },
             }),
         ]);
@@ -173,6 +174,7 @@ describe('composer chart tiles in DashboardModel on the real schema', () => {
             hideTitle: true,
             composerChartUuid,
             chartName: 'Orders by month',
+            chartSlug: expect.stringMatching(/^orders-by-month-/),
         });
     });
 

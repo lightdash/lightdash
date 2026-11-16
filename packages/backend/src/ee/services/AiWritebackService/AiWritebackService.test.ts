@@ -55,6 +55,7 @@ import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
     AiWritebackService,
+    findDbtErrorLines,
     mergeSourceCodeRepoAccess,
     workstreamLockKey,
 } from './AiWritebackService';
@@ -203,6 +204,7 @@ const buildService = (overrides: Record<string, AnyType> = {}) => {
             findByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
         } as AnyType,
         aiWritebackRunModel: {
+            findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
             create: vi.fn(),
             findByUuid: vi.fn(),
             findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
@@ -413,6 +415,49 @@ describe('AiWritebackService.applyAgentChanges', () => {
             aiThreadUuid: undefined,
         });
         expect(result).toMatchObject({ prCreated: true, pauseOnExit: false });
+    });
+});
+
+describe('AiWritebackService.findThreadPullRequestToContinue', () => {
+    const setUp = (latest: string | null, adopt: AnyType) => {
+        const findLatestPrUrlByThread = vi.fn().mockResolvedValue(latest);
+        const service = buildService({
+            aiWritebackRunModel: { findLatestPrUrlByThread },
+        });
+        const find = (continues: boolean) =>
+            service['findThreadPullRequestToContinue']({
+                continues,
+                startNewPullRequest: false,
+                aiThreadUuid: 'thread-1',
+                adopt,
+            });
+        return { find, findLatestPrUrlByThread };
+    };
+
+    it("continues the thread's open pull request in Studio", async () => {
+        const adopt = vi.fn(async (url: string) => adoptedPullRequest(url));
+        const { find } = setUp(PR_9, adopt);
+        await expect(find(true)).resolves.toMatchObject({ prUrl: PR_9 });
+        expect(adopt).toHaveBeenCalledWith(PR_9);
+    });
+
+    it('never looks outside Studio', async () => {
+        const { find, findLatestPrUrlByThread } = setUp(PR_9, vi.fn());
+        await expect(find(false)).resolves.toBeNull();
+        expect(findLatestPrUrlByThread).not.toHaveBeenCalled();
+    });
+
+    it('opens a new one when the pull request cannot be continued, and fails on anything else', async () => {
+        const merged = setUp(
+            PR_9,
+            vi.fn().mockRejectedValue(new ParameterError('merged')),
+        );
+        await expect(merged.find(true)).resolves.toBeNull();
+        const down = setUp(
+            PR_9,
+            vi.fn().mockRejectedValue(new Error('GitHub is down')),
+        );
+        await expect(down.find(true)).rejects.toThrow('GitHub is down');
     });
 });
 
@@ -1532,6 +1577,7 @@ describe('AiWritebackService dbt source targeting', () => {
                 findByAiThreadUuid: vi.fn().mockResolvedValue(null),
             } as AnyType,
             aiWritebackRunModel: {
+                findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                 create: vi.fn(),
                 findByUuid: vi.fn(),
                 updateStageIfInProgress,
@@ -1820,6 +1866,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     featureFlagModel,
                     agentPermissionService,
                     aiWritebackRunModel: {
+                        findLatestPrUrlByThread: vi
+                            .fn()
+                            .mockResolvedValue(null),
                         findByUuid: vi
                             .fn()
                             .mockResolvedValue({ status: 'pending' }),
@@ -1933,6 +1982,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     userModel,
                     agentPermissionService,
                     aiWritebackRunModel: {
+                        findLatestPrUrlByThread: vi
+                            .fn()
+                            .mockResolvedValue(null),
                         findByUuid: vi
                             .fn()
                             .mockResolvedValue({ status: 'pending' }),
@@ -1995,6 +2047,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     userModel,
                     agentPermissionService,
                     aiWritebackRunModel: {
+                        findLatestPrUrlByThread: vi
+                            .fn()
+                            .mockResolvedValue(null),
                         findByUuid: vi
                             .fn()
                             .mockResolvedValue({ status: 'pending' }),
@@ -2058,6 +2113,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 },
                 agentPermissionService: { loadRequest },
                 aiWritebackRunModel: {
+                    findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                     findByUuid: vi
                         .fn()
                         .mockResolvedValue({ status: 'pending' }),
@@ -2114,6 +2170,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         assertOperationWithRequest: vi.fn(),
                     },
                     aiWritebackRunModel: {
+                        findLatestPrUrlByThread: vi
+                            .fn()
+                            .mockResolvedValue(null),
                         findByUuid: vi
                             .fn()
                             .mockResolvedValue({ status: 'pending' }),
@@ -2189,6 +2248,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     create: vi.fn(),
                 },
                 aiWritebackRunModel: {
+                    findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                     findByUuid: vi.fn(async () => runRow),
                     updateStageIfInProgress: vi.fn().mockResolvedValue(true),
                     claimForFinalize: vi.fn().mockResolvedValue(true),
@@ -2597,6 +2657,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         assertOperation,
                     },
                     aiWritebackRunModel: {
+                        findLatestPrUrlByThread: vi
+                            .fn()
+                            .mockResolvedValue(null),
                         updateStageIfInProgress: vi
                             .fn()
                             .mockResolvedValue(true),
@@ -2827,6 +2890,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         assertOperation,
                     },
                     aiWritebackRunModel: {
+                        findLatestPrUrlByThread: vi
+                            .fn()
+                            .mockResolvedValue(null),
                         updateStageIfInProgress: vi
                             .fn()
                             .mockResolvedValue(true),
@@ -2926,6 +2992,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                             assertOperation: vi.fn(),
                         },
                         aiWritebackRunModel: {
+                            findLatestPrUrlByThread: vi
+                                .fn()
+                                .mockResolvedValue(null),
                             updateStageIfInProgress: vi
                                 .fn()
                                 .mockResolvedValue(true),
@@ -3051,6 +3120,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                                 assertOperation,
                             },
                             aiWritebackRunModel: {
+                                findLatestPrUrlByThread: vi
+                                    .fn()
+                                    .mockResolvedValue(null),
                                 updateStageIfInProgress: vi
                                     .fn()
                                     .mockResolvedValue(true),
@@ -3360,6 +3432,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                                     ? resumedRunModels(prUrl)
                                     : {}),
                                 aiWritebackRunModel: {
+                                    findLatestPrUrlByThread: vi
+                                        .fn()
+                                        .mockResolvedValue(null),
                                     updateStageIfInProgress: vi
                                         .fn()
                                         .mockResolvedValue(true),
@@ -3722,6 +3797,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             expect(host).toMatch(/^[a-z0-9.-]+\.[a-z]{2,}$/i); // a real hostname
         });
         expect(allow).toContain('api.anthropic.com');
+        expect(allow).toContain('hub.getdbt.com');
     });
 
     it('runs claude with the data-apps Anthropic key', async () => {
@@ -4425,6 +4501,7 @@ describe('AiWritebackService.mergePullRequest', () => {
                     .mockResolvedValue(threadRow(PR_7)),
             } as AnyType,
             aiWritebackRunModel: {
+                findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                 findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue({
                     prompt_uuid: 'prompt-1',
                 }),
@@ -5300,6 +5377,7 @@ describe('AiWritebackService.enqueueWriteback', () => {
             schedulerClient,
             featureFlagModel,
             aiWritebackRunModel: {
+                findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                 create: vi
                     .fn()
                     .mockResolvedValue({ ai_writeback_run_uuid: 'run-1' }),
@@ -5607,6 +5685,7 @@ describe('AiWritebackService.runPipeline', () => {
         const error = new WritebackRunAbortedError('cancelled');
         const service = buildService({
             aiWritebackRunModel: {
+                findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                 findByUuid: vi.fn().mockResolvedValue({ status: 'pending' }),
             },
             userModel: {
@@ -5971,6 +6050,7 @@ describe.each([
                     get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
                 },
                 aiWritebackRunModel: {
+                    findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                     create: vi.fn().mockResolvedValue(runRow),
                     findByUuid: vi.fn().mockResolvedValue(runRow),
                     markCancelled: vi.fn().mockResolvedValue(true),
@@ -6181,6 +6261,7 @@ test('a committed writeback run retains its initiating action when dispatch fail
                 .mockResolvedValue({ organizationUuid: user.organizationUuid }),
         },
         aiWritebackRunModel: {
+            findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockResolvedValue({ ai_writeback_run_uuid: 'run' }),
         },
         schedulerClient: {
@@ -6209,4 +6290,228 @@ test('a committed writeback run retains its initiating action when dispatch fail
             outcome: 'allowed',
         }),
     );
+});
+
+describe('AiWritebackService.saveWithScript compile check', () => {
+    const script = "repo.write('models/notes.yml', 'notes: 1\\n');";
+
+    const setUp = () => {
+        const service = buildService();
+        const checkout = {
+            prUrl: null,
+            branch: 'main',
+            baseBranch: 'main',
+            headSha: 'head-sha',
+            listFiles: vi.fn().mockResolvedValue([]),
+            readFile: vi.fn().mockResolvedValue(null),
+            readFileAt: vi.fn().mockResolvedValue(null),
+            listFilesChangedSince: vi
+                .fn()
+                .mockResolvedValue(['README.md', 'dbt/models/x.yml']),
+        };
+        const provider = {
+            resolveInstallation: vi.fn().mockResolvedValue({}),
+            openApiCheckout: vi.fn().mockResolvedValue(checkout),
+            commitApiChanges: vi.fn().mockResolvedValue({
+                prUrl: PR_7,
+                prCreated: false,
+                commitSha: 'new-sha',
+            }),
+        };
+        Object.assign(service, { githubProvider: provider });
+        vi.spyOn(
+            service as AnyType,
+            'assertWritebackProviderSupported',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(service as AnyType, 'prepareTurn').mockResolvedValue({
+            kind: 'run',
+            turn: turnContext({
+                provider,
+                gitConnection: {
+                    provider: PullRequestProvider.GITHUB,
+                    owner: 'acme',
+                    repo: 'analytics',
+                    projectSubPath: 'dbt',
+                },
+            }),
+        });
+        const save = (
+            checkDbt: AnyType,
+            dryRun: boolean,
+        ): ReturnType<AiWritebackService['saveWithScript']> =>
+            service.saveWithScript(
+                {
+                    user: defaultSessionUser,
+                    projectUuid: 'project-1',
+                    prompt: 'Add notes',
+                    aiThreadUuid: undefined,
+                    prUrl: null,
+                } as AnyType,
+                script,
+                { dryRun, assertPublishAllowed: null, checkDbt },
+            );
+        return { save, provider, checkout, service };
+    };
+
+    it('sends what does not compile back to the model and commits nothing', async () => {
+        const { save, provider } = setUp();
+        const checkDbt = vi.fn().mockResolvedValue({
+            status: 'failed',
+            error: 'It does not compile: orders: bad metric',
+        });
+        await expect(save(checkDbt, false)).resolves.toEqual({
+            status: 'script_failed',
+            error: 'It does not compile: orders: bad metric',
+            logs: [],
+        });
+        expect(provider.commitApiChanges).not.toHaveBeenCalled();
+    });
+
+    it('holds a policy that denies deleting files', async () => {
+        const { provider, checkout, service } = setUp();
+        checkout.readFile.mockImplementation(async (path: string) =>
+            path === 'dbt/models/old.sql' ? 'select 1' : null,
+        );
+        const denied = new Error('Deleting files is not allowed');
+        Object.assign(service, {
+            agentPermissionService: {
+                isManaged: vi.fn().mockResolvedValue(true),
+                assertOperation: vi.fn().mockRejectedValue(denied),
+            },
+        });
+        const run = service.saveWithScript(
+            {
+                user: defaultSessionUser,
+                projectUuid: 'project-1',
+                prompt: 'Remove old',
+                aiThreadUuid: undefined,
+                prUrl: null,
+                source: 'web',
+                agentPermissionsApply: true,
+            } as AnyType,
+            "repo.remove('models/old.sql');",
+            { dryRun: false, assertPublishAllowed: null, checkDbt: null },
+        );
+        await expect(run).rejects.toThrow(denied.message);
+        expect(provider.commitApiChanges).not.toHaveBeenCalled();
+    });
+
+    it('leaves a change only dbt can check to the sandbox', async () => {
+        const { save, provider } = setUp();
+        const checkDbt = vi.fn().mockResolvedValue({
+            status: 'unsupported',
+            reason: 'models/x.sql needs dbt to parse',
+        });
+        await expect(save(checkDbt, true)).resolves.toBeNull();
+        expect(provider.commitApiChanges).not.toHaveBeenCalled();
+    });
+
+    it('compiles the edits as the dbt project sees them, then commits', async () => {
+        const { save, provider, checkout } = setUp();
+        const explores = [{ name: 'orders' }];
+        const checkDbt = vi.fn(async (change: AnyType) => {
+            expect([...change.edits]).toEqual([
+                ['models/notes.yml', 'notes: 1\n'],
+            ]);
+            await expect(change.listChangedSince('old-sha')).resolves.toEqual([
+                'models/x.yml',
+            ]);
+            await change.readAt('models/x.yml', 'old-sha');
+            return { status: 'passed', changedModels: ['orders'], explores };
+        });
+        const saved = await save(checkDbt, false);
+        expect(checkout.readFileAt).toHaveBeenCalledWith(
+            'dbt/models/x.yml',
+            'old-sha',
+        );
+        expect(provider.commitApiChanges).toHaveBeenCalledTimes(1);
+        expect(saved).toMatchObject({
+            status: 'saved',
+            changedModels: ['orders'],
+            explores,
+        });
+    });
+});
+
+describe('AiWritebackService.canReadSourceCode', () => {
+    const user = (canView: boolean): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        if (canView) can('view', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'editor',
+            ability: build(),
+        } as AnyType;
+    };
+
+    it.each([
+        [DbtProjectType.GITHUB, true, 'github-install', undefined, true],
+        [DbtProjectType.GITHUB, true, undefined, 'gitlab-install', false],
+        [DbtProjectType.GITLAB, true, 'github-install', 'gitlab-install', true],
+        [DbtProjectType.GITLAB, true, 'github-install', undefined, false],
+        [DbtProjectType.DBT_CLOUD_IDE, true, 'github-install', undefined, true],
+        [DbtProjectType.GITHUB, false, 'github-install', undefined, false],
+    ])(
+        '%s project, view:SourceCode %s, github %s, gitlab %s -> %s',
+        async (type, canView, githubInstall, gitlabInstall, expected) => {
+            const service = buildService({
+                projectModel: {
+                    get: vi.fn().mockResolvedValue({
+                        organizationUuid: ORG,
+                        dbtConnection: { type },
+                    }),
+                },
+                githubAppInstallationsModel: {
+                    findInstallationId: vi
+                        .fn()
+                        .mockResolvedValue(githubInstall),
+                },
+                gitlabAppInstallationsModel: {
+                    findInstallationId: vi
+                        .fn()
+                        .mockResolvedValue(gitlabInstall),
+                },
+            });
+
+            await expect(
+                service.canReadSourceCode({
+                    user: user(canView),
+                    projectUuid: 'p1',
+                }),
+            ).resolves.toBe(expected);
+        },
+    );
+
+    it('returns false when the installation lookup fails', async () => {
+        const service = buildService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    organizationUuid: ORG,
+                    dbtConnection: { type: DbtProjectType.GITHUB },
+                }),
+            },
+            githubAppInstallationsModel: {
+                findInstallationId: vi
+                    .fn()
+                    .mockRejectedValue(new Error('decrypt failed')),
+            },
+        });
+
+        await expect(
+            service.canReadSourceCode({ user: user(true), projectUuid: 'p1' }),
+        ).resolves.toBe(false);
+    });
+});
+
+describe('findDbtErrorLines', () => {
+    it('keeps the error lines and drops the SQL around them', () => {
+        expect(
+            findDbtErrorLines(
+                'select secret_col\nfrom orders\n  Compilation Error in model orders\nDone.',
+            ),
+        ).toEqual(['Compilation Error in model orders']);
+    });
 });
