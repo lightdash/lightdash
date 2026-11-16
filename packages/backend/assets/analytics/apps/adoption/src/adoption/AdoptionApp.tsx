@@ -47,7 +47,7 @@ const MAP_HEIGHT = 560;
 // The waffle shrinks its squares to fit the window, but is never squeezed below this
 const MIN_WAFFLE_HEIGHT = 240;
 // The map gives up height to fit the window too, down to this
-const MIN_MAP_HEIGHT = 320;
+const MIN_MAP_HEIGHT = 220;
 // The legend is this tall for every colouring
 const LEGEND_HEIGHT = 61;
 // About how far under the drawing's bottom edge the detail card begins (the legend sits between)
@@ -720,8 +720,8 @@ export default function AdoptionApp() {
     };
     return (
         <div className="min-h-screen bg-background text-foreground">
-            <div data-ad-page className="mx-auto max-w-[1400px] px-6 pb-10 pt-6">
-                <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div data-ad-page className="mx-auto max-w-[1400px] px-6 pb-4 pt-3">
+                <header className="mb-2 flex flex-wrap items-center justify-between gap-3">
                     <div className="space-y-1">
                         <h1 className="m-0 text-xl font-semibold tracking-tight">Adoption</h1>
                         {source.fixture && <p className="m-0 text-xs text-muted-foreground">Invented sample data ({source.fixture}).</p>}
