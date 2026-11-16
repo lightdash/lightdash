@@ -148,7 +148,7 @@ export const UserBubble: FC<Props> = ({
                     className={styles.contextGroup}
                 >
                     {imageGrid.length > 0 && (
-                        <Box w="100%" maw={640}>
+                        <Box w={640} maw="100%">
                             <ThreadImageGrid>
                                 {imageGrid.map((item) => (
                                     <ThreadImageReference
