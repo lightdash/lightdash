@@ -328,6 +328,7 @@ const setup = ({ personReadAccess = false } = {}) => {
         artifact,
         prompt,
         thread,
+        agent,
         flags,
         config,
         options,
@@ -817,6 +818,38 @@ describe('artifact result identity boundaries', () => {
         expect(history.agentIdentity).toBeNull();
         expect(producer.agentIdentity).toBeNull();
         expect(agentExecutionContext.getStore()).toBeUndefined();
+    });
+
+    it('lets the owner of a metadata-only agent chart run and read it as a person', async () => {
+        const { service, asyncService, user, options, artifact, agent } =
+            setup();
+        agent.enableDataAccess = false;
+        artifact.chartConfig = { source: 'sql', sql: 'select 1', limit: 2 };
+        const execute = vi
+            .spyOn(asyncService, 'executeAsyncSqlQuery')
+            .mockImplementation(async () => {
+                expect(agentExecutionContext.getStore()).toBeUndefined();
+                return {
+                    queryUuid: 'execution',
+                    fields: {},
+                    cacheMetadata: { cacheHit: false },
+                } as never;
+            });
+        // Charts from a metadata-only agent still show real results to the
+        // person who owns the conversation (the docs promise this).
+        await expect(
+            service.getArtifactVizQuery(user, options),
+        ).resolves.toMatchObject({ query: { queryUuid: 'execution' } });
+        expect(execute).toHaveBeenCalledOnce();
+        const readError = await service
+            .getArtifactQueryResults(user, { ...options, cached: false })
+            .then(
+                () => null,
+                (error: unknown) => error,
+            );
+        expect((readError as Error | null)?.message).not.toBe(
+            'Artifact results are unavailable',
+        );
     });
 
     it('rejects a person read of an owner semantic rerun and permits its artifact-scoped read', async () => {
