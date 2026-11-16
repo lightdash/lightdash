@@ -41,14 +41,14 @@
 
 /* Header label: the field name in ink, led by its type icon in the field
    kind's colour, with its table in grey underneath. Long names wrap inside
-   the column, so it stays as wide as its values, and every line ends at the
-   column's right edge. */
+   the column, so it stays as wide as its values, and every line starts at
+   the column's left edge. */
 .results:not([data-grouped]) [class*='tableHeaderLabelContainer'] {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: flex-start;
     font-size: 12px;
-    text-align: right;
+    text-align: left;
     white-space: normal;
 }
 
@@ -92,31 +92,18 @@
     opacity: 1;
 }
 
-/* Every results column aligns to the right, labels over their values */
+/* Every results column aligns to the left, labels over their values */
 .results table tbody td,
 .results table tbody td[data-nan],
 .results table tfoot td,
 .results table tfoot td[data-nan],
 .results table tfoot th {
-    text-align: right !important;
+    text-align: left !important;
 }
 
+/* The column menu sits at the column's right edge, clear of the label */
 .results table thead th [class*='thContainer'] {
-    position: relative;
-    justify-content: flex-end;
-}
-
-/* The menu hangs off the label's left edge without taking any width, so it
-   never covers the name and the label stays flush right over its values */
-.results table thead th [class*='thActionsContainer'] {
-    order: -1;
-    width: 0;
-    margin: 0;
-    overflow: visible;
-}
-
-.results table thead th [class*='thActionsContainer'] > * {
-    margin-right: 4px;
+    justify-content: space-between;
 }
 
 /* Pagination shares the totals row's tint, with small quiet controls */
