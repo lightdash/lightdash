@@ -74,3 +74,83 @@ export const validateSelectedTabs = (
         }
     }
 };
+
+export type DashboardLimits = {
+    maxTilesPerTab: number;
+    maxTabsPerDashboard: number;
+};
+
+type LimitedDashboard = {
+    tiles: { tabUuid?: string | null }[];
+    tabs: { uuid: string; name: string; order: number }[];
+};
+
+/** Tiles of every type count; tiles without a tab render on the first tab. */
+export const getDashboardTileCountsByTab = ({
+    tiles,
+    tabs,
+}: LimitedDashboard): Map<string | null, number> => {
+    const firstTab = [...tabs].sort((a, b) => a.order - b.order)[0];
+    return tiles.reduce<Map<string | null, number>>((counts, tile) => {
+        const tabUuid = tile.tabUuid ?? firstTab?.uuid ?? null;
+        return counts.set(tabUuid, (counts.get(tabUuid) ?? 0) + 1);
+    }, new Map());
+};
+
+export type DashboardLimitViolation =
+    | { type: 'tabs'; count: number; limit: number }
+    | {
+          type: 'tiles';
+          tabUuid: string | null;
+          tabName: string | null;
+          count: number;
+          limit: number;
+      };
+
+export const getDashboardLimitViolations = (
+    dashboard: LimitedDashboard,
+    { maxTilesPerTab, maxTabsPerDashboard }: DashboardLimits,
+): DashboardLimitViolation[] => {
+    const tabViolations: DashboardLimitViolation[] =
+        dashboard.tabs.length > maxTabsPerDashboard
+            ? [
+                  {
+                      type: 'tabs',
+                      count: dashboard.tabs.length,
+                      limit: maxTabsPerDashboard,
+                  },
+              ]
+            : [];
+    const tileViolations = [...getDashboardTileCountsByTab(dashboard).entries()]
+        .filter(([, count]) => count > maxTilesPerTab)
+        .map(
+            ([tabUuid, count]): DashboardLimitViolation => ({
+                type: 'tiles',
+                tabUuid,
+                tabName:
+                    dashboard.tabs.find((tab) => tab.uuid === tabUuid)?.name ??
+                    null,
+                count,
+                limit: maxTilesPerTab,
+            }),
+        );
+    return [...tabViolations, ...tileViolations];
+};
+
+export const assertDashboardWithinLimits = (
+    dashboard: LimitedDashboard,
+    limits: DashboardLimits,
+): void => {
+    const [violation] = getDashboardLimitViolations(dashboard, limits);
+    if (!violation) return;
+    if (violation.type === 'tabs') {
+        throw new ParameterError(
+            `Dashboard has ${violation.count} tabs, which is over the limit of ${violation.limit} tabs per dashboard`,
+        );
+    }
+    throw new ParameterError(
+        violation.tabName
+            ? `Tab "${violation.tabName}" has ${violation.count} tiles, which is over the limit of ${violation.limit} tiles per tab`
+            : `Dashboard has ${violation.count} tiles, which is over the limit of ${violation.limit} tiles per tab`,
+    );
+};
