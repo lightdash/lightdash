@@ -51,7 +51,7 @@ type FieldSelectProps<T extends Item = Item> = Omit<
     /** Fields not in the query yet, offered under an "Add to query" group.
      *  Picking one reaches `onChange` like any other item. */
     addItems?: T[];
-    /** Heading of the `addItems` group; defaults to "Add to query". */
+    /** Heading of the `addItems` group. */
     addItemsGroupLabel?: string;
     /** Items from `items` to lift into a leading "Suggested" group, in the
      *  order given; they leave their table group so each is listed once. */
@@ -259,7 +259,8 @@ const FieldSelectComponent = <T extends Item = Item>({
                     : isCustomDimension(i)
                       ? tableLabelMap.get(i.table)
                       : undefined
-                : undefined,
+                : // Search never matches the group heading
+                  '',
             description: isField(i) ? i.description : undefined,
             disabled: inactiveItemIds.includes(getItemId(i)),
         }));

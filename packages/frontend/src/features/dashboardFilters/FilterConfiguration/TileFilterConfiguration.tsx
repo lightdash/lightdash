@@ -102,13 +102,15 @@ type ComposerTileTarget = {
     hasExactMatch: boolean;
 };
 
+const SQL_COLUMN_TABLE = 'mock_table';
+
 // A SQL column as an item, so the row's select draws it like a field
 const toSqlColumnItem = (column: ResultColumn): Dimension => ({
     fieldType: FieldType.DIMENSION,
     type: column.type,
     name: column.reference,
     label: column.reference,
-    table: 'mock_table',
+    table: SQL_COLUMN_TABLE,
     tableLabel: '',
     sql: '',
     hidden: false,
@@ -703,9 +705,8 @@ const TileFilterConfiguration: FC<Props> = ({
                                             onChange={(item) => {
                                                 if (!item) return;
                                                 const isColumn =
-                                                    value.sqlColumns.some(
-                                                        (c) => c === item,
-                                                    );
+                                                    item.table ===
+                                                    SQL_COLUMN_TABLE;
                                                 onChange(
                                                     FilterActions.ADD,
                                                     value.tileUuid,
@@ -714,7 +715,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                                               fieldId:
                                                                   item.name,
                                                               tableName:
-                                                                  'mock_table',
+                                                                  SQL_COLUMN_TABLE,
                                                               isSqlColumn: true,
                                                           }
                                                         : {

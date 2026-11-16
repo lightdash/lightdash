@@ -89,8 +89,6 @@ describe('TileFilterConfiguration on a composer tile', () => {
         expect(screen.getAllByTestId('tile-filter-item')).toHaveLength(1);
         const select = screen.getByDisplayValue('Orders Status');
         await userEvent.click(select);
-        // Fields as in the shipped select, columns in a trailing group
-        expect(screen.queryByText('Fields')).not.toBeInTheDocument();
         expect(screen.getByText('SQL columns')).toBeInTheDocument();
         expect(
             screen.getByRole('option', { name: /Orders Status/ }),
@@ -131,5 +129,17 @@ describe('TileFilterConfiguration on a composer tile', () => {
         renderList(rule(), {}, []);
 
         expect(screen.queryAllByTestId('tile-filter-item')).toHaveLength(0);
+    });
+
+    it('searches SQL columns by name, not by their group heading', async () => {
+        renderList(rule(), { 'composer-1': [statusField] });
+
+        const select = screen.getByDisplayValue('Orders Status');
+        await userEvent.clear(select);
+        await userEvent.type(select, 'sql');
+
+        expect(
+            screen.queryByRole('option', { name: 'status' }),
+        ).not.toBeInTheDocument();
     });
 });
