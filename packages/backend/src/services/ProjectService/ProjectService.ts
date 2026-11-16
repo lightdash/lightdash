@@ -237,6 +237,7 @@ import {
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
     RequestMethod,
+    resolveAdditionalMetricsSql,
     resolveDashboardTileParameters,
     resolveDbtVersion,
     ResolvedProjectColorPalette,
@@ -487,11 +488,7 @@ import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoC
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
-import {
-    redactExploreSql,
-    redactFieldSql,
-    resolveAdditionalMetricsSql,
-} from '../../utils/embedCompiledSql';
+import { redactExploreSql, redactFieldSql } from '../../utils/embedCompiledSql';
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
@@ -10492,7 +10489,7 @@ export class ProjectService
         switch (authority.kind) {
             case 'document':
             case 'composer':
-                // Their SQL calculations were authorized when saved
+                // Checked as the author at save: a document compiles its merge, a composer chart runs its write check
                 break;
             case 'request':
                 if (mergeSqlTableCalculations.length > 0) {

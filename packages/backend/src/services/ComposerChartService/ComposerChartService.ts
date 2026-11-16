@@ -7,6 +7,7 @@ import {
     FeatureNotEnabledError,
     FieldType,
     ForbiddenError,
+    getComposerCustomMetricExploreNames,
     getComposerPipelineWriteDeniedReason,
     getDataAppVizChartConfigErrors,
     getErrorMessage,
@@ -124,19 +125,39 @@ export class ComposerChartService extends BaseService {
         );
     }
 
-    private assertCanWritePipeline(
+    private async assertCanWritePipeline(
         account: RegisteredAccount,
         { organizationUuid, projectUuid }: ProjectSubject,
         pipeline: ComposerChartPipeline,
     ) {
         const ability = this.createAuditedAbility(account);
+        const cannotManage = (subjectName: CaslSubjectNames) =>
+            ability.cannot(
+                'manage',
+                subject(subjectName, { organizationUuid, projectUuid }),
+            );
+        // Only an author without custom fields needs custom metric SQL compared to the model
+        const exploreTables = cannotManage('CustomFields')
+            ? Object.fromEntries(
+                  await Promise.all(
+                      getComposerCustomMetricExploreNames(pipeline).map(
+                          async (exploreName) => {
+                              const explore =
+                                  await this.getAsyncQueryService().getExplore(
+                                      account,
+                                      projectUuid,
+                                      exploreName,
+                                  );
+                              return [exploreName, explore.tables] as const;
+                          },
+                      ),
+                  ),
+              )
+            : {};
         const deniedReason = getComposerPipelineWriteDeniedReason(
             pipeline,
-            (subjectName: CaslSubjectNames) =>
-                ability.cannot(
-                    'manage',
-                    subject(subjectName, { organizationUuid, projectUuid }),
-                ),
+            cannotManage,
+            exploreTables,
         );
         if (deniedReason) throw new ForbiddenError(deniedReason);
 
@@ -253,7 +274,7 @@ export class ComposerChartService extends BaseService {
                 "You don't have permission to update this dashboard",
             );
         }
-        this.assertCanWritePipeline(account, dashboardAccess, pipeline);
+        await this.assertCanWritePipeline(account, dashboardAccess, pipeline);
         const chart = await this.pinCustomChartType(projectUuid, input);
         return { pipeline, chart };
     }
@@ -274,7 +295,7 @@ export class ComposerChartService extends BaseService {
         ) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
-        this.assertCanWritePipeline(account, project, pipeline);
+        await this.assertCanWritePipeline(account, project, pipeline);
         await this.pinCustomChartType(project.projectUuid, input);
     }
 
