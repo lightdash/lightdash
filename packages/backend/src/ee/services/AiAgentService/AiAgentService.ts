@@ -18322,7 +18322,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     // Only conversations pinned as context on this thread are
                     // readable — the pin is the capability grant.
                     readPinnedThread: async ({ threadUuid }) => {
-                        if (!pinnedThreadUuids.includes(threadUuid)) {
+                        const currentPinnedThreadUuids =
+                            await this.aiAgentModel.findPinnedThreadContextUuids(
+                                prompt.threadUuid,
+                            );
+                        if (!currentPinnedThreadUuids.includes(threadUuid)) {
                             throw new ForbiddenError(
                                 'This conversation is not attached as context on this thread',
                             );

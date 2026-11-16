@@ -155,6 +155,9 @@ describe('Document runtime access', () => {
                 aiCreditService: {
                     assertAiCreditsAvailable: async () => undefined,
                 },
+                aiAgentModel: {
+                    findPinnedThreadContextUuids: vi.fn().mockResolvedValue([]),
+                },
                 aiThreadFileModel: {
                     findForThread: vi.fn().mockResolvedValue([]),
                     findClaimableByUser: vi.fn().mockResolvedValue([]),
