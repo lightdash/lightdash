@@ -8825,7 +8825,6 @@ export class AiAgentModel {
                         mediaType: z.enum(AI_THREAD_IMAGE_MEDIA_TYPES),
                         width: z.number().int().positive(),
                         height: z.number().int().positive(),
-                        expiresAt: z.string().datetime(),
                     })
                     .parse(row.runtime_overrides);
                 return {
