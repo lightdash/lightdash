@@ -317,6 +317,8 @@
         "filters.config.collapseTab": "Contraer pestaña",
         "filters.config.noTilesInTab": "No hay mosaicos en esta pestaña",
         "filters.config.noFieldsMatchingType": "No hay campos que coincidan con el tipo de filtro",
+        "filters.config.tileFieldsGroup": "Campos",
+        "filters.config.tileSqlColumnsGroup": "Columnas SQL",
         "filters.config.fieldNotAvailableInChart": "El campo seleccionado '{field}' no está disponible en este gráfico",
         "filters.coverage.noMatchingCharts": "Ningún gráfico tiene un campo que coincida con este filtro.",
         "filters.coverage.reviewTileTargets": "Revisar los mosaicos de destino",

@@ -5,7 +5,7 @@
  */
 import { checkContentAsCodeEntry } from '@lightdash/common';
 import * as assert from 'assert';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { replaceLine } from '../../packages/frontend/src/features/learnSandbox/snippetInsertion';
@@ -1659,6 +1659,410 @@ export const SavedCharts = () => (
         assert.ok(
             !GENERATED_FILES.some((file) => file.endsWith('docs-pin.txt')),
         );
+    }
+
+    // A docs bump follows a cited text that only moved inside its section
+    // (CS-400): the citation is rewritten to the new place when the text it
+    // showed is at exactly one place there, and left alone in every other
+    // case, so a followed citation never changes what a learner reads.
+    {
+        const {
+            applyCitationMoves,
+            citationMoves,
+            citationSources,
+            citedTexts,
+            findCitations,
+            movedCitation,
+            rewriteCitations,
+        } = await import('./citation-moves');
+        const page = (body: string) =>
+            writeFileSync(
+                path.join(docs, 'explore/moves.mdx'),
+                `---\ntitle: Moves\n---\n\n${body}\n`,
+            );
+        const exportSentence = 'Click **Export** to open the dialog.';
+        const exportParagraph = `${exportSentence} Choose a format, then click **Download**.`;
+
+        // The citations in a source text: JSX attributes in either quote,
+        // an object-literal value on the next line, a lesson's constants and
+        // lists. Each once, in the order met. A docs page with no anchor, a
+        // docs URL and a click path are not citations.
+        const source = `
+export const Card = () => (
+    <Box
+        data-tour-via='[data-tour-nav="browse"]'
+        data-tour-docs="explore/moves.mdx#download:p2:1"
+        data-tour-resultdocs='explore/moves.mdx#download:li2'
+    />
+);
+const tourProps = {
+    'data-tour-docs':
+        'explore/moves.mdx#limits:1',
+    'data-tour-resultdocs': 'explore/moves.mdx#download:p2:1',
+};
+const lesson = {
+    docs: 'explore/moves.mdx',
+    intro: ['explore/moves.mdx#intro:1-2', "explore/moves.mdx#download"],
+    link: 'https://docs.lightdash.com/explore/moves#download',
+};
+`;
+        assert.deepStrictEqual(findCitations(source), [
+            'explore/moves.mdx#download:p2:1',
+            'explore/moves.mdx#download:li2',
+            'explore/moves.mdx#limits:1',
+            'explore/moves.mdx#intro:1-2',
+            'explore/moves.mdx#download',
+        ]);
+
+        // Every moved citation in a source text is rewritten in one pass: a
+        // new value that is also another citation's old value (the docs put
+        // two paragraphs above both) must not be rewritten a second time.
+        assert.strictEqual(
+            rewriteCitations(
+                `<a data-tour-docs="a.mdx#s:p3:1" data-tour-resultdocs="a.mdx#s:p5:1" />
+const props = { 'data-tour-docs': 'a.mdx#s:p3:1', other: "a.mdx#s:p7:1" };`,
+                new Map([
+                    ['a.mdx#s:p3:1', 'a.mdx#s:p5:1'],
+                    ['a.mdx#s:p5:1', 'a.mdx#s:p7:1'],
+                ]),
+            ),
+            `<a data-tour-docs="a.mdx#s:p5:1" data-tour-resultdocs="a.mdx#s:p7:1" />
+const props = { 'data-tour-docs': 'a.mdx#s:p5:1', other: "a.mdx#s:p7:1" };`,
+        );
+
+        // The text each citation shows with the docs as they are. One that
+        // does not resolve (no such paragraph, no such page) is left out.
+        page(`## Download
+
+You can download results as a file.
+
+${exportParagraph}
+
+- **CSV** keeps raw values
+- **Excel** keeps formatting
+
+## Limits
+
+Exports stop at the row limit.`);
+        assert.deepStrictEqual(
+            citedTexts([
+                'explore/moves.mdx#download:p2:1',
+                'explore/moves.mdx#download:p9:1',
+                'explore/gone.mdx#download:1',
+                'explore/moves.mdx#download:li2',
+            ]),
+            new Map([
+                ['explore/moves.mdx#download:p2:1', exportSentence],
+                [
+                    'explore/moves.mdx#download:li2',
+                    '**Excel** keeps formatting',
+                ],
+            ]),
+        );
+
+        // The docs put two paragraphs above the cited one (both refreshes
+        // that needed a hand re-cite): the citation follows the text, for
+        // one sentence, a sentence range and a whole paragraph.
+        page(`## Download
+
+You can download results as a file.
+
+Scheduled deliveries can send the same file.
+
+Charts can also be saved as an image.
+
+${exportParagraph}`);
+        assert.strictEqual(
+            movedCitation('explore/moves.mdx#download:p2:1', exportSentence),
+            'explore/moves.mdx#download:p4:1',
+        );
+        assert.strictEqual(
+            movedCitation('explore/moves.mdx#download:p2:1-2', exportParagraph),
+            'explore/moves.mdx#download:p4:1-2',
+        );
+        assert.strictEqual(
+            movedCitation('explore/moves.mdx#download:p2', exportParagraph),
+            'explore/moves.mdx#download:p4',
+        );
+        // A citation that still shows its text has not moved.
+        assert.strictEqual(
+            movedCitation(
+                'explore/moves.mdx#download:1',
+                'You can download results as a file.',
+            ),
+            undefined,
+        );
+        // The docs edited the sentence: the old text is nowhere, so the
+        // citation stays and the refresh shows the new text for review.
+        assert.strictEqual(
+            movedCitation(
+                'explore/moves.mdx#download:p2:1',
+                'Click **Export** to open the export dialog.',
+            ),
+            undefined,
+        );
+
+        // The old place is gone (paragraphs were removed above it): the
+        // citation no longer resolves, and still follows the text.
+        page(`## Download
+
+${exportParagraph}`);
+        assert.strictEqual(
+            movedCitation('explore/moves.mdx#download:p3:1', exportSentence),
+            'explore/moves.mdx#download:p1:1',
+        );
+
+        // The text is at two places: there is no telling which one the step
+        // meant, so the citation stays.
+        page(`## Download
+
+Start from a saved chart.
+
+${exportSentence}
+
+Or start from a dashboard tile.
+
+${exportSentence}`);
+        assert.strictEqual(
+            movedCitation('explore/moves.mdx#download:p1:1', exportSentence),
+            undefined,
+        );
+        // It still shows its text at its own place, so a copy elsewhere
+        // does not move it.
+        assert.strictEqual(
+            movedCitation('explore/moves.mdx#download:p2:1', exportSentence),
+            undefined,
+        );
+
+        // A renamed heading, or a page that is gone, is not followed: the
+        // text may be there, but the section the step cites is not.
+        page(`## Download results
+
+You can download results as a file.
+
+${exportParagraph}`);
+        assert.strictEqual(
+            movedCitation('explore/moves.mdx#download:p2:1', exportSentence),
+            undefined,
+        );
+        assert.strictEqual(
+            movedCitation('explore/gone.mdx#download:p2:1', exportSentence),
+            undefined,
+        );
+
+        // A list item follows its text down the section's lists.
+        page(`## Download
+
+Pick a format:
+
+- **JSON** keeps types
+- **CSV** keeps raw values
+- **Excel** keeps formatting`);
+        assert.strictEqual(
+            movedCitation(
+                'explore/moves.mdx#download:li2',
+                '**Excel** keeps formatting',
+            ),
+            'explore/moves.mdx#download:li3',
+        );
+        assert.strictEqual(
+            movedCitation(
+                'explore/moves.mdx#download:li1:1',
+                '**CSV** keeps raw values',
+            ),
+            'explore/moves.mdx#download:li2:1',
+        );
+
+        // A sentence was put before the cited one in the same paragraph. A
+        // citation that names no paragraph still names none.
+        page(`## Download
+
+Open the chart first. ${exportParagraph}`);
+        assert.strictEqual(
+            movedCitation('explore/moves.mdx#download:1', exportSentence),
+            'explore/moves.mdx#download:2',
+        );
+        assert.strictEqual(
+            movedCitation('explore/moves.mdx#download:1-2', exportParagraph),
+            'explore/moves.mdx#download:2-3',
+        );
+
+        // The section's first paragraph, cited without a paragraph number,
+        // gains one when a paragraph is put above it.
+        page(`## Download
+
+Exports are on every plan.
+
+You can download results as a file.`);
+        assert.strictEqual(
+            movedCitation(
+                'explore/moves.mdx#download',
+                'You can download results as a file.',
+            ),
+            'explore/moves.mdx#download:p2',
+        );
+        assert.strictEqual(
+            movedCitation(
+                'explore/moves.mdx#download:1',
+                'You can download results as a file.',
+            ),
+            'explore/moves.mdx#download:p2:1',
+        );
+
+        // The docs turned the paragraph into a list item: the text a learner
+        // reads is the same, so the citation follows it there.
+        page(`## Download
+
+To export:
+
+- ${exportSentence}
+- Choose a format.`);
+        assert.strictEqual(
+            movedCitation('explore/moves.mdx#download:p2:1', exportSentence),
+            'explore/moves.mdx#download:li1:1',
+        );
+        assert.strictEqual(
+            movedCitation('explore/moves.mdx#download:p2', exportSentence),
+            'explore/moves.mdx#download:li1',
+        );
+
+        // A paragraph that cannot be shown in a card (it links off the docs
+        // site) does not hide the text below it.
+        page(`## Download
+
+See [the vendor's site](https://example.com/export) for the formats.
+
+${exportParagraph}`);
+        assert.strictEqual(
+            movedCitation('explore/moves.mdx#download:p1:1', exportSentence),
+            'explore/moves.mdx#download:p2:1',
+        );
+
+        // The whole bump, as bump-docs-pin.ts runs it: read what every
+        // citation in the source shows at the old docs, move the docs on,
+        // and rewrite the citations whose text moved. The two citations
+        // chain (:p2 becomes :p4 while :p4 becomes :p6); the edited sentence
+        // and the unchanged one stay.
+        page(`## Download
+
+You can download results as a file.
+
+${exportParagraph}
+
+Charts can also be saved as an image.
+
+Exports respect your filters.
+
+## Limits
+
+Exports stop at the row limit.`);
+        const before = `
+<Box
+    data-tour-docs="explore/moves.mdx#download:p2:1"
+    data-tour-resultdocs="explore/moves.mdx#download:p4:1"
+/>
+const lesson = {
+    intro: 'explore/moves.mdx#download:1',
+    resultDocs: 'explore/moves.mdx#limits:1',
+};
+`;
+        const was = citedTexts(findCitations(before));
+        page(`## Download
+
+You can download results as a file.
+
+Scheduled deliveries can send the same file.
+
+Admins can turn exports off.
+
+${exportParagraph}
+
+Charts can also be saved as an image.
+
+Exports respect your filters.
+
+## Limits
+
+Exports stop at the limit an admin sets.`);
+        const moves = citationMoves(was);
+        assert.deepStrictEqual(
+            moves,
+            new Map([
+                [
+                    'explore/moves.mdx#download:p2:1',
+                    'explore/moves.mdx#download:p4:1',
+                ],
+                [
+                    'explore/moves.mdx#download:p4:1',
+                    'explore/moves.mdx#download:p6:1',
+                ],
+            ]),
+        );
+        const after = `
+<Box
+    data-tour-docs="explore/moves.mdx#download:p4:1"
+    data-tour-resultdocs="explore/moves.mdx#download:p6:1"
+/>
+const lesson = {
+    intro: 'explore/moves.mdx#download:1',
+    resultDocs: 'explore/moves.mdx#limits:1',
+};
+`;
+        assert.strictEqual(rewriteCitations(before, moves), after);
+
+        // On disk, as the bump applies it: the source files under a
+        // directory that hold a citation (TypeScript only, and not
+        // node_modules), the moved citations rewritten in place, and each
+        // move reported with the files it was made in.
+        const follow = path.join(fixtures, 'follow');
+        mkdirSync(path.join(follow, 'learn'), { recursive: true });
+        mkdirSync(path.join(follow, 'node_modules/pkg'), { recursive: true });
+        const card = path.join(follow, 'Card.tsx');
+        const lessons = path.join(follow, 'learn/lessons.ts');
+        const plain = path.join(follow, 'Plain.tsx');
+        const vendored = path.join(follow, 'node_modules/pkg/index.ts');
+        const notes = path.join(follow, 'notes.md');
+        const untouched = `export const intro = 'explore/moves.mdx#download:p2:1';\n`;
+        writeFileSync(card, before);
+        writeFileSync(lessons, untouched);
+        writeFileSync(plain, `export const Plain = () => <Box />;\n`);
+        writeFileSync(vendored, untouched);
+        writeFileSync(notes, untouched);
+        const sources = citationSources(follow);
+        assert.deepStrictEqual(
+            sources,
+            new Map([
+                [
+                    card,
+                    [
+                        'explore/moves.mdx#download:p2:1',
+                        'explore/moves.mdx#download:p4:1',
+                        'explore/moves.mdx#download:1',
+                        'explore/moves.mdx#limits:1',
+                    ],
+                ],
+                [lessons, ['explore/moves.mdx#download:p2:1']],
+            ]),
+        );
+        assert.deepStrictEqual(applyCitationMoves(sources, moves), [
+            {
+                from: 'explore/moves.mdx#download:p2:1',
+                to: 'explore/moves.mdx#download:p4:1',
+                files: [card, lessons],
+            },
+            {
+                from: 'explore/moves.mdx#download:p4:1',
+                to: 'explore/moves.mdx#download:p6:1',
+                files: [card],
+            },
+        ]);
+        assert.strictEqual(readFileSync(card, 'utf8'), after);
+        assert.strictEqual(
+            readFileSync(lessons, 'utf8'),
+            `export const intro = 'explore/moves.mdx#download:p4:1';\n`,
+        );
+        assert.strictEqual(readFileSync(vendored, 'utf8'), untouched);
+        assert.strictEqual(readFileSync(notes, 'utf8'), untouched);
     }
 
     console.log('scope-tours: all checks passed');

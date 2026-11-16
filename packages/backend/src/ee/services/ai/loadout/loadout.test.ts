@@ -211,6 +211,7 @@ const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
             loadout.base === 'composer' &&
             loadout.toolNames.has('listWarehouseTables'),
         canRunQuery: loadout.toolNames.has('runQuery'),
+        repoFsRoot: '.',
     }).content;
 
 const fixture = (name: string) =>

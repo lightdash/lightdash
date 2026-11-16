@@ -1,3 +1,64 @@
+## [3.267.3](https://github.com/lightdash/lightdash/compare/3.267.2...3.267.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **composer:** check custom metric SQL and merge SQL calculations at save ([#32639](https://github.com/lightdash/lightdash/issues/32639)) ([a23f34a](https://github.com/lightdash/lightdash/commit/a23f34ac8a87f413ac968bbafe81d38b7a1498dd))
+
+## [3.267.2](https://github.com/lightdash/lightdash/compare/3.267.1...3.267.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** name /dbt only when the project has a /dbt mount ([#32643](https://github.com/lightdash/lightdash/issues/32643)) ([d8f1330](https://github.com/lightdash/lightdash/commit/d8f1330212f70dcb4d3843c8815bad38c9128963))
+* **ai:** offer repo and writeback tools only to users who can use them ([#32644](https://github.com/lightdash/lightdash/issues/32644)) ([77f322f](https://github.com/lightdash/lightdash/commit/77f322f11229874570ee789799e83583d0aa9bb8))
+* **ai:** tell agent which custom SQL content the user cannot save ([#32642](https://github.com/lightdash/lightdash/issues/32642)) ([3efe69a](https://github.com/lightdash/lightdash/commit/3efe69a16b6ed10fdaf18eec52a0e45f6d443221))
+* **composer:** name minimum CLI version in old-CLI upload refusal ([#32638](https://github.com/lightdash/lightdash/issues/32638)) ([033b034](https://github.com/lightdash/lightdash/commit/033b034ecaa17ddf1766780cf3d45941af83e9a3))
+
+## [3.267.1](https://github.com/lightdash/lightdash/compare/3.267.0...3.267.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** serialize parallel artifact writes per thread ([#32645](https://github.com/lightdash/lightdash/issues/32645)) ([e8dfe84](https://github.com/lightdash/lightdash/commit/e8dfe84653b2ce25f5c4de5e9d1f76f76ab3e3c6))
+
+# [3.267.0](https://github.com/lightdash/lightdash/compare/3.266.3...3.267.0) (2026-11-16)
+
+
+### Features
+
+* **live-sources:** hide filters a live data source can't run ([#32583](https://github.com/lightdash/lightdash/issues/32583)) ([a64d628](https://github.com/lightdash/lightdash/commit/a64d628d77ec2f93baf9d12a2213d5ef4a6d82e1))
+* **live-sources:** name fields and operators as the UI does in filter refusals ([#32582](https://github.com/lightdash/lightdash/issues/32582)) ([d134bcb](https://github.com/lightdash/lightdash/commit/d134bcb74e82d7a90a7e7072ddb5876d0d566fa5))
+* **live-sources:** support is after and is before date filters on Search Console ([#32581](https://github.com/lightdash/lightdash/issues/32581)) ([aea9ce3](https://github.com/lightdash/lightdash/commit/aea9ce3558552e51b1c0dec4cf19650e35e995ea))
+
+## [3.266.3](https://github.com/lightdash/lightdash/compare/3.266.2...3.266.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **external-connections:** delete secret and call log when a connection is deleted ([#32576](https://github.com/lightdash/lightdash/issues/32576)) ([505c093](https://github.com/lightdash/lightdash/commit/505c09394cd35a09da9f4beb1d3fd49e315e9152))
+
+## [3.266.2](https://github.com/lightdash/lightdash/compare/3.266.1...3.266.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** name Tables configuration when an agent has no explores ([#32631](https://github.com/lightdash/lightdash/issues/32631)) ([c4232a4](https://github.com/lightdash/lightdash/commit/c4232a48fab707e94062322b40c10a1bd9fbc3eb))
+
+## [3.266.1](https://github.com/lightdash/lightdash/compare/3.266.0...3.266.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* honour user overrides throughout mobile QR sign-in ([#32633](https://github.com/lightdash/lightdash/issues/32633)) ([6eea4ce](https://github.com/lightdash/lightdash/commit/6eea4ce15660a53aea85345919fe09d3951b3958))
+
+# [3.266.0](https://github.com/lightdash/lightdash/compare/3.265.3...3.266.0) (2026-11-16)
+
+
+### Features
+
+* **cli:** composer charts as code in download, upload and lint ([#32610](https://github.com/lightdash/lightdash/issues/32610)) ([94f82bf](https://github.com/lightdash/lightdash/commit/94f82bf73be4037fc71095f59e647d0bbe8f9ab4))
+
 ## [3.265.3](https://github.com/lightdash/lightdash/compare/3.265.2...3.265.3) (2026-11-16)
 
 

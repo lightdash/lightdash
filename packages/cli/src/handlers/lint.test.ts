@@ -385,4 +385,88 @@ describe('lintHandler', () => {
 
         expect(output.join('\n')).toContain('✗ single-file.yml');
     });
+
+    const composerChartYaml = ({ withPipeline = true } = {}) => [
+        'contentType: composer_chart',
+        'version: 1',
+        'slug: orders-by-status',
+        'name: Orders by status',
+        'description: null',
+        'dashboardSlug: ops',
+        'spaceSlug: shared',
+        ...(withPipeline
+            ? [
+                  'pipeline:',
+                  '  schemaVersion: 1',
+                  '  terminalNodeId: orders',
+                  '  nodes:',
+                  '    - sourceType: sql',
+                  '      nodeId: orders',
+                  '      title: Orders',
+                  '      sql: select status, count(*) as n from orders group by 1',
+              ]
+            : []),
+        'chart:',
+        '  schemaVersion: 1',
+        '  columns:',
+        '    - reference: status',
+        '      fieldType: dimension',
+        '    - reference: n',
+        '      fieldType: metric',
+        '  chartConfig:',
+        '    type: table',
+        '    config: {}',
+        '  pivotConfig: null',
+        '  tableConfig:',
+        '    columnOrder: [status, n]',
+    ];
+
+    test('accepts a composer chart file and a dashboard naming it', async () => {
+        const chartsDir = path.join(tempDir, 'charts');
+        const dashboardsDir = path.join(tempDir, 'dashboards');
+        await fs.mkdir(chartsDir);
+        await fs.mkdir(dashboardsDir);
+        await fs.writeFile(
+            path.join(chartsDir, 'orders-by-status.composer.yml'),
+            composerChartYaml().join('\n'),
+        );
+        await fs.writeFile(
+            path.join(dashboardsDir, 'ops.yml'),
+            [
+                'name: Ops',
+                'slug: ops',
+                'spaceSlug: shared',
+                'version: 1',
+                'tabs: []',
+                'tiles:',
+                '  - type: composer_chart',
+                '    x: 0',
+                '    y: 0',
+                '    h: 6',
+                '    w: 12',
+                '    properties:',
+                '      title: Orders',
+                '      chartSlug: orders-by-status',
+            ].join('\n'),
+        );
+
+        await lintHandler({ path: tempDir, format: 'cli' });
+
+        expect(process.exit).not.toHaveBeenCalled();
+        expect(output.join('\n')).toContain(
+            'All Lightdash Code files are valid!',
+        );
+    });
+
+    test('fails a loose composer chart file without its pipeline, naming it', async () => {
+        await fs.writeFile(
+            path.join(tempDir, 'orders-by-status.yml'),
+            composerChartYaml({ withPipeline: false }).join('\n'),
+        );
+
+        const lintOutput = await expectLintFailure();
+
+        expect(lintOutput).toContain('orders-by-status.yml');
+        expect(lintOutput).toContain("Missing required property 'pipeline'");
+    });
 });

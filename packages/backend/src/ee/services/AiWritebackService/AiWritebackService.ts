@@ -424,6 +424,10 @@ export class AiWritebackService extends BaseService {
 
     private readonly projectDbtSourcesModel: ProjectDbtSourcesModel;
 
+    private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
+
+    private readonly gitlabAppInstallationsModel: GitlabAppInstallationsModel;
+
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
     private readonly aiWritebackThreadModel: AiWritebackThreadModel;
@@ -491,6 +495,8 @@ export class AiWritebackService extends BaseService {
         this.analytics = analytics;
         this.projectModel = projectModel;
         this.projectDbtSourcesModel = projectDbtSourcesModel;
+        this.githubAppInstallationsModel = githubAppInstallationsModel;
+        this.gitlabAppInstallationsModel = gitlabAppInstallationsModel;
         this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
         this.aiWritebackRunModel = aiWritebackRunModel;
@@ -917,22 +923,60 @@ export class AiWritebackService extends BaseService {
         }
         const project = await this.projectModel.get(projectUuid);
         // Reading repo source requires view:SourceCode (writeback requires the
-        // stricter manage:SourceCode). Gate the read so the explore/discover
-        // tools can't expose source to users without source-code access.
+        // stricter manage:SourceCode).
         if (
-            this.createAuditedAbility(user).cannot(
-                'view',
-                subject('SourceCode', {
-                    organizationUuid: project.organizationUuid,
-                    projectUuid,
-                }),
-            )
+            !this.canViewSourceCode(user, project.organizationUuid, projectUuid)
         ) {
             throw new ForbiddenError(
                 'You do not have permission to view this project source code',
             );
         }
         return { project, organizationUuid: user.organizationUuid };
+    }
+
+    private canViewSourceCode(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+    ): boolean {
+        return this.createAuditedAbility(user).can(
+            'view',
+            subject('SourceCode', { organizationUuid, projectUuid }),
+        );
+    }
+
+    /** Whether the repo read tools would pass their access checks. */
+    async canReadSourceCode({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<boolean> {
+        if (!isUserWithOrg(user)) return false;
+        const project = await this.projectModel.get(projectUuid);
+        if (
+            !this.canViewSourceCode(user, project.organizationUuid, projectUuid)
+        ) {
+            return false;
+        }
+        const installationsModel =
+            project.dbtConnection.type === DbtProjectType.GITLAB
+                ? this.gitlabAppInstallationsModel
+                : this.githubAppInstallationsModel;
+        try {
+            const installationId = await installationsModel.findInstallationId(
+                user.organizationUuid,
+            );
+            return installationId !== undefined;
+        } catch (error) {
+            this.logger.warn(
+                `Failed to look up git installation for project ${projectUuid}: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return false;
+        }
     }
 
     private async resolveSourceCodeInstallation({

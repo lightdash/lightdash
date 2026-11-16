@@ -7,6 +7,7 @@ import {
     FeatureNotEnabledError,
     FieldType,
     ForbiddenError,
+    getComposerCustomMetricExploreNames,
     getComposerPipelineWriteDeniedReason,
     getDataAppVizChartConfigErrors,
     getErrorMessage,
@@ -32,6 +33,7 @@ import {
     type ComposerStoredChart,
     type CreateComposerChart,
     type DashboardAvailableFiltersTile,
+    type Explore,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type RegisteredAccount,
@@ -56,6 +58,7 @@ import {
     getComposerParameterReferences,
     getComposerSavedParameterValues,
     getSemanticExploreNames,
+    withSqlColumnFilters,
     type ComposerNodeExplores,
 } from './composerTileInputs';
 
@@ -124,19 +127,50 @@ export class ComposerChartService extends BaseService {
         );
     }
 
-    private assertCanWritePipeline(
+    private async getCustomMetricExploreTables(
+        account: RegisteredAccount,
+        projectUuid: string,
+        pipeline: ComposerChartPipeline,
+    ): Promise<Record<string, Explore['tables']>> {
+        const entries = await Promise.all(
+            getComposerCustomMetricExploreNames(pipeline).map(
+                async (exploreName) => {
+                    const explore =
+                        await this.getAsyncQueryService().getExplore(
+                            account,
+                            projectUuid,
+                            exploreName,
+                        );
+                    return [exploreName, explore.tables] as const;
+                },
+            ),
+        );
+        return Object.fromEntries(entries);
+    }
+
+    private async assertCanWritePipeline(
         account: RegisteredAccount,
         { organizationUuid, projectUuid }: ProjectSubject,
         pipeline: ComposerChartPipeline,
     ) {
         const ability = this.createAuditedAbility(account);
+        const cannotManage = (subjectName: CaslSubjectNames) =>
+            ability.cannot(
+                'manage',
+                subject(subjectName, { organizationUuid, projectUuid }),
+            );
+        // Custom metric SQL is compared to the model only for an author without custom fields
+        const exploreTables = cannotManage('CustomFields')
+            ? await this.getCustomMetricExploreTables(
+                  account,
+                  projectUuid,
+                  pipeline,
+              )
+            : {};
         const deniedReason = getComposerPipelineWriteDeniedReason(
             pipeline,
-            (subjectName: CaslSubjectNames) =>
-                ability.cannot(
-                    'manage',
-                    subject(subjectName, { organizationUuid, projectUuid }),
-                ),
+            cannotManage,
+            exploreTables,
         );
         if (deniedReason) throw new ForbiddenError(deniedReason);
 
@@ -253,7 +287,7 @@ export class ComposerChartService extends BaseService {
                 "You don't have permission to update this dashboard",
             );
         }
-        this.assertCanWritePipeline(account, dashboardAccess, pipeline);
+        await this.assertCanWritePipeline(account, dashboardAccess, pipeline);
         const chart = await this.pinCustomChartType(projectUuid, input);
         return { pipeline, chart };
     }
@@ -274,7 +308,7 @@ export class ComposerChartService extends BaseService {
         ) {
             throw new FeatureNotEnabledError(FeatureFlags.ComposerCharts);
         }
-        this.assertCanWritePipeline(account, project, pipeline);
+        await this.assertCanWritePipeline(account, project, pipeline);
         await this.pinCustomChartType(project.projectUuid, input);
     }
 
@@ -678,6 +712,7 @@ export class ComposerChartService extends BaseService {
             chart,
             tileUuid: request.tileUuid,
             resolved,
+            dashboardFilters,
         });
         const { queries } = await traceSpan(
             {
@@ -713,6 +748,31 @@ export class ComposerChartService extends BaseService {
         const terminalQuery = histories.find(
             (history) => history?.queryUuid === terminalQueryUuid,
         );
+        // A SQL node's columns are discovered before its query is queued
+        const sqlColumnsByNodeId = Object.fromEntries(
+            queries.flatMap(({ nodeId, sourceType }, index) =>
+                sourceType === QuerySourceType.SQL
+                    ? [
+                          [
+                              nodeId,
+                              Object.values(
+                                  histories[index]?.originalColumns ?? {},
+                              ),
+                          ] as const,
+                      ]
+                    : [],
+            ),
+        );
+        const applied = withSqlColumnFilters(filtered, {
+            tileUuid: request.tileUuid,
+            dashboardFilters,
+            sqlColumnsByNodeId: Object.fromEntries(
+                Object.entries(sqlColumnsByNodeId).map(([nodeId, columns]) => [
+                    nodeId,
+                    columns.map((column) => column.reference),
+                ]),
+            ),
+        });
         return {
             queries: queries.map(({ nodeId, sourceType, queryUuid }) => ({
                 nodeId,
@@ -721,9 +781,16 @@ export class ComposerChartService extends BaseService {
             })),
             fields: terminalQuery?.fields ?? {},
             chartStageQueryUuid: queryUuidOf(binding.chartStageNodeId),
-            appliedDashboardFilters: filtered.appliedDashboardFilters,
+            appliedDashboardFilters: applied.appliedDashboardFilters,
             appliedDashboardFiltersByNodeId:
-                filtered.appliedDashboardFiltersByNodeId,
+                applied.appliedDashboardFiltersByNodeId,
+            sqlColumns: [
+                ...new Map(
+                    Object.values(sqlColumnsByNodeId)
+                        .flat()
+                        .map((column) => [column.reference, column]),
+                ).values(),
+            ],
             parameterReferences: getComposerParameterReferences(
                 resolved.nodes,
                 exploreByNodeId,

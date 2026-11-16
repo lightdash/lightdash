@@ -317,6 +317,8 @@
         "filters.config.collapseTab": "ჩანართის ჩაკეცვა",
         "filters.config.noTilesInTab": "ამ ჩანართში ფილები არ არის",
         "filters.config.noFieldsMatchingType": "ფილტრის ტიპთან თავსებადი ველები არ არის",
+        "filters.config.tileFieldsGroup": "ველები",
+        "filters.config.tileSqlColumnsGroup": "SQL სვეტები",
         "filters.config.fieldNotAvailableInChart": "არჩეული ველი „{field}“ ამ დიაგრამაში მიუწვდომელია",
         "filters.coverage.noMatchingCharts": "არცერთ დიაგრამას არ აქვს ამ ფილტრთან თავსებადი ველი.",
         "filters.coverage.reviewTileTargets": "ფილების სამიზნეების გადახედვა",

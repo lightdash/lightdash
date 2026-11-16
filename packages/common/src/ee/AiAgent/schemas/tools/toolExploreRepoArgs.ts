@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { structuredToolOutputSchema } from '../outputMetadata';
 
 export const TOOL_EXPLORE_REPO_DESCRIPTION = [
-    "Run one read-only bash command over a virtual filesystem of repositories: this project's dbt project at `/dbt` (its files at the top, e.g. `/dbt/models`, `/dbt/dbt_project.yml`) and every repository `discoverRepos` lists, whole on its default branch, at `/<owner>/<repo>`. `ls /` shows the mounts. Read repositories with this tool rather than asking the user to connect a GitHub MCP server.",
+    "Run one read-only bash command over a virtual filesystem of repositories: this project's dbt project at `/dbt` when mounted (its files at the top, e.g. `/dbt/models`, `/dbt/dbt_project.yml`) and every repository `discoverRepos` lists, whole on its default branch, at `/<owner>/<repo>`. `ls /` shows the mounts. Read repositories with this tool rather than asking the user to connect a GitHub MCP server.",
     "Use it to read the code before answering questions about it (a model's SQL, refs and lineage, project config, CI workflows), diagnosing a build or compile error, or proposing a change, and ground each claim in a file you read.",
     'Commands: `ls`, `cat`, `head`, `tail`, `find`, `tree`, `wc`, `stat`, `grep`/`egrep` (incl. `-r`, `-l`, `-E`, `--include=GLOB`), `rg`, `sed`, `awk`, `cut`, `sort`, `uniq`, `tr`, `jq`, `diff`, `xargs`, with pipes, `&&`/`||`, quoting, globs and `2>/dev/null`.',
     "`search <term> [path]` lists the files that contain a term, using the host's code search; the path picks one repository (`/dbt`, `/owner/repo`), a subdirectory, or every repository of an owner (`/owner`, one request each). It matches terms, not regular expressions, and indexes only default branches and files under a size cap: locate files with it, and use `grep`/`rg` for a regex, a non-default branch or matching lines in a known directory.",
@@ -20,7 +20,7 @@ export const toolExploreRepoArgsSchema = z.object({
         .string()
         .nullable()
         .describe(
-            'Starting directory as a repository "owner/repo" (e.g. "acme/analytics"), which starts the command in `/owner/repo`; null starts it in `/dbt`. Absolute paths reach any mount whatever the target, so one command can read named files from several repositories (e.g. `diff /dbt/models/orders.sql /acme/analytics/models/orders.sql`).',
+            'Starting directory as a repository "owner/repo" (e.g. "acme/analytics"), which starts the command in `/owner/repo`; null starts it in `/dbt`, or `/` without it. Absolute paths reach any mount whatever the target, so one command can read named files from several repositories (e.g. `diff /dbt/models/orders.sql /acme/analytics/models/orders.sql`).',
         ),
 });
 

@@ -314,6 +314,8 @@ export const DEFAULT_UI_STRINGS = {
     'filters.config.collapseTab': 'Collapse tab',
     'filters.config.noTilesInTab': 'No tiles in this tab',
     'filters.config.noFieldsMatchingType': 'No fields matching filter type',
+    'filters.config.tileFieldsGroup': 'Fields',
+    'filters.config.tileSqlColumnsGroup': 'SQL columns',
     'filters.config.fieldNotAvailableInChart':
         "The selected field '{field}' is not available in this chart",
     'filters.coverage.noMatchingCharts':

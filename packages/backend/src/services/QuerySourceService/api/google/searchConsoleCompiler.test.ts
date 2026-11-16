@@ -8,7 +8,10 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { buildApiSourceExplore } from '../apiSourceExplore';
 import { escapeRe2 } from '../escapeRe2';
-import { compileSearchConsoleQuery } from './searchConsoleCompiler';
+import {
+    compileSearchConsoleQuery,
+    getSearchConsoleEarliestDate,
+} from './searchConsoleCompiler';
 import { SEARCH_CONSOLE_CAPABILITIES } from './SearchConsoleConnector';
 import {
     SEARCH_CONSOLE_PERFORMANCE_EXPLORE,
@@ -219,5 +222,62 @@ describe('compileSearchConsoleQuery', () => {
                 expression: '^(what is a\\.b\\?|x\\|y)$',
             },
         ]);
+    });
+
+    test.each([
+        [FilterOperator.GREATER_THAN, '2026-10-02', '2026-11-04'],
+        [FilterOperator.GREATER_THAN_OR_EQUAL, '2026-10-01', '2026-11-04'],
+        [FilterOperator.LESS_THAN, '2025-07-04', '2026-09-30'],
+        [FilterOperator.LESS_THAN_OR_EQUAL, '2025-07-04', '2026-10-01'],
+    ])(
+        'fills the open side of "%s" with today or the earliest retained day',
+        (operator, startDate, endDate) => {
+            const { request } = compile(
+                query({
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [rule('date', operator, ['2026-10-01'])],
+                        },
+                    },
+                }),
+            );
+            expect(request).toMatchObject({ startDate, endDate });
+        },
+    );
+
+    test.each([
+        [FilterOperator.GREATER_THAN_OR_EQUAL, '2026-12-01'],
+        [FilterOperator.LESS_THAN, '2025-01-01'],
+    ])(
+        'refuses "%s" %s, which leaves no day to read, with the range it has',
+        (operator, date) => {
+            expect(() =>
+                compile(
+                    query({
+                        filters: {
+                            dimensions: {
+                                id: 'root',
+                                and: [rule('date', operator, [date])],
+                            },
+                        },
+                    }),
+                ),
+            ).toThrow(
+                'Search Console has data from 2025-07-04 to 2026-11-04. Pick a date in that range.',
+            );
+        },
+    );
+});
+
+describe('getSearchConsoleEarliestDate', () => {
+    test('goes back 16 months', () => {
+        expect(getSearchConsoleEarliestDate('2026-11-04')).toBe('2025-07-04');
+    });
+
+    test('keeps to the last day of a shorter month', () => {
+        expect(getSearchConsoleEarliestDate('2026-06-30')).toBe('2025-02-28');
+        expect(getSearchConsoleEarliestDate('2027-06-29')).toBe('2026-02-28');
+        expect(getSearchConsoleEarliestDate('2025-06-29')).toBe('2024-02-29');
     });
 });

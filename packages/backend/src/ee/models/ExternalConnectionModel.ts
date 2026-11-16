@@ -1282,6 +1282,13 @@ export class ExternalConnectionModel {
             await trx(AppExternalConnectionsTableName)
                 .where('external_connection_uuid', uuid)
                 .delete();
+            // There is no restore, so the credentials and the call log go now.
+            // The row stays only to keep its slug and, for a live source, its
+            // name and field edits for reattach.
+            await ExternalConnectionModel.deleteSecret(trx, uuid);
+            await trx(ApiSourceCallsTableName)
+                .where('external_connection_uuid', uuid)
+                .delete();
         });
     }
 
