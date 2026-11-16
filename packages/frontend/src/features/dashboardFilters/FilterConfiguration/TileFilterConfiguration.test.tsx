@@ -89,15 +89,23 @@ describe('TileFilterConfiguration on a composer tile', () => {
         expect(screen.getAllByTestId('tile-filter-item')).toHaveLength(1);
         const select = screen.getByDisplayValue('Orders Status');
         await userEvent.click(select);
-        expect(screen.getByText('Fields')).toBeInTheDocument();
+        // Fields as in the shipped select, columns in a trailing group
+        expect(screen.queryByText('Fields')).not.toBeInTheDocument();
         expect(screen.getByText('SQL columns')).toBeInTheDocument();
+        expect(
+            screen.getByRole('option', { name: /Orders Status/ }),
+        ).toBeInTheDocument();
 
         await userEvent.click(screen.getByRole('option', { name: 'status' }));
-        expect(onChange).toHaveBeenCalledWith(FilterActions.ADD, 'composer-1', {
-            fieldId: 'status',
-            tableName: 'mock_table',
-            isSqlColumn: true,
-        });
+        expect(onChange).toHaveBeenLastCalledWith(
+            FilterActions.ADD,
+            'composer-1',
+            {
+                fieldId: 'status',
+                tableName: 'mock_table',
+                isSqlColumn: true,
+            },
+        );
     });
 
     it('shows a SQL column target as selected on a tile with no fields', () => {

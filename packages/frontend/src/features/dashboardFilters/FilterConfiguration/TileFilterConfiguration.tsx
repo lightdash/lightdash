@@ -1,4 +1,5 @@
 import {
+    FieldType,
     getItemId,
     interpolateUiString,
     isDashboardChartTileType,
@@ -15,7 +16,9 @@ import {
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
+    type Dimension,
     type Field,
+    type ResultColumn,
 } from '@lightdash/common';
 import {
     Box,
@@ -37,7 +40,6 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
-import { getFieldSelectLabel } from '../../../components/common/FieldSelect/fieldSelectLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
@@ -94,17 +96,23 @@ type ComposerTileTarget = {
     tileUuid: string;
     tileChartKind: undefined;
     sortedFilters: Field[];
-    sqlColumns: string[];
-    selectedField: ComposerOption | undefined;
+    sqlColumns: Dimension[];
+    selectedField: Field | undefined;
     tabUuid?: string | null;
     hasExactMatch: boolean;
 };
 
-type ComposerOption = `field:${string}` | `column:${string}`;
-
-const fieldOption = (field: Field): ComposerOption =>
-    `field:${getItemId(field)}`;
-const columnOption = (column: string): ComposerOption => `column:${column}`;
+// A SQL column as an item, so the row's select draws it like a field
+const toSqlColumnItem = (column: ResultColumn): Dimension => ({
+    fieldType: FieldType.DIMENSION,
+    type: column.type,
+    name: column.reference,
+    label: column.reference,
+    table: 'mock_table',
+    tableLabel: '',
+    sql: '',
+    hidden: false,
+});
 
 type FieldRowTarget = TileWithTargetFields | ComposerTileTarget;
 
@@ -142,23 +150,6 @@ type Props = {
         target?: DashboardFieldTarget,
     ) => void;
     onToggleAll: (checked: boolean, tileUuids: string[]) => void;
-};
-
-const getComposerTarget = (
-    fields: Field[],
-    option: string | null,
-): DashboardFieldTarget | undefined => {
-    if (option?.startsWith('column:')) {
-        return {
-            fieldId: option.slice('column:'.length),
-            tableName: 'mock_table',
-            isSqlColumn: true,
-        };
-    }
-    const selected = fields.find((f) => option === fieldOption(f));
-    return selected
-        ? { fieldId: getItemId(selected), tableName: selected.table }
-        : undefined;
 };
 
 const TileFilterConfiguration: FC<Props> = ({
@@ -199,8 +190,12 @@ const TileFilterConfiguration: FC<Props> = ({
             filters: Field[],
             index: number,
         ): ComposerTileTarget => {
-            const sqlColumns = getValidSqlColumnReferences(
-                sqlChartTilesMetadata[tile.uuid]?.columns ?? [],
+            const sqlColumns = (
+                sqlChartTilesMetadata[tile.uuid]?.columns ?? []
+            ).flatMap((column) =>
+                typeof column.reference === 'string'
+                    ? [toSqlColumnItem(column)]
+                    : [],
             );
             const { relation, tileConfig } = getFilterTileRelation(
                 filterRule,
@@ -217,15 +212,11 @@ const TileFilterConfiguration: FC<Props> = ({
                 : field
                   ? filters.find((f) => matchFieldExact(f)(field))
                   : undefined;
-            let selectedField: ComposerOption | undefined;
+            let selectedField: Field | undefined;
             if (relation !== 'disabled') {
-                if (mapped?.isSqlColumn) {
-                    selectedField = sqlColumns.includes(mapped.fieldId)
-                        ? columnOption(mapped.fieldId)
-                        : undefined;
-                } else if (matchedField) {
-                    selectedField = fieldOption(matchedField);
-                }
+                selectedField = mapped?.isSqlColumn
+                    ? sqlColumns.find((c) => c.name === mapped.fieldId)
+                    : matchedField;
             }
             const invalidField =
                 mapped && selectedField === undefined
@@ -687,13 +678,15 @@ const TileFilterConfiguration: FC<Props> = ({
                                     display={!value.checked ? 'none' : 'auto'}
                                 >
                                     {value.targetType === 'composer' ? (
-                                        <Select
-                                            w="100%"
+                                        <FieldSelect
                                             size="xs"
-                                            searchable
-                                            withScrollArea={false}
-                                            allowDeselect={false}
                                             disabled={!value.checked}
+                                            item={value.selectedField}
+                                            items={value.sortedFilters}
+                                            addItems={value.sqlColumns}
+                                            addItemsGroupLabel={getUiString(
+                                                'filters.config.tileSqlColumnsGroup',
+                                            )}
                                             comboboxProps={{
                                                 withinPortal: false,
                                                 classNames: {
@@ -707,54 +700,32 @@ const TileFilterConfiguration: FC<Props> = ({
                                             onDropdownClose={
                                                 popoverProps?.onClose
                                             }
-                                            value={value.selectedField ?? null}
-                                            data={[
-                                                {
-                                                    group: getUiString(
-                                                        'filters.config.tileFieldsGroup',
-                                                    ),
-                                                    items: value.sortedFilters.map(
-                                                        (f) => ({
-                                                            value: fieldOption(
-                                                                f,
-                                                            ),
-                                                            label: getFieldSelectLabel(
-                                                                f,
-                                                                false,
-                                                            ),
-                                                        }),
-                                                    ),
-                                                },
-                                                {
-                                                    group: getUiString(
-                                                        'filters.config.tileSqlColumnsGroup',
-                                                    ),
-                                                    items: value.sqlColumns.map(
-                                                        (column) => ({
-                                                            value: columnOption(
-                                                                column,
-                                                            ),
-                                                            label: column,
-                                                        }),
-                                                    ),
-                                                },
-                                            ].filter(
-                                                (group) =>
-                                                    group.items.length > 0,
-                                            )}
-                                            onChange={(option) => {
-                                                const target =
-                                                    getComposerTarget(
-                                                        value.sortedFilters,
-                                                        option,
+                                            onChange={(item) => {
+                                                if (!item) return;
+                                                const isColumn =
+                                                    value.sqlColumns.some(
+                                                        (c) => c === item,
                                                     );
-                                                if (target) {
-                                                    onChange(
-                                                        FilterActions.ADD,
-                                                        value.tileUuid,
-                                                        target,
-                                                    );
-                                                }
+                                                onChange(
+                                                    FilterActions.ADD,
+                                                    value.tileUuid,
+                                                    isColumn
+                                                        ? {
+                                                              fieldId:
+                                                                  item.name,
+                                                              tableName:
+                                                                  'mock_table',
+                                                              isSqlColumn: true,
+                                                          }
+                                                        : {
+                                                              fieldId:
+                                                                  getItemId(
+                                                                      item,
+                                                                  ),
+                                                              tableName:
+                                                                  item.table,
+                                                          },
+                                                );
                                             }}
                                         />
                                     ) : value.targetType === 'field' ? (
