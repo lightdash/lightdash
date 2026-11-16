@@ -69,6 +69,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
             unstyled={minimal}
             flex={shouldExpand ? 1 : undefined}
             className={classes.card}
+            data-collapsable-card
             data-drop-active={isDropActive || undefined}
             {...dropProps}
             {...tourProps}

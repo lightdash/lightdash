@@ -67,7 +67,6 @@ import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
 import { EXPLORER_TOUR_STORAGE_KEY, ExplorerTour } from '../onboarding';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
-import { FieldColorsPopover } from './FieldColorsPopover';
 import classes from './index.module.css';
 
 interface ExplorePanelProps {
@@ -285,7 +284,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             separatorMargin={6}
                             items={breadcrumbs}
                         />
-                        {!isEmbedded && <FieldColorsPopover />}
                         {explore.type === ExploreType.EXTERNAL_SOURCE &&
                             explore.externalSource && (
                                 <ExternalSourceBadge

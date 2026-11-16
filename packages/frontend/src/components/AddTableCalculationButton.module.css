@@ -1,0 +1,52 @@
+/* One more header cell at the table's right edge: a + that opens the add menu */
+.edgeColumn {
+    --edge: light-dark(#2b8a3e, #38af4d);
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    color: var(--edge);
+    background: var(--mantine-color-ldGray-0);
+    box-shadow: inset 1px 0 0 var(--mantine-color-ldGray-2);
+    transition: background-color 140ms ease;
+}
+
+.edgeColumn:hover,
+.edgeColumn:focus-visible,
+.edgeColumn[aria-expanded='true'] {
+    background: color-mix(in srgb, var(--edge) 14%, var(--mantine-color-body));
+    box-shadow: inset 1px 0 0 color-mix(in srgb, var(--edge) 40%, transparent);
+}
+
+.edgeColumn svg {
+    width: 14px;
+    height: 14px;
+    transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.edgeColumn:hover svg,
+.edgeColumn[aria-expanded='true'] svg {
+    transform: rotate(90deg) scale(1.15);
+}
+
+/* Hovering the card spells the icon out as an add action */
+.headerButton {
+    gap: 1px;
+    width: auto;
+    min-width: var(--ai-size);
+    padding-inline: 4px;
+}
+
+/* Collapsed to nothing until the card is hovered, then slides in */
+.headerButton .plus {
+    width: 0;
+    opacity: 0;
+    transition:
+        width 140ms ease,
+        opacity 140ms ease;
+}
+
+[data-collapsable-card]:hover .headerButton .plus {
+    width: 12px;
+    opacity: 1;
+}

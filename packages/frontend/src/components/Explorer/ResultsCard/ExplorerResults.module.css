@@ -197,21 +197,63 @@
     opacity: 0.35;
 }
 
-/* A + at the table's right edge, shown while the results are hovered */
+/* One more header cell at the table's right edge, shown while the results
+   are hovered */
 .edgeHost {
     position: relative;
 }
 
+/* The + floats over the table, so the last header keeps its menu clear of it */
+.edgeHost[data-with-edge]
+    .results:not([data-grouped])
+    table
+    thead
+    th:last-child:not(:first-child) {
+    padding-right: 36px;
+}
+
 .edgeAction {
     position: absolute;
-    top: 46px;
-    right: 8px;
+    top: var(--edge-top, 0);
+    right: 0;
     z-index: 2;
+    display: flex;
+    width: 28px;
+    height: var(--edge-height, 37px);
+    overflow: hidden;
+    background: var(--mantine-color-body);
     opacity: 0;
-    transition: opacity 120ms ease;
+    transition:
+        width 160ms ease,
+        opacity 140ms ease;
 }
 
 .edgeHost:hover .edgeAction,
 .edgeAction:focus-within {
     opacity: 1;
+}
+
+.edgeAction:hover,
+.edgeAction:focus-within,
+.edgeAction:has([aria-expanded='true']) {
+    width: 36px;
+    opacity: 1;
+}
+
+/* Rows / Pivoted beside the Results title: plain words, the current one in ink */
+.viewTab {
+    padding: 2px 6px;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.viewTab:hover {
+    color: var(--mantine-color-text);
+    background: var(--mantine-color-default-hover);
+}
+
+.viewTab[aria-selected='true'] {
+    font-weight: 600;
+    color: var(--mantine-color-text);
 }

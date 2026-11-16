@@ -4,12 +4,20 @@ import {
     Box,
     Group,
     Popover,
-    SegmentedControl,
     Text,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
-import { memo, useCallback, useEffect, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import {
     explorerActions,
     selectIsEditMode,
@@ -47,6 +55,19 @@ import resultsClasses from './ExplorerResults.module.css';
 import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
 import { useResultsExport } from './useResultsExport';
+
+const VIEW_OPTIONS = [
+    {
+        value: ResultsViewMode.RESULTS,
+        label: 'Rows',
+        description: 'One row per result',
+    },
+    {
+        value: ResultsViewMode.GROUPED,
+        label: 'Pivoted',
+        description: 'The rows as your chart groups them',
+    },
+];
 
 const ResultsCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
@@ -98,6 +119,48 @@ const ResultsCard: FC = memo(() => {
     const isChartOpen = useExplorerSelector(selectIsVisualizationExpanded);
     // A field dropped here joins the query, which then runs
     const fieldDrop = useFieldDrop(useAddDroppedFieldToQuery());
+    const showEdgeColumn =
+        isEditMode && !isGroupedView && (resultsExport.totalResults ?? 0) > 0;
+
+    const canManageCustomFields = user.data?.ability?.can(
+        'manage',
+        subject('CustomFields', {
+            organizationUuid: user.data.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const handleAddCustomDimension = useCallback(() => {
+        if (!tableName) return;
+        dispatch(
+            explorerActions.toggleCustomDimensionModal({
+                isEditing: false,
+                table: tableName,
+                item: undefined,
+            }),
+        );
+    }, [dispatch, tableName]);
+
+    // The edge column's header cell tracks the table header's real box
+    const edgeHostRef = useRef<HTMLDivElement>(null);
+    const [headerBox, setHeaderBox] = useState({ top: 0, height: 37 });
+    useLayoutEffect(() => {
+        const host = edgeHostRef.current;
+        const thead = host?.querySelector('thead');
+        if (!showEdgeColumn || !host || !thead) return;
+        const measure = () => {
+            const { top: headTop, height } = thead.getBoundingClientRect();
+            const top = headTop - host.getBoundingClientRect().top;
+            setHeaderBox((prev) =>
+                prev.top === top && prev.height === height
+                    ? prev
+                    : { top, height },
+            );
+        };
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(thead);
+        return () => observer.disconnect();
+    }, [showEdgeColumn, resultsIsOpen]);
     return (
         <CollapsableCard
             title="Results"
@@ -141,29 +204,28 @@ const ResultsCard: FC = memo(() => {
             headerElement={
                 <Group wrap="nowrap" gap="xs">
                     {resultsIsOpen && !isGroupedDisabled && (
-                        <Tooltip
-                            label="Pivoted shows the rows as your chart groups them"
-                            openDelay={400}
-                        >
-                            <SegmentedControl
-                                size="xs"
-                                data={[
-                                    {
-                                        label: 'Rows',
-                                        value: ResultsViewMode.RESULTS,
-                                    },
-                                    {
-                                        label: 'Pivoted',
-                                        value: ResultsViewMode.GROUPED,
-                                    },
-                                ]}
-                                value={viewMode}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(value) =>
-                                    setViewMode(value as ResultsViewMode)
-                                }
-                            />
-                        </Tooltip>
+                        <Group gap={2} wrap="nowrap" role="tablist">
+                            {VIEW_OPTIONS.map((option) => (
+                                <Tooltip
+                                    key={option.value}
+                                    label={option.description}
+                                    openDelay={400}
+                                >
+                                    <UnstyledButton
+                                        role="tab"
+                                        aria-selected={
+                                            viewMode === option.value
+                                        }
+                                        className={resultsClasses.viewTab}
+                                        onClick={() =>
+                                            setViewMode(option.value)
+                                        }
+                                    >
+                                        {option.label}
+                                    </UnstyledButton>
+                                </Tooltip>
+                            ))}
+                        </Group>
                     )}
                     {/* Row count and sort describe the flat rows only */}
                     {!isGroupedView &&
@@ -288,9 +350,13 @@ const ResultsCard: FC = memo(() => {
                     <StaleResultsPrompt subject="your results" />
                 </Box>
             )}
-            <Box className={resultsClasses.edgeHost}>
+            <Box
+                ref={edgeHostRef}
+                className={resultsClasses.edgeHost}
+                data-with-edge={showEdgeColumn || undefined}
+            >
                 <ExplorerResults viewMode={viewMode} />
-                {isEditMode && hasSelectedFields && !isGroupedView && (
+                {showEdgeColumn && (
                     <Can
                         I="manage"
                         this={subject('Explore', {
@@ -298,9 +364,20 @@ const ResultsCard: FC = memo(() => {
                             projectUuid,
                         })}
                     >
-                        <Box className={resultsClasses.edgeAction}>
+                        <Box
+                            className={resultsClasses.edgeAction}
+                            __vars={{
+                                '--edge-top': `${headerBox.top}px`,
+                                '--edge-height': `${headerBox.height}px`,
+                            }}
+                        >
                             <AddTableCalculationButton
                                 tableEdge
+                                onAddCustomDimension={
+                                    canManageCustomFields && tableName
+                                        ? handleAddCustomDimension
+                                        : undefined
+                                }
                                 disabledReason={
                                     isTableCalculationRefused
                                         ? NOT_ON_LIVE_SOURCES
