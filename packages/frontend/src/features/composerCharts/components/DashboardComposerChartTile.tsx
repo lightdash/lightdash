@@ -28,6 +28,7 @@ import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashb
 import {
     dashboardParametersActions,
     dashboardTileStatusActions,
+    selectSqlChartTilesMetadata,
     selectInvalidateCache,
     selectParameterValues,
     selectRefreshCounter,
@@ -140,6 +141,9 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
     const chart = chartQuery.data;
     const run = runQuery.data;
     const dispatch = useDashboardDispatch();
+    const hasReportedSqlColumns = useDashboardSelector(
+        (state) => selectSqlChartTilesMetadata(state)[tile.uuid] !== undefined,
+    );
     useEffect(() => {
         if (!run) return;
         dispatch(
@@ -149,7 +153,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             }),
         );
         // Offered to the filter editor as on a SQL chart tile, once a run discovered them
-        if (run.sqlColumns.length > 0) {
+        if (run.sqlColumns.length > 0 || hasReportedSqlColumns) {
             dispatch(
                 dashboardTileStatusActions.updateSqlChartTilesMetadata({
                     tileUuid: tile.uuid,
@@ -157,7 +161,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                 }),
             );
         }
-    }, [dispatch, tile.uuid, run]);
+    }, [dispatch, tile.uuid, run, hasReportedSqlColumns]);
     const title = getTitle(tile);
     const terminal = useInfiniteQueryResults(
         projectUuid,

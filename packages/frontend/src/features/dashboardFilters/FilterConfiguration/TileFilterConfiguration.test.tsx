@@ -53,17 +53,16 @@ const rule = (
     tileTargets,
 });
 
+const statusColumn = { reference: 'status', type: DimensionType.STRING };
+
 const renderList = (
     filterRule: DashboardFilterRule,
     availableTileFilters: Record<string, Field[] | undefined>,
+    columns = [statusColumn],
 ) => {
     const onChange = vi.fn();
     const store = createDashboardTestStore({
-        sqlChartTilesMetadata: {
-            'composer-1': {
-                columns: [{ reference: 'status', type: DimensionType.STRING }],
-            },
-        },
+        sqlChartTilesMetadata: { 'composer-1': { columns } },
     });
     renderWithProviders(
         <DashboardStoreTestProvider store={store}>
@@ -118,5 +117,11 @@ describe('TileFilterConfiguration on a composer tile', () => {
             screen.getByRole('checkbox', { name: /Composer/ }),
         ).toBeChecked();
         expect(screen.getByDisplayValue('status')).toBeInTheDocument();
+    });
+
+    it('drops the row once a run reports no SQL columns and the tile has no fields', () => {
+        renderList(rule(), {}, []);
+
+        expect(screen.queryAllByTestId('tile-filter-item')).toHaveLength(0);
     });
 });

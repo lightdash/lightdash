@@ -362,7 +362,10 @@ const TileFilterConfiguration: FC<Props> = ({
                 }
                 if (isDashboardComposerChartTile(tile)) {
                     // A tile with fields already has its row
-                    if (!(tileUuid in availableTileFilters)) {
+                    if (
+                        !(tileUuid in availableTileFilters) &&
+                        columns.length > 0
+                    ) {
                         acc.push(getComposerTileTarget(tile, [], index));
                     }
                     return acc;
