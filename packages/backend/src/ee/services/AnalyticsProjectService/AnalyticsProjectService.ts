@@ -9,13 +9,18 @@ import {
     EnsureAnalyticsProjectResult,
     ForbiddenError,
     getContentAsCodePathFromLtreePath,
+    getErrorMessage,
     getLtreePathFromContentAsCodePath,
+    isAppVersionInProgress,
     isUserWithOrg,
     NotFoundError,
     RegisteredAccount,
     SessionUser,
+    type DataAppCode,
 } from '@lightdash/common';
+import { createHash } from 'crypto';
 import { memoize } from 'es-toolkit/compat';
+import { z } from 'zod';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import {
@@ -25,8 +30,10 @@ import {
 import { trackSafely } from '../../../analytics/trackSafely';
 import { toSessionUser } from '../../../auth/account';
 import type { LightdashConfig } from '../../../config/parseConfig';
+import { type AppModel } from '../../../models/AppModel';
 import {
     ANALYTICS_BUNDLE_SNAPSHOT_TYPE,
+    ANALYTICS_DATA_APP_SNAPSHOT_TYPE,
     type ContentAsCodeSnapshotModel,
 } from '../../../models/ContentAsCodeSnapshotModel';
 import { type ContentVerificationModel } from '../../../models/ContentVerificationModel';
@@ -49,13 +56,29 @@ import { ProjectService } from '../../../services/ProjectService/ProjectService'
 import type { AiAgentModel } from '../../models/AiAgentModel';
 import type { ProjectHomepageModel } from '../../models/ProjectHomepageModel';
 import type { AiAgentService } from '../AiAgentService/AiAgentService';
+import { type AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { analyticsAgent } from './analyticsAgent';
 import { getAnalyticsContentHash } from './analyticsContentHash';
 import { analyticsHomepage } from './analyticsHomepage';
+import {
+    getManagedAdoptionAppCode,
+    managedAdoptionAppSlug,
+} from './managedAdoptionApp';
 
 type Dependencies = {
     analytics: Pick<LightdashAnalytics, 'track'>;
     lightdashConfig: Pick<LightdashConfig, 'usageEvents'>;
+    appModel: Pick<
+        AppModel,
+        | 'getAppIncludingDeleted'
+        | 'getLatestVersion'
+        | 'getVersion'
+        | 'hasAppSlug'
+    >;
+    getAppGenerateService: () => Pick<
+        AppGenerateService,
+        'dataAppsEnabledFor' | 'importAppCode' | 'restoreApp'
+    >;
     aiAgentModel: Pick<AiAgentModel, 'findAllAgents'>;
     getAiAgentService: () => Pick<
         AiAgentService,
@@ -76,7 +99,10 @@ type Dependencies = {
         'getOrganizationAdmins'
     >;
     usageDimensionsModel: Pick<UsageDimensionsModel, 'getOrganizations'>;
-    coderService: Pick<CoderService, 'upsertChart' | 'upsertDashboard'>;
+    coderService: Pick<
+        CoderService,
+        'getOrCreateSpace' | 'upsertChart' | 'upsertDashboard'
+    >;
     contentVerificationModel: Pick<
         ContentVerificationModel,
         'getByContentUuids'
@@ -129,6 +155,14 @@ const expectedModelCounts = memoize(() =>
 const bundleSnapshotSlug = 'managed-content';
 const contentHash = memoize(() =>
     getAnalyticsContentHash(createAnalyticsExplores(), analyticsContentAsCode),
+);
+
+const adoptionAppSnapshotSchema = z.object({
+    appUuid: z.string().uuid(),
+    version: z.number().int().positive(),
+});
+const getAdoptionAppHash = memoize((code: DataAppCode) =>
+    createHash('sha256').update(JSON.stringify(code)).digest('hex'),
 );
 
 export class AnalyticsProjectService extends BaseService {
@@ -212,6 +246,114 @@ export class AnalyticsProjectService extends BaseService {
         return agents.length === 0;
     }
 
+    private async findAnalyticsProject(organizationUuid: string) {
+        const projects =
+            await this.dependencies.projectModel.getAllByOrganizationUuid(
+                organizationUuid,
+            );
+        return projects.find(
+            (candidate) => candidate.provisioningSource === 'analytics',
+        );
+    }
+
+    private async getAdoptionAppSnapshot(projectUuid: string) {
+        const snapshot = await this.dependencies.contentAsCodeSnapshotModel.get(
+            projectUuid,
+            ANALYTICS_DATA_APP_SNAPSHOT_TYPE,
+            managedAdoptionAppSlug,
+        );
+        if (!snapshot) return null;
+        const identity = adoptionAppSnapshotSchema.parse(snapshot.snapshot);
+        return { ...identity, snapshotHash: snapshot.snapshotHash };
+    }
+
+    private async syncAdoptionApp(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const appService = this.dependencies.getAppGenerateService();
+        if (!(await appService.dataAppsEnabledFor(user))) return;
+
+        const { appModel, contentAsCodeSnapshotModel, coderService } =
+            this.dependencies;
+        const snapshot = await this.getAdoptionAppSnapshot(projectUuid);
+        const app = snapshot
+            ? await appModel
+                  .getAppIncludingDeleted(snapshot.appUuid, projectUuid)
+                  .catch((error: unknown) => {
+                      if (error instanceof NotFoundError) return null;
+                      throw error;
+                  })
+            : null;
+        if (app && app.slug !== managedAdoptionAppSlug) return;
+        if (
+            !app &&
+            (await appModel.hasAppSlug(projectUuid, managedAdoptionAppSlug))
+        )
+            return;
+
+        if (app?.deleted_at) {
+            await appService.restoreApp(user, projectUuid, app.app_id);
+        }
+        const latest = app ? await appModel.getLatestVersion(app.app_id) : null;
+        if (latest && isAppVersionInProgress(latest.status)) return;
+
+        const code = await getManagedAdoptionAppCode();
+        const snapshotHash = getAdoptionAppHash(code);
+        if (app && snapshot?.snapshotHash === snapshotHash) {
+            const version =
+                latest?.version === snapshot.version
+                    ? latest
+                    : await appModel.getVersion(app.app_id, snapshot.version);
+            if (version?.status === 'ready') return;
+        }
+
+        const spaceUuid = app
+            ? undefined
+            : (
+                  await coderService.getOrCreateSpace(
+                      projectUuid,
+                      analyticsDefaultSpace.slug,
+                      user,
+                      false,
+                      true,
+                      {
+                          [analyticsDefaultSpace.slug]:
+                              analyticsDefaultSpace.name,
+                      },
+                      true,
+                  )
+              ).space.uuid;
+        const snapshotEntry = (appUuid: string, version: number) =>
+            ({
+                projectUuid,
+                contentType: ANALYTICS_DATA_APP_SNAPSHOT_TYPE,
+                slug: managedAdoptionAppSlug,
+                snapshot: { appUuid, version },
+                snapshotHash,
+                appliedByUserUuid: user.userUuid,
+                filePath: null,
+            }) satisfies Parameters<ContentAsCodeSnapshotModel['upsert']>[0];
+        const result = await appService.importAppCode(
+            user,
+            projectUuid,
+            { code, spaceUuid },
+            {
+                expectedAppUuid: app?.app_id ?? null,
+                onNewAppVersionCreated: (trx, _versionUuid, appUuid) =>
+                    contentAsCodeSnapshotModel.upsert(
+                        snapshotEntry(appUuid, 1),
+                        trx,
+                    ),
+            },
+        );
+        if (app) {
+            await contentAsCodeSnapshotModel.upsert(
+                snapshotEntry(result.appUuid, result.version),
+            );
+        }
+    }
+
     private async assertBackfill(user: SessionUser): Promise<string> {
         const org = await this.authorize(user);
         const projects =
@@ -289,13 +431,7 @@ export class AnalyticsProjectService extends BaseService {
 
     async getStatus(user: SessionUser): Promise<AnalyticsProjectStatus> {
         const organizationUuid = await this.authorize(user);
-        const projects =
-            await this.dependencies.projectModel.getAllByOrganizationUuid(
-                organizationUuid,
-            );
-        const project = projects.find(
-            (candidate) => candidate.provisioningSource === 'analytics',
-        );
+        const project = await this.findAnalyticsProject(organizationUuid);
         if (!project) return { project: null };
 
         const dashboardSlugs = analyticsContentAsCode.map(
@@ -401,13 +537,8 @@ export class AnalyticsProjectService extends BaseService {
         await this.dependencies.projectModel.runInAnalyticsProvisioningLock(
             organizationUuid,
             async () => {
-                const projects =
-                    await this.dependencies.projectModel.getAllByOrganizationUuid(
-                        organizationUuid,
-                    );
-                const project = projects.find(
-                    (candidate) => candidate.provisioningSource === 'analytics',
-                );
+                const project =
+                    await this.findAnalyticsProject(organizationUuid);
                 if (!project)
                     throw new NotFoundError('Analytics project not found');
                 // The org lock serializes syncs; interrupted uploads are retryable.
@@ -561,6 +692,17 @@ export class AnalyticsProjectService extends BaseService {
                     appliedByUserUuid: user.userUuid,
                     filePath: null,
                 });
+                await this.syncAdoptionApp(user, project.projectUuid).catch(
+                    (error: unknown) => {
+                        this.logger.warn(
+                            'Unable to sync the analytics Adoption app',
+                            {
+                                projectUuid: project.projectUuid,
+                                error: getErrorMessage(error),
+                            },
+                        );
+                    },
+                );
             },
         );
     }
@@ -611,7 +753,27 @@ export class AnalyticsProjectService extends BaseService {
         if (!user.isActive || user.isPending)
             throw new ForbiddenError('Administrator is no longer active');
         const { project } = await this.getStatus(user);
-        if (project?.hasContentUpdates) await this.installSampleContent(user);
+        if (!project) return;
+        if (project.hasContentUpdates) {
+            await this.installSampleContent(user);
+            return;
+        }
+        if (
+            !(await this.dependencies
+                .getAppGenerateService()
+                .dataAppsEnabledFor(user))
+        )
+            return;
+        await this.dependencies.projectModel.runInAnalyticsProvisioningLock(
+            organizationUuid,
+            async () => {
+                const currentProject =
+                    await this.findAnalyticsProject(organizationUuid);
+                if (currentProject?.projectUuid === project.projectUuid) {
+                    await this.syncAdoptionApp(user, project.projectUuid);
+                }
+            },
+        );
     }
 
     async delete(user: SessionUser, projectUuid: string): Promise<void> {

@@ -219,6 +219,7 @@ import {
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { type OnContentVersionCreated } from '../../../models/OnContentVersionCreated';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { type OrganizationSettingsModel } from '../../../models/OrganizationSettingsModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
@@ -814,6 +815,12 @@ const STARTER_CHART_TYPE_SLUGS: readonly string[] = [
     'radar-chart',
     'boxplot',
 ];
+
+// Internal content installs pin the target and skip user upload telemetry.
+type ManagedAppImport = {
+    expectedAppUuid: string | null;
+    onNewAppVersionCreated?: OnContentVersionCreated;
+};
 
 type ImportAppCodeResult = {
     appUuid: string;
@@ -14601,8 +14608,19 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         body: ImportAppCodeRequestBody,
+        managedImport?: ManagedAppImport,
     ): Promise<ImportAppCodeResult> {
         const code = validateDataAppCode(body.code);
+        if (
+            managedImport &&
+            (code.manifest.slug === undefined ||
+                code.manifest.registry !== undefined ||
+                body.createNew)
+        ) {
+            throw new ParameterError(
+                'A guarded import requires an exact app slug',
+            );
+        }
         const sourceFiles = code.files.filter((f) => f.path.startsWith('src/'));
         if (sourceFiles.length === 0) {
             throw new ParameterError(
@@ -14870,6 +14888,13 @@ export class AppGenerateService extends BaseService {
                 );
             }
         }
+        if (
+            managedImport &&
+            ((existingApp?.app_id ?? null) !== managedImport.expectedAppUuid ||
+                (existingApp && existingApp.slug !== manifestSlug))
+        ) {
+            throw new ConflictError('The data app import target has changed');
+        }
         // Registry-managed apps never receive uploads, including the
         // identical-bundle short-circuit below that only patches metadata.
         if (existingApp && existingApp.registry_slug !== null) {
@@ -14962,33 +14987,42 @@ export class AppGenerateService extends BaseService {
                         directAccessAssignments,
                     );
                 }
-                this.analytics.track({
-                    event: 'data_app.uploaded',
-                    userId: user.userUuid,
-                    properties: {
-                        organizationId: organizationUuid,
-                        projectId: projectUuid,
-                        appUuid: existingApp.app_id,
-                        version: latestVersion.version,
-                        action: 'unchanged',
-                        template: code.manifest.template,
-                        sourceFileCount: sourceFiles.length,
-                        sourceBytes: sourceFiles.reduce(
-                            (total, file) =>
-                                total +
-                                Buffer.byteLength(file.contentBase64, 'base64'),
-                            0,
-                        ),
-                        hasCustomDependencies: dependencySummary !== undefined,
-                        customDependencyCount:
-                            dependencySummary?.custom.length ?? 0,
-                        customDependencies: dependencySummary?.custom ?? [],
-                        identitySource,
-                        ...(dependencySummary !== undefined
-                            ? { lockfileHash: dependencySummary.lockfileHash }
-                            : {}),
-                    },
-                });
+                if (!managedImport) {
+                    this.analytics.track({
+                        event: 'data_app.uploaded',
+                        userId: user.userUuid,
+                        properties: {
+                            organizationId: organizationUuid,
+                            projectId: projectUuid,
+                            appUuid: existingApp.app_id,
+                            version: latestVersion.version,
+                            action: 'unchanged',
+                            template: code.manifest.template,
+                            sourceFileCount: sourceFiles.length,
+                            sourceBytes: sourceFiles.reduce(
+                                (total, file) =>
+                                    total +
+                                    Buffer.byteLength(
+                                        file.contentBase64,
+                                        'base64',
+                                    ),
+                                0,
+                            ),
+                            hasCustomDependencies:
+                                dependencySummary !== undefined,
+                            customDependencyCount:
+                                dependencySummary?.custom.length ?? 0,
+                            customDependencies: dependencySummary?.custom ?? [],
+                            identitySource,
+                            ...(dependencySummary !== undefined
+                                ? {
+                                      lockfileHash:
+                                          dependencySummary.lockfileHash,
+                                  }
+                                : {}),
+                        },
+                    });
+                }
                 return {
                     appUuid: existingApp.app_id,
                     version: latestVersion.version,
@@ -15167,6 +15201,10 @@ export class AppGenerateService extends BaseService {
                 );
             }
             newVersion = 1;
+            const creationHookArgs: [null?, OnContentVersionCreated?] =
+                managedImport?.onNewAppVersionCreated
+                    ? [null, managedImport.onNewAppVersionCreated]
+                    : [];
             const { app } = await this.appModel.createWithVersion(
                 {
                     project_uuid: projectUuid,
@@ -15208,6 +15246,7 @@ export class AppGenerateService extends BaseService {
                             ? manifestPreview
                             : null,
                 },
+                ...creationHookArgs,
             );
             newAppUuid = app.app_id;
             newAppSlug = app.slug;
@@ -15330,28 +15369,30 @@ export class AppGenerateService extends BaseService {
                 userUuid: user.userUuid,
             });
 
-            this.analytics.track({
-                event: 'data_app.uploaded',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    appUuid: newAppUuid,
-                    version: newVersion,
-                    action,
-                    template: code.manifest.template,
-                    sourceFileCount: sourceFiles.length,
-                    sourceBytes: sourceTar.length,
-                    hasCustomDependencies: dependencySummary !== undefined,
-                    customDependencyCount:
-                        dependencySummary?.custom.length ?? 0,
-                    customDependencies: dependencySummary?.custom ?? [],
-                    identitySource,
-                    ...(dependencySummary !== undefined
-                        ? { lockfileHash: dependencySummary.lockfileHash }
-                        : {}),
-                },
-            });
+            if (!managedImport) {
+                this.analytics.track({
+                    event: 'data_app.uploaded',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        appUuid: newAppUuid,
+                        version: newVersion,
+                        action,
+                        template: code.manifest.template,
+                        sourceFileCount: sourceFiles.length,
+                        sourceBytes: sourceTar.length,
+                        hasCustomDependencies: dependencySummary !== undefined,
+                        customDependencyCount:
+                            dependencySummary?.custom.length ?? 0,
+                        customDependencies: dependencySummary?.custom ?? [],
+                        identitySource,
+                        ...(dependencySummary !== undefined
+                            ? { lockfileHash: dependencySummary.lockfileHash }
+                            : {}),
+                    },
+                });
+            }
         } catch (error) {
             await this.markError(
                 newAppUuid,

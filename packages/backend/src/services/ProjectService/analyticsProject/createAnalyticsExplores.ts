@@ -461,6 +461,16 @@ export const createAnalyticsExplores = (): Explore[] => {
                 'When current organization membership was observed. Historical snapshots are retained separately; this Explore uses the latest population.';
             table.dimensions.no_observed_activity.description =
                 'No confirmed human activity in retained capture, not proof that the person has never used Lightdash.';
+            table.dimensions.flow_bits.description =
+                'Activity windows for the Adoption app. Add 1 for the last 28 closed UTC days, 2 for the preceding 28 days and 4 for earlier retained activity.';
+            table.dimensions.parts_used.description =
+                'Feature usage in the last 30 closed UTC days. The bit values are dashboards (1), charts (2), Explore and SQL Runner (4), Ask AI (8), MCP (16), app views (32), app builds (64) and downloads (128).';
+            table.dimensions.last_seen.description =
+                'Most recent observed or inferred activity: within 7 closed UTC days (d7), within 30 (d30), older, or never recorded in those categories.';
+            table.dimensions.last_seen_bin.description =
+                'Ten-day bucket for the most recent observed or inferred activity. 0 is 0–9 days ago, 9 is 90 or more, and never means neither category was recorded.';
+            table.dimensions.last_seen_day.description =
+                'UTC date of the most recent observed or inferred activity, in YYYY-MM-DD form.';
         }
         if (name === 'content_health' || name === 'content_inventory') {
             table.dimensions.org_id.hidden = true;

@@ -203,6 +203,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AnalyticsProjectService({
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
+                    appModel: models.getAppModel(),
+                    getAppGenerateService: () =>
+                        repository.getAppGenerateService<AppGenerateService>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),

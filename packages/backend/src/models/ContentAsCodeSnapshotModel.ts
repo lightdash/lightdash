@@ -8,13 +8,15 @@ import { ContentAsCodeSnapshotsTableName } from '../database/entities/contentAsC
 export const AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE =
     'ai_agent_knowledge_document';
 export const ANALYTICS_BUNDLE_SNAPSHOT_TYPE = 'analytics_bundle';
+export const ANALYTICS_DATA_APP_SNAPSHOT_TYPE = 'analytics_data_app';
 
 export type ContentAsCodeSnapshotType =
     | ContentAsCodeType.CHART
     | ContentAsCodeType.SQL_CHART
     | ContentAsCodeType.DASHBOARD
     | typeof AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE
-    | typeof ANALYTICS_BUNDLE_SNAPSHOT_TYPE;
+    | typeof ANALYTICS_BUNDLE_SNAPSHOT_TYPE
+    | typeof ANALYTICS_DATA_APP_SNAPSHOT_TYPE;
 
 export type KnowledgeDocumentSnapshotSlug = string & {
     readonly __brand: 'KnowledgeDocumentSnapshotSlug';
@@ -79,26 +81,30 @@ export class ContentAsCodeSnapshotModel {
         };
     }
 
-    async upsert({
-        projectUuid,
-        contentType,
-        slug,
-        snapshot,
-        snapshotHash,
-        appliedByUserUuid,
-        filePath,
-    }: {
-        projectUuid: string;
-        contentType: ContentAsCodeSnapshotType;
-        slug: string;
-        snapshot: object;
-        snapshotHash: string;
-        appliedByUserUuid: string | null;
-        // null: the client did not say, keep whatever is stored
-        filePath: string | null;
-    }): Promise<void> {
+    async upsert(
+        {
+            projectUuid,
+            contentType,
+            slug,
+            snapshot,
+            snapshotHash,
+            appliedByUserUuid,
+            filePath,
+        }: {
+            projectUuid: string;
+            contentType: ContentAsCodeSnapshotType;
+            slug: string;
+            snapshot: object;
+            snapshotHash: string;
+            appliedByUserUuid: string | null;
+            // null: the client did not say, keep whatever is stored
+            filePath: string | null;
+        },
+        trx?: Knex.Transaction,
+    ): Promise<void> {
+        const db = trx ?? this.database;
         const filePathColumn = filePath === null ? {} : { file_path: filePath };
-        await this.database(ContentAsCodeSnapshotsTableName)
+        await db(ContentAsCodeSnapshotsTableName)
             .insert({
                 project_uuid: projectUuid,
                 content_type: contentType,
@@ -112,7 +118,7 @@ export class ContentAsCodeSnapshotModel {
             .merge({
                 snapshot,
                 snapshot_hash: snapshotHash,
-                applied_at: this.database.fn.now(),
+                applied_at: db.fn.now(),
                 applied_by_user_uuid: appliedByUserUuid,
                 ...filePathColumn,
             });
