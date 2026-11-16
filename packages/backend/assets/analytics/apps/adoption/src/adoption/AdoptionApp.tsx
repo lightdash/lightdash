@@ -116,7 +116,7 @@ const Segmented = <T extends string>({
                         {index > 0 && <span aria-hidden className={`my-1.5 w-px ${hasLine ? 'bg-border' : 'bg-transparent'}`} />}
                         {extra ? (
                             <span className={`inline-flex items-stretch rounded ${pill}`}>
-                                <button type="button" aria-pressed={value === option} className="rounded-l py-1 pl-2.5 pr-0 text-xs font-medium" onClick={() => onChange(option)}>
+                                <button type="button" aria-pressed={value === option} className="rounded-l py-1 pl-2.5 pr-1 text-xs font-medium" onClick={() => onChange(option)}>
                                     {labels[option]}
                                 </button>
                                 {extra}
