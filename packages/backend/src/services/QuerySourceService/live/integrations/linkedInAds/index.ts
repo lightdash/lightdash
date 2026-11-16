@@ -1,0 +1,121 @@
+import {
+    ApiConnectorType,
+    ParameterError,
+    TimeFrames,
+} from '@lightdash/common';
+import { z } from 'zod';
+import { ALL_PUSHDOWN_REFUSED } from '../../../api/ApiConnector';
+import { getIsoDateInTimeZone } from '../../../api/apiDateRange';
+import {
+    defineLiveIntegration,
+    jsonRequest,
+} from '../../defineLiveIntegration';
+import { compileLinkedInAdsQuery } from './compile';
+import {
+    LINKEDIN_ADS_DATE_FILTERS,
+    LINKEDIN_ADS_ID_FILTERS,
+    LINKEDIN_ADS_PERFORMANCE_EXPLORE,
+} from './explores';
+import {
+    getLinkedInAdsAccountPath,
+    LINKEDIN_ADS_ANALYTICS_PATH,
+    LINKEDIN_ADS_CALLS_PER_QUERY,
+    LINKEDIN_ADS_MAX_QUERY_ROWS,
+    LINKEDIN_ADS_ORIGIN,
+    LINKEDIN_ADS_REQUEST_HEADERS,
+    LINKEDIN_ADS_TOKEN_URL,
+    linkedInAdsRequestSchema,
+    runLinkedInAdsQuery,
+    toLinkedInApiError,
+} from './run';
+
+const LINKEDIN_AD_ACCOUNT_ID = /^\d{1,20}$/;
+const LABEL = 'LinkedIn Ads';
+// LinkedIn reports in UTC, whatever the project's time zone.
+const TIME_ZONE = 'UTC';
+
+export const linkedInAdsIntegration = defineLiveIntegration({
+    connector: ApiConnectorType.LINKEDIN_ADS,
+    label: LABEL,
+    settings: z.object({
+        connector: z.literal(ApiConnectorType.LINKEDIN_ADS),
+        adAccountId: z.string(),
+    }),
+    origins: [LINKEDIN_ADS_ORIGIN],
+    access: ({ adAccountId }) => ({
+        pathPrefixes: [
+            LINKEDIN_ADS_ANALYTICS_PATH,
+            getLinkedInAdsAccountPath(adAccountId),
+        ],
+        methods: ['GET'],
+        headers: LINKEDIN_ADS_REQUEST_HEADERS,
+    }),
+    limits: {
+        concurrentCalls: 5,
+        callsPerMinute: 60,
+        callsPerHour: 1_000,
+        callsPerQuery: LINKEDIN_ADS_CALLS_PER_QUERY,
+        timeoutMs: 60_000,
+        maxRows: LINKEDIN_ADS_MAX_QUERY_ROWS,
+    },
+    // adAnalytics filters by campaign and campaign group only, ANDed, and
+    // can't filter metrics. Dates are in UTC, grouped by day, month or year.
+    capabilities: {
+        filters: {
+            operators: {
+                string: LINKEDIN_ADS_ID_FILTERS,
+                date: LINKEDIN_ADS_DATE_FILTERS,
+                metric: [],
+            },
+            multipleValues: true,
+            or: false,
+            nestedGroups: false,
+        },
+        metricFilters: false,
+        dates: {
+            rangeRequired: true,
+            operators: LINKEDIN_ADS_DATE_FILTERS,
+            grains: [TimeFrames.DAY, TimeFrames.MONTH, TimeFrames.YEAR],
+            timezone: 'fixed',
+        },
+        pushdown: ALL_PUSHDOWN_REFUSED,
+    },
+    explores: [LINKEDIN_ADS_PERFORMANCE_EXPLORE],
+    // organic_shares needs another API, permission and account, so it may
+    // become its own integration; the name stays reserved here.
+    plannedModelNames: [
+        'creatives',
+        'demographics',
+        'conversions',
+        'organic_shares',
+    ],
+    validate: ({ adAccountId }) => {
+        if (!LINKEDIN_AD_ACCOUNT_ID.test(adAccountId)) {
+            throw new ParameterError(
+                'The LinkedIn ad account ID must be a number',
+            );
+        }
+    },
+    checkAuth: ({ type, oauthTokenUrl }) => {
+        if (
+            type !== 'oauth_authorization_code' ||
+            oauthTokenUrl !== LINKEDIN_ADS_TOKEN_URL
+        ) {
+            throw new ParameterError(
+                'LinkedIn Ads connections authenticate by signing in with LinkedIn',
+            );
+        }
+    },
+    describeTarget: ({ settings: { adAccountId } }) =>
+        `LinkedIn Ads account ${adAccountId}`,
+    parseRequest: jsonRequest('LinkedIn Ads report', linkedInAdsRequestSchema),
+    compile: ({ explore, metricQuery, now }) =>
+        compileLinkedInAdsQuery({
+            explore,
+            metricQuery,
+            today: getIsoDateInTimeZone(now, TIME_ZONE),
+        }),
+    run: runLinkedInAdsQuery,
+    toError: (response, { adAccountId }) =>
+        toLinkedInApiError(response, adAccountId),
+});

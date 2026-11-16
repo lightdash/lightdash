@@ -31,7 +31,7 @@ import {
 export type LiveLimits = ApiConnectorLimits & {
     /** How long the API lets one call run before failing it. */
     timeoutMs: number;
-    /** Most rows one query can return. */
+    /** Most rows one query can return; named in the too-many-rows error. */
     maxRows: number;
 };
 
@@ -49,7 +49,10 @@ export type LiveCalls = {
 export type LiveRunArgs<C extends ApiConnectorType, Request> = {
     settings: ApiSourceOf<C>;
     request: Request;
-    /** Rows the query may return, from 1 to `limits.maxRows`. */
+    /**
+     * Rows the query may return, at least 1. It can exceed `limits.maxRows`;
+     * `run` caps or refuses it the way its API needs.
+     */
     limit: number;
     calls: LiveCalls;
 };
@@ -249,13 +252,9 @@ export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
                         payload,
                         limit,
                     }): Promise<ApiConnectorResult> => {
-                        if (
-                            !Number.isInteger(limit) ||
-                            limit < 1 ||
-                            limit > limits.maxRows
-                        ) {
+                        if (!Number.isInteger(limit) || limit < 1) {
                             throw new ParameterError(
-                                `limit must be between 1 and ${limits.maxRows} rows`,
+                                'limit must be a positive number of rows',
                             );
                         }
                         const request = live.parseRequest(payload.query);
@@ -272,4 +271,11 @@ export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
             };
         },
     };
+};
+
+/** Refuses a limit past what one query can read, for APIs that can't cap it. */
+export const assertMaxRows = (limit: number, maxRows: number) => {
+    if (limit > maxRows) {
+        throw new ParameterError(`limit must be between 1 and ${maxRows} rows`);
+    }
 };

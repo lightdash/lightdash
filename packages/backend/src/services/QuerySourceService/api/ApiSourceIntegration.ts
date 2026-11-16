@@ -9,6 +9,7 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { type z } from 'zod';
+import { type PostHogPropertyKind } from '../live/integrations/postHog/explores';
 import {
     type ApiConnector,
     type ApiConnectorCapabilities,
@@ -18,7 +19,6 @@ import {
     type ApiSourceExploreDefinition,
     type CompiledApiSourceQuery,
 } from './apiSourceExplore';
-import { type PostHogPropertyKind } from './posthog/posthogSemanticLayer';
 
 /** What an integration reports about its own fields; absent when not scanned. */
 export type ApiSourceScan = {

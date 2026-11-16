@@ -3,14 +3,14 @@ import {
     assertUnreachable,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
+import { ga4Integration } from '../live/integrations/ga4';
+import { googleAdsIntegration } from '../live/integrations/googleAds';
+import { linkedInAdsIntegration } from '../live/integrations/linkedInAds';
+import { metaAdsIntegration } from '../live/integrations/metaAds';
+import { postHogIntegration } from '../live/integrations/postHog';
 import { searchConsoleIntegration } from '../live/integrations/searchConsole';
+import { youtubeAnalyticsIntegration } from '../live/integrations/youtubeAnalytics';
 import { type ApiSourceIntegration } from './ApiSourceIntegration';
-import { ga4Integration } from './google/ga4Integration';
-import { googleAdsIntegration } from './google/googleAdsIntegration';
-import { youtubeAnalyticsIntegration } from './google/youtubeAnalyticsIntegration';
-import { linkedInAdsIntegration } from './linkedin/linkedInAdsIntegration';
-import { metaAdsIntegration } from './meta/metaAdsIntegration';
-import { postHogIntegration } from './posthog/postHogIntegration';
 
 /** One entry per integration; a missing one fails typecheck. */
 const API_SOURCE_INTEGRATIONS: {

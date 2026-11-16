@@ -1,6 +1,10 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
 import { z } from 'zod';
-import type { LiveRunArgs, LiveRunResult } from '../../defineLiveIntegration';
+import {
+    assertMaxRows,
+    type LiveRunArgs,
+    type LiveRunResult,
+} from '../../defineLiveIntegration';
 
 export const SEARCH_CONSOLE_ORIGIN = 'https://searchconsole.googleapis.com';
 export const SEARCH_CONSOLE_SITES_PATH = '/webmasters/v3/sites/';
@@ -104,6 +108,7 @@ export const runSearchConsoleQuery = async ({
     ApiConnectorType.SEARCH_CONSOLE,
     SearchConsoleRequest
 >): Promise<LiveRunResult> => {
+    assertMaxRows(limit, SEARCH_CONSOLE_MAX_QUERY_ROWS);
     const rowLimit = Math.min(limit, requestLimit ?? limit);
     const dimensions = request.dimensions ?? [];
     const { rows = [] } = await calls.fetch(

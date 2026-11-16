@@ -7,7 +7,7 @@ import {
 import {
     getGa4MetadataPath,
     getGa4ReportPath,
-} from '../../../services/QuerySourceService/api/google/Ga4Connector';
+} from '../../../services/QuerySourceService/live/integrations/ga4/run';
 import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
 import { getSearchConsoleQueryPath } from '../../../services/QuerySourceService/live/integrations/searchConsole/run';
 import {

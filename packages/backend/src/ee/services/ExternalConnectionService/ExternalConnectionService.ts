@@ -83,24 +83,24 @@ import {
 import { type ApiSourceScan } from '../../../services/QuerySourceService/api/ApiSourceIntegration';
 import { getApiSourceIntegration } from '../../../services/QuerySourceService/api/apiSourceIntegrations';
 import {
-    getLinkedInAdsAccountPath,
-    LINKEDIN_ADS_ORIGIN,
-    LINKEDIN_ADS_REQUEST_HEADERS,
-    LINKEDIN_ADS_TOKEN_URL,
-} from '../../../services/QuerySourceService/api/linkedin/LinkedInAdsConnector';
-import {
     applyLiveSourceFieldChanges,
     getInitialLiveSourceFieldEdits,
     getRequiredFieldNames,
     listLiveSourceFields,
 } from '../../../services/QuerySourceService/api/liveSourceFields';
-import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
+import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
+import {
+    getLinkedInAdsAccountPath,
+    LINKEDIN_ADS_ORIGIN,
+    LINKEDIN_ADS_REQUEST_HEADERS,
+    LINKEDIN_ADS_TOKEN_URL,
+} from '../../../services/QuerySourceService/live/integrations/linkedInAds/run';
+import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/live/integrations/postHog/run';
 import {
     scanPostHogSchema,
     toFailedScan,
     toPostHogSchemaTable,
-} from '../../../services/QuerySourceService/api/posthog/postHogSchemaScan';
-import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
+} from '../../../services/QuerySourceService/live/integrations/postHog/scan';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
     normalizeCredentialUrlHref,
