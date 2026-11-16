@@ -1,48 +1,40 @@
+import type { CustomSqlPermissions } from '../types/aiAgent';
 import { getContentToolsSection } from './systemV2ContentTools';
 
-const render = (
-    permissions: Partial<{
-        canSaveSqlCharts: boolean;
-        canAuthorCustomSqlFields: boolean;
-        canAuthorSqlTableCalculations: boolean;
-    }>,
-) =>
+const render = (missing: Partial<CustomSqlPermissions>) =>
     getContentToolsSection({
         canRunQuery: true,
         viaComposerQueries: false,
-        canSaveSqlCharts: true,
-        canAuthorCustomSqlFields: true,
-        canAuthorSqlTableCalculations: true,
-        ...permissions,
+        customSqlPermissions: {
+            canSaveSqlCharts: true,
+            canAuthorCustomSqlFields: true,
+            canAuthorSqlTableCalculations: true,
+            ...missing,
+        },
     });
+
+const SQL_CHARTS_LINE =
+    '- SQL charts cannot be saved here: build charts from explore fields instead, and say so when asked for a SQL chart.';
+const CUSTOM_SQL_FIELDS_LINE =
+    '- The user cannot add or change custom SQL dimensions or custom metrics with hand-written SQL: use explore fields instead.';
+const SQL_TABLE_CALCULATIONS_LINE =
+    '- The user cannot add or change SQL table calculations: use formula or template table calculations instead.';
+
+const countPermissionLines = (section: string) =>
+    (section.match(/^- (SQL charts|The user) cannot/gm) ?? []).length;
 
 describe('getContentToolsSection custom SQL guidance', () => {
-    test('adds no permission lines when the user has every scope', () => {
-        const section = render({});
-        expect(section).not.toContain('The user cannot');
-        expect(section).not.toContain('SQL charts cannot be saved');
+    test('adds no lines when every permission is granted', () => {
+        expect(countPermissionLines(render({}))).toBe(0);
     });
 
-    test('warns about SQL charts without manage:CustomSql or SQL mode', () => {
-        expect(render({ canSaveSqlCharts: false })).toContain(
-            '- SQL charts cannot be saved here: build charts from explore fields instead, and say so when asked for a SQL chart.',
-        );
-    });
-
-    test('names only the custom SQL kinds whose scope is missing', () => {
-        expect(render({ canAuthorCustomSqlFields: false })).toContain(
-            '- The user cannot add or change custom SQL dimensions or custom metrics with hand-written SQL in charts: use explore fields instead.',
-        );
-        expect(render({ canAuthorSqlTableCalculations: false })).toContain(
-            '- The user cannot add or change SQL table calculations in charts: use formula or template table calculations instead.',
-        );
-        expect(
-            render({
-                canAuthorCustomSqlFields: false,
-                canAuthorSqlTableCalculations: false,
-            }),
-        ).toContain(
-            '- The user cannot add or change custom SQL dimensions, custom metrics with hand-written SQL or SQL table calculations in charts: use explore fields and formula or template table calculations instead.',
-        );
+    test.each([
+        ['canSaveSqlCharts', SQL_CHARTS_LINE],
+        ['canAuthorCustomSqlFields', CUSTOM_SQL_FIELDS_LINE],
+        ['canAuthorSqlTableCalculations', SQL_TABLE_CALCULATIONS_LINE],
+    ] as const)('adds only its line when %s is false', (permission, line) => {
+        const section = render({ [permission]: false });
+        expect(section).toContain(line);
+        expect(countPermissionLines(section)).toBe(1);
     });
 });

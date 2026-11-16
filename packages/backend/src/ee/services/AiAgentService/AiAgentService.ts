@@ -17504,7 +17504,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     );
 
                 // The scopes the content services check before saving or running custom SQL.
-                const canManageInProject = (
+                const canManageCustomSql = (
                     subjectName:
                         | 'CustomSql'
                         | 'CustomFields'
@@ -18170,13 +18170,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     liveSources,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
-                    canSaveSqlCharts:
-                        canRunSql && canManageInProject('CustomSql'),
-                    canAuthorCustomSqlFields:
-                        canManageInProject('CustomFields'),
-                    canAuthorSqlTableCalculations: canManageInProject(
-                        'CustomSqlTableCalculations',
-                    ),
+                    customSqlPermissions: {
+                        canSaveSqlCharts:
+                            canRunSql && canManageCustomSql('CustomSql'),
+                        canAuthorCustomSqlFields:
+                            canManageCustomSql('CustomFields'),
+                        canAuthorSqlTableCalculations: canManageCustomSql(
+                            'CustomSqlTableCalculations',
+                        ),
+                    },
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||
                         agentSettings.enableSqlAutoApproval,

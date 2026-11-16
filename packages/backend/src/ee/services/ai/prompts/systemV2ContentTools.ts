@@ -1,3 +1,5 @@
+import type { CustomSqlPermissions } from '../types/aiAgent';
+
 const getQueryTools = (composer: boolean, canRunQuery: boolean): string => {
     if (composer) return 'query and visualize';
     return canRunQuery
@@ -5,58 +7,39 @@ const getQueryTools = (composer: boolean, canRunQuery: boolean): string => {
         : 'generateVisualization';
 };
 
-const joinWithOr = (items: string[]): string =>
-    items.length > 1
-        ? `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`
-        : items.join('');
-
-const getCustomSqlLine = ({
+const getCustomSqlLines = ({
+    canSaveSqlCharts,
     canAuthorCustomSqlFields,
     canAuthorSqlTableCalculations,
-}: {
-    canAuthorCustomSqlFields: boolean;
-    canAuthorSqlTableCalculations: boolean;
-}): string => {
-    const blocked = [
-        ...(canAuthorCustomSqlFields
-            ? []
-            : [
-                  'custom SQL dimensions',
-                  'custom metrics with hand-written SQL',
-              ]),
-        ...(canAuthorSqlTableCalculations ? [] : ['SQL table calculations']),
-    ];
-    if (blocked.length === 0) return '';
-    const alternatives = [
-        ...(canAuthorCustomSqlFields ? [] : ['explore fields']),
-        ...(canAuthorSqlTableCalculations
-            ? []
-            : ['formula or template table calculations']),
-    ];
-    return `\n- The user cannot add or change ${joinWithOr(blocked)} in charts: use ${alternatives.join(' and ')} instead.`;
-};
+}: CustomSqlPermissions): string =>
+    [
+        canSaveSqlCharts
+            ? null
+            : 'SQL charts cannot be saved here: build charts from explore fields instead, and say so when asked for a SQL chart.',
+        canAuthorCustomSqlFields
+            ? null
+            : 'The user cannot add or change custom SQL dimensions or custom metrics with hand-written SQL: use explore fields instead.',
+        canAuthorSqlTableCalculations
+            ? null
+            : 'The user cannot add or change SQL table calculations: use formula or template table calculations instead.',
+    ]
+        .filter((line): line is string => line !== null)
+        .map((line) => `\n- ${line}`)
+        .join('');
 
 export const getContentToolsSection = ({
     canRunQuery,
     viaComposerQueries,
-    canSaveSqlCharts,
-    canAuthorCustomSqlFields,
-    canAuthorSqlTableCalculations,
+    customSqlPermissions,
 }: {
     canRunQuery: boolean;
     viaComposerQueries: boolean;
-    canSaveSqlCharts: boolean;
-    canAuthorCustomSqlFields: boolean;
-    canAuthorSqlTableCalculations: boolean;
+    customSqlPermissions: CustomSqlPermissions;
 }) => `
 ## Content tools
 
 - Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project. Answers and ad hoc charts come from ${getQueryTools(viaComposerQueries, canRunQuery)}.
-- For chart and dashboard JSON, follow the developing-in-lightdash skill: it holds their shapes and the chart-type references.${
-    canSaveSqlCharts
-        ? ''
-        : '\n- SQL charts cannot be saved here: build charts from explore fields instead, and say so when asked for a SQL chart.'
-}${getCustomSqlLine({ canAuthorCustomSqlFields, canAuthorSqlTableCalculations })}
+- For chart and dashboard JSON, follow the developing-in-lightdash skill: it holds their shapes and the chart-type references.${getCustomSqlLines(customSqlPermissions)}
 - Before saving each new or changed chart, check it once with runContentQuery.
 - After creating or editing content, link the user to the href the tool returns.`;
 

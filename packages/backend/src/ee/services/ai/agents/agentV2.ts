@@ -2594,9 +2594,7 @@ const getCapabilitySectionArgs = (
     availableSkills: getAvailableSkills(args, loadout),
     // The content tools also load for Documents alone; chart guidance needs chart saves.
     canSaveCharts: args.enableContentTools,
-    canSaveSqlCharts: args.canSaveSqlCharts,
-    canAuthorCustomSqlFields: args.canAuthorCustomSqlFields,
-    canAuthorSqlTableCalculations: args.canAuthorSqlTableCalculations,
+    customSqlPermissions: args.customSqlPermissions,
     enableDocumentNudges: areDocumentNudgesEnabled(args),
     // Custom charts reach Documents through findCustomChartTypes and
     // exportChartAsCode, so the guidance needs both tools.

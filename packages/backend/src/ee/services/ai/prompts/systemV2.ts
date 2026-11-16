@@ -15,6 +15,7 @@ import {
     AiAgentDeepResearchRunContext,
     AiAgentRequestingUser,
     AiAgentThreadBindingContext,
+    type CustomSqlPermissions,
 } from '../types/aiAgent';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
@@ -70,6 +71,12 @@ const getDataAccessSection = (
         : DATA_ACCESS_DISABLED_SECTION;
 };
 
+const ALL_CUSTOM_SQL_PERMISSIONS: CustomSqlPermissions = {
+    canSaveSqlCharts: true,
+    canAuthorCustomSqlFields: true,
+    canAuthorSqlTableCalculations: true,
+};
+
 const NO_PROMPT_SECTIONS: ReadonlySet<PromptSection> = new Set();
 
 const getFilterGuidanceSection = (
@@ -88,10 +95,8 @@ export type CapabilitySectionArgs = {
     availableSkills?: AiAgentSkillReference[];
     // False when the content tools load for Documents alone. Defaults to true.
     canSaveCharts?: boolean;
-    // Content permissions the prompt warns about when missing. Default to true.
-    canSaveSqlCharts?: boolean;
-    canAuthorCustomSqlFields?: boolean;
-    canAuthorSqlTableCalculations?: boolean;
+    // Defaults to all granted, so no warnings.
+    customSqlPermissions?: CustomSqlPermissions;
     enableDocumentNudges?: boolean;
     enableDocumentCustomCharts?: boolean;
     slackChannelId?: string | null;
@@ -130,11 +135,9 @@ const getCapabilitySections = (
                       ? getContentToolsSection({
                             canRunQuery,
                             viaComposerQueries: composer,
-                            canSaveSqlCharts: args.canSaveSqlCharts ?? true,
-                            canAuthorCustomSqlFields:
-                                args.canAuthorCustomSqlFields ?? true,
-                            canAuthorSqlTableCalculations:
-                                args.canAuthorSqlTableCalculations ?? true,
+                            customSqlPermissions:
+                                args.customSqlPermissions ??
+                                ALL_CUSTOM_SQL_PERMISSIONS,
                         })
                       : '',
                   sections.has('documents')
