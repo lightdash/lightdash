@@ -299,6 +299,7 @@ describe('createAnalyticsExplores', () => {
             'data_app_outcomes',
             'people_adoption',
             'people_membership',
+            'people_adoption_details',
             'embed_reach',
         ]);
         expect(apps.tables.data_app_events.dimensions.app_id).toBeDefined();

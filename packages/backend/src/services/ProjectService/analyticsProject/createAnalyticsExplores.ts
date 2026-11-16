@@ -14,7 +14,6 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { contentInventoryColumns } from '../../../analytics/eventStream/contentInventory';
-import { peopleMembershipColumns } from '../../../analytics/eventStream/peopleMembership';
 import { compactedStreamSchemas } from '../../../analytics/eventStream/registry';
 import type { CompactedColumnType } from '../../../analytics/eventStream/types';
 import {
@@ -66,12 +65,17 @@ import {
     embedReachSql,
 } from '../../../analytics/systemExplores/embedReach';
 import {
-    currentPeopleSql,
     peopleAdoptionColumns,
     peopleAdoptionMetrics,
     peopleAdoptionSql,
-    totalMembersMetric,
 } from '../../../analytics/systemExplores/peopleAdoption';
+import {
+    adoptionDetailColumns,
+    adoptionMembershipColumns,
+    adoptionMembershipMetric,
+    currentPeopleSql,
+    peopleAdoptionDetailsSql,
+} from '../../../analytics/systemExplores/peopleAdoptionDetails';
 import {
     semanticUsageColumns,
     semanticUsageMetrics,
@@ -121,6 +125,7 @@ export const analyticsExploreNames = [
     'data_app_outcomes',
     'people_adoption',
     'people_membership',
+    'people_adoption_details',
     'embed_reach',
 ] as const;
 
@@ -188,16 +193,12 @@ export const createAnalyticsExplores = (): Explore[] => {
                 metrics: peopleAdoptionMetrics,
             },
             people_membership: {
-                columns: peopleMembershipColumns.filter(({ name: column }) =>
-                    [
-                        'user_id',
-                        'is_active',
-                        'group_ids',
-                        'group_names',
-                        'organization_role',
-                    ].includes(column),
-                ),
-                metrics: [totalMembersMetric],
+                columns: adoptionMembershipColumns,
+                metrics: [adoptionMembershipMetric],
+            },
+            people_adoption_details: {
+                columns: adoptionDetailColumns,
+                metrics: [adoptionMembershipMetric],
             },
             content_health: {
                 columns: contentHealthColumns,
@@ -254,7 +255,8 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'data_app_reach' ||
             name === 'data_app_outcomes' ||
             name === 'people_adoption' ||
-            name === 'people_membership'
+            name === 'people_membership' ||
+            name === 'people_adoption_details'
                 ? model[name]
                 : {
                       columns: compactedStreamSchemas[name],
@@ -381,6 +383,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                           data_app_outcomes: dataAppOutcomesSql,
                           people_adoption: peopleAdoptionSql,
                           people_membership: currentPeopleSql,
+                          people_adoption_details: peopleAdoptionDetailsSql,
                       } as Partial<Record<typeof name, string>>
                   )[name] ?? `"${name}"`),
 
@@ -405,7 +408,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             table.dimensions.user_id.label = 'User UUID';
         if (table.dimensions.project_id)
             table.dimensions.project_id.label = 'Project UUID';
-        if (name === 'people_membership')
+        if (name === 'people_membership' || name === 'people_adoption_details')
             table.dimensions.user_id.hidden = true;
         if (startsOnly) table.dimensions.org_id.hidden = true;
         if (name === 'embed_reach') {
@@ -480,10 +483,16 @@ export const createAnalyticsExplores = (): Explore[] => {
                 'Current group names as a JSON array, in UUID order. Overlapping groups keep one person row.';
             table.dimensions.snapshot_at.description =
                 'When current organization membership was observed. Historical snapshots are retained separately; this Explore uses the latest population.';
-            table.dimensions.parts_used.description =
-                'Features used in the last 30 complete UTC days. Bits: dashboards (1), charts (2), Explore and SQL Runner (4), Ask AI (8), MCP (16), app views (32), app builds (64), and downloads (128).';
             table.dimensions.no_observed_activity.description =
                 'No confirmed human activity in retained capture, not proof that the person has never used Lightdash.';
+        }
+        if (name === 'people_adoption_details') {
+            table.dimensions.last_seen.description =
+                'Most recent observed or inferred activity: within 7 complete days (d7), within 30 (d30), older, or never recorded.';
+            table.dimensions.flow_bits.description =
+                'Feature activity in the last 28 complete days (1), the preceding 28 (2), or earlier retained history (4).';
+            table.dimensions.parts_used.description =
+                'Features used in the last 30 complete UTC days. Bits: dashboards (1), charts (2), Explore and SQL Runner (4), Ask AI (8), MCP (16), app views (32), app builds (64), and downloads (128).';
         }
         if (name === 'content_health' || name === 'content_inventory') {
             table.dimensions.org_id.hidden = true;
@@ -551,6 +560,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             name !== 'content_inventory' &&
             name !== 'people_adoption' &&
             name !== 'people_membership' &&
+            name !== 'people_adoption_details' &&
             name !== 'embed_reach'
         ) {
             dimensions.push('users');

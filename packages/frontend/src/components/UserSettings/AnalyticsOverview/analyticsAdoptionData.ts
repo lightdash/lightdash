@@ -35,12 +35,14 @@ export const adoptionMembershipQuery = adoptionQuery(
     'people_membership',
     groupsAndRole,
 );
-export const adoptionActivityQuery = adoptionQuery('people_adoption', [
+export const adoptionActivityQuery = adoptionQuery('people_adoption_details', [
     ...groupsAndRole,
     'parts_used',
+    'last_seen',
+    'flow_bits',
 ]);
 
-// These positions match the feature bits of the people_adoption Explore.
+// These positions match the feature bits of the people_adoption_details Explore.
 export const adoptionFeatures = [
     'Dashboards',
     'Charts',
@@ -59,10 +61,39 @@ export const adoptionRoles = [
     { label: 'Viewer', color: 'gray' },
 ] as const;
 
+export const adoptionRecency = [
+    { label: 'Last 7 days', color: 'green', value: 'd7' },
+    { label: '8–30 days ago', color: 'teal', value: 'd30' },
+    { label: 'Over 30 days ago', color: 'blue', value: 'older' },
+    { label: 'No recorded activity', color: 'gray', value: 'never' },
+] as const;
+
+export const adoptionGrowth = [
+    { label: 'Stayed active', color: 'teal' },
+    { label: 'Newly active', color: 'green' },
+    { label: 'Returned', color: 'blue' },
+    { label: 'Recently inactive', color: 'orange' },
+    { label: 'Lapsed', color: 'pink' },
+    { label: 'No recorded usage', color: 'gray' },
+] as const;
+
+export const UNGROUPED = 'no-group';
+
+const growthIndex = (bits: number) => {
+    if (bits & 1) {
+        if (bits & 2) return 0;
+        return bits & 4 ? 2 : 1;
+    }
+    if (bits & 2) return 3;
+    return bits & 4 ? 4 : 5;
+};
+
 type Group = { id: string; name: string };
 type Population = {
     total: number;
     roles: number[];
+    recency: number[];
+    growth: number[];
     featureCounts: number[];
     featuresPerPerson: number[];
 };
@@ -70,6 +101,8 @@ type Population = {
 const emptyPopulation = (): Population => ({
     total: 0,
     roles: adoptionRoles.map(() => 0),
+    recency: adoptionRecency.map(() => 0),
+    growth: adoptionGrowth.map(() => 0),
     featureCounts: adoptionFeatures.map(() => 0),
     featuresPerPerson: Array.from(
         { length: adoptionFeatures.length + 1 },
@@ -77,7 +110,7 @@ const emptyPopulation = (): Population => ({
     ),
 });
 
-const noGroup = { id: 'no-group', name: 'No group' };
+const noGroup = { id: UNGROUPED, name: 'No group' };
 
 const parseList = (value: unknown): string[] => {
     if (typeof value !== 'string') return [];
@@ -103,7 +136,11 @@ const roleIndex = (role: unknown) => {
     }
 };
 
-export const summarizeAdoption = (rows: RawResultRow[], explore: string) => {
+export const summarizeAdoption = (
+    rows: RawResultRow[],
+    explore: string,
+    features = new Set<string>(adoptionFeatures),
+) => {
     const overall = emptyPopulation();
     const groups = new Map<string, Group & Population>();
     for (const row of rows) {
@@ -116,10 +153,20 @@ export const summarizeAdoption = (rows: RawResultRow[], explore: string) => {
         const used = adoptionFeatures.map(
             (_, index) => (mask & (1 << index)) !== 0,
         );
-        const numberUsed = used.filter(Boolean).length;
+        const numberUsed = adoptionFeatures.filter(
+            (feature, index) => used[index] && features.has(feature),
+        ).length;
+        const recency = adoptionRecency.findIndex(
+            ({ value }) => value === read('last_seen'),
+        );
+        const growth = growthIndex(Number(read('flow_bits') ?? 0));
         const accumulate = (population: Population) => {
             population.total += count;
             population.roles[role] += count;
+            population.recency[
+                recency === -1 ? adoptionRecency.length - 1 : recency
+            ] += count;
+            population.growth[growth] += count;
             population.featuresPerPerson[numberUsed] += count;
             used.forEach((included, index) => {
                 if (included) population.featureCounts[index] += count;

@@ -657,7 +657,6 @@ describe('built-in usage dashboards', () => {
                         'agent_request_events',
                         'data_app_events',
                         'mcp_tool_calls',
-                        'export_events',
                     ].map((name) => [
                         name,
                         compactedStreamSchemas[

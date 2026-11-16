@@ -1,7 +1,6 @@
 .circle {
     display: block;
     width: 100%;
-    max-width: 200px;
     aspect-ratio: 1;
     margin-inline: auto;
 }
@@ -28,4 +27,16 @@
 .fingerprint th:not(:first-child),
 .fingerprint td:not(:first-child) {
     text-align: right;
+}
+
+.groupButton {
+    border-radius: var(--mantine-radius-md);
+}
+
+.groupButton:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.mapCanvas {
+    min-height: 240px;
 }

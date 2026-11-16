@@ -17,9 +17,10 @@ export const peopleAdoptionColumns: CompactedStreamColumn[] = [
         'last_unknown_activity_at',
         'first_observed_week',
     ].map((name) => ({ name, type: 'TIMESTAMP' as const })),
-    ...['active_days_30d', 'days_since_last_activity', 'parts_used'].map(
-        (name) => ({ name, type: 'BIGINT' as const }),
-    ),
+    ...['active_days_30d', 'days_since_last_activity'].map((name) => ({
+        name,
+        type: 'BIGINT' as const,
+    })),
     ...[
         'active_1d',
         'active_7d',
@@ -32,22 +33,18 @@ export const peopleAdoptionColumns: CompactedStreamColumn[] = [
     ].map((name) => ({ name, type: 'BOOLEAN' as const })),
 ];
 
-export const currentPeopleSql = `(
+// Current-population adoption: one row per organization/person, even with many
+// projects, groups or duplicate events. Fixed trailing windows share the same
+// current eligible denominator. No daily ratios or distincts are added together.
+export const peopleAdoptionSql = `(WITH population AS (
     SELECT * FROM lightdash_people
     QUALIFY ROW_NUMBER() OVER (PARTITION BY org_id, user_id ORDER BY snapshot_at DESC) = 1
-)`;
-
-// Keep one row per organization/person and a fixed eligible denominator for each window.
-// Feature usage can also include inferred actions.
-export const peopleAdoptionSql = `(WITH population AS ${currentPeopleSql}, cutoffs AS (
+), cutoffs AS (
     SELECT org_id, date_trunc('day', MAX(snapshot_at)) AS cutoff FROM population GROUP BY org_id
 ), activity AS (
     SELECT org_id, user_id, event_ts,
         CASE WHEN is_qualifying AND actor_type = 'user' THEN 'human' ELSE 'unknown' END AS kind,
-        false AS agent_request,
-        CASE WHEN kind = 'human' AND content_type = 'dashboard' THEN 1
-             WHEN kind = 'human' AND content_type IN ('chart', 'sql_chart') THEN 2
-             ELSE 0 END AS part_bit
+        false AS agent_request
     FROM content_views
     UNION ALL
     SELECT org_id, user_id, event_ts,
@@ -55,27 +52,18 @@ export const peopleAdoptionSql = `(WITH population AS ${currentPeopleSql}, cutof
                   OR initiating_actor_type IN ('system', 'service_account') THEN 'system'
              WHEN workload_origin = 'interactive' AND initiating_actor_type IN ('registered_user', 'user') THEN 'human'
              WHEN workload_origin IN ('mcp', 'app') AND initiating_actor_type IN ('registered_user', 'user') THEN 'inferred'
-             ELSE 'unknown' END AS kind, false,
-        CASE WHEN kind = 'human' AND context IN ('exploreView', 'metricsExplorer', 'sqlRunner') THEN 4 ELSE 0 END
+             ELSE 'unknown' END, false
     FROM query_events
     UNION ALL
     SELECT org_id, user_id, event_ts,
-        CASE WHEN surface IN ('web_app', 'slack') THEN 'human' ELSE 'unknown' END AS kind, true,
-        CASE WHEN kind = 'human' THEN 8 ELSE 0 END
+        CASE WHEN surface IN ('web_app', 'slack') THEN 'human' ELSE 'unknown' END, true
     FROM agent_request_events WHERE stage = 'created' AND prompt_id IS NOT NULL
     UNION ALL
-    SELECT org_id, user_id, event_ts, 'inferred', false,
-        CASE WHEN event_name = 'data_app.view' THEN 32
-             WHEN event_name IN ('data_app.created', 'data_app.iterated', 'data_app.uploaded') THEN 64
-             ELSE 0 END
+    SELECT org_id, user_id, event_ts, 'inferred', false
     FROM data_app_events WHERE event_name IN ('data_app.view', 'data_app.created', 'data_app.iterated', 'data_app.uploaded', 'data_app.duplicated')
     UNION ALL
-    SELECT org_id, user_id, event_ts, 'inferred', false, 16
+    SELECT org_id, user_id, event_ts, 'inferred', false
     FROM mcp_tool_calls WHERE actor_type = 'user'
-    UNION ALL
-    SELECT org_id, user_id, event_ts, NULL, false, 128
-    FROM export_events WHERE event_name = 'download_results.completed'
-        AND COALESCE(context, '') NOT IN ('scheduledDelivery', 'alert')
 ), days AS (
     SELECT a.org_id, a.user_id, date_trunc('day', a.event_ts) AS activity_day,
         MIN(CASE WHEN kind = 'human' THEN event_ts END) AS first_human,
@@ -83,8 +71,7 @@ export const peopleAdoptionSql = `(WITH population AS ${currentPeopleSql}, cutof
         MAX(CASE WHEN kind = 'inferred' THEN event_ts END) AS last_inferred,
         MAX(CASE WHEN kind = 'system' THEN event_ts END) AS last_system,
         MAX(CASE WHEN kind = 'unknown' THEN event_ts END) AS last_unknown,
-        BOOL_OR(kind = 'human' AND agent_request) AS agent_request,
-        BIT_OR(part_bit) AS part_bits
+        BOOL_OR(kind = 'human' AND agent_request) AS agent_request
     FROM activity a JOIN cutoffs c ON a.org_id = c.org_id
     WHERE NULLIF(a.user_id, '') IS NOT NULL AND a.event_ts < c.cutoff
     GROUP BY a.org_id, a.user_id, date_trunc('day', a.event_ts)
@@ -95,8 +82,7 @@ export const peopleAdoptionSql = `(WITH population AS ${currentPeopleSql}, cutof
         MAX(last_unknown) AS last_unknown_activity_at,
         COUNT(*) FILTER (WHERE last_human IS NOT NULL AND activity_day >= c.cutoff - INTERVAL 30 DAY)::BIGINT AS active_days_30d,
         BOOL_OR(agent_request AND activity_day >= c.cutoff - INTERVAL 7 DAY) AS agent_active_7d,
-        BOOL_OR(agent_request AND activity_day >= c.cutoff - INTERVAL 30 DAY) AS agent_active_30d,
-        BIT_OR(part_bits) FILTER (WHERE activity_day >= c.cutoff - INTERVAL 30 DAY) AS parts_used
+        BOOL_OR(agent_request AND activity_day >= c.cutoff - INTERVAL 30 DAY) AS agent_active_30d
     FROM days d JOIN cutoffs c ON d.org_id = c.org_id GROUP BY d.org_id, d.user_id
 ), joined AS (
     SELECT p.*, NULL::VARCHAR AS project_id, 'Organization' AS scope,
@@ -105,7 +91,6 @@ export const peopleAdoptionSql = `(WITH population AS ${currentPeopleSql}, cutof
         h.last_inferred_activity_at, h.last_system_activity_at, h.last_unknown_activity_at,
         date_trunc('week', h.first_observed_activity_at) AS first_observed_week,
         COALESCE(h.active_days_30d, 0)::BIGINT AS active_days_30d,
-        COALESCE(h.parts_used, 0)::BIGINT AS parts_used,
         date_diff('day', h.last_observed_activity_at, c.cutoff - INTERVAL 1 DAY)::BIGINT AS days_since_last_activity,
         COALESCE(h.last_observed_activity_at >= c.cutoff - INTERVAL 1 DAY, false) AS active_1d,
         COALESCE(h.last_observed_activity_at >= c.cutoff - INTERVAL 7 DAY, false) AS active_7d,
@@ -146,16 +131,14 @@ const countPeople = (
     ],
 });
 
-export const totalMembersMetric: SystemMetricDefinition = {
-    name: 'total_members',
-    type: MetricType.COUNT_DISTINCT,
-    column: 'user_id',
-    description:
-        'Current non-system organization memberships, including inactive and pending-setup accounts. Not a count of seats or employees.',
-};
-
 export const peopleAdoptionMetrics: SystemMetricDefinition[] = [
-    totalMembersMetric,
+    {
+        name: 'total_members',
+        type: MetricType.COUNT_DISTINCT,
+        column: 'user_id',
+        description:
+            'Current non-system organization memberships, including inactive and pending-setup accounts. Not a count of seats or employees.',
+    },
     countPeople(
         'eligible_people',
         'is_eligible',

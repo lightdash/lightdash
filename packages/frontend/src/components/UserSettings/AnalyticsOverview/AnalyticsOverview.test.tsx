@@ -120,7 +120,7 @@ describe('Analytics settings overview', () => {
         const launched = mockQueries((query) => {
             if (query.exploreName === 'people_membership')
                 return ready([row(query.exploreName, membership)]);
-            if (query.exploreName === 'people_adoption')
+            if (query.exploreName === 'people_adoption_details')
                 return activity.promise;
             return ready();
         });
@@ -137,8 +137,10 @@ describe('Analytics settings overview', () => {
             await panel.findByText('1 member across the organization'),
         ).toBeVisible();
         const map = within(panel.getByRole('region', { name: 'Adoption map' }));
-        expect(map.getByText('Product')).toBeVisible();
-        expect(map.getByText('Engineering')).toBeVisible();
+        expect(map.getByRole('button', { name: /Open Product/ })).toBeVisible();
+        expect(
+            map.getByRole('button', { name: /Open Engineering/ }),
+        ).toBeVisible();
         expect(
             panel.getByText(
                 'Loading feature usage. The map shows member roles.',
@@ -150,13 +152,13 @@ describe('Analytics settings overview', () => {
 
         await waitFor(() => {
             const queries = launched.filter(({ query }) =>
-                ['people_membership', 'people_adoption'].includes(
+                ['people_membership', 'people_adoption_details'].includes(
                     query.exploreName,
                 ),
             );
             expect(queries.map(({ query }) => query.exploreName)).toEqual([
                 'people_membership',
-                'people_adoption',
+                'people_adoption_details',
             ]);
             for (const { url, query } of queries) {
                 expect(url).toContain('/projects/analytics/');
@@ -180,12 +182,36 @@ describe('Analytics settings overview', () => {
         ).toBeVisible();
 
         activity.resolve(
-            ready([row('people_adoption', { ...membership, parts_used: 1 })]),
+            ready([
+                row('people_adoption_details', {
+                    ...membership,
+                    parts_used: 1,
+                }),
+            ]),
         );
 
         expect(
             await panel.findByRole('row', { name: /Everyone.*100%/ }),
         ).toBeVisible();
+        await userEvent.click(
+            map.getByRole('button', { name: /Open Product/ }),
+        );
+        expect(
+            map.queryByRole('button', { name: /Open Engineering/ }),
+        ).not.toBeInTheDocument();
+        await userEvent.click(map.getByRole('button', { name: 'Zoom in' }));
+        expect(map.getByRole('button', { name: 'Reset view' })).toBeEnabled();
+        await userEvent.click(map.getByText('Waffle'));
+        expect(
+            map.queryByRole('button', { name: 'Zoom in' }),
+        ).not.toBeInTheDocument();
+        await userEvent.click(map.getByText('Recency'));
+        expect(map.getByText('No recorded activity')).toBeVisible();
+        expect(
+            launched.filter(
+                ({ query }) => query.exploreName === 'people_adoption_details',
+            ),
+        ).toHaveLength(1);
     });
 
     it('switches the related tab from a headline and only queries visible charts', async () => {
