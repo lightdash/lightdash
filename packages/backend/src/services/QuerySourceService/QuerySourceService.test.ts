@@ -1773,6 +1773,7 @@ describe('composer bound run', () => {
                 },
             } as ComposerChart,
             tileUuid: 'tile-uuid',
+            resolved: { nodes: storedNodes, parameters: {} },
         });
     const createBoundSources = () => {
         const queryUuid = (nodeId: string) => ({

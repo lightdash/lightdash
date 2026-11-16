@@ -1,10 +1,14 @@
 import {
     DashboardTileTypes,
+    isComposerChartTileRequest,
     isDashboardChartTileType,
+    isDashboardComposerChartTile,
     isDashboardSqlChartTile,
+    type ComposerChartTileRequest,
+    type DashboardTile,
     type DashboardTileParameterReferencesTile,
     type DateZoomConfig,
-    type SavedChartsInfoForDashboardAvailableFilters,
+    type DashboardAvailableFiltersTile,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
 import { isEqual } from 'es-toolkit/compat';
@@ -61,6 +65,7 @@ export const selectHasControlOrderChanged = (state: DashboardStoreState) =>
 const tileTypesThatSupportFilters = [
     DashboardTileTypes.SQL_CHART,
     DashboardTileTypes.SAVED_CHART,
+    DashboardTileTypes.COMPOSER_CHART,
 ];
 export const selectHasTilesThatSupportFilters = (state: DashboardStoreState) =>
     !!state.edit.tiles?.some(({ type }) =>
@@ -71,6 +76,27 @@ export const selectHasTilesThatSupportFilters = (state: DashboardStoreState) =>
 export const selectTileUuidsKey = (state: DashboardStoreState) =>
     state.edit.tiles?.map((tile) => tile.uuid).join(',');
 
+const selectIsEmbed = (state: DashboardStoreState) => !!state.source.embedToken;
+
+// Embeds never draw a composer chart tile, so callers skip this there
+const composerChartTileRequests = (
+    tile: DashboardTile,
+): ComposerChartTileRequest[] =>
+    isDashboardComposerChartTile(tile) && tile.properties.composerChartUuid
+        ? [
+              {
+                  tileType: DashboardTileTypes.COMPOSER_CHART,
+                  tileUuid: tile.uuid,
+                  composerChartUuid: tile.properties.composerChartUuid,
+              },
+          ]
+        : [];
+
+const composerChartTileRequestKey = ({
+    tileUuid,
+    composerChartUuid,
+}: ComposerChartTileRequest) => `${tileUuid}:composer:${composerChartUuid}`;
+
 /**
  * Changes only when the chart-tile mapping changes, not when tiles are moved
  * or resized, so a drag doesn't re-run the filter chain.
@@ -78,37 +104,40 @@ export const selectTileUuidsKey = (state: DashboardStoreState) =>
 export const selectSavedChartUuidsAndTileUuidsKey = (
     state: DashboardStoreState,
 ) =>
-    state.edit.tiles
-        ?.filter(isDashboardChartTileType)
-        .map((tile) => `${tile.uuid}:${tile.properties.savedChartUuid ?? ''}`)
+    selectSavedChartUuidsAndTileUuids(state)
+        ?.map((tile) =>
+            isComposerChartTileRequest(tile)
+                ? composerChartTileRequestKey(tile)
+                : `${tile.tileUuid}:${tile.savedChartUuid}`,
+        )
         .sort()
         .join(',') ?? '';
 
+/** Chart tiles, and outside embeds composer chart tiles, whose fields the filter pickers offer */
 export const selectSavedChartUuidsAndTileUuids = createSelector(
-    [selectDashboardTiles],
-    (tiles) =>
-        tiles
-            ?.filter(isDashboardChartTileType)
-            .reduce<SavedChartsInfoForDashboardAvailableFilters>(
-                (acc, tile) => {
-                    if (tile.properties.savedChartUuid) {
-                        acc.push({
-                            tileUuid: tile.uuid,
-                            savedChartUuid: tile.properties.savedChartUuid,
-                        });
-                    }
-                    return acc;
-                },
-                [],
-            ),
+    [selectDashboardTiles, selectIsEmbed],
+    (tiles, isEmbed) =>
+        tiles?.flatMap<DashboardAvailableFiltersTile>((tile) => {
+            if (
+                isDashboardChartTileType(tile) &&
+                tile.properties.savedChartUuid
+            )
+                return [
+                    {
+                        tileUuid: tile.uuid,
+                        savedChartUuid: tile.properties.savedChartUuid,
+                    },
+                ];
+            return isEmbed ? [] : composerChartTileRequests(tile);
+        }),
     // Moving or resizing a tile keeps the mapping, and everything derived from it
     { memoizeOptions: { resultEqualityCheck: isEqual } },
 );
 
-/** Every chart and SQL chart tile with its saved query, on every tab */
+/** Every chart and SQL chart tile with its saved query, and outside embeds every composer chart tile, on every tab */
 export const selectTileQuerySources = createSelector(
-    [selectDashboardTiles],
-    (tiles) =>
+    [selectDashboardTiles, selectIsEmbed],
+    (tiles, isEmbed) =>
         tiles?.flatMap<DashboardTileParameterReferencesTile>((tile) => {
             if (
                 isDashboardChartTileType(tile) &&
@@ -129,7 +158,7 @@ export const selectTileQuerySources = createSelector(
                         savedSqlUuid: tile.properties.savedSqlUuid,
                     },
                 ];
-            return [];
+            return isEmbed ? [] : composerChartTileRequests(tile);
         }) ?? [],
 );
 
@@ -138,9 +167,10 @@ export const selectTileQuerySourcesKey = createSelector(
     [selectTileQuerySources],
     (sources) =>
         sources
-            .map(
-                ({ tileUuid, savedChartUuid, savedSqlUuid }) =>
-                    `${tileUuid}:${savedChartUuid ?? ''}:${savedSqlUuid ?? ''}`,
+            .map((source) =>
+                isComposerChartTileRequest(source)
+                    ? composerChartTileRequestKey(source)
+                    : `${source.tileUuid}:${source.savedChartUuid ?? ''}:${source.savedSqlUuid ?? ''}`,
             )
             .sort()
             .join(','),

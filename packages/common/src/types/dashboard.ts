@@ -481,15 +481,48 @@ export type DashboardAvailableFilters = {
 };
 
 export type SavedChartsInfoForDashboardAvailableFilters = {
+    // Optional: older clients send saved-chart items untagged
+    tileType?: DashboardTileTypes.SAVED_CHART;
     tileUuid: string;
     savedChartUuid: string;
 }[];
 
-export type DashboardTileParameterReferencesTile = {
+/** A composer chart tile in a dashboard lookup request; embeds never send one. */
+export type ComposerChartTileRequest = {
+    tileType: DashboardTileTypes.COMPOSER_CHART;
+    tileUuid: string;
+    composerChartUuid: string;
+};
+
+export const isComposerChartTileRequest = <
+    T extends { tileType?: DashboardTileTypes },
+>(
+    tile: T,
+): tile is Extract<T, ComposerChartTileRequest> =>
+    tile.tileType === DashboardTileTypes.COMPOSER_CHART;
+
+export type DashboardAvailableFiltersTile =
+    | SavedChartsInfoForDashboardAvailableFilters[number]
+    | ComposerChartTileRequest;
+
+/** A composer chart the caller may view, with its semantic-layer nodes' explores. */
+export type ComposerAvailableFilterSource = {
+    uuid: string;
+    projectUuid: string;
+    exploreNames: string[];
+};
+
+export type SavedQueryTileParameterReferencesTile = {
+    // Optional: older clients send saved-chart and SQL items untagged
+    tileType?: DashboardTileTypes.SAVED_CHART | DashboardTileTypes.SQL_CHART;
     tileUuid: string;
     savedChartUuid: string | null;
     savedSqlUuid: string | null;
 };
+
+export type DashboardTileParameterReferencesTile =
+    | SavedQueryTileParameterReferencesTile
+    | ComposerChartTileRequest;
 
 export type DashboardTileParameterReferencesRequest = {
     tiles: DashboardTileParameterReferencesTile[];
@@ -505,6 +538,17 @@ export type DashboardTileParameterReferences =
           error: null;
       }
     | { tileUuid: string; parameterReferences: null; error: string };
+
+/** One chart's parameters as the tile lookup lists them */
+export type ChartParameterReferencesResult =
+    | {
+          parameterReferences: string[];
+          parameterDefinitions: ParameterDefinitions;
+          chartSavedValues: ParametersValuesMap;
+          virtualViewSavedValues: ParametersValuesMap;
+          error: null;
+      }
+    | { parameterReferences: null; error: string };
 
 export type ApiDashboardTileParameterReferencesResponse = {
     status: 'ok';

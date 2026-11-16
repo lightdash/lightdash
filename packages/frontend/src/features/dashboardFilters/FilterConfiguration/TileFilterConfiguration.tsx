@@ -2,6 +2,7 @@ import {
     getItemId,
     interpolateUiString,
     isDashboardChartTileType,
+    isDashboardComposerChartTile,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
     isDashboardSqlChartTile,
@@ -208,7 +209,9 @@ const TileFilterConfiguration: FC<Props> = ({
                         !tile?.properties.title ||
                         tile.properties.title.length === 0;
                     const isChartTileType =
-                        tile && isDashboardChartTileType(tile);
+                        tile &&
+                        (isDashboardChartTileType(tile) ||
+                            isDashboardComposerChartTile(tile));
 
                     let tileLabel = '';
                     if (tile) {
