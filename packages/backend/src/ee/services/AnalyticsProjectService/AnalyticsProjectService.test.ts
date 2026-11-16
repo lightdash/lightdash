@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     ConflictError,
     ContentType,
+    DEFAULT_ANALYTICS_ADOPTION_TEAM_CONFIG,
     ForbiddenError,
     NotFoundError,
     PossibleAbilities,
@@ -83,6 +84,8 @@ describe('AnalyticsProjectService', () => {
     const findSessionUserAndOrgByUuid = vi.fn();
     const isAnalyticsProjectEnabled = vi.fn();
     const getOrganizations = vi.fn();
+    const getAnalyticsAdoptionTeams = vi.fn();
+    const saveAnalyticsAdoptionTeams = vi.fn();
     const hash = getAnalyticsContentHash(
         analyticsExplores.createAnalyticsExplores(),
         analyticsContentAsCode,
@@ -108,6 +111,10 @@ describe('AnalyticsProjectService', () => {
         },
         contentAsCodeSnapshotModel: { get: getSnapshot, upsert: saveSnapshot },
         organizationMemberProfileModel: { getOrganizationAdmins },
+        organizationSettingsModel: {
+            getAnalyticsAdoptionTeams,
+            saveAnalyticsAdoptionTeams,
+        },
         usageDimensionsModel: { getOrganizations },
         coderService: { upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
@@ -181,6 +188,39 @@ describe('AnalyticsProjectService', () => {
             defaultProject,
             analyticsProject,
         ]);
+    });
+
+    it('saves team configuration for the current organization and rejects stale writes', async () => {
+        getAnalyticsAdoptionTeams.mockResolvedValue(
+            DEFAULT_ANALYTICS_ADOPTION_TEAM_CONFIG,
+        );
+        const config = {
+            ...DEFAULT_ANALYTICS_ADOPTION_TEAM_CONFIG,
+            teams: [
+                {
+                    id: 'team',
+                    name: 'Product ',
+                    groupIds: ['g1', 'g1'],
+                    memberIds: [],
+                },
+            ],
+        };
+        const saved = await service.saveAdoptionTeams(user, config);
+        expect(saved).toEqual({
+            ...config,
+            revision: 1,
+            teams: [{ ...config.teams[0], name: 'Product', groupIds: ['g1'] }],
+        });
+        expect(assertAnalyticsProjectAdministration).toHaveBeenCalledWith(user);
+        expect(saveAnalyticsAdoptionTeams).toHaveBeenCalledWith(
+            user.organizationUuid,
+            saved,
+        );
+        getAnalyticsAdoptionTeams.mockResolvedValue(saved);
+        await expect(service.saveAdoptionTeams(user, config)).rejects.toThrow(
+            ConflictError,
+        );
+        expect(saveAnalyticsAdoptionTeams).toHaveBeenCalledTimes(1);
     });
 
     describe('visit tracking', () => {

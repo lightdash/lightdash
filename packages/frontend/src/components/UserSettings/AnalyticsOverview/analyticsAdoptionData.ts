@@ -1,5 +1,9 @@
 import {
+    BinType,
+    CustomDimensionType,
     FilterOperator,
+    GroupValueMatchType,
+    type AnalyticsAdoptionTeamConfig,
     type MetricQuery,
     type RawResultRow,
 } from '@lightdash/common';
@@ -41,6 +45,43 @@ export const adoptionActivityQuery = adoptionQuery('people_adoption_details', [
     'last_seen',
     'flow_bits',
 ]);
+
+const ASSIGNED_MEMBER = 'adoption_assigned_member';
+
+export const withAdoptionMembers = (
+    query: MetricQuery,
+    config: AnalyticsAdoptionTeamConfig,
+): MetricQuery => {
+    const ids = [
+        ...new Set([
+            ...Object.keys(config.primary),
+            ...(config.teams?.flatMap(({ memberIds }) => memberIds) ?? []),
+        ]),
+    ].sort();
+    if (!ids.length) return query;
+
+    // Only configured people get their own bucket; everyone else stays grouped.
+    return {
+        ...query,
+        dimensions: [...query.dimensions, ASSIGNED_MEMBER],
+        customDimensions: [
+            {
+                id: ASSIGNED_MEMBER,
+                name: 'Assigned member',
+                table: query.exploreName,
+                dimensionId: `${query.exploreName}_user_id`,
+                type: CustomDimensionType.BIN,
+                binType: BinType.CUSTOM_GROUP,
+                customGroups: ids.map((id) => ({
+                    name: id,
+                    values: [
+                        { matchType: GroupValueMatchType.EXACT, value: id },
+                    ],
+                })),
+            },
+        ],
+    };
+};
 
 // These positions match the feature bits of the people_adoption_details Explore.
 export const adoptionFeatures = [
@@ -140,9 +181,20 @@ export const summarizeAdoption = (
     rows: RawResultRow[],
     explore: string,
     features = new Set<string>(adoptionFeatures),
+    config?: AnalyticsAdoptionTeamConfig,
 ) => {
     const overall = emptyPopulation();
     const groups = new Map<string, Group & Population>();
+    const teamsByGroup = new Map<string, Group[]>();
+    const teamsByMember = new Map<string, Group[]>();
+    for (const team of config?.teams ?? []) {
+        for (const id of team.groupIds) {
+            teamsByGroup.set(id, [...(teamsByGroup.get(id) ?? []), team]);
+        }
+        for (const id of team.memberIds) {
+            teamsByMember.set(id, [...(teamsByMember.get(id) ?? []), team]);
+        }
+    }
     for (const row of rows) {
         const read = (field: string) => row[`${explore}_${field}`];
         const count = Number(read('total_members'));
@@ -177,15 +229,34 @@ export const summarizeAdoption = (
         accumulate(overall);
         const ids = parseList(read('group_ids'));
         const names = parseList(read('group_names'));
-        const memberships = ids.length
-            ? ids.map((id, index) => ({ id, name: names[index] || id }))
-            : [noGroup];
+        const memberId = row[ASSIGNED_MEMBER];
+        let memberships = ids.map((id, index) => ({
+            id,
+            name: names[index] || id,
+        }));
+        if (config?.teams) {
+            memberships = ids.flatMap((id) => teamsByGroup.get(id) ?? []);
+            if (typeof memberId === 'string') {
+                memberships.push(...(teamsByMember.get(memberId) ?? []));
+                const primary = config.primary[memberId];
+                const primaryTeam = memberships.find(
+                    ({ id }) => id === primary,
+                );
+                if (primaryTeam) memberships = [primaryTeam];
+            }
+        }
+        const unassigned = config?.teams
+            ? { ...noGroup, name: 'No team' }
+            : noGroup;
         const seen = new Set<string>();
-        for (const membership of memberships) {
+        for (const membership of memberships.length
+            ? memberships
+            : [unassigned]) {
             if (seen.has(membership.id)) continue;
             seen.add(membership.id);
             const group = groups.get(membership.id) ?? {
-                ...membership,
+                id: membership.id,
+                name: membership.name,
                 ...emptyPopulation(),
             };
             accumulate(group);
@@ -199,3 +270,5 @@ export const summarizeAdoption = (
         ),
     };
 };
+
+export type AdoptionData = ReturnType<typeof summarizeAdoption>;

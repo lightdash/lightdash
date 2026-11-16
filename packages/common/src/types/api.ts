@@ -167,6 +167,7 @@ import {
     type ViewStatistics,
 } from './analytics';
 import {
+    type AnalyticsAdoptionTeamConfig,
     type AnalyticsHistoryBackfillStatus,
     type AnalyticsProjectStatus,
     type EnsureAnalyticsProjectResult,
@@ -1497,6 +1498,7 @@ type ApiResults =
     | ApiScimRequestLogListResponse['results']
     | EnsurePlaygroundProjectResults
     | AnalyticsProjectStatus
+    | AnalyticsAdoptionTeamConfig
     | AnalyticsHistoryBackfillStatus
     | EnsureAnalyticsProjectResult
     | CreateTrainingPreviewResults

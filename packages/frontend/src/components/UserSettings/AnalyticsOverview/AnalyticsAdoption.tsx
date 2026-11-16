@@ -1,10 +1,10 @@
+import { DEFAULT_ANALYTICS_ADOPTION_TEAM_CONFIG } from '@lightdash/common';
 import {
     Alert,
     Box,
     Button,
     Checkbox,
     Group,
-    Loader,
     Menu,
     MultiSelect,
     Pagination,
@@ -13,7 +13,6 @@ import {
     SegmentedControl,
     Skeleton,
     Stack,
-    Table,
     Text,
     UnstyledButton,
 } from '@mantine/core';
@@ -29,7 +28,16 @@ import {
     adoptionRecency,
     adoptionRoles,
     summarizeAdoption,
+    withAdoptionMembers,
 } from './analyticsAdoptionData';
+import {
+    AnalyticsAdoptionDetails,
+    type AdoptionColorMode,
+} from './AnalyticsAdoptionDetails';
+import {
+    AnalyticsAdoptionTeams,
+    useAnalyticsAdoptionTeams,
+} from './AnalyticsAdoptionTeams';
 import { formatAnalyticsNumber } from './analyticsOverviewConfig';
 import { useAnalyticsQueries } from './useAnalyticsOverviewQuery';
 
@@ -60,14 +68,13 @@ const modes = [
     { label: 'Growth', value: 'growth' },
 ] as const;
 
-type ColorMode = (typeof modes)[number]['value'];
+type ColorMode = AdoptionColorMode;
 type Layout = 'map' | 'waffle';
 
 const featureColor = (count: number, max: number) =>
     count === 0
         ? 'var(--mantine-color-default-border)'
         : `color-mix(in srgb, var(--mantine-primary-color-filled) ${25 + (75 * count) / Math.max(1, max)}%, var(--mantine-color-body))`;
-type AdoptionData = ReturnType<typeof summarizeAdoption>;
 
 const GroupMap = ({
     name,
@@ -181,112 +188,18 @@ const GroupMap = ({
     );
 };
 
-const Fingerprint = ({
-    data,
-    groups,
-    loading,
-}: {
-    data: AdoptionData | null;
-    groups: AdoptionData['groups'];
-    loading: boolean;
-}) => {
-    const [expanded, setExpanded] = useState(false);
-    const rows = data
-        ? [{ id: 'everyone', name: 'Everyone', ...data.overall }, ...groups]
-        : [];
-    return (
-        <Paper withBorder p="md">
-            <details
-                className={classes.fingerprint}
-                onToggle={(event) => setExpanded(event.currentTarget.open)}
-            >
-                <Text component="summary" fw={600} size="sm">
-                    Feature fingerprint
-                </Text>
-                {expanded &&
-                    (loading ? (
-                        <Group
-                            justify="center"
-                            mih={100}
-                            role="status"
-                            aria-label="Loading feature fingerprint"
-                        >
-                            <Loader size="sm" aria-hidden="true" />
-                        </Group>
-                    ) : rows.length === 0 ? (
-                        <Text c="dimmed" size="sm">
-                            Feature usage is unavailable.
-                        </Text>
-                    ) : (
-                        <ScrollArea>
-                            <Table withRowBorders highlightOnHover miw={730}>
-                                <Table.Caption>
-                                    Share of members who used each feature in
-                                    the last 30 complete days.
-                                </Table.Caption>
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th>Group</Table.Th>
-                                        {adoptionFeatures.map((feature) => (
-                                            <Table.Th key={feature}>
-                                                {feature}
-                                            </Table.Th>
-                                        ))}
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {rows.map(
-                                        ({
-                                            id,
-                                            name,
-                                            total,
-                                            featureCounts,
-                                        }) => (
-                                            <Table.Tr key={id}>
-                                                <Table.Th scope="row">
-                                                    <Text size="sm" fw={600}>
-                                                        {name}
-                                                    </Text>
-                                                    <Text c="dimmed" size="xs">
-                                                        {countLabel(total)}
-                                                    </Text>
-                                                </Table.Th>
-                                                {featureCounts.map(
-                                                    (count, index) => (
-                                                        <Table.Td
-                                                            key={
-                                                                adoptionFeatures[
-                                                                    index
-                                                                ]
-                                                            }
-                                                        >
-                                                            {Math.round(
-                                                                (100 * count) /
-                                                                    total,
-                                                            )}
-                                                            %
-                                                        </Table.Td>
-                                                    ),
-                                                )}
-                                            </Table.Tr>
-                                        ),
-                                    )}
-                                </Table.Tbody>
-                            </Table>
-                        </ScrollArea>
-                    ))}
-            </details>
-        </Paper>
-    );
-};
-
 const AnalyticsAdoption = ({ projectUuid }: { projectUuid: string }) => {
-    const [membership] = useAnalyticsQueries(projectUuid, [
-        adoptionMembershipQuery,
-    ]);
+    const teams = useAnalyticsAdoptionTeams(projectUuid);
+    const config = teams.data ?? DEFAULT_ANALYTICS_ADOPTION_TEAM_CONFIG;
+    const [editTeams, setEditTeams] = useState(false);
+    const [membership] = useAnalyticsQueries(
+        projectUuid,
+        [withAdoptionMembers(adoptionMembershipQuery, config)],
+        !teams.isLoading,
+    );
     const [activity] = useAnalyticsQueries(
         projectUuid,
-        [adoptionActivityQuery],
+        [withAdoptionMembers(adoptionActivityQuery, config)],
         membership.isSuccess &&
             membership.data.length > 0 &&
             membership.data.length < ADOPTION_ROW_LIMIT,
@@ -306,8 +219,10 @@ const AnalyticsAdoption = ({ projectUuid }: { projectUuid: string }) => {
             summarizeAdoption(
                 membership.data ?? [],
                 adoptionMembershipQuery.exploreName,
+                undefined,
+                config,
             ),
-        [membership.data],
+        [membership.data, config],
     );
     const featureData = useMemo(
         () =>
@@ -316,9 +231,10 @@ const AnalyticsAdoption = ({ projectUuid }: { projectUuid: string }) => {
                       activity.data,
                       adoptionActivityQuery.exploreName,
                       new Set(featureFilter),
+                      config,
                   )
                 : null,
-        [activity.data, featureFilter],
+        [activity.data, featureFilter, config],
     );
 
     if (membership.isLoading)
@@ -342,10 +258,13 @@ const AnalyticsAdoption = ({ projectUuid }: { projectUuid: string }) => {
 
     const color: ColorMode = featureData ? preferredColor : 'role';
     const data = color !== 'role' && featureData ? featureData : members;
+    const selectedTeams = selectedGroups.filter((id) =>
+        members.groups.some((team) => team.id === id),
+    );
     const availableGroups = data.groups.filter(
         ({ id }) =>
             (!hideUngrouped || id !== UNGROUPED) &&
-            (selectedGroups.length === 0 || selectedGroups.includes(id)),
+            (selectedTeams.length === 0 || selectedTeams.includes(id)),
     );
     const focused = availableGroups.find(({ id }) => id === focusedGroup);
     const groups = focused ? [focused] : availableGroups;
@@ -403,6 +322,14 @@ const AnalyticsAdoption = ({ projectUuid }: { projectUuid: string }) => {
                         all projects.
                     </Text>
                 </Box>
+                <Button
+                    variant="default"
+                    size="xs"
+                    disabled={!teams.isSuccess}
+                    onClick={() => setEditTeams(true)}
+                >
+                    Configure teams
+                </Button>
             </Group>
             <Paper
                 component="section"
@@ -446,8 +373,10 @@ const AnalyticsAdoption = ({ projectUuid }: { projectUuid: string }) => {
                             <MultiSelect
                                 size="xs"
                                 maw={220}
-                                aria-label="Groups shown on the adoption map"
-                                placeholder="All groups"
+                                aria-label="Teams shown on the adoption map"
+                                placeholder={
+                                    config.teams ? 'All teams' : 'All groups'
+                                }
                                 clearable
                                 searchable
                                 data={members.groups
@@ -459,7 +388,7 @@ const AnalyticsAdoption = ({ projectUuid }: { projectUuid: string }) => {
                                         value: id,
                                         label: name,
                                     }))}
-                                value={selectedGroups}
+                                value={selectedTeams}
                                 onChange={(next) => {
                                     setSelectedGroups(next);
                                     setFocusedGroup(null);
@@ -567,7 +496,11 @@ const AnalyticsAdoption = ({ projectUuid }: { projectUuid: string }) => {
                                 <Menu.Dropdown p="sm">
                                     <Checkbox
                                         size="xs"
-                                        label="Hide people not in a group"
+                                        label={
+                                            config.teams
+                                                ? 'Hide people without a team'
+                                                : 'Hide people not in a group'
+                                        }
                                         checked={hideUngrouped}
                                         disabled={
                                             !members.groups.some(
@@ -715,15 +648,45 @@ const AnalyticsAdoption = ({ projectUuid }: { projectUuid: string }) => {
                     </Text>
                 </Stack>
             </Paper>
-            <Fingerprint
-                data={featureData}
-                groups={
-                    featureData?.groups.filter(({ id }) =>
-                        visibleGroups.some((group) => group.id === id),
-                    ) ?? []
+            <AnalyticsAdoptionDetails
+                mode={preferredColor}
+                data={preferredColor === 'role' ? members : featureData}
+                teams={
+                    preferredColor === 'role' || featureData
+                        ? visibleGroups
+                        : []
                 }
-                loading={activity.isLoading}
+                includeOverall={
+                    !focused && selectedTeams.length === 0 && !hideUngrouped
+                }
+                loading={preferredColor !== 'role' && activity.isLoading}
             />
+            {teams.isError && (
+                <Alert color="yellow">
+                    Saved teams could not be loaded. Showing organization
+                    groups.
+                    <Button
+                        variant="subtle"
+                        size="compact-xs"
+                        onClick={() => void teams.refetch()}
+                    >
+                        Retry
+                    </Button>
+                </Alert>
+            )}
+            {editTeams && (
+                <AnalyticsAdoptionTeams
+                    projectUuid={projectUuid}
+                    config={config}
+                    groups={summarizeAdoption(
+                        membership.data,
+                        adoptionMembershipQuery.exploreName,
+                    )
+                        .groups.filter(({ id }) => id !== UNGROUPED)
+                        .map(({ id, name }) => ({ value: id, label: name }))}
+                    onClose={() => setEditTeams(false)}
+                />
+            )}
         </Stack>
     );
 };

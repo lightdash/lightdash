@@ -1,3 +1,4 @@
+import type { AnalyticsAdoptionTeamConfig } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const OrganizationSettingsTableName = 'organization_settings';
@@ -41,6 +42,7 @@ export type DbOrganizationSettings = {
     data_app_captures_enabled: boolean | null;
     // Whether data app uploads may declare custom npm dependencies.
     data_app_custom_dependencies_enabled: boolean;
+    analytics_adoption_team_config: AnalyticsAdoptionTeamConfig | null;
     created_at: Date;
     updated_at: Date;
 };

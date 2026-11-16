@@ -1,4 +1,5 @@
 import {
+    DEFAULT_ANALYTICS_ADOPTION_TEAM_CONFIG,
     ProjectType,
     QueryHistoryStatus,
     getFilterRules,
@@ -62,6 +63,12 @@ const mockQueries = (
     const byId = new Map<string, AnalyticsQuery>();
     mockedLightdashApi.mockImplementation(
         async ({ method, url, body }: LightdashApiProps) => {
+            if (
+                method === 'GET' &&
+                url === '/org/analytics-project/adoption-teams'
+            ) {
+                return DEFAULT_ANALYTICS_ADOPTION_TEAM_CONFIG;
+            }
             if (method === 'POST' && url.endsWith('/metric-query')) {
                 const { query } = JSON.parse(
                     String(body),
@@ -207,6 +214,20 @@ describe('Analytics settings overview', () => {
         ).not.toBeInTheDocument();
         await userEvent.click(map.getByText('Recency'));
         expect(map.getByText('No recorded activity')).toBeVisible();
+        expect(
+            panel.getByText('Recent activity').closest('details'),
+        ).toHaveAttribute('open');
+        expect(
+            panel.getByRole('columnheader', { name: 'Active in 30 days' }),
+        ).toBeVisible();
+        await userEvent.click(map.getByText('Growth'));
+        expect(
+            panel.getByRole('columnheader', { name: 'Net change' }),
+        ).toBeVisible();
+        await userEvent.click(map.getByText('Role'));
+        expect(
+            panel.getByRole('columnheader', { name: 'Admin' }),
+        ).toBeVisible();
         expect(
             launched.filter(
                 ({ query }) => query.exploreName === 'people_adoption_details',

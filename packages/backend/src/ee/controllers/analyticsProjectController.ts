@@ -1,4 +1,5 @@
 import {
+    AnalyticsAdoptionTeamConfig,
     AnalyticsHistoryBackfillStatus,
     AnalyticsProjectStatus,
     AnalyticsProjectView,
@@ -18,6 +19,7 @@ import {
     OperationId,
     Path,
     Post,
+    Put,
     Request,
     Response,
     Route,
@@ -36,6 +38,39 @@ import { type AnalyticsProjectService } from '../services/AnalyticsProjectServic
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Analytics project')
 export class AnalyticsProjectController extends BaseController {
+    /** @summary Get shared Adoption teams */
+    @Get('/adoption-teams')
+    @Middlewares([isAuthenticated])
+    @OperationId('GetAnalyticsAdoptionTeams')
+    async getAdoptionTeams(
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<AnalyticsAdoptionTeamConfig>> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAnalyticsProjectService<AnalyticsProjectService>()
+                .getAdoptionTeams(toSessionUser(req.account)),
+        };
+    }
+
+    /** @summary Update shared Adoption teams */
+    @Put('/adoption-teams')
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @OperationId('SaveAnalyticsAdoptionTeams')
+    async saveAdoptionTeams(
+        @Request() req: express.Request,
+        @Body() body: AnalyticsAdoptionTeamConfig,
+    ): Promise<ApiSuccess<AnalyticsAdoptionTeamConfig>> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAnalyticsProjectService<AnalyticsProjectService>()
+                .saveAdoptionTeams(toSessionUser(req.account), body),
+        };
+    }
+
     /** @summary Check Analytics history backfill completion */
     @Get('/backfill')
     @Middlewares([isAuthenticated])

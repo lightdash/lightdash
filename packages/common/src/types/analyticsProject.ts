@@ -51,3 +51,23 @@ export type AnalyticsHistoryBackfillStatus = {
 /** Slug of the managed AI usage dashboard installed in every analytics project. */
 export const ANALYTICS_AI_USAGE_DASHBOARD_SLUG =
     'lightdash-analytics-ai-tokens';
+
+export type AnalyticsAdoptionTeam = {
+    id: string;
+    name: string;
+    groupIds: string[];
+    memberIds: string[];
+};
+
+export type AnalyticsAdoptionTeamConfig = {
+    revision: number;
+    teams: AnalyticsAdoptionTeam[] | null;
+    primary: Record<string, string>;
+};
+
+export const DEFAULT_ANALYTICS_ADOPTION_TEAM_CONFIG: AnalyticsAdoptionTeamConfig =
+    {
+        revision: 0,
+        teams: null,
+        primary: {},
+    };

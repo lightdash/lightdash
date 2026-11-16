@@ -1,4 +1,6 @@
 import {
+    type AnalyticsAdoptionTeamConfig,
+    DEFAULT_ANALYTICS_ADOPTION_TEAM_CONFIG,
     OrganizationSettings,
     UpdateOrganizationSettings,
 } from '@lightdash/common';
@@ -16,8 +18,12 @@ import {
  * below fail to compile until you map it. (`get` is likewise forced to read it
  * by returning the full `OrganizationSettings` shape.)
  */
+type GeneralSettingsColumns = Omit<
+    DbOrganizationSettingsColumns,
+    'analytics_adoption_team_config'
+>;
 type SettingsColumnPatch = {
-    [K in keyof DbOrganizationSettingsColumns]:
+    [K in keyof GeneralSettingsColumns]:
         | DbOrganizationSettingsColumns[K]
         | undefined;
 };
@@ -65,6 +71,32 @@ export class OrganizationSettingsModel {
             dataAppCustomDependenciesEnabled:
                 row?.data_app_custom_dependencies_enabled ?? false,
         };
+    }
+
+    async getAnalyticsAdoptionTeams(
+        organizationUuid: string,
+    ): Promise<AnalyticsAdoptionTeamConfig> {
+        const row = await this.database(OrganizationSettingsTableName)
+            .where('organization_uuid', organizationUuid)
+            .first('analytics_adoption_team_config');
+        return (
+            row?.analytics_adoption_team_config ??
+            DEFAULT_ANALYTICS_ADOPTION_TEAM_CONFIG
+        );
+    }
+
+    async saveAnalyticsAdoptionTeams(
+        organizationUuid: string,
+        config: AnalyticsAdoptionTeamConfig,
+    ): Promise<void> {
+        const patch = {
+            analytics_adoption_team_config: config,
+            updated_at: new Date(),
+        };
+        await this.database(OrganizationSettingsTableName)
+            .insert({ organization_uuid: organizationUuid, ...patch })
+            .onConflict('organization_uuid')
+            .merge(patch);
     }
 
     async getAllEnabledCorsAllowedDomains(): Promise<string[]> {

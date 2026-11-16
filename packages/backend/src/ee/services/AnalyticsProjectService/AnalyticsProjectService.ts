@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    type AnalyticsAdoptionTeamConfig,
     AnalyticsHistoryBackfillStatus,
     AnalyticsProjectStatus,
     AnalyticsProjectView,
@@ -12,10 +13,12 @@ import {
     getLtreePathFromContentAsCodePath,
     isUserWithOrg,
     NotFoundError,
+    ParameterError,
     RegisteredAccount,
     SessionUser,
 } from '@lightdash/common';
 import { memoize } from 'es-toolkit/compat';
+import { validate as validateUuid } from 'uuid';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import {
@@ -32,6 +35,7 @@ import {
 import { type ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { type DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import type { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
+import type { OrganizationSettingsModel } from '../../../models/OrganizationSettingsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { type SpaceModel } from '../../../models/SpaceModel';
@@ -74,6 +78,10 @@ type Dependencies = {
     organizationMemberProfileModel: Pick<
         OrganizationMemberProfileModel,
         'getOrganizationAdmins'
+    >;
+    organizationSettingsModel: Pick<
+        OrganizationSettingsModel,
+        'getAnalyticsAdoptionTeams' | 'saveAnalyticsAdoptionTeams'
     >;
     usageDimensionsModel: Pick<UsageDimensionsModel, 'getOrganizations'>;
     coderService: Pick<CoderService, 'upsertChart' | 'upsertDashboard'>;
@@ -144,6 +152,81 @@ export class AnalyticsProjectService extends BaseService {
             user,
         );
         return user.organizationUuid;
+    }
+
+    async getAdoptionTeams(
+        user: SessionUser,
+    ): Promise<AnalyticsAdoptionTeamConfig> {
+        const organizationUuid = await this.authorize(user);
+        return this.dependencies.organizationSettingsModel.getAnalyticsAdoptionTeams(
+            organizationUuid,
+        );
+    }
+
+    async saveAdoptionTeams(
+        user: SessionUser,
+        config: AnalyticsAdoptionTeamConfig,
+    ): Promise<AnalyticsAdoptionTeamConfig> {
+        const organizationUuid = await this.authorize(user);
+        const teams =
+            config.teams?.map((team) => ({
+                id: team.id,
+                name: team.name.trim(),
+                groupIds: [...new Set(team.groupIds)],
+                memberIds: [...new Set(team.memberIds)],
+            })) ?? null;
+        const teamIds = new Set(teams?.map(({ id }) => id));
+        const primary = Object.entries(config.primary);
+        const memberIds = new Set([
+            ...(teams?.flatMap((team) => team.memberIds) ?? []),
+            ...primary.map(([memberId]) => memberId),
+        ]);
+        if (
+            teamIds.size !== (teams?.length ?? 0) ||
+            teamIds.size > 100 ||
+            memberIds.size > 200 ||
+            teams?.some(
+                ({ id, name, groupIds, memberIds: ids }) =>
+                    id.length === 0 ||
+                    id.length > 128 ||
+                    id === 'no-group' ||
+                    name.length === 0 ||
+                    name.length > 120 ||
+                    groupIds.length > 100 ||
+                    (!groupIds.length && !ids.length) ||
+                    groupIds.some(
+                        (groupId) =>
+                            groupId.length === 0 || groupId.length > 128,
+                    ),
+            ) ||
+            [...memberIds].some((id) => !validateUuid(id)) ||
+            primary.some(([, teamId]) => !teamIds.has(teamId))
+        )
+            throw new ParameterError('Invalid Adoption team configuration');
+
+        return this.dependencies.projectModel.runInAnalyticsProvisioningLock(
+            organizationUuid,
+            async () => {
+                const current =
+                    await this.dependencies.organizationSettingsModel.getAnalyticsAdoptionTeams(
+                        organizationUuid,
+                    );
+                if (current.revision !== config.revision)
+                    throw new ConflictError(
+                        'Someone else changed the Adoption teams. Reopen the editor to see their changes.',
+                    );
+                const saved = {
+                    teams,
+                    primary: Object.fromEntries(primary),
+                    revision: current.revision + 1,
+                };
+                await this.dependencies.organizationSettingsModel.saveAnalyticsAdoptionTeams(
+                    organizationUuid,
+                    saved,
+                );
+                return saved;
+            },
+        );
     }
 
     async trackView(
