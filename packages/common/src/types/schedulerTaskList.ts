@@ -155,6 +155,8 @@ export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
     prUrl: string | null;
     startNewPullRequest: boolean | null;
     suppressWritebackPreview?: boolean;
+    // A code mode script to save instead of a sandbox run; absent on jobs queued before it existed.
+    script?: string | null;
 };
 
 export type AiAgentMemoryDistillJobPayload = TraceTaskBase & {

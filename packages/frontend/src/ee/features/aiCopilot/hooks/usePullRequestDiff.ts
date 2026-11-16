@@ -46,3 +46,21 @@ export const usePullRequestDiff = (
         staleTime: 60_000,
     });
 };
+
+/** Everything a pull request changes, read again when its head moves and kept on screen meanwhile. */
+export const useWholePullRequestDiff = (
+    projectUuid: string,
+    prUrl: string,
+    headSha: string | null,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<PullRequestDiff, ApiError>({
+        queryKey: ['pullRequestDiff', projectUuid, prUrl, 'whole', headSha],
+        queryFn: () =>
+            getPullRequestDiff(lightdashApi, projectUuid, prUrl, null),
+        enabled: !!projectUuid && !!prUrl,
+        keepPreviousData: true,
+        refetchOnWindowFocus: false,
+        retry: false,
+    });
+};

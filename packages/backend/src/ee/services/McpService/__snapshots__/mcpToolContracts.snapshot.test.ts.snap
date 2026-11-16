@@ -1415,7 +1415,7 @@ Usage tips:
         "readOnlyHint": true,
         "title": "Read content",
       },
-      "description": "Read a dashboard, chart, SQL chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code.",
+      "description": "Read a dashboard, chart, SQL chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1838,7 +1838,7 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
         "readOnlyHint": false,
         "title": "Create scheduled delivery",
       },
-      "description": "Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule. An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Content that exists only in this conversation is saved with create_content first, then scheduled by the created uuid: propose the save and the schedule as one plan with a single confirmation.",
+      "description": "Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule. SQL charts cannot be scheduled, so tell the user that before saving or proposing one for a delivery. An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Content that exists only in this conversation is saved with create_content first, then scheduled by the slug it returns: propose the save and the schedule as one plan with a single confirmation.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1924,7 +1924,7 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
             "type": "string",
           },
           "resourceUuidOrSlug": {
-            "description": "UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from the tool result that created or found the content as the canonical identity.",
+            "description": "Slug of the saved chart or dashboard, as the tool that created or found it returned it. A uuid also works.",
             "type": "string",
           },
           "targets": {

@@ -68844,11 +68844,22 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "MobileSignInMintReason": {
+                "type": "string",
+                "enum": ["show", "auto_refresh"]
+            },
             "MintMobileSignInCodeRequest": {
                 "properties": {
+                    "sourceProjectUuid": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UUID"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "reason": {
-                        "type": "string",
-                        "enum": ["show", "auto_refresh"]
+                        "$ref": "#/components/schemas/MobileSignInMintReason"
                     }
                 },
                 "required": ["reason"],
@@ -68998,6 +69009,27 @@
                     }
                 },
                 "required": ["nonce"],
+                "type": "object"
+            },
+            "MobileSignInCapabilities": {
+                "properties": {
+                    "capabilities": {
+                        "properties": {
+                            "mobile_sign_in_source_project": {
+                                "type": "number",
+                                "enum": [1],
+                                "nullable": false
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": ["capabilities", "schemaVersion"],
                 "type": "object"
             },
             "MobileAppLink": {
@@ -78383,6 +78415,13 @@
             },
             "ComposerChartRunResults": {
                 "properties": {
+                    "sqlColumns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultColumn"
+                        },
+                        "type": "array",
+                        "description": "The SQL nodes' columns, one per name, that a filter can target on this tile."
+                    },
                     "parameterReferences": {
                         "items": {
                             "type": "string"
@@ -78427,6 +78466,7 @@
                     }
                 },
                 "required": [
+                    "sqlColumns",
                     "parameterReferences",
                     "appliedDashboardFiltersByNodeId",
                     "appliedDashboardFilters",
@@ -79613,7 +79653,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.267.2",
+        "version": "3.271.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -113659,6 +113699,26 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/mobile/sign-in-capabilities": {
+            "get": {
+                "operationId": "GetMobileSignInCapabilities",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MobileSignInCapabilities"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Mobile"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/user/mobile/app-links": {

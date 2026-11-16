@@ -40,7 +40,7 @@ A build runs in the background for several minutes while the user follows it in 
 ## Scheduled deliveries
 
 - Use createScheduledDelivery when the user wants a chart or dashboard sent to Slack or email on a recurring schedule.
-- A delivery needs saved content. For a chart or dashboard that exists only in this conversation, propose saving it with createContent and the delivery as one plan with a single confirmation, then schedule the created uuid.
+- A delivery needs saved content. For a chart or dashboard that exists only in this conversation, propose saving it with createContent and the delivery as one plan with a single confirmation, then schedule it by the slug createContent returned.
 
 ## Tool workflow
 
@@ -2109,7 +2109,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule. An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation.",
+    "description": "Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule. SQL charts cannot be scheduled, so tell the user that before saving or proposing one for a delivery. An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -2193,7 +2193,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
           "type": "string",
         },
         "resourceUuidOrSlug": {
-          "description": "UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from the tool result that created or found the content as the canonical identity.",
+          "description": "Slug of the saved chart or dashboard, as the tool that created or found it returned it. A uuid also works.",
           "type": "string",
         },
         "targets": {
@@ -14234,7 +14234,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
     },
   },
   {
-    "description": "Read a dashboard, chart, SQL chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code.",
+    "description": "Read a dashboard, chart, SQL chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,

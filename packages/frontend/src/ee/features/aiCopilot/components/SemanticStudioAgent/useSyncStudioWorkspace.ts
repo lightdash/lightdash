@@ -4,8 +4,10 @@ import {
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
-import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
-import { useStoredStudioThread } from './useSemanticStudioChat';
+import {
+    useStoredStudioThread,
+    useStudioThread,
+} from './useSemanticStudioChat';
 
 const NAME_LENGTH = 60;
 
@@ -47,11 +49,10 @@ export const useSyncStudioWorkspace = (
         }
     }, [active, stored, setStored]);
 
-    const { data: thread } = useAiAgentThread(
+    const { data: thread } = useStudioThread(
         projectUuid,
         stored?.agentUuid,
         stored?.threadUuid,
-        { enabled: !!stored },
     );
     const firstRequest = thread?.messages.find(
         (message): message is AiAgentMessageUser => message.role === 'user',

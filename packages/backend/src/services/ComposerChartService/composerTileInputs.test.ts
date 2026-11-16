@@ -18,6 +18,7 @@ import {
     applyDashboardFiltersToComposerNodes,
     applyDashboardParametersToComposerNodes,
     getComposerParameterReferences,
+    withSqlColumnFilters,
 } from './composerTileInputs';
 
 const buildExplore = (
@@ -250,6 +251,27 @@ describe('applyDashboardFiltersToComposerNodes', () => {
         });
     });
 
+    it('never pushes a SQL column target into a semantic-layer node, even one with a field of that name', () => {
+        const result = applyDashboardFiltersToComposerNodes({
+            tileUuid: 'tile',
+            nodes,
+            dashboardFilters: filtersWith(
+                rule('dash-status', 'orders_status', {
+                    tileTargets: {
+                        tile: {
+                            fieldId: 'orders_status',
+                            tableName: 'mock_table',
+                            isSqlColumn: true,
+                        },
+                    },
+                }),
+            ),
+            exploreByNodeId,
+        });
+        expect(result.nodes).toEqual(nodes);
+        expect(result.appliedDashboardFiltersByNodeId).toEqual({});
+    });
+
     it('leaves every node unchanged when no explore has the field', () => {
         const result = applyDashboardFiltersToComposerNodes({
             tileUuid: 'tile',
@@ -363,5 +385,64 @@ describe('getComposerParameterReferences', () => {
         expect(
             getComposerParameterReferences(nodes, exploreByNodeId).sort(),
         ).toEqual(['duck_param', 'region', 'sql_param']);
+    });
+});
+
+describe('withSqlColumnFilters', () => {
+    const columnTarget = (fieldId: string) => ({
+        fieldId,
+        tableName: 'mock_table',
+        isSqlColumn: true,
+    });
+
+    it('reports a SQL column target on every SQL node that has the column, beside the semantic-layer rules', () => {
+        const statusRule = rule('dash-status', 'orders_status');
+        const columnRule = rule('dash-col', 'orders_status', {
+            tileTargets: { tile: columnTarget('status') },
+        });
+        const semantic = applyDashboardFiltersToComposerNodes({
+            tileUuid: 'tile',
+            nodes,
+            dashboardFilters: filtersWith(statusRule, columnRule),
+            exploreByNodeId,
+        });
+        const result = withSqlColumnFilters(semantic, {
+            tileUuid: 'tile',
+            dashboardFilters: filtersWith(statusRule, columnRule),
+            sqlColumnsByNodeId: {
+                raw: ['status', 'amount'],
+                other: ['status'],
+                none: ['amount'],
+            },
+        });
+        const appliedColumnRule = {
+            ...columnRule,
+            target: columnTarget('status'),
+            settings: { sourceTarget: columnRule.target },
+        };
+        expect(result.appliedDashboardFiltersByNodeId).toEqual({
+            orders: filtersWith(statusRule),
+            raw: filtersWith(appliedColumnRule),
+            other: filtersWith(appliedColumnRule),
+        });
+        expect(
+            result.appliedDashboardFilters.dimensions.map((r) => r.id),
+        ).toEqual(['dash-status', 'dash-col']);
+    });
+
+    it('applies nothing to a SQL node without an explicit column target', () => {
+        const semantic = applyDashboardFiltersToComposerNodes({
+            tileUuid: 'tile',
+            nodes,
+            dashboardFilters: filtersWith(rule('dash-status', 'status')),
+            exploreByNodeId,
+        });
+        expect(
+            withSqlColumnFilters(semantic, {
+                tileUuid: 'tile',
+                dashboardFilters: filtersWith(rule('dash-status', 'status')),
+                sqlColumnsByNodeId: { raw: ['status'] },
+            }).appliedDashboardFiltersByNodeId,
+        ).toEqual({});
     });
 });

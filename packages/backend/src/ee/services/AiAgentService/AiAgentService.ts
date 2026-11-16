@@ -13904,6 +13904,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const runArgs = {
                     ...(prompt.threadCreatedFrom === 'semantic_studio'
                         ? {
+                              continuesThreadPullRequest: true,
                               onDbtProject: async (
                                   project: ParsedDbtProject,
                               ) => {
@@ -13932,13 +13933,58 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 result = await wrapSentryTransaction(
                     'AiAgent.editDbtProject',
                     {},
-                    () =>
-                        writebackGuard
+                    async () => {
+                        if (payload.script) {
+                            const saved =
+                                await this.aiWritebackService.saveWithScript(
+                                    runArgs,
+                                    payload.script,
+                                    {
+                                        dryRun: false,
+                                        assertPublishAllowed,
+                                        checkDbt: (change) =>
+                                            this.semanticStudioService.checkDbtScriptChange(
+                                                user,
+                                                projectUuid,
+                                                change,
+                                                { checkQueries: false },
+                                            ),
+                                    },
+                                );
+                            if (saved?.status === 'saved') {
+                                changedModels = saved.changedModels;
+                                if (saved.explores !== null) {
+                                    await this.semanticStudioService
+                                        .saveDbtScriptTryOut(
+                                            user,
+                                            projectUuid,
+                                            prompt.threadUuid,
+                                            {
+                                                prUrl: saved.result.prUrl,
+                                                explores: saved.explores,
+                                            },
+                                        )
+                                        .catch((error: unknown) => {
+                                            Logger.warn(
+                                                `AiAgent.runEditDbtProjectPipeline: failed to keep the try-out of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
+                                            );
+                                        });
+                                }
+                                return saved.result;
+                            }
+                            if (saved?.status === 'script_failed') {
+                                throw new ParameterError(
+                                    `The script did not run, so nothing was saved: ${saved.error}`,
+                                );
+                            }
+                        }
+                        return writebackGuard
                             ? this.aiWritebackService.run(
                                   runArgs,
                                   writebackGuard.assert,
                               )
-                            : this.aiWritebackService.run(runArgs),
+                            : this.aiWritebackService.run(runArgs);
+                    },
                 );
             } catch (error) {
                 if (writebackGuard?.getFailure()) {
@@ -14998,6 +15044,37 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     'editDbtProject requires a tool call id (progressId)',
                 );
             }
+            let { script } = args;
+            if (script) {
+                // Run it once now so a broken script goes back to the model instead of failing in the background.
+                const checked = await this.aiWritebackService.saveWithScript(
+                    {
+                        agentPermissionsApply: true,
+                        user,
+                        projectUuid,
+                        prompt: writebackPrompt,
+                        dbtSourceUuid: options?.dbtSourceUuid,
+                        prUrl: args.prUrl,
+                        startNewPullRequest: args.startNewPullRequest ?? false,
+                        aiThreadUuid: prompt.threadUuid,
+                        source,
+                    },
+                    script,
+                    {
+                        dryRun: true,
+                        assertPublishAllowed: null,
+                        checkDbt: (change) =>
+                            this.semanticStudioService.checkDbtScriptChange(
+                                user,
+                                projectUuid,
+                                change,
+                                { checkQueries: true },
+                            ),
+                    },
+                );
+                if (checked?.status === 'script_failed') return checked;
+                if (checked === null) script = null;
+            }
             const { aiWritebackRunUuid } =
                 await this.aiWritebackService.createPendingRun({
                     user,
@@ -15031,9 +15108,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 prUrl: args.prUrl,
                 startNewPullRequest: args.startNewPullRequest ?? null,
                 suppressWritebackPreview: options?.suppressWritebackPreview,
+                script,
             });
 
-            return { aiWritebackRunUuid };
+            return {
+                status: 'started',
+                aiWritebackRunUuid,
+                inSandbox: !script,
+            };
         };
 
         // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
@@ -17650,6 +17732,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                           promptProject.projectUuid,
                       )
                     : null;
+                // Studio saves a dbt change with a script wherever Studio itself is on for the person.
+                const semanticStudioCodeMode =
+                    semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
+                    semanticStudioStatus.enabled;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
@@ -17749,6 +17835,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             prompt.threadUuid,
                         )
                     ).length > 0;
+                const pinnedThreadUuids =
+                    await this.aiAgentModel.findPinnedThreadContextUuids(
+                        prompt.threadUuid,
+                    );
 
                 if (!hasTrustedPromptUserIdentity) {
                     this.logger.info(
@@ -18169,9 +18259,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread,
                     semanticStudioDrafts,
+                    semanticStudioCodeMode,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
+                    enableReadPinnedThread: pinnedThreadUuids.length > 0,
                     enableAskUser,
                     enableFilterExpressions: filterExpressionsEnabled,
                     repoFsRoot,
@@ -18353,11 +18445,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     // Only conversations pinned as context on this thread are
                     // readable — the pin is the capability grant.
                     readPinnedThread: async ({ threadUuid }) => {
-                        const pinnedThreadUuids =
+                        const currentPinnedThreadUuids =
                             await this.aiAgentModel.findPinnedThreadContextUuids(
                                 prompt.threadUuid,
                             );
-                        if (!pinnedThreadUuids.includes(threadUuid)) {
+                        if (!currentPinnedThreadUuids.includes(threadUuid)) {
                             throw new ForbiddenError(
                                 'This conversation is not attached as context on this thread',
                             );

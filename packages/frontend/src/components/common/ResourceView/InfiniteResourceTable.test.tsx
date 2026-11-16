@@ -1,11 +1,13 @@
-import { ContentType } from '@lightdash/common';
+import { ContentSortByColumns, ContentType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import InfiniteResourceTable from './InfiniteResourceTable';
+import { ColumnVisibility } from './types';
 
 const mocks = vi.hoisted(() => ({
     refetch: vi.fn(),
+    useInfiniteContent: vi.fn(),
     isError: true,
     spaces: [],
     table: {
@@ -15,14 +17,17 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../hooks/useContent', () => ({
-    useInfiniteContent: () => ({
-        data: undefined,
-        isInitialLoading: false,
-        isFetching: false,
-        isError: mocks.isError,
-        error: { error: { message: 'Request failed' } },
-        refetch: mocks.refetch,
-    }),
+    useInfiniteContent: (...args: unknown[]) => {
+        mocks.useInfiniteContent(...args);
+        return {
+            data: undefined,
+            isInitialLoading: false,
+            isFetching: false,
+            isError: mocks.isError,
+            error: { error: { message: 'Request failed' } },
+            refetch: mocks.refetch,
+        };
+    },
     useContentBulkAction: () => ({}),
 }));
 vi.mock('../../../hooks/useSpaces', () => ({
@@ -96,5 +101,48 @@ describe('Resource list error state', () => {
         expect(
             screen.queryByText('Unable to load documents'),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('Resource list initial sorting', () => {
+    beforeEach(() => {
+        mocks.isError = false;
+        mocks.useInfiniteContent.mockClear();
+    });
+
+    test('defaults to last updated, newest first', () => {
+        renderTable();
+        expect(mocks.useInfiniteContent).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                sortBy: ContentSortByColumns.LAST_UPDATED_AT,
+                sortDirection: 'desc',
+            }),
+            expect.anything(),
+        );
+    });
+
+    test('queries with the provided initial sorting', () => {
+        render(
+            <MantineProvider env="test">
+                <MemoryRouter>
+                    <InfiniteResourceTable
+                        filters={{
+                            projectUuid: 'project',
+                            contentTypes: [ContentType.SPACE],
+                        }}
+                        initialSorting={[
+                            { id: ColumnVisibility.NAME, desc: false },
+                        ]}
+                    />
+                </MemoryRouter>
+            </MantineProvider>,
+        );
+        expect(mocks.useInfiniteContent).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                sortBy: ContentSortByColumns.NAME,
+                sortDirection: 'asc',
+            }),
+            expect.anything(),
+        );
     });
 });

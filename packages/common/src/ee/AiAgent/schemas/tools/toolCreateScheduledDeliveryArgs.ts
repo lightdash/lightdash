@@ -8,11 +8,12 @@ export const TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION = ({
 }: ToolDescriptionContext): string =>
     [
         'Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule.',
+        'SQL charts cannot be scheduled, so tell the user that before saving or proposing one for a delivery.',
         'An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation.',
         // MCP has no system prompt to carry the save-then-schedule order.
         ...(runtime === 'mcp'
             ? [
-                  `Content that exists only in this conversation is saved with ${toolNameFor('createContent', runtime)} first, then scheduled by the created uuid: propose the save and the schedule as one plan with a single confirmation.`,
+                  `Content that exists only in this conversation is saved with ${toolNameFor('createContent', runtime)} first, then scheduled by the slug it returns: propose the save and the schedule as one plan with a single confirmation.`,
               ]
             : []),
     ].join(' ');
@@ -39,7 +40,7 @@ export const toolCreateScheduledDeliveryArgsSchema = z.object({
     resourceUuidOrSlug: z
         .string()
         .describe(
-            'UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from the tool result that created or found the content as the canonical identity.',
+            'Slug of the saved chart or dashboard, as the tool that created or found it returned it. A uuid also works.',
         ),
     name: z.string().min(1).describe('Human-readable delivery name.'),
     cron: z

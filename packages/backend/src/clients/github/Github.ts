@@ -347,7 +347,7 @@ export const getLastCommit = async ({
     }
 };
 
-export const getFileContent = async ({
+const readGithubFile = async ({
     fileName,
     owner,
     repo,
@@ -381,7 +381,14 @@ export const getFileContent = async ({
                 response.data.content,
                 'base64',
             ).toString('utf-8');
-            return { content, sha: response.data.sha };
+            return {
+                content,
+                sha: response.data.sha,
+                // Over 1 MB the API returns no content, so `content` is empty.
+                isTooLarge:
+                    'encoding' in response.data &&
+                    response.data.encoding === 'none',
+            };
         }
 
         throw new NotFoundError('file not found');
@@ -396,6 +403,26 @@ export const getFileContent = async ({
         logGithubRateLimit(error, `getContent ${fileName}`);
         throw new UnexpectedGitError(getErrorMessage(error));
     }
+};
+
+export const getFileContent = async (
+    args: Parameters<typeof readGithubFile>[0],
+) => {
+    const { content, sha } = await readGithubFile(args);
+    return { content, sha };
+};
+
+/** Like getFileContent, but a file too large for the API throws instead of reading as empty. */
+export const getWholeFileContent = async (
+    args: Parameters<typeof readGithubFile>[0],
+) => {
+    const { content, sha, isTooLarge } = await readGithubFile(args);
+    if (isTooLarge) {
+        throw new UnexpectedGitError(
+            `file ${args.fileName} is too large to read through the GitHub API`,
+        );
+    }
+    return { content, sha };
 };
 
 /**
@@ -616,6 +643,31 @@ export const createBranch = async ({
         throw toGitWriteError(error);
     }
 };
+export const deleteBranch = async ({
+    owner,
+    repo,
+    branch,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    branch: string;
+    installationId?: string;
+    token?: string;
+}): Promise<void> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        await octokit.rest.git.deleteRef({
+            owner,
+            repo,
+            ref: `heads/${branch}`,
+            headers,
+        });
+    } catch (error) {
+        throw toGitWriteError(error);
+    }
+};
 export const getBranchHeadSha = async ({
     owner,
     repo,
@@ -638,6 +690,48 @@ export const getBranchHeadSha = async ({
             headers,
         });
         return data.object.sha;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+/** The files that differ between a commit and a later one; null when `head` does not simply follow `base`, or there are too many to list. */
+export const getFilesChangedSince = async ({
+    owner,
+    repo,
+    base,
+    head,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    base: string;
+    head: string;
+    installationId?: string;
+    token?: string;
+}): Promise<string[] | null> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const { data } = await octokit.rest.repos.compareCommitsWithBasehead({
+            owner,
+            repo,
+            basehead: `${base}...${head}`,
+            // Files are listed on the first page whatever its size; commits are not needed.
+            per_page: 1,
+            headers,
+        });
+        if (data.status === 'identical') return [];
+        const files = data.files ?? [];
+        // The compare lists at most 300 files.
+        if (data.status !== 'ahead' || files.length >= 300) return null;
+        return [
+            ...new Set(
+                files.flatMap(({ filename, previous_filename: previous }) =>
+                    previous ? [filename, previous] : [filename],
+                ),
+            ),
+        ];
     } catch (e) {
         throw new UnexpectedGitError(getErrorMessage(e));
     }

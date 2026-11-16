@@ -50,6 +50,7 @@ import { type DraftImpactBreaks } from '../../../database/entities/projectModelD
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { BaseService } from '../../../services/BaseService';
+import { readCompiledDbtManifest } from '../../../services/ProjectService/compiledDbtManifest';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { type ValidationService } from '../../../services/ValidationService/ValidationService';
 import { runWithConcurrency } from '../../../utils/runWithConcurrency';
@@ -63,6 +64,13 @@ import {
 import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWorkspaceModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import { type ParsedDbtProject } from '../AiWritebackService/types';
+import {
+    findModelsToCompile,
+    findNewCompileErrors,
+    patchManifest,
+    type DbtScriptChange,
+    type DbtScriptCheck,
+} from './codeMode/dbtManifestPatch';
 import {
     dbtTryOutFileId,
     findChangedModels,
@@ -110,6 +118,7 @@ export type SemanticStudioServiceArguments = {
         findExploresFromCache: (
             projectUuid: string,
             key: 'name',
+            exploreNames?: string[],
         ) => Promise<Record<string, Explore | ExploreError>>;
         deleteCachedExplores: (
             projectUuid: string,
@@ -776,6 +785,140 @@ export class SemanticStudioService extends BaseService {
             dbtTryOutFileId(projectUuid, user.userUuid, threadUuid),
         );
         return changedModels;
+    }
+
+    /**
+     * Compiles a code-mode change to a dbt project's YAML onto the manifest the
+     * project's last compile parsed, without dbt, and checks what it reaches; with
+     * `checkQueries`, each such explore is also compiled into queries and planned on
+     * the warehouse. 'unsupported' says why the change needs dbt itself to run.
+     */
+    async checkDbtScriptChange(
+        user: SessionUser,
+        projectUuid: string,
+        change: DbtScriptChange,
+        { checkQueries }: { checkQueries: boolean },
+    ): Promise<DbtScriptCheck> {
+        const compiled = await readCompiledDbtManifest(
+            this.fileStorageClient,
+            projectUuid,
+        );
+        if (compiled === null) {
+            return {
+                status: 'unsupported',
+                reason: 'The project has no compiled manifest to check against',
+            };
+        }
+        const since = await change.listChangedSince(compiled.commitSha);
+        if (since === null) {
+            return {
+                status: 'unsupported',
+                reason: 'The branch cannot be compared with the compiled commit',
+            };
+        }
+        const paths = [...new Set([...since, ...change.edits.keys()])];
+        const files = await Promise.all(
+            paths.map(async (path) => ({
+                path,
+                base: await change.readAt(path, compiled.commitSha),
+                next: change.edits.has(path)
+                    ? (change.edits.get(path) ?? null)
+                    : await change.readHead(path),
+            })),
+        );
+        const patch = patchManifest(compiled.manifest, files);
+        if (patch.status === 'unsupported') return patch;
+        if (patch.changedModels.length === 0) {
+            return { status: 'passed', changedModels: [], explores: [] };
+        }
+        const { reached, uniqueIds } = findModelsToCompile(
+            patch.manifest,
+            patch.changedModels,
+        );
+        const changed = new Map(
+            patch.changedModels.map((name) => [name, name]),
+        );
+        const reachedNames = new Set(reached);
+        const explores = (
+            await this.projectService.compileExploresFromManifest(
+                user,
+                projectUuid,
+                patch.manifest,
+                await change.readHead('lightdash.config.yml'),
+                uniqueIds,
+            )
+        ).filter((explore) =>
+            isExploreError(explore)
+                ? reachedNames.has(explore.name)
+                : usesAnyModel(explore, changed),
+        );
+        const live = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'name',
+            explores.map(({ name }) => name),
+        );
+        const broken = findNewCompileErrors(explores, live);
+        if (broken.length > 0) {
+            return {
+                status: 'failed',
+                error: `It does not compile: ${broken.join('. ')}`,
+            };
+        }
+        if (checkQueries) {
+            const { organizationUuid } =
+                await this.projectModel.get(projectUuid);
+            const canRunSql = this.createAuditedAbility(user).can(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            );
+            const findError = (explore: Explore) =>
+                this.checker.findExploreError(user, projectUuid, explore, {
+                    warehouse: canRunSql,
+                });
+            const errors = await Promise.all(
+                explores
+                    .flatMap((explore) =>
+                        isExploreError(explore) ? [] : [explore],
+                    )
+                    .map(async (explore) => {
+                        const error = await findError(explore);
+                        if (error === null) return null;
+                        const before = live[explore.name];
+                        // Only what the change breaks counts; an explore that already fails is left as it is.
+                        if (
+                            before &&
+                            !isExploreError(before) &&
+                            (await findError(before)) !== null
+                        ) {
+                            return null;
+                        }
+                        return `${explore.name}: ${error}`;
+                    }),
+            );
+            const found = errors.filter((error) => error !== null);
+            if (found.length > 0) {
+                return { status: 'failed', error: found.join('. ') };
+            }
+        }
+        return {
+            status: 'passed',
+            changedModels: patch.changedModels,
+            explores,
+        };
+    }
+
+    /** Keeps what a code-mode change compiled to as the conversation's try-out, until the preview project is built. */
+    async saveDbtScriptTryOut(
+        user: SessionUser,
+        projectUuid: string,
+        threadUuid: string | null,
+        tryOut: DbtTryOut,
+    ): Promise<void> {
+        if (!this.fileStorageClient.isEnabled()) return;
+        await this.fileStorageClient.uploadTxt(
+            Buffer.from(JSON.stringify(tryOut)),
+            dbtTryOutFileId(projectUuid, user.userUuid, threadUuid),
+        );
     }
 
     /** Forgets this person's try-out once its pull request is merged or closed. */
