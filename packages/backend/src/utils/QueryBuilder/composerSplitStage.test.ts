@@ -9,6 +9,7 @@ import {
     type ComposerBuiltinChartVizConfig,
     type ComposerChartPipelineNode,
     type DuckdbSourceQuery,
+    type SortField,
 } from '@lightdash/common';
 import { DuckdbSqlBuilder } from '@lightdash/warehouses';
 import { PivotQueryBuilder } from './PivotQueryBuilder';
@@ -34,7 +35,8 @@ const runStage = async (
             `CREATE TABLE node_result AS SELECT * FROM (VALUES
                 ('2026-01', 'paid', 10),
                 ('2026-02', 'paid', 20),
-                ('2026-02', 'open', 5)
+                ('2026-02', 'open', 5),
+                ('2026-01', 'open', 7)
             ) t(month, status, revenue)`,
         );
         const reader = await connection.runAndReadAll(sql);
@@ -54,7 +56,10 @@ const runStage = async (
     }
 };
 
-const aiStage = (config: Partial<ComposerBuiltinChartVizConfig>) =>
+const aiStage = (
+    config: Partial<ComposerBuiltinChartVizConfig>,
+    sorts: SortField[] = [],
+) =>
     getComposerChartStage({
         vizConfig: composerChartVizConfigSchemaPersisted.parse({
             type: 'scatter',
@@ -68,7 +73,10 @@ const aiStage = (config: Partial<ComposerBuiltinChartVizConfig>) =>
             ...config,
         }),
         customChartTypeSlots: [],
-        sorts: { sorts: [], sortedMeasures: [] },
+        sorts: {
+            sorts,
+            sortedMeasures: sorts.map(({ fieldId }) => fieldId),
+        },
         nodeId: 'chart_stage',
         source: 'orders',
     });
@@ -111,8 +119,9 @@ const points = (rows: Record<string, string | null>[], x: string) =>
     rows.map((row) => `${row[x]}|${row.status}|${row.revenue_any}`).sort();
 
 describe('composer series-split stage on DuckDB', () => {
-    const revenuePoints = ['10|paid|10', '20|paid|20', '5|open|5'];
+    const revenuePoints = ['10|paid|10', '20|paid|20', '5|open|5', '7|open|7'];
     const monthPoints = [
+        '2026-01|open|7',
         '2026-01|paid|10',
         '2026-02|open|5',
         '2026-02|paid|20',
@@ -137,5 +146,24 @@ describe('composer series-split stage on DuckDB', () => {
         const tile = await runStage(tileStage('month', 'revenue'));
         expect(points(ai, 'month')).toEqual(monthPoints);
         expect(points(tile, 'month')).toEqual(monthPoints);
+    });
+
+    test('x that is also a sorted y gives each x value its own row', async () => {
+        const rows = await runStage(
+            aiStage(
+                {
+                    type: 'bar',
+                    stack: true,
+                    x: 'revenue',
+                    y: ['revenue'],
+                    groupBy: ['status'],
+                },
+                [{ fieldId: 'revenue', descending: true }],
+            ),
+        );
+        const rowIndexByX = Object.fromEntries(
+            rows.map((row) => [row.revenue, row.row_index]),
+        );
+        expect(new Set(Object.values(rowIndexByX)).size).toBe(4);
     });
 });
