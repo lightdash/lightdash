@@ -1,12 +1,16 @@
 import { getItemId, type Explore } from '@lightdash/common';
+import { useQueries } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import {
     DEVELOPMENT_PREVIEW_HEADER,
     DEVELOPMENT_VIEW_HEADER,
 } from './developmentView';
 import { diffModelFields, type FieldChange } from './modelFieldDiff';
-import { useModelVersion } from './useFieldChangesInDevelopment';
-import { type TriedFields } from './useTryInExplore';
+import {
+    modelVersionQuery,
+    useModelVersion,
+} from './useFieldChangesInDevelopment';
 
 export const developmentHeadersFor = (previewProjectUuid: string | null) => ({
     [DEVELOPMENT_VIEW_HEADER]: 'true',
@@ -61,23 +65,51 @@ export const findChangedFieldIds = (
     return ids;
 };
 
-/** The fields to select when trying a model's changes in Explore; null until they are known. */
-export const useTriedFields = (
+/** A field a change touches, as Explore names it; a removed one is named from the live version. */
+export type ChangedField = FieldChange & { fieldId: string; isMetric: boolean };
+
+const describeChangedFields = (
+    live: Explore | null,
+    mine: Explore,
+): ChangedField[] =>
+    diffModelFields(live, mine).flatMap((change) => {
+        const source = change.kind === 'removed' ? live : mine;
+        const table = source?.tables[source.baseTable];
+        if (!table) return [];
+        const name = change.key.slice(table.name.length + 1);
+        const metric = table.metrics[name];
+        const field = metric ?? table.dimensions[name];
+        if (!field || field.hidden) return [];
+        return [{ ...change, fieldId: getItemId(field), isMetric: !!metric }];
+    });
+
+/** What each changed model's fields become, by model; null until every model's versions are read. */
+export const useChangeSet = (
     projectUuid: string,
-    model: string,
+    models: string[],
     previewProjectUuid: string | null,
-): TriedFields | null => {
-    const { mine, changes } = useModelFieldChanges(
-        projectUuid,
-        model,
-        previewProjectUuid,
+): Map<string, ChangedField[]> | null => {
+    const lightdashApi = useLightdashApi();
+    const sides = useQueries({
+        queries: models.flatMap((model) => [
+            modelVersionQuery(lightdashApi, projectUuid, model, {
+                [DEVELOPMENT_VIEW_HEADER]: 'false',
+            }),
+            modelVersionQuery(
+                lightdashApi,
+                projectUuid,
+                model,
+                developmentHeadersFor(previewProjectUuid),
+            ),
+        ]),
+    });
+    if (sides.some(({ isLoading }) => isLoading)) return null;
+    return new Map(
+        models.map((model, index) => {
+            const mine = sides[index * 2 + 1].data;
+            // A model that is new has no live version to read.
+            const live = sides[index * 2].data ?? null;
+            return [model, mine ? describeChangedFields(live, mine) : []];
+        }),
     );
-    return useMemo(() => {
-        if (!mine || !changes) return null;
-        const fields = [...findChangedFieldIds(mine, changes).values()];
-        return {
-            dimensions: fields.filter((f) => !f.isMetric).map((f) => f.id),
-            metrics: fields.filter((f) => f.isMetric).map((f) => f.id),
-        };
-    }, [mine, changes]);
 };

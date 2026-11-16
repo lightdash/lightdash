@@ -1,9 +1,5 @@
-import { Button, Menu, Tooltip } from '@mantine/core';
-import {
-    IconChevronDown,
-    IconPlayerPlay,
-    IconTable,
-} from '@tabler/icons-react';
+import { Button, Tooltip } from '@mantine/core';
+import { IconPlayerPlay } from '@tabler/icons-react';
 import { useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useDevelopmentView } from '../../../../../features/semanticStudio/developmentView';
@@ -28,7 +24,7 @@ const buttonProps = (look: Look) =>
 const HINT =
     'Opens Explore over this page with your changes. Only you see them until they are merged.';
 
-/** The way to try a pull request's changes in Explore, over the page: one model opens straight away, several ask which. */
+/** Tries a pull request's changes in Explore, over the page, starting on its first changed model. */
 export const TryItButton: FC<{
     projectUuid: string;
     pullRequest: StudioPullRequest;
@@ -36,65 +32,32 @@ export const TryItButton: FC<{
 }> = ({ projectUuid, pullRequest, look }) => {
     const { changedModels, previewProjectUuid, prUrl } = pullRequest;
     const [isOn, setIsOn] = useDevelopmentView();
-    const [trying, setTrying] = useState<string | null>(null);
+    const [isTrying, setIsTrying] = useState(false);
     const wasOn = useRef(false);
-    const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
     // The app reads the changes while the modal is open, and goes back to how it was after.
-    const open = (model: string) => {
+    const open = () => {
         wasOn.current = isOn;
         setIsOn(true, previewProjectUuid);
-        setTrying(model);
+        setIsTrying(true);
     };
     const close = () => {
         if (!wasOn.current) setIsOn(false);
-        setTrying(null);
+        setIsTrying(false);
     };
     if (changedModels.length === 0) return null;
     return (
         <>
-            {changedModels.length === 1 ? (
-                <Tooltip multiline w={240} label={HINT}>
-                    <Button
-                        {...buttonProps(look)}
-                        flex="none"
-                        onClick={() => open(changedModels[0])}
-                    >
-                        Try it
-                    </Button>
-                </Tooltip>
-            ) : (
-                <Menu position="bottom-end">
-                    <Menu.Target>
-                        <Button
-                            {...buttonProps(look)}
-                            flex="none"
-                            rightSection={
-                                <MantineIcon icon={IconChevronDown} />
-                            }
-                        >
-                            Try it
-                        </Button>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        <Menu.Label>{HINT}</Menu.Label>
-                        {changedModels.map((model) => (
-                            <Menu.Item
-                                key={model}
-                                leftSection={<MantineIcon icon={IconTable} />}
-                                onClick={() => open(model)}
-                            >
-                                {model}
-                            </Menu.Item>
-                        ))}
-                    </Menu.Dropdown>
-                </Menu>
-            )}
-            {trying ? (
+            <Tooltip multiline w={240} label={HINT}>
+                <Button {...buttonProps(look)} flex="none" onClick={open}>
+                    Try it
+                </Button>
+            </Tooltip>
+            {isTrying ? (
                 <TryItModal
                     projectUuid={projectUuid}
-                    model={trying}
+                    models={changedModels}
                     previewProjectUuid={previewProjectUuid}
-                    title={`Trying ${trying}${number ? ` from #${number}` : ''}`}
+                    prUrl={prUrl}
                     onClose={close}
                 />
             ) : null}

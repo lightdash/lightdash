@@ -273,3 +273,19 @@
     white-space: nowrap;
     text-overflow: ellipsis;
 }
+
+/* The modal's title is the change: what is tried, in which model, and each field it touches. */
+.tryTitle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px var(--mantine-spacing-sm);
+}
+
+.tryModel {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
+}
