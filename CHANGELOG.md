@@ -1,3 +1,10 @@
+## [3.265.3](https://github.com/lightdash/lightdash/compare/3.265.2...3.265.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **organizations:** scope allowed email domain default projects to the organization ([#32629](https://github.com/lightdash/lightdash/issues/32629)) ([0021b55](https://github.com/lightdash/lightdash/commit/0021b552931d3038c3f6f53f5f5d0f071d6590dd))
+
 ## [3.265.2](https://github.com/lightdash/lightdash/compare/3.265.1...3.265.2) (2026-11-16)
 
 
