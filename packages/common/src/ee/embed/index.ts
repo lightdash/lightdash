@@ -4,6 +4,7 @@ import type {
     Dashboard,
     DashboardParameterControl,
 } from '../../types/dashboard';
+import { ForbiddenError } from '../../types/errors';
 import type { OrganizationColorPalette } from '../../types/organization';
 import type {
     ParametersValuesMap,
@@ -167,31 +168,47 @@ export type EmbedWriteActions = {
     permissionsMode?: 'default' | 'roles';
 };
 
-export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
-    .object({
-        serviceAccountUserUuid: z.string().uuid().optional(),
-        userUuid: z.string().uuid().optional(),
-        spaceUuid: z.string().uuid().optional(),
-        writeSpaceUuids: EmbedWriteSpaceUuidsSchema.optional(),
-        sourceSpaceUuids: EmbedSourceSpaceUuidsSchema.optional(),
-        permissionsMode: z.enum(['default', 'roles']).optional(),
-    })
-    .refine(
-        ({ serviceAccountUserUuid, userUuid }) =>
-            serviceAccountUserUuid !== undefined || userUuid !== undefined,
-        {
-            message:
-                'Either serviceAccountUserUuid or userUuid is required for write actions',
-        },
-    )
-    .refine(
-        ({ spaceUuid, writeSpaceUuids }) =>
-            spaceUuid === undefined || writeSpaceUuids === undefined,
-        {
-            message:
-                'Use either writeSpaceUuids or the deprecated spaceUuid, not both',
-        },
-    );
+const EmbedWriteActionsObjectSchema = z.object({
+    serviceAccountUserUuid: z.string().uuid().optional(),
+    userUuid: z.string().uuid().optional(),
+    spaceUuid: z.string().uuid().optional(),
+    writeSpaceUuids: EmbedWriteSpaceUuidsSchema.optional(),
+    sourceSpaceUuids: EmbedSourceSpaceUuidsSchema.optional(),
+    permissionsMode: z.enum(['default', 'roles']).optional(),
+});
+
+export const EmbedWriteActionsSchema = EmbedWriteActionsObjectSchema.refine(
+    ({ serviceAccountUserUuid, userUuid }) =>
+        serviceAccountUserUuid !== undefined || userUuid !== undefined,
+    {
+        message:
+            'Either serviceAccountUserUuid or userUuid is required for write actions',
+    },
+).refine(
+    ({ spaceUuid, writeSpaceUuids }) =>
+        spaceUuid === undefined || writeSpaceUuids === undefined,
+    {
+        message:
+            'Use either writeSpaceUuids or the deprecated spaceUuid, not both',
+    },
+);
+
+export type EmbedActor = EmbedWriteActions;
+
+export const EmbedActorSchema: z.ZodType<EmbedActor> =
+    EmbedWriteActionsSchema.strict();
+
+export const normalizeEmbedJwt = (token: CreateEmbedJwt): CreateEmbedJwt => {
+    if (token.actor !== undefined && token.writeActions !== undefined) {
+        throw new ForbiddenError('Use either actor or writeActions, not both');
+    }
+    if (token.actor === undefined) return token;
+    const { actor, ...rest } = token;
+    return {
+        ...rest,
+        writeActions: EmbedActorSchema.parse(actor),
+    };
+};
 
 /** Write spaces in token order; the first is the default save target. */
 export const getEmbedWriteSpaceUuids = (
@@ -214,13 +231,15 @@ export const getEmbedDefaultWriteSpaceUuid = (
 ): string | undefined => getEmbedWriteSpaceUuids(writeActions)[0];
 
 /** AI agent tokens that declare source spaces and no write spaces can only read. */
-export const isEmbedReadOnlyAiAgentToken = (
-    token: Pick<CreateEmbedJwt, 'content' | 'writeActions'>,
-): boolean =>
-    token.content.type === 'aiAgent' &&
-    token.writeActions !== undefined &&
-    getEmbedWriteSpaceUuids(token.writeActions).length === 0 &&
-    token.writeActions.sourceSpaceUuids !== undefined;
+export const isEmbedReadOnlyAiAgentToken = (token: CreateEmbedJwt): boolean => {
+    const { content, writeActions } = normalizeEmbedJwt(token);
+    return (
+        content.type === 'aiAgent' &&
+        writeActions !== undefined &&
+        getEmbedWriteSpaceUuids(writeActions).length === 0 &&
+        writeActions.sourceSpaceUuids !== undefined
+    );
+};
 
 export const EmbedJwtSchema = z
     .object({
@@ -280,10 +299,18 @@ export const EmbedJwtSchema = z
                 serviceAccountUserUuid: z.string().uuid(),
             }),
         ]),
+        actor: EmbedActorSchema.optional(),
         writeActions: EmbedWriteActionsSchema.optional(),
         iat: z.number().optional(),
         exp: z.number(),
     })
+    .refine(
+        ({ actor, writeActions }) =>
+            actor === undefined || writeActions === undefined,
+        {
+            message: 'Use either actor or writeActions, not both',
+        },
+    )
     .describe(
         'Configuration file for generating a CSV file from a query with metrics and dimensions',
     );
@@ -394,6 +421,7 @@ export type CreateEmbedJwt = {
         | EmbedJwtContentAiAgent
         | EmbedJwtContentMetricsCatalog
         | EmbedJwtContentApiAccess;
+    actor?: EmbedActor;
     writeActions?: EmbedWriteActions;
     userAttributes?: { [key: string]: string };
     user?: {

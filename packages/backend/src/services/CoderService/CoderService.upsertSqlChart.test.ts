@@ -158,6 +158,8 @@ const buildService = (
                 connectionState.route === 'multi' ? projectConnections : [],
             ),
         } as never,
+        composerChartModel: {} as never,
+        composerChartService: {} as never,
     });
 
 const stubSpace = (service: CoderService, uuid: string = SPACE_UUID) =>

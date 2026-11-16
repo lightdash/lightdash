@@ -805,6 +805,7 @@ export type QueryCompletedEvent = BaseTrack & {
         responseTimingBasis?: 'request' | 'query_submission' | null;
         workloadOrigin?: string;
         dashboardTileId?: string | null;
+        chartKind?: 'classic_chart' | 'composer_chart' | null;
         appId?: string | null;
         appVersion?: number | null;
         requestId?: string | null;
@@ -3278,6 +3279,14 @@ export type RoadmapProjectFollowRequestedEvent = BaseTrack & {
     };
 };
 
+export type BillingPortalLinkCreatedEvent = BaseTrack & {
+    event: 'billing_portal.link_created';
+    userId: string;
+    properties: {
+        organizationId: string;
+    };
+};
+
 export type UserAttributeCreateAndUpdateEvent = BaseTrack & {
     event: 'user_attribute.created' | 'user_attribute.updated';
     userId: string;
@@ -5103,6 +5112,7 @@ type TypedEvent =
     | UserAttributesPageEvent
     | RoadmapViewedEvent
     | RoadmapProjectFollowRequestedEvent
+    | BillingPortalLinkCreatedEvent
     | UserAttributeCreateAndUpdateEvent
     | UserAttributeDeleteEvent
     | MetricFlowQueryEvent

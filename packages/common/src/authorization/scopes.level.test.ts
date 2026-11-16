@@ -14,6 +14,7 @@ const ORG_ONLY_SCOPE_NAMES = [
     'view:Roadmap',
     'view:Learn',
     'manage:Roadmap',
+    'manage:Billing',
     'view:OrganizationMemberProfile',
     'manage:OrganizationMemberProfile',
     'manage:InviteLink',

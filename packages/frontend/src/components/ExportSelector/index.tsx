@@ -33,6 +33,7 @@ const ExportSelector: FC<
         pivotConfig,
         conditionalFormattings,
         showColumnTotals,
+        showSubtotals,
     }) => {
         const health = useHealth();
         const hasGoogleDrive =
@@ -73,6 +74,7 @@ const ExportSelector: FC<
                         pivotConfig={pivotConfig}
                         conditionalFormattings={conditionalFormattings}
                         showColumnTotals={showColumnTotals}
+                        showSubtotals={showSubtotals}
                     />
                 </>
             );
@@ -111,6 +113,7 @@ const ExportSelector: FC<
                 pivotConfig={pivotConfig}
                 conditionalFormattings={conditionalFormattings}
                 showColumnTotals={showColumnTotals}
+                showSubtotals={showSubtotals}
             />
         );
     },

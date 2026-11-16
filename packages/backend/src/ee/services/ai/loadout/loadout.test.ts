@@ -78,6 +78,7 @@ const fullInput: LoadoutInput = {
     isSemanticStudioThread: false,
     semanticStudioDrafts: false,
     enableReadAttachments: true,
+    enableReadPinnedThread: true,
     enableAskUser: true,
     customSkills: [],
     projectContextEnabled: true,
@@ -112,6 +113,7 @@ const minimalInput: LoadoutInput = {
     isSemanticStudioThread: false,
     semanticStudioDrafts: false,
     enableReadAttachments: false,
+    enableReadPinnedThread: false,
     enableAskUser: false,
     customSkills: [],
     projectContextEnabled: false,
@@ -211,6 +213,7 @@ const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
             loadout.base === 'composer' &&
             loadout.toolNames.has('listWarehouseTables'),
         canRunQuery: loadout.toolNames.has('runQuery'),
+        repoFsRoot: '.',
     }).content;
 
 const fixture = (name: string) =>

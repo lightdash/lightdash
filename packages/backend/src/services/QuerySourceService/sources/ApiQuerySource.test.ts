@@ -67,7 +67,7 @@ const submitArgs = (query: ApiSourceQuery): SubmitSourceQueryArgs => ({
     invalidateCache: false,
     pivotConfiguration: null,
     plan: null,
-    binding: null,
+    authority: { kind: 'request' },
 });
 
 describe('ApiQuerySource', () => {

@@ -1,5 +1,6 @@
 import {
     createFilterRuleFromField,
+    getSupportedFilterRule,
     type FilterOperator,
     FilterType,
     getFilterRuleFromFieldWithDefaultValue,
@@ -24,6 +25,11 @@ import {
 import { IconDots, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import {
+    getLiveSourceOperatorOptions,
+    getLiveSourceSupportedOperators,
+    isFilterableOnLiveSource,
+} from '../../../features/externalConnections/liveSources/apiSourceExplore';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
@@ -54,7 +60,7 @@ const FilterRuleForm: FC<Props> = memo(
         onDelete,
         onConvertToGroup,
     }) => {
-        const { popoverProps, baseTable } = useFiltersContext();
+        const { popoverProps, baseTable, apiSource } = useFiltersContext();
         const getUiString = useUiStrings();
         const wrap = useMatches({ base: 'wrap', sm: 'nowrap' } as const);
         const activeField = useMemo(() => {
@@ -70,12 +76,12 @@ const FilterRuleForm: FC<Props> = memo(
         }, [activeField]);
 
         const filterOperatorOptions = useMemo(() => {
-            return getFilterOperatorOptions(
-                filterType,
+            return getLiveSourceOperatorOptions(
+                getFilterOperatorOptions(filterType, activeField, getUiString),
+                apiSource,
                 activeField,
-                getUiString,
             );
-        }, [filterType, activeField, getUiString]);
+        }, [filterType, activeField, getUiString, apiSource]);
 
         const onFieldChange = useCallback(
             (fieldId: string) => {
@@ -83,6 +89,16 @@ const FilterRuleForm: FC<Props> = memo(
                     (field) => getItemId(field) === fieldId,
                 );
                 if (selectedField && activeField) {
+                    // The new field may not run the current operator on a live data source
+                    const toSupported = (rule: FilterRule) =>
+                        getSupportedFilterRule(
+                            selectedField,
+                            rule,
+                            getLiveSourceSupportedOperators(
+                                apiSource,
+                                selectedField,
+                            ),
+                        );
                     if (selectedField.type === activeField.type) {
                         const newFilterRuleBase = {
                             ...filterRule,
@@ -100,13 +116,17 @@ const FilterRuleForm: FC<Props> = memo(
                               )
                             : newFilterRuleBase;
 
-                        onChange(newFilterRule);
+                        onChange(toSupported(newFilterRule));
                     } else {
-                        onChange(createFilterRuleFromField(selectedField));
+                        onChange(
+                            toSupported(
+                                createFilterRuleFromField(selectedField),
+                            ),
+                        );
                     }
                 }
             },
-            [activeField, fields, filterRule, onChange],
+            [activeField, apiSource, fields, filterRule, onChange],
         );
         const isRequired = filterRule.required;
         const isRequiredLabel = isRequired
@@ -119,8 +139,9 @@ const FilterRuleForm: FC<Props> = memo(
         const availableFields = useMemo(() => {
             const selectableFields = fields.filter(
                 (field) =>
-                    !isHiddenField(field) ||
-                    getItemId(field) === filterRule.target.fieldId,
+                    getItemId(field) === filterRule.target.fieldId ||
+                    (!isHiddenField(field) &&
+                        isFilterableOnLiveSource(apiSource, field)),
             );
             if (!isRequired) {
                 return selectableFields;
@@ -132,7 +153,13 @@ const FilterRuleForm: FC<Props> = memo(
                     getItemId(field).startsWith(baseFieldId) &&
                     getFilterTypeFromItem(field) === filterType,
             );
-        }, [isRequired, fields, filterRule.target.fieldId, filterType]);
+        }, [
+            isRequired,
+            fields,
+            filterRule.target.fieldId,
+            filterType,
+            apiSource,
+        ]);
 
         const isFieldSelectDisabled =
             !isEditMode ||

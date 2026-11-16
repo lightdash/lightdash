@@ -24,6 +24,8 @@ const settingsContext = (
     canAccessAnalyticsSettings: false,
     isAnalyticsProjectLoading: false,
     isOrganizationRoadmapEnabled: false,
+    isBillingPortalEnabled: false,
+    isBillingPortalFlagLoading: false,
     canAccessAiCredits: false,
     isAiCreditsLoading: false,
     isSsoOrganizationSettingsEnabled: false,

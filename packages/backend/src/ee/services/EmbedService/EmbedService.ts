@@ -58,6 +58,7 @@ import {
     isDashboardSqlChartTile,
     isEmbedReadOnlyAiAgentToken,
     isExploreError,
+    isExternalFetchComposerChartContext,
     isExternalFetchDocumentContext,
     isFilterInteractivityEnabled,
     isFilterLockedOnTab,
@@ -2295,8 +2296,11 @@ export class EmbedService extends BaseService {
         dataAppVizUuid: string,
         chartContext: ExternalFetchRequest['chartContext'],
     ): Promise<void> {
-        // Documents are not embeddable, so an embed can never render one.
-        if (isExternalFetchDocumentContext(chartContext)) {
+        // Documents and composer charts do not render in embeds.
+        if (
+            isExternalFetchDocumentContext(chartContext) ||
+            isExternalFetchComposerChartContext(chartContext)
+        ) {
             throw new ForbiddenError(
                 'Not authorized to access this visualization',
             );
@@ -3394,6 +3398,15 @@ export class EmbedService extends BaseService {
         }
 
         const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
+        if (writeSpaceUuids.length === 0) {
+            return {
+                canUpdateDashboard: false,
+                canUpdateSavedChart: false,
+                canCreateSavedChart: false,
+                writableSpaces: [],
+                canUseAiAgent: false,
+            };
+        }
 
         try {
             const spaceAccessResults =
@@ -3634,7 +3647,7 @@ export class EmbedService extends BaseService {
         }
 
         if (
-            (!isApiAccess &&
+            (decodedToken.content.type === 'aiAgent' &&
                 writeActions &&
                 getEmbedWriteSpaceUuids(writeActions).length === 0 &&
                 !isEmbedReadOnlyAiAgentToken(decodedToken)) ||

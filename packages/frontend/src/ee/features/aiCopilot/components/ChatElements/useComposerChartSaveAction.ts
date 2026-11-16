@@ -2,16 +2,21 @@ import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     getComposerChartSaveDraft,
+    getComposerCustomMetricExploreNames,
     getComposerPipelineWriteDeniedReason,
     savesAsComposerChart,
     type AiComposerChartArtifactConfig,
+    type CaslSubjectNames,
+    type ComposerChartSaveCustomChartType,
     type ComposerChartPipeline,
     type ComposerStoredChart,
     type ResultColumn,
 } from '@lightdash/common';
 import { useMemo } from 'react';
+import { useDataAppVizRenderMetadata } from '../../../../../features/chartTypes/hooks/useDataAppVizRender';
 import { type SavedComposerChartLink } from '../../../../../features/composerCharts/components/SaveComposerChartModal';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
+import { useExploreQueries } from '../../../../../hooks/useExplore';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -30,6 +35,11 @@ export type ComposerChartSaveAction =
           } | null;
           link: (saved: SavedComposerChartLink) => Promise<void>;
       };
+
+const AUTHORING_RENDER_TARGET = {
+    isEmbedded: false,
+    savedChartUuid: undefined,
+};
 
 type Args = {
     projectUuid: string;
@@ -65,15 +75,66 @@ export const useComposerChartSaveAction = ({
             source.kind === 'artifact' ? source.versionUuid : '',
         );
 
+    // The pinned version's slot kinds decide which columns are metrics and which split.
+    const customVizConfig =
+        config.vizConfig?.type === 'custom' ? config.vizConfig : null;
+    const { data: renderMetadata, error: renderMetadataError } =
+        useDataAppVizRenderMetadata(
+            projectUuid,
+            customVizConfig?.dataAppVizUuid ?? null,
+            AUTHORING_RENDER_TARGET,
+            customVizConfig?.dataAppVizVersion ?? undefined,
+        );
+    const customChartType =
+        useMemo((): ComposerChartSaveCustomChartType | null => {
+            if (renderMetadataError) {
+                return {
+                    status: 'unavailable',
+                    reason:
+                        renderMetadataError.error.statusCode === 404
+                            ? 'The chart type this answer uses has been removed'
+                            : renderMetadataError.error.message,
+                };
+            }
+            if (renderMetadata?.state === 'ready') {
+                return { status: 'ready', slots: renderMetadata.schema.fields };
+            }
+            if (renderMetadata?.state === 'unavailable') {
+                return {
+                    status: 'unavailable',
+                    reason: 'The chart type version this answer uses is unavailable',
+                };
+            }
+            return null;
+        }, [renderMetadata, renderMetadataError]);
+
     const draft = useMemo(
         () =>
             getComposerChartSaveDraft({
                 config,
                 columns,
                 metadata: { title, description: description ?? '' },
+                customChartType,
             }),
-        [config, columns, title, description],
+        [config, columns, title, description, customChartType],
     );
+
+    const ability = user.data?.ability;
+    const cannotManage = (subjectName: CaslSubjectNames) =>
+        !ability ||
+        ability.cannot(
+            'manage',
+            subject(subjectName, {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        );
+    // Custom metric SQL is compared to the model only for a user without custom fields
+    const metricExploreNames =
+        draft.status === 'unavailable' || !cannotManage('CustomFields')
+            ? []
+            : getComposerCustomMetricExploreNames(draft.pipeline);
+    const metricExplores = useExploreQueries(metricExploreNames, projectUuid);
 
     if (
         source.kind !== 'artifact' ||
@@ -101,18 +162,22 @@ export const useComposerChartSaveAction = ({
             link,
         };
     }
-    const ability = user.data?.ability;
+    if (metricExplores.some((explore) => explore === undefined)) {
+        return {
+            kind: 'save',
+            disabledReason: 'Checking the custom metrics this answer uses',
+            draft: null,
+            link,
+        };
+    }
     const deniedReason = getComposerPipelineWriteDeniedReason(
         draft.pipeline,
-        (subjectName) =>
-            !ability ||
-            ability.cannot(
-                'manage',
-                subject(subjectName, {
-                    organizationUuid: user.data?.organizationUuid,
-                    projectUuid,
-                }),
+        cannotManage,
+        Object.fromEntries(
+            metricExplores.flatMap((explore) =>
+                explore ? [[explore.name, explore.tables]] : [],
             ),
+        ),
     );
     return {
         kind: 'save',

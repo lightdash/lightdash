@@ -1,5 +1,6 @@
 import {
     ConflictError,
+    FeatureFlags,
     ForbiddenError,
     LightdashMode,
     MOBILE_SIGN_IN_PATH,
@@ -7,9 +8,19 @@ import {
     MobileSignInRefusal,
     NotFoundError,
     TooManyRequestsError,
+    type MobileSignInMintReason,
     type SessionUser,
 } from '@lightdash/common';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
+import { type Knex } from 'knex';
+import type { MockInstance } from 'vitest';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import {
+    FeatureFlagOverridesTableName,
+    FeatureFlagsTableName,
+} from '../../database/entities/featureFlags';
+import Logger from '../../logging/logger';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { hashMobileAppLinkKey } from '../../models/MobileAppLinkModel';
 import {
     isMobileSignInCode,
@@ -58,7 +69,11 @@ const createService = ({
         redirectUris: ['com.lightdash.mobile://oauth/callback'],
     },
     now = () => new Date('2026-11-09T12:00:18.000Z'),
+    lightdashSecret = 'test-lightdash-secret-0000',
+    featureFlagModel,
 }: {
+    featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
+    lightdashSecret?: string;
     now?: () => Date;
     flagEnabled?: boolean;
     qrSignInEnabled?: boolean;
@@ -106,6 +121,9 @@ const createService = ({
         rateAllowed ? (counts.get(counterKey(args)) ?? 0) : 1000,
     );
     const track = vi.fn();
+    const userModel = {
+        findSessionUserAndOrgByUuid: vi.fn(async () => user),
+    };
     const service = new MobileSignInService({
         analytics: { track },
         lightdashConfig: {
@@ -113,11 +131,12 @@ const createService = ({
             smtp: smtp ? ({} as never) : undefined,
             mode,
             trustProxy: true,
+            lightdashSecret,
         },
         mobileSignInCodeModel,
         mobileAppLinkModel: { incrementRateCounter, getRateCount },
         now,
-        featureFlagModel: {
+        featureFlagModel: featureFlagModel ?? {
             get: vi.fn(
                 async ({ featureFlagId }: { featureFlagId: string }) => ({
                     id: featureFlagId,
@@ -128,9 +147,7 @@ const createService = ({
                 }),
             ),
         },
-        userModel: {
-            findSessionUserAndOrgByUuid: vi.fn(async () => user),
-        },
+        userModel,
         oauthModel: { getClient: vi.fn(async () => client as never) },
         getUserService: () => ({ getManagedSignIn }),
     });
@@ -140,6 +157,7 @@ const createService = ({
         incrementRateCounter,
         getManagedSignIn,
         track,
+        userModel,
     };
 };
 
@@ -335,6 +353,291 @@ describe('MobileSignInService.mint', () => {
             windowStartedAt: new Date('2026-11-09T12:00:00.000Z'),
         });
         expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+    });
+});
+
+describe('MobileSignInService.mint rate limit log record', () => {
+    const fixtureIp = '203.0.113.77';
+    const nonce = 'nonce-0000-test';
+    const secretStrings = [
+        userUuid,
+        organizationUuid,
+        sessionUser.email!,
+        code,
+        nonce,
+        verifier,
+        challenge,
+        fixtureIp,
+        'session-0000',
+    ];
+
+    const mintMany = async (
+        service: MobileSignInService,
+        user: SessionUser,
+        times: number,
+    ) => {
+        for (let i = 0; i < times; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            await service.mint(user, 'session-0000', 'auto_refresh');
+        }
+    };
+
+    const refuse = (
+        service: MobileSignInService,
+        user: SessionUser,
+        reason: MobileSignInMintReason = 'auto_refresh',
+    ) =>
+        service
+            .mint(user, 'session-0000', reason)
+            .catch((caught: unknown) => caught);
+
+    const rateLimitedCalls = (spy: MockInstance) =>
+        (spy.mock.calls as [string, Record<string, unknown>][]).filter(
+            ([message]) =>
+                message === 'Mobile sign-in code minting rate limited',
+        );
+
+    const failureReportCalls = (spy: MockInstance) =>
+        (spy.mock.calls as [string, Record<string, unknown>][]).filter(
+            ([message]) =>
+                message === 'Failed to log mobile sign-in mint rate limit',
+        );
+
+    let warn: MockInstance;
+
+    beforeEach(() => {
+        warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+    });
+
+    afterEach(() => {
+        warn.mockRestore();
+    });
+
+    it('logs no record for allowed mints, including the 40th', async () => {
+        const { service } = createService();
+        await mintMany(service, sessionUser, 40);
+        expect(rateLimitedCalls(warn)).toHaveLength(0);
+    });
+
+    it('logs exactly one structured record on the 41st attempt and leaves the error unchanged', async () => {
+        const { service, mobileSignInCodeModel } = createService();
+        await mintMany(service, sessionUser, 40);
+
+        const error = await refuse(service, sessionUser);
+
+        expect(error).toBeInstanceOf(TooManyRequestsError);
+        expect((error as TooManyRequestsError).statusCode).toBe(429);
+        expect((error as TooManyRequestsError).message).toBe(
+            'Too many sign-in codes',
+        );
+        expect((error as TooManyRequestsError).data).toEqual({
+            reason: MobileSignInRefusal.RATE_LIMITED,
+            retryAfterSeconds: 3582,
+        });
+        expect(mobileSignInCodeModel.mint).toHaveBeenCalledTimes(40);
+
+        const calls = rateLimitedCalls(warn);
+        expect(calls).toHaveLength(1);
+        const [message, record] = calls[0] as [string, Record<string, unknown>];
+        expect(message).toBe('Mobile sign-in code minting rate limited');
+        expect(Object.keys(record).sort()).toEqual(
+            [
+                'accountHandle',
+                'attempts',
+                'buildHash',
+                'code',
+                'reason',
+                'retryAfterSeconds',
+                'timestamp',
+                'version',
+                'windowStartedAt',
+            ].sort(),
+        );
+        expect(record).toMatchObject({
+            code: 'rate_limited',
+            reason: 'auto_refresh',
+            retryAfterSeconds: 3582,
+            attempts: 41,
+            windowStartedAt: '2026-11-09T12:00:00.000Z',
+            timestamp: '2026-11-09T12:00:18.000Z',
+        });
+        expect(record.retryAfterSeconds).toBe(
+            (error as TooManyRequestsError).data.retryAfterSeconds,
+        );
+        expect(typeof record.version).toBe('string');
+        expect((record.version as string).length).toBeGreaterThan(0);
+        expect(record.accountHandle).toMatch(/^[0-9a-f]{16}$/);
+    });
+
+    it('records the mint reason the client sent', async () => {
+        const { service } = createService({ rateAllowed: false });
+        await refuse(service, sessionUser, 'show');
+        await refuse(service, sessionUser, 'auto_refresh');
+
+        expect(
+            rateLimitedCalls(warn).map(
+                ([, record]) => (record as { reason: string }).reason,
+            ),
+        ).toEqual(['show', 'auto_refresh']);
+    });
+
+    it('logs one record per refusal and counts denied attempts', async () => {
+        const { service } = createService();
+        await mintMany(service, sessionUser, 40);
+        await refuse(service, sessionUser);
+        await refuse(service, sessionUser);
+
+        const calls = rateLimitedCalls(warn);
+        expect(calls).toHaveLength(2);
+        expect(
+            calls.map(
+                ([, record]) => (record as { attempts: number }).attempts,
+            ),
+        ).toEqual([41, 42]);
+    });
+
+    it('uses a keyed, stable handle that differs per user and from a plain hash', async () => {
+        const other = {
+            ...sessionUser,
+            userUuid: 'user-1111-other',
+            email: 'other-user@example.test',
+        } as SessionUser;
+        const handles: string[] = [];
+        for (const [user, lightdashSecret] of [
+            [sessionUser, 'test-lightdash-secret-0000'],
+            [sessionUser, 'test-lightdash-secret-0000'],
+            [other, 'test-lightdash-secret-0000'],
+            [sessionUser, 'different-secret-1111'],
+        ] as const) {
+            warn.mockClear();
+            const { service } = createService({
+                rateAllowed: false,
+                lightdashSecret,
+            });
+            // eslint-disable-next-line no-await-in-loop
+            await refuse(service, user);
+            const [[, record]] = rateLimitedCalls(warn) as [
+                [string, { accountHandle: string }],
+            ];
+            handles.push(record.accountHandle);
+        }
+        const [first, again, otherUser, otherSecret] = handles;
+        expect(first).toMatch(/^[0-9a-f]{16}$/);
+        expect(again).toBe(first);
+        expect(otherUser).not.toBe(first);
+        expect(otherSecret).not.toBe(first);
+        const plain = createHash('sha256').update(userUuid).digest('hex');
+        expect(first).not.toBe(plain.slice(0, 16));
+    });
+
+    it('never puts an identifier or secret in the record or the logger arguments', async () => {
+        const { service } = createService();
+        await mintMany(service, sessionUser, 40);
+        await refuse(service, sessionUser);
+
+        const serialisedCalls = JSON.stringify(warn.mock.calls);
+        const [[, record]] = rateLimitedCalls(warn);
+        const serialisedRecord = JSON.stringify(record);
+        secretStrings.forEach((secret) => {
+            expect(serialisedCalls).not.toContain(secret);
+            expect(serialisedRecord).not.toContain(secret);
+        });
+        expect(serialisedCalls).not.toContain('test-lightdash-secret-0000');
+        expect(serialisedCalls).not.toMatch(/\b\d{1,3}(\.\d{1,3}){3}\b/);
+    });
+
+    it('logs nothing when the mint is refused before the limiter', async () => {
+        const { service } = createService({ flagEnabled: false });
+        await refuse(service, sessionUser);
+        expect(rateLimitedCalls(warn)).toHaveLength(0);
+    });
+
+    describe('when writing the record fails', () => {
+        let errorSpy: MockInstance;
+
+        beforeEach(() => {
+            errorSpy = vi
+                .spyOn(Logger, 'error')
+                .mockImplementation(() => Logger);
+        });
+
+        afterEach(() => {
+            errorSpy.mockRestore();
+        });
+
+        const expectUnchangedRefusal = (error: unknown) => {
+            expect(error).toBeInstanceOf(TooManyRequestsError);
+            expect((error as TooManyRequestsError).statusCode).toBe(429);
+            expect((error as TooManyRequestsError).message).toBe(
+                'Too many sign-in codes',
+            );
+            expect((error as TooManyRequestsError).data).toEqual({
+                reason: MobileSignInRefusal.RATE_LIMITED,
+                retryAfterSeconds: 3582,
+            });
+        };
+
+        it('still refuses with the same 429 when the logger throws and reports the failure at warn level', async () => {
+            warn.mockImplementation((message: unknown) => {
+                if (message === 'Mobile sign-in code minting rate limited') {
+                    throw new Error(
+                        `logger down for ${userUuid} ${sessionUser.email}`,
+                    );
+                }
+                return Logger;
+            });
+            const { service, mobileSignInCodeModel } = createService({
+                rateAllowed: false,
+            });
+
+            const error = await refuse(service, sessionUser);
+
+            expectUnchangedRefusal(error);
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+            expect(rateLimitedCalls(warn)).toHaveLength(1);
+            const failureCalls = failureReportCalls(warn);
+            expect(failureCalls).toEqual([
+                [
+                    'Failed to log mobile sign-in mint rate limit',
+                    { errorName: 'Error' },
+                ],
+            ]);
+            expect(errorSpy).not.toHaveBeenCalled();
+            const serialised = JSON.stringify(failureCalls);
+            expect(serialised).not.toContain(userUuid);
+            expect(serialised).not.toContain(sessionUser.email!);
+        });
+
+        it('still refuses with the same 429 when building the record throws', async () => {
+            const { service } = createService({
+                rateAllowed: false,
+                lightdashSecret: null as unknown as string,
+            });
+
+            const error = await refuse(service, sessionUser);
+
+            expectUnchangedRefusal(error);
+            expect(rateLimitedCalls(warn)).toHaveLength(0);
+            expect(failureReportCalls(warn)).toEqual([
+                [
+                    'Failed to log mobile sign-in mint rate limit',
+                    { errorName: 'TypeError' },
+                ],
+            ]);
+            expect(errorSpy).not.toHaveBeenCalled();
+        });
+
+        it('still refuses with the same 429 when the failure report also throws', async () => {
+            warn.mockImplementation(() => {
+                throw new Error('logger down');
+            });
+            const { service } = createService({ rateAllowed: false });
+
+            expectUnchangedRefusal(await refuse(service, sessionUser));
+            expect(rateLimitedCalls(warn)).toHaveLength(1);
+            expect(failureReportCalls(warn)).toHaveLength(1);
+            expect(errorSpy).not.toHaveBeenCalled();
+        });
     });
 });
 
@@ -1487,5 +1790,281 @@ describe('MobileSignInService availability on every endpoint', () => {
             description: 'user_not_allowed',
         });
         expect(claim).not.toHaveBeenCalled();
+    });
+});
+
+describe('MobileSignInService user-targeted rollout', () => {
+    const ownerUser = {
+        ...sessionUser,
+        userUuid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    };
+    const otherUser = {
+        ...ownerUser,
+        userUuid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    };
+    const claimBody = {
+        code,
+        client_id: 'client-0000-test',
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        platform: 'ios',
+    };
+    const redeemArgs = {
+        code,
+        clientId: 'client-0000-test',
+        codeVerifier: verifier,
+        matchNumber: '07',
+        isScopeAllowed: async () => true,
+    };
+    const createTargetedService = () => {
+        const overrides = new Map<string, boolean>([
+            [FeatureFlags.MobileSettings, true],
+            [FeatureFlags.MobileQrSignIn, true],
+        ]);
+        const database = ((table: string) => {
+            const filters = new Map<string, unknown>();
+            const builder = {
+                where(column: string, value: unknown) {
+                    filters.set(column, value);
+                    return builder;
+                },
+                whereNull(column: string) {
+                    filters.set(column, null);
+                    return builder;
+                },
+                async first() {
+                    const flagId = filters.get('flag_id') as string;
+                    if (table === FeatureFlagsTableName) {
+                        return { flag_id: flagId, default_enabled: false };
+                    }
+                    if (
+                        table === FeatureFlagOverridesTableName &&
+                        filters.get('user_uuid') === ownerUser.userUuid &&
+                        overrides.has(flagId)
+                    ) {
+                        return { enabled: overrides.get(flagId) };
+                    }
+                    return undefined;
+                },
+            };
+            return builder;
+        }) as unknown as Knex;
+        const featureFlagModel = new FeatureFlagModel({
+            database,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                enabledFeatureFlags: new Set(),
+                disabledFeatureFlags: new Set(),
+                previewFeatureFlags: { enabled: false },
+            },
+        });
+        const row = { ...codeRow, user_uuid: ownerUser.userUuid };
+        const model = {
+            findOwner: vi.fn(async () => ({
+                user_uuid: ownerUser.userUuid,
+                organization_uuid: ownerUser.organizationUuid,
+                reported_platform: 'ios',
+            })),
+            claim: vi.fn(async () => ({ outcome: 'claimed', row })),
+            decide: vi.fn(async () => ({ outcome: 'decided', row })),
+            redeem: vi.fn(async () => ({ outcome: 'redeemed', row })),
+            probe: vi.fn(async () => ({ outcome: 'match_number_required' })),
+            cancelFromPhone: vi.fn(async () => ({
+                outcome: 'cancelled',
+                row,
+                isRepeat: false,
+            })),
+        };
+        return {
+            ...createService({ user: ownerUser, featureFlagModel, model }),
+            featureFlagModel,
+            model,
+            overrides,
+        };
+    };
+
+    it('permits mint, claim, approval and redemption with only user overrides', async () => {
+        const { service, featureFlagModel } = createTargetedService();
+        await Promise.all(
+            [FeatureFlags.MobileSettings, FeatureFlags.MobileQrSignIn].map(
+                async (featureFlagId) => {
+                    await expect(
+                        featureFlagModel.get({
+                            user: ownerUser,
+                            featureFlagId,
+                        }),
+                    ).resolves.toEqual({ id: featureFlagId, enabled: true });
+                    await expect(
+                        featureFlagModel.get({
+                            user: { organizationUuid },
+                            featureFlagId,
+                        }),
+                    ).resolves.toEqual({ id: featureFlagId, enabled: false });
+                },
+            ),
+        );
+        const minted = await service.mint(ownerUser, 'session-0000', 'show');
+        await expect(service.claim(claimBody, {})).resolves.toMatchObject({
+            interval: 2,
+        });
+        await expect(
+            service.decide(
+                ownerUser,
+                'session-0000',
+                minted.codeUuid,
+                minted.approvalNonce,
+                'approved',
+                {},
+            ),
+        ).resolves.toMatchObject({ status: MobileSignInCodeStatus.APPROVED });
+        await expectOAuthError(
+            service.redeem({ ...redeemArgs, matchNumber: undefined }, {}),
+            { error: 'match_number_required' },
+        );
+        await expect(service.redeem(redeemArgs, {})).resolves.toMatchObject({
+            user: ownerUser,
+        });
+    });
+
+    it('keeps the default off for another user in the same organization', async () => {
+        const { service, mobileSignInCodeModel } = createTargetedService();
+        await expectRefusal(
+            service.mint(otherUser, 'other-session', 'show'),
+            MobileSignInRefusal.FEATURE_DISABLED,
+        );
+        expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+    });
+
+    it('keeps the default off in another organization', async () => {
+        const { service, mobileSignInCodeModel } = createTargetedService();
+        await expectRefusal(
+            service.mint(
+                { ...otherUser, organizationUuid: 'other-organization' },
+                'other-session',
+                'show',
+            ),
+            MobileSignInRefusal.FEATURE_DISABLED,
+        );
+        expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+    });
+
+    it('requires both flags for the same user', async () => {
+        const { service, overrides, mobileSignInCodeModel } =
+            createTargetedService();
+        overrides.delete(FeatureFlags.MobileQrSignIn);
+        await expectRefusal(
+            service.mint(ownerUser, 'session-0000', 'show'),
+            MobileSignInRefusal.QR_SIGN_IN_DISABLED,
+        );
+        expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+    });
+
+    it('denies a stored owner who no longer belongs to the code organization', async () => {
+        const { service, userModel, model } = createTargetedService();
+        userModel.findSessionUserAndOrgByUuid.mockRejectedValue(
+            new NotFoundError('not a member'),
+        );
+        await expectOAuthError(service.claim(claimBody, {}), {
+            error: 'access_denied',
+            description: 'user_not_allowed',
+        });
+        await expectOAuthError(service.redeem(redeemArgs, {}), {
+            error: 'access_denied',
+            description: 'user_not_allowed',
+        });
+        expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledWith(
+            ownerUser.userUuid,
+            ownerUser.organizationUuid,
+        );
+        expect(model.claim).not.toHaveBeenCalled();
+        expect(model.redeem).not.toHaveBeenCalled();
+    });
+
+    it.each([FeatureFlags.MobileSettings, FeatureFlags.MobileQrSignIn])(
+        'rechecks a revoked %s override before each hand-off stage',
+        async (featureFlagId) => {
+            const { service, overrides, model } = createTargetedService();
+            const minted = await service.mint(
+                ownerUser,
+                'session-0000',
+                'show',
+            );
+            overrides.set(featureFlagId, false);
+            const reason =
+                featureFlagId === FeatureFlags.MobileSettings
+                    ? MobileSignInRefusal.FEATURE_DISABLED
+                    : MobileSignInRefusal.QR_SIGN_IN_DISABLED;
+            await expectRefusal(
+                service.decide(
+                    ownerUser,
+                    'session-0000',
+                    minted.codeUuid,
+                    minted.approvalNonce,
+                    'approved',
+                    {},
+                ),
+                reason,
+            );
+            await Promise.all(
+                [
+                    () => service.claim(claimBody, {}),
+                    () => service.redeem(redeemArgs, {}),
+                    () =>
+                        service.redeem(
+                            { ...redeemArgs, matchNumber: undefined },
+                            {},
+                        ),
+                    () =>
+                        service.cancelFromPhone(
+                            {
+                                code,
+                                client_id: redeemArgs.clientId,
+                                code_verifier: verifier,
+                            },
+                            {},
+                        ),
+                ].map(async (request) => {
+                    await expectOAuthError(request(), {
+                        error: 'access_denied',
+                        description: reason,
+                        statusCode: 403,
+                    });
+                }),
+            );
+            expect(model.claim).not.toHaveBeenCalled();
+            expect(model.decide).not.toHaveBeenCalled();
+            expect(model.redeem).not.toHaveBeenCalled();
+            expect(model.probe).not.toHaveBeenCalled();
+            expect(model.cancelFromPhone).not.toHaveBeenCalled();
+            overrides.set(featureFlagId, true);
+            await expect(
+                service.mint(ownerUser, 'session-0000', 'show'),
+            ).resolves.toBeDefined();
+        },
+    );
+
+    it('ignores phone-supplied user and organization IDs when resolving the owner', async () => {
+        const { service, model } = createTargetedService();
+        model.findOwner.mockResolvedValue({
+            user_uuid: otherUser.userUuid,
+            organization_uuid: organizationUuid,
+            reported_platform: 'ios',
+        });
+        await expectOAuthError(
+            service.claim(
+                {
+                    ...claimBody,
+                    userUuid: ownerUser.userUuid,
+                    organizationUuid,
+                },
+                {},
+            ),
+            {
+                error: 'access_denied',
+                description: 'feature_disabled',
+                statusCode: 403,
+            },
+        );
+        expect(model.claim).not.toHaveBeenCalled();
     });
 });

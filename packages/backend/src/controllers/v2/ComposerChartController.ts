@@ -1,7 +1,9 @@
 import {
     assertRegisteredAccount,
     type ApiComposerChartResponse,
+    type ApiComposerChartRunResponse,
     type ApiErrorPayload,
+    type ComposerChartRunRequest,
     type CreateComposerChart,
     type UUID,
 } from '@lightdash/common';
@@ -75,6 +77,30 @@ export class ComposerChartController extends BaseController {
         const results = await this.services
             .getComposerChartService()
             .get(req.account, projectUuid, composerChartUuid);
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Runs a composer chart's stored pipeline where a dashboard shows it, for
+     * anyone who can view the chart. The request carries no nodes; each node's
+     * query is polled with the standard results endpoint.
+     * @summary Run composer chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{composerChartUuid}/run')
+    @OperationId('runComposerChart')
+    async run(
+        @Path() projectUuid: UUID,
+        @Path() composerChartUuid: UUID,
+        @Body() body: ComposerChartRunRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiComposerChartRunResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getComposerChartService()
+            .run(req.account, projectUuid, composerChartUuid, body);
         this.setStatus(200);
         return { status: 'ok', results };
     }

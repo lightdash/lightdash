@@ -468,15 +468,15 @@ export const docsHeading = (ref: string): string => {
         .trim();
 };
 
-export const docsParagraph = (ref: string): string => {
+/**
+ * What a citation counts through: the prose paragraphs (`:p2`) and the list
+ * items (`:li2`) under the heading it names, as the docs wrote them.
+ */
+export const docsSection = (
+    ref: string,
+): { prose: string[][]; items: string[] } => {
     const [relative, anchorWithRange] = ref.split('#');
-    const [anchor, ...selectors] = anchorWithRange.split(':');
-    const paragraphSelector = selectors.find((x) => /^p\d+$/.test(x));
-    const itemSelector = selectors.find((x) => /^li\d+$/.test(x));
-    const range = selectors.find((x) => /^\d+(-\d+)?$/.test(x));
-    const paragraphIndex = paragraphSelector
-        ? Number(paragraphSelector.slice(1))
-        : 1;
+    const [anchor] = anchorWithRange.split(':');
     const file = path.join(docsDir, relative);
     const lines = readFileSync(file, 'utf8').split('\n');
     // `intro` is the page's own introduction: the text between the
@@ -520,6 +520,19 @@ export const docsParagraph = (ref: string): string => {
         .flatMap((para) => para)
         .filter((line) => /^\s*(?:[-*]\s|\d+\.\s)/.test(line))
         .map((line) => line.replace(/^\s*(?:[-*]\s|\d+\.\s)/, ''));
+    return { prose, items };
+};
+
+export const docsParagraph = (ref: string): string => {
+    const [relative, anchorWithRange] = ref.split('#');
+    const [, ...selectors] = anchorWithRange.split(':');
+    const paragraphSelector = selectors.find((x) => /^p\d+$/.test(x));
+    const itemSelector = selectors.find((x) => /^li\d+$/.test(x));
+    const range = selectors.find((x) => /^\d+(-\d+)?$/.test(x));
+    const paragraphIndex = paragraphSelector
+        ? Number(paragraphSelector.slice(1))
+        : 1;
+    const { prose, items } = docsSection(ref);
     const paragraph = itemSelector
         ? (() => {
               const item = items[Number(itemSelector.slice(2)) - 1];

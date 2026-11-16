@@ -1,12 +1,16 @@
 import { z } from 'zod';
 import { type CaslSubjectNames } from '../authorization/types';
 import { ParameterError } from '../types/errors';
+import { type Explore } from '../types/explore';
 import {
     FieldType,
     isCustomSqlDimension,
     isSqlTableCalculation,
+    type ItemsMap,
 } from '../types/field';
+import { type DashboardFilters } from '../types/filter';
 import { MergeJoinType } from '../types/mergeQuery';
+import { type ParametersValuesMap } from '../types/parameters';
 import {
     getSourceQueryResultReferences,
     MAX_SOURCE_QUERIES_PER_SUBMISSION,
@@ -17,7 +21,9 @@ import {
     type SemanticLayerSourceQuery,
     type SqlSourceQuery,
 } from '../types/querySources';
+import { type ResultColumn } from '../types/results';
 import { ChartType, type ChartConfig } from '../types/savedCharts';
+import { getHandWrittenAdditionalMetrics } from '../utils/additionalMetrics';
 import assertUnreachable from '../utils/assertUnreachable';
 
 type StoredNode<T> = T & {
@@ -316,9 +322,7 @@ const getChartConfigNames = (chartConfig: ChartConfig): string[] => {
         case ChartType.FUNNEL:
             return compact([chartConfig.config?.fieldId]);
         case ChartType.DATA_APP_VIZ:
-            throw new ParameterError(
-                'Composer charts do not support custom chart types yet',
-            );
+            return Object.values(chartConfig.config?.fieldMapping ?? {}).flat();
         case ChartType.TREEMAP:
             return compact([
                 ...(chartConfig.config?.groupFieldIds ?? []),
@@ -356,13 +360,23 @@ const getChartConfigNames = (chartConfig: ChartConfig): string[] => {
     }
 };
 
-/** Strict parse of a stored chart; every name a config uses must be a column. */
-export const parseComposerStoredChart = (
+const parseChart = (
     document: unknown,
+    { pinned }: { pinned: boolean },
 ): ComposerStoredChart => {
     const result = storedChartSchema.safeParse(document);
     if (!result.success) throw toParameterError('chart', result.error);
     const { columns, pivotConfig, tableConfig } = result.data;
+    const chartConfig = result.data.chartConfig as ChartConfig;
+    if (
+        pinned &&
+        chartConfig.type === ChartType.DATA_APP_VIZ &&
+        !Number.isInteger(chartConfig.config?.dataAppVizVersion)
+    ) {
+        throw new ParameterError(
+            'Composer chart chartConfig has no dataAppVizVersion pin',
+        );
+    }
 
     const names = new Set<string>();
     columns.forEach(({ reference }) => {
@@ -381,9 +395,7 @@ export const parseComposerStoredChart = (
 
     let chartConfigNames: unknown;
     try {
-        chartConfigNames = getChartConfigNames(
-            result.data.chartConfig as ChartConfig,
-        );
+        chartConfigNames = getChartConfigNames(chartConfig);
     } catch (e) {
         if (e instanceof ParameterError) throw e;
         throw new ParameterError('Invalid composer chart chartConfig');
@@ -412,6 +424,36 @@ export const parseComposerStoredChart = (
     return result.data as ComposerStoredChart;
 };
 
+/** Strict parse of a stored chart; every name a config uses must be a column, and a custom chart type is pinned. */
+export const parseComposerStoredChart = (document: unknown) =>
+    parseChart(document, { pinned: true });
+
+/** Strict parse of a chart to create; a custom chart type may omit its pin, which create fills. */
+export const parseComposerChartInput = (document: unknown) =>
+    parseChart(document, { pinned: false });
+
+type ComposerSemanticLayerNode = Extract<
+    ComposerChartPipelineNode,
+    { sourceType: QuerySourceType.SEMANTIC_LAYER }
+>;
+
+const getSemanticLayerNodes = (pipeline: ComposerChartPipeline) =>
+    pipeline.nodes.filter(
+        (node): node is ComposerSemanticLayerNode =>
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER,
+    );
+
+/** Explores whose fields decide whether a custom metric's SQL is hand-written. */
+export const getComposerCustomMetricExploreNames = (
+    pipeline: ComposerChartPipeline,
+): string[] => [
+    ...new Set(
+        getSemanticLayerNodes(pipeline)
+            .filter((node) => (node.additionalMetrics ?? []).length > 0)
+            .map((node) => node.exploreName),
+    ),
+];
+
 /**
  * Why the author may not write this pipeline, null when they may. The server
  * refuses with it and the client disables Save with it.
@@ -419,11 +461,10 @@ export const parseComposerStoredChart = (
 export const getComposerPipelineWriteDeniedReason = (
     pipeline: ComposerChartPipeline,
     cannotManage: (subjectName: CaslSubjectNames) => boolean,
+    exploreTables: Record<string, Explore['tables']>,
 ): string | null => {
     const kinds = new Set(pipeline.nodes.map((node) => node.sourceType));
-    const semanticNodes = pipeline.nodes.filter(
-        (node) => node.sourceType === QuerySourceType.SEMANTIC_LAYER,
-    );
+    const semanticNodes = getSemanticLayerNodes(pipeline);
 
     if (cannotManage('ComposerChart')) {
         return 'You do not have permission to save composer charts';
@@ -451,9 +492,39 @@ export const getComposerPipelineWriteDeniedReason = (
         return 'Saving a composer chart with a custom SQL dimension requires permission to manage custom fields';
     }
     if (
-        semanticNodes.some((node) =>
-            (node.tableCalculations ?? []).some(isSqlTableCalculation),
-        ) &&
+        cannotManage('CustomFields') &&
+        semanticNodes.some((node) => {
+            const metrics = node.additionalMetrics ?? [];
+            const tables = exploreTables[node.exploreName];
+            return (
+                metrics.length > 0 &&
+                (!tables ||
+                    getHandWrittenAdditionalMetrics(metrics, tables).length > 0)
+            );
+        })
+    ) {
+        return 'Saving a composer chart with a custom metric written in SQL requires permission to manage custom fields';
+    }
+    if (
+        pipeline.nodes.some((node) => {
+            switch (node.sourceType) {
+                case QuerySourceType.SEMANTIC_LAYER:
+                    return (node.tableCalculations ?? []).some(
+                        isSqlTableCalculation,
+                    );
+                case QuerySourceType.MERGE:
+                    // A merge calculation without a formula is SQL
+                    return (node.tableCalculations ?? []).some(
+                        (calculation) => !calculation.formula,
+                    );
+                case QuerySourceType.SQL:
+                case QuerySourceType.DUCKDB:
+                case QuerySourceType.PYTHON:
+                    return false;
+                default:
+                    return assertUnreachable(node, 'Unknown composer node');
+            }
+        }) &&
         cannotManage('CustomSqlTableCalculations')
     ) {
         return 'Saving a composer chart with a SQL table calculation requires permission to manage SQL table calculations';
@@ -489,4 +560,58 @@ export type ComposerChart = {
 export type ApiComposerChartResponse = {
     status: 'ok';
     results: ComposerChart;
+};
+
+/** A bound run of a stored chart where a dashboard shows it; it never carries nodes. */
+export type ComposerChartRunRequest = {
+    dashboardUuid: string;
+    tileUuid: string;
+    dashboardFilters: DashboardFilters;
+    parameters: ParametersValuesMap;
+    /** The parameter keys this tile keeps as its own. */
+    excludedParameterKeys: string[];
+    invalidateCache: boolean;
+};
+
+const runRequestSchema = z.strictObject({
+    dashboardUuid: z.string(),
+    tileUuid: z.string(),
+    dashboardFilters: classicObject<DashboardFilters>(),
+    parameters: z.record(z.string(), z.unknown()),
+    excludedParameterKeys: z.array(z.string()),
+    invalidateCache: z.boolean(),
+});
+
+/** Strict parse of a run request: nothing it carries can add or change a node. */
+export const parseComposerChartRunRequest = (
+    request: unknown,
+): ComposerChartRunRequest => {
+    const result = runRequestSchema.safeParse(request);
+    if (!result.success) throw toParameterError('run request', result.error);
+    return result.data as ComposerChartRunRequest;
+};
+
+export type ComposerChartRunResults = {
+    queries: Array<{
+        nodeId: string;
+        sourceType: QuerySourceType;
+        queryUuid: string;
+    }>;
+    /** The terminal node's fields map from its run; the tile draws a semantic-layer or merge result from it. */
+    fields: ItemsMap;
+    /** The server-built series-split stage the chart draws from; null without a group-by. */
+    chartStageQueryUuid: string | null;
+    /** Dashboard filter rules that reached at least one node. */
+    appliedDashboardFilters: DashboardFilters;
+    /** The same rules, keyed by the semantic-layer node they were pushed into. */
+    appliedDashboardFiltersByNodeId: Record<string, DashboardFilters>;
+    /** The parameters the tile reports to its dashboard: its non-Python nodes' references. */
+    parameterReferences: string[];
+    /** The SQL nodes' columns, one per name, that a filter can target on this tile. */
+    sqlColumns: ResultColumn[];
+};
+
+export type ApiComposerChartRunResponse = {
+    status: 'ok';
+    results: ComposerChartRunResults;
 };

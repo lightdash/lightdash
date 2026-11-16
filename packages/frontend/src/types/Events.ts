@@ -69,6 +69,7 @@ export enum PageName {
     FUNNEL_BUILDER = 'funnel_builder',
     SEMANTIC_STUDIO = 'semantic_studio',
     ROADMAP = 'roadmap',
+    BILLING = 'billing',
     LEARN = 'learn',
     LEARN_WORKSPACE = 'learn_workspace',
 }

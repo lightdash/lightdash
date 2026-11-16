@@ -2910,7 +2910,10 @@ export class PromoteService extends BaseService {
             space: upstreamSpace,
             spaceAccessContext: upstreamCtx,
         };
-        assertDashboardIsPromotable(dashboard);
+        // Content-as-code upload reuses this path within one project
+        if (dashboard.projectUuid !== upstreamProjectUuid) {
+            assertDashboardIsPromotable(dashboard);
+        }
 
         return { promotedDashboard, upstreamDashboard };
     }

@@ -118,6 +118,8 @@ import {
     getAiAgentSkillListingText,
     getAppDisplayName,
     getComposerChartStage,
+    getComposerChartStageNodeId,
+    getComposerNodeSorts,
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
@@ -366,6 +368,7 @@ import {
 } from '../../../services/AiAccessService/agentExecutionContext';
 import { type AgentResultReadDecision } from '../../../services/AiAccessService/AiAccessService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { REQUEST_AUTHORITY } from '../../../services/AsyncQueryService/types';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
@@ -550,6 +553,7 @@ import {
 import { createGitlabRepoSource } from '../ai/repoFs/gitlabRepoSource';
 import {
     DBT_MOUNT,
+    hasDbtMount,
     MountingRepoFileSystem,
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
@@ -10710,12 +10714,23 @@ export class AiAgentService extends BaseService {
                           vizConfig.dataAppVizVersion ?? undefined,
                       )
                     : null;
-            const nodeIds = new Set(queries.map(({ nodeId }) => nodeId));
-            let nodeId = 'chart_stage';
-            while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
+            const nodeId = getComposerChartStageNodeId(
+                queries.flatMap((query) =>
+                    query.nodeId ? [query.nodeId] : [],
+                ),
+            );
+            const terminal = queries.find(
+                (query) => query.nodeId === terminalNodeId,
+            );
+            if (!terminal) {
+                throw new Error(
+                    `No query for terminal node "${terminalNodeId}"`,
+                );
+            }
             const query = getComposerChartStage({
                 vizConfig,
                 customChartTypeSlots: slots ?? [],
+                sorts: getComposerNodeSorts(terminal),
                 nodeId,
                 source: terminalNodeId,
             });
@@ -10908,7 +10923,7 @@ export class AiAgentService extends BaseService {
                         runtimeOptions?.userAttributeOverrides ?? {},
                     invalidateCache: false,
                     plans: {},
-                    binding: null,
+                    authority: REQUEST_AUTHORITY,
                     // Re-renders stay unattributed: prompt ids mark tool runs only.
                     aiAttribution: null,
                 });
@@ -11598,7 +11613,7 @@ export class AiAgentService extends BaseService {
                             runtimeOptions?.userAttributeOverrides ?? {},
                         invalidateCache: false,
                         plans: {},
-                        binding: null,
+                        authority: REQUEST_AUTHORITY,
                         // Re-renders stay unattributed: prompt ids mark tool runs only.
                         aiAttribution: null,
                     },
@@ -15190,16 +15205,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         const getMountFs = () => {
             if (!mountFsPromise) {
                 mountFsPromise = (async () => {
-                    // /dbt is mountable when the project's dbt repo is on a
-                    // host the VFS can read read-only (GitHub or GitLab); other
-                    // connection types have no repo source.
                     const project = await this.projectModel.get(projectUuid);
-                    const hasDbtMount =
-                        project.dbtConnection.type === DbtProjectType.GITHUB ||
-                        project.dbtConnection.type === DbtProjectType.GITLAB;
                     return MountingRepoFileSystem.create({
                         listRepos: listAuthorizedRepos,
-                        hasDbtMount,
+                        hasDbtMount: hasDbtMount(project.dbtConnection),
                         buildDbtRepoFs,
                         buildRepoFs,
                         searchOwner: async (owner, query) => {
@@ -17489,6 +17498,22 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         }),
                     );
 
+                // The scopes the content services check before saving or running custom SQL.
+                const canManageCustomSql = (
+                    subjectName:
+                        | 'CustomSql'
+                        | 'CustomFields'
+                        | 'CustomSqlTableCalculations',
+                ) =>
+                    hasTrustedPromptUserIdentity &&
+                    this.createAuditedAbility(user).can(
+                        'manage',
+                        subject(subjectName, {
+                            organizationUuid: promptProject.organizationUuid,
+                            projectUuid: promptProject.projectUuid,
+                        }),
+                    );
+
                 // A project with only live sources has no warehouse to run SQL on
                 const warehouseCredentials = canRunSql
                     ? await this.projectModel
@@ -17635,6 +17660,20 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
                     );
                 }
+                // Same manage:SourceCode check the writeback service enforces.
+                if (
+                    aiWritebackEnabled &&
+                    !this.createAuditedAbility(user).can(
+                        'manage',
+                        subject('SourceCode', {
+                            organizationUuid: promptProject.organizationUuid,
+                            projectUuid: promptProject.projectUuid,
+                            isProtectedBranch: false,
+                        }),
+                    )
+                ) {
+                    aiWritebackEnabled = false;
+                }
                 const writebackConnectionSupport =
                     getWritebackConnectionSupport(promptProject.dbtConnection);
                 if (
@@ -17710,22 +17749,28 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             prompt.threadUuid,
                         )
                     ).length > 0;
+                const pinnedThreadUuids =
+                    await this.aiAgentModel.findPinnedThreadContextUuids(
+                        prompt.threadUuid,
+                    );
 
-                const repoDiscoveryEnabled = hasTrustedPromptUserIdentity;
-                if (!repoDiscoveryEnabled) {
+                if (!hasTrustedPromptUserIdentity) {
                     this.logger.info(
                         `Disabling repo discovery for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
                     );
                 }
+                const repoDiscoveryEnabled =
+                    hasTrustedPromptUserIdentity &&
+                    (await this.aiWritebackService.canReadSourceCode({
+                        user,
+                        projectUuid: promptProject.projectUuid,
+                    }));
 
-                // The dbt project's root within the repo, so the prompt can point the
-                // exploreRepo agent at it (instead of hardcoding "dbt/"). Derived from
-                // the connection's project_sub_path: '.' = repo root, else a
-                // subdirectory. null when repo discovery is off or not git-backed.
+                // The /dbt mount's repository subdirectory, for the prompt; null without the mount.
                 let repoFsRoot: string | null = null;
                 if (
                     repoDiscoveryEnabled &&
-                    'project_sub_path' in promptProject.dbtConnection
+                    hasDbtMount(promptProject.dbtConnection)
                 ) {
                     const raw = (
                         promptProject.dbtConnection.project_sub_path ?? ''
@@ -18131,6 +18176,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
+                    enableReadPinnedThread: pinnedThreadUuids.length > 0,
                     enableAskUser,
                     enableFilterExpressions: filterExpressionsEnabled,
                     repoFsRoot,
@@ -18140,6 +18186,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     liveSources,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
+                    customSqlPermissions: {
+                        canSaveSqlCharts:
+                            canRunSql && canManageCustomSql('CustomSql'),
+                        canAuthorCustomSqlFields:
+                            canManageCustomSql('CustomFields'),
+                        canAuthorSqlTableCalculations: canManageCustomSql(
+                            'CustomSqlTableCalculations',
+                        ),
+                    },
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||
                         agentSettings.enableSqlAutoApproval,
@@ -18303,11 +18358,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     // Only conversations pinned as context on this thread are
                     // readable — the pin is the capability grant.
                     readPinnedThread: async ({ threadUuid }) => {
-                        const pinnedThreadUuids =
+                        const currentPinnedThreadUuids =
                             await this.aiAgentModel.findPinnedThreadContextUuids(
                                 prompt.threadUuid,
                             );
-                        if (!pinnedThreadUuids.includes(threadUuid)) {
+                        if (!currentPinnedThreadUuids.includes(threadUuid)) {
                             throw new ForbiddenError(
                                 'This conversation is not attached as context on this thread',
                             );

@@ -43,6 +43,7 @@ export const toComposerChartTile = (
         hide_title: boolean | null;
         composer_chart_uuid: string | null;
         name: string | null;
+        chart_slug: string | null;
     },
 ): DashboardComposerChartTile => ({
     ...base,
@@ -52,6 +53,7 @@ export const toComposerChartTile = (
         hideTitle: row.hide_title ?? false,
         composerChartUuid: row.composer_chart_uuid,
         chartName: row.name,
+        chartSlug: row.chart_slug,
     },
 });
 

@@ -1,11 +1,13 @@
 import {
     COMPOSER_RESULT_EXPLORE_NAME,
     ComposerResultColumns,
-    getComposerPivotStage,
     getComposerResultFieldId,
     getComposerResultQuery,
+    getComposerSplitStage,
     toComposerResultMetric,
     toComposerResultRows,
+    type ComposerNodeSorts,
+    type ComposerSplitChart,
 } from '../../composer/composerResultChart';
 import { DimensionType, type ItemsMap } from '../../types/field';
 import { type MetricQuery } from '../../types/metricQuery';
@@ -422,21 +424,35 @@ export const getComposerSlackRunQueryChart = ({
     };
 };
 
-/** References of a series split, from the viz config alone; null without one. */
-const getSplitReferences = (
+/** The split as a classic chart over field ids, with its columns by role; null without a split. */
+const getSplitChart = (
     vizConfig: ComposerStoredChartVizConfig,
     customChartTypeSlots: ComposerCustomChartTypeSlot[],
-): { index: string[]; split: string[]; values: string[] } | null => {
+): ComposerSplitChart | null => {
     if (vizConfig.type === 'custom') {
-        const references = getCustomChartTypeReferences(
+        const { index, split, values } = getCustomChartTypeReferences(
             vizConfig.fieldMapping,
             customChartTypeSlots,
         );
-        if (references.split.length === 0) return null;
-        if (references.values.length === 0) {
+        if (split.length === 0) return null;
+        if (values.length === 0) {
             throw new Error('A series split needs a column on a metric slot');
         }
-        return references;
+        return {
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: vizConfig.dataAppVizUuid,
+                    fieldMapping: mapFieldMapping(
+                        vizConfig.fieldMapping,
+                        getComposerResultFieldId,
+                    ),
+                },
+            },
+            pivotColumns: split,
+            dimensions: [...index, ...split],
+            metrics: values,
+        };
     }
     const { type } = vizConfig;
     switch (type) {
@@ -458,10 +474,25 @@ const getSplitReferences = (
                 );
             }
             const y2 = type === 'scatter' ? null : vizConfig.y2;
+            const values = unique([...y, ...(y2 ? [y2] : [])]);
             return {
-                index: [x],
-                split,
-                values: unique([...y, ...(y2 ? [y2] : [])]),
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: {
+                            xField: getComposerResultFieldId(x),
+                            yField: values.map(getComposerResultFieldId),
+                            // Area always stacks, as the drawn chart does.
+                            stack:
+                                type === 'area' ||
+                                (type === 'bar' && !!vizConfig.stack),
+                        },
+                        eChartsConfig: { series: [] },
+                    },
+                },
+                pivotColumns: split,
+                dimensions: unique([x, ...split]),
+                metrics: values,
             };
         }
         default:
@@ -473,23 +504,21 @@ const getSplitReferences = (
 export const getComposerChartStage = ({
     vizConfig,
     customChartTypeSlots,
+    sorts,
     nodeId,
     source,
 }: {
     vizConfig: ComposerStoredChartVizConfig;
     customChartTypeSlots: ComposerCustomChartTypeSlot[];
+    sorts: ComposerNodeSorts;
     nodeId: QueryNodeId;
     source: string;
 }): DuckdbSourceQuery | null => {
-    const references = getSplitReferences(vizConfig, customChartTypeSlots);
-    if (!references) return null;
-    return getComposerPivotStage({
-        indexColumns: references.index,
-        pivotColumns: references.split,
-        valueColumns: references.values,
-        nodeId,
-        source,
-    });
+    const splitChart = getSplitChart(vizConfig, customChartTypeSlots);
+    return (
+        splitChart &&
+        getComposerSplitStage({ ...splitChart, sorts, nodeId, source })
+    );
 };
 
 type ReferenceCheck = {
