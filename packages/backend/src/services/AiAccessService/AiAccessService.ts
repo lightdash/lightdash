@@ -342,7 +342,7 @@ export const getAgentClaimMismatchMessage = (
         if (decision === 'other_person')
             return 'An AI agent produced these results for another person. Run the query again to see them with your own access.';
         if (decision === 'agent_unavailable')
-            return 'These results came from an AI agent you can no longer use. Run the query again to see them with your own access.';
+            return 'These results came from an AI agent that has Data Access turned off or that you can no longer use. Run the query again to see them with your own access.';
         return 'An AI agent produced these results. Run the query again to see them with your own access.';
     }
     if (stored.agentIdentity === null)
