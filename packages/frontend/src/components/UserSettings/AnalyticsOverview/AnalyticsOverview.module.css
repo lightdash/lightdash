@@ -29,25 +29,12 @@
     min-width: max-content;
 }
 
-.header {
-    display: grid;
-    grid-template-columns: minmax(220px, 1fr) auto;
-    column-gap: var(--mantine-spacing-lg);
-    row-gap: var(--mantine-spacing-sm);
-    align-items: start;
-}
-
 .homepageLink {
     justify-self: end;
 }
 
 .heading {
     min-width: 0;
-}
-
-.filters {
-    margin-left: auto;
-    max-width: 100%;
 }
 
 .projectFilter {
@@ -122,31 +109,14 @@
     font-weight: 600;
 }
 
-@media (min-width: 62em) {
+@media (width >= $mantine-breakpoint-md) {
     .charts[data-overview='true'] {
         grid-template-columns: 1.6fr 1fr;
     }
 }
 
-@container (max-width: 50em) {
-    .header {
-        grid-template-columns: 1fr auto;
-    }
-
-    .heading {
-        grid-row: 1;
-    }
-
-    .filters {
-        grid-column: 1 / -1;
-    }
-}
-
-@container (max-width: 44em) {
-    .filters {
-        width: 100%;
-    }
-
+/* The page's own width, not the window's: the settings sidebar takes a share of the window */
+@container (width < $mantine-breakpoint-sm) {
     .tabBar {
         flex-wrap: wrap;
     }

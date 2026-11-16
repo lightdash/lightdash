@@ -48,8 +48,8 @@ const MIN_MAP_HEIGHT = 220;
 // With a section open under it, the drawing keeps this share of the room and never less than this height; the open
 // section takes the rest, so the drawing is the same size whichever section is open
 const OPEN_MAP_SHARE = 0.5;
-const MIN_OPEN_MAP_HEIGHT = 200;
-const MIN_SECTION_HEIGHT = 140;
+const MIN_OPEN_MAP_HEIGHT = 140;
+const MIN_SECTION_HEIGHT = 110;
 const MAX_SECTION_HEIGHT = 480;
 // About how far under the drawing's bottom edge the detail card begins (the legend sits between)
 const DETAIL_BELOW_MAP_PX = 60;
