@@ -57,6 +57,20 @@ describe('getDataAppConsumerAccess', () => {
         ]);
     });
 
+    it('does not report a query when only its filters could not be read', () => {
+        const access = getDataAppConsumerAccess(
+            references(
+                `const timeFilter = (field, state) => ({ field, operator: 'inThePast', value: state.months, unit: 'months' });
+                export const Chart = ({ state }) => query('orders').dimensions(['status']).filters([timeFilter('status', state)]);`,
+            ),
+        );
+        expect(access).toEqual({
+            status: 'available',
+            queryCount: 1,
+            issues: [],
+        });
+    });
+
     it('is unavailable when no query can be fully read', () => {
         expect(getDataAppConsumerAccess(references(DYNAMIC_SORT)).status).toBe(
             'unavailable',

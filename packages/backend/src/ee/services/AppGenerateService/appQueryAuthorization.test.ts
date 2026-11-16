@@ -177,6 +177,59 @@ describe('data app consumer query authorization', () => {
         ).toThrow(ForbiddenError);
     });
 
+    describe('queries whose filters could not be read', () => {
+        const helperBuilt = extractDataAppDataReferences([
+            {
+                path: 'src/App.tsx',
+                content: `
+                    import { query } from '@lightdash/query-sdk';
+                    const buildTimeFilter = (field, state) => ({ field, operator: 'inThePast', value: state.months, unit: 'months' });
+                    export const Chart = ({ state }) =>
+                        query('orders')
+                            .dimensions(['country'])
+                            .metrics(['revenue'])
+                            .filters([buildTimeFilter('country', state)]);
+                `,
+            },
+        ]);
+        const filterOn = (fieldId: string): MetricQuery['filters'] => ({
+            dimensions: { id: 'root', and: [filter(fieldId)] },
+        });
+
+        it('runs the query and a filter on a field the version uses', () => {
+            expect(() =>
+                assertDataAppQueryAllowed(helperBuilt, {
+                    metricQuery: {
+                        ...metricQuery,
+                        filters: filterOn('orders_country'),
+                    },
+                }),
+            ).not.toThrow();
+        });
+
+        it('still refuses a filter on a field the version does not use', () => {
+            expect(() =>
+                assertDataAppQueryAllowed(helperBuilt, {
+                    metricQuery: {
+                        ...metricQuery,
+                        filters: filterOn('orders_secret'),
+                    },
+                }),
+            ).toThrow(ForbiddenError);
+        });
+
+        it('still refuses a field the version does not use', () => {
+            expect(() =>
+                assertDataAppQueryAllowed(helperBuilt, {
+                    metricQuery: {
+                        ...metricQuery,
+                        dimensions: ['orders_secret'],
+                    },
+                }),
+            ).toThrow(ForbiddenError);
+        });
+    });
+
     it('does not authorize a modeled field through a joined-table local alias', () => {
         const joined = extractDataAppDataReferences([
             {

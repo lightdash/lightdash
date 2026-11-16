@@ -2,6 +2,7 @@ import {
     ForbiddenError,
     getCustomSqlFieldKey,
     getTotalFilterRules,
+    isConsumerRunnableQueryReference,
     isCustomBinDimension,
     isCustomSqlDimension,
     isSqlTableCalculation,
@@ -34,7 +35,9 @@ const isLocalId = (id: string, names: Iterable<string>): boolean =>
 /**
  * Consumer access grants the fields referenced by an immutable app version,
  * not its exact queries. Filters, grouping and limits may change. Never infer
- * permission from an unresolved reference or from a client-defined field name.
+ * permission from an unresolved reference or from a client-defined field name:
+ * a query whose filters could not be read still grants only the fields that
+ * were read, and every filter field sent at run time is checked below.
  */
 export function assertDataAppQueryAllowed(
     dataReferences: PersistedDataAppDataReferences,
@@ -58,7 +61,7 @@ export function assertDataAppQueryAllowed(
         (ref): ref is ExtractedQueryReference =>
             ref.kind === 'query' &&
             ref.explore === explore &&
-            ref.unresolved.length === 0,
+            isConsumerRunnableQueryReference(ref),
     );
     // These inputs can introduce fields/SQL not described by the references:
     // pivot SQL has a separate shape, and date zoom can substitute a different

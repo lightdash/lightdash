@@ -1,5 +1,6 @@
 import {
     type DataReferenceLocation,
+    type ExtractedQueryReference,
     type GlobalFilterReferenceUnresolvedPart,
     type PersistedDataAppDataReferences,
     type QueryReferenceUnresolvedPart,
@@ -24,6 +25,17 @@ export type DataAppConsumerAccessIssue =
           location: DataReferenceLocation;
       };
 
+// Run-time filter fields are checked against the allowlist one by one, so
+// unread filters grant nothing; every other part must be read in full.
+const UNREAD_PARTS_CONSUMERS_CAN_RUN: ReadonlySet<QueryReferenceUnresolvedPart> =
+    new Set(['filters', 'metricFilters']);
+
+/** Whether a query's fields count towards what consumers may run. */
+export const isConsumerRunnableQueryReference = (
+    ref: Pick<ExtractedQueryReference, 'unresolved'>,
+): boolean =>
+    ref.unresolved.every((part) => UNREAD_PARTS_CONSUMERS_CAN_RUN.has(part));
+
 export type DataAppConsumerAccessStatus =
     /** Every query in the version can run for consumers. */
     | 'available'
@@ -42,8 +54,7 @@ export type DataAppConsumerAccess = {
 /**
  * What users without Explore access get from an app version, from the same
  * frozen references their queries are checked against at run time. A
- * reference with any unresolved part is left out of that allowlist, so it is
- * reported here.
+ * reference the allowlist leaves out is reported here.
  */
 export const getDataAppConsumerAccess = (
     consumerDataReferences: PersistedDataAppDataReferences | null,
@@ -57,7 +68,7 @@ export const getDataAppConsumerAccess = (
     for (const ref of consumerDataReferences.references) {
         if (ref.kind === 'query') {
             queryCount += 1;
-            if (ref.unresolved.length === 0) {
+            if (isConsumerRunnableQueryReference(ref)) {
                 runnableQueryCount += 1;
             } else {
                 issues.push({
