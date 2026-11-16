@@ -450,6 +450,7 @@ import {
     type CompilableDbtSource,
 } from '../../projectAdapters/CompileGroup';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import { DbtGitProjectAdapter } from '../../projectAdapters/dbtGitProjectAdapter';
 import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
@@ -612,6 +613,7 @@ import {
 } from './analyticsProject/analyticsProjectClient';
 import { createAnalyticsExplores } from './analyticsProject/createAnalyticsExplores';
 import { classifyConnectionTestError } from './classifyConnectionTestError';
+import { saveCompiledDbtManifest } from './compiledDbtManifest';
 import {
     credentialsForListedDatabase,
     findListedCatalogDatabase,
@@ -7152,6 +7154,11 @@ export class ProjectService
                                     true, // allowPartialCompilation
                                     exploreNaming !== undefined,
                                 ));
+                            await this.saveCompiledDbtManifestBestEffort(
+                                projectUuid,
+                                user.organizationUuid,
+                                compileAdapter,
+                            );
                             timings.compileExplores.end = performance.now();
                             timings.getConfig.start = performance.now();
                             const lightdashProjectConfig =
@@ -8419,6 +8426,8 @@ export class ProjectService
         projectUuid: string,
         manifest: DbtManifest,
         lightdashConfigYaml: string | null,
+        /** The models to compile by unique id; null compiles them all. */
+        selectedModelIds: string[] | null = null,
     ): Promise<(Explore | ExploreError)[]> {
         const {
             project,
@@ -8466,6 +8475,9 @@ export class ProjectService
                         },
                         dbtVersion: resolveDbtVersion(dbtVersionOption),
                         analytics: this.analytics,
+                        ...(selectedModelIds === null
+                            ? {}
+                            : { selectedModelIds }),
                     });
                     try {
                         return await adapter.compileAllExplores(
@@ -8685,6 +8697,38 @@ export class ProjectService
         } catch (error) {
             this.logger.warn(
                 `Failed to persist merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    /** Keeps what a single-source dbt compile parsed, so Semantic Studio's code mode can change its YAML without running dbt. */
+    private async saveCompiledDbtManifestBestEffort(
+        projectUuid: string,
+        organizationUuid: string,
+        adapter: ProjectAdapter,
+    ): Promise<void> {
+        if (
+            !(adapter instanceof DbtGitProjectAdapter) ||
+            adapter.lastManifest === null ||
+            !this.fileStorageClient.isEnabled()
+        ) {
+            return;
+        }
+        try {
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.SemanticStudioCodeMode,
+            });
+            if (!enabled) return;
+            const commitSha = await adapter.findHeadCommit();
+            if (commitSha === null) return;
+            await saveCompiledDbtManifest(this.fileStorageClient, projectUuid, {
+                commitSha,
+                manifest: projectMergedManifest(adapter.lastManifest),
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to keep the compiled dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
             );
         }
     }
@@ -13676,6 +13720,11 @@ export class ProjectService
                                 true, // allowPartialCompilation
                                 exploreNaming !== undefined,
                             ));
+                        await this.saveCompiledDbtManifestBestEffort(
+                            projectUuid,
+                            project.organizationUuid,
+                            adapter,
+                        );
                         const lightdashProjectConfig =
                             await adapter.getLightdashProjectConfig(
                                 trackingParams,

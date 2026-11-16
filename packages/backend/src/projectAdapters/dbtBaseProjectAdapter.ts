@@ -38,6 +38,7 @@ import {
     SupportedDbtVersions,
     type AttachTypesDiagnostics,
     type DbtJoinAvailability,
+    type DbtManifest,
     type LightdashProjectConfig,
     type ProjectContextEntry,
     type WarehouseCatalogMissingEntry,
@@ -84,6 +85,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     >();
 
     private preparationTimingsReported = false;
+
+    /** The manifest the last explore stream was compiled from. */
+    lastManifest: DbtManifest | null = null;
 
     constructor(
         dbtClient: DbtClient,
@@ -310,6 +314,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         const { manifest, selectedModelIds } =
             await this.dbtClient.getDbtManifest();
         assertValidDbtManifestIdentifiers(manifest);
+        this.lastManifest = manifest;
         // Type of the target warehouse
         if (!isSupportedDbtAdapter(manifest.metadata)) {
             throw new ParseError(

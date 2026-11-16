@@ -26,6 +26,8 @@ import {
     type AiWritebackWorkstream,
     type ClosePullRequestResult,
     type DbtProjectConfig,
+    type Explore,
+    type ExploreError,
     type GitRepo,
     type MergePullRequestResult,
     type PullRequestWritebackAction,
@@ -101,6 +103,10 @@ import {
     validateSemanticLayerYaml,
     type CodeModeRepo,
 } from '../SemanticStudioService/codeMode/codeMode';
+import {
+    type DbtScriptChange,
+    type DbtScriptCheck,
+} from '../SemanticStudioService/codeMode/dbtManifestPatch';
 import {
     ALLOWED_TOOLS,
     ASSISTANT_TEXT_TAIL_CHARS,
@@ -213,6 +219,8 @@ export type ScriptSave =
           status: 'saved';
           result: AiWritebackRunResult;
           changedModels: string[];
+          /** What the change compiled to before it was committed; null when it was not compiled. */
+          explores: (Explore | ExploreError)[] | null;
       };
 
 const STALE_RUN_ERROR_MESSAGE =
@@ -1775,9 +1783,14 @@ export class AiWritebackService extends BaseService {
         {
             dryRun,
             assertPublishAllowed,
+            checkDbt,
         }: {
             dryRun: boolean;
             assertPublishAllowed: (() => Promise<void>) | null;
+            /** Compiles a dbt change before it is committed; null commits without compiling. */
+            checkDbt:
+                | ((change: DbtScriptChange) => Promise<DbtScriptCheck>)
+                | null;
         },
     ): Promise<ScriptSave | null> {
         const { user, projectUuid, aiWritebackRunUuid } = args;
@@ -1919,6 +1932,45 @@ export class AiWritebackService extends BaseService {
             if (error !== null) {
                 return { status: 'script_failed', error, logs: ran.logs };
             }
+            let check: DbtScriptCheck | null = null;
+            if (checkDbt && !isNative) {
+                const repoPaths = (paths: string[] | null) =>
+                    paths === null
+                        ? null
+                        : paths
+                              .filter((path) => path.startsWith(root))
+                              .map((path) => path.slice(root.length));
+                check = await checkDbt({
+                    edits: new Map(
+                        ran.edits.map(({ path, after }) => [path, after]),
+                    ),
+                    readHead: (path) => checkout.readFile(`${root}${path}`),
+                    readAt: (path, commitSha) =>
+                        checkout.readFileAt(`${root}${path}`, commitSha),
+                    listChangedSince: async (commitSha) =>
+                        repoPaths(
+                            await checkout.listFilesChangedSince(commitSha),
+                        ),
+                });
+                this.logger.info('AI writeback script checked', {
+                    event: 'ai_writeback.script.checked',
+                    projectUuid,
+                    dryRun,
+                    status: check.status,
+                    ...(check.status === 'unsupported'
+                        ? { reason: check.reason }
+                        : {}),
+                    durationMs: Math.round(performance.now() - startedAt),
+                });
+                if (check.status === 'unsupported') return null;
+                if (check.status === 'failed') {
+                    return {
+                        status: 'script_failed',
+                        error: check.error,
+                        logs: ran.logs,
+                    };
+                }
+            }
             if (dryRun) return { status: 'checked' };
 
             if (aiWritebackRunUuid) {
@@ -1995,14 +2047,18 @@ export class AiWritebackService extends BaseService {
             );
             return {
                 status: 'saved',
-                changedModels: [
-                    ...new Set(
-                        ran.edits.flatMap(({ path }) => {
-                            const table = touchedTables.get(path);
-                            return table ? [table] : [];
-                        }),
-                    ),
-                ],
+                changedModels:
+                    check?.status === 'passed'
+                        ? check.changedModels
+                        : [
+                              ...new Set(
+                                  ran.edits.flatMap(({ path }) => {
+                                      const table = touchedTables.get(path);
+                                      return table ? [table] : [];
+                                  }),
+                              ),
+                          ],
+                explores: check?.status === 'passed' ? check.explores : null,
                 result: {
                     output: ran.logs.join('\n'),
                     exitCode: 0,

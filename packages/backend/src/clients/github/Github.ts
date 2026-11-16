@@ -643,6 +643,48 @@ export const getBranchHeadSha = async ({
     }
 };
 
+/** The files that differ between a commit and a later one; null when `head` does not simply follow `base`, or there are too many to list. */
+export const getFilesChangedSince = async ({
+    owner,
+    repo,
+    base,
+    head,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    base: string;
+    head: string;
+    installationId?: string;
+    token?: string;
+}): Promise<string[] | null> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const { data } = await octokit.rest.repos.compareCommitsWithBasehead({
+            owner,
+            repo,
+            basehead: `${base}...${head}`,
+            // Files are listed on the first page whatever its size; commits are not needed.
+            per_page: 1,
+            headers,
+        });
+        if (data.status === 'identical') return [];
+        const files = data.files ?? [];
+        // The compare lists at most 300 files.
+        if (data.status !== 'ahead' || files.length >= 300) return null;
+        return [
+            ...new Set(
+                files.flatMap(({ filename, previous_filename: previous }) =>
+                    previous ? [filename, previous] : [filename],
+                ),
+            ),
+        ];
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 /** The repo's default branch — the base for a PR opened without a sandbox clone. */
 export const getRepoDefaultBranch = async ({
     owner,

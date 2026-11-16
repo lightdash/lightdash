@@ -21,6 +21,7 @@ import {
     getAppBotIdentity,
     getBranchHeadSha,
     getFileContent,
+    getFilesChangedSince,
     getInstallationToken,
     getPullRequest,
     getRepoDefaultBranch,
@@ -114,6 +115,10 @@ export type ApiCheckout = {
     headSha: string;
     listFiles: () => Promise<string[]>;
     readFile: (path: string) => Promise<string | null>;
+    /** A file as it was at a commit; null where it did not exist. */
+    readFileAt: (path: string, commitSha: string) => Promise<string | null>;
+    /** The files changed between a commit and the head read from; null when that cannot be told. */
+    listFilesChangedSince: (commitSha: string) => Promise<string[] | null>;
 };
 
 // Acting as the user, their token authors the commit; as the app bot, credit the bot and the user.
@@ -601,6 +606,20 @@ export class GithubProvider implements GitProvider {
             baseBranch = branch;
         }
         const headSha = await getBranchHeadSha({ ...repo, branch, ...auth });
+        const readFileAt = async (path: string, commitSha: string) => {
+            try {
+                const { content } = await getFileContent({
+                    ...repo,
+                    fileName: path,
+                    branch: commitSha,
+                    ...auth,
+                });
+                return content;
+            } catch (error) {
+                if (error instanceof NotFoundError) return null;
+                throw error;
+            }
+        };
         return {
             prUrl: args.prUrl,
             branch,
@@ -610,20 +629,15 @@ export class GithubProvider implements GitProvider {
                 (
                     await getRepoTree({ ...repo, branch: headSha, ...auth })
                 ).files.map((file) => file.path),
-            readFile: async (path) => {
-                try {
-                    const { content } = await getFileContent({
-                        ...repo,
-                        fileName: path,
-                        branch: headSha,
-                        ...auth,
-                    });
-                    return content;
-                } catch (error) {
-                    if (error instanceof NotFoundError) return null;
-                    throw error;
-                }
-            },
+            readFile: (path) => readFileAt(path, headSha),
+            readFileAt,
+            listFilesChangedSince: (commitSha) =>
+                getFilesChangedSince({
+                    ...repo,
+                    base: commitSha,
+                    head: headSha,
+                    ...auth,
+                }),
         };
     }
 

@@ -13937,10 +13937,37 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                                 await this.aiWritebackService.saveWithScript(
                                     runArgs,
                                     payload.script,
-                                    { dryRun: false, assertPublishAllowed },
+                                    {
+                                        dryRun: false,
+                                        assertPublishAllowed,
+                                        checkDbt: (change) =>
+                                            this.semanticStudioService.checkDbtScriptChange(
+                                                user,
+                                                projectUuid,
+                                                change,
+                                                { checkQueries: false },
+                                            ),
+                                    },
                                 );
                             if (saved?.status === 'saved') {
                                 changedModels = saved.changedModels;
+                                if (saved.explores !== null) {
+                                    await this.semanticStudioService
+                                        .saveDbtScriptTryOut(
+                                            user,
+                                            projectUuid,
+                                            prompt.threadUuid,
+                                            {
+                                                prUrl: saved.result.prUrl,
+                                                explores: saved.explores,
+                                            },
+                                        )
+                                        .catch((error: unknown) => {
+                                            Logger.warn(
+                                                `AiAgent.runEditDbtProjectPipeline: failed to keep the try-out of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
+                                            );
+                                        });
+                                }
                                 return saved.result;
                             }
                             if (saved?.status === 'script_failed') {
@@ -15031,7 +15058,17 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         source,
                     },
                     script,
-                    { dryRun: true, assertPublishAllowed: null },
+                    {
+                        dryRun: true,
+                        assertPublishAllowed: null,
+                        checkDbt: (change) =>
+                            this.semanticStudioService.checkDbtScriptChange(
+                                user,
+                                projectUuid,
+                                change,
+                                { checkQueries: true },
+                            ),
+                    },
                 );
                 if (checked?.status === 'script_failed') return checked;
                 if (checked === null) script = null;

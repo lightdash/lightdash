@@ -6210,3 +6210,115 @@ test('a committed writeback run retains its initiating action when dispatch fail
         }),
     );
 });
+
+describe('AiWritebackService.saveWithScript compile check', () => {
+    const script = "repo.write('models/notes.yml', 'notes: 1\\n');";
+
+    const setUp = () => {
+        const service = buildService();
+        const checkout = {
+            prUrl: null,
+            branch: 'main',
+            baseBranch: 'main',
+            headSha: 'head-sha',
+            listFiles: vi.fn().mockResolvedValue([]),
+            readFile: vi.fn().mockResolvedValue(null),
+            readFileAt: vi.fn().mockResolvedValue(null),
+            listFilesChangedSince: vi
+                .fn()
+                .mockResolvedValue(['README.md', 'dbt/models/x.yml']),
+        };
+        const provider = {
+            resolveInstallation: vi.fn().mockResolvedValue({}),
+            openApiCheckout: vi.fn().mockResolvedValue(checkout),
+            commitApiChanges: vi.fn().mockResolvedValue({
+                prUrl: PR_7,
+                prCreated: false,
+                commitSha: 'new-sha',
+            }),
+        };
+        Object.assign(service, { githubProvider: provider });
+        vi.spyOn(
+            service as AnyType,
+            'assertWritebackProviderSupported',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(service as AnyType, 'prepareTurn').mockResolvedValue({
+            kind: 'run',
+            turn: turnContext({
+                provider,
+                gitConnection: {
+                    provider: PullRequestProvider.GITHUB,
+                    owner: 'acme',
+                    repo: 'analytics',
+                    projectSubPath: 'dbt',
+                },
+            }),
+        });
+        const save = (
+            checkDbt: AnyType,
+            dryRun: boolean,
+        ): ReturnType<AiWritebackService['saveWithScript']> =>
+            service.saveWithScript(
+                {
+                    user: defaultSessionUser,
+                    projectUuid: 'project-1',
+                    prompt: 'Add notes',
+                    aiThreadUuid: undefined,
+                    prUrl: null,
+                } as AnyType,
+                script,
+                { dryRun, assertPublishAllowed: null, checkDbt },
+            );
+        return { save, provider, checkout };
+    };
+
+    it('sends what does not compile back to the model and commits nothing', async () => {
+        const { save, provider } = setUp();
+        const checkDbt = vi.fn().mockResolvedValue({
+            status: 'failed',
+            error: 'It does not compile: orders: bad metric',
+        });
+        await expect(save(checkDbt, false)).resolves.toEqual({
+            status: 'script_failed',
+            error: 'It does not compile: orders: bad metric',
+            logs: [],
+        });
+        expect(provider.commitApiChanges).not.toHaveBeenCalled();
+    });
+
+    it('leaves a change only dbt can check to the sandbox', async () => {
+        const { save, provider } = setUp();
+        const checkDbt = vi.fn().mockResolvedValue({
+            status: 'unsupported',
+            reason: 'models/x.sql needs dbt to parse',
+        });
+        await expect(save(checkDbt, true)).resolves.toBeNull();
+        expect(provider.commitApiChanges).not.toHaveBeenCalled();
+    });
+
+    it('compiles the edits as the dbt project sees them, then commits', async () => {
+        const { save, provider, checkout } = setUp();
+        const explores = [{ name: 'orders' }];
+        const checkDbt = vi.fn(async (change: AnyType) => {
+            expect([...change.edits]).toEqual([
+                ['models/notes.yml', 'notes: 1\n'],
+            ]);
+            await expect(change.listChangedSince('old-sha')).resolves.toEqual([
+                'models/x.yml',
+            ]);
+            await change.readAt('models/x.yml', 'old-sha');
+            return { status: 'passed', changedModels: ['orders'], explores };
+        });
+        const saved = await save(checkDbt, false);
+        expect(checkout.readFileAt).toHaveBeenCalledWith(
+            'dbt/models/x.yml',
+            'old-sha',
+        );
+        expect(provider.commitApiChanges).toHaveBeenCalledTimes(1);
+        expect(saved).toMatchObject({
+            status: 'saved',
+            changedModels: ['orders'],
+            explores,
+        });
+    });
+});
