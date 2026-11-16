@@ -7,7 +7,6 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     formatJoinKeys,
-    isFanOut,
     layoutJoinGraph,
     pathToBase,
     toJoinGraph,
@@ -237,15 +236,6 @@ describe('formatJoinKeys', () => {
         expect(
             formatJoinKeys('${a.x} = ${b.y}\n   AND ${ a.z } = ${b.z}'),
         ).toBe('a.x = b.y AND a.z = b.z');
-    });
-});
-
-describe('relationships', () => {
-    it('flags joins that fan out', () => {
-        expect(isFanOut(JoinRelationship.ONE_TO_MANY)).toBe(true);
-        expect(isFanOut(JoinRelationship.MANY_TO_MANY)).toBe(true);
-        expect(isFanOut(JoinRelationship.MANY_TO_ONE)).toBe(false);
-        expect(isFanOut(null)).toBe(false);
     });
 });
 

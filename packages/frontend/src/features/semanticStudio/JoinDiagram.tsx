@@ -39,7 +39,6 @@ import reactFlowStyles from '../../components/common/ReactFlow/reactFlow.module.
 import { useExploreByProjectUuid } from '../../hooks/useExplore';
 import classes from './JoinDiagram.module.css';
 import {
-    isFanOut,
     JOIN_NODE_HEIGHT,
     JOIN_NODE_WIDTH,
     layoutJoinGraph,
@@ -67,11 +66,11 @@ const RELATIONSHIPS = [
     { key: JoinRelationship.ONE_TO_ONE, label: 'one-to-one' },
     {
         key: JoinRelationship.ONE_TO_MANY,
-        label: 'one-to-many, can repeat rows',
+        label: 'one-to-many',
     },
     {
         key: JoinRelationship.MANY_TO_MANY,
-        label: 'many-to-many, can repeat rows',
+        label: 'many-to-many',
     },
     { key: 'unset', label: 'not set' },
 ] as const;
@@ -266,12 +265,6 @@ const JoinDetails: FC<{
                 </Fact>
                 <Fact label="Relationship">
                     <RelationshipText table={table} />
-                    {isFanOut(table.relationship) ? (
-                        <Text fz="xs" c="dimmed">
-                            Each {parent?.label ?? 'row'} row can match many
-                            rows here, so its metrics can repeat.
-                        </Text>
-                    ) : null}
                 </Fact>
                 <Fact label="Join type">
                     <Text fz="xs">{table.joinType ?? 'left (default)'}</Text>

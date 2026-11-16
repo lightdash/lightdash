@@ -1,9 +1,9 @@
 /** An explore's joins as a graph: its base table, the tables joined to it and how. */
 import Dagre from '@dagrejs/dagre';
 import {
-    JoinRelationship,
     type CompiledExploreJoin,
     type Explore,
+    type JoinRelationship,
 } from '@lightdash/common';
 
 export type JoinTableNode = {
@@ -126,11 +126,6 @@ export const pathToBase = (
     }
     return path;
 };
-
-/** Joining many rows per row of the table it joins to repeats that table's rows. */
-export const isFanOut = (relationship: JoinRelationship | null): boolean =>
-    relationship === JoinRelationship.ONE_TO_MANY ||
-    relationship === JoinRelationship.MANY_TO_MANY;
 
 export const JOIN_NODE_WIDTH = 232;
 export const JOIN_NODE_HEIGHT = 82;
