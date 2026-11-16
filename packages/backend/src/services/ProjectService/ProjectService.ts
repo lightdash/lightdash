@@ -5223,13 +5223,25 @@ export class ProjectService
                     { kind: 'original' },
                 );
             if (upstreamCredentials) {
-                newProjectData.warehouseConnection = mergeWarehouseCredentials(
-                    upstreamCredentials,
-                    data.warehouseConnection,
-                    await this.getPreviewCredentialMergeOptions(
-                        user.organizationUuid,
-                    ),
-                );
+                const inherited =
+                    await this.inheritTrustedUpstreamSshTunnelPrivateKey(
+                        {
+                            warehouseConnection: mergeWarehouseCredentials(
+                                upstreamCredentials,
+                                data.warehouseConnection,
+                                await this.getPreviewCredentialMergeOptions(
+                                    user.organizationUuid,
+                                ),
+                            ),
+                        },
+                        {
+                            organizationUuid: user.organizationUuid,
+                            upstreamProjectUuid: data.upstreamProjectUuid,
+                        },
+                        upstreamCredentials,
+                    );
+                newProjectData.warehouseConnection =
+                    inherited.warehouseConnection;
             }
         }
 
