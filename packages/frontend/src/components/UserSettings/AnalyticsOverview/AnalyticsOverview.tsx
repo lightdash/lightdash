@@ -200,6 +200,8 @@ const AnalyticsOverview = ({
         analyticsTabs.find(({ id }) => id === activeTab) ?? analyticsTabs[0];
     // The Adoption app has its own controls and reads no dates or project
     const isAdoption = tab.id === 'adoption';
+    const [hasOpenedAdoption, setHasOpenedAdoption] = useState(isAdoption);
+    if (isAdoption && !hasOpenedAdoption) setHasOpenedAdoption(true);
     // The headline numbers summarise the whole instance, so they sit on the first tab only
     const showHeadlines = tab.id === 'overview';
     const headlineSpecs = showHeadlines
@@ -430,10 +432,14 @@ const AnalyticsOverview = ({
                         )}
                     </Group>
                 </Group>
-                <Tabs.Panel value={activeTab} pt={isAdoption ? 'sm' : 'lg'}>
-                    {tab.id === 'adoption' ? (
+                {/* Once opened, the Adoption app stays loaded behind the other tabs, so coming back to it is instant */}
+                {hasOpenedAdoption && (
+                    <Box pt="sm" display={isAdoption ? undefined : 'none'}>
                         <AnalyticsAdoptionPreview projectUuid={projectUuid} />
-                    ) : (
+                    </Box>
+                )}
+                <Tabs.Panel value={activeTab} pt={isAdoption ? 0 : 'lg'}>
+                    {isAdoption ? null : (
                         <Stack gap="md">
                             {showHeadlines && (
                                 <SimpleGrid
