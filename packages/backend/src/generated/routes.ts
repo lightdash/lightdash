@@ -18338,6 +18338,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                threadOwnershipIdentifier: { dataType: 'string' },
                 canViewDebugInfo: { dataType: 'boolean' },
                 canExplore: { dataType: 'boolean' },
                 agentUuid: { dataType: 'string', required: true },

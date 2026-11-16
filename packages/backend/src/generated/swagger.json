@@ -18862,6 +18862,10 @@
             },
             "EmbedJwtContentAiAgent": {
                 "properties": {
+                    "threadOwnershipIdentifier": {
+                        "type": "string",
+                        "description": "Owns the threads started with this token instead of user.externalId. Tokens that share it share those threads."
+                    },
                     "canViewDebugInfo": {
                         "type": "boolean",
                         "description": "Shows agent debug information. Ignored in roles mode, where view:EmbedAiAgentDebug decides."
@@ -18972,7 +18976,7 @@
                         "properties": {
                             "externalId": {
                                 "type": "string",
-                                "description": "Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts."
+                                "description": "Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts, unless the token sets content.threadOwnershipIdentifier."
                             },
                             "email": {
                                 "type": "string"
@@ -79653,7 +79657,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.272.0",
+        "version": "3.273.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
