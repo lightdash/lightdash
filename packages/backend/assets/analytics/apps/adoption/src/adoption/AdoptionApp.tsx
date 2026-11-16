@@ -48,6 +48,8 @@ const MAP_HEIGHT = 560;
 const MIN_WAFFLE_HEIGHT = 240;
 // The map gives up height to fit the window too, down to this
 const MIN_MAP_HEIGHT = 320;
+// The legend is this tall for every colouring
+const LEGEND_HEIGHT = 61;
 // About how far under the drawing's bottom edge the detail card begins (the legend sits between)
 const DETAIL_BELOW_MAP_PX = 60;
 // Longer than the sweep takes to cross the map and the detail below it
@@ -297,7 +299,7 @@ type MainProps = {
 };
 
 const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, canManage, actionSlot, detail, setColourBy }: MainProps) => {
-    const { colourBy, setIsOpen: setIsDetailOpen } = detail;
+    const { colourBy, setIsOpen: setDetailOpenValue } = detail;
     // The features chosen for the Features colouring, one bit each; kept in the link
     const [featuresValue, setFeatures] = useAppState<number>('features', ALL_PARTS, { scope: 'url' });
     // None chosen is allowed: every mark is then drawn as using no features
@@ -308,6 +310,16 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
     const [hideValue, setHideValue] = useAppState<boolean>('hideNoTeam', false, { scope: 'url' });
     // Remembered for each person, like the detail: where to spend effort, under the detail
     const [isFocusOpen, setIsFocusOpen] = useAppState<boolean>('focusOpen', false);
+    // Only one of the two sections under the drawing is open at a time, so the page never needs scrolling:
+    // opening one closes the other
+    const setIsDetailOpen = useCallback(
+        (open: boolean) => {
+            setDetailOpenValue(open);
+            if (open) setIsFocusOpen(false);
+        },
+        [setDetailOpenValue, setIsFocusOpen],
+    );
+    const panelDetail: DetailState = { ...detail, setIsOpen: setIsDetailOpen };
     const [isMappingOpen, setIsMappingOpen] = useState(false);
     // Values from the link are checked before use
     const layout: Layout = LAYOUTS.find((each) => each === layoutValue) ?? 'map';
@@ -469,7 +481,7 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                             )}
                     <Legend colourBy={colourBy} counts={countByKind(legendCells, colourBy)} notes={[]} hasSharedMarks={false} />
                 </div>
-                <DetailPanel detail={detail}>
+                <DetailPanel detail={panelDetail}>
                     {colourBy === 'growth' ? (
                         <GrowthDetail organisation={detailOrganisation} selectedId={selected?.team.id ?? null} onOpen={(teamId) => select(teamId)} focus={detailPeople} />
                     ) : colourBy === 'usage' ? (
@@ -480,8 +492,12 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                 </DetailPanel>
                 <FocusAreas
                     organisation={organisation}
-                    isOpen={isFocusOpen}
-                    onToggle={() => setIsFocusOpen(!isFocusOpen)}
+                    isOpen={isFocusOpen && !detail.isOpen}
+                    onToggle={() => {
+                        const next = !(isFocusOpen && !detail.isOpen);
+                        if (next) setDetailOpenValue(false);
+                        setIsFocusOpen(next);
+                    }}
                     // Picking a team changes only the drawing above: the team opens in the colouring that shows why it
                     // stood out, and the detail section stays as it was
                     onPick={(teamId, view) => {
@@ -543,6 +559,7 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
 
 const MembershipMap = ({ cells, config }: { cells: Cell[]; config: TeamConfig }) => {
     const canvas = useContainerSize();
+    const fit = useFitHeight();
     const organisation = useMemo(() => buildOrganisation(cells, config), [cells, config]);
     const unit = getMarkUnit(organisation.total);
     const teams = useMemo(
@@ -550,8 +567,11 @@ const MembershipMap = ({ cells, config }: { cells: Cell[]; config: TeamConfig })
         [organisation.buckets, unit],
     );
     return (
-        <div className="overflow-hidden rounded-lg border bg-card">
-            <div ref={canvas.ref} className="ad-canvas" style={{ height: MAP_HEIGHT }} inert>
+        // Drawn in grey as a placeholder: who is in each team is known before what they have used, and the marks take
+        // their colours once that arrives, with no change of colouring in between
+        <div className="overflow-hidden rounded-lg border bg-card" aria-hidden="true">
+            <div ref={fit.ref}>
+            <div ref={canvas.ref} className="ad-canvas" style={{ height: Math.min(MAP_HEIGHT, Math.max(fit.height ?? MAP_HEIGHT, MIN_MAP_HEIGHT)), filter: 'grayscale(1)', opacity: 0.45 }} inert>
                 {canvas.isMeasured && (
                     <PeopleMap
                         width={canvas.width}
@@ -565,7 +585,9 @@ const MembershipMap = ({ cells, config }: { cells: Cell[]; config: TeamConfig })
                     />
                 )}
             </div>
-            <Legend colourBy="role" counts={countByKind(organisation.cells, 'role')} notes={[]} hasSharedMarks={false} />
+            </div>
+            {/* Holds the room the legend takes, so the drawing does not jump when it arrives */}
+            <div className="border-t" style={{ height: LEGEND_HEIGHT }} />
         </div>
     );
 };

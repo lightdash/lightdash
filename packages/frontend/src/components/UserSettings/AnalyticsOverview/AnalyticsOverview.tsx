@@ -306,21 +306,6 @@ const AnalyticsOverview = ({
                     Project filters are unavailable. Showing all projects.
                 </Text>
             )}
-            {showHeadlines && (
-                <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="md">
-                    {analyticsHeadlineMetrics.map((metric, index) => (
-                        <HeadlineMetric
-                            key={metric.title}
-                            metric={metric}
-                            query={currentQueries[index]}
-                            previousQuery={previousQueries[index]}
-                            previousFilters={previousFilters}
-                            selected={metric.tab === activeTab}
-                            onSelect={() => setActiveTab(metric.tab)}
-                        />
-                    ))}
-                </SimpleGrid>
-            )}
             <Tabs
                 value={activeTab}
                 onChange={(value) => setActiveTab(value ?? 'overview')}
@@ -448,6 +433,34 @@ const AnalyticsOverview = ({
                         <AnalyticsAdoptionPreview projectUuid={projectUuid} />
                     ) : (
                         <Stack gap="md">
+                            {showHeadlines && (
+                                <SimpleGrid
+                                    cols={{ base: 1, sm: 2, xl: 4 }}
+                                    spacing="md"
+                                >
+                                    {analyticsHeadlineMetrics.map(
+                                        (metric, index) => (
+                                            <HeadlineMetric
+                                                key={metric.title}
+                                                metric={metric}
+                                                query={currentQueries[index]}
+                                                previousQuery={
+                                                    previousQueries[index]
+                                                }
+                                                previousFilters={
+                                                    previousFilters
+                                                }
+                                                selected={
+                                                    metric.tab === activeTab
+                                                }
+                                                onSelect={() =>
+                                                    setActiveTab(metric.tab)
+                                                }
+                                            />
+                                        ),
+                                    )}
+                                </SimpleGrid>
+                            )}
                             {tab.summary && (
                                 <AnalyticsTabSummary
                                     key={tab.id}
