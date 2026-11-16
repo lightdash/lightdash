@@ -45,9 +45,10 @@ import { WaffleView } from './waffle/WaffleView';
 const MAP_HEIGHT = 560;
 // The map gives up height to fit the window too, down to this
 const MIN_MAP_HEIGHT = 220;
-// With a section open under it, the drawing keeps this share of the room and never less than this height; the open
-// section takes the rest, so the drawing is the same size whichever section is open
-const OPEN_MAP_SHARE = 0.5;
+// A section open under the drawing takes the room the drawing leaves. The drawing only gives up height when that
+// would leave the section less than this, and then never more than half the room, nor below its own floor: on a
+// large screen it does not change size at all, on a laptop it changes once
+const SECTION_COMFORT_HEIGHT = 200;
 const MIN_OPEN_MAP_HEIGHT = 140;
 const MIN_SECTION_HEIGHT = 110;
 const MAX_SECTION_HEIGHT = 480;
@@ -351,12 +352,11 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
     const canvas = useContainerSize();
     const fit = useFitHeight();
     const isFocusShown = isFocusOpen && !detail.isOpen;
-    // The room the window leaves is split once: all of it to the drawing while both sections are closed, and a fixed
-    // share each to the drawing and to whichever section is open
+    // The room the window leaves for the drawing and whichever section is open
     const room = fit.height ?? MAP_HEIGHT;
     const isSectionOpen = detail.isOpen || isFocusShown;
     const drawingHeight = isSectionOpen
-        ? Math.min(MAP_HEIGHT, Math.max(Math.round(room * OPEN_MAP_SHARE), MIN_OPEN_MAP_HEIGHT))
+        ? Math.min(MAP_HEIGHT, Math.max(Math.round(room / 2), room - SECTION_COMFORT_HEIGHT, MIN_OPEN_MAP_HEIGHT))
         : Math.min(MAP_HEIGHT, Math.max(room, MIN_MAP_HEIGHT));
     // One pixel short, so rounding never leaves the page a pixel too tall and a scrollbar with it
     const sectionHeight = Math.min(MAX_SECTION_HEIGHT, Math.max(room - drawingHeight - 1, MIN_SECTION_HEIGHT));
