@@ -1,3 +1,11 @@
+## [3.268.2](https://github.com/lightdash/lightdash/compare/3.268.1...3.268.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** read content under its actual type when the slug misses the requested type ([#32656](https://github.com/lightdash/lightdash/issues/32656)) ([2dfd005](https://github.com/lightdash/lightdash/commit/2dfd005e0a2683eb6cc110507f399284d35530f8))
+* **ai:** say SQL charts can't be scheduled and schedule by slug ([#32646](https://github.com/lightdash/lightdash/issues/32646)) ([3992ee6](https://github.com/lightdash/lightdash/commit/3992ee66d4b37fccdc2498ffbe9b5cf2102cdbc1))
+
 ## [3.268.1](https://github.com/lightdash/lightdash/compare/3.268.0...3.268.1) (2026-11-16)
 
 
