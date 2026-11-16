@@ -1,12 +1,12 @@
 import {
-    LightdashError,
+    ForbiddenError,
     NotFoundError,
     ParameterError,
 } from '@lightdash/common';
 
-// Absent or refused; anything else leaves the probe's answer unknown.
-const isClientError = (probeError: unknown) =>
-    probeError instanceof LightdashError && probeError.statusCode < 500;
+// Any other probe failure leaves that type's answer unknown.
+const isAbsentOrRefused = (probeError: unknown) =>
+    probeError instanceof NotFoundError || probeError instanceof ForbiddenError;
 
 /**
  * Reads `slug` as `type`; on NotFoundError probes the other `types` through the same `read`.
@@ -38,13 +38,6 @@ export const readWithContentTypeFallback = async <T extends string, R>({
         const matches = probes.flatMap((probe) =>
             probe.status === 'fulfilled' ? [probe.value] : [],
         );
-        const unknown = probes.some(
-            (probe) =>
-                probe.status === 'rejected' && !isClientError(probe.reason),
-        );
-        if (matches.length === 0 || (matches.length === 1 && unknown)) {
-            throw error;
-        }
         if (matches.length > 1) {
             throw new ParameterError(
                 `No ${type} "${slug}" could be read, and "${slug}" matches more than one type: ${matches
@@ -52,6 +45,11 @@ export const readWithContentTypeFallback = async <T extends string, R>({
                     .join(', ')}. Retry with one of those types.`,
             );
         }
+        const someProbeUnanswered = probes.some(
+            (probe) =>
+                probe.status === 'rejected' && !isAbsentOrRefused(probe.reason),
+        );
+        if (matches.length === 0 || someProbeUnanswered) throw error;
         return matches[0];
     }
 };
