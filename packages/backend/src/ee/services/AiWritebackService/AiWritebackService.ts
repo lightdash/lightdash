@@ -1816,6 +1816,36 @@ export class AiWritebackService extends BaseService {
         );
     }
 
+    /** In Studio, the thread's open pull request that no sandbox made, such as one a script opened; null when there is none to continue. */
+    private async findThreadPullRequestToContinue({
+        continues,
+        startNewPullRequest,
+        aiThreadUuid,
+        adopt,
+    }: {
+        continues: boolean;
+        startNewPullRequest: boolean;
+        aiThreadUuid: string | null;
+        adopt: (prUrl: string) => Promise<AdoptedPullRequest>;
+    }): Promise<AdoptedPullRequest | null> {
+        if (!continues || startNewPullRequest || !aiThreadUuid) return null;
+        const threadPrUrl =
+            await this.aiWritebackRunModel.findLatestPrUrlByThread(
+                aiThreadUuid,
+            );
+        if (!threadPrUrl) return null;
+        try {
+            return await adopt(threadPrUrl);
+        } catch (error) {
+            // Merged, closed or in another repository: this turn opens a new one. Anything else fails the run.
+            if (!(error instanceof ParameterError)) throw error;
+            this.logger.info(
+                `AiWriteback: not continuing the thread's pull request: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+    }
+
     /**
      * Makes a change with a script, read and committed through the GitHub API
      * with no sandbox. Null when the target needs the sandbox: not GitHub, a
@@ -2902,30 +2932,16 @@ export class AiWritebackService extends BaseService {
                     connection: turn.gitConnection,
                     installation,
                 });
-            // In Studio, a pull request the thread opened without a sandbox, such as with a script, is continued while it is open here.
-            const adoptThreadPr = async () => {
-                if (
-                    !args.continuesThreadPullRequest ||
-                    startNewPullRequest ||
-                    !aiThreadUuid
-                )
-                    return null;
-                const threadPrUrl =
-                    await this.aiWritebackRunModel.findLatestPrUrlByThread(
-                        aiThreadUuid,
-                    );
-                if (!threadPrUrl) return null;
-                return adopt(threadPrUrl).catch((error: unknown) => {
-                    // Merged, closed or elsewhere: this turn opens a new one.
-                    this.logger.info(
-                        `AiWriteback: not continuing the thread's pull request: ${getErrorMessage(error)}`,
-                    );
-                    return null;
-                });
-            };
             let adoptedPr: AdoptedPullRequest | null = null;
             if (!turn.existingRow) {
-                adoptedPr = prUrl ? await adopt(prUrl) : await adoptThreadPr();
+                adoptedPr = prUrl
+                    ? await adopt(prUrl)
+                    : await this.findThreadPullRequestToContinue({
+                          continues: !!args.continuesThreadPullRequest,
+                          startNewPullRequest: !!startNewPullRequest,
+                          aiThreadUuid: aiThreadUuid ?? null,
+                          adopt,
+                      });
             }
 
             ({ sandbox, sandboxUuid } = await this.acquireSandbox({

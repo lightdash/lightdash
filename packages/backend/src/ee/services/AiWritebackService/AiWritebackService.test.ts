@@ -417,6 +417,49 @@ describe('AiWritebackService.applyAgentChanges', () => {
     });
 });
 
+describe('AiWritebackService.findThreadPullRequestToContinue', () => {
+    const setUp = (latest: string | null, adopt: AnyType) => {
+        const findLatestPrUrlByThread = vi.fn().mockResolvedValue(latest);
+        const service = buildService({
+            aiWritebackRunModel: { findLatestPrUrlByThread },
+        });
+        const find = (continues: boolean) =>
+            service['findThreadPullRequestToContinue']({
+                continues,
+                startNewPullRequest: false,
+                aiThreadUuid: 'thread-1',
+                adopt,
+            });
+        return { find, findLatestPrUrlByThread };
+    };
+
+    it("continues the thread's open pull request in Studio", async () => {
+        const adopt = vi.fn(async (url: string) => adoptedPullRequest(url));
+        const { find } = setUp(PR_9, adopt);
+        await expect(find(true)).resolves.toMatchObject({ prUrl: PR_9 });
+        expect(adopt).toHaveBeenCalledWith(PR_9);
+    });
+
+    it('never looks outside Studio', async () => {
+        const { find, findLatestPrUrlByThread } = setUp(PR_9, vi.fn());
+        await expect(find(false)).resolves.toBeNull();
+        expect(findLatestPrUrlByThread).not.toHaveBeenCalled();
+    });
+
+    it('opens a new one when the pull request cannot be continued, and fails on anything else', async () => {
+        const merged = setUp(
+            PR_9,
+            vi.fn().mockRejectedValue(new ParameterError('merged')),
+        );
+        await expect(merged.find(true)).resolves.toBeNull();
+        const down = setUp(
+            PR_9,
+            vi.fn().mockRejectedValue(new Error('GitHub is down')),
+        );
+        await expect(down.find(true)).rejects.toThrow('GitHub is down');
+    });
+});
+
 describe('AiWritebackService.prepareTurn', () => {
     const userWithOrg = (canManage: boolean): SessionUser => {
         const { build, can } = new AbilityBuilder<MemberAbility>(Ability);

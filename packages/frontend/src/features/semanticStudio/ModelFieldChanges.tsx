@@ -1,4 +1,4 @@
-import { Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Group, Stack, Text, Tooltip, VisuallyHidden } from '@mantine/core';
 import { useQueries } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -126,9 +126,9 @@ export const ModelFieldChanges: FC<{
                         ta="center"
                         flex="none"
                         c={`${KINDS[kind].color}.7`}
-                        aria-label={KINDS[kind].label}
                     >
-                        {KINDS[kind].sign}
+                        <span aria-hidden>{KINDS[kind].sign}</span>
+                        <VisuallyHidden>{KINDS[kind].label}</VisuallyHidden>
                     </Text>
                     <Text fz="xs" fw={500} truncate>
                         {label}

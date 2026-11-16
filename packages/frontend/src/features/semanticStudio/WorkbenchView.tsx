@@ -1181,10 +1181,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         }
         lastProposalKey.current = proposalKey;
     }, [proposalKey, setSearchParams, changesParams]);
-    // Changes asked for by view get their change's own address once it is known, so a reload or a link lands on it.
+    // Changes asked for by view get the open chat's change address once it is known, so a reload or a link lands on it.
     const changeToAddress =
         searchParams.get(VIEW_PARAM) === 'changes' && !routeWorkspaceUuid
-            ? (shownWorkspace?.workspaceUuid ?? null)
+            ? (allWorkspaces.find(
+                  ({ threadUuid, isMine }) =>
+                      isMine && threadUuid === storedThread?.threadUuid,
+              )?.workspaceUuid ?? null)
             : null;
     useEffect(() => {
         if (!changeToAddress) return;
