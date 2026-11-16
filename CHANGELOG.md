@@ -1,3 +1,10 @@
+## [3.269.1](https://github.com/lightdash/lightdash/compare/3.269.0...3.269.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **dashboards:** enforce tile and tab limits on every dashboard write ([#32651](https://github.com/lightdash/lightdash/issues/32651)) ([22500cb](https://github.com/lightdash/lightdash/commit/22500cb91c5afca4eb1b3b41d38a231a22169c73))
+
 # [3.269.0](https://github.com/lightdash/lightdash/compare/3.268.7...3.269.0) (2026-11-16)
 
 
