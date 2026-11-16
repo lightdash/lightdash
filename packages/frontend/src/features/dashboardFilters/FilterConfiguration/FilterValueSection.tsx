@@ -27,6 +27,10 @@ import { getPlaceholderByFilterTypeAndOperator } from '../../../components/commo
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useApp from '../../../providers/App/useApp';
+import {
+    getLiveSourceOperatorOptions,
+    useLiveSourceApiSource,
+} from '../../externalConnections/liveSources/apiSourceExplore';
 import classes from './FilterValueSection.module.css';
 import {
     getFilterRuleWithDefaultValueEnabled,
@@ -96,10 +100,16 @@ export const FilterValueSection: FC<Props> = ({
     const { user } = useApp();
     const canManageExplore = user.data?.ability?.can('manage', 'Explore');
     const getUiString = useUiStrings();
+    const apiSource = useLiveSourceApiSource(field?.table);
 
     const filterOperatorOptions = useMemo(
-        () => getFilterOperatorOptions(filterType, field, getUiString),
-        [filterType, field, getUiString],
+        () =>
+            getLiveSourceOperatorOptions(
+                getFilterOperatorOptions(filterType, field, getUiString),
+                apiSource,
+                field,
+            ),
+        [filterType, field, getUiString, apiSource],
     );
 
     const handleChangeFilterOperator = (operator: FilterRule['operator']) =>

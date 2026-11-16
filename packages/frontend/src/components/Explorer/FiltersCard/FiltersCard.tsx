@@ -424,6 +424,7 @@ const QueryAFiltersCard: FC = memo(() => {
                         withinPortal: true,
                     }}
                     baseTable={data?.baseTable}
+                    apiSource={data?.apiSource ?? null}
                     parameterValues={parameterValues}
                     metricQueryTimezone={
                         metricQuery.timezone && isTimeZone(metricQuery.timezone)

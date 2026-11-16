@@ -9,6 +9,10 @@ import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
+import {
+    getLiveSourceOperatorOptions,
+    useLiveSourceApiSource,
+} from '../../externalConnections/liveSources/apiSourceExplore';
 import classes from './OperatorPicker.module.css';
 
 type Props = {
@@ -37,9 +41,17 @@ const OperatorPicker: FC<Props> = ({
     onOpen,
     onClose,
 }) => {
+    const apiSource = useLiveSourceApiSource(
+        field && 'table' in field ? field.table : undefined,
+    );
     const options = useMemo(
-        () => getFilterOperatorOptions(filterType, field),
-        [filterType, field],
+        () =>
+            getLiveSourceOperatorOptions(
+                getFilterOperatorOptions(filterType, field),
+                apiSource,
+                field,
+            ),
+        [filterType, field, apiSource],
     );
     const currentLabel =
         options.find((option) => option.value === member.operator)?.label ??

@@ -30,6 +30,7 @@ import {
     getFilterExpression,
     getFilterRuleFromFieldWithDefaultValue,
     getFilterRulesFromGroup,
+    getItemsFromFilterGroup,
     getUnmetFilterRequirements,
     isEmptyDashboardFilterRule,
     isFilterRuleInQuery,
@@ -548,6 +549,35 @@ describe('addFilterRule', () => {
             field: customSqlDimension,
         });
         expect(result).toEqual(expectedFiltersWithCustomSqlDimension);
+    });
+
+    test('starts with the first supported operator when equals is not supported', () => {
+        const field = {
+            ...dimension('created_at', 'orders'),
+            type: DimensionType.DATE,
+        } as const;
+        const result = addFilterRule({
+            filters: {},
+            field,
+            value: '2026-10-01',
+            supportedOperators: [FilterOperator.IN_BETWEEN],
+        });
+        const [rule] = getItemsFromFilterGroup(result.dimensions!);
+        expect(rule).toMatchObject({ operator: FilterOperator.IN_BETWEEN });
+    });
+
+    test('keeps a supported operator and its value', () => {
+        const result = addFilterRule({
+            filters: {},
+            field: dimension('status', 'orders'),
+            value: 'shipped',
+            supportedOperators: [FilterOperator.EQUALS],
+        });
+        const [rule] = getItemsFromFilterGroup(result.dimensions!);
+        expect(rule).toMatchObject({
+            operator: FilterOperator.EQUALS,
+            values: ['shipped'],
+        });
     });
 });
 
