@@ -4,13 +4,13 @@ import {
     Button,
     Checkbox,
     Group,
-    Kbd,
     Paper,
     Radio,
     Stack,
     Text,
     Textarea,
 } from '@mantine/core';
+import { IconCheck, IconPencil } from '@tabler/icons-react';
 import {
     useEffect,
     useRef,
@@ -18,6 +18,7 @@ import {
     type FC,
     type KeyboardEvent,
 } from 'react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './AskUserQuestionCard.module.css';
 
 const isTypingTarget = (target: EventTarget) =>
@@ -133,34 +134,56 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
     const groupName = `ask-user-question-${index}`;
     const options = question.options.map((option, i) => {
         const OptionCard = question.multiSelect ? Checkbox.Card : Radio.Card;
-        const Indicator = question.multiSelect
-            ? Checkbox.Indicator
-            : Radio.Indicator;
         return (
             <OptionCard
                 key={option.label}
                 value={option.label}
-                className={styles.option}
+                withBorder={false}
+                className={styles.row}
             >
-                <Group wrap="nowrap" align="flex-start">
-                    <Indicator />
-                    <Stack gap={0} flex={1}>
-                        <Text fz="sm" fw={500}>
-                            {option.label}
+                <Box component="span" className={styles.lead} aria-hidden>
+                    {i + 1}
+                </Box>
+                <Box>
+                    <Text fz="sm" fw={500}>
+                        {option.label}
+                    </Text>
+                    {option.description && (
+                        <Text fz="xs" c="dimmed">
+                            {option.description}
                         </Text>
-                        {option.description && (
-                            <Text fz="xs" c="dimmed">
-                                {option.description}
-                            </Text>
-                        )}
-                    </Stack>
-                    <Kbd size="xs" aria-hidden>
-                        {i + 1}
-                    </Kbd>
-                </Group>
+                    )}
+                </Box>
+                <Box component="span" className={styles.check} aria-hidden>
+                    <MantineIcon icon={IconCheck} />
+                </Box>
             </OptionCard>
         );
     });
+    const ownAnswer = (
+        <Box className={styles.row}>
+            <Box component="span" className={styles.lead} aria-hidden>
+                <MantineIcon icon={IconPencil} size={14} />
+            </Box>
+            <Textarea
+                autosize
+                minRows={1}
+                maxRows={4}
+                variant="unstyled"
+                classNames={{ input: styles.ownAnswerInput }}
+                aria-label="Your own answer"
+                placeholder="Something else…"
+                value={current.custom}
+                onChange={(event) => setCustom(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        advance();
+                    }
+                }}
+            />
+        </Box>
+    );
 
     return (
         <Paper
@@ -169,8 +192,8 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
             onKeyDown={onKeyDown}
             className={styles.card}
         >
-            <Stack gap="sm" p="sm">
-                <Group justify="space-between" wrap="nowrap">
+            <Stack gap="xs" p="xs">
+                <Group justify="space-between" wrap="nowrap" px="xs" pt={4}>
                     <Text fz="xs" fw={500} c="dimmed">
                         {question.header}
                     </Text>
@@ -180,8 +203,10 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                         </Text>
                     )}
                 </Group>
-                <Box>
-                    <Text fw={500}>{question.question}</Text>
+                <Box px="xs">
+                    <Text fz="sm" fw={500}>
+                        {question.question}
+                    </Text>
                     {question.multiSelect && (
                         <Text fz="xs" c="dimmed">
                             Select all that apply
@@ -194,7 +219,10 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                         onChange={setSelected}
                         aria-label={question.question}
                     >
-                        <Stack gap="xs">{options}</Stack>
+                        <Stack gap={2}>
+                            {options}
+                            {ownAnswer}
+                        </Stack>
                     </Checkbox.Group>
                 ) : (
                     <Radio.Group
@@ -203,41 +231,42 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                         onChange={(label) => setSelected([label])}
                         aria-label={question.question}
                     >
-                        <Stack gap="xs">{options}</Stack>
+                        <Stack gap={2}>
+                            {options}
+                            {ownAnswer}
+                        </Stack>
                     </Radio.Group>
                 )}
-                <Textarea
-                    autosize
-                    minRows={1}
-                    maxRows={4}
-                    aria-label="Your own answer"
-                    placeholder="Or type your own answer…"
-                    value={current.custom}
-                    onChange={(event) => setCustom(event.currentTarget.value)}
-                    onKeyDown={(event) => {
-                        if (event.key === 'Enter' && !event.shiftKey) {
-                            event.preventDefault();
-                            advance();
-                        }
-                    }}
-                />
-                <Group gap="xs" justify="flex-end" wrap="nowrap">
-                    {index > 0 && (
+                <Group
+                    justify="space-between"
+                    wrap="nowrap"
+                    className={styles.footer}
+                >
+                    <Text fz="xs" c="dimmed">
+                        1–{question.options.length} to pick, Enter to continue
+                    </Text>
+                    <Group gap="xs" wrap="nowrap">
+                        {index > 0 && (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                onClick={() => setIndex(index - 1)}
+                            >
+                                Back
+                            </Button>
+                        )}
                         <Button
                             size="xs"
-                            variant="default"
-                            onClick={() => setIndex(index - 1)}
+                            disabled={!canAdvance}
+                            onClick={advance}
                         >
-                            Back
+                            {isLast
+                                ? questions.length > 1
+                                    ? 'Submit answers'
+                                    : 'Submit answer'
+                                : 'Next'}
                         </Button>
-                    )}
-                    <Button size="xs" disabled={!canAdvance} onClick={advance}>
-                        {isLast
-                            ? questions.length > 1
-                                ? 'Submit answers'
-                                : 'Submit answer'
-                            : 'Next'}
-                    </Button>
+                    </Group>
                 </Group>
             </Stack>
         </Paper>
