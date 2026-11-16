@@ -35,6 +35,12 @@ export const MOBILE_SIGN_IN_STRINGS = {
     qrLabel: 'Sign-in QR code',
     installHint:
         'If you do not have the app, scan to open the store. Install the app, then scan again.',
+    rescanSteps: {
+        title: 'How to sign in',
+        scan: 'Scan the code with your phone camera.',
+        install: 'No app? Install it from the store.',
+        scanAgain: 'Come back and scan the code again.',
+    },
     refreshed: 'New code',
     typeOnPhone: 'Type this number on your phone',
     cancel: 'Cancel',

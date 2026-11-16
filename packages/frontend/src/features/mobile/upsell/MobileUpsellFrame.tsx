@@ -9,6 +9,7 @@ import { type MobileUpsellChoice } from './getMobileUpsell';
 import classes from './MobileUpsell.module.css';
 import { PinnedUpsell } from './PinnedUpsell';
 import { PlatformsUpsell } from './PlatformsUpsell';
+import { RescanSteps } from './RescanSteps';
 import { UPSELL_STRINGS } from './upsellStrings';
 
 type SignInParts = {
@@ -90,6 +91,7 @@ const Pitch = ({
                         </div>
                     </div>
                 )}
+                {isIdle && !isSignedIn && <RescanSteps />}
                 {status}
             </div>
         </div>

@@ -242,6 +242,55 @@ describe('MobileSignInMenu', () => {
         );
     });
 
+    it.each([LightdashMode.DEFAULT, LightdashMode.CLOUD_BETA])(
+        'shows the scan, install, scan again steps under the code in %s mode',
+        async (mode) => {
+            health.mode = mode;
+            const user = userEvent.setup();
+            const server = mockServer();
+            renderMenu(<MobileSignInMenu />);
+            await user.click(openButton());
+            await screen.findByRole('img', { name: 'Sign-in QR code' });
+            const steps = screen.getByRole('list', {
+                name: MOBILE_SIGN_IN_STRINGS.rescanSteps.title,
+            });
+            expect(
+                within(steps)
+                    .getAllByRole('listitem')
+                    .map((item) => item.textContent),
+            ).toEqual([
+                MOBILE_SIGN_IN_STRINGS.rescanSteps.scan,
+                MOBILE_SIGN_IN_STRINGS.rescanSteps.install,
+                MOBILE_SIGN_IN_STRINGS.rescanSteps.scanAgain,
+            ]);
+            steps.querySelectorAll('svg').forEach((icon) => {
+                expect(icon.closest('[aria-hidden="true"]')).not.toBeNull();
+            });
+
+            await user.click(openButton());
+            await waitFor(() =>
+                expect(server.deletes()).toEqual([
+                    '/user/mobile/sign-in-codes/code-1',
+                ]),
+            );
+            expect(server.mints()).toHaveLength(1);
+        },
+    );
+
+    it('removes the steps once a phone scans the code', async () => {
+        mockServer({ isClaimed: true });
+        renderMenu(<MobileSignInMenu />);
+        await userEvent.click(openButton());
+        await screen.findByRole('group', {
+            name: 'A phone wants to sign in as you',
+        });
+        expect(
+            screen.queryByRole('list', {
+                name: MOBILE_SIGN_IN_STRINGS.rescanSteps.title,
+            }),
+        ).not.toBeInTheDocument();
+    });
+
     it('swaps the pitch for an inline confirm on scan, with no dialog', async () => {
         window.history.replaceState({}, '', '/?mobileUpsell=2');
         const user = userEvent.setup();
