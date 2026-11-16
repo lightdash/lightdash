@@ -1,3 +1,10 @@
+## [3.267.3](https://github.com/lightdash/lightdash/compare/3.267.2...3.267.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **composer:** check custom metric SQL and merge SQL calculations at save ([#32639](https://github.com/lightdash/lightdash/issues/32639)) ([a23f34a](https://github.com/lightdash/lightdash/commit/a23f34ac8a87f413ac968bbafe81d38b7a1498dd))
+
 ## [3.267.2](https://github.com/lightdash/lightdash/compare/3.267.1...3.267.2) (2026-11-16)
 
 
