@@ -360,7 +360,8 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
     const drawingHeight = isSectionOpen
         ? Math.min(MAP_HEIGHT, Math.max(Math.round(room * OPEN_MAP_SHARE), MIN_OPEN_MAP_HEIGHT))
         : Math.min(MAP_HEIGHT, Math.max(room, MIN_MAP_HEIGHT));
-    const sectionHeight = Math.min(MAX_SECTION_HEIGHT, Math.max(room - drawingHeight, MIN_SECTION_HEIGHT));
+    // One pixel short, so rounding never leaves the page a pixel too tall and a scrollbar with it
+    const sectionHeight = Math.min(MAX_SECTION_HEIGHT, Math.max(room - drawingHeight - 1, MIN_SECTION_HEIGHT));
     // The detail's marks populate with the sweep that crosses the map, for as long as that takes after a change of
     // colouring; never on first load or when the detail is opened later, when the map does not sweep either
     const [isSweeping, setIsSweeping] = useState(false);
