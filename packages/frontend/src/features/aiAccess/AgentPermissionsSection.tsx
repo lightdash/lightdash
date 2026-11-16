@@ -59,7 +59,7 @@ export const AgentPermissionsSection = ({
         <>
             <SettingsSection
                 label="Permissions"
-                description="What agents may do for a person."
+                description="Limit what agents can do when they act for a person. Agents never get more access than that person."
             >
                 <SettingsCard>
                     <Stack gap="md">
@@ -87,8 +87,8 @@ export const AgentPermissionsSection = ({
                         )}
                         <Stack gap="sm">
                             <SettingRow
-                                title="What agents can do"
-                                description="Choose a preset, or pick each capability."
+                                title="Agent scope"
+                                description="Pick a level, or pick each capability."
                             />
                             <AgentCapabilityChoices
                                 choice={choice}

@@ -174,7 +174,7 @@ export const OrganizationAgentIdentityCard = ({
     return (
         <SettingsSection
             label="Identity"
-            description="Who agents run as when they query each warehouse."
+            description="Who agents run as when they query each warehouse. This applies to every project."
         >
             <SettingsCard>
                 {rules.length === 0 ? (

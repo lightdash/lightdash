@@ -9,9 +9,9 @@ import { agentPermissionChoiceLabels } from './agentPermissionLabels';
 import classes from './AgentPermissionsSection.module.css';
 
 const descriptions: Record<AgentPermissionChoice, string> = {
-    person: 'Agents can do anything the person can do.',
-    read: 'Find content, query data and export results. Agents change nothing.',
-    custom: 'Everything starts on. Untick what agents must not do.',
+    person: 'Agents can do what the person can do in Lightdash, and nothing more.',
+    read: 'Agents can find content, query data and export results. They cannot create, change, share or delete content.',
+    custom: 'Pick each capability. All start on. Turn off what agents must not do.',
 };
 const choices: AgentPermissionChoice[] = ['person', 'read', 'custom'];
 export const AgentCapabilityChoices = ({
@@ -27,7 +27,7 @@ export const AgentCapabilityChoices = ({
     disabled: boolean;
     children: ReactNode;
 }) => (
-    <Radio.Group value={choice} aria-label="What agents can do">
+    <Radio.Group value={choice} aria-label="Agent scope">
         <Stack gap="sm">
             {choices.map((value) => (
                 <Box
