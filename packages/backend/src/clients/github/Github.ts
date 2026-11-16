@@ -347,7 +347,7 @@ export const getLastCommit = async ({
     }
 };
 
-export const getFileContent = async ({
+const readGithubFile = async ({
     fileName,
     owner,
     repo,
@@ -376,18 +376,19 @@ export const getFileContent = async ({
             headers,
         });
 
-        // Over 1 MB the API returns no content, which must not read as an empty file.
-        if ('encoding' in response.data && response.data.encoding === 'none') {
-            throw new UnexpectedGitError(
-                `file ${fileName} is too large to read through the GitHub API`,
-            );
-        }
         if ('content' in response.data) {
             const content = Buffer.from(
                 response.data.content,
                 'base64',
             ).toString('utf-8');
-            return { content, sha: response.data.sha };
+            return {
+                content,
+                sha: response.data.sha,
+                // Over 1 MB the API returns no content, so `content` is empty.
+                isTooLarge:
+                    'encoding' in response.data &&
+                    response.data.encoding === 'none',
+            };
         }
 
         throw new NotFoundError('file not found');
@@ -402,6 +403,26 @@ export const getFileContent = async ({
         logGithubRateLimit(error, `getContent ${fileName}`);
         throw new UnexpectedGitError(getErrorMessage(error));
     }
+};
+
+export const getFileContent = async (
+    args: Parameters<typeof readGithubFile>[0],
+) => {
+    const { content, sha } = await readGithubFile(args);
+    return { content, sha };
+};
+
+/** Like getFileContent, but a file too large for the API throws instead of reading as empty. */
+export const getWholeFileContent = async (
+    args: Parameters<typeof readGithubFile>[0],
+) => {
+    const { content, sha, isTooLarge } = await readGithubFile(args);
+    if (isTooLarge) {
+        throw new UnexpectedGitError(
+            `file ${args.fileName} is too large to read through the GitHub API`,
+        );
+    }
+    return { content, sha };
 };
 
 /**

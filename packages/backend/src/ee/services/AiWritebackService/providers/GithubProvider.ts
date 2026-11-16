@@ -21,12 +21,12 @@ import {
     deleteBranch,
     getAppBotIdentity,
     getBranchHeadSha,
-    getFileContent,
     getFilesChangedSince,
     getInstallationToken,
     getPullRequest,
     getRepoDefaultBranch,
     getRepoTree,
+    getWholeFileContent,
     updatePullRequest,
     userTokenHasRepoAccess,
     type GithubFileChanges,
@@ -612,7 +612,8 @@ export class GithubProvider implements GitProvider {
         const headSha = await getBranchHeadSha({ ...repo, branch, ...auth });
         const readFileAt = async (path: string, commitSha: string) => {
             try {
-                const { content } = await getFileContent({
+                // Saving over a file read as empty would erase it.
+                const { content } = await getWholeFileContent({
                     ...repo,
                     fileName: path,
                     branch: commitSha,

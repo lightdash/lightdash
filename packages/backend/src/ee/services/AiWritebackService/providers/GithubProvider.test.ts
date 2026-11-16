@@ -21,7 +21,7 @@ vi.mock('../../../../clients/github/Github', () => ({
     deleteBranch: vi.fn().mockResolvedValue(undefined),
     getBranchHeadSha: vi.fn().mockResolvedValue('base'),
     updatePullRequest: vi.fn().mockResolvedValue(undefined),
-    getFileContent: vi.fn(),
+    getWholeFileContent: vi.fn(),
     getRepoDefaultBranch: vi.fn(),
     getRepoTree: vi.fn(),
 }));
