@@ -104,6 +104,10 @@
 .tabsViewport {
     flex: 1;
     min-width: 0;
+}
+
+/* The fade hints at more tabs to the right, so it is only there when there are some */
+.tabsViewport[data-overflow] {
     mask-image: linear-gradient(to right, black calc(100% - 16px), transparent);
 }
 

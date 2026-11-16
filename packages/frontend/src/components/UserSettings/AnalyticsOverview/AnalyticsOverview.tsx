@@ -26,7 +26,13 @@ import {
     IconExternalLink,
     IconHome,
 } from '@tabler/icons-react';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useProjects } from '../../../hooks/useProjects';
 import MantineIcon from '../../common/MantineIcon';
@@ -177,6 +183,20 @@ const AnalyticsOverview = ({
         searchParams.get('tab') === 'adoption' ? 'adoption' : 'overview',
     );
     const tabsViewport = useRef<HTMLDivElement>(null);
+    // The arrows only help when the tabs do not all fit
+    const [doTabsOverflow, setDoTabsOverflow] = useState(false);
+    useLayoutEffect(() => {
+        const viewport = tabsViewport.current;
+        if (!viewport) return undefined;
+        const measure = () =>
+            setDoTabsOverflow(viewport.scrollWidth - viewport.clientWidth > 1);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(viewport);
+        if (viewport.firstElementChild)
+            observer.observe(viewport.firstElementChild);
+        return () => observer.disconnect();
+    }, []);
     const projects = useProjects();
     const projectNames = useMemo(
         () =>
@@ -269,25 +289,28 @@ const AnalyticsOverview = ({
                         wrap="nowrap"
                         className={classes.tabNavigation}
                     >
-                        <Tooltip label="Previous tabs">
-                            <ActionIcon
-                                variant="default"
-                                size="xs"
-                                aria-label="Previous tabs"
-                                onClick={() =>
-                                    tabsViewport.current?.scrollBy({
-                                        left: -240,
-                                        behavior: 'smooth',
-                                    })
-                                }
-                            >
-                                <MantineIcon icon={IconChevronLeft} />
-                            </ActionIcon>
-                        </Tooltip>
+                        {doTabsOverflow && (
+                            <Tooltip label="Previous tabs">
+                                <ActionIcon
+                                    variant="default"
+                                    size="xs"
+                                    aria-label="Previous tabs"
+                                    onClick={() =>
+                                        tabsViewport.current?.scrollBy({
+                                            left: -240,
+                                            behavior: 'smooth',
+                                        })
+                                    }
+                                >
+                                    <MantineIcon icon={IconChevronLeft} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                         <ScrollArea
                             type="never"
                             viewportRef={tabsViewport}
                             className={classes.tabsViewport}
+                            data-overflow={doTabsOverflow || undefined}
                         >
                             <Tabs.List className={classes.tabs}>
                                 {analyticsTabs.map(
@@ -316,21 +339,23 @@ const AnalyticsOverview = ({
                                 )}
                             </Tabs.List>
                         </ScrollArea>
-                        <Tooltip label="More tabs">
-                            <ActionIcon
-                                variant="default"
-                                size="xs"
-                                aria-label="More tabs"
-                                onClick={() =>
-                                    tabsViewport.current?.scrollBy({
-                                        left: 240,
-                                        behavior: 'smooth',
-                                    })
-                                }
-                            >
-                                <MantineIcon icon={IconChevronRight} />
-                            </ActionIcon>
-                        </Tooltip>
+                        {doTabsOverflow && (
+                            <Tooltip label="More tabs">
+                                <ActionIcon
+                                    variant="default"
+                                    size="xs"
+                                    aria-label="More tabs"
+                                    onClick={() =>
+                                        tabsViewport.current?.scrollBy({
+                                            left: 240,
+                                            behavior: 'smooth',
+                                        })
+                                    }
+                                >
+                                    <MantineIcon icon={IconChevronRight} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                     </Group>
                     <Group
                         gap="sm"
