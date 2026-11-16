@@ -13362,26 +13362,27 @@ export class ProjectService
                     ),
                     account.authentication.type,
                 );
-                const isUserCacheEnabled =
-                    this.lightdashConfig.results.autocompleteEnabled &&
+                const canUseCache =
                     !!user.userUuid &&
                     !skipAiAccessCache &&
                     (!identityEnabled ||
                         resultProducer.agentIdentity === null) &&
                     getAiExecutionCredentialUuid(aiPlan ?? null) === null;
+                const cacheState = canUseCache
+                    ? await this.projectModel.getResultsCacheState(projectUuid)
+                    : null;
+                // Autocomplete caching follows the project's results cache setting
+                const autocompleteCache = cacheState?.enabled
+                    ? cacheState
+                    : null;
+                const isUserCacheEnabled = autocompleteCache !== null;
 
                 const userUuid = getCacheUserUuid(
                     warehouseCredentials,
                     user.userUuid,
                 );
 
-                const cacheGeneration = isUserCacheEnabled
-                    ? (
-                          await this.projectModel.getResultsCacheSettings(
-                              projectUuid,
-                          )
-                      ).cacheGeneration
-                    : 0;
+                const cacheGeneration = autocompleteCache?.cacheGeneration ?? 0;
                 const hashParts = [
                     projectUuid,
                     userUuid,
@@ -13397,12 +13398,9 @@ export class ProjectService
                         : null,
                 );
 
-                if (!forceRefresh && isUserCacheEnabled) {
+                if (!forceRefresh && autocompleteCache !== null) {
                     const stringResults = await this.s3CacheClient
-                        .getIfFresh(
-                            queryHash,
-                            this.lightdashConfig.results.cacheStateTimeSeconds,
-                        )
+                        .getIfFresh(queryHash, autocompleteCache.ttlSeconds)
                         .catch(() => undefined);
                     if (stringResults) {
                         try {
