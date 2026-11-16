@@ -1,3 +1,10 @@
+## [3.267.1](https://github.com/lightdash/lightdash/compare/3.267.0...3.267.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** serialize parallel artifact writes per thread ([#32645](https://github.com/lightdash/lightdash/issues/32645)) ([e8dfe84](https://github.com/lightdash/lightdash/commit/e8dfe84653b2ce25f5c4de5e9d1f76f76ab3e3c6))
+
 # [3.267.0](https://github.com/lightdash/lightdash/compare/3.266.3...3.267.0) (2026-11-16)
 
 
