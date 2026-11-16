@@ -7,10 +7,7 @@ export const READ_CONTENT_SHARED_DESCRIPTION =
 export const TOOL_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart or data app as JSON by its slug. ${READ_CONTENT_SHARED_DESCRIPTION}`;
 
 export const toolReadContentArgsSchema = z.object({
-    slug: z
-        .string()
-        .min(1)
-        .describe('Slug of the content to read, as listed or found.'),
+    slug: z.string().min(1).describe('Slug of the content to read.'),
     type: z
         .enum(['dashboard', 'chart', 'sql_chart', 'data_app'])
         .describe('Type of Lightdash content to read.'),

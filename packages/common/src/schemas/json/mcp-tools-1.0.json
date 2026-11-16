@@ -4094,7 +4094,7 @@
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
                     "slug": {
-                        "description": "Slug of the content to read, as listed or found.",
+                        "description": "Slug of the content to read.",
                         "minLength": 1,
                         "type": "string"
                     },

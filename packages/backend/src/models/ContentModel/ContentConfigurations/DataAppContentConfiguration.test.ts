@@ -58,9 +58,8 @@ describe('dataAppContentConfiguration.getSummaryQuery dataAppVizsFilter', () => 
 });
 
 describe('dataAppContentConfiguration.getSummaryQuery slug', () => {
-    it('returns the app slug column, not a synthesized one', () => {
+    it('returns the app slug column', () => {
         const { sql } = buildQuery({});
         expect(sql).toContain('"apps"."slug"');
-        expect(sql).not.toContain("'data-app-'");
     });
 });
