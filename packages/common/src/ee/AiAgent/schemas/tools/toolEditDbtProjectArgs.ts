@@ -45,6 +45,7 @@ export const toolEditDbtProjectCodeModeArgsSchema =
                     'set creates missing mappings, and edits keep comments and the rest of the file as it is;',
                     'repo.list(prefix?), repo.read(path), repo.write(path, text), repo.remove(path) for whole files such as a new model SQL; console.log(...) is returned with errors.',
                     'Follow where the file already keeps things (e.g. config.meta rather than meta when it uses that). Null when the change needs dbt to run, such as checking new SQL against the warehouse.',
+                    'With a script, start prompt with a one-line summary under 72 characters, like a commit subject: it becomes the pull request title.',
                 ].join(' '),
             ),
     });
