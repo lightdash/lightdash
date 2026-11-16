@@ -770,11 +770,11 @@ describe('isWaitingForScan', () => {
         expect(result.current.phase).toBe('showing');
         expect(isWaitingForScan(result.current)).toBe(true);
 
-        for (let elapsed = 0; elapsed <= MOBILE_SIGN_IN_IDLE_LIMIT_MS; ) {
-            // eslint-disable-next-line no-await-in-loop
-            await advance(60_000);
-            elapsed += 60_000;
-        }
+        const minutes = Math.floor(MOBILE_SIGN_IN_IDLE_LIMIT_MS / 60_000) + 1;
+        await Array.from({ length: minutes }).reduce<Promise<void>>(
+            (chain) => chain.then(() => advance(60_000)),
+            Promise.resolve(),
+        );
         await waitFor(() => expect(result.current.phase).toBe('hidden'));
         expect(result.current.isMinting).toBe(true);
         expect(result.current.code).not.toBeNull();
