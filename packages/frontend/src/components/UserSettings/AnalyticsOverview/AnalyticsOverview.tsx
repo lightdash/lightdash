@@ -42,7 +42,6 @@ import { PolymorphicPaperButton } from '../../common/PolymorphicPaperButton';
 import {
     AnalyticsAdoptionLink,
     AnalyticsAdoptionPreview,
-    useAnalyticsAdoptionApp,
 } from './AnalyticsAdoptionPreview';
 import classes from './AnalyticsOverview.module.css';
 import AnalyticsOverviewChart from './AnalyticsOverviewChart';
@@ -56,6 +55,7 @@ import {
     type AnalyticsFilters,
 } from './analyticsOverviewConfig';
 import AnalyticsTabSummary from './AnalyticsTabSummary';
+import { useAnalyticsAdoptionApp } from './useAnalyticsAdoptionApp';
 import {
     useAnalyticsOverviewQueries,
     type AnalyticsOverviewQueryResult,
@@ -224,14 +224,17 @@ const AnalyticsOverview = ({
     const tab =
         analyticsTabs.find(({ id }) => id === activeTab) ?? analyticsTabs[0];
     // The Adoption app has its own controls and reads no dates or project
+    const onAdoptionTab = tab.id === 'adoption';
+    const [hasOpenedAdoption, setHasOpenedAdoption] = useState(onAdoptionTab);
+    if (onAdoptionTab && !hasOpenedAdoption) setHasOpenedAdoption(true);
     // Where the app cannot be shown (data apps switched off, or no finished build) the tab is an ordinary one,
     // with its charts, filters and dashboard link
-    const adoptionApp = useAnalyticsAdoptionApp(projectUuid);
-    const isAdoption =
-        tab.id === 'adoption' && adoptionApp.status !== 'unavailable';
+    const adoptionApp = useAnalyticsAdoptionApp(
+        projectUuid,
+        onAdoptionTab || hasOpenedAdoption,
+    );
+    const isAdoption = onAdoptionTab && adoptionApp.status !== 'unavailable';
     const charts = isAdoption ? [] : tab.charts;
-    const [hasOpenedAdoption, setHasOpenedAdoption] = useState(isAdoption);
-    if (isAdoption && !hasOpenedAdoption) setHasOpenedAdoption(true);
     // The headline numbers summarise the whole instance, so they sit on the first tab only
     const showHeadlines = tab.id === 'overview';
     const headlineSpecs = showHeadlines

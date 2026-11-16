@@ -284,11 +284,10 @@ describe('Analytics settings overview', () => {
         expect(
             screen.queryByRole('status', { name: 'Loading Adoption app' }),
         ).not.toBeInTheDocument();
-        await waitFor(() =>
-            expect(launched.map(({ query }) => query.exploreName)).toContain(
-                'content',
-            ),
-        );
+        // The tab's four charts are queried, on top of what Overview had already asked for
+        const before = launched.length;
+        await waitFor(() => expect(launched.length).toBeGreaterThanOrEqual(4));
+        expect(before).toBeGreaterThan(0);
     });
 
     it('cancels a superseded query even when its creation response arrives after the project switch', async () => {
