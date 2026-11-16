@@ -1,3 +1,10 @@
+## [3.275.3](https://github.com/lightdash/lightdash/compare/3.275.2...3.275.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai-agent:** let owners read metadata-only agent chart results (PROD-13076) ([#32686](https://github.com/lightdash/lightdash/issues/32686)) ([15634e5](https://github.com/lightdash/lightdash/commit/15634e54c6c764a09e15df462b6d1c1a8db0ef84))
+
 ## [3.275.2](https://github.com/lightdash/lightdash/compare/3.275.1...3.275.2) (2026-11-16)
 
 
