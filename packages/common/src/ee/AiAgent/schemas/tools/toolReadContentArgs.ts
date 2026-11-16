@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 
 export const READ_CONTENT_SHARED_DESCRIPTION =
-    'Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code.';
+    'Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code. Address a data app by the slug listed or found for it, not the id in its URL.';
 
 export const TOOL_READ_CONTENT_DESCRIPTION = `Read a dashboard, chart, SQL chart or data app as JSON by its slug. ${READ_CONTENT_SHARED_DESCRIPTION}`;
 
