@@ -19190,6 +19190,9 @@
                         },
                         "tileUuid": {
                             "type": "string"
+                        },
+                        "tileType": {
+                            "$ref": "#/components/schemas/DashboardTileTypes.SAVED_CHART"
                         }
                     },
                     "required": ["savedChartUuid", "tileUuid"],
@@ -75308,7 +75311,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "DashboardTileParameterReferencesTile": {
+            "SavedQueryTileParameterReferencesTile": {
                 "properties": {
                     "savedSqlUuid": {
                         "type": "string",
@@ -75320,10 +75323,46 @@
                     },
                     "tileUuid": {
                         "type": "string"
+                    },
+                    "tileType": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardTileTypes.SAVED_CHART"
+                            },
+                            {
+                                "$ref": "#/components/schemas/DashboardTileTypes.SQL_CHART"
+                            }
+                        ]
                     }
                 },
                 "required": ["savedSqlUuid", "savedChartUuid", "tileUuid"],
                 "type": "object"
+            },
+            "ComposerChartTileRequest": {
+                "properties": {
+                    "composerChartUuid": {
+                        "type": "string"
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    },
+                    "tileType": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.COMPOSER_CHART"
+                    }
+                },
+                "required": ["composerChartUuid", "tileUuid", "tileType"],
+                "type": "object",
+                "description": "A composer chart tile in a dashboard lookup request; embeds never send one."
+            },
+            "DashboardTileParameterReferencesTile": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SavedQueryTileParameterReferencesTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ComposerChartTileRequest"
+                    }
+                ]
             },
             "DashboardTileParameterReferencesRequest": {
                 "properties": {
@@ -78056,6 +78095,21 @@
             },
             "ComposerChartRunResults": {
                 "properties": {
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The parameters the tile reports to its dashboard: its non-Python nodes' references."
+                    },
+                    "appliedDashboardFiltersByNodeId": {
+                        "$ref": "#/components/schemas/Record_string.DashboardFilters_",
+                        "description": "The same rules, keyed by the semantic-layer node they were pushed into."
+                    },
+                    "appliedDashboardFilters": {
+                        "$ref": "#/components/schemas/DashboardFilters",
+                        "description": "Dashboard filter rules that reached at least one node."
+                    },
                     "chartStageQueryUuid": {
                         "type": "string",
                         "nullable": true,
@@ -78084,7 +78138,14 @@
                         "type": "array"
                     }
                 },
-                "required": ["chartStageQueryUuid", "fields", "queries"],
+                "required": [
+                    "parameterReferences",
+                    "appliedDashboardFiltersByNodeId",
+                    "appliedDashboardFilters",
+                    "chartStageQueryUuid",
+                    "fields",
+                    "queries"
+                ],
                 "type": "object"
             },
             "ApiComposerChartRunResponse": {
@@ -79264,7 +79325,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.261.2",
+        "version": "3.262.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

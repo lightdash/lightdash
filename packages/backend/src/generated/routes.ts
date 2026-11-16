@@ -18355,6 +18355,7 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     savedChartUuid: { dataType: 'string', required: true },
                     tileUuid: { dataType: 'string', required: true },
+                    tileType: { ref: 'DashboardTileTypes.SAVED_CHART' },
                 },
             },
             validators: {},
@@ -80746,7 +80747,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardTileParameterReferencesTile: {
+    SavedQueryTileParameterReferencesTile: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -80768,7 +80769,42 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 tileUuid: { dataType: 'string', required: true },
+                tileType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DashboardTileTypes.SAVED_CHART' },
+                        { ref: 'DashboardTileTypes.SQL_CHART' },
+                    ],
+                },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerChartTileRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                composerChartUuid: { dataType: 'string', required: true },
+                tileUuid: { dataType: 'string', required: true },
+                tileType: {
+                    ref: 'DashboardTileTypes.COMPOSER_CHART',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardTileParameterReferencesTile: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'SavedQueryTileParameterReferencesTile' },
+                { ref: 'ComposerChartTileRequest' },
+            ],
             validators: {},
         },
     },
@@ -83484,6 +83520,19 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                parameterReferences: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                appliedDashboardFiltersByNodeId: {
+                    ref: 'Record_string.DashboardFilters_',
+                    required: true,
+                },
+                appliedDashboardFilters: {
+                    ref: 'DashboardFilters',
+                    required: true,
+                },
                 chartStageQueryUuid: {
                     dataType: 'union',
                     subSchemas: [

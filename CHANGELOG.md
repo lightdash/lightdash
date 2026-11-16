@@ -1,3 +1,10 @@
+# [3.262.0](https://github.com/lightdash/lightdash/compare/3.261.2...3.262.0) (2026-11-16)
+
+
+### Features
+
+* **composer:** dashboard filters and parameters reach the composer tile ([#32599](https://github.com/lightdash/lightdash/issues/32599)) ([14ba080](https://github.com/lightdash/lightdash/commit/14ba080d40a4188c036977c18ae954c00cea6598))
+
 ## [3.261.2](https://github.com/lightdash/lightdash/compare/3.261.1...3.261.2) (2026-11-16)
 
 
