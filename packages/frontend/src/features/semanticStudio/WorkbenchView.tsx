@@ -75,6 +75,7 @@ import {
 } from './externalSources/ExternalSourcesView';
 import { useManagedExternalSource } from './externalSources/useManagedExternalSource';
 import { JoinDiagram } from './JoinDiagram';
+import { LineageDiagram } from './LineageDiagram';
 import { useLiveSourceActions } from './liveSources/liveSourceActions';
 import { LiveSourceManager } from './liveSources/LiveSourceManager';
 import {
@@ -769,6 +770,14 @@ const MainPane: FC<{
                         joins={
                             source?.kind === 'modelled' ? (
                                 <JoinDiagram
+                                    projectUuid={view.project.id}
+                                    exploreName={explore.name}
+                                />
+                            ) : null
+                        }
+                        lineage={
+                            source?.kind === 'modelled' ? (
+                                <LineageDiagram
                                     projectUuid={view.project.id}
                                     exploreName={explore.name}
                                 />

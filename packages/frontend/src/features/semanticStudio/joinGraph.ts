@@ -130,11 +130,14 @@ export const pathToBase = (
 export const JOIN_NODE_WIDTH = 232;
 export const JOIN_NODE_HEIGHT = 82;
 
-/** Left-to-right positions, top-left corners, base table first. */
+/** Left-to-right positions, top-left corners, sources first. Shared by the lineage diagram. */
 export const layoutJoinGraph = ({
     tables,
     links,
-}: JoinGraph): Map<string, { x: number; y: number }> => {
+}: {
+    tables: readonly { id: string }[];
+    links: readonly JoinLink[];
+}): Map<string, { x: number; y: number }> => {
     const graph = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
     graph.setGraph({ rankdir: 'LR', ranksep: 56, nodesep: 16 });
     tables.forEach((table) =>

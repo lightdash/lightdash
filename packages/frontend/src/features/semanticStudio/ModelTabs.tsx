@@ -280,12 +280,15 @@ export const ModelTabs: FC<{
     fields: ReactNode;
     /** The explore's join diagram; null where joins do not apply. */
     joins?: ReactNode;
-}> = ({ projectUuid, modelName, fields, joins = null }) => {
+    /** The explore's dbt lineage diagram; null where lineage does not apply. */
+    lineage?: ReactNode;
+}> = ({ projectUuid, modelName, fields, joins = null, lineage = null }) => {
     const { data: model } = useSemanticLayerModel(projectUuid, modelName);
     // A repository keeps its own history.
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const hasHistory = !!model && !asPullRequest;
     const hasJoins = joins !== null;
+    const hasLineage = lineage !== null;
     const [searchParams, setSearchParams] = useSearchParams();
     const requested = searchParams.get(VIEW_PARAM);
     const view =
@@ -293,24 +296,29 @@ export const ModelTabs: FC<{
             ? 'history'
             : hasJoins && requested === 'joins'
               ? 'joins'
-              : 'fields';
+              : hasLineage && requested === 'lineage'
+                ? 'lineage'
+                : 'fields';
     return (
         <Tabs
             className={classes.root}
             value={view}
             onChange={(next) =>
                 setSearchParams(
-                    next === 'history' || next === 'joins'
+                    next === 'history' || next === 'joins' || next === 'lineage'
                         ? { [VIEW_PARAM]: next }
                         : {},
                     { replace: true },
                 )
             }
         >
-            {hasHistory || hasJoins ? (
+            {hasHistory || hasJoins || hasLineage ? (
                 <Tabs.List mb="md">
                     <Tabs.Tab value="fields">Fields</Tabs.Tab>
                     {hasJoins ? <Tabs.Tab value="joins">Joins</Tabs.Tab> : null}
+                    {hasLineage ? (
+                        <Tabs.Tab value="lineage">Lineage</Tabs.Tab>
+                    ) : null}
                     {hasHistory ? (
                         <Tabs.Tab value="history">History</Tabs.Tab>
                     ) : null}
@@ -322,6 +330,11 @@ export const ModelTabs: FC<{
             {view === 'joins' ? (
                 <Tabs.Panel value="joins" className={classes.panel}>
                     {joins}
+                </Tabs.Panel>
+            ) : null}
+            {view === 'lineage' ? (
+                <Tabs.Panel value="lineage" className={classes.panel}>
+                    {lineage}
                 </Tabs.Panel>
             ) : null}
             {model && view === 'history' ? (
