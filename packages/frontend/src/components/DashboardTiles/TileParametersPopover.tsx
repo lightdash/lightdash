@@ -1,10 +1,6 @@
 import {
     assertUnreachable,
     DashboardTileParameterSource,
-    getDashboardTileParameterSource,
-    type DashboardTileParameterInputs,
-    type ParameterDefinitions,
-    type ParametersValuesMap,
     type UiStringResolver,
 } from '@lightdash/common';
 import { ActionIcon, Popover, Stack, Text } from '@mantine/core';
@@ -14,6 +10,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import MantineIcon from '../common/MantineIcon';
 import tileClasses from './DashboardTiles.module.css';
 import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
+import { type TileParameterItem } from './tileParameterItems';
 
 const getParameterSourceLabel = (
     source: DashboardTileParameterSource,
@@ -32,13 +29,11 @@ const getParameterSourceLabel = (
 };
 
 /** The tile header's (x) icon: each parameter value the tile ran with, and where it came from. */
-export const TileParametersPopover: FC<{
-    usedParameterValues: ParametersValuesMap;
-    definitions: ParameterDefinitions;
-    inputs: DashboardTileParameterInputs;
-}> = ({ usedParameterValues, definitions, inputs }) => {
+export const TileParametersPopover: FC<{ items: TileParameterItem[] }> = ({
+    items,
+}) => {
     const getUiString = useUiStrings();
-    if (Object.keys(usedParameterValues).length === 0) return null;
+    if (items.length === 0) return null;
     return (
         <TileHeaderPopover>
             <Popover.Dropdown
@@ -50,21 +45,15 @@ export const TileParametersPopover: FC<{
                     {getUiString('tile.parameters.title')}
                 </Text>
                 <Stack gap="xs" align="flex-start" ml="xs">
-                    {Object.entries(usedParameterValues).map(([key, value]) => (
+                    {items.map(({ key, label, value, source, sourceLabel }) => (
                         <Text key={key} size="xs" c="dimmed">
+                            {sourceLabel !== null && `${sourceLabel} · `}
                             <Text span fw={600}>
-                                {definitions[key]?.label || key}:
+                                {label}:
                             </Text>{' '}
                             {Array.isArray(value) ? value.join(', ') : value}{' '}
                             <Text span inherit fs="italic">
-                                {`(${getParameterSourceLabel(
-                                    getDashboardTileParameterSource({
-                                        key,
-                                        definitions,
-                                        ...inputs,
-                                    }),
-                                    getUiString,
-                                )})`}
+                                {`(${getParameterSourceLabel(source, getUiString)})`}
                             </Text>
                         </Text>
                     ))}

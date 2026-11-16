@@ -37,6 +37,18 @@ export const getSemanticExploreNames = (
     ),
 ];
 
+/** The values saved on the semantic-layer nodes, as one chart's saved values */
+export const getComposerSavedParameterValues = (
+    nodes: ComposerChartPipelineNode[],
+): ParametersValuesMap =>
+    nodes.reduce<ParametersValuesMap>(
+        (acc, node) =>
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                ? { ...acc, ...node.parameters }
+                : acc,
+        {},
+    );
+
 const hasRules = (filters: DashboardFilters) =>
     filters.dimensions.length > 0 ||
     filters.metrics.length > 0 ||

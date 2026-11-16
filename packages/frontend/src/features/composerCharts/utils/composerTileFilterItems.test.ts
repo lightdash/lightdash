@@ -70,7 +70,6 @@ describe('getComposerTileFilterItems', () => {
                 filterRule: statusRule('orders'),
                 field: statusField,
                 sourceLabel: null,
-                isOverridden: false,
             },
         ]);
     });
@@ -96,7 +95,7 @@ describe('getComposerTileFilterItems', () => {
         ).toEqual([
             ['orders:status-filter', 'Orders', statusField],
             // The tile's filterable fields have no payments_status
-            ['payments:status-filter', 'Payments', undefined],
+            ['payments:status-filter', 'Payments', null],
         ]);
     });
 });

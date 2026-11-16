@@ -27,11 +27,12 @@ export const getComposerTileFilterItems = ({
             (filterRule) => ({
                 key: `${nodeId}:${filterRule.id}`,
                 filterRule,
-                field: fields.find(
-                    (field) => getItemId(field) === filterRule.target.fieldId,
-                ),
+                field:
+                    fields.find(
+                        (field) =>
+                            getItemId(field) === filterRule.target.fieldId,
+                    ) ?? null,
                 sourceLabel: semanticNodes.length > 1 ? title : null,
-                isOverridden: false,
             }),
         );
     });

@@ -15,17 +15,20 @@ import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
 export type TileFilterItem = {
     key: string;
     filterRule: FilterRule;
-    /** Undefined when the tile's fields do not have the rule's field */
-    field: FilterableField | undefined;
+    /** Null when the tile's fields do not have the rule's field */
+    field: FilterableField | null;
     /** The query the rule was pushed into, on a tile that runs several; null otherwise */
     sourceLabel: string | null;
-    isOverridden: boolean;
 };
 
-const TileFilterBadge: FC<{
-    item: TileFilterItem;
-    kind: 'dashboard' | 'chart';
-}> = ({ item: { filterRule, field, sourceLabel, isOverridden }, kind }) => {
+export type TileChartFilterItem = TileFilterItem & { isOverridden: boolean };
+
+const TileFilterBadge: FC<
+    | { item: TileFilterItem; kind: 'dashboard' }
+    | { item: TileChartFilterItem; kind: 'chart' }
+> = (props) => {
+    const { filterRule, field, sourceLabel } = props.item;
+    const isOverridden = props.kind === 'chart' && props.item.isOverridden;
     const getUiString = useUiStrings();
     if (!field) {
         return (
@@ -51,7 +54,7 @@ const TileFilterBadge: FC<{
             size="lg"
             fz="xs"
             fw="normal"
-            {...(kind === 'dashboard'
+            {...(props.kind === 'dashboard'
                 ? { className: tileClasses.wrapBadge, c: 'black' }
                 : {
                       className: tileClasses.overrideBadge,
@@ -93,7 +96,7 @@ const TileFilterBadge: FC<{
 /** The tile header's filter icon: the dashboard filters the tile ran with, then its own. */
 export const TileFiltersPopover: FC<{
     dashboardFilters: TileFilterItem[];
-    chartFilters: TileFilterItem[];
+    chartFilters: TileChartFilterItem[];
 }> = ({ dashboardFilters, chartFilters }) => {
     const getUiString = useUiStrings();
     if (dashboardFilters.length === 0 && chartFilters.length === 0) return null;

@@ -194,11 +194,10 @@ const customChartBody = (
     };
 };
 
-// What each node query's history row says it ran with; no row for the rest
+// The values each node query's history row records; null for the rest
 const usedParametersByQuery: Record<string, ParametersValuesMap> = {
     'orders-query': { region: 'EU' },
-    'other-query': { region: 'EU' },
-    'result-query': { currency: 'usd' },
+    'other-query': { region: 'UK' },
 };
 
 const setup = ({ flagEnabled = true } = {}) => {
@@ -584,7 +583,7 @@ describe('ComposerChartService.run', () => {
         expect(result.fields).toEqual({ 'result-query_field': {} });
     });
 
-    test('returns the parameter values its node queries ran with', async () => {
+    test('returns the parameter values each node query ran with', async () => {
         const { service } = setupRun();
         const result = await service.run(
             viewer(),
@@ -592,9 +591,10 @@ describe('ComposerChartService.run', () => {
             'chart-uuid',
             runRequest,
         );
-        expect(result.usedParameterValues).toEqual({
-            region: 'EU',
-            currency: 'usd',
+        expect(result.usedParameterValuesByNodeId).toEqual({
+            orders: { region: 'EU' },
+            other: { region: 'UK' },
+            result: {},
         });
     });
 

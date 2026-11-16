@@ -8,7 +8,6 @@ import {
     FieldType,
     ForbiddenError,
     getComposerPipelineWriteDeniedReason,
-    getComposerSavedParameterValues,
     getDataAppVizChartConfigErrors,
     getErrorMessage,
     getExploreParameterDefinitions,
@@ -55,6 +54,7 @@ import {
     applyDashboardFiltersToComposerNodes,
     applyDashboardParametersToComposerNodes,
     getComposerParameterReferences,
+    getComposerSavedParameterValues,
     getSemanticExploreNames,
     type ComposerNodeExplores,
 } from './composerTileInputs';
@@ -709,10 +709,9 @@ export class ComposerChartService extends BaseService {
                 this.queryHistoryModel.getByQueryUuid(queryUuid),
             ),
         );
+        const terminalQueryUuid = queryUuidOf(chart.pipeline.terminalNodeId);
         const terminalQuery = histories.find(
-            (history) =>
-                history?.queryUuid ===
-                queryUuidOf(chart.pipeline.terminalNodeId),
+            (history) => history?.queryUuid === terminalQueryUuid,
         );
         return {
             queries: queries.map(({ nodeId, sourceType, queryUuid }) => ({
@@ -729,9 +728,11 @@ export class ComposerChartService extends BaseService {
                 resolved.nodes,
                 exploreByNodeId,
             ),
-            usedParameterValues: histories.reduce<ParametersValuesMap>(
-                (acc, history) => ({ ...acc, ...history?.usedParameters }),
-                {},
+            usedParameterValuesByNodeId: Object.fromEntries(
+                queries.map(({ nodeId }, index) => [
+                    nodeId,
+                    histories[index]?.usedParameters ?? {},
+                ]),
             ),
         };
     }

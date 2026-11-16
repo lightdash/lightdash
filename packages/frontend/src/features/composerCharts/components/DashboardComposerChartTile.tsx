@@ -3,7 +3,6 @@ import {
     FeatureFlags,
     getChartKind,
     getComposerChartDraw,
-    getComposerSavedParameterValues,
     pickComposerChartRows,
     type ComposerChartDraw,
     type DashboardComposerChartTile as ComposerChartTile,
@@ -44,6 +43,7 @@ import {
     useComposerChartRun,
 } from '../hooks/useComposerChartRun';
 import { getComposerTileFilterItems } from '../utils/composerTileFilterItems';
+import { getComposerTileParameterItems } from '../utils/composerTileParameterItems';
 import { ComposerChartVisualization } from './ComposerChartVisualization';
 
 type Props = Pick<
@@ -175,10 +175,19 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                 : [],
         [chart, run, filterableFields],
     );
-    const chartSavedParameterValues = useMemo(
+    const parameterItems = useMemo(
         () =>
-            chart ? getComposerSavedParameterValues(chart.pipeline.nodes) : {},
-        [chart],
+            chart && run
+                ? getComposerTileParameterItems({
+                      nodes: chart.pipeline.nodes,
+                      usedParameterValuesByNodeId:
+                          run.usedParameterValuesByNodeId,
+                      definitions: parameterDefinitions,
+                      dashboardValues: parameters,
+                      excludedKeys,
+                  })
+                : [],
+        [chart, run, parameterDefinitions, parameters, excludedKeys],
     );
     const title = getTitle(tile);
     const terminal = useInfiniteQueryResults(
@@ -281,15 +290,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                         dashboardFilters={filterItems}
                         chartFilters={[]}
                     />
-                    <TileParametersPopover
-                        usedParameterValues={run?.usedParameterValues ?? {}}
-                        definitions={parameterDefinitions}
-                        inputs={{
-                            dashboardValues: parameters,
-                            excludedKeys,
-                            chartSavedValues: chartSavedParameterValues,
-                        }}
-                    />
+                    <TileParametersPopover items={parameterItems} />
                 </>
             }
         >

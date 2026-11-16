@@ -196,7 +196,12 @@ import ExportDataModal from './ExportDataModal';
 import ExportImageModal from './ExportImageModal';
 import TileBase from './TileBase';
 import TileExecutionInfo from './TileExecutionInfo';
-import { TileFiltersPopover, type TileFilterItem } from './TileFiltersPopover';
+import {
+    TileFiltersPopover,
+    type TileChartFilterItem,
+    type TileFilterItem,
+} from './TileFiltersPopover';
+import { getTileParameterItems } from './tileParameterItems';
 import { TileParametersPopover } from './TileParametersPopover';
 import TileTimezoneInfo from './TileTimezoneInfo';
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
@@ -1063,6 +1068,24 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             ],
         );
 
+        const parameterItems = useMemo(
+            () =>
+                getTileParameterItems({
+                    usedParameterValues: usedParametersValues ?? {},
+                    definitions: parameterDefinitions,
+                    inputs: {
+                        ...tileParameterInputs,
+                        chartSavedValues: chart.parameters ?? {},
+                    },
+                    sourceLabel: null,
+                }),
+            [
+                usedParametersValues,
+                parameterDefinitions,
+                tileParameterInputs,
+                chart.parameters,
+            ],
+        );
         const filterItems = useMemo(() => {
             const fieldOf = (
                 sourceExplore: Explore | undefined,
@@ -1073,7 +1096,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                           (f) => getItemId(f) === fieldId,
                       )
                     : undefined;
-                return field && isFilterableField(field) ? field : undefined;
+                return field && isFilterableField(field) ? field : null;
             };
             return {
                 dashboardFilters: appliedFilterItems.map(
@@ -1099,12 +1122,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                     ? null
                                     : (sourceExplore?.label ??
                                       sourceExploreName),
-                            isOverridden: false,
                         };
                     },
                 ),
                 chartFilters: chartFilterItems.map(
-                    ({ filterRule, isOverridden }): TileFilterItem => ({
+                    ({ filterRule, isOverridden }): TileChartFilterItem => ({
                         key: filterRule.id,
                         filterRule,
                         field: fieldOf(explore, filterRule.target.fieldId),
@@ -1230,14 +1252,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 dashboardFilters={filterItems.dashboardFilters}
                                 chartFilters={filterItems.chartFilters}
                             />
-                            <TileParametersPopover
-                                usedParameterValues={usedParametersValues ?? {}}
-                                definitions={parameterDefinitions}
-                                inputs={{
-                                    ...tileParameterInputs,
-                                    chartSavedValues: chart.parameters ?? {},
-                                }}
-                            />
+                            <TileParametersPopover items={parameterItems} />
                             <TileTimezoneInfo
                                 resolvedTimezone={resolvedTimezone}
                                 timezoneSetting={metricQuery?.timezone}
