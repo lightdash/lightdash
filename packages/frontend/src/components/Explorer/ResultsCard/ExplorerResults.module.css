@@ -196,3 +196,22 @@
 .results[data-stale] table tfoot {
     opacity: 0.35;
 }
+
+/* A + at the table's right edge, shown while the results are hovered */
+.edgeHost {
+    position: relative;
+}
+
+.edgeAction {
+    position: absolute;
+    top: 46px;
+    right: 8px;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.edgeHost:hover .edgeAction,
+.edgeAction:focus-within {
+    opacity: 1;
+}

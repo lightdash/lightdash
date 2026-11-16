@@ -43,6 +43,7 @@ import { useAddDroppedFieldToQuery, useFieldDrop } from '../fieldDrag';
 import StaleResultsPrompt from '../StaleResultsPrompt';
 import { useIsResultsStale } from '../useIsResultsStale';
 import { ExplorerResults } from './ExplorerResults';
+import resultsClasses from './ExplorerResults.module.css';
 import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
 import { useResultsExport } from './useResultsExport';
@@ -138,50 +139,54 @@ const ResultsCard: FC = memo(() => {
                     'explore/explore-view.mdx#explore-from-an-existing-chart:1',
             }}
             headerElement={
-                // Hide header controls when in grouped view
-                isGroupedView ? null : (
-                    <Group wrap="nowrap" gap="xs">
-                        {resultsExport.totalResults !== undefined &&
-                            resultsExport.totalResults > 0 &&
-                            !isStale && (
-                                <Text fz="xs" c="dimmed">
-                                    {resultsExport.totalResults.toLocaleString()}{' '}
-                                    {resultsExport.totalResults === 1
-                                        ? 'row'
-                                        : 'rows'}
-                                </Text>
-                            )}
-                        {tableName && sorts.length > 0 && (
-                            <SortButton isEditMode={isEditMode} sorts={sorts} />
+                <Group wrap="nowrap" gap="xs">
+                    {resultsIsOpen && !isGroupedDisabled && (
+                        <Tooltip
+                            label="Pivoted shows the rows as your chart groups them"
+                            openDelay={400}
+                        >
+                            <SegmentedControl
+                                size="xs"
+                                data={[
+                                    {
+                                        label: 'Rows',
+                                        value: ResultsViewMode.RESULTS,
+                                    },
+                                    {
+                                        label: 'Pivoted',
+                                        value: ResultsViewMode.GROUPED,
+                                    },
+                                ]}
+                                value={viewMode}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(value) =>
+                                    setViewMode(value as ResultsViewMode)
+                                }
+                            />
+                        </Tooltip>
+                    )}
+                    {/* Row count and sort describe the flat rows only */}
+                    {!isGroupedView &&
+                        resultsExport.totalResults !== undefined &&
+                        resultsExport.totalResults > 0 &&
+                        !isStale && (
+                            <Text fz="xs" c="dimmed">
+                                {resultsExport.totalResults.toLocaleString()}{' '}
+                                {resultsExport.totalResults === 1
+                                    ? 'row'
+                                    : 'rows'}
+                            </Text>
                         )}
-                    </Group>
-                )
+                    {!isGroupedView && tableName && sorts.length > 0 && (
+                        <SortButton isEditMode={isEditMode} sorts={sorts} />
+                    )}
+                </Group>
             }
             rightHeaderElement={
                 projectUuid &&
                 resultsIsOpen &&
                 tableName && (
                     <Group gap="xs" wrap="nowrap">
-                        {!isGroupedDisabled && (
-                            <SegmentedControl
-                                size="xs"
-                                data={[
-                                    {
-                                        label: 'Results',
-                                        value: ResultsViewMode.RESULTS,
-                                    },
-                                    {
-                                        label: 'Chart results',
-                                        value: ResultsViewMode.GROUPED,
-                                    },
-                                ]}
-                                value={viewMode}
-                                onChange={(value) =>
-                                    setViewMode(value as ResultsViewMode)
-                                }
-                            />
-                        )}
-
                         {/* Hide AddColumnButton when in grouped view */}
                         {!isGroupedView && (
                             <Can
@@ -283,7 +288,29 @@ const ResultsCard: FC = memo(() => {
                     <StaleResultsPrompt subject="your results" />
                 </Box>
             )}
-            <ExplorerResults viewMode={viewMode} />
+            <Box className={resultsClasses.edgeHost}>
+                <ExplorerResults viewMode={viewMode} />
+                {isEditMode && hasSelectedFields && !isGroupedView && (
+                    <Can
+                        I="manage"
+                        this={subject('Explore', {
+                            organizationUuid: user.data?.organizationUuid,
+                            projectUuid,
+                        })}
+                    >
+                        <Box className={resultsClasses.edgeAction}>
+                            <AddTableCalculationButton
+                                tableEdge
+                                disabledReason={
+                                    isTableCalculationRefused
+                                        ? NOT_ON_LIVE_SOURCES
+                                        : undefined
+                                }
+                            />
+                        </Box>
+                    </Can>
+                )}
+            </Box>
         </CollapsableCard>
     );
 });
