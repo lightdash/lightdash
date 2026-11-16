@@ -1,3 +1,16 @@
+# [3.269.0](https://github.com/lightdash/lightdash/compare/3.268.7...3.269.0) (2026-11-16)
+
+
+### Bug Fixes
+
+* **parameters:** show option labels on parameter pills ([#32653](https://github.com/lightdash/lightdash/issues/32653)) ([ae19997](https://github.com/lightdash/lightdash/commit/ae1999758f6bbe83785da3afea0c28e2c33d7279))
+
+
+### Features
+
+* **ai:** save Semantic Studio changes to GitHub with a script, no sandbox ([#32598](https://github.com/lightdash/lightdash/issues/32598)) ([8064f37](https://github.com/lightdash/lightdash/commit/8064f37ff2caf9bfde7f204ee3c037f9d3a7f1e7))
+* **spaces:** open All Spaces sorted by name A-Z ([#32660](https://github.com/lightdash/lightdash/issues/32660)) ([cf7ae0f](https://github.com/lightdash/lightdash/commit/cf7ae0f2bd954abbe6ce51075a1d1305f089fb17))
+
 ## [3.268.7](https://github.com/lightdash/lightdash/compare/3.268.6...3.268.7) (2026-11-16)
 
 
