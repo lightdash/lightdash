@@ -21451,7 +21451,7 @@ describe('chart embed token query history access', () => {
 describe('embedded result downloads', () => {
     const writeActorUuid = 'write-actor-uuid';
 
-    const buildEmbedAccount = (
+    const buildDownloadEmbedAccount = (
         actorScopes: CaslSubjectNames[],
         content: CreateEmbedJwt['content'],
         permissionsMode: 'default' | 'roles',
@@ -21518,7 +21518,7 @@ describe('embedded result downloads', () => {
         },
         permissionsMode: 'default' | 'roles' = 'default',
     ) => {
-        const account = buildEmbedAccount(
+        const account = buildDownloadEmbedAccount(
             actorScopes,
             content,
             permissionsMode,
@@ -21897,7 +21897,11 @@ describe('embedded result downloads', () => {
         expect(scheduleDownload).toHaveBeenCalledWith(
             expect.objectContaining({ encodedJwt: 'test-jwt-token' }),
         );
-        const refreshedAccount = buildEmbedAccount([], content, 'default');
+        const refreshedAccount = buildDownloadEmbedAccount(
+            [],
+            content,
+            'default',
+        );
         await expect(
             run(service, refreshedAccount, 'download', DownloadFileType.CSV),
         ).rejects.toThrow(ForbiddenError);
