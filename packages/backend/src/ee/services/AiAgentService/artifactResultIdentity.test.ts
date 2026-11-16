@@ -904,7 +904,6 @@ describe('artifact result identity boundaries', () => {
         },
     );
 
-
     it('rejects a person read of an owner semantic rerun and permits its artifact-scoped read', async () => {
         const {
             service,
