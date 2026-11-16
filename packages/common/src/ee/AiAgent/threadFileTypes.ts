@@ -7,7 +7,6 @@ export const AI_THREAD_IMAGE_MAX_PIXELS = 40_000_000;
 export const AI_THREAD_IMAGES_MAX_PER_PROMPT = 5;
 export const AI_THREAD_IMAGES_MAX_PER_THREAD = 10;
 export const AI_THREAD_IMAGES_MAX_THREAD_BYTES = 12 * 1024 * 1024;
-export const AI_THREAD_IMAGE_RETENTION_DAYS = 30;
 export const AI_THREAD_IMAGE_MEDIA_TYPES = [
     'image/png',
     'image/jpeg',
@@ -63,7 +62,6 @@ export type AiThreadFile = AiThreadFileMetadata &
               mediaType: AiThreadImageMediaType;
               width: number;
               height: number;
-              expiresAt: Date;
           }
     );
 

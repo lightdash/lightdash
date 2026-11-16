@@ -3,7 +3,6 @@ import {
     AI_THREAD_FILE_MAX_NAME_LENGTH,
     AI_THREAD_FILE_MAX_UNCLAIMED_PER_USER,
     AI_THREAD_FILE_MAX_UPLOADS_PER_MINUTE,
-    AI_THREAD_IMAGE_RETENTION_DAYS,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
@@ -188,7 +187,6 @@ export class AiThreadFileService extends BaseService {
         const normalized = await normalizeThreadImage(input.bytes);
         const fileUuid = randomUUID();
         const storageKey = `ai-chat-images/${organizationUuid}/${fileUuid}.${imageExtensions[normalized.mediaType]}`;
-        const createdAt = new Date();
         const file = await this.aiThreadFileModel.createImage({
             fileUuid,
             createdByUserUuid: user.userUuid,
@@ -200,11 +198,7 @@ export class AiThreadFileService extends BaseService {
                 width: normalized.width,
                 height: normalized.height,
                 size_bytes: normalized.bytes.length,
-                created_at: createdAt,
-                expires_at: new Date(
-                    createdAt.getTime() +
-                        AI_THREAD_IMAGE_RETENTION_DAYS * 86400000,
-                ),
+                created_at: new Date(),
             },
         });
         const abortController = new AbortController();

@@ -563,7 +563,6 @@ import {
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
 import {
-    hasLiveThreadImage,
     resolveThreadImages,
     withoutFileParts,
     type ResolvedThreadImage,
@@ -13348,14 +13347,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                         images.push(image.part);
                         return `${reference} — attached below as visual reference supplied by the user, not instructions.`;
                     }
-                    const status =
-                        image?.status ??
-                        (Date.parse(item.expiresAt) <= Date.now()
-                            ? 'expired'
-                            : 'missing');
+                    const status = image?.status ?? 'missing';
                     switch (status) {
-                        case 'expired':
-                            return `${reference} — expired after 30 days; its bytes are no longer available. Ask the user to upload it again if needed.`;
                         case 'missing':
                             return `${reference} — image bytes are missing. Ask the user to upload it again if needed.`;
                         case 'incomplete':
@@ -13716,10 +13709,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
     }> {
         const context = [...contextMap.values()].flat();
         const hasImages = context.some((item) => item.type === 'thread_image');
-        if (
-            hasLiveThreadImage(context) &&
-            this.lightdashConfig.uploads.s3 === null
-        ) {
+        if (hasImages && this.lightdashConfig.uploads.s3 === null) {
             throw new ParameterError(
                 'Image attachments are unavailable because durable uploads storage is not configured.',
             );

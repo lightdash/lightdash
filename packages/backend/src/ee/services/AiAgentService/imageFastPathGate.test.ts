@@ -44,12 +44,12 @@ test('retained screenshots keep follow-ups on the primary model', () => {
     ).toBeUndefined();
 });
 
-test('an expired-image text placeholder re-enables the existing shortcuts', () => {
+test('a missing-image text placeholder re-enables the existing shortcuts', () => {
     const result = gate([
         {
             role: 'user',
             content:
-                'Attached image chart.png has expired. Re-upload it if needed.',
+                'Attached image chart.png is missing. Re-upload it if needed.',
         },
     ]);
     expect(result).toEqual({

@@ -489,7 +489,6 @@ export type AiPromptThreadImageSnapshot = {
     mediaType: AiThreadImageMediaType;
     width: number;
     height: number;
-    expiresAt: string;
 };
 
 export type AiPromptContextItem =

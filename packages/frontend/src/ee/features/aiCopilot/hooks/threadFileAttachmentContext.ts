@@ -36,7 +36,6 @@ export const threadFileAttachmentSnapshot = (
                 mediaType: attachment.mediaType,
                 width: attachment.width,
                 height: attachment.height,
-                expiresAt: attachment.expiresAt,
             };
         default:
             return assertUnreachable(attachment, 'Unknown thread attachment');

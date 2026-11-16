@@ -12,7 +12,6 @@ const image: ThreadImageAttachment = {
     mediaType: 'image/png',
     width: 1600,
     height: 900,
-    expiresAt: '2100-01-01T00:00:00.000Z',
     previewUrl: 'blob:private-local-preview',
 };
 
@@ -28,7 +27,6 @@ test('submission is identity-only and optimistic snapshots whitelist metadata, n
         mediaType: 'image/png',
         width: 1600,
         height: 900,
-        expiresAt: image.expiresAt,
     });
     expect(snapshot).not.toHaveProperty('previewUrl');
     expect(JSON.stringify({ input, snapshot })).not.toContain('blob:');

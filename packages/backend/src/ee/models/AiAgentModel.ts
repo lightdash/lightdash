@@ -7978,7 +7978,6 @@ export class AiAgentModel {
                             mediaType: image.media_type,
                             width: image.width,
                             height: image.height,
-                            expiresAt: image.expires_at.toISOString(),
                         } satisfies AiPromptThreadImageSnapshot,
                     };
                 }

@@ -24,7 +24,6 @@ export async function up(knex: Knex): Promise<void> {
                 table
                     .timestamp('cleanup_attempted_at', { useTz: true })
                     .nullable();
-                table.timestamp('expires_at', { useTz: true }).notNullable();
                 table
                     .timestamp('object_deleted_at', { useTz: true })
                     .nullable();
@@ -35,11 +34,8 @@ export async function up(knex: Knex): Promise<void> {
                     'width BETWEEN 1 AND 2560 AND height BETWEEN 1 AND 2560',
                 );
                 table.check('size_bytes BETWEEN 1 AND 3145728');
-                table.check('expires_at > created_at');
             });
         }
-        await knex.raw(`CREATE INDEX IF NOT EXISTS ai_thread_image_object_expiry
-            ON ai_thread_image_object (expires_at) WHERE object_deleted_at IS NULL`);
         await knex.raw(`CREATE INDEX IF NOT EXISTS ai_thread_image_object_created
             ON ai_thread_image_object (created_at)`);
         await knex.raw(`CREATE INDEX IF NOT EXISTS ai_thread_image_object_cleanup_attempt

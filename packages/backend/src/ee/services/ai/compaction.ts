@@ -255,7 +255,7 @@ export class Compaction {
             case 'thread_file':
                 return `attached document ${item.fileName} (${item.sizeBytes} bytes; read it with readAttachments)`;
             case 'thread_image':
-                return `attached image ${item.fileName} (${item.width}×${item.height}; bytes expire ${item.expiresAt}; re-upload if needed after expiry)`;
+                return `attached image ${item.fileName} (${item.width}×${item.height})`;
             default:
                 return assertUnreachable(
                     item,

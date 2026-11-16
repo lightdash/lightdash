@@ -15,7 +15,7 @@ import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 // Restore items live on hidden turns and are rendered as build cards.
 // A theme pick is a composer setting, not a mention, so it stays a chip.
 // A model is attached, never typed as a mention, so a word that happens to be its name stays a word.
-// Images always show their original-prompt metadata/expiry pill, never an inline filename mention.
+// Images always show their original-prompt metadata pill, never an inline filename mention.
 type InlineReferenceItem = Exclude<
     AiPromptContextItem,
     {

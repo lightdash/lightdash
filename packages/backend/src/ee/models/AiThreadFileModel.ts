@@ -51,7 +51,6 @@ const toAiThreadFile = (
                 mediaType: image.media_type,
                 width: image.width,
                 height: image.height,
-                expiresAt: image.expires_at,
             };
         default:
             return assertUnreachable(row.kind, 'Unknown attachment kind');
@@ -173,8 +172,7 @@ export class AiThreadFileModel {
                                 db(AiThreadImageObjectTableName)
                                     .select('storage_key')
                                     .whereNotNull('uploaded_at')
-                                    .whereNull('object_deleted_at')
-                                    .where('expires_at', '>', db.fn.now()),
+                                    .whereNull('object_deleted_at'),
                             ),
                     ),
             );
@@ -331,40 +329,33 @@ export class AiThreadFileModel {
     async findImageObjectsForCleanup(
         attemptedBefore = new Date(),
     ): Promise<DbAiThreadImageObject[]> {
-        return this.database(AiThreadImageObjectTableName)
-            .where((query) =>
-                query
-                    .whereNull('cleanup_attempted_at')
-                    .orWhere('cleanup_attempted_at', '<', attemptedBefore),
-            )
-            .where((query) =>
-                query
-                    .where((expired) =>
-                        expired
-                            .where('expires_at', '<=', this.database.fn.now())
-                            .whereNull('object_deleted_at'),
-                    )
-                    .orWhere((orphan) =>
-                        orphan
-                            .where(
-                                'created_at',
-                                '<=',
-                                this.database.raw("NOW() - interval '1 hour'"),
-                            )
-                            .whereNotExists(
-                                this.database(AiThreadFileTableName)
-                                    .select('storage_key')
-                                    .whereRaw('?? = ??', [
-                                        `${AiThreadFileTableName}.storage_key`,
-                                        `${AiThreadImageObjectTableName}.storage_key`,
-                                    ]),
-                            ),
-                    ),
-            )
-            .orderBy('cleanup_attempted_at', 'asc', 'first')
-            .orderBy('created_at')
-            .limit(100)
-            .select('*');
+        return (
+            this.database(AiThreadImageObjectTableName)
+                .where((query) =>
+                    query
+                        .whereNull('cleanup_attempted_at')
+                        .orWhere('cleanup_attempted_at', '<', attemptedBefore),
+                )
+                // Images live as long as their thread: only objects no file row
+                // references any more (deleted thread, failed upload) are removed.
+                .where(
+                    'created_at',
+                    '<=',
+                    this.database.raw("NOW() - interval '1 hour'"),
+                )
+                .whereNotExists(
+                    this.database(AiThreadFileTableName)
+                        .select('storage_key')
+                        .whereRaw('?? = ??', [
+                            `${AiThreadFileTableName}.storage_key`,
+                            `${AiThreadImageObjectTableName}.storage_key`,
+                        ]),
+                )
+                .orderBy('cleanup_attempted_at', 'asc', 'first')
+                .orderBy('created_at')
+                .limit(100)
+                .select('*')
+        );
     }
 
     async markImageCleanupAttempted(storageKey: string): Promise<void> {
