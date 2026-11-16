@@ -184,8 +184,9 @@ export const getHoverLabel = (
 const NUDGE_PX = 18;
 const NUDGE_TRIES = 8;
 
-// Every circle big enough keeps its name. Where one would sit on another name or circle it moves to another spot or
-// shrinks to its name alone; as a last resort it is moved down clear of the other names, and the halo keeps it readable.
+// Every circle big enough keeps its name where there is room. Where one would sit on another name or circle it moves
+// to another spot or shrinks to its name alone, then is moved down clear of the other names, where the halo keeps it
+// readable; only when none of that finds room is it left out.
 export const getRestLabels = (
     circles: PackedCircle[],
     textsFor: (circle: PackedCircle) => LabelText[],
@@ -230,12 +231,10 @@ export const getRestLabels = (
                 }
                 return undefined;
             };
-            kept.push(
-                options.find((label) => isFree(label) && !hitsCircle(label.box, circle)) ??
-                    options.find(isFree) ??
-                    nudged() ??
-                    options[0],
-            );
+            // With no place clear of the other names the circle goes without one at rest and is named on hover, as the
+            // smallest circles are: two names printed over each other read as neither
+            const label = options.find((each) => isFree(each) && !hitsCircle(each.box, circle)) ?? options.find(isFree) ?? nudged();
+            if (label) kept.push(label);
         });
     return kept;
 };

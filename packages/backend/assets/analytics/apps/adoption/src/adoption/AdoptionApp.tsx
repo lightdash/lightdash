@@ -103,7 +103,7 @@ const Segmented = <T extends string>({
     extras?: Partial<Record<T, ReactNode>>;
 }) => (
     <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="hidden text-xs text-muted-foreground sm:inline">{label}</span>
         <div className="inline-flex rounded-md border bg-muted p-0.5" role="group" aria-label={label}>
             {options.map((option, index) => {
                 const pill = value === option ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground';
@@ -186,9 +186,9 @@ const FeatureMenu = ({ features, onFeatures }: { features: number; onFeatures: (
 const OptionsMenu = ({ hideNoTeam, canHideNoTeam, onHideNoTeam }: { hideNoTeam: boolean; canHideNoTeam: boolean; onHideNoTeam: (next: boolean) => void }) => (
     <DropdownMenu>
         <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-7 gap-1.5 px-2.5 text-xs font-medium">
+            <Button variant="outline" size="sm" className="h-7 gap-1.5 px-2.5 text-xs font-medium" aria-label="Options" title="Options">
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                Options
+                <span className="hidden sm:inline">Options</span>
             </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60">
@@ -423,7 +423,8 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                                 <span className="font-semibold">All teams</span>
                             )}
                         </nav>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        {/* On a narrow page the two choices take a row of their own, under the name and the buttons */}
+                        <div className="order-3 flex basis-full flex-wrap items-center gap-x-4 gap-y-2 sm:order-2 sm:ml-auto sm:basis-auto">
                             <Segmented label="Layout" options={LAYOUTS} labels={LAYOUT_LABELS} value={layout} onChange={setLayout} />
                             <Segmented
                                 label="Colour by"
@@ -444,14 +445,16 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                                     ),
                                 }}
                             />
+                        </div>
+                        <div className="order-2 flex items-center gap-2 sm:order-3">
                             <OptionsMenu hideNoTeam={hideNoTeam} canHideNoTeam={hasNoTeam} onHideNoTeam={setHideValue} />
                             {teams.length === 0 && (
                                 <span className="text-xs text-muted-foreground">No teams yet{canManage ? '.' : '. An admin can set them up.'}</span>
                             )}
                             {canManage && (
-                                <Button variant="outline" size="sm" className="h-8" onClick={() => setIsMappingOpen(true)}>
+                                <Button variant="outline" size="sm" className="h-8" aria-label="Choose teams" title="Choose teams" onClick={() => setIsMappingOpen(true)}>
                                     <Settings2 />
-                                    Choose teams
+                                    <span className="hidden sm:inline">Choose teams</span>
                                 </Button>
                             )}
                         </div>
