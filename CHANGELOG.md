@@ -1,3 +1,10 @@
+## [3.268.7](https://github.com/lightdash/lightdash/compare/3.268.6...3.268.7) (2026-11-16)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** offer Add parameter once every tile is listed or failed its listing ([#32657](https://github.com/lightdash/lightdash/issues/32657)) ([7448750](https://github.com/lightdash/lightdash/commit/7448750caf322f91ad7ec6a830450cb69238cdcd))
+
 ## [3.268.6](https://github.com/lightdash/lightdash/compare/3.268.5...3.268.6) (2026-11-16)
 
 
