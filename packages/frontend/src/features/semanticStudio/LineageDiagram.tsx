@@ -87,13 +87,15 @@ const ModelNode: FC<NodeProps<ModelFlowNode>> = ({ data }) => (
                 <Text component="span" className={classes.nodeTitle} truncate>
                     {data.label ?? data.id}
                 </Text>
-                <Text
-                    component="span"
-                    className={classes.nodeSubtitle}
-                    truncate
-                >
-                    {data.id}
-                </Text>
+                {data.label ? (
+                    <Text
+                        component="span"
+                        className={classes.nodeSubtitle}
+                        truncate
+                    >
+                        {data.id}
+                    </Text>
+                ) : null}
             </Box>
         </Group>
         <Group gap="xs" wrap="nowrap" className={classes.nodeFooter}>
