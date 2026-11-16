@@ -1,13 +1,19 @@
 import { Button, Tooltip } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { useRef, useState, type FC } from 'react';
+import { lazy, Suspense, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useDevelopmentView } from '../../../../../features/semanticStudio/developmentView';
-import { TryItModal } from './TryItModal';
 import {
     useStudioPullRequest,
     type StudioPullRequest,
 } from './useStudioPullRequest';
+
+// Explore loads only when something is tried, not with every pull request card.
+const TryItModal = lazy(() =>
+    import('./TryItModal').then(({ TryItModal: modal }) => ({
+        default: modal,
+    })),
+);
 
 /** Primary where it is the next step, beside Merge; quiet on a chat card. */
 type Look = 'primary' | 'quiet';
@@ -53,13 +59,15 @@ export const TryItButton: FC<{
                 </Button>
             </Tooltip>
             {isTrying ? (
-                <TryItModal
-                    projectUuid={projectUuid}
-                    models={changedModels}
-                    previewProjectUuid={previewProjectUuid}
-                    prUrl={prUrl}
-                    onClose={close}
-                />
+                <Suspense fallback={null}>
+                    <TryItModal
+                        projectUuid={projectUuid}
+                        models={changedModels}
+                        previewProjectUuid={previewProjectUuid}
+                        prUrl={prUrl}
+                        onClose={close}
+                    />
+                </Suspense>
             ) : null}
         </>
     );

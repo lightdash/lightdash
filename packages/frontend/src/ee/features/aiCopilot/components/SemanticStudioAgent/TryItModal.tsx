@@ -6,7 +6,7 @@ import {
     Group,
     Loader,
     Menu,
-    SegmentedControl,
+    Select,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -32,6 +32,7 @@ import {
 } from '../../../../../features/semanticStudio/useModelFieldChanges';
 import { useSemanticLayerFieldUsage } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import { useExplorerQueryEffects } from '../../../../../hooks/useExplorerQueryEffects';
+import { useExplores } from '../../../../../hooks/useExplores';
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
 import { ModalHostedContext } from '../../../../../providers/Explorer/useIsModalHosted';
 import classes from './SemanticStudioAgent.module.css';
@@ -239,6 +240,9 @@ export const TryItModal: FC<{
     const chartsOf = (field: ChangedField) =>
         usage?.fields.find(({ fieldId }) => fieldId === field.fieldId)?.charts
             .length ?? 0;
+    const { data: explores } = useExplores(projectUuid, true);
+    const labelOf = (name: string) =>
+        explores?.find((explore) => explore.name === name)?.label ?? name;
     const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
     const title = (
         <span className={classes.tryTitle}>
@@ -258,19 +262,33 @@ export const TryItModal: FC<{
                 </span>
             </Tooltip>
             {models.length > 1 ? (
-                <SegmentedControl
+                <Select
                     size="xs"
+                    w={220}
+                    aria-label="Model"
                     value={model}
-                    onChange={switchModel}
+                    onChange={(next) => next && switchModel(next)}
+                    allowDeselect={false}
+                    leftSection={<MantineIcon icon={IconTable} size={14} />}
                     data={models.map((name) => ({
                         value: name,
-                        label: `${name} · ${changeSet?.get(name)?.length ?? 0}`,
+                        label: labelOf(name),
                     }))}
+                    renderOption={({ option }) => (
+                        <Group justify="space-between" wrap="nowrap" w="100%">
+                            <Text fz="xs" truncate>
+                                {option.label}
+                            </Text>
+                            <Text fz="xs" c="dimmed" flex="none">
+                                {changeSet?.get(option.value)?.length ?? 0}
+                            </Text>
+                        </Group>
+                    )}
                 />
             ) : (
                 <span className={classes.tryModel}>
                     <MantineIcon icon={IconTable} size={14} />
-                    {model}
+                    {labelOf(model)}
                 </span>
             )}
             {changeSet ? (
