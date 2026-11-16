@@ -60,7 +60,7 @@ const FadeScale = ({ colour, low, high, solidFirst }: { colour: string; low: str
                 ...(solidFirst && { backgroundImage: 'linear-gradient(to left, color-mix(in srgb, var(--scale-colour) 15%, transparent), var(--scale-colour))' }),
             }}
         />
-        <span className="absolute inset-x-0 top-full mt-0.5 flex justify-between text-[10px] leading-none text-muted-foreground">
+        <span className="absolute inset-x-0 top-full mt-1 flex justify-between text-[10px] leading-none text-muted-foreground">
             <span>{solidFirst ? high : low}</span>
             <span>{solidFirst ? low : high}</span>
         </span>
@@ -96,7 +96,7 @@ const NoneItem = ({ colourBy, kind, counts, hint }: { colourBy: ColourBy; kind: 
 };
 
 export const Legend = ({ colourBy, counts, notes, hasSharedMarks, action }: Props) => (
-    <div className="space-y-2 border-t px-4 py-1.5">
+    <div className="space-y-2 border-t px-4 pb-3.5 pt-2">
         <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-8 gap-y-3">
         <ul className="m-0 flex list-none flex-wrap items-center gap-x-8 gap-y-3 p-0" aria-label="Legend">
             {colourBy === 'usage' ? (
