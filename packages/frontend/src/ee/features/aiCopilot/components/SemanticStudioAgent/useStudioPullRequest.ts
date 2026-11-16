@@ -1,10 +1,15 @@
-import { isToolEditDbtProjectResult, type CiChecks } from '@lightdash/common';
+import {
+    isToolEditDbtProjectResult,
+    type ApiError,
+    type CiChecks,
+} from '@lightdash/common';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { findPreviewProjectUuid } from '../../../../../features/semanticStudio/useTryInExplore';
-import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
-import { usePullRequestCiChecks } from '../../hooks/usePullRequestCiChecks';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
+import { pullRequestCiChecksQuery } from '../../hooks/usePullRequestCiChecks';
 import { getOpenProposal } from './studioProposal';
-import { useStudioAgent } from './useSemanticStudioChat';
+import { useStudioAgent, useStudioThread } from './useSemanticStudioChat';
 
 /** The pull request a Studio conversation on a dbt project is building up. */
 export type StudioPullRequest = {
@@ -26,11 +31,10 @@ export const useStudioPullRequest = (
     projectUuid: string,
 ): StudioPullRequest | null => {
     const { thread } = useStudioAgent(projectUuid);
-    const { data } = useAiAgentThread(
+    const { data } = useStudioThread(
         projectUuid,
         thread?.agent.uuid,
         thread?.threadUuid,
-        { enabled: !!thread },
     );
     const results = (data?.messages ?? [])
         .flatMap((message) =>
@@ -44,11 +48,17 @@ export const useStudioPullRequest = (
                 : [],
         );
     const metadata = results.at(-1);
-    const { data: ciChecks } = usePullRequestCiChecks(
-        projectUuid,
-        metadata?.prUrl ?? null,
-        metadata?.commitSha ?? null,
-    );
+    const lightdashApi = useLightdashApi();
+    // A save adds a commit, and the page should not leave the pull request while that commit's checks load.
+    const { data: ciChecks } = useQuery<CiChecks | null, ApiError>({
+        ...pullRequestCiChecksQuery(
+            lightdashApi,
+            projectUuid,
+            metadata?.prUrl ?? null,
+            metadata?.commitSha ?? null,
+        ),
+        keepPreviousData: true,
+    });
     if (!metadata) return null;
     return {
         prUrl: metadata.prUrl,
@@ -79,11 +89,10 @@ export const useStudioPendingChange = (
     projectUuid: string,
 ): StudioPendingChange | null => {
     const { thread } = useStudioAgent(projectUuid);
-    const { data } = useAiAgentThread(
+    const { data } = useStudioThread(
         projectUuid,
         thread?.agent.uuid,
         thread?.threadUuid,
-        { enabled: !!thread },
     );
     // The latest change of the whole thread, so a message sent while it runs does not hide it.
     const latest = (data?.messages ?? [])
@@ -106,11 +115,10 @@ const NO_PROPOSAL: string[] = [];
 /** The diffs the conversation's latest reply proposes and has not saved, one per file. */
 export const useStudioProposal = (projectUuid: string): string[] => {
     const { thread } = useStudioAgent(projectUuid);
-    const { data } = useAiAgentThread(
+    const { data } = useStudioThread(
         projectUuid,
         thread?.agent.uuid,
         thread?.threadUuid,
-        { enabled: !!thread },
     );
     return useMemo(() => {
         const proposal = data ? getOpenProposal(data.messages) : NO_PROPOSAL;

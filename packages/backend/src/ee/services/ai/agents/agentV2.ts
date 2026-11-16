@@ -2169,7 +2169,10 @@ export const getAgentTools = (
                 listDataAppConnections: dependencies.listDataAppConnections,
             }),
         editDbtProject: () =>
-            getEditDbtProject({ editDbtProject: dependencies.editDbtProject }),
+            getEditDbtProject({
+                editDbtProject: dependencies.editDbtProject,
+                acceptsScript: args.semanticStudioCodeMode,
+            }),
         editProjectContext: () =>
             getEditProjectContext({
                 editProjectContext: dependencies.editProjectContext,
@@ -2712,6 +2715,7 @@ export const getAgentMessages = (
         canRunSql: args.canRunSql,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
+        semanticStudioCodeMode: args.semanticStudioCodeMode,
         slackLinksOnly: args.slackLinksOnly,
         enableComposerPythonNodes: args.enableComposerQueries,
         liveSources: args.liveSources,

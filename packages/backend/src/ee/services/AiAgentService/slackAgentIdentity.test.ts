@@ -451,6 +451,7 @@ describe('Agent dbt job markers', () => {
                         progressId: 'tool',
                         prUrl: null,
                         startNewPullRequest: null,
+                        script: null,
                     });
                 },
             );
