@@ -46,6 +46,8 @@ import { WaffleView } from './waffle/WaffleView';
 const MAP_HEIGHT = 560;
 // The waffle shrinks its squares to fit the window, but is never squeezed below this
 const MIN_WAFFLE_HEIGHT = 240;
+// The map gives up height to fit the window too, down to this
+const MIN_MAP_HEIGHT = 320;
 // About how far under the drawing's bottom edge the detail card begins (the legend sits between)
 const DETAIL_BELOW_MAP_PX = 60;
 // Longer than the sweep takes to cross the map and the detail below it
@@ -430,7 +432,9 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                                         : 'There is nobody in this organisation yet. People appear here once they are invited.'}
                                 </div>
                             ) : layout === 'map' ? (
-                                <div ref={canvas.ref} className="ad-canvas" style={{ height: MAP_HEIGHT }}>
+                                // The outer box is measured for the room the window leaves; the inner one is the map's own size
+                                <div ref={fit.ref}>
+                                <div ref={canvas.ref} className="ad-canvas" style={{ height: Math.min(MAP_HEIGHT, Math.max(fit.height ?? MAP_HEIGHT, MIN_MAP_HEIGHT)) }}>
                                     {canvas.isMeasured && (
                                         <PeopleMap
                                             width={canvas.width}
@@ -443,6 +447,7 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                                             onSelect={select}
                                         />
                                     )}
+                                </div>
                                 </div>
                             ) : (
                                 // The outer box is measured for the room the window leaves; the inner one for its width

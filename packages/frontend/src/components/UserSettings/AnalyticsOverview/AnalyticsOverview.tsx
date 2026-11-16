@@ -198,7 +198,13 @@ const AnalyticsOverview = ({
     };
     const tab =
         analyticsTabs.find(({ id }) => id === activeTab) ?? analyticsTabs[0];
-    const headlineSpecs = analyticsHeadlineMetrics.map(({ query }) => query);
+    // The Adoption app has its own controls and reads no dates or project
+    const isAdoption = tab.id === 'adoption';
+    // The headline numbers summarise the whole instance, so they sit on the first tab only
+    const showHeadlines = tab.id === 'overview';
+    const headlineSpecs = showHeadlines
+        ? analyticsHeadlineMetrics.map(({ query }) => query)
+        : [];
     const currentQueries = useAnalyticsOverviewQueries(
         projectUuid,
         [
@@ -239,7 +245,11 @@ const AnalyticsOverview = ({
                 >
                     Project homepage
                 </Button>
-                <Stack gap="xs" className={classes.filters}>
+                <Stack
+                    gap="xs"
+                    className={classes.filters}
+                    display={isAdoption ? 'none' : undefined}
+                >
                     <Group gap="md" className={classes.filterControls}>
                         <Tooltip
                             label={
@@ -296,19 +306,21 @@ const AnalyticsOverview = ({
                     Project filters are unavailable. Showing all projects.
                 </Text>
             )}
-            <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="md">
-                {analyticsHeadlineMetrics.map((metric, index) => (
-                    <HeadlineMetric
-                        key={metric.title}
-                        metric={metric}
-                        query={currentQueries[index]}
-                        previousQuery={previousQueries[index]}
-                        previousFilters={previousFilters}
-                        selected={metric.tab === activeTab}
-                        onSelect={() => setActiveTab(metric.tab)}
-                    />
-                ))}
-            </SimpleGrid>
+            {showHeadlines && (
+                <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="md">
+                    {analyticsHeadlineMetrics.map((metric, index) => (
+                        <HeadlineMetric
+                            key={metric.title}
+                            metric={metric}
+                            query={currentQueries[index]}
+                            previousQuery={previousQueries[index]}
+                            previousFilters={previousFilters}
+                            selected={metric.tab === activeTab}
+                            onSelect={() => setActiveTab(metric.tab)}
+                        />
+                    ))}
+                </SimpleGrid>
+            )}
             <Tabs
                 value={activeTab}
                 onChange={(value) => setActiveTab(value ?? 'overview')}
@@ -431,7 +443,7 @@ const AnalyticsOverview = ({
                         )}
                     </Group>
                 </Group>
-                <Tabs.Panel value={activeTab} pt="lg">
+                <Tabs.Panel value={activeTab} pt={isAdoption ? 'sm' : 'lg'}>
                     {tab.id === 'adoption' ? (
                         <AnalyticsAdoptionPreview projectUuid={projectUuid} />
                     ) : (

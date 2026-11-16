@@ -110,6 +110,8 @@
 
 .tab {
     padding-block: var(--mantine-spacing-sm);
+    /* The tab strip clips anything drawn outside a tab, so the focus ring sits inside it */
+    outline-offset: -2px;
 }
 
 .tab[data-active] {

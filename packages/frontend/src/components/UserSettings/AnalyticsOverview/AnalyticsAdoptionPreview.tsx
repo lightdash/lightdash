@@ -1,5 +1,6 @@
 import { ActionIcon, Alert, Box, Center, Loader, Tooltip } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
+import { useLayoutEffect, useState } from 'react';
 import { Link } from 'react-router';
 import AppIframePreview from '../../../features/apps/AppIframePreview';
 import { getVisiblePreviewTokenError } from '../../../features/apps/hooks/previewTokenQueryOptions';
@@ -38,6 +39,40 @@ export const AnalyticsAdoptionLink = ({
     );
 };
 
+const MIN_APP_HEIGHT = 480;
+const APP_BOTTOM_GAP = 16;
+
+// The height left in the window below where the box starts, so the app fits on screen without scrolling the page
+const useRemainingHeight = () => {
+    const [element, setElement] = useState<HTMLDivElement | null>(null);
+    const [height, setHeight] = useState(MIN_APP_HEIGHT);
+    useLayoutEffect(() => {
+        if (!element) return undefined;
+        const measure = () =>
+            setHeight(
+                Math.max(
+                    MIN_APP_HEIGHT,
+                    Math.round(
+                        window.innerHeight -
+                            element.getBoundingClientRect().top -
+                            APP_BOTTOM_GAP,
+                    ),
+                ),
+            );
+        measure();
+        window.addEventListener('resize', measure);
+        // Catches the page above the box changing height, which moves the box
+        const observer = new ResizeObserver(measure);
+        observer.observe(document.body);
+        if (element.parentElement) observer.observe(element.parentElement);
+        return () => {
+            window.removeEventListener('resize', measure);
+            observer.disconnect();
+        };
+    }, [element]);
+    return { ref: setElement, height };
+};
+
 export const AnalyticsAdoptionPreview = ({
     projectUuid,
 }: {
@@ -54,6 +89,7 @@ export const AnalyticsAdoptionPreview = ({
         'standalone',
     );
     const origin = usePreviewOrigin();
+    const fit = useRemainingHeight();
 
     if (
         app.isError ||
@@ -79,7 +115,7 @@ export const AnalyticsAdoptionPreview = ({
     }
 
     return (
-        <Box h="max(760px, 82vh)" pos="relative">
+        <Box ref={fit.ref} h={fit.height} pos="relative">
             <AppIframePreview
                 src={`${origin}/api/apps/${appUuid}/versions/${version}/t/${preview.data}/#transport=postMessage&projectUuid=${projectUuid}`}
                 previewToken={preview.data}
