@@ -116,7 +116,7 @@ const Segmented = <T extends string>({
                         {index > 0 && <span aria-hidden className={`my-1.5 w-px ${hasLine ? 'bg-border' : 'bg-transparent'}`} />}
                         {extra ? (
                             <span className={`inline-flex items-stretch rounded ${pill}`}>
-                                <button type="button" aria-pressed={value === option} className="rounded-l py-1 pl-2.5 pr-0.5 text-xs font-medium" onClick={() => onChange(option)}>
+                                <button type="button" aria-pressed={value === option} className="rounded-l py-1 pl-2.5 pr-0 text-xs font-medium" onClick={() => onChange(option)}>
                                     {labels[option]}
                                 </button>
                                 {extra}
@@ -147,7 +147,7 @@ const FeatureMenu = ({ features, onFeatures }: { features: number; onFeatures: (
                 <button
                     type="button"
                     // Part of the Features button it sits in: no line between them
-                    className="inline-flex items-center rounded-r pl-0.5 pr-2 hover:text-foreground"
+                    className="inline-flex items-center rounded px-1.5 hover:text-foreground"
                     aria-label={`Choose the features to colour by (${summary})`}
                     title={`Choose the features to colour by (${summary})`}
                 >
