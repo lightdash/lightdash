@@ -2258,7 +2258,8 @@ export class UserModel {
                 async ([projectUuid, projectRole]) => {
                     const [project] = await trx('projects')
                         .select('project_id')
-                        .where('project_uuid', projectUuid);
+                        .where('project_uuid', projectUuid)
+                        .andWhere('organization_id', org.organization_id);
 
                     if (project) {
                         await trx('project_memberships').insert({
@@ -2289,8 +2290,17 @@ export class UserModel {
         const projectMemberships = Object.entries(projects).map(
             async ([projectUuid, projectRole]) => {
                 const [project] = await this.database(ProjectTableName)
-                    .select('project_id')
-                    .where('project_uuid', projectUuid);
+                    .innerJoin(
+                        OrganizationMembershipsTableName,
+                        `${OrganizationMembershipsTableName}.organization_id`,
+                        `${ProjectTableName}.organization_id`,
+                    )
+                    .select(`${ProjectTableName}.project_id`)
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .andWhere(
+                        `${OrganizationMembershipsTableName}.user_id`,
+                        user.user_id,
+                    );
 
                 if (project) {
                     await this.database(ProjectMembershipsTableName)
