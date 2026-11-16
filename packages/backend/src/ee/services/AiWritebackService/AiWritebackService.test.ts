@@ -54,8 +54,8 @@ import {
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
-    findDbtErrorLines,
     AiWritebackService,
+    findDbtErrorLines,
     mergeSourceCodeRepoAccess,
     workstreamLockKey,
 } from './AiWritebackService';
