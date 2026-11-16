@@ -1,3 +1,10 @@
+## [3.268.4](https://github.com/lightdash/lightdash/compare/3.268.3...3.268.4) (2026-11-16)
+
+
+### Bug Fixes
+
+* **onboarding:** keep the BigQuery dataset field visible ([#32661](https://github.com/lightdash/lightdash/issues/32661)) ([65a4798](https://github.com/lightdash/lightdash/commit/65a47981930b94bf43c8331733142bfcd82c6fcc))
+
 ## [3.268.3](https://github.com/lightdash/lightdash/compare/3.268.2...3.268.3) (2026-11-16)
 
 
