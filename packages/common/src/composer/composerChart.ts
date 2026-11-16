@@ -319,9 +319,7 @@ const getChartConfigNames = (chartConfig: ChartConfig): string[] => {
         case ChartType.FUNNEL:
             return compact([chartConfig.config?.fieldId]);
         case ChartType.DATA_APP_VIZ:
-            throw new ParameterError(
-                'Composer charts do not support custom chart types yet',
-            );
+            return Object.values(chartConfig.config?.fieldMapping ?? {}).flat();
         case ChartType.TREEMAP:
             return compact([
                 ...(chartConfig.config?.groupFieldIds ?? []),
@@ -359,13 +357,23 @@ const getChartConfigNames = (chartConfig: ChartConfig): string[] => {
     }
 };
 
-/** Strict parse of a stored chart; every name a config uses must be a column. */
-export const parseComposerStoredChart = (
+const parseChart = (
     document: unknown,
+    { pinned }: { pinned: boolean },
 ): ComposerStoredChart => {
     const result = storedChartSchema.safeParse(document);
     if (!result.success) throw toParameterError('chart', result.error);
     const { columns, pivotConfig, tableConfig } = result.data;
+    const chartConfig = result.data.chartConfig as ChartConfig;
+    if (
+        pinned &&
+        chartConfig.type === ChartType.DATA_APP_VIZ &&
+        !Number.isInteger(chartConfig.config?.dataAppVizVersion)
+    ) {
+        throw new ParameterError(
+            'Composer chart chartConfig has no dataAppVizVersion pin',
+        );
+    }
 
     const names = new Set<string>();
     columns.forEach(({ reference }) => {
@@ -384,9 +392,7 @@ export const parseComposerStoredChart = (
 
     let chartConfigNames: unknown;
     try {
-        chartConfigNames = getChartConfigNames(
-            result.data.chartConfig as ChartConfig,
-        );
+        chartConfigNames = getChartConfigNames(chartConfig);
     } catch (e) {
         if (e instanceof ParameterError) throw e;
         throw new ParameterError('Invalid composer chart chartConfig');
@@ -414,6 +420,14 @@ export const parseComposerStoredChart = (
     });
     return result.data as ComposerStoredChart;
 };
+
+/** Strict parse of a stored chart; every name a config uses must be a column, and a custom chart type is pinned. */
+export const parseComposerStoredChart = (document: unknown) =>
+    parseChart(document, { pinned: true });
+
+/** Strict parse of a chart to create; a custom chart type may omit its pin, which create fills. */
+export const parseComposerChartInput = (document: unknown) =>
+    parseChart(document, { pinned: false });
 
 /**
  * Why the author may not write this pipeline, null when they may. The server

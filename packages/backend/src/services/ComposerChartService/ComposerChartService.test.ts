@@ -13,6 +13,7 @@ import {
     type ComposerChartPipelineNode,
     type CreateComposerChart,
     type DashboardFilters,
+    type DataAppVizSchema,
     type Explore,
     type ParametersValuesMap,
     type PossibleAbilities,
@@ -20,6 +21,7 @@ import {
 import { fromOauth, fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
+import type { AppModel } from '../../models/AppModel';
 import type { ComposerChartModel } from '../../models/ComposerChartModel';
 import type { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -154,6 +156,44 @@ const createBody = (
     },
 });
 
+const vizSchema: DataAppVizSchema = {
+    fields: [
+        {
+            name: 'category',
+            label: 'Category',
+            type: 'dimension',
+            required: true,
+        },
+        { name: 'value', label: 'Value', type: 'metric', required: true },
+    ],
+    configOptions: [],
+    colorPalette: null,
+};
+
+const customChartBody = (
+    config: Record<string, unknown>,
+): CreateComposerChart => {
+    const body = createBody(PIPELINES.sql);
+    return {
+        ...body,
+        chart: {
+            ...body.chart,
+            columns: [
+                { reference: 'status', fieldType: FieldType.DIMENSION },
+                { reference: 'n', fieldType: FieldType.METRIC },
+            ],
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'viz-uuid',
+                    fieldMapping: { category: 'status', value: 'n' },
+                    ...config,
+                } as never,
+            },
+        },
+    };
+};
+
 const setup = ({ flagEnabled = true } = {}) => {
     const querySourceService = {
         submitComposerRun: vi.fn(
@@ -198,8 +238,25 @@ const setup = ({ flagEnabled = true } = {}) => {
         create: vi.fn(async () => 'chart-uuid'),
         get: vi.fn(async () => ({ uuid: 'chart-uuid' })),
     };
+    const appModel = {
+        findAppsBySlugs: vi.fn(async () => []),
+        findAppsByUuids: vi.fn(async (_: string, uuids: string[]) =>
+            uuids.includes('viz-uuid') ? [{ app_id: 'viz-uuid' }] : [],
+        ),
+        getVersion: vi.fn(async (_: string, version: number) =>
+            version === 2
+                ? { version, status: 'ready', viz_schema: vizSchema }
+                : null,
+        ),
+        getLatestRenderableDataAppVizVersion: vi.fn(async () => ({
+            version: 2,
+            status: 'ready',
+            viz_schema: vizSchema,
+        })),
+    };
     const service = new ComposerChartService({
         composerChartModel: composerChartModel as unknown as ComposerChartModel,
+        appModel: appModel as unknown as AppModel,
         dashboardModel: {
             getSummaryByUuid: vi.fn(async () => ({
                 projectUuid,
@@ -335,6 +392,60 @@ describe('ComposerChartService.create', () => {
         );
         await service.create(account, projectUuid, createBody(PIPELINES.sql));
         expect(composerChartModel.create).toHaveBeenCalledOnce();
+    });
+});
+
+describe('ComposerChartService.create with a custom chart type', () => {
+    test('pins the latest renderable version when the chart names none', async () => {
+        const { service, composerChartModel } = setup();
+        await service.create(
+            sessionAccount(abilityWithout(null)),
+            projectUuid,
+            customChartBody({}),
+        );
+        expect(composerChartModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                chart: expect.objectContaining({
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizUuid: 'viz-uuid',
+                            dataAppVizVersion: 2,
+                            fieldMapping: { category: 'status', value: 'n' },
+                        },
+                    },
+                }),
+            }),
+        );
+    });
+
+    test.each([
+        [
+            'a version that does not render',
+            { dataAppVizVersion: 1 },
+            'version 1',
+        ],
+        ['a type from another project', { dataAppVizUuid: 'other' }, 'other'],
+        [
+            'a metric slot bound to a dimension',
+            { fieldMapping: { category: 'status', value: 'status' } },
+            'value',
+        ],
+        [
+            'an unknown slot',
+            { fieldMapping: { category: 'status', value: 'n', size: 'n' } },
+            'size',
+        ],
+    ])('refuses %s, naming it', async (_, config, named) => {
+        const { service, composerChartModel } = setup();
+        await expect(
+            service.create(
+                sessionAccount(abilityWithout(null)),
+                projectUuid,
+                customChartBody(config),
+            ),
+        ).rejects.toThrow(named);
+        expect(composerChartModel.create).not.toHaveBeenCalled();
     });
 });
 

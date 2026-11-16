@@ -647,6 +647,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSpacePermissionService(),
                     coderService: repository.getCoderService(),
                     documentService: repository.getDocumentService(),
+                    composerChartService: repository.getComposerChartService(),
                     dashboardService: repository.getDashboardService(),
                     projectService: repository.getProjectService(),
                     promoteService: repository.getPromoteService(),
