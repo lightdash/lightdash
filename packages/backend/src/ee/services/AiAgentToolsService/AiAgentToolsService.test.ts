@@ -2645,6 +2645,120 @@ describe('AiAgentToolsService', () => {
         expect(executeDashboardChartQueryAndGetResults).not.toHaveBeenCalled();
     });
 
+    describe('saved chart queries for a tag-scoped agent', () => {
+        const dimension = (name: string, tags: string[]) => ({
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            name,
+            table: 'orders',
+            tags,
+        });
+        const explores = {
+            orders: makeExplore({
+                name: 'orders',
+                dimensions: {
+                    status: dimension('status', ['ai']),
+                    email: dimension('email', ['internal']),
+                },
+            }),
+            payments: makeExplore({ name: 'payments', tags: ['internal'] }),
+        };
+        const chartOn = (exploreName: string, dimensions: string[]) => ({
+            uuid: 'chart-uuid',
+            spaceUuid: 'space-uuid',
+            metricQuery: { exploreName, dimensions, metrics: [] },
+        });
+        const setup = (savedChart: ReturnType<typeof chartOn>) => {
+            const executeSavedChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+            const executeDashboardChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+            const service = makeService({
+                explores,
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue(savedChart),
+                },
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'dashboard-uuid',
+                        spaceUuid: 'space-uuid',
+                        filters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        config: { isDateZoomDisabled: true },
+                        tiles: [
+                            {
+                                uuid: 'tile-uuid',
+                                type: DashboardTileTypes.SAVED_CHART,
+                                properties: { savedChartUuid: 'chart-uuid' },
+                            },
+                        ],
+                    }),
+                },
+                asyncQueryService: {
+                    executeSavedChartQueryAndGetResults,
+                    executeDashboardChartQueryAndGetResults,
+                },
+            });
+            return {
+                runtime: service.createRuntime(
+                    makeRuntimeContext({ tags: ['ai'] }),
+                ),
+                executeSavedChartQueryAndGetResults,
+                executeDashboardChartQueryAndGetResults,
+            };
+        };
+
+        describe.each([
+            ['a chart', null],
+            ['a dashboard chart', 'dashboard'],
+        ])('%s', (_source, dashboardSlug) => {
+            it.each([
+                ['an explore outside the agent tags', chartOn('payments', [])],
+                [
+                    'a field outside the agent tags',
+                    chartOn('orders', ['orders_status', 'orders_email']),
+                ],
+            ])('does not run on %s', async (_case, savedChart) => {
+                const {
+                    runtime,
+                    executeSavedChartQueryAndGetResults,
+                    executeDashboardChartQueryAndGetResults,
+                } = setup(savedChart);
+
+                await expect(
+                    runtime.runSavedChartQuery({
+                        chartUuid: 'chart-uuid',
+                        dashboardSlug,
+                        limit: 100,
+                    }),
+                ).rejects.toThrow(NotFoundError);
+                expect(
+                    executeSavedChartQueryAndGetResults,
+                ).not.toHaveBeenCalled();
+                expect(
+                    executeDashboardChartQueryAndGetResults,
+                ).not.toHaveBeenCalled();
+            });
+
+            it('runs on fields inside the agent tags', async () => {
+                const { runtime } = setup(chartOn('orders', ['orders_status']));
+
+                await expect(
+                    runtime.runSavedChartQuery({
+                        chartUuid: 'chart-uuid',
+                        dashboardSlug,
+                        limit: 100,
+                    }),
+                ).resolves.toEqual({ rows: [] });
+            });
+        });
+    });
+
     describe('date zoom on a dashboard chart query', () => {
         const zoomControls = {
             controls: [

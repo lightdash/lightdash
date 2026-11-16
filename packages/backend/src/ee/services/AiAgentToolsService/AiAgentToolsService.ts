@@ -4425,6 +4425,10 @@ export class AiAgentToolsService extends BaseService {
                         `Chart not found: ${args.chartUuid}`,
                         'read',
                     );
+                    await this.assertSavedChartFieldsInScope(
+                        context,
+                        args.chartUuid,
+                    );
 
                     await context.onWarehouseQuery?.();
                     return this.asyncQueryService.executeSavedChartQueryAndGetResults(
@@ -4471,6 +4475,10 @@ export class AiAgentToolsService extends BaseService {
                         `Chart ${args.chartUuid} not found on dashboard ${args.dashboardSlug}`,
                     );
                 }
+                await this.assertSavedChartFieldsInScope(
+                    context,
+                    args.chartUuid,
+                );
 
                 const { dateZoom, savedChart } =
                     await this.resolveDashboardTileDateZoom(
@@ -4505,6 +4513,29 @@ export class AiAgentToolsService extends BaseService {
                     args.onQueryPrepared,
                 );
             },
+        );
+    }
+
+    /** A tag-scoped agent may only run a saved chart whose explore and fields its tags expose. */
+    private async assertSavedChartFieldsInScope(
+        context: AiAgentToolsRuntimeContext,
+        chartUuid: string,
+    ) {
+        if (!context.tags || context.tags.length === 0) return;
+
+        const { metricQuery } = await this.savedChartService.get(
+            chartUuid,
+            context.account,
+            { projectUuid: context.projectUuid },
+        );
+        const explore = await this.getExploreForRuntime(context, {
+            table: metricQuery.exploreName,
+        });
+        AiAgentToolsService.assertSelectedFieldsExist(
+            explore,
+            [...metricQuery.dimensions, ...metricQuery.metrics],
+            metricQuery.additionalMetrics ?? [],
+            metricQuery.customDimensions ?? [],
         );
     }
 
