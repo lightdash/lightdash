@@ -171,20 +171,18 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
             onMouseLeave={handleMouseLeave}
             pl={pl}
             label={
-                <Group gap={6} wrap="nowrap">
-                    <HoverCard
-                        openDelay={300}
-                        keepMounted={false}
-                        withArrow
-                        disabled={!description && !node.source}
-                        position="right"
-                        /**
-                         * Ensures the hover card does not overlap with the right-hand menu.
-                         */
-                        offset={80}
-                        transitionProps={ITEM_DETAIL_PREVIEW_TRANSITION_PROPS}
-                    >
-                        <HoverCard.Target>
+                <HoverCard
+                    openDelay={300}
+                    keepMounted={false}
+                    withArrow
+                    disabled={!description && !node.source}
+                    position="right"
+                    // The whole row is the target, so the card sits just past it
+                    offset={36}
+                    transitionProps={ITEM_DETAIL_PREVIEW_TRANSITION_PROPS}
+                >
+                    <HoverCard.Target>
+                        <Group gap={6} wrap="nowrap">
                             <Text
                                 truncate
                                 fz={13}
@@ -199,42 +197,42 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                                     {label}
                                 </Highlight>
                             </Text>
-                        </HoverCard.Target>
-                        <HoverCard.Dropdown
-                            hidden={!isHover}
-                            p="sm"
-                            /**
-                             * Takes up space to the right, so it's OK to go fairly wide in the interest
-                             * of readability.
-                             */
-                            maw={340}
-                            className={previewClasses.previewDropdown}
-                            onClick={handleDropdownClick}
-                        >
-                            <ItemDetailPreview
-                                sourceLabel={node.source?.label}
-                                onViewDescription={onOpenDescriptionView}
-                                description={description}
-                            />
-                        </HoverCard.Dropdown>
-                    </HoverCard>
-                    {node.source?.showInline && (
-                        <Text
-                            fz="xs"
-                            c="dimmed"
-                            truncate
-                            maw={110}
-                            title={node.source.label}
-                        >
-                            {node.source.label}
-                        </Text>
-                    )}
-                    {!isOpen && hasSelectedChildren && (
-                        <Badge size="xs" flex="0 0 auto">
-                            {selectedChildrenCount}
-                        </Badge>
-                    )}
-                </Group>
+                            {node.source?.showInline && (
+                                <Text
+                                    fz="xs"
+                                    c="dimmed"
+                                    truncate
+                                    maw={110}
+                                    title={node.source.label}
+                                >
+                                    {node.source.label}
+                                </Text>
+                            )}
+                            {!isOpen && hasSelectedChildren && (
+                                <Badge size="xs" flex="0 0 auto">
+                                    {selectedChildrenCount}
+                                </Badge>
+                            )}
+                        </Group>
+                    </HoverCard.Target>
+                    <HoverCard.Dropdown
+                        hidden={!isHover}
+                        p="sm"
+                        /**
+                         * Takes up space to the right, so it's OK to go fairly wide in the interest
+                         * of readability.
+                         */
+                        maw={340}
+                        className={previewClasses.previewDropdown}
+                        onClick={handleDropdownClick}
+                    >
+                        <ItemDetailPreview
+                            sourceLabel={node.source?.label}
+                            onViewDescription={onOpenDescriptionView}
+                            description={description}
+                        />
+                    </HoverCard.Dropdown>
+                </HoverCard>
             }
         >
             {/* In virtualized mode, children are rendered as separate items in the flat list */}

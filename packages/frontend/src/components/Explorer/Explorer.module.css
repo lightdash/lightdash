@@ -25,6 +25,34 @@
     margin: 0;
 }
 
+.landing[data-drop-active] {
+    border-radius: var(--mantine-radius-md);
+    outline: 1.5px dashed var(--mantine-color-blue-filled);
+    outline-offset: -4px;
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-blue-filled) 5%,
+        transparent
+    );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .landing[data-drop-active] {
+        animation: drop-breathe 1.1s ease-in-out infinite alternate;
+    }
+}
+
+@keyframes drop-breathe {
+    to {
+        outline-offset: -7px;
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-blue-filled) 10%,
+            transparent
+        );
+    }
+}
+
 @media (prefers-reduced-motion: no-preference) {
     .landing {
         animation: section-in 320ms cubic-bezier(0.16, 1, 0.3, 1) backwards;

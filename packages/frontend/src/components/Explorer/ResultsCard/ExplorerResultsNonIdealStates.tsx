@@ -3,8 +3,8 @@ import {
     type ApiErrorDetail,
     type QueryHistoryStatus,
 } from '@lightdash/common';
-import { Anchor, Button, Text } from '@mantine/core';
-import { IconArrowNarrowLeft, IconTableOff } from '@tabler/icons-react';
+import { Anchor, Text } from '@mantine/core';
+import { IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
 import { Link } from 'react-router';
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
@@ -155,22 +155,7 @@ export const NoTableSelected = () => (
                 />
             </>
         }
-    >
-        <Button
-            size="xs"
-            variant="default"
-            leftSection={<MantineIcon icon={IconArrowNarrowLeft} />}
-            onClick={() =>
-                document
-                    .querySelector<HTMLInputElement>(
-                        '[data-tour-anchor="explore-search"]',
-                    )
-                    ?.focus()
-            }
-        >
-            Search tables
-        </Button>
-    </EmptyState>
+    />
 );
 
 export const EmptyStateExploreLoading = () => (

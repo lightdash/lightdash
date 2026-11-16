@@ -56,6 +56,7 @@ import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
 import classes from './Explorer.module.css';
 import ExplorerHeader from './ExplorerHeader';
+import { useAddDroppedFieldToQuery, useFieldDrop } from './fieldDrag';
 import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
 import ParametersCard from './ParametersCard/ParametersCard';
@@ -115,6 +116,8 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
             useExplorerSelector(selectPeriodOverPeriodComparisonModal);
 
         const dispatch = useExplorerDispatch();
+        // The empty state takes a first field dropped anywhere on it
+        const pickFieldsDrop = useFieldDrop(useAddDroppedFieldToQuery());
 
         const projectUuid = useProjectUuid();
 
@@ -369,6 +372,10 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
                                 <Group
                                     className={classes.landing}
                                     justify="center"
+                                    data-drop-active={
+                                        pickFieldsDrop.isOver || undefined
+                                    }
+                                    {...pickFieldsDrop.dropProps}
                                 >
                                     <EmptyStateNoColumns />
                                 </Group>

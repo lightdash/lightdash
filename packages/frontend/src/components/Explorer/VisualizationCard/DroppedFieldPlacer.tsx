@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    getItemLabelWithoutTableName,
     isDateItem,
     isDimension as isDimensionItem,
 } from '@lightdash/common';
@@ -13,6 +14,7 @@ import {
     useVisualizationSelector,
 } from '../../../features/visualization/store';
 import { useCartesianEditorActions } from '../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import useToaster from '../../../hooks/toaster/useToaster';
 import {
     isBigNumberVisualizationConfig,
     isCartesianVisualizationConfig,
@@ -48,6 +50,7 @@ const DroppedFieldPlacer: FC<Props> = ({ field, pickChartType, onPlaced }) => {
     const { setXField, addSingleSeries } = useCartesianEditorActions();
     const { setPivotDimensions } = useVisualizationServices();
     const explorerDispatch = useExplorerDispatch();
+    const { showToastInfo } = useToaster();
     const hasField = !!itemsMap && field.fieldId in itemsMap;
 
     useEffect(() => {
@@ -86,6 +89,14 @@ const DroppedFieldPlacer: FC<Props> = ({ field, pickChartType, onPlaced }) => {
                 setPivotDimensions([fieldId]);
                 // Grouped series come from a pivoted query, so run it again
                 explorerDispatch(explorerActions.requestQueryExecution());
+            } else if (layout.xField !== fieldId) {
+                // Axis and grouping are taken: say where the field went
+                const item = itemsMap?.[fieldId];
+                showToastInfo({
+                    title: `${item ? getItemLabelWithoutTableName(item) : 'Field'} added to the results`,
+                    subtitle:
+                        'The chart already has an x-axis and a grouping. Use Configure to place it.',
+                });
             }
         }
         onPlaced();
