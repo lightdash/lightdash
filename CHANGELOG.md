@@ -1,3 +1,15 @@
+# [3.264.0](https://github.com/lightdash/lightdash/compare/3.263.1...3.264.0) (2026-11-16)
+
+
+### Bug Fixes
+
+* **previews:** carry the parent SSH key when a CLI preview is created ([#32620](https://github.com/lightdash/lightdash/issues/32620)) ([16d4d13](https://github.com/lightdash/lightdash/commit/16d4d138e26765ce62d8f84bb95f991d52b2f8a2))
+
+
+### Features
+
+* **billing:** add billing portal page to organization settings ([#32595](https://github.com/lightdash/lightdash/issues/32595)) ([f6c0f1d](https://github.com/lightdash/lightdash/commit/f6c0f1dc28a30417bda8c2dc6788bdefc27e211f))
+
 ## [3.263.1](https://github.com/lightdash/lightdash/compare/3.263.0...3.263.1) (2026-11-16)
 
 
