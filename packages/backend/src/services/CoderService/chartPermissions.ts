@@ -8,6 +8,7 @@ import {
     type Explore,
     type TableCalculation,
 } from '@lightdash/common';
+import { getCustomMetricSqlPermissionMessage } from '../ProjectService/customMetricSqlPermission';
 
 export type ContentAsCodeSqlPermissionCheckResult = {
     check: 'customSqlDimension' | 'sqlTableCalculation' | 'customMetricSql';
@@ -75,13 +76,11 @@ export const getChartContentAsCodePermissionChecks = (
         nextChart.metricQuery.additionalMetrics ?? [],
         currentMetricQuery?.additionalMetrics ?? [],
         exploreTables,
-    ).map(({ name }) => name);
+    );
     if (changedMetrics.length > 0) {
         checks.push({
             check: 'customMetricSql',
-            message: `User cannot upload content with new or modified custom metrics written in SQL: ${changedMetrics.join(
-                ', ',
-            )} (chart slug "${nextChart.slug}")`,
+            message: `${getCustomMetricSqlPermissionMessage(changedMetrics)} (chart slug "${nextChart.slug}")`,
         });
     }
     return checks;

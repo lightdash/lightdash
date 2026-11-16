@@ -190,7 +190,7 @@ describe('content-as-code SQL permission detector', () => {
             {
                 check: 'customMetricSql',
                 message:
-                    'User cannot upload content with new or modified custom metrics written in SQL: written (chart slug "chart")',
+                    'Custom metrics written in SQL need permission to manage custom fields: written (chart slug "chart")',
             },
         ]);
     });

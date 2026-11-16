@@ -123,7 +123,10 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
-import { getCustomMetricExploreTables } from '../ProjectService/customMetricExploreTables';
+import {
+    getCustomMetricExploreTables,
+    getCustomMetricSqlPermissionMessage,
+} from '../ProjectService/customMetricSqlPermission';
 import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
@@ -1054,25 +1057,40 @@ export class SavedChartService
         }
     }
 
-    private async hasNewHandWrittenCustomMetrics(
+    private async assertCanSaveCustomMetricSql(
         account: Account,
-        projectUuid: string,
+        auditedAbility: ReturnType<SavedChartService['createAuditedAbility']>,
+        projectContext: {
+            organizationUuid: string;
+            projectUuid: string;
+            metadata?: { savedChartUuid: string };
+        },
         metricQuery: Pick<MetricQuery, 'exploreName' | 'additionalMetrics'>,
         savedAdditionalMetrics: AdditionalMetric[],
-    ): Promise<boolean> {
-        const tables = await getCustomMetricExploreTables(
-            this.getProjectService,
-            account,
-            projectUuid,
-            metricQuery,
+    ): Promise<void> {
+        if (
+            auditedAbility.can(
+                'manage',
+                subject('CustomFields', projectContext),
+            )
+        ) {
+            return;
+        }
+        const newHandWritten = getNewHandWrittenAdditionalMetrics(
+            metricQuery.additionalMetrics ?? [],
+            savedAdditionalMetrics,
+            await getCustomMetricExploreTables(
+                this.getProjectService,
+                account,
+                projectContext.projectUuid,
+                metricQuery,
+            ),
         );
-        return (
-            getNewHandWrittenAdditionalMetrics(
-                metricQuery.additionalMetrics ?? [],
-                savedAdditionalMetrics,
-                tables,
-            ).length > 0
-        );
+        if (newHandWritten.length > 0) {
+            throw new ForbiddenError(
+                getCustomMetricSqlPermissionMessage(newHandWritten),
+            );
+        }
     }
 
     async createVersion(
@@ -1242,26 +1260,13 @@ export class SavedChartService
             chartVersion.metricQuery,
         );
 
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { savedChartUuid },
-                }),
-            ) &&
-            (await this.hasNewHandWrittenCustomMetrics(
-                account,
-                projectUuid,
-                chartVersion.metricQuery,
-                oldAdditionalMetrics ?? [],
-            ))
-        ) {
-            throw new ForbiddenError(
-                'User cannot save queries with new or modified custom metrics written in SQL',
-            );
-        }
+        await this.assertCanSaveCustomMetricSql(
+            account,
+            auditedAbility,
+            { organizationUuid, projectUuid, metadata: { savedChartUuid } },
+            chartVersion.metricQuery,
+            oldAdditionalMetrics ?? [],
+        );
 
         const verificationAfterUpdate =
             await this.getVerificationAfterChartUpdate({
@@ -2544,22 +2549,13 @@ export class SavedChartService
             chartToSave.metricQuery,
         );
 
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', { organizationUuid, projectUuid }),
-            ) &&
-            (await this.hasNewHandWrittenCustomMetrics(
-                account,
-                projectUuid,
-                chartToSave.metricQuery,
-                [],
-            ))
-        ) {
-            throw new ForbiddenError(
-                'User cannot save queries with custom metrics written in SQL',
-            );
-        }
+        await this.assertCanSaveCustomMetricSql(
+            account,
+            auditedAbility,
+            { organizationUuid, projectUuid },
+            chartToSave.metricQuery,
+            [],
+        );
 
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,

@@ -3221,7 +3221,7 @@ describe('DashboardService', () => {
                     } as never,
                 }),
             ).rejects.toThrowError(
-                'User cannot save custom metrics written in SQL',
+                'Custom metrics written in SQL need permission to manage custom fields: Avg amount',
             );
             expect(
                 dashboardModel.updateLatestVersionConfig,

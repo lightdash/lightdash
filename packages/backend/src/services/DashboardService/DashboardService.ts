@@ -155,7 +155,10 @@ import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionC
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
-import { getCustomMetricExploreTables } from '../ProjectService/customMetricExploreTables';
+import {
+    getCustomMetricExploreTables,
+    getCustomMetricSqlPermissionMessage,
+} from '../ProjectService/customMetricSqlPermission';
 import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
 import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import type { ProjectService } from '../ProjectService/ProjectService';
@@ -3752,7 +3755,7 @@ export class DashboardService
             );
             if (newHandWritten.some((metrics) => metrics.length > 0)) {
                 throw new ForbiddenError(
-                    'User cannot save custom metrics written in SQL',
+                    getCustomMetricSqlPermissionMessage([metric]),
                 );
             }
         }

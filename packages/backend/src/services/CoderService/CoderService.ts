@@ -180,7 +180,7 @@ import { BaseService } from '../BaseService';
 import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
-import { getCustomMetricExploreTables } from '../ProjectService/customMetricExploreTables';
+import { getCustomMetricExploreTables } from '../ProjectService/customMetricSqlPermission';
 import { getAvailableParameterDefinitions } from '../ProjectService/parameters';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';

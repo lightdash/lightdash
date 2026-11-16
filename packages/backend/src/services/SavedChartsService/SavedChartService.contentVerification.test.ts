@@ -593,7 +593,7 @@ describe('SavedChartService - Content Verification', () => {
                         metricQuery: withMetric('(SELECT 4242 + 1)'),
                     }),
                 ).rejects.toThrow(
-                    'User cannot save queries with custom metrics written in SQL',
+                    'Custom metrics written in SQL need permission to manage custom fields: Total',
                 );
                 expect(savedChartModel.create).not.toHaveBeenCalled();
                 expect(projectService.getExplore).toHaveBeenCalledWith(
@@ -621,7 +621,7 @@ describe('SavedChartService - Content Verification', () => {
                         tableConfig: baseChart.tableConfig,
                     }),
                 ).rejects.toThrow(
-                    'User cannot save queries with new or modified custom metrics written in SQL',
+                    'Custom metrics written in SQL need permission to manage custom fields: Total',
                 );
                 expect(savedChartModel.createVersion).not.toHaveBeenCalled();
             });
