@@ -1,3 +1,10 @@
+## [3.268.1](https://github.com/lightdash/lightdash/compare/3.268.0...3.268.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** offer readPinnedThread only when a conversation is pinned ([#32647](https://github.com/lightdash/lightdash/issues/32647)) ([f414f75](https://github.com/lightdash/lightdash/commit/f414f753a1ce2a7be189b3a94205b90ccef0b939))
+
 # [3.268.0](https://github.com/lightdash/lightdash/compare/3.267.3...3.268.0) (2026-11-16)
 
 
