@@ -96,11 +96,15 @@ const PROJECT_FILES = new Set([
     'lightdash.config.yml',
 ]);
 
+// dbt renders YAML strings through Jinja, which drops one trailing newline, so a block scalar's description matches the parsed one.
+const asDbtRenders = (_key: unknown, value: unknown): unknown =>
+    typeof value === 'string' ? value.replace(/(\r\n|\r|\n)$/, '') : value;
+
 const parseYaml = (path: string, text: string | null): Entry => {
     if (text === null) return {};
     let parsed: unknown;
     try {
-        parsed = parse(text);
+        parsed = parse(text, asDbtRenders);
     } catch {
         return refuse(`${path} does not parse`);
     }

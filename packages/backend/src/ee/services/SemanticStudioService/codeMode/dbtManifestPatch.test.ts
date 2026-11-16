@@ -124,6 +124,28 @@ describe('patchManifest', () => {
         );
     });
 
+    it('reads a block description the way dbt renders it, without its trailing newline', () => {
+        const result = patched(
+            patch(
+                base.replace(
+                    '                type: sum\n',
+                    '                type: sum\n                description: >\n                  Summed once.\n',
+                ),
+            ),
+        );
+        expect(result.manifest.nodes['model.shop.orders']).toMatchObject({
+            columns: {
+                amount: {
+                    meta: {
+                        metrics: {
+                            total_amount: { description: 'Summed once.' },
+                        },
+                    },
+                },
+            },
+        });
+    });
+
     it('adds a new column', () => {
         const result = patched(
             patch(
