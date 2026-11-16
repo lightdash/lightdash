@@ -7,8 +7,11 @@ import {
     MobileSignInCodeStatus,
     MobileSignInRefusal,
     NotFoundError,
+    ParameterError,
+    ProjectType,
     TooManyRequestsError,
     type MobileSignInMintReason,
+    type Project,
     type SessionUser,
 } from '@lightdash/common';
 import { createHash, randomBytes } from 'crypto';
@@ -26,6 +29,7 @@ import {
     isMobileSignInCode,
     type MobileSignInCodeModel,
 } from '../../models/MobileSignInCodeModel';
+import { sessionUser as fullSessionUser } from '../UserService.mock';
 import { MobileSignInOAuthError } from './MobileSignInOAuthError';
 import { maskDisplayName, MobileSignInService } from './MobileSignInService';
 
@@ -36,6 +40,7 @@ const userUuid = 'user-0000-test';
 const organizationUuid = 'org-0000-test';
 
 const sessionUser = {
+    ...fullSessionUser,
     userUuid,
     organizationUuid,
     firstName: 'Test',
@@ -58,6 +63,7 @@ const codeRow = {
 const createService = ({
     flagEnabled = true,
     qrSignInEnabled = true,
+    getProject = vi.fn<(...args: unknown[]) => Promise<Project>>(),
     mode = LightdashMode.CLOUD_BETA,
     managed = false,
     smtp = true,
@@ -77,6 +83,7 @@ const createService = ({
     now?: () => Date;
     flagEnabled?: boolean;
     qrSignInEnabled?: boolean;
+    getProject?: (...args: unknown[]) => Promise<Project>;
     mode?: LightdashMode;
     managed?: boolean;
     smtp?: boolean;
@@ -121,9 +128,17 @@ const createService = ({
         rateAllowed ? (counts.get(counterKey(args)) ?? 0) : 1000,
     );
     const track = vi.fn();
-    const userModel = {
-        findSessionUserAndOrgByUuid: vi.fn(async () => user),
+    const effectiveFeatureFlagModel = featureFlagModel ?? {
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled:
+                featureFlagId === 'mobile-qr-sign-in'
+                    ? qrSignInEnabled
+                    : flagEnabled,
+        })),
     };
+    const findSessionUserAndOrgByUuid = vi.fn(async () => user);
+    const userModel = { findSessionUserAndOrgByUuid };
     const service = new MobileSignInService({
         analytics: { track },
         lightdashConfig: {
@@ -136,23 +151,16 @@ const createService = ({
         mobileSignInCodeModel,
         mobileAppLinkModel: { incrementRateCounter, getRateCount },
         now,
-        featureFlagModel: featureFlagModel ?? {
-            get: vi.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId === 'mobile-qr-sign-in'
-                            ? qrSignInEnabled
-                            : flagEnabled,
-                }),
-            ),
-        },
+        featureFlagModel: effectiveFeatureFlagModel,
         userModel,
         oauthModel: { getClient: vi.fn(async () => client as never) },
         getUserService: () => ({ getManagedSignIn }),
+        getProjectService: () => ({ getProject }),
     });
     return {
         service,
+        featureFlagModel: effectiveFeatureFlagModel,
+        findSessionUserAndOrgByUuid,
         mobileSignInCodeModel,
         incrementRateCounter,
         getManagedSignIn,
@@ -216,6 +224,7 @@ describe('MobileSignInService.mint', () => {
             userUuid,
             organizationUuid,
             sessionId: 'session-0000',
+            sourceProjectUuid: null,
         });
     });
 
@@ -676,6 +685,7 @@ describe('MobileSignInService analytics', () => {
                     codeUuid: 'code-0000-test',
                     clientId: 'client-0000-test',
                     reportedPlatform: 'ios',
+                    sourceProjectUuid: null,
                 },
             },
             {},
@@ -1537,20 +1547,23 @@ describe('MobileSignInService mobile-qr-sign-in flag', () => {
         };
     };
 
-    it('refuses to create a code when the flag is off', async () => {
-        const { service, mobileSignInCodeModel } = offService();
-        const error = await service
-            .mint(sessionUser, 'session-0000', 'show')
-            .catch((caught: unknown) => caught);
-        expect(error).toBeInstanceOf(ForbiddenError);
-        expect((error as ForbiddenError).message).toBe(
-            'Sign in with a QR code is turned off for this organization',
-        );
-        expect((error as ForbiddenError).data).toEqual({
-            reason: MobileSignInRefusal.QR_SIGN_IN_DISABLED,
-        });
-        expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
-    });
+    it.each([undefined, '12345678-1234-4abc-8abc-123456789abc'])(
+        'refuses to create a code when the flag is off with source %s',
+        async (sourceProjectUuid) => {
+            const { service, mobileSignInCodeModel } = offService();
+            const error = await service
+                .mint(sessionUser, 'session-0000', 'show', sourceProjectUuid)
+                .catch((caught: unknown) => caught);
+            expect(error).toBeInstanceOf(ForbiddenError);
+            expect((error as ForbiddenError).message).toBe(
+                'Sign in with a QR code is turned off for this organization',
+            );
+            expect((error as ForbiddenError).data).toEqual({
+                reason: MobileSignInRefusal.QR_SIGN_IN_DISABLED,
+            });
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+        },
+    );
 
     it.each(['approved', 'declined'] as const)(
         'refuses to record %s when the flag is off',
@@ -1597,10 +1610,17 @@ describe('MobileSignInService mobile-qr-sign-in flag', () => {
             redeem: vi.fn(async () => ({ outcome: 'redeemed', row: codeRow })),
             decide: vi.fn(async () => ({ outcome: 'decided', row: codeRow })),
         };
-        const { service } = createService({ qrSignInEnabled: true, model });
+        const { service, featureFlagModel } = createService({
+            qrSignInEnabled: true,
+            model,
+        });
         await expect(
             service.mint(sessionUser, 'session-0000', 'show'),
         ).resolves.toMatchObject({ codeUuid: 'code-0000-test' });
+        expect(featureFlagModel.get).toHaveBeenCalledWith({
+            featureFlagId: 'mobile-qr-sign-in',
+            user: expect.objectContaining({ userUuid, organizationUuid }),
+        });
         await expect(service.claim(claimBody, {})).resolves.toMatchObject({
             interval: 2,
         });
@@ -2067,4 +2087,157 @@ describe('MobileSignInService user-targeted rollout', () => {
         );
         expect(model.claim).not.toHaveBeenCalled();
     });
+});
+
+describe('MobileSignInService source project contract', () => {
+    const sourceProjectUuid = '12345678-1234-4abc-8abc-123456789abc';
+    const project = {
+        projectUuid: sourceProjectUuid,
+        organizationUuid,
+        type: ProjectType.DEFAULT,
+    } as Project;
+
+    it.each([undefined, null])(
+        'keeps legacy minting for %s',
+        async (source) => {
+            const getProject = vi.fn();
+            const { service, mobileSignInCodeModel } = createService({
+                getProject,
+            });
+            await service.mint(sessionUser, 'session', 'show', source);
+            expect(getProject).not.toHaveBeenCalled();
+            expect(mobileSignInCodeModel.mint).toHaveBeenCalledWith({
+                userUuid,
+                organizationUuid,
+                sessionId: 'session',
+                sourceProjectUuid: null,
+            });
+        },
+    );
+
+    it('validates access and stores the canonical project with advertising off', async () => {
+        const getProject = vi.fn().mockResolvedValue(project);
+        const { service, mobileSignInCodeModel } = createService({
+            getProject,
+        });
+        await service.mint(
+            sessionUser,
+            'session',
+            'show',
+            sourceProjectUuid.toUpperCase(),
+        );
+        expect(getProject).toHaveBeenCalledWith(
+            sourceProjectUuid.toUpperCase(),
+            expect.objectContaining({
+                user: expect.objectContaining({ userUuid }),
+            }),
+        );
+        expect(mobileSignInCodeModel.mint).toHaveBeenCalledWith(
+            expect.objectContaining({ sourceProjectUuid }),
+        );
+    });
+
+    it.each(['invalid', '', '12345678'])(
+        'rejects malformed source %s',
+        async (source) => {
+            const getProject = vi.fn();
+            const { service, mobileSignInCodeModel } = createService({
+                getProject,
+            });
+            await expect(
+                service.mint(sessionUser, 'session', 'show', source),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(getProject).not.toHaveBeenCalled();
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([new ForbiddenError(), new NotFoundError('Project not found')])(
+        'rejects an inaccessible or missing project',
+        async (error) => {
+            const getProject = vi.fn().mockRejectedValue(error);
+            const { service, mobileSignInCodeModel } = createService({
+                getProject,
+            });
+            await expect(
+                service.mint(sessionUser, 'session', 'show', sourceProjectUuid),
+            ).rejects.toBe(error);
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        { ...project, organizationUuid: 'other-org' },
+        { ...project, type: ProjectType.PREVIEW },
+        { ...project, type: ProjectType.TRAINING },
+    ])(
+        'rejects a source outside the organisation or DEFAULT type',
+        async (invalidProject) => {
+            const getProject = vi.fn().mockResolvedValue(invalidProject);
+            const { service, mobileSignInCodeModel } = createService({
+                getProject,
+            });
+            await expect(
+                service.mint(sessionUser, 'session', 'show', sourceProjectUuid),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([undefined, null, sourceProjectUuid])(
+        'carries only stored source metadata on redeem: %s',
+        async (source) => {
+            const { service } = createService({
+                model: {
+                    redeem: vi.fn().mockResolvedValue({
+                        outcome: 'redeemed',
+                        row: {
+                            ...codeRow,
+                            sign_in_source_project_uuid: source,
+                        },
+                    }),
+                },
+            });
+            const redemption = await service.redeem(
+                {
+                    code,
+                    clientId: 'client-0000-test',
+                    codeVerifier: verifier,
+                    matchNumber: '07',
+                    isScopeAllowed: async () => true,
+                },
+                {},
+            );
+            expect(redemption.metadata.sourceProjectUuid).toBe(source ?? null);
+        },
+    );
+
+    it.each([false, true])(
+        'advertises protocol support without resolving flags or users when QR enabled=%s',
+        async (enabled) => {
+            const getProject = vi.fn();
+            const {
+                service,
+                featureFlagModel,
+                findSessionUserAndOrgByUuid,
+                getManagedSignIn,
+                mobileSignInCodeModel,
+                track,
+            } = createService({
+                qrSignInEnabled: enabled,
+                flagEnabled: enabled,
+                getProject,
+            });
+            expect(await service.getCapabilities()).toEqual({
+                schemaVersion: 1,
+                capabilities: { mobile_sign_in_source_project: 1 },
+            });
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(findSessionUserAndOrgByUuid).not.toHaveBeenCalled();
+            expect(getProject).not.toHaveBeenCalled();
+            expect(getManagedSignIn).not.toHaveBeenCalled();
+            expect(mobileSignInCodeModel.mint).not.toHaveBeenCalled();
+            expect(track).not.toHaveBeenCalled();
+        },
+    );
 });
