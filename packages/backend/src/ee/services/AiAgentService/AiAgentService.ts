@@ -553,6 +553,7 @@ import {
 import { createGitlabRepoSource } from '../ai/repoFs/gitlabRepoSource';
 import {
     DBT_MOUNT,
+    hasDbtMount,
     MountingRepoFileSystem,
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
@@ -15204,16 +15205,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         const getMountFs = () => {
             if (!mountFsPromise) {
                 mountFsPromise = (async () => {
-                    // /dbt is mountable when the project's dbt repo is on a
-                    // host the VFS can read read-only (GitHub or GitLab); other
-                    // connection types have no repo source.
                     const project = await this.projectModel.get(projectUuid);
-                    const hasDbtMount =
-                        project.dbtConnection.type === DbtProjectType.GITHUB ||
-                        project.dbtConnection.type === DbtProjectType.GITLAB;
                     return MountingRepoFileSystem.create({
                         listRepos: listAuthorizedRepos,
-                        hasDbtMount,
+                        hasDbtMount: hasDbtMount(project.dbtConnection),
                         buildDbtRepoFs,
                         buildRepoFs,
                         searchOwner: async (owner, query) => {
@@ -17732,14 +17727,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     );
                 }
 
-                // The dbt project's root within the repo, so the prompt can point the
-                // exploreRepo agent at it (instead of hardcoding "dbt/"). Derived from
-                // the connection's project_sub_path: '.' = repo root, else a
-                // subdirectory. null when repo discovery is off or not git-backed.
+                // The /dbt mount's repository subdirectory, for the prompt; null without the mount.
                 let repoFsRoot: string | null = null;
                 if (
                     repoDiscoveryEnabled &&
-                    'project_sub_path' in promptProject.dbtConnection
+                    hasDbtMount(promptProject.dbtConnection)
                 ) {
                     const raw = (
                         promptProject.dbtConnection.project_sub_path ?? ''

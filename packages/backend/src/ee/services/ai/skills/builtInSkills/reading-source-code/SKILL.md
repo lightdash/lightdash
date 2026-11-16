@@ -8,7 +8,7 @@ availability: [agent]
 
 The `exploreRepo` description covers the mounts, the commands and the `search` locator. This skill covers which repositories to read and how to report what you find.
 
-**Ask before scanning many repositories.** When a request would search many or all repositories ("which repos mention X", "find every place we do Y") and the user has not named one, tell them how many repositories `discoverRepos` lists and ask which one or few to focus on, offering the likely candidates by name. Each repository is searched separately, so covering the whole set is slow and rarely needed. Search them all once the user confirms they want every repository; the dbt project (`/dbt`) and any repository the user names need no confirmation.
+**Ask before scanning many repositories.** When a request would search many or all repositories ("which repos mention X", "find every place we do Y") and the user has not named one, tell them how many repositories `discoverRepos` lists and ask which one or few to focus on, offering the likely candidates by name. Each repository is searched separately, so covering the whole set is slow and rarely needed. Search them all once the user confirms they want every repository; the dbt project and any repository the user names need no confirmation.
 
 **Report findings, not mechanism.** Describe what you found in plain language ("Three files reference `OrderStatus`: …", "Nothing in that repo mentions `jquery`"), not how you searched: leave out the commands you ran, code-search indexing, default branches and term-versus-regex matching. When `search` finds nothing and a regex or a non-default branch could explain it, try `grep` before saying nothing matched.
 

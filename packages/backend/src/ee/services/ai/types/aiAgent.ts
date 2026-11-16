@@ -318,7 +318,7 @@ export type AiAgentArgs = AnyAiModel & {
     enableAskUser: boolean;
     enableFilterExpressions: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
-    // null when repo discovery is off or the project is not git-backed.
+    // null when repo discovery is off or there is no /dbt mount.
     repoFsRoot: string | null;
     // Whether the repo host has server-side code search (GitHub yes, GitLab no).
     // Drives whether the prompt tells the agent to use `search`.
