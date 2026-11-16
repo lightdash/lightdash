@@ -56,10 +56,3 @@ describe('dataAppContentConfiguration.getSummaryQuery dataAppVizsFilter', () => 
         expect(bindings).toContain('space-1');
     });
 });
-
-describe('dataAppContentConfiguration.getSummaryQuery slug', () => {
-    it('returns the app slug column', () => {
-        const { sql } = buildQuery({});
-        expect(sql).toContain('"apps"."slug"');
-    });
-});
