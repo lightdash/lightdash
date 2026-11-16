@@ -102,6 +102,79 @@ describe('Analytics settings overview', () => {
         vi.clearAllMocks();
     });
 
+    it('shows the Adoption membership map before feature usage arrives', async () => {
+        const membership = {
+            group_ids: '["product", "engineering"]',
+            group_names: '["Product", "Engineering"]',
+            organization_role: 'editor',
+            total_members: 1,
+        };
+        const row = (explore: string, fields: Record<string, unknown>) =>
+            Object.fromEntries(
+                Object.entries(fields).map(([key, value]) => [
+                    `${explore}_${key}`,
+                    value,
+                ]),
+            );
+        const activity = Promise.withResolvers<ReturnType<typeof ready>>();
+        const launched = mockQueries((query) => {
+            if (query.exploreName === 'people_membership')
+                return ready([row(query.exploreName, membership)]);
+            if (query.exploreName === 'people_adoption')
+                return activity.promise;
+            return ready();
+        });
+        renderOverview();
+
+        expect(
+            launched.some(
+                ({ query }) => query.exploreName === 'people_membership',
+            ),
+        ).toBe(false);
+        await userEvent.click(screen.getByRole('tab', { name: 'Adoption' }));
+        const panel = within(screen.getByRole('tabpanel'));
+        expect(
+            await panel.findByText('1 member across the organization'),
+        ).toBeVisible();
+        const map = within(panel.getByRole('region', { name: 'Adoption map' }));
+        expect(map.getByText('Product')).toBeVisible();
+        expect(map.getByText('Engineering')).toBeVisible();
+        expect(
+            panel.getByText(
+                'Loading feature usage. The map shows member roles.',
+            ),
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'Open full dashboard' }),
+        ).not.toBeInTheDocument();
+
+        await waitFor(() => {
+            const queries = launched.filter(({ query }) =>
+                ['people_membership', 'people_adoption'].includes(
+                    query.exploreName,
+                ),
+            );
+            expect(queries.map(({ query }) => query.exploreName)).toEqual([
+                'people_membership',
+                'people_adoption',
+            ]);
+            for (const { url, query } of queries) {
+                expect(url).toContain('/projects/analytics/');
+                expect(
+                    getFilterRules(query.filters).map(({ id }) => id),
+                ).toEqual(['active-members']);
+            }
+        });
+        activity.resolve(
+            ready([row('people_adoption', { ...membership, parts_used: 1 })]),
+        );
+
+        await userEvent.click(await panel.findByText('Feature fingerprint'));
+        expect(
+            panel.getByRole('row', { name: /Everyone.*100%/ }),
+        ).toBeVisible();
+    });
+
     it('switches the related tab from a headline and only queries visible charts', async () => {
         const launched = mockQueries();
         renderOverview();

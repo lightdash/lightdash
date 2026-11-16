@@ -1,0 +1,31 @@
+.circle {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    aspect-ratio: 1;
+    margin-inline: auto;
+}
+
+.groupLabel {
+    overflow-wrap: anywhere;
+}
+
+.legendDot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.fingerprint summary {
+    cursor: pointer;
+}
+
+.fingerprint[open] summary {
+    margin-bottom: var(--mantine-spacing-sm);
+}
+
+.fingerprint th:not(:first-child),
+.fingerprint td:not(:first-child) {
+    text-align: right;
+}

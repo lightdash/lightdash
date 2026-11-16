@@ -19,6 +19,7 @@ const schemas: Record<string, CompactedStreamColumn[]> = {
             'agent_request_events',
             'data_app_events',
             'mcp_tool_calls',
+            'export_events',
         ].map((name) => [
             name,
             compactedStreamSchemas[name as keyof typeof compactedStreamSchemas],
@@ -390,6 +391,93 @@ describe('People adoption', () => {
                 people_adoption_lapsed_people_30d: '1',
             },
         ]);
+    });
+
+    it('queries feature bits as native dimensions and counts repeated use once', async () => {
+        const features = [
+            [
+                'content_views',
+                {
+                    is_qualifying: true,
+                    actor_type: 'user',
+                    content_type: 'dashboard',
+                },
+                1,
+            ],
+            [
+                'content_views',
+                {
+                    is_qualifying: true,
+                    actor_type: 'user',
+                    content_type: 'sql_chart',
+                },
+                2,
+            ],
+            [
+                'query_events',
+                {
+                    workload_origin: 'interactive',
+                    initiating_actor_type: 'registered_user',
+                    context: 'metricsExplorer',
+                },
+                4,
+            ],
+            [
+                'agent_request_events',
+                { stage: 'created', prompt_id: 'prompt', surface: 'slack' },
+                8,
+            ],
+            ['mcp_tool_calls', { actor_type: 'user' }, 16],
+            ['data_app_events', { event_name: 'data_app.view' }, 32],
+            ['data_app_events', { event_name: 'data_app.iterated' }, 64],
+            [
+                'export_events',
+                { event_name: 'download_results.completed' },
+                128,
+            ],
+        ] as const;
+        await member('all');
+        for (const [table, details, bit] of features) {
+            const user = String(bit);
+            await member(user);
+            const event = {
+                org_id: 'org',
+                event_ts: '2026-10-01 12:00:00',
+                ...details,
+            };
+            await insert(table, { ...event, user_id: user });
+            await insert(table, { ...event, user_id: 'all' });
+        }
+        await view('all');
+        const result = await rows(
+            compile(['user_id', 'parts_used'], ['total_members']),
+        );
+        expect(result).toHaveLength(features.length + 1);
+        expect(result).toEqual(
+            expect.arrayContaining(
+                features.map(([_table, _details, bit]) =>
+                    expect.objectContaining({
+                        people_adoption_user_id: String(bit),
+                        people_adoption_parts_used: String(bit),
+                        people_adoption_total_members: '1',
+                    }),
+                ),
+            ),
+        );
+        expect(
+            result.find((row) => row.people_adoption_user_id === 'all'),
+        ).toEqual({
+            people_adoption_user_id: 'all',
+            people_adoption_parts_used: '255',
+            people_adoption_total_members: '1',
+        });
+        await member('outside');
+        await view('outside', '2026-09-01 23:59:59');
+        await view('outside', '2026-10-02');
+        const outside = (
+            await rows(compile(['user_id', 'parts_used'], ['total_members']))
+        ).find((row) => row.people_adoption_user_id === 'outside');
+        expect(outside?.people_adoption_parts_used).toBe('0');
     });
 
     it('does not multiply people across duplicate events, projects or groups; isolates orgs and filters denominators', async () => {
