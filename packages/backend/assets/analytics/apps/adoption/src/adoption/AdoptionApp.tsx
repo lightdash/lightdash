@@ -524,10 +524,12 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
     );
 };
 
-const Loading = () => (
+const Loading = ({ total }: { total: number | null }) => (
     <div className="space-y-4">
         <p className="m-0 text-sm" role="status">
-            Loading adoption data…
+            {total === null
+                ? 'Loading adoption data…'
+                : `${total.toLocaleString()} current organization ${total === 1 ? 'member' : 'members'}. Loading activity…`}
         </p>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
             {Array.from({ length: 5 }, (_, index) => (
@@ -545,13 +547,13 @@ const Failure = ({ text }: { text: string }) => (
     </div>
 );
 
-type LoaderProps = Omit<MainProps, 'cells' | 'isNamed' | 'isTruncated'>;
+type LoaderProps = Omit<MainProps, 'cells' | 'isNamed' | 'isTruncated'> & { total: number | null };
 
 // 150 people or fewer: one query brings everyone by name
 const NamedOrganisation = (props: LoaderProps) => {
     const everyone = useMemo<PeopleFilter>(() => ({ kind: 'everyone' }), []);
     const people = source.usePeople(everyone);
-    if (people.loading) return <Loading />;
+    if (people.loading) return <Loading total={props.total} />;
     if (people.error) return <Failure text={people.error} />;
     return (
         <div className="contents" {...people.lineage}>
@@ -576,7 +578,7 @@ const CountedOrganisation = (props: LoaderProps) => {
     const pinnedIds = useMemo(() => (pinnedKey === '' ? [] : pinnedKey.split(',')), [pinnedKey]);
     const counts = source.useCounts(pinnedIds);
     const render = (pinned: Cell[], pinnedLoading: boolean) => {
-        if (counts.loading || pinnedLoading) return <Loading />;
+        if (counts.loading || pinnedLoading) return <Loading total={props.total} />;
         if (counts.error) return <Failure text={counts.error} />;
         return (
             <div className="contents" {...counts.lineage}>
@@ -613,7 +615,7 @@ export default function AdoptionApp() {
         lastChanged: formatChanged(author?.name ?? null, meta.updatedAt ? String(meta.updatedAt) : null),
     };
     const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
-    const props: LoaderProps = { config, setConfig: setSaved, stateStatus, canManage: viewer.isAdmin, actionSlot };
+    const props: LoaderProps = { config, setConfig: setSaved, stateStatus, canManage: viewer.isAdmin, actionSlot, total: total.data };
     return (
         <div className="min-h-screen bg-background text-foreground">
             <div data-ad-page className="mx-auto max-w-[1400px] px-6 pb-10 pt-6">
@@ -628,7 +630,7 @@ export default function AdoptionApp() {
                 {total.error ? (
                     <Failure text={total.error} />
                 ) : total.loading || meta.loading ? (
-                    <Loading />
+                    <Loading total={total.data} />
                 ) : (total.data ?? 0) <= NAMED_PEOPLE_LIMIT ? (
                     <div className="contents" {...total.lineage}>
                         <NamedOrganisation {...props} />

@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { contentInventoryColumns } from '../../../analytics/eventStream/contentInventory';
+import { peopleMembershipColumns } from '../../../analytics/eventStream/peopleMembership';
 import { compactedStreamSchemas } from '../../../analytics/eventStream/registry';
 import type { CompactedColumnType } from '../../../analytics/eventStream/types';
 import {
@@ -65,9 +66,11 @@ import {
     embedReachSql,
 } from '../../../analytics/systemExplores/embedReach';
 import {
+    currentPeopleSql,
     peopleAdoptionColumns,
     peopleAdoptionMetrics,
     peopleAdoptionSql,
+    totalMembersMetric,
 } from '../../../analytics/systemExplores/peopleAdoption';
 import {
     semanticUsageColumns,
@@ -117,6 +120,7 @@ export const analyticsExploreNames = [
     'data_app_reach',
     'data_app_outcomes',
     'people_adoption',
+    'people_membership',
     'embed_reach',
 ] as const;
 
@@ -183,6 +187,12 @@ export const createAnalyticsExplores = (): Explore[] => {
                 columns: peopleAdoptionColumns,
                 metrics: peopleAdoptionMetrics,
             },
+            people_membership: {
+                columns: peopleMembershipColumns.filter(({ name: column }) =>
+                    ['user_id', 'is_active'].includes(column),
+                ),
+                metrics: [totalMembersMetric],
+            },
             content_health: {
                 columns: contentHealthColumns,
                 metrics: contentHealthMetrics,
@@ -237,7 +247,8 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'agent_request_events' ||
             name === 'data_app_reach' ||
             name === 'data_app_outcomes' ||
-            name === 'people_adoption'
+            name === 'people_adoption' ||
+            name === 'people_membership'
                 ? model[name]
                 : {
                       columns: compactedStreamSchemas[name],
@@ -363,6 +374,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                           data_app_reach: dataAppReachSql,
                           data_app_outcomes: dataAppOutcomesSql,
                           people_adoption: peopleAdoptionSql,
+                          people_membership: currentPeopleSql,
                       } as Partial<Record<typeof name, string>>
                   )[name] ?? `"${name}"`),
 
@@ -385,7 +397,10 @@ export const createAnalyticsExplores = (): Explore[] => {
         };
         if (table.dimensions.user_id)
             table.dimensions.user_id.label = 'User UUID';
-        table.dimensions.project_id.label = 'Project UUID';
+        if (table.dimensions.project_id)
+            table.dimensions.project_id.label = 'Project UUID';
+        if (name === 'people_membership')
+            table.dimensions.user_id.hidden = true;
         if (startsOnly) table.dimensions.org_id.hidden = true;
         if (name === 'embed_reach') {
             for (const field of [
@@ -537,6 +552,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             name !== 'content_health' &&
             name !== 'content_inventory' &&
             name !== 'people_adoption' &&
+            name !== 'people_membership' &&
             name !== 'embed_reach'
         ) {
             dimensions.push('users');

@@ -29,7 +29,7 @@ export const PEOPLE_ROW_LIMIT = 2000;
 // People shown in the picker while choosing who to add to a team
 export const SEARCH_ROW_LIMIT = 30;
 
-export const totalQuery = query(PEOPLE)
+export const totalQuery = query('people_membership')
     .label('People in the organisation')
     .metrics(['total_members'])
     .filters([CURRENT_PEOPLE])

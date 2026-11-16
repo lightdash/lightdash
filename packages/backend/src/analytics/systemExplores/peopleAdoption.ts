@@ -41,12 +41,14 @@ export const peopleAdoptionColumns: CompactedStreamColumn[] = [
     ].map((name) => ({ name, type: 'BOOLEAN' as const })),
 ];
 
-// Keep one row per organization/person and a fixed eligible denominator for each window.
-// The Adoption app's feature bits are independent of the activity classification.
-export const peopleAdoptionSql = `(WITH population AS (
+export const currentPeopleSql = `(
     SELECT * FROM lightdash_people
     QUALIFY ROW_NUMBER() OVER (PARTITION BY org_id, user_id ORDER BY snapshot_at DESC) = 1
-), cutoffs AS (
+)`;
+
+// Keep one row per organization/person and a fixed eligible denominator for each window.
+// The Adoption app's feature bits are independent of the activity classification.
+export const peopleAdoptionSql = `(WITH population AS ${currentPeopleSql}, cutoffs AS (
     SELECT org_id, date_trunc('day', MAX(snapshot_at)) AS cutoff FROM population GROUP BY org_id
 ), activity AS (
     SELECT org_id, user_id, event_ts,
@@ -168,14 +170,16 @@ const countPeople = (
     ],
 });
 
+export const totalMembersMetric: SystemMetricDefinition = {
+    name: 'total_members',
+    type: MetricType.COUNT_DISTINCT,
+    column: 'user_id',
+    description:
+        'Current non-system organization memberships, including inactive and pending-setup accounts. Not a count of seats or employees.',
+};
+
 export const peopleAdoptionMetrics: SystemMetricDefinition[] = [
-    {
-        name: 'total_members',
-        type: MetricType.COUNT_DISTINCT,
-        column: 'user_id',
-        description:
-            'Current non-system organization memberships, including inactive and pending-setup accounts. Not a count of seats or employees.',
-    },
+    totalMembersMetric,
     countPeople(
         'eligible_people',
         'is_eligible',
