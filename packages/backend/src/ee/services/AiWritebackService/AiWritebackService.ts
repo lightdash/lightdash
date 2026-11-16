@@ -1845,10 +1845,11 @@ export class AiWritebackService extends BaseService {
                 });
             }
 
-            const root = connection.projectSubPath
-                .replace(/^\.?\/+/, '')
-                .replace(/\/*$/, '/')
-                .replace(/^\/$/, '');
+            // The connection holds a normalized sub-path, '.' for the repository root.
+            const root =
+                connection.projectSubPath === '.'
+                    ? ''
+                    : `${connection.projectSubPath}/`;
             let listing: Promise<string[]> | null = null;
             const isNative =
                 connection.provider === PullRequestProvider.GITHUB &&
