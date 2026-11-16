@@ -1,5 +1,6 @@
-import { type ChartType } from '@lightdash/common';
+import { ChartType } from '@lightdash/common';
 import { Text, UnstyledButton } from '@mantine/core';
+import { IconChartBar } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { useChartTypeOptions } from '../ChartGallery/useChartTypeOptions';
@@ -22,7 +23,13 @@ const ChartTypeSummary: FC<Props> = ({ chartType, onClick }) => {
             data-tour="explorer-visualize"
             onClick={onClick}
         >
-            <MantineIcon icon={selected.icon} size={14} />
+            {/* An untouched query is a table: show what it could become */}
+            <MantineIcon
+                icon={
+                    chartType === ChartType.TABLE ? IconChartBar : selected.icon
+                }
+                size={14}
+            />
             <Text fz="xs" inherit>
                 Visualize
             </Text>
