@@ -10,7 +10,7 @@ type Props = {
     onClick: () => void;
 };
 
-/** What a closed Chart row holds: its chart type, quiet, opening it on click. */
+/** What a closed Chart row holds once results exist: the way into the chart. */
 const ChartTypeSummary: FC<Props> = ({ chartType, onClick }) => {
     const { getSelectedChartTypeItem } = useChartTypeOptions();
     const selected = getSelectedChartTypeItem(chartType, null);
@@ -24,7 +24,7 @@ const ChartTypeSummary: FC<Props> = ({ chartType, onClick }) => {
         >
             <MantineIcon icon={selected.icon} size={14} />
             <Text fz="xs" inherit>
-                {selected.label}
+                Visualize
             </Text>
         </UnstyledButton>
     );

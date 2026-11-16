@@ -143,8 +143,31 @@
     display: flex;
 }
 
+/* Overlaid on the chip's right edge, so hovering never reflows the wrap */
 .actions {
+    position: absolute;
+    inset: 0 0 0 auto;
     display: none;
+    align-items: center;
+    padding: 0 2px 0 10px;
+    --chip: color-mix(in srgb, var(--kind) 16%, var(--mantine-color-body));
+    background: linear-gradient(to right, transparent, var(--chip) 10px);
+}
+
+.row:hover .actions {
+    display: flex;
+}
+
+/* Only the filter fits a chip; the rest stay on the tree rows */
+.actions > :not(.filterAction) {
+    display: none;
+}
+
+.actions button {
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    min-height: 18px;
 }
 
 .row svg {
@@ -185,4 +208,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.row[draggable='true'] {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: element;
 }

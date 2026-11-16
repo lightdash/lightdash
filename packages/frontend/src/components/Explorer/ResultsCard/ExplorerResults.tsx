@@ -340,6 +340,13 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         [dispatch],
     );
 
+    const handleColumnRemove = useCallback(
+        (fieldId: string) => {
+            dispatch(explorerActions.removeField(fieldId));
+        },
+        [dispatch],
+    );
+
     const { data: exploreData, isInitialLoading: isExploreLoading } =
         useExplore(activeTableName, {
             refetchOnMount: false,
@@ -626,6 +633,9 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                             previous?.columnOrder ?? resultsColumnOrder
                         }
                         onColumnOrderChange={handleColumnOrderChange}
+                        onColumnRemove={
+                            isEditMode ? handleColumnRemove : undefined
+                        }
                         cellContextMenu={cellContextMenu}
                         headerContextMenu={
                             isEditMode ? ColumnHeaderContextMenu : undefined

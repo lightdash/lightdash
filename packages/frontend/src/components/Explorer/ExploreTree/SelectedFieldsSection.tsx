@@ -30,6 +30,7 @@ import {
     useMemo,
     useRef,
     useState,
+    type DragEvent,
     type FC,
 } from 'react';
 import { useToggle } from 'react-use';
@@ -48,6 +49,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import MantineIcon from '../../common/MantineIcon';
+import { startFieldDrag } from '../fieldDrag';
 import classes from './SelectedFieldsSection.module.css';
 import { ItemDetailPreview } from './TableTree/ItemDetailPreview';
 import previewClasses from './TableTree/ItemDetailPreview.module.css';
@@ -323,6 +325,13 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, source, onDeselect }) => {
                             : classes.row
                     }
                     data-field-kind={getFieldKind(item)}
+                    draggable={!hideActions && !fieldOnAddFilter && !isExiting}
+                    onDragStart={(event: DragEvent) =>
+                        startFieldDrag(event, {
+                            fieldId,
+                            isDimension: isDim,
+                        })
+                    }
                     onClick={handleClick}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
@@ -393,6 +402,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, source, onDeselect }) => {
                                 }
                             >
                                 <ActionIcon
+                                    className={classes.filterAction}
                                     aria-label={
                                         isFiltered
                                             ? 'Field is filtered'
