@@ -6,7 +6,7 @@ import {
     type DashboardFilters,
     type FilterableDimension,
     type Metric,
-    type SavedChartsInfoForDashboardAvailableFilters,
+    type DashboardAvailableFiltersTile,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
 import { type DashboardStoreState } from '.';
@@ -52,9 +52,7 @@ export const selectAllFilterableMetrics = (state: DashboardStoreState) =>
 export const getFilterableFieldsByTileUuid = (
     dashboard: Dashboard | undefined,
     embedToken: string | undefined,
-    savedChartUuidsAndTileUuids:
-        | SavedChartsInfoForDashboardAvailableFilters
-        | undefined,
+    savedChartUuidsAndTileUuids: DashboardAvailableFiltersTile[] | undefined,
     availableFilters: DashboardAvailableFilters | undefined,
 ) => {
     // Embeds have no query dashboard, so they skip the dashboard check

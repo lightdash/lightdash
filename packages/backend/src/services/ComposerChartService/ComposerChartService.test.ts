@@ -12,7 +12,10 @@ import {
     TableCalculationType,
     type ComposerChartPipelineNode,
     type CreateComposerChart,
+    type DashboardFilters,
     type DataAppVizSchema,
+    type Explore,
+    type ParametersValuesMap,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { fromOauth, fromSession } from '../../auth/account/account';
@@ -204,6 +207,33 @@ const setup = ({ flagEnabled = true } = {}) => {
             }),
         ),
     };
+    const asyncQueryService = {
+        getExplore: vi.fn(
+            async (_account: unknown, _project: string, name: string) =>
+                ({
+                    name,
+                    baseTable: name,
+                    joinedTables: [],
+                    tables: { [name]: { dimensions: {}, metrics: {} } },
+                }) as unknown as Explore,
+        ),
+        getComposerTileContext: vi.fn(
+            async ({
+                dashboardFilters,
+                parameters,
+                excludedParameterKeys,
+            }: {
+                dashboardFilters: DashboardFilters;
+                parameters: ParametersValuesMap;
+                excludedParameterKeys: string[];
+            }) => ({
+                dashboardFilters,
+                dashboardValues: parameters,
+                excludedKeys: excludedParameterKeys,
+                projectDefinitions: { region: { label: 'Region' } },
+            }),
+        ),
+    };
     const composerChartModel = {
         create: vi.fn(async () => 'chart-uuid'),
         get: vi.fn(async () => ({ uuid: 'chart-uuid' })),
@@ -264,6 +294,7 @@ const setup = ({ flagEnabled = true } = {}) => {
             })),
         } as unknown as QueryHistoryModel,
         getQuerySourceService: () => querySourceService,
+        getAsyncQueryService: () => asyncQueryService,
     });
     return { service, composerChartModel, querySourceService };
 };
@@ -458,11 +489,18 @@ describe('ComposerChartService.run', () => {
             })),
         });
         const { submitComposerRun } = querySourceService;
-        return { service, stored, submitComposerRun };
+        // Semantic-layer nodes carry the tile's resolved parameters, none here
+        const resolvedNodes = stored.nodes.map((node) =>
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                ? { ...node, parameters: {} }
+                : node,
+        );
+        return { service, stored, resolvedNodes, submitComposerRun };
     };
 
     test('runs the stored pipeline for a dashboard viewer and returns every node query', async () => {
-        const { service, stored, submitComposerRun } = setupRun();
+        const { service, stored, resolvedNodes, submitComposerRun } =
+            setupRun();
         const account = viewer();
         const result = await service.run(
             account,
@@ -474,7 +512,7 @@ describe('ComposerChartService.run', () => {
             stored.nodes.map(({ nodeId }) => nodeId),
         );
         const { binding } = submitComposerRun.mock.calls[0][0];
-        expect(binding.nodes).toEqual(stored.nodes);
+        expect(binding.nodes).toEqual(resolvedNodes);
         expect(binding.stamp).toEqual({
             composerChartUuid: 'chart-uuid',
             dashboardUuid,
@@ -501,7 +539,7 @@ describe('ComposerChartService.run', () => {
     });
 
     test('runs a server-built series-split stage after the terminal node for a chart with a group-by', async () => {
-        const { service, stored, submitComposerRun } = setupRun({
+        const { service, resolvedNodes, submitComposerRun } = setupRun({
             chart: {
                 schemaVersion: 1,
                 columns: [
@@ -527,7 +565,7 @@ describe('ComposerChartService.run', () => {
             runRequest,
         );
         const { binding } = submitComposerRun.mock.calls[0][0];
-        expect(binding.nodes.slice(0, -1)).toEqual(stored.nodes);
+        expect(binding.nodes.slice(0, -1)).toEqual(resolvedNodes);
         expect(binding.nodes.at(-1)).toMatchObject({
             nodeId: 'chart_stage',
             sourceType: QuerySourceType.DUCKDB,
@@ -535,6 +573,23 @@ describe('ComposerChartService.run', () => {
         });
         expect(result.chartStageQueryUuid).toBe('chart_stage-query');
         expect(result.fields).toEqual({ 'result-query_field': {} });
+    });
+
+    test('writes the dashboard parameter onto the nodes and the shared map', async () => {
+        const { service, submitComposerRun } = setupRun();
+        const result = await service.run(viewer(), projectUuid, 'chart-uuid', {
+            ...runRequest,
+            parameters: { region: 'EU' },
+        });
+        const { binding } = submitComposerRun.mock.calls[0][0];
+        expect(binding.parameters).toEqual({ region: 'EU' });
+        expect(binding.nodes[0]).toMatchObject({
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            parameters: { region: 'EU' },
+        });
+        expect(result.appliedDashboardFilters).toEqual(
+            runRequest.dashboardFilters,
+        );
     });
 
     test('refuses a caller who cannot view the owning dashboard', async () => {
@@ -578,5 +633,80 @@ describe('ComposerChartService.run', () => {
             service.run(viewer(), projectUuid, 'chart-uuid', runRequest),
         ).rejects.toThrow(FeatureNotEnabledError);
         expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+});
+
+describe('ComposerChartService.getParameterReferences', () => {
+    const setupLookup = ({ flagEnabled = true } = {}) => {
+        const { service, composerChartModel } = setup({ flagEnabled });
+        const nodes = [
+            semantic({ parameters: { region: 'eu' } }),
+            {
+                sourceType: QuerySourceType.SQL,
+                nodeId: 'raw',
+                title: 'Raw',
+                sql: 'select ${lightdash.parameters.currency} as currency',
+            },
+        ] satisfies ComposerChartPipelineNode[];
+        Object.assign(composerChartModel, {
+            getOwner: vi.fn(async () => ({ projectUuid, dashboardUuid })),
+            get: vi.fn(async () => ({
+                uuid: 'chart-uuid',
+                pipeline: { schemaVersion: 1, terminalNodeId: 'raw', nodes },
+            })),
+        });
+        return service;
+    };
+    const projectDefinitions = {
+        currency: { label: 'Currency' },
+        unused: { label: 'Unused' },
+    };
+
+    test('lists the stored nodes’ parameters and saved values without a run', async () => {
+        const result = await setupLookup().getParameterReferences(
+            sessionAccount(
+                new Ability<PossibleAbilities>([
+                    { subject: 'Dashboard', action: 'view' as const },
+                ]),
+            ),
+            projectUuid,
+            ['chart-uuid'],
+            projectDefinitions,
+        );
+        expect(result.get('chart-uuid')).toEqual({
+            parameterReferences: ['currency'],
+            parameterDefinitions: { currency: { label: 'Currency' } },
+            chartSavedValues: { region: 'eu' },
+            virtualViewSavedValues: {},
+            error: null,
+        });
+    });
+
+    test('refuses the lookup while composer charts are off', async () => {
+        await expect(
+            setupLookup({ flagEnabled: false }).getParameterReferences(
+                sessionAccount(
+                    new Ability<PossibleAbilities>([
+                        { subject: 'Dashboard', action: 'view' as const },
+                    ]),
+                ),
+                projectUuid,
+                ['chart-uuid'],
+                projectDefinitions,
+            ),
+        ).rejects.toThrow(FeatureNotEnabledError);
+    });
+
+    test('fails a chart the viewer cannot view', async () => {
+        const result = await setupLookup().getParameterReferences(
+            sessionAccount(new Ability<PossibleAbilities>([])),
+            projectUuid,
+            ['chart-uuid'],
+            projectDefinitions,
+        );
+        expect(result.get('chart-uuid')).toEqual({
+            parameterReferences: null,
+            error: expect.any(String),
+        });
     });
 });

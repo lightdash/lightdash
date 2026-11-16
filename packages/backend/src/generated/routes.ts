@@ -83484,6 +83484,15 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                chartStageQueryUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                fields: { ref: 'ItemsMap', required: true },
                 queries: {
                     dataType: 'array',
                     array: {

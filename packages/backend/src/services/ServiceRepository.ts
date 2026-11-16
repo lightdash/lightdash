@@ -553,6 +553,8 @@ export class ServiceRepository
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    getComposerChartService: () =>
+                        this.getComposerChartService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                 }),
@@ -2014,6 +2016,7 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     getQuerySourceService: () => this.getQuerySourceService(),
+                    getAsyncQueryService: () => this.getAsyncQueryService(),
                 }),
         );
     }

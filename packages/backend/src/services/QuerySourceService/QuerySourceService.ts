@@ -492,7 +492,7 @@ export class QuerySourceService extends BaseService {
             projectUuid,
             queries: binding.nodes,
             context: QueryExecutionContext.DASHBOARD,
-            parameters: {},
+            parameters: binding.parameters,
             userAttributeOverrides: {},
             invalidateCache,
             plans: {},

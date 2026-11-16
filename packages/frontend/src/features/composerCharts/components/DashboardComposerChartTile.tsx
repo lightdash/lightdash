@@ -26,9 +26,11 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import {
+    dashboardParametersActions,
     selectInvalidateCache,
     selectParameterValues,
     selectRefreshCounter,
+    useDashboardDispatch,
     useDashboardSelector,
     useTileDashboardParameterInputs,
 } from '../../dashboard/store';
@@ -136,6 +138,16 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
     });
     const chart = chartQuery.data;
     const run = runQuery.data;
+    const dispatch = useDashboardDispatch();
+    useEffect(() => {
+        if (!run) return;
+        dispatch(
+            dashboardParametersActions.addParameterReferences({
+                tileUuid: tile.uuid,
+                references: run.parameterReferences,
+            }),
+        );
+    }, [dispatch, tile.uuid, run]);
     const title = getTitle(tile);
     const terminal = useInfiniteQueryResults(
         projectUuid,

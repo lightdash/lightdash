@@ -32432,6 +32432,7 @@ describe('bound composer chart runs', () => {
                 },
             } as unknown as ComposerChart,
             tileUuid: 'tile-uuid',
+            resolved: { nodes: [], parameters: {} },
         });
     const stamp = {
         composerChartUuid: 'composer-chart-uuid',
