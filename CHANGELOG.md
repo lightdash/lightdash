@@ -1,3 +1,13 @@
+## [3.267.2](https://github.com/lightdash/lightdash/compare/3.267.1...3.267.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** name /dbt only when the project has a /dbt mount ([#32643](https://github.com/lightdash/lightdash/issues/32643)) ([d8f1330](https://github.com/lightdash/lightdash/commit/d8f1330212f70dcb4d3843c8815bad38c9128963))
+* **ai:** offer repo and writeback tools only to users who can use them ([#32644](https://github.com/lightdash/lightdash/issues/32644)) ([77f322f](https://github.com/lightdash/lightdash/commit/77f322f11229874570ee789799e83583d0aa9bb8))
+* **ai:** tell agent which custom SQL content the user cannot save ([#32642](https://github.com/lightdash/lightdash/issues/32642)) ([3efe69a](https://github.com/lightdash/lightdash/commit/3efe69a16b6ed10fdaf18eec52a0e45f6d443221))
+* **composer:** name minimum CLI version in old-CLI upload refusal ([#32638](https://github.com/lightdash/lightdash/issues/32638)) ([033b034](https://github.com/lightdash/lightdash/commit/033b034ecaa17ddf1766780cf3d45941af83e9a3))
+
 ## [3.267.1](https://github.com/lightdash/lightdash/compare/3.267.0...3.267.1) (2026-11-16)
 
 
