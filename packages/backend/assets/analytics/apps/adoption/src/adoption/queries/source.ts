@@ -11,11 +11,11 @@ import {
 } from './fixtures';
 import {
     countsQuery,
+    membershipQuery,
     OVERVIEW_ROW_LIMIT,
     peopleQuery,
     PEOPLE_ROW_LIMIT,
     topContentQuery,
-    totalQuery,
     weeklyActiveQuery,
     type PeopleFilter,
 } from './queries';
@@ -44,7 +44,7 @@ export type AdoptionSource = {
     fixture: string | null;
     // Teams an invented organisation starts with; always null for the live app
     fixtureTeams: TeamConfig | null;
-    useTotal: () => Loadable<number | null>;
+    useMembership: () => Loadable<Cell[]>;
     useCounts: (excludedUserIds: string[]) => Loadable<Cell[]>;
     usePeople: (filter: PeopleFilter) => Loadable<Cell[]>;
     useWeeklyActive: (userIds: string[]) => Loadable<WeekPoint[]>;
@@ -117,12 +117,14 @@ const message = (error: Error | null): string | null =>
 const liveSource: AdoptionSource = {
     fixture: null,
     fixtureTeams: null,
-    useTotal: () => {
-        const { data, loading, error, lineage } = useLightdash(totalQuery);
+    useMembership: () => {
+        const { data, loading, error, lineage } = useLightdash(membershipQuery);
+        const cells = useMemo(() => data.map((row) => toCell(row, false)), [data]);
         return {
-            data: data.length > 0 ? toNumber(data[0].total_members) : null,
+            data: cells,
             loading,
             error: message(error),
+            truncated: data.length >= OVERVIEW_ROW_LIMIT,
             lineage,
         };
     },
@@ -253,7 +255,7 @@ const createFixtureSource = (name: string, role: string, withTeams: boolean): Ad
     return {
         fixture: name,
         fixtureTeams: withTeams ? buildFixtureTeams(name) : null,
-        useTotal: () => useMemo(() => ready(people.length), []),
+        useMembership: () => useMemo(() => ready(toCounts(people)), []),
         useCounts: (excludedUserIds) =>
             useMemo(
                 () =>

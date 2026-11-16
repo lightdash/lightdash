@@ -38,7 +38,7 @@ export const analyticsTableDescriptions: Record<string, string> = {
     people_adoption:
         'Current organization members, including people with no observed activity. Compare eligible membership with confirmed human activity over the last 1, 7 or 30 closed UTC days. Uses current membership, not historical eligibility; incomplete capture does not prove inactivity.',
     people_membership:
-        'Count current organization members from the latest membership snapshot without reading usage history. Filter Is active to exclude deactivated accounts.',
+        'Count current organization members by group and role from the latest membership snapshot without reading usage history. Filter Is active to exclude deactivated accounts.',
     lightdash_users:
         'User names from the latest available organization snapshot, joined to recorded user identifiers. Names are current snapshot values, not a history of names or membership.',
     lightdash_charts:

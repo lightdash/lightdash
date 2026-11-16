@@ -189,7 +189,13 @@ export const createAnalyticsExplores = (): Explore[] => {
             },
             people_membership: {
                 columns: peopleMembershipColumns.filter(({ name: column }) =>
-                    ['user_id', 'is_active'].includes(column),
+                    [
+                        'user_id',
+                        'is_active',
+                        'group_ids',
+                        'group_names',
+                        'organization_role',
+                    ].includes(column),
                 ),
                 metrics: [totalMembersMetric],
             },

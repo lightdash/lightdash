@@ -29,11 +29,12 @@ export const PEOPLE_ROW_LIMIT = 2000;
 // People shown in the picker while choosing who to add to a team
 export const SEARCH_ROW_LIMIT = 30;
 
-export const totalQuery = query('people_membership')
-    .label('People in the organisation')
+export const membershipQuery = query('people_membership')
+    .label('Current members by group and role')
+    .dimensions(['group_ids', 'group_names', 'organization_role'])
     .metrics(['total_members'])
     .filters([CURRENT_PEOPLE])
-    .limit(1);
+    .limit(OVERVIEW_ROW_LIMIT);
 
 // Counts only, no names: how many people share each combination
 export const countsQuery = (excludedUserIds) =>

@@ -524,19 +524,52 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
     );
 };
 
-const Loading = ({ total }: { total: number | null }) => (
+const MembershipMap = ({ cells, config }: { cells: Cell[]; config: TeamConfig }) => {
+    const canvas = useContainerSize();
+    const organisation = useMemo(() => buildOrganisation(cells, config), [cells, config]);
+    const unit = getMarkUnit(organisation.total);
+    const teams = useMemo(
+        () => organisation.buckets.map((bucket) => toMapTeam(bucket, 'role', unit)),
+        [organisation.buckets, unit],
+    );
+    return (
+        <div className="overflow-hidden rounded-lg border bg-card">
+            <div ref={canvas.ref} className="ad-canvas" style={{ height: MAP_HEIGHT }} inert>
+                {canvas.isMeasured && (
+                    <PeopleMap
+                        width={canvas.width}
+                        height={canvas.height}
+                        teams={teams}
+                        colourBy="role"
+                        selectedId={null}
+                        isFocused={false}
+                        layoutKey={`all:${unit}`}
+                        onSelect={() => {}}
+                    />
+                )}
+            </div>
+            <Legend colourBy="role" counts={countByKind(organisation.cells, 'role')} notes={[]} hasSharedMarks={false} />
+        </div>
+    );
+};
+
+const Loading = ({ total, preview }: { total: number | null; preview?: ReactNode }) => (
     <div className="space-y-4">
         <p className="m-0 text-sm" role="status">
             {total === null
                 ? 'Loading adoption data…'
                 : `${total.toLocaleString()} current organization ${total === 1 ? 'member' : 'members'}. Loading activity…`}
         </p>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            {Array.from({ length: 5 }, (_, index) => (
-                <Skeleton key={index} className="h-[76px]" />
-            ))}
-        </div>
-        <Skeleton className="h-[560px]" />
+        {preview ?? (
+            <>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                    {Array.from({ length: 5 }, (_, index) => (
+                        <Skeleton key={index} className="h-[76px]" />
+                    ))}
+                </div>
+                <Skeleton className="h-[560px]" />
+            </>
+        )}
     </div>
 );
 
@@ -547,17 +580,20 @@ const Failure = ({ text }: { text: string }) => (
     </div>
 );
 
-type LoaderProps = Omit<MainProps, 'cells' | 'isNamed' | 'isTruncated'> & { total: number | null };
+type LoaderProps = {
+    main: Omit<MainProps, 'cells' | 'isNamed' | 'isTruncated'>;
+    loadingView: ReactNode;
+};
 
 // 150 people or fewer: one query brings everyone by name
-const NamedOrganisation = (props: LoaderProps) => {
+const NamedOrganisation = ({ main, loadingView }: LoaderProps) => {
     const everyone = useMemo<PeopleFilter>(() => ({ kind: 'everyone' }), []);
     const people = source.usePeople(everyone);
-    if (people.loading) return <Loading total={props.total} />;
+    if (people.loading) return loadingView;
     if (people.error) return <Failure text={people.error} />;
     return (
         <div className="contents" {...people.lineage}>
-            <Main {...props} cells={people.data} isNamed isTruncated={false} />
+            <Main {...main} cells={people.data} isNamed isTruncated={false} />
         </div>
     );
 };
@@ -570,19 +606,19 @@ const PinnedPeople = ({ userIds, children }: { userIds: string[]; children: (cel
 };
 
 // Larger organisations: counts for the overview, and names only for the team that is open
-const CountedOrganisation = (props: LoaderProps) => {
+const CountedOrganisation = ({ main, loadingView }: LoaderProps) => {
     // People shown in one team only, and people added to a team by name, are loaded one by one
-    const pinnedKey = [...new Set([...Object.keys(props.config.primary), ...(props.config.teams ?? []).flatMap((team) => team.memberIds ?? [])])]
+    const pinnedKey = [...new Set([...Object.keys(main.config.primary), ...(main.config.teams ?? []).flatMap((team) => team.memberIds ?? [])])]
         .sort()
         .join(',');
     const pinnedIds = useMemo(() => (pinnedKey === '' ? [] : pinnedKey.split(',')), [pinnedKey]);
     const counts = source.useCounts(pinnedIds);
     const render = (pinned: Cell[], pinnedLoading: boolean) => {
-        if (counts.loading || pinnedLoading) return <Loading total={props.total} />;
+        if (counts.loading || pinnedLoading) return loadingView;
         if (counts.error) return <Failure text={counts.error} />;
         return (
             <div className="contents" {...counts.lineage}>
-                <Main {...props} cells={[...counts.data, ...pinned]} isNamed={false} isTruncated={counts.truncated ?? false} />
+                <Main {...main} cells={[...counts.data, ...pinned]} isNamed={false} isTruncated={counts.truncated ?? false} />
             </div>
         );
     };
@@ -606,7 +642,8 @@ export default function AdoptionApp() {
     const viewer = source.useViewer();
     const [saved, setSaved, meta] = useAppState<TeamConfig>('teams', source.fixtureTeams ?? DEFAULT_TEAM_CONFIG, { scope: 'shared' });
     const config = useMemo(() => readConfig(saved), [saved]);
-    const total = source.useTotal();
+    const membership = source.useMembership();
+    const total = membership.loading || membership.truncated ? null : sumCounts(membership.data);
     const author = meta.updatedBy as { name?: string } | null;
     const errorCode = (meta.error as { code?: string } | null)?.code;
     const stateStatus = {
@@ -615,7 +652,19 @@ export default function AdoptionApp() {
         lastChanged: formatChanged(author?.name ?? null, meta.updatedAt ? String(meta.updatedAt) : null),
     };
     const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
-    const props: LoaderProps = { config, setConfig: setSaved, stateStatus, canManage: viewer.isAdmin, actionSlot, total: total.data };
+    // Group counts cannot place people who have individual team assignments.
+    const canPreviewMap = !meta.loading && total !== null && total > 0 &&
+        Object.keys(config.primary).length === 0 &&
+        !config.teams?.some((team) => (team.memberIds?.length ?? 0) > 0);
+    const props: LoaderProps = {
+        main: { config, setConfig: setSaved, stateStatus, canManage: viewer.isAdmin, actionSlot },
+        loadingView: (
+            <Loading
+                total={total}
+                preview={canPreviewMap ? <MembershipMap cells={membership.data} config={config} /> : null}
+            />
+        ),
+    };
     return (
         <div className="min-h-screen bg-background text-foreground">
             <div data-ad-page className="mx-auto max-w-[1400px] px-6 pb-10 pt-6">
@@ -627,16 +676,16 @@ export default function AdoptionApp() {
                     {/* The team controls are drawn here by the page below once it has loaded */}
                     <div ref={setActionSlot} className="flex items-center gap-3" />
                 </header>
-                {total.error ? (
-                    <Failure text={total.error} />
-                ) : total.loading || meta.loading ? (
-                    <Loading total={total.data} />
-                ) : (total.data ?? 0) <= NAMED_PEOPLE_LIMIT ? (
-                    <div className="contents" {...total.lineage}>
+                {membership.error ? (
+                    <Failure text={membership.error} />
+                ) : membership.loading || meta.loading ? (
+                    props.loadingView
+                ) : total !== null && total <= NAMED_PEOPLE_LIMIT ? (
+                    <div className="contents" {...membership.lineage}>
                         <NamedOrganisation {...props} />
                     </div>
                 ) : (
-                    <div className="contents" {...total.lineage}>
+                    <div className="contents" {...membership.lineage}>
                         <CountedOrganisation {...props} />
                     </div>
                 )}

@@ -11,7 +11,7 @@ export const SEARCH_ROW_LIMIT: number;
 
 export const OVERVIEW_ROW_LIMIT: number;
 export const PEOPLE_ROW_LIMIT: number;
-export const totalQuery: QueryBuilder;
+export const membershipQuery: QueryBuilder;
 export const countsQuery: (excludedUserIds: string[]) => QueryBuilder;
 export const peopleQuery: (filter: PeopleFilter) => QueryBuilder;
 export const weeklyActiveQuery: (userIds: string[]) => QueryBuilder;
