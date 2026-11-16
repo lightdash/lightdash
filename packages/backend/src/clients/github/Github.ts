@@ -622,6 +622,31 @@ export const createBranch = async ({
         throw toGitWriteError(error);
     }
 };
+export const deleteBranch = async ({
+    owner,
+    repo,
+    branch,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    branch: string;
+    installationId?: string;
+    token?: string;
+}): Promise<void> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        await octokit.rest.git.deleteRef({
+            owner,
+            repo,
+            ref: `heads/${branch}`,
+            headers,
+        });
+    } catch (error) {
+        throw toGitWriteError(error);
+    }
+};
 export const getBranchHeadSha = async ({
     owner,
     repo,

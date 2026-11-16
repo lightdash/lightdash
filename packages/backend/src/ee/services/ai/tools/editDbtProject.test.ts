@@ -36,6 +36,7 @@ describe('getEditDbtProject', () => {
     it('forwards startNewPullRequest: true to the editDbtProject dependency', async () => {
         const editDbtProject = vi.fn().mockResolvedValue({
             status: 'started',
+            inSandbox: true,
             aiWritebackRunUuid: 'run-1',
         });
 
@@ -54,6 +55,7 @@ describe('getEditDbtProject', () => {
     it('forwards a null startNewPullRequest unchanged (default follow-up)', async () => {
         const editDbtProject = vi.fn().mockResolvedValue({
             status: 'started',
+            inSandbox: true,
             aiWritebackRunUuid: 'run-1',
         });
 
@@ -72,6 +74,7 @@ describe('getEditDbtProject', () => {
     it('forwards the AI SDK tool call id as progressId', async () => {
         const editDbtProject = vi.fn().mockResolvedValue({
             status: 'started',
+            inSandbox: true,
             aiWritebackRunUuid: 'run-1',
         });
 
@@ -87,6 +90,7 @@ describe('getEditDbtProject', () => {
     it('returns a pending status with the run uuid, without waiting for the run', async () => {
         const editDbtProject = vi.fn().mockResolvedValue({
             status: 'started',
+            inSandbox: true,
             aiWritebackRunUuid: 'run-1',
         });
 
@@ -107,6 +111,7 @@ describe('getEditDbtProject', () => {
     it('mirrors the started run as structured content that matches the output schema', async () => {
         const editDbtProject = vi.fn().mockResolvedValue({
             status: 'started',
+            inSandbox: true,
             aiWritebackRunUuid: 'run-1',
         });
 
@@ -149,6 +154,7 @@ describe('getEditDbtProject', () => {
     it('saves with a script only when code mode is on', async () => {
         const editDbtProject = vi.fn().mockResolvedValue({
             status: 'started',
+            inSandbox: true,
             aiWritebackRunUuid: 'run-1',
         });
 
@@ -188,5 +194,23 @@ describe('getEditDbtProject', () => {
         expect(toolEditDbtProjectOutputSchema.safeParse(output).success).toBe(
             true,
         );
+    });
+
+    it('says a save that falls back to the sandbox takes minutes', async () => {
+        const started = (inSandbox: boolean) =>
+            executeEditDbtProject(
+                getEditDbtProject({
+                    editDbtProject: vi.fn().mockResolvedValue({
+                        status: 'started',
+                        inSandbox,
+                        aiWritebackRunUuid: 'run-1',
+                    }),
+                    acceptsScript: true,
+                }),
+                { script: 'yaml.set()' },
+            );
+
+        expect((await started(true)).result).toContain('a few minutes');
+        expect((await started(false)).result).not.toContain('a few minutes');
     });
 });

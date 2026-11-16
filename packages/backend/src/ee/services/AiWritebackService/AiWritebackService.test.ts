@@ -203,6 +203,7 @@ const buildService = (overrides: Record<string, AnyType> = {}) => {
             findByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
         } as AnyType,
         aiWritebackRunModel: {
+            findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
             create: vi.fn(),
             findByUuid: vi.fn(),
             findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
@@ -1532,6 +1533,7 @@ describe('AiWritebackService dbt source targeting', () => {
                 findByAiThreadUuid: vi.fn().mockResolvedValue(null),
             } as AnyType,
             aiWritebackRunModel: {
+                findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                 create: vi.fn(),
                 findByUuid: vi.fn(),
                 updateStageIfInProgress,
@@ -1820,6 +1822,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     featureFlagModel,
                     agentPermissionService,
                     aiWritebackRunModel: {
+                        findLatestPrUrlByThread: vi
+                            .fn()
+                            .mockResolvedValue(null),
                         findByUuid: vi
                             .fn()
                             .mockResolvedValue({ status: 'pending' }),
@@ -1933,6 +1938,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     userModel,
                     agentPermissionService,
                     aiWritebackRunModel: {
+                        findLatestPrUrlByThread: vi
+                            .fn()
+                            .mockResolvedValue(null),
                         findByUuid: vi
                             .fn()
                             .mockResolvedValue({ status: 'pending' }),
@@ -1995,6 +2003,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     userModel,
                     agentPermissionService,
                     aiWritebackRunModel: {
+                        findLatestPrUrlByThread: vi
+                            .fn()
+                            .mockResolvedValue(null),
                         findByUuid: vi
                             .fn()
                             .mockResolvedValue({ status: 'pending' }),
@@ -2058,6 +2069,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 },
                 agentPermissionService: { loadRequest },
                 aiWritebackRunModel: {
+                    findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                     findByUuid: vi
                         .fn()
                         .mockResolvedValue({ status: 'pending' }),
@@ -2114,6 +2126,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         assertOperationWithRequest: vi.fn(),
                     },
                     aiWritebackRunModel: {
+                        findLatestPrUrlByThread: vi
+                            .fn()
+                            .mockResolvedValue(null),
                         findByUuid: vi
                             .fn()
                             .mockResolvedValue({ status: 'pending' }),
@@ -2189,6 +2204,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     create: vi.fn(),
                 },
                 aiWritebackRunModel: {
+                    findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                     findByUuid: vi.fn(async () => runRow),
                     updateStageIfInProgress: vi.fn().mockResolvedValue(true),
                     claimForFinalize: vi.fn().mockResolvedValue(true),
@@ -2597,6 +2613,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         assertOperation,
                     },
                     aiWritebackRunModel: {
+                        findLatestPrUrlByThread: vi
+                            .fn()
+                            .mockResolvedValue(null),
                         updateStageIfInProgress: vi
                             .fn()
                             .mockResolvedValue(true),
@@ -2827,6 +2846,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         assertOperation,
                     },
                     aiWritebackRunModel: {
+                        findLatestPrUrlByThread: vi
+                            .fn()
+                            .mockResolvedValue(null),
                         updateStageIfInProgress: vi
                             .fn()
                             .mockResolvedValue(true),
@@ -2926,6 +2948,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                             assertOperation: vi.fn(),
                         },
                         aiWritebackRunModel: {
+                            findLatestPrUrlByThread: vi
+                                .fn()
+                                .mockResolvedValue(null),
                             updateStageIfInProgress: vi
                                 .fn()
                                 .mockResolvedValue(true),
@@ -3051,6 +3076,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                                 assertOperation,
                             },
                             aiWritebackRunModel: {
+                                findLatestPrUrlByThread: vi
+                                    .fn()
+                                    .mockResolvedValue(null),
                                 updateStageIfInProgress: vi
                                     .fn()
                                     .mockResolvedValue(true),
@@ -3360,6 +3388,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                                     ? resumedRunModels(prUrl)
                                     : {}),
                                 aiWritebackRunModel: {
+                                    findLatestPrUrlByThread: vi
+                                        .fn()
+                                        .mockResolvedValue(null),
                                     updateStageIfInProgress: vi
                                         .fn()
                                         .mockResolvedValue(true),
@@ -4425,6 +4456,7 @@ describe('AiWritebackService.mergePullRequest', () => {
                     .mockResolvedValue(threadRow(PR_7)),
             } as AnyType,
             aiWritebackRunModel: {
+                findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                 findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue({
                     prompt_uuid: 'prompt-1',
                 }),
@@ -5300,6 +5332,7 @@ describe('AiWritebackService.enqueueWriteback', () => {
             schedulerClient,
             featureFlagModel,
             aiWritebackRunModel: {
+                findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                 create: vi
                     .fn()
                     .mockResolvedValue({ ai_writeback_run_uuid: 'run-1' }),
@@ -5607,6 +5640,7 @@ describe('AiWritebackService.runPipeline', () => {
         const error = new WritebackRunAbortedError('cancelled');
         const service = buildService({
             aiWritebackRunModel: {
+                findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                 findByUuid: vi.fn().mockResolvedValue({ status: 'pending' }),
             },
             userModel: {
@@ -5971,6 +6005,7 @@ describe.each([
                     get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
                 },
                 aiWritebackRunModel: {
+                    findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
                     create: vi.fn().mockResolvedValue(runRow),
                     findByUuid: vi.fn().mockResolvedValue(runRow),
                     markCancelled: vi.fn().mockResolvedValue(true),
@@ -6181,6 +6216,7 @@ test('a committed writeback run retains its initiating action when dispatch fail
                 .mockResolvedValue({ organizationUuid: user.organizationUuid }),
         },
         aiWritebackRunModel: {
+            findLatestPrUrlByThread: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockResolvedValue({ ai_writeback_run_uuid: 'run' }),
         },
         schedulerClient: {

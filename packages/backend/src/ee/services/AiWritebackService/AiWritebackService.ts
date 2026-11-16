@@ -2852,14 +2852,37 @@ export class AiWritebackService extends BaseService {
                 { user, connection: turn.gitConnection },
             );
 
-            const adoptedPr =
-                !turn.existingRow && prUrl
-                    ? await turn.provider.adoptPullRequest({
-                          prUrl,
-                          connection: turn.gitConnection,
-                          installation,
-                      })
-                    : null;
+            const adopt = (url: string) =>
+                turn.provider.adoptPullRequest({
+                    prUrl: url,
+                    connection: turn.gitConnection,
+                    installation,
+                });
+            // In Studio, a pull request the thread opened without a sandbox, such as with a script, is continued while it is open here.
+            const adoptThreadPr = async () => {
+                if (
+                    !args.continuesThreadPullRequest ||
+                    startNewPullRequest ||
+                    !aiThreadUuid
+                )
+                    return null;
+                const threadPrUrl =
+                    await this.aiWritebackRunModel.findLatestPrUrlByThread(
+                        aiThreadUuid,
+                    );
+                if (!threadPrUrl) return null;
+                return adopt(threadPrUrl).catch((error: unknown) => {
+                    // Merged, closed or elsewhere: this turn opens a new one.
+                    this.logger.info(
+                        `AiWriteback: not continuing the thread's pull request: ${getErrorMessage(error)}`,
+                    );
+                    return null;
+                });
+            };
+            let adoptedPr: AdoptedPullRequest | null = null;
+            if (!turn.existingRow) {
+                adoptedPr = prUrl ? await adopt(prUrl) : await adoptThreadPr();
+            }
 
             ({ sandbox, sandboxUuid } = await this.acquireSandbox({
                 organizationUuid: turn.organizationUuid,

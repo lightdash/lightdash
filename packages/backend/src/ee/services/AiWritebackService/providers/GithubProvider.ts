@@ -18,6 +18,7 @@ import {
     createBranch,
     createPullRequest,
     createSignedCommitOnBranch,
+    deleteBranch,
     getAppBotIdentity,
     getBranchHeadSha,
     getFileContent,
@@ -666,41 +667,65 @@ export class GithubProvider implements GitProvider {
             : `lightdash-ai-writeback/${randomUUID()}`;
         args.setStage('commit');
         if (assertPublishAllowed) await assertPublishAllowed();
-        if (!checkout.prUrl) {
-            await createBranch({
+        if (checkout.prUrl) {
+            args.setStage('push');
+            const commit = await createSignedCommitOnBranch({
                 ...repo,
-                sha: checkout.headSha,
                 branch,
+                expectedHeadOid: checkout.headSha,
+                headline: args.title,
+                body: commitBody(installation, args.user, args.description),
+                fileChanges: args.fileChanges,
                 ...auth,
             });
-        }
-        args.setStage('push');
-        const commit = await createSignedCommitOnBranch({
-            ...repo,
-            branch,
-            expectedHeadOid: checkout.headSha,
-            headline: args.title,
-            body: commitBody(installation, args.user, args.description),
-            fileChanges: args.fileChanges,
-            ...auth,
-        });
-        if (checkout.prUrl) {
             return {
                 prUrl: checkout.prUrl,
                 prCreated: false,
                 commitSha: commit.oid,
             };
         }
-        args.setStage('pull_request');
-        if (assertPublishAllowed) await assertPublishAllowed();
-        const pr = await createPullRequest({
+        await createBranch({
             ...repo,
-            title: args.title,
-            body: args.description,
-            head: branch,
-            base: checkout.baseBranch ?? checkout.branch,
+            sha: checkout.headSha,
+            branch,
             ...auth,
         });
-        return { prUrl: pr.html_url, prCreated: true, commitSha: commit.oid };
+        try {
+            args.setStage('push');
+            const commit = await createSignedCommitOnBranch({
+                ...repo,
+                branch,
+                expectedHeadOid: checkout.headSha,
+                headline: args.title,
+                body: commitBody(installation, args.user, args.description),
+                fileChanges: args.fileChanges,
+                ...auth,
+            });
+            args.setStage('pull_request');
+            if (assertPublishAllowed) await assertPublishAllowed();
+            const pr = await createPullRequest({
+                ...repo,
+                title: args.title,
+                body: args.description,
+                head: branch,
+                base: checkout.baseBranch ?? checkout.branch,
+                ...auth,
+            });
+            return {
+                prUrl: pr.html_url,
+                prCreated: true,
+                commitSha: commit.oid,
+            };
+        } catch (error) {
+            // A branch with no pull request is noise in the repo, so it goes with the failure.
+            await deleteBranch({ ...repo, branch, ...auth }).catch(
+                (cleanupError: unknown) => {
+                    this.logger.warn(
+                        `AiWriteback: failed to delete branch ${branch} after a failed save: ${getErrorMessage(cleanupError)}`,
+                    );
+                },
+            );
+            throw error;
+        }
     }
 }

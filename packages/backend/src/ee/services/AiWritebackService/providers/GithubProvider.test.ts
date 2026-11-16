@@ -3,6 +3,7 @@ import {
     createBranch,
     createPullRequest,
     createSignedCommitOnBranch,
+    deleteBranch,
     getBranchHeadSha,
     getPullRequest,
     updatePullRequest,
@@ -17,6 +18,7 @@ vi.mock('../../../../clients/github/Github', () => ({
         html_url: 'https://github.com/acme/analytics/pull/42',
     }),
     createSignedCommitOnBranch: vi.fn().mockResolvedValue({ oid: 'sha' }),
+    deleteBranch: vi.fn().mockResolvedValue(undefined),
     getBranchHeadSha: vi.fn().mockResolvedValue('base'),
     updatePullRequest: vi.fn().mockResolvedValue(undefined),
     getFileContent: vi.fn(),
@@ -278,6 +280,13 @@ describe('GithubProvider API checkout', () => {
         expect(vi.mocked(getBranchHeadSha).mock.calls[0][0].branch).toBe(
             'feature/x',
         );
+    });
+
+    it('deletes the new branch when the pull request cannot be opened', async () => {
+        vi.mocked(createPullRequest).mockRejectedValueOnce(new Error('boom'));
+        await expect(commit(null)).rejects.toThrow('boom');
+        const { branch } = vi.mocked(createBranch).mock.calls[0][0];
+        expect(vi.mocked(deleteBranch).mock.calls[0][0].branch).toBe(branch);
     });
 
     it('refuses a pull request from another repository or a merged one', async () => {

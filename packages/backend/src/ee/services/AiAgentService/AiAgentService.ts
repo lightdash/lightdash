@@ -13903,6 +13903,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const runArgs = {
                     ...(prompt.threadCreatedFrom === 'semantic_studio'
                         ? {
+                              continuesThreadPullRequest: true,
                               onDbtProject: async (
                                   project: ParsedDbtProject,
                               ) => {
@@ -15109,7 +15110,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 script,
             });
 
-            return { status: 'started', aiWritebackRunUuid };
+            return {
+                status: 'started',
+                aiWritebackRunUuid,
+                inSandbox: !script,
+            };
         };
 
         // Read-only repo access for the exploreRepo tool, exposed as ONE virtual

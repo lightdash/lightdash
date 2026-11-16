@@ -75,10 +75,13 @@ export const getEditDbtProject = ({
                         metadata: { status: 'error', errorCode: 'unknown' },
                     };
                 }
-                const { aiWritebackRunUuid } = started;
+                const { aiWritebackRunUuid, inSandbox } = started;
 
                 return {
-                    result: 'Started the change; the pull request opens in the background. Acknowledge it briefly.',
+                    result:
+                        acceptsScript && inSandbox
+                            ? 'Started the change. It needs dbt to run, so it is saved in a sandbox and takes a few minutes; the pull request opens in the background. Tell the person it will take a few minutes, briefly.'
+                            : 'Started the change; the pull request opens in the background. Acknowledge it briefly.',
                     metadata: {
                         status: 'pending',
                         aiWritebackRunUuid,

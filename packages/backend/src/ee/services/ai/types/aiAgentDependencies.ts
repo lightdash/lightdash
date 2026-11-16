@@ -909,7 +909,12 @@ export type EditDbtProjectFn = (args: {
     /** A code mode script; null runs the change in the sandbox. */
     script: string | null;
 }) => Promise<
-    | { status: 'started'; aiWritebackRunUuid: string }
+    | {
+          status: 'started';
+          aiWritebackRunUuid: string;
+          /** Saved by a sandbox that runs dbt, which takes minutes rather than seconds. */
+          inSandbox: boolean;
+      }
     | { status: 'script_failed'; error: string; logs: string[] }
 >;
 
