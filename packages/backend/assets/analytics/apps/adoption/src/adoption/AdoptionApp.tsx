@@ -720,7 +720,7 @@ export default function AdoptionApp() {
     };
     return (
         <div className="min-h-screen bg-background text-foreground">
-            <div data-ad-page className="mx-auto max-w-[1400px] px-6 pb-4 pt-3">
+            <div data-ad-page className="px-6 pb-4 pt-3">
                 <header className="mb-2 flex flex-wrap items-center justify-between gap-3">
                     <div className="space-y-1">
                         <h1 className="m-0 text-xl font-semibold tracking-tight">Adoption</h1>
