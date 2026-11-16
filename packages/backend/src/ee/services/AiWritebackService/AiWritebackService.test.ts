@@ -6210,3 +6210,76 @@ test('a committed writeback run retains its initiating action when dispatch fail
         }),
     );
 });
+
+describe('AiWritebackService.canReadSourceCode', () => {
+    const user = (canView: boolean): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        if (canView) can('view', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'editor',
+            ability: build(),
+        } as AnyType;
+    };
+
+    it.each([
+        [DbtProjectType.GITHUB, true, 'github-install', undefined, true],
+        [DbtProjectType.GITHUB, true, undefined, 'gitlab-install', false],
+        [DbtProjectType.GITLAB, true, 'github-install', 'gitlab-install', true],
+        [DbtProjectType.GITLAB, true, 'github-install', undefined, false],
+        [DbtProjectType.DBT_CLOUD_IDE, true, 'github-install', undefined, true],
+        [DbtProjectType.GITHUB, false, 'github-install', undefined, false],
+    ])(
+        '%s project, view:SourceCode %s, github %s, gitlab %s -> %s',
+        async (type, canView, githubInstall, gitlabInstall, expected) => {
+            const service = buildService({
+                projectModel: {
+                    get: vi.fn().mockResolvedValue({
+                        organizationUuid: ORG,
+                        dbtConnection: { type },
+                    }),
+                },
+                githubAppInstallationsModel: {
+                    findInstallationId: vi
+                        .fn()
+                        .mockResolvedValue(githubInstall),
+                },
+                gitlabAppInstallationsModel: {
+                    findInstallationId: vi
+                        .fn()
+                        .mockResolvedValue(gitlabInstall),
+                },
+            });
+
+            await expect(
+                service.canReadSourceCode({
+                    user: user(canView),
+                    projectUuid: 'p1',
+                }),
+            ).resolves.toBe(expected);
+        },
+    );
+
+    it('returns false when the installation lookup fails', async () => {
+        const service = buildService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    organizationUuid: ORG,
+                    dbtConnection: { type: DbtProjectType.GITHUB },
+                }),
+            },
+            githubAppInstallationsModel: {
+                findInstallationId: vi
+                    .fn()
+                    .mockRejectedValue(new Error('decrypt failed')),
+            },
+        });
+
+        await expect(
+            service.canReadSourceCode({ user: user(true), projectUuid: 'p1' }),
+        ).resolves.toBe(false);
+    });
+});
