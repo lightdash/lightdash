@@ -165,13 +165,26 @@ describe('Analytics settings overview', () => {
                 ).toEqual(['active-members']);
             }
         });
+        const title = panel.getByText('Feature fingerprint');
+        expect(title.closest('details')).not.toHaveAttribute('open');
+        expect(
+            panel.queryByRole('status', {
+                name: 'Loading feature fingerprint',
+            }),
+        ).not.toBeInTheDocument();
+        await userEvent.click(title);
+        expect(
+            await panel.findByRole('status', {
+                name: 'Loading feature fingerprint',
+            }),
+        ).toBeVisible();
+
         activity.resolve(
             ready([row('people_adoption', { ...membership, parts_used: 1 })]),
         );
 
-        await userEvent.click(await panel.findByText('Feature fingerprint'));
         expect(
-            panel.getByRole('row', { name: /Everyone.*100%/ }),
+            await panel.findByRole('row', { name: /Everyone.*100%/ }),
         ).toBeVisible();
     });
 

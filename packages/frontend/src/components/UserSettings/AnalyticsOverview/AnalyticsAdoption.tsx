@@ -2,6 +2,7 @@ import {
     Alert,
     Box,
     Group,
+    Loader,
     MultiSelect,
     Pagination,
     Paper,
@@ -114,15 +115,16 @@ const GroupMap = ({
 const Fingerprint = ({
     data,
     groups,
+    loading,
 }: {
-    data: AdoptionData;
+    data: AdoptionData | null;
     groups: AdoptionData['groups'];
+    loading: boolean;
 }) => {
     const [expanded, setExpanded] = useState(false);
-    const rows = [
-        { id: 'everyone', name: 'Everyone', ...data.overall },
-        ...groups,
-    ];
+    const rows = data
+        ? [{ id: 'everyone', name: 'Everyone', ...data.overall }, ...groups]
+        : [];
     return (
         <Paper withBorder p="md">
             <details
@@ -132,59 +134,78 @@ const Fingerprint = ({
                 <Text component="summary" fw={600} size="sm">
                     Feature fingerprint
                 </Text>
-                {expanded && (
-                    <ScrollArea>
-                        <Table withRowBorders highlightOnHover miw={730}>
-                            <Table.Caption>
-                                Share of members who used each feature in the
-                                last 30 complete days.
-                            </Table.Caption>
-                            <Table.Thead>
-                                <Table.Tr>
-                                    <Table.Th>Group</Table.Th>
-                                    {adoptionFeatures.map((feature) => (
-                                        <Table.Th key={feature}>
-                                            {feature}
-                                        </Table.Th>
-                                    ))}
-                                </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                                {rows.map(
-                                    ({ id, name, total, featureCounts }) => (
-                                        <Table.Tr key={id}>
-                                            <Table.Th scope="row">
-                                                <Text size="sm" fw={600}>
-                                                    {name}
-                                                </Text>
-                                                <Text c="dimmed" size="xs">
-                                                    {countLabel(total)}
-                                                </Text>
+                {expanded &&
+                    (loading ? (
+                        <Group
+                            justify="center"
+                            mih={100}
+                            role="status"
+                            aria-label="Loading feature fingerprint"
+                        >
+                            <Loader size="sm" aria-hidden="true" />
+                        </Group>
+                    ) : rows.length === 0 ? (
+                        <Text c="dimmed" size="sm">
+                            Feature usage is unavailable.
+                        </Text>
+                    ) : (
+                        <ScrollArea>
+                            <Table withRowBorders highlightOnHover miw={730}>
+                                <Table.Caption>
+                                    Share of members who used each feature in
+                                    the last 30 complete days.
+                                </Table.Caption>
+                                <Table.Thead>
+                                    <Table.Tr>
+                                        <Table.Th>Group</Table.Th>
+                                        {adoptionFeatures.map((feature) => (
+                                            <Table.Th key={feature}>
+                                                {feature}
                                             </Table.Th>
-                                            {featureCounts.map(
-                                                (count, index) => (
-                                                    <Table.Td
-                                                        key={
-                                                            adoptionFeatures[
-                                                                index
-                                                            ]
-                                                        }
-                                                    >
-                                                        {Math.round(
-                                                            (100 * count) /
-                                                                total,
-                                                        )}
-                                                        %
-                                                    </Table.Td>
-                                                ),
-                                            )}
-                                        </Table.Tr>
-                                    ),
-                                )}
-                            </Table.Tbody>
-                        </Table>
-                    </ScrollArea>
-                )}
+                                        ))}
+                                    </Table.Tr>
+                                </Table.Thead>
+                                <Table.Tbody>
+                                    {rows.map(
+                                        ({
+                                            id,
+                                            name,
+                                            total,
+                                            featureCounts,
+                                        }) => (
+                                            <Table.Tr key={id}>
+                                                <Table.Th scope="row">
+                                                    <Text size="sm" fw={600}>
+                                                        {name}
+                                                    </Text>
+                                                    <Text c="dimmed" size="xs">
+                                                        {countLabel(total)}
+                                                    </Text>
+                                                </Table.Th>
+                                                {featureCounts.map(
+                                                    (count, index) => (
+                                                        <Table.Td
+                                                            key={
+                                                                adoptionFeatures[
+                                                                    index
+                                                                ]
+                                                            }
+                                                        >
+                                                            {Math.round(
+                                                                (100 * count) /
+                                                                    total,
+                                                            )}
+                                                            %
+                                                        </Table.Td>
+                                                    ),
+                                                )}
+                                            </Table.Tr>
+                                        ),
+                                    )}
+                                </Table.Tbody>
+                            </Table>
+                        </ScrollArea>
+                    ))}
             </details>
         </Paper>
     );
@@ -377,14 +398,15 @@ const AnalyticsAdoption = ({ projectUuid }: { projectUuid: string }) => {
                     </Text>
                 </Stack>
             </Paper>
-            {featureData && featureData.overall.total > 0 && (
-                <Fingerprint
-                    data={featureData}
-                    groups={featureData.groups.filter(({ id }) =>
+            <Fingerprint
+                data={featureData}
+                groups={
+                    featureData?.groups.filter(({ id }) =>
                         visibleGroups.some((group) => group.id === id),
-                    )}
-                />
-            )}
+                    ) ?? []
+                }
+                loading={activity.isLoading}
+            />
         </Stack>
     );
 };
