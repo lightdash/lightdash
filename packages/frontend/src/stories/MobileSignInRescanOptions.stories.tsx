@@ -1,4 +1,5 @@
 import { Box, Paper, Text, Title } from '@mantine/core';
+import { useDocumentVisibility, useReducedMotion } from '@mantine/hooks';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { IconCircleCheck } from '@tabler/icons-react';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -156,16 +157,20 @@ const PHONE_SCREENS = [
 ];
 
 const useLoopingStep = (pinned: number | undefined) => {
+    const isReducedMotion = useReducedMotion();
+    const isVisible = useDocumentVisibility() === 'visible';
+    const isLooping = pinned === undefined && !isReducedMotion && isVisible;
     const [step, setStep] = useState(0);
     useEffect(() => {
-        if (pinned !== undefined) return undefined;
+        if (!isLooping) return undefined;
         const timer = window.setInterval(
             () => setStep((current) => (current + 1) % PHONE_SCREENS.length),
             2000,
         );
         return () => window.clearInterval(timer);
-    }, [pinned]);
-    return pinned ?? step;
+    }, [isLooping]);
+    if (pinned !== undefined) return pinned;
+    return isReducedMotion ? 0 : step;
 };
 
 const PhoneWalksTheSteps = ({ width, step }: Props) => {
@@ -220,6 +225,7 @@ const StepStrip = ({ width }: Props) => (
         <MobileUpsellFrame
             variation={6}
             isIdle
+            isWaitingForScan
             isSignedIn={false}
             title={<SignInTitle />}
             step={null}
@@ -247,28 +253,28 @@ export default meta;
 type Story = StoryObj<Props>;
 
 export const BStepStripImplemented: Story = {
-    name: 'B: Step strip (implemented)',
+    name: 'Design B: Step strip (implemented)',
     render: StepStrip,
 };
 
 export const BStepStripNarrowImplemented: Story = {
-    name: 'B: Step strip, narrow (implemented)',
+    name: 'Design B: Step strip, narrow (implemented)',
     args: { width: 360 },
     render: StepStrip,
 };
 
 export const APhoneWalksTheStepsPrototype: Story = {
-    name: 'A: Phone walks the steps (prototype)',
+    name: 'Design A: Phone walks the steps (prototype)',
     render: PhoneWalksTheSteps,
 };
 
 export const APhoneWalksTheStepsStorePrototype: Story = {
-    name: 'A: Phone walks the steps, store screen (prototype)',
+    name: 'Design A: Phone walks the steps, store screen (prototype)',
     args: { step: 1 },
     render: PhoneWalksTheSteps,
 };
 
 export const COneLineHintPrototype: Story = {
-    name: 'C: One-line hint (prototype)',
+    name: 'Design C: One-line hint (prototype)',
     render: OneLineHint,
 };

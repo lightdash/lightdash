@@ -263,7 +263,9 @@ describe('MobileSignInMenu', () => {
                 MOBILE_SIGN_IN_STRINGS.rescanSteps.install,
                 MOBILE_SIGN_IN_STRINGS.rescanSteps.scanAgain,
             ]);
-            steps.querySelectorAll('svg').forEach((icon) => {
+            const icons = steps.querySelectorAll('svg');
+            expect(icons).toHaveLength(3);
+            icons.forEach((icon) => {
                 expect(icon.closest('[aria-hidden="true"]')).not.toBeNull();
             });
 

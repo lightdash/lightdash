@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installFakeTimerBridge } from '../../testing/fakeTimerBridge';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderHookWithProviders } from '../../testing/testUtils';
+import { isSignInIdle, isWaitingForScan } from './isSignInIdle';
 import {
     MOBILE_SIGN_IN_IDLE_LIMIT_MS,
     MOBILE_SIGN_IN_POLL_INTERVAL_MS,
@@ -725,4 +726,67 @@ describe('source project discovery for each mint', () => {
         );
         expect(fetchMock).not.toHaveBeenCalled();
     });
+});
+
+describe('isWaitingForScan', () => {
+    const holdMints = (after: number) => {
+        const serve = api.getMockImplementation();
+        let mints = 0;
+        api.mockImplementation(
+            (request: { url: string; method: string; body: unknown }) => {
+                const isMint =
+                    request.method === 'POST' &&
+                    request.url === '/user/mobile/sign-in-codes';
+                if (isMint) {
+                    mints += 1;
+                    if (mints > after) return new Promise(() => undefined);
+                }
+                return serve?.(request);
+            },
+        );
+    };
+
+    it('is true while the first code is created', async () => {
+        mockServer();
+        holdMints(0);
+        const { result } = renderHookWithProviders(() => useMobileSignInCode());
+        act(() => result.current.show());
+        await waitFor(() => expect(result.current.isMinting).toBe(true));
+        expect(result.current.phase).toBe('hidden');
+        expect(result.current.code).toBeNull();
+        expect(isWaitingForScan(result.current)).toBe(true);
+    });
+
+    it('turns false at the idle stop while an auto-refresh is pending', async () => {
+        const server = mockServer();
+        holdMints(1);
+        const { result } = renderHookWithProviders(() => useMobileSignInCode());
+        act(() => result.current.show());
+        await waitFor(() => expect(result.current.phase).toBe('showing'));
+        expect(isWaitingForScan(result.current)).toBe(true);
+
+        await advance(TTL_MS + 10_000);
+        await waitFor(() => expect(result.current.isMinting).toBe(true));
+        expect(result.current.phase).toBe('showing');
+        expect(isWaitingForScan(result.current)).toBe(true);
+
+        for (let elapsed = 0; elapsed <= MOBILE_SIGN_IN_IDLE_LIMIT_MS; ) {
+            // eslint-disable-next-line no-await-in-loop
+            await advance(60_000);
+            elapsed += 60_000;
+        }
+        await waitFor(() => expect(result.current.phase).toBe('hidden'));
+        expect(result.current.isMinting).toBe(true);
+        expect(result.current.code).not.toBeNull();
+        expect(server.mints()).toEqual([{ reason: 'show' }]);
+        expect(
+            api.mock.calls.filter(
+                ([request]) =>
+                    request.method === 'POST' &&
+                    request.url === '/user/mobile/sign-in-codes',
+            ),
+        ).toHaveLength(2);
+        expect(isSignInIdle(result.current)).toBe(true);
+        expect(isWaitingForScan(result.current)).toBe(false);
+    }, 60_000);
 });

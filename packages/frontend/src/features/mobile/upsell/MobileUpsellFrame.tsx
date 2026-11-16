@@ -14,6 +14,7 @@ import { UPSELL_STRINGS } from './upsellStrings';
 
 type SignInParts = {
     isIdle: boolean;
+    isWaitingForScan: boolean;
     isSignedIn: boolean;
     title: ReactNode;
     step: ReactNode;
@@ -49,6 +50,7 @@ const GRAPHICS = {
 const Pitch = ({
     variation,
     isIdle,
+    isWaitingForScan,
     isSignedIn,
     title,
     qr,
@@ -91,7 +93,7 @@ const Pitch = ({
                         </div>
                     </div>
                 )}
-                {isIdle && !isSignedIn && <RescanSteps />}
+                {isWaitingForScan && <RescanSteps />}
                 {status}
             </div>
         </div>
