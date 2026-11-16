@@ -247,6 +247,16 @@
     }
 }
 
+/* Attachments fill the space the tall empty editor would otherwise reserve. */
+.root[data-variant='card'][data-size='lg'][data-has-attachments]
+    .editorContent {
+    min-height: rem(60px);
+
+    :global(.ProseMirror) {
+        min-height: rem(34px);
+    }
+}
+
 /* --- inline editor surface --- */
 
 /* Editor stacked above the attachment row; wrapped pills must never share

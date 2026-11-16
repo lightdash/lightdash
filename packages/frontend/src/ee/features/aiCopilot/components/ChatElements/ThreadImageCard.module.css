@@ -19,9 +19,9 @@
     min-width: 0;
 }
 
-.standalone {
-    width: 20rem;
-    max-width: 100%;
+.tile {
+    max-width: min(100%, 15rem);
+    padding-right: var(--mantine-spacing-xs);
 }
 
 .placeholder {
@@ -33,4 +33,9 @@
     height: 48px;
     border-radius: var(--mantine-radius-sm);
     background: var(--mantine-color-ldGray-1);
+}
+
+.placeholder[data-layout='tile'] {
+    width: 32px;
+    height: 32px;
 }

@@ -33,7 +33,6 @@ import {
     getPromptContextItemHref,
     getPromptContextItemKey,
 } from './contentReferenceUtils';
-import { ThreadImageGrid } from './ThreadImageCard';
 import { ThreadImageReference } from './ThreadImageReference';
 import { isPlainLeftClick } from './useDataAppPreviewLink';
 
@@ -90,15 +89,15 @@ export const UserBubble: FC<Props> = ({
     });
     // Review entities share one quiet grouped card; everything else stays a chip.
     const reviewContext = remainingContext.filter(isReviewEntityItem);
-    // Several images line up in a grid; a single one sits with the other chips.
+    // Images sit under the bubble; every other reference stays a chip above it.
     const images = remainingContext.flatMap((item) =>
         item.type === 'thread_image' ? [item] : [],
     );
-    const imageGrid = images.length > 1 ? images : [];
-    const otherContext = remainingContext.filter(
-        (item) =>
-            !isReviewEntityItem(item) &&
-            !(item.type === 'thread_image' && imageGrid.length > 0),
+    const chipContext = remainingContext.filter(
+        (item) => item.type !== 'thread_image',
+    );
+    const otherContext = chipContext.filter(
+        (item) => !isReviewEntityItem(item),
     );
 
     return (
@@ -141,25 +140,12 @@ export const UserBubble: FC<Props> = ({
                 </Tooltip>
             </Stack>
 
-            {remainingContext.length > 0 && projectUuid && (
+            {chipContext.length > 0 && projectUuid && (
                 <Stack
                     gap="xs"
                     align="flex-end"
                     className={styles.contextGroup}
                 >
-                    {imageGrid.length > 0 && (
-                        <Box w={640} maw="100%">
-                            <ThreadImageGrid>
-                                {imageGrid.map((item) => (
-                                    <ThreadImageReference
-                                        key={item.fileUuid}
-                                        item={item}
-                                        layout="grid"
-                                    />
-                                ))}
-                            </ThreadImageGrid>
-                        </Box>
-                    )}
                     {otherContext.length > 0 && (
                         <Group gap="xs" wrap="wrap" justify="flex-end">
                             {otherContext.map((item, idx) => (
@@ -322,6 +308,19 @@ export const UserBubble: FC<Props> = ({
                         />
                     )}
                 </Card>
+            )}
+
+            {images.length > 0 && (
+                <Group
+                    gap={6}
+                    wrap="wrap"
+                    justify="flex-end"
+                    className={styles.contextGroup}
+                >
+                    {images.map((item) => (
+                        <ThreadImageReference key={item.fileUuid} item={item} />
+                    ))}
+                </Group>
             )}
 
             {message.steers.length > 0 && (

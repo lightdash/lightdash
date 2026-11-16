@@ -18,8 +18,8 @@ type Props = {
     height: number;
     // Only the composer has the bytes; sent images show a placeholder.
     previewUrl: string | null;
-    // Sized by its grid cell, or on its own at a fixed width.
-    layout: 'grid' | 'standalone';
+    // A card sized by its grid cell, or a compact tile that hugs its content.
+    layout: 'grid' | 'tile';
     action: ReactNode;
 };
 
@@ -32,8 +32,8 @@ export const ThreadImageCard: FC<Props> = ({
     action,
 }) => (
     <Paper
-        p="xs"
-        className={`${classes.card} ${layout === 'standalone' ? classes.standalone : ''}`}
+        p={layout === 'tile' ? 6 : 'xs'}
+        className={`${classes.card} ${layout === 'tile' ? classes.tile : ''}`}
     >
         <Group gap="xs" wrap="nowrap">
             {previewUrl ? (
@@ -46,8 +46,8 @@ export const ThreadImageCard: FC<Props> = ({
                     flex="none"
                 />
             ) : (
-                <Box className={classes.placeholder}>
-                    <MantineIcon icon={IconPhoto} size={20} color="dimmed" />
+                <Box className={classes.placeholder} data-layout={layout}>
+                    <MantineIcon icon={IconPhoto} size={16} color="dimmed" />
                 </Box>
             )}
             <Stack gap={0} flex={1} miw={0}>
