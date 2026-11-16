@@ -176,6 +176,32 @@ describe('assertDashboardWithinLimits', () => {
         );
     });
 
+    it('counts tiles with unknown tabs on the first tab', () => {
+        expect(() =>
+            assertDashboardWithinLimits(
+                { tiles: [{ tabUuid: 'x' }, { tabUuid: 'y' }, {}], tabs: [] },
+                limits,
+            ),
+        ).toThrow(
+            new ParameterError(
+                'Dashboard has 3 tiles, which is over the limit of 2 tiles per tab',
+            ),
+        );
+        expect(() =>
+            assertDashboardWithinLimits(
+                {
+                    tiles: [{ tabUuid: 'tab1' }, { tabUuid: 'gone' }, {}],
+                    tabs,
+                },
+                limits,
+            ),
+        ).toThrow(
+            new ParameterError(
+                'Tab "First" has 3 tiles, which is over the limit of 2 tiles per tab',
+            ),
+        );
+    });
+
     it('counts tiles without a tab on the first tab', () => {
         expect(() =>
             assertDashboardWithinLimits(

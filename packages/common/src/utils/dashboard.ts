@@ -85,14 +85,21 @@ type LimitedDashboard = {
     tabs: { uuid: string; name: string; order: number }[];
 };
 
-/** Tiles of every type count; tiles without a tab render on the first tab. */
+/**
+ * Tiles of every type count. Tiles without a tab, or with a tab that doesn't
+ * exist (saving drops it), render on the first tab.
+ */
 export const getDashboardTileCountsByTab = ({
     tiles,
     tabs,
 }: LimitedDashboard): Map<string | null, number> => {
     const firstTab = [...tabs].sort((a, b) => a.order - b.order)[0];
+    const tabUuids = new Set(tabs.map((tab) => tab.uuid));
     return tiles.reduce<Map<string | null, number>>((counts, tile) => {
-        const tabUuid = tile.tabUuid ?? firstTab?.uuid ?? null;
+        const tabUuid =
+            tile.tabUuid && tabUuids.has(tile.tabUuid)
+                ? tile.tabUuid
+                : (firstTab?.uuid ?? null);
         return counts.set(tabUuid, (counts.get(tabUuid) ?? 0) + 1);
     }, new Map());
 };
