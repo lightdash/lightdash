@@ -1,3 +1,10 @@
+## [3.268.6](https://github.com/lightdash/lightdash/compare/3.268.5...3.268.6) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** let the writeback sandbox install dbt hub packages, and label the switch Try my changes ([#32597](https://github.com/lightdash/lightdash/issues/32597)) ([4866dbb](https://github.com/lightdash/lightdash/commit/4866dbb0e833505fd6d7a37dd10f40ceb5acac88))
+
 ## [3.268.5](https://github.com/lightdash/lightdash/compare/3.268.4...3.268.5) (2026-11-16)
 
 
