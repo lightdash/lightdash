@@ -17,6 +17,7 @@ import {
     type CreateComposerChart,
     type Dashboard,
     type DashboardAsCode,
+    type DashboardFieldTarget,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -834,7 +835,7 @@ describe('Composer charts', () => {
         const statusRule = (
             id: string,
             values: string[],
-            tileTargets?: Record<string, false>,
+            tileTargets?: Record<string, false | DashboardFieldTarget>,
         ) => ({
             id,
             label: undefined,
@@ -1021,6 +1022,66 @@ describe('Composer charts', () => {
             expect(
                 (await statusesOf(unfiltered, 'counts')).length,
             ).toBeGreaterThan(1);
+        });
+
+        it('a tile target naming a SQL column filters the SQL nodes with that column only', async () => {
+            const { dashboard, chart } = await createComposerDashboard(
+                apiClientSend(admin),
+                { pipeline: everyKindPipeline },
+            );
+            tracker.trackDashboard(dashboard.uuid);
+            const tileUuid = dashboard.tiles[0].uuid;
+            const viewer = await loginAsViewer();
+            const runWith = async (
+                dimensions: ReturnType<typeof statusRule>[],
+            ) => {
+                const run = await viewer.post<Body<ComposerChartRunResults>>(
+                    runUrl(chart.uuid),
+                    {
+                        ...runRequest(dashboard.uuid, tileUuid),
+                        dashboardFilters: {
+                            dimensions,
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                    },
+                );
+                expect(run.status).toBe(200);
+                return run.body.results;
+            };
+            const rowsOf = (results: ComposerChartRunResults, nodeId: string) =>
+                pollRows(viewer, queryOf(results, nodeId));
+
+            const unfiltered = await runWith([]);
+            expect(
+                unfiltered.sqlColumns.map((c) => c.reference).sort(),
+            ).toEqual(['amount', 'status']);
+
+            const filtered = await runWith([
+                statusRule('dash', ['shipped'], {
+                    [tileUuid]: {
+                        fieldId: 'status',
+                        tableName: 'mock_table',
+                        isSqlColumn: true,
+                    },
+                }),
+            ]);
+            const rawRows = await rowsOf(filtered, 'raw');
+            expect(rawRows.length).toBeLessThan(
+                (await rowsOf(unfiltered, 'raw')).length,
+            );
+            expect(rawValues(rawRows, 'status')).toEqual(['shipped']);
+            // The semantic-layer nodes have no column target, so stay whole
+            expect(
+                rawValues(await rowsOf(filtered, 'counts'), 'orders_status')
+                    .length,
+            ).toBeGreaterThan(1);
+            expect(
+                Object.keys(filtered.appliedDashboardFiltersByNodeId),
+            ).toEqual(['raw']);
+            expect(
+                filtered.appliedDashboardFilters.dimensions.map((r) => r.id),
+            ).toEqual(['dash']);
         });
 
         it('leaves the tile unchanged for a filter no node has, or one switched off for the tile', async () => {
@@ -1492,7 +1553,9 @@ describe('Composer charts', () => {
                 { failOnStatusCode: false },
             );
             expect(refused.status).toBe(400);
-            expect(refused.body.error.message).toContain('Upgrade your CLI');
+            expect(refused.body.error.message).toContain(
+                'Upgrade your CLI to 3.266.0 or later',
+            );
         });
 
         it('with the flag off, downloads and keeps what exists but refuses new or changed composer content', async () => {

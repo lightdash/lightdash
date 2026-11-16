@@ -2,9 +2,11 @@ import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     getComposerChartSaveDraft,
+    getComposerCustomMetricExploreNames,
     getComposerPipelineWriteDeniedReason,
     savesAsComposerChart,
     type AiComposerChartArtifactConfig,
+    type CaslSubjectNames,
     type ComposerChartSaveCustomChartType,
     type ComposerChartPipeline,
     type ComposerStoredChart,
@@ -14,6 +16,7 @@ import { useMemo } from 'react';
 import { useDataAppVizRenderMetadata } from '../../../../../features/chartTypes/hooks/useDataAppVizRender';
 import { type SavedComposerChartLink } from '../../../../../features/composerCharts/components/SaveComposerChartModal';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
+import { useExploreQueries } from '../../../../../hooks/useExplore';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -116,6 +119,23 @@ export const useComposerChartSaveAction = ({
         [config, columns, title, description, customChartType],
     );
 
+    const ability = user.data?.ability;
+    const cannotManage = (subjectName: CaslSubjectNames) =>
+        !ability ||
+        ability.cannot(
+            'manage',
+            subject(subjectName, {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        );
+    // Custom metric SQL is compared to the model only for a user without custom fields
+    const metricExploreNames =
+        draft.status === 'unavailable' || !cannotManage('CustomFields')
+            ? []
+            : getComposerCustomMetricExploreNames(draft.pipeline);
+    const metricExplores = useExploreQueries(metricExploreNames, projectUuid);
+
     if (
         source.kind !== 'artifact' ||
         isEmbed ||
@@ -142,18 +162,22 @@ export const useComposerChartSaveAction = ({
             link,
         };
     }
-    const ability = user.data?.ability;
+    if (metricExplores.some((explore) => explore === undefined)) {
+        return {
+            kind: 'save',
+            disabledReason: 'Checking the custom metrics this answer uses',
+            draft: null,
+            link,
+        };
+    }
     const deniedReason = getComposerPipelineWriteDeniedReason(
         draft.pipeline,
-        (subjectName) =>
-            !ability ||
-            ability.cannot(
-                'manage',
-                subject(subjectName, {
-                    organizationUuid: user.data?.organizationUuid,
-                    projectUuid,
-                }),
+        cannotManage,
+        Object.fromEntries(
+            metricExplores.flatMap((explore) =>
+                explore ? [[explore.name, explore.tables]] : [],
             ),
+        ),
     );
     return {
         kind: 'save',
