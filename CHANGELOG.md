@@ -1,3 +1,10 @@
+# [3.272.0](https://github.com/lightdash/lightdash/compare/3.271.1...3.272.0) (2026-11-16)
+
+
+### Features
+
+* filter autocomplete caching follows the project results cache setting ([#32669](https://github.com/lightdash/lightdash/issues/32669)) ([1f3bd9b](https://github.com/lightdash/lightdash/commit/1f3bd9b3ee85fc2198e22e6b37c5c0653fee8e0a))
+
 ## [3.271.1](https://github.com/lightdash/lightdash/compare/3.271.0...3.271.1) (2026-11-16)
 
 
