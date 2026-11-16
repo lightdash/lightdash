@@ -1,6 +1,6 @@
-import { Stack, Text, Title } from '@mantine/core';
+import { Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { useDocumentVisibility } from '@mantine/hooks';
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { MOBILE_SIGN_IN_STRINGS } from '../mobileStrings';
 import { AskUpsell } from './AskUpsell';
 import { BrowseUpsell } from './BrowseUpsell';
@@ -9,6 +9,11 @@ import { DashboardUpsell } from './DashboardUpsell';
 import { type MobileUpsellChoice } from './getMobileUpsell';
 import classes from './MobileUpsell.module.css';
 import { PinnedUpsell } from './PinnedUpsell';
+import {
+    MOBILE_PITCH_DISMISS_STRINGS,
+    type MobilePitchDismissReason,
+} from './pitchDismiss';
+import { PitchDismissReasons } from './PitchDismissReasons';
 import { PlatformsUpsell } from './PlatformsUpsell';
 import { UPSELL_STRINGS } from './upsellStrings';
 
@@ -23,10 +28,14 @@ type SignInParts = {
     status: ReactNode;
 };
 
+type PitchDismiss = {
+    onDismiss?: (reason: MobilePitchDismissReason) => void;
+};
+
 export const MobileUpsellFrame = ({
     variation,
     ...parts
-}: SignInParts & { variation: MobileUpsellChoice | null }) => {
+}: SignInParts & PitchDismiss & { variation: MobileUpsellChoice | null }) => {
     if (!variation) {
         return (
             <Stack gap="sm">
@@ -56,10 +65,24 @@ const Pitch = ({
     qr,
     details,
     status,
-}: SignInParts & { variation: MobileUpsellChoice }) => {
+    onDismiss,
+}: SignInParts & PitchDismiss & { variation: MobileUpsellChoice }) => {
     const visibility = useDocumentVisibility();
+    const [askingWhy, setAskingWhy] = useState(false);
     const copy = UPSELL_STRINGS[variation];
     const Graphic = GRAPHICS[variation];
+    const canDismiss = onDismiss !== undefined && isIdle && !isSignedIn;
+    if (askingWhy && onDismiss) {
+        return (
+            <div
+                className={classes.frame}
+                data-mobile-upsell={variation}
+                data-paused={visibility === 'hidden'}
+            >
+                <PitchDismissReasons onPick={onDismiss} />
+            </div>
+        );
+    }
     return (
         <div
             className={classes.frame}
@@ -105,6 +128,17 @@ const Pitch = ({
                     </div>
                 )}
                 {status}
+                {canDismiss && (
+                    <UnstyledButton
+                        type="button"
+                        className={classes.dismiss}
+                        onClick={() => setAskingWhy(true)}
+                    >
+                        <Text component="span" fz="xs" c="dimmed">
+                            {MOBILE_PITCH_DISMISS_STRINGS.action}
+                        </Text>
+                    </UnstyledButton>
+                )}
             </div>
         </div>
     );

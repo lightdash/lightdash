@@ -80,6 +80,20 @@
     text-wrap: balance;
 }
 
+.dismiss {
+    justify-self: start;
+    border-radius: var(--mantine-radius-xs);
+}
+
+.dismiss:hover span {
+    text-decoration: underline;
+}
+
+.dismiss:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}
+
 .qrColumn [data-used='true'] {
     opacity: 0.4;
 }

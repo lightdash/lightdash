@@ -17,6 +17,8 @@ import type * as rudderSDK from 'rudder-sdk-js';
 import { type PlaygroundSetupFailure } from '../../components/ProjectConnection/ProjectConnectFlow/playgroundSetupFailure';
 import { type AgentSuggestionsDisplayedProperties } from '../../ee/features/aiCopilot/hooks/agentSuggestionsTelemetry';
 import { type SetupGuideRowId } from '../../ee/features/homepageBuilder/blocks/setupGuide/setupGuideModel';
+import { type MobileUpsellChoice } from '../../features/mobile/upsell/getMobileUpsell';
+import { type MobilePitchDismissReason } from '../../features/mobile/upsell/pitchDismiss';
 import {
     type CategoryName,
     type EventName,
@@ -88,6 +90,14 @@ type GenericEvent = {
         | EventName.BIGQUERY_SSO_SIGNIN_CLICKED
         | EventName.AGENT_SETUP_PROMPT_COPIED;
     properties?: {};
+};
+
+type MobilePitchDismissedEvent = {
+    name: EventName.MOBILE_PITCH_DISMISSED;
+    properties: {
+        reason: MobilePitchDismissReason;
+        variation: MobileUpsellChoice;
+    };
 };
 
 type SetupInviteSentEvent = {
@@ -1477,7 +1487,8 @@ export type EventData =
     | SqlRunnerConnectionHintResolvedEvent
     | SqlRunnerShareLinkOpenedEvent
     | OpenInSqlRunnerClickedEvent
-    | LiveDataSourceRequestedEvent;
+    | LiveDataSourceRequestedEvent
+    | MobilePitchDismissedEvent;
 
 export type IdentifyData = {
     id: string;
