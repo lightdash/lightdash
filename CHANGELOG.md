@@ -1,3 +1,10 @@
+# [3.266.0](https://github.com/lightdash/lightdash/compare/3.265.3...3.266.0) (2026-11-16)
+
+
+### Features
+
+* **cli:** composer charts as code in download, upload and lint ([#32610](https://github.com/lightdash/lightdash/issues/32610)) ([94f82bf](https://github.com/lightdash/lightdash/commit/94f82bf73be4037fc71095f59e647d0bbe8f9ab4))
+
 ## [3.265.3](https://github.com/lightdash/lightdash/compare/3.265.2...3.265.3) (2026-11-16)
 
 

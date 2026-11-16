@@ -263,6 +263,8 @@ import { OrganizationHomepageSettingsController } from './../ee/controllers/orga
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationSsoController } from './../ee/controllers/OrganizationSsoController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { OrgBillingController } from './../ee/controllers/OrgBillingController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrgRoadmapController } from './../ee/controllers/OrgRoadmapController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PostHogOAuthController } from './../ee/controllers/postHogOAuthController';
@@ -6485,6 +6487,74 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DashboardTileTypes.COMPOSER_CHART': {
+        dataType: 'refEnum',
+        enums: ['composer_chart'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DashboardComposerChartTileProperties-at-properties.title-or-hideTitle_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    title: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    hideTitle: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardComposerChartTileAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DashboardTileAsCodeBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        properties: {
+                            dataType: 'intersection',
+                            subSchemas: [
+                                {
+                                    ref: 'Pick_DashboardComposerChartTileProperties-at-properties.title-or-hideTitle_',
+                                },
+                                {
+                                    dataType: 'nestedObjectLiteral',
+                                    nestedProperties: {
+                                        chartSlug: {
+                                            dataType: 'string',
+                                            required: true,
+                                        },
+                                    },
+                                },
+                            ],
+                            required: true,
+                        },
+                        type: {
+                            ref: 'DashboardTileTypes.COMPOSER_CHART',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DashboardTileTypes.MARKDOWN': {
         dataType: 'refEnum',
         enums: ['markdown'],
@@ -6672,6 +6742,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { ref: 'DashboardChartTileAsCode' },
                 { ref: 'DashboardSqlChartTileAsCode' },
+                { ref: 'DashboardComposerChartTileAsCode' },
                 { ref: 'DashboardMarkdownTileAsCode' },
                 { ref: 'DashboardLoomTileAsCode' },
                 { ref: 'DashboardHeadingTileAsCode' },
@@ -6990,7 +7061,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string__-or-_type-DashboardTileTypes.COMPOSER_CHART--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -7000,7 +7071,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string__-or-_type-DashboardTileTypes.COMPOSER_CHART--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -7010,7 +7081,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string__-or-_type-DashboardTileTypes.COMPOSER_CHART--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -7023,7 +7094,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string__-or-_type-DashboardTileTypes.COMPOSER_CHART--properties_58__title-string___41_-Array-or-undefined--sections_63__58__names-DashboardControlNameTranslations_-or-undefined--parameterControls_63__58__labels-DashboardControlNameTranslations_-or-undefined--dateZooms_63__58__names-DashboardControlNameTranslations_-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -7768,6 +7839,783 @@ const models: TsoaRoute.Models = {
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ContentAsCodeType.COMPOSER_CHART': {
+        dataType: 'refEnum',
+        enums: ['composer_chart'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'QuerySourceType.SEMANTIC_LAYER': {
+        dataType: 'refEnum',
+        enums: ['semanticLayer'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    QueryNodeId: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'string',
+            validators: { pattern: { value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$' } },
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PivotIndexColum: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'VizIndexType', required: true },
+                reference: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValuesColumn: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                aggregation: { ref: 'VizAggregationOptions', required: true },
+                reference: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GroupByColumn: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                reference: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SortBy: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'array',
+            array: { dataType: 'refAlias', ref: 'VizSortBy' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PivotConfiguration: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                foldOverflowGroups: { dataType: 'boolean' },
+                pivotColumnsOrder: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'GroupByColumn' },
+                },
+                passthroughDimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'GroupByColumn' },
+                },
+                sortOnlyDimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'GroupByColumn' },
+                },
+                sortOnlyColumns: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ValuesColumn' },
+                },
+                metricsAsRows: { dataType: 'boolean' },
+                sortBy: {
+                    dataType: 'union',
+                    subSchemas: [{ ref: 'SortBy' }, { dataType: 'undefined' }],
+                    required: true,
+                },
+                groupByColumns: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'GroupByColumn',
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+                valuesColumns: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ValuesColumn' },
+                    required: true,
+                },
+                indexColumn: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PivotIndexColum' },
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'PivotIndexColum',
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SemanticLayerSourceQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pivotConfiguration: { ref: 'PivotConfiguration' },
+                parameters: { ref: 'ParametersValuesMap' },
+                timezone: { dataType: 'string' },
+                dimensionOverrides: { ref: 'DimensionOverrides' },
+                metricOverrides: { ref: 'MetricOverrides' },
+                customDimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'CustomDimension' },
+                },
+                additionalMetrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'AdditionalMetric' },
+                },
+                tableCalculations: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'TableCalculation' },
+                },
+                limit: { dataType: 'double' },
+                sorts: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'SortField' },
+                },
+                filters: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        tableCalculations: { ref: 'AnyType' },
+                        metrics: { ref: 'AnyType' },
+                        dimensions: { ref: 'AnyType' },
+                    },
+                },
+                metrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
+                dimensions: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'FieldId' },
+                    required: true,
+                },
+                exploreName: { dataType: 'string', required: true },
+                description: { dataType: 'string' },
+                title: { dataType: 'string' },
+                nodeId: { ref: 'QueryNodeId' },
+                sourceType: {
+                    ref: 'QuerySourceType.SEMANTIC_LAYER',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    StoredNode_SemanticLayerSourceQuery_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'SemanticLayerSourceQuery' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        title: { dataType: 'string', required: true },
+                        nodeId: {
+                            dataType: 'string',
+                            required: true,
+                            validators: {
+                                pattern: {
+                                    value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$',
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'QuerySourceType.SQL': {
+        dataType: 'refEnum',
+        enums: ['sql'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SqlSourceQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pivotConfiguration: { ref: 'PivotConfiguration' },
+                limit: { dataType: 'double' },
+                sql: { dataType: 'string', required: true },
+                description: { dataType: 'string' },
+                title: { dataType: 'string' },
+                nodeId: { ref: 'QueryNodeId' },
+                sourceType: { ref: 'QuerySourceType.SQL', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    StoredNode_SqlSourceQuery_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'SqlSourceQuery' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        title: { dataType: 'string', required: true },
+                        nodeId: {
+                            dataType: 'string',
+                            required: true,
+                            validators: {
+                                pattern: {
+                                    value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$',
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'QuerySourceType.DUCKDB': {
+        dataType: 'refEnum',
+        enums: ['duckdb'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_QuerySourceTableName.QueryResultReference_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { dataType: 'string' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DuckdbSourceQuery: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pivotConfiguration: { ref: 'PivotConfiguration' },
+                references: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'QueryNodeId' },
+                        },
+                        {
+                            ref: 'Record_QuerySourceTableName.QueryResultReference_',
+                        },
+                    ],
+                },
+                limit: { dataType: 'double' },
+                sql: { dataType: 'string', required: true },
+                description: { dataType: 'string' },
+                title: { dataType: 'string' },
+                nodeId: { ref: 'QueryNodeId' },
+                sourceType: { ref: 'QuerySourceType.DUCKDB', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    StoredNode_DuckdbSourceQuery_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'DuckdbSourceQuery' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        title: { dataType: 'string', required: true },
+                        nodeId: {
+                            dataType: 'string',
+                            required: true,
+                            validators: {
+                                pattern: {
+                                    value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$',
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'QuerySourceType.PYTHON': {
+        dataType: 'refEnum',
+        enums: ['python'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_PythonSourceQuery.Exclude_keyofPythonSourceQuery.pivotConfiguration__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    title: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    limit: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    description: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    sourceType: {
+                        ref: 'QuerySourceType.PYTHON',
+                        required: true,
+                    },
+                    nodeId: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    code: { dataType: 'string', required: true },
+                    references: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: { dataType: 'string' },
+                            },
+                            { ref: 'Record_string.string_' },
+                        ],
+                        required: true,
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_PythonSourceQuery.pivotConfiguration_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_PythonSourceQuery.Exclude_keyofPythonSourceQuery.pivotConfiguration__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'StoredNode_Omit_PythonSourceQuery.pivotConfiguration__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_PythonSourceQuery.pivotConfiguration_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        title: { dataType: 'string', required: true },
+                        nodeId: {
+                            dataType: 'string',
+                            required: true,
+                            validators: {
+                                pattern: {
+                                    value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$',
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'QuerySourceType.MERGE': {
+        dataType: 'refEnum',
+        enums: ['merge'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MergeSourceQueryInput: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                repeatValues: { dataType: 'boolean' },
+                nodeId: { ref: 'QueryNodeId', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_MergeSourceQuery.Exclude_keyofMergeSourceQuery.pivotConfiguration__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    title: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    limit: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    description: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    sorts: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: {
+                                    dataType: 'refAlias',
+                                    ref: 'SortField',
+                                },
+                            },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    tableCalculations: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                dataType: 'array',
+                                array: {
+                                    dataType: 'refAlias',
+                                    ref: 'MergeTableCalculation',
+                                },
+                            },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    sourceType: {
+                        ref: 'QuerySourceType.MERGE',
+                        required: true,
+                    },
+                    nodeId: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    sources: {
+                        dataType: 'array',
+                        array: {
+                            dataType: 'refAlias',
+                            ref: 'MergeSourceQueryInput',
+                        },
+                        required: true,
+                    },
+                    joinKey: {
+                        dataType: 'array',
+                        array: {
+                            dataType: 'refAlias',
+                            ref: 'MergeJoinKeyPart',
+                        },
+                        required: true,
+                    },
+                    joinType: { ref: 'MergeJoinType', required: true },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_MergeSourceQuery.pivotConfiguration_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_MergeSourceQuery.Exclude_keyofMergeSourceQuery.pivotConfiguration__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'StoredNode_Omit_MergeSourceQuery.pivotConfiguration__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_MergeSourceQuery.pivotConfiguration_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        title: { dataType: 'string', required: true },
+                        nodeId: {
+                            dataType: 'string',
+                            required: true,
+                            validators: {
+                                pattern: {
+                                    value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$',
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerChartPipelineNode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'StoredNode_SemanticLayerSourceQuery_' },
+                { ref: 'StoredNode_SqlSourceQuery_' },
+                { ref: 'StoredNode_DuckdbSourceQuery_' },
+                {
+                    ref: 'StoredNode_Omit_PythonSourceQuery.pivotConfiguration__',
+                },
+                {
+                    ref: 'StoredNode_Omit_MergeSourceQuery.pivotConfiguration__',
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerChartPipeline: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                nodes: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ComposerChartPipelineNode',
+                    },
+                    required: true,
+                },
+                terminalNodeId: { dataType: 'string', required: true },
+                schemaVersion: { dataType: 'enum', enums: [1], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'FieldType.DIMENSION': {
+        dataType: 'refEnum',
+        enums: ['dimension'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'FieldType.METRIC': {
+        dataType: 'refEnum',
+        enums: ['metric'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerChartColumn: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                fieldType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'FieldType.DIMENSION' },
+                        { ref: 'FieldType.METRIC' },
+                    ],
+                    required: true,
+                },
+                reference: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_ComposerStoredChart.Exclude_keyofComposerStoredChart.chartConfig__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pivotConfig: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                columns: {
+                                    dataType: 'array',
+                                    array: { dataType: 'string' },
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                tableConfig: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        columnOrder: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                schemaVersion: { dataType: 'enum', enums: [1], required: true },
+                columns: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ComposerChartColumn' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_ComposerStoredChart.chartConfig_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_ComposerStoredChart.Exclude_keyofComposerStoredChart.chartConfig__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerStoredChartAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'Omit_ComposerStoredChart.chartConfig_' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        chartConfig: {
+                            ref: 'ChartAsCodeConfig',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerChartAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                downloadedAt: { dataType: 'datetime' },
+                updatedAt: { dataType: 'datetime' },
+                chart: { ref: 'ComposerStoredChartAsCode', required: true },
+                pipeline: { ref: 'ComposerChartPipeline', required: true },
+                spaceSlug: { dataType: 'string', required: true },
+                dashboardSlug: { dataType: 'string', required: true },
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+                slug: { dataType: 'string', required: true },
+                version: { dataType: 'double', required: true },
+                contentType: {
+                    ref: 'ContentAsCodeType.COMPOSER_CHART',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiComposerChartAsCodeListResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        offset: { dataType: 'double', required: true },
+                        total: { dataType: 'double', required: true },
+                        missingIds: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                        composerCharts: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'ComposerChartAsCode',
+                            },
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UUID: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'string',
+            validators: {
+                pattern: {
+                    value: '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}',
+                },
+            },
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -9974,11 +10822,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'DashboardTileTypes.COMPOSER_CHART': {
-        dataType: 'refEnum',
-        enums: ['composer_chart'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardComposerChartTileProperties: {
         dataType: 'refAlias',
         type: {
@@ -9987,6 +10830,13 @@ const models: TsoaRoute.Models = {
                 properties: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        chartSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         chartName: {
                             dataType: 'union',
                             subSchemas: [
@@ -11179,6 +12029,28 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             ref: 'Pick_SqlChartAsCode.Exclude_keyofSqlChartAsCode.config-or-description__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiComposerChartAsCodeUpsertResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        composerChartUuid: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                        action: { ref: 'PromotionAction', required: true },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
             validators: {},
         },
     },
@@ -13192,18 +14064,6 @@ const models: TsoaRoute.Models = {
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    UUID: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'string',
-            validators: {
-                pattern: {
-                    value: '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}',
-                },
-            },
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -16696,6 +17556,17 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalFetchComposerChartContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                composerChartUuid: { ref: 'UUID', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalFetchRequest: {
         dataType: 'refAlias',
         type: {
@@ -16706,6 +17577,7 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { ref: 'ExternalFetchSavedChartContext' },
                         { ref: 'ExternalFetchDocumentContext' },
+                        { ref: 'ExternalFetchComposerChartContext' },
                     ],
                 },
                 body: { dataType: 'any' },
@@ -17293,6 +18165,30 @@ const models: TsoaRoute.Models = {
                 parameterInteractivity: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        values: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'ParametersValuesMap' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        hidden: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'boolean' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        allowedParameters: {
+                            dataType: 'union',
+                            subSchemas: [
+                                {
+                                    dataType: 'array',
+                                    array: { dataType: 'string' },
+                                },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         enabled: { dataType: 'boolean', required: true },
                     },
                 },
@@ -17512,6 +18408,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    EmbedActor: {
+        dataType: 'refAlias',
+        type: { ref: 'EmbedWriteActions', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateEmbedJwt: {
         dataType: 'refAlias',
         type: {
@@ -17533,6 +18434,7 @@ const models: TsoaRoute.Models = {
                     additionalProperties: { dataType: 'string' },
                 },
                 writeActions: { ref: 'EmbedWriteActions' },
+                actor: { ref: 'EmbedActor' },
                 content: {
                     dataType: 'union',
                     subSchemas: [
@@ -17809,6 +18711,41 @@ const models: TsoaRoute.Models = {
                                 parameterInteractivity: {
                                     dataType: 'nestedObjectLiteral',
                                     nestedProperties: {
+                                        values: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                { ref: 'ParametersValuesMap' },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                            ],
+                                        },
+                                        hidden: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                { dataType: 'boolean' },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                            ],
+                                        },
+                                        allowedParameters: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                {
+                                                    dataType: 'array',
+                                                    array: {
+                                                        dataType: 'string',
+                                                    },
+                                                },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                            ],
+                                        },
                                         enabled: {
                                             dataType: 'boolean',
                                             required: true,
@@ -17908,11 +18845,6 @@ const models: TsoaRoute.Models = {
     WeekDay: {
         dataType: 'refEnum',
         enums: [0, 1, 2, 3, 4, 5, 6],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'FieldType.DIMENSION': {
-        dataType: 'refEnum',
-        enums: ['dimension'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     TimestampDomain: {
@@ -18114,11 +19046,6 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'FieldType.METRIC': {
-        dataType: 'refEnum',
-        enums: ['metric'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DefaultTimeDimension: {
         dataType: 'refAlias',
         type: {
@@ -18296,6 +19223,7 @@ const models: TsoaRoute.Models = {
                 nestedProperties: {
                     savedChartUuid: { dataType: 'string', required: true },
                     tileUuid: { dataType: 'string', required: true },
+                    tileType: { ref: 'DashboardTileTypes.SAVED_CHART' },
                 },
             },
             validators: {},
@@ -28599,117 +29527,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PivotIndexColum: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                type: { ref: 'VizIndexType', required: true },
-                reference: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ValuesColumn: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                aggregation: { ref: 'VizAggregationOptions', required: true },
-                reference: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    GroupByColumn: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                reference: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SortBy: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'array',
-            array: { dataType: 'refAlias', ref: 'VizSortBy' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PivotConfiguration: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                foldOverflowGroups: { dataType: 'boolean' },
-                pivotColumnsOrder: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'GroupByColumn' },
-                },
-                passthroughDimensions: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'GroupByColumn' },
-                },
-                sortOnlyDimensions: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'GroupByColumn' },
-                },
-                sortOnlyColumns: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'ValuesColumn' },
-                },
-                metricsAsRows: { dataType: 'boolean' },
-                sortBy: {
-                    dataType: 'union',
-                    subSchemas: [{ ref: 'SortBy' }, { dataType: 'undefined' }],
-                    required: true,
-                },
-                groupByColumns: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'GroupByColumn',
-                            },
-                        },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-                valuesColumns: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'ValuesColumn' },
-                    required: true,
-                },
-                indexColumn: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'PivotIndexColum' },
-                        {
-                            dataType: 'array',
-                            array: {
-                                dataType: 'refAlias',
-                                ref: 'PivotIndexColum',
-                            },
-                        },
-                        { dataType: 'undefined' },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExecuteAsyncMetricQueryRequestParams: {
         dataType: 'refAlias',
         type: {
@@ -30922,6 +31739,13 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     showColumnTotals: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    showSubtotals: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'boolean' },
@@ -45241,14 +46065,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    QueryNodeId: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'string',
-            validators: { pattern: { value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$' } },
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentThreadComposerNode: {
         dataType: 'refAlias',
         type: {
@@ -45282,135 +46098,6 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'QuerySourceType.SEMANTIC_LAYER': {
-        dataType: 'refEnum',
-        enums: ['semanticLayer'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SemanticLayerSourceQuery: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                pivotConfiguration: { ref: 'PivotConfiguration' },
-                parameters: { ref: 'ParametersValuesMap' },
-                timezone: { dataType: 'string' },
-                dimensionOverrides: { ref: 'DimensionOverrides' },
-                metricOverrides: { ref: 'MetricOverrides' },
-                customDimensions: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'CustomDimension' },
-                },
-                additionalMetrics: {
-                    dataType: 'array',
-                    array: { dataType: 'refObject', ref: 'AdditionalMetric' },
-                },
-                tableCalculations: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'TableCalculation' },
-                },
-                limit: { dataType: 'double' },
-                sorts: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'SortField' },
-                },
-                filters: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        tableCalculations: { ref: 'AnyType' },
-                        metrics: { ref: 'AnyType' },
-                        dimensions: { ref: 'AnyType' },
-                    },
-                },
-                metrics: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'FieldId' },
-                    required: true,
-                },
-                dimensions: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'FieldId' },
-                    required: true,
-                },
-                exploreName: { dataType: 'string', required: true },
-                description: { dataType: 'string' },
-                title: { dataType: 'string' },
-                nodeId: { ref: 'QueryNodeId' },
-                sourceType: {
-                    ref: 'QuerySourceType.SEMANTIC_LAYER',
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'QuerySourceType.SQL': {
-        dataType: 'refEnum',
-        enums: ['sql'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    SqlSourceQuery: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                pivotConfiguration: { ref: 'PivotConfiguration' },
-                limit: { dataType: 'double' },
-                sql: { dataType: 'string', required: true },
-                description: { dataType: 'string' },
-                title: { dataType: 'string' },
-                nodeId: { ref: 'QueryNodeId' },
-                sourceType: { ref: 'QuerySourceType.SQL', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'QuerySourceType.DUCKDB': {
-        dataType: 'refEnum',
-        enums: ['duckdb'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_QuerySourceTableName.QueryResultReference_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: { dataType: 'string' },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DuckdbSourceQuery: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                pivotConfiguration: { ref: 'PivotConfiguration' },
-                references: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'array',
-                            array: { dataType: 'refAlias', ref: 'QueryNodeId' },
-                        },
-                        {
-                            ref: 'Record_QuerySourceTableName.QueryResultReference_',
-                        },
-                    ],
-                },
-                limit: { dataType: 'double' },
-                sql: { dataType: 'string', required: true },
-                description: { dataType: 'string' },
-                title: { dataType: 'string' },
-                nodeId: { ref: 'QueryNodeId' },
-                sourceType: { ref: 'QuerySourceType.DUCKDB', required: true },
             },
             validators: {},
         },
@@ -45474,11 +46161,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'QuerySourceType.PYTHON': {
-        dataType: 'refEnum',
-        enums: ['python'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PythonSourceQuery: {
         dataType: 'refAlias',
         type: {
@@ -45527,23 +46209,6 @@ const models: TsoaRoute.Models = {
                 title: { dataType: 'string' },
                 nodeId: { ref: 'QueryNodeId' },
                 sourceType: { ref: 'QuerySourceType.API', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'QuerySourceType.MERGE': {
-        dataType: 'refEnum',
-        enums: ['merge'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MergeSourceQueryInput: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                repeatValues: { dataType: 'boolean' },
-                nodeId: { ref: 'QueryNodeId', required: true },
             },
             validators: {},
         },
@@ -49901,6 +50566,27 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: { ref: 'RoadmapProjectResults', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    BillingPortalLinkResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { url: { dataType: 'string', required: true } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiBillingPortalLinkResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'BillingPortalLinkResults', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -80526,6 +81212,55 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentParameterSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['project'] },
+                { dataType: 'enum', enums: ['model'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentParameter: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                source: { ref: 'ContentParameterSource', required: true },
+                currentValue: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ParameterValue' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                config: { ref: 'LightdashProjectParameter', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiChartParametersResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ContentParameter' },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ApiSuccess_ProjectDefaults-or-undefined_': {
         dataType: 'refAlias',
         type: {
@@ -80631,7 +81366,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardTileParameterReferencesTile: {
+    SavedQueryTileParameterReferencesTile: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -80653,7 +81388,42 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 tileUuid: { dataType: 'string', required: true },
+                tileType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DashboardTileTypes.SAVED_CHART' },
+                        { ref: 'DashboardTileTypes.SQL_CHART' },
+                    ],
+                },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerChartTileRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                composerChartUuid: { dataType: 'string', required: true },
+                tileUuid: { dataType: 'string', required: true },
+                tileType: {
+                    ref: 'DashboardTileTypes.COMPOSER_CHART',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardTileParameterReferencesTile: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'SavedQueryTileParameterReferencesTile' },
+                { ref: 'ComposerChartTileRequest' },
+            ],
             validators: {},
         },
     },
@@ -80671,6 +81441,46 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardContentParameter: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ContentParameter' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        tileUuids: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiDashboardParametersResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DashboardContentParameter',
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
         },
@@ -82857,351 +83667,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    StoredNode_SemanticLayerSourceQuery_: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'SemanticLayerSourceQuery' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        title: { dataType: 'string', required: true },
-                        nodeId: {
-                            dataType: 'string',
-                            required: true,
-                            validators: {
-                                pattern: {
-                                    value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$',
-                                },
-                            },
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    StoredNode_SqlSourceQuery_: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'SqlSourceQuery' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        title: { dataType: 'string', required: true },
-                        nodeId: {
-                            dataType: 'string',
-                            required: true,
-                            validators: {
-                                pattern: {
-                                    value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$',
-                                },
-                            },
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    StoredNode_DuckdbSourceQuery_: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'DuckdbSourceQuery' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        title: { dataType: 'string', required: true },
-                        nodeId: {
-                            dataType: 'string',
-                            required: true,
-                            validators: {
-                                pattern: {
-                                    value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$',
-                                },
-                            },
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_PythonSourceQuery.Exclude_keyofPythonSourceQuery.pivotConfiguration__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    title: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    limit: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'double' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    description: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    code: { dataType: 'string', required: true },
-                    sourceType: {
-                        ref: 'QuerySourceType.PYTHON',
-                        required: true,
-                    },
-                    nodeId: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    references: {
-                        dataType: 'union',
-                        subSchemas: [
-                            {
-                                dataType: 'array',
-                                array: { dataType: 'string' },
-                            },
-                            { ref: 'Record_string.string_' },
-                        ],
-                        required: true,
-                    },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_PythonSourceQuery.pivotConfiguration_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_PythonSourceQuery.Exclude_keyofPythonSourceQuery.pivotConfiguration__',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'StoredNode_Omit_PythonSourceQuery.pivotConfiguration__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'Omit_PythonSourceQuery.pivotConfiguration_' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        title: { dataType: 'string', required: true },
-                        nodeId: {
-                            dataType: 'string',
-                            required: true,
-                            validators: {
-                                pattern: {
-                                    value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$',
-                                },
-                            },
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_MergeSourceQuery.Exclude_keyofMergeSourceQuery.pivotConfiguration__':
-        {
-            dataType: 'refAlias',
-            type: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    title: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    limit: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'double' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    description: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    sorts: {
-                        dataType: 'union',
-                        subSchemas: [
-                            {
-                                dataType: 'array',
-                                array: {
-                                    dataType: 'refAlias',
-                                    ref: 'SortField',
-                                },
-                            },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    tableCalculations: {
-                        dataType: 'union',
-                        subSchemas: [
-                            {
-                                dataType: 'array',
-                                array: {
-                                    dataType: 'refAlias',
-                                    ref: 'MergeTableCalculation',
-                                },
-                            },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    sourceType: {
-                        ref: 'QuerySourceType.MERGE',
-                        required: true,
-                    },
-                    nodeId: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    sources: {
-                        dataType: 'array',
-                        array: {
-                            dataType: 'refAlias',
-                            ref: 'MergeSourceQueryInput',
-                        },
-                        required: true,
-                    },
-                    joinKey: {
-                        dataType: 'array',
-                        array: {
-                            dataType: 'refAlias',
-                            ref: 'MergeJoinKeyPart',
-                        },
-                        required: true,
-                    },
-                    joinType: { ref: 'MergeJoinType', required: true },
-                },
-                validators: {},
-            },
-        },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_MergeSourceQuery.pivotConfiguration_': {
-        dataType: 'refAlias',
-        type: {
-            ref: 'Pick_MergeSourceQuery.Exclude_keyofMergeSourceQuery.pivotConfiguration__',
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'StoredNode_Omit_MergeSourceQuery.pivotConfiguration__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'Omit_MergeSourceQuery.pivotConfiguration_' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        title: { dataType: 'string', required: true },
-                        nodeId: {
-                            dataType: 'string',
-                            required: true,
-                            validators: {
-                                pattern: {
-                                    value: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$',
-                                },
-                            },
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ComposerChartPipelineNode: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'StoredNode_SemanticLayerSourceQuery_' },
-                { ref: 'StoredNode_SqlSourceQuery_' },
-                { ref: 'StoredNode_DuckdbSourceQuery_' },
-                {
-                    ref: 'StoredNode_Omit_PythonSourceQuery.pivotConfiguration__',
-                },
-                {
-                    ref: 'StoredNode_Omit_MergeSourceQuery.pivotConfiguration__',
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ComposerChartPipeline: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                nodes: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'ComposerChartPipelineNode',
-                    },
-                    required: true,
-                },
-                terminalNodeId: { dataType: 'string', required: true },
-                schemaVersion: { dataType: 'enum', enums: [1], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ComposerChartColumn: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                fieldType: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'FieldType.DIMENSION' },
-                        { ref: 'FieldType.METRIC' },
-                    ],
-                    required: true,
-                },
-                reference: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ComposerStoredChart: {
         dataType: 'refAlias',
         type: {
@@ -83318,6 +83783,85 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 name: { dataType: 'string', required: true },
+                dashboardUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerChartRunResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                parameterReferences: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                appliedDashboardFiltersByNodeId: {
+                    ref: 'Record_string.DashboardFilters_',
+                    required: true,
+                },
+                appliedDashboardFilters: {
+                    ref: 'DashboardFilters',
+                    required: true,
+                },
+                chartStageQueryUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                fields: { ref: 'ItemsMap', required: true },
+                queries: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            queryUuid: { dataType: 'string', required: true },
+                            sourceType: {
+                                ref: 'QuerySourceType',
+                                required: true,
+                            },
+                            nodeId: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiComposerChartRunResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'ComposerChartRunResults', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ComposerChartRunRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                invalidateCache: { dataType: 'boolean', required: true },
+                excludedParameterKeys: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                parameters: { ref: 'ParametersValuesMap', required: true },
+                dashboardFilters: { ref: 'DashboardFilters', required: true },
+                tileUuid: { dataType: 'string', required: true },
                 dashboardUuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -85825,6 +86369,74 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectCoderController_getComposerChartsAsCode: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        ids: {
+            in: 'query',
+            name: 'ids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        offset: { in: 'query', name: 'offset', dataType: 'double' },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/code/composerCharts',
+        ...fetchMiddlewares<RequestHandler>(ProjectCoderController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectCoderController.prototype.getComposerChartsAsCode,
+        ),
+
+        async function ProjectCoderController_getComposerChartsAsCode(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectCoderController_getComposerChartsAsCode,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectCoderController>(
+                        ProjectCoderController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getComposerChartsAsCode',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsProjectCoderController_getVirtualViewsAsCode: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -86812,6 +87424,85 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'upsertSqlChartAsCode',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectCoderController_upsertComposerChartAsCode: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        slug: { in: 'path', name: 'slug', required: true, dataType: 'string' },
+        composerChart: {
+            in: 'body',
+            name: 'composerChart',
+            required: true,
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ComposerChartAsCode' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        spaceNames: { ref: 'Record_string.string_' },
+                        publicSpaceCreate: { dataType: 'boolean' },
+                        skipSpaceCreate: { dataType: 'boolean' },
+                    },
+                },
+            ],
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/code/composerCharts/:slug',
+        ...fetchMiddlewares<RequestHandler>(ProjectCoderController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectCoderController.prototype.upsertComposerChartAsCode,
+        ),
+
+        async function ProjectCoderController_upsertComposerChartAsCode(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectCoderController_upsertComposerChartAsCode,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectCoderController>(
+                        ProjectCoderController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'upsertComposerChartAsCode',
                     controller,
                     response,
                     next,
@@ -99983,6 +100674,160 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getDocumentDataAppVizPreviewToken',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_getComposerChartDataAppVizRenderMetadata: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        composerChartUuid: {
+            in: 'path',
+            name: 'composerChartUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/composer-charts/:composerChartUuid/render-metadata',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype
+                .getComposerChartDataAppVizRenderMetadata,
+        ),
+
+        async function AppGenerateController_getComposerChartDataAppVizRenderMetadata(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_getComposerChartDataAppVizRenderMetadata,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getComposerChartDataAppVizRenderMetadata',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_getComposerChartDataAppVizPreviewToken: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        dataAppVizUuid: {
+            in: 'path',
+            name: 'dataAppVizUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        composerChartUuid: {
+            in: 'path',
+            name: 'composerChartUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        version: {
+            in: 'path',
+            name: 'version',
+            required: true,
+            dataType: 'double',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/composer-charts/:composerChartUuid/versions/:version/preview-token',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype
+                .getComposerChartDataAppVizPreviewToken,
+        ),
+
+        async function AppGenerateController_getComposerChartDataAppVizPreviewToken(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_getComposerChartDataAppVizPreviewToken,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getComposerChartDataAppVizPreviewToken',
                     controller,
                     response,
                     next,
@@ -116814,6 +117659,61 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getProjects',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrgBillingController_createPortalLink: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/org/billing/portal-link',
+        ...fetchMiddlewares<RequestHandler>(OrgBillingController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrgBillingController.prototype.createPortalLink,
+        ),
+
+        async function OrgBillingController_createPortalLink(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrgBillingController_createPortalLink,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrgBillingController>(
+                        OrgBillingController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createPortalLink',
                     controller,
                     response,
                     next,
@@ -153268,6 +154168,73 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectSavedChartControllerV2_getParameters: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        chartUuidOrSlug: {
+            in: 'path',
+            name: 'chartUuidOrSlug',
+            required: true,
+            ref: 'UuidOrSlug',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v2/projects/:projectUuid/saved/:chartUuidOrSlug/parameters',
+        ...fetchMiddlewares<RequestHandler>(ProjectSavedChartControllerV2),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectSavedChartControllerV2.prototype.getParameters,
+        ),
+
+        async function ProjectSavedChartControllerV2_getParameters(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectSavedChartControllerV2_getParameters,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectSavedChartControllerV2>(
+                        ProjectSavedChartControllerV2,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getParameters',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsProjectSavedChartControllerV2_delete: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -153590,6 +154557,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getTileParameterReferences',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectDashboardControllerV2_getParameters: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        dashboardUuidOrSlug: {
+            in: 'path',
+            name: 'dashboardUuidOrSlug',
+            required: true,
+            ref: 'UuidOrSlug',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v2/projects/:projectUuid/dashboards/:dashboardUuidOrSlug/parameters',
+        ...fetchMiddlewares<RequestHandler>(ProjectDashboardControllerV2),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectDashboardControllerV2.prototype.getParameters,
+        ),
+
+        async function ProjectDashboardControllerV2_getParameters(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectDashboardControllerV2_getParameters,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectDashboardControllerV2>(
+                        ProjectDashboardControllerV2,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getParameters',
                     controller,
                     response,
                     next,
@@ -156460,6 +157494,79 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'get',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsComposerChartController_run: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        composerChartUuid: {
+            in: 'path',
+            name: 'composerChartUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ComposerChartRunRequest',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/composer-charts/:composerChartUuid/run',
+        ...fetchMiddlewares<RequestHandler>(ComposerChartController),
+        ...fetchMiddlewares<RequestHandler>(
+            ComposerChartController.prototype.run,
+        ),
+
+        async function ComposerChartController_run(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsComposerChartController_run,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ComposerChartController>(
+                        ComposerChartController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'run',
                     controller,
                     response,
                     next,
