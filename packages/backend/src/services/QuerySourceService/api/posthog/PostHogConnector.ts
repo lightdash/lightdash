@@ -148,8 +148,6 @@ export class PostHogConnector implements ApiConnector {
         return {
             connector: ApiConnectorType.POSTHOG,
             label: 'PostHog',
-            level: 5,
-            queryLanguage: 'HogQL',
             maxRows: POSTHOG_MAX_ROWS - 1,
             timeoutMs: POSTHOG_TIMEOUT_MS,
             limits: POSTHOG_LIMITS,

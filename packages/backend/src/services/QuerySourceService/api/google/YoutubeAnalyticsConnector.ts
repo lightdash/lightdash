@@ -6,6 +6,7 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 import { z } from 'zod';
+import { toGoogleApiError } from '../../live/integrations/google/errors';
 import {
     ALL_PUSHDOWN_REFUSED,
     type ApiConnector,
@@ -17,7 +18,6 @@ import {
     type ApiConnectorTransport,
 } from '../ApiConnector';
 import { tooManyRowsError } from '../apiSourceRows';
-import { toGoogleApiError } from './googleApiError';
 import {
     YOUTUBE_ANALYTICS_DATE_FILTERS,
     YOUTUBE_ANALYTICS_EXACT_FILTERS,
@@ -158,8 +158,6 @@ export class YoutubeAnalyticsConnector implements ApiConnector {
         return {
             connector: ApiConnectorType.YOUTUBE_ANALYTICS,
             label: 'YouTube Analytics',
-            level: 3,
-            queryLanguage: 'YouTube Analytics reports.query JSON',
             maxRows: YOUTUBE_ANALYTICS_MAX_QUERY_ROWS,
             timeoutMs: YOUTUBE_ANALYTICS_TIMEOUT_MS,
             limits: YOUTUBE_ANALYTICS_LIMITS,

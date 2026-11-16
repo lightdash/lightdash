@@ -6,6 +6,7 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 import { z } from 'zod';
+import { toGoogleApiError } from '../../live/integrations/google/errors';
 import {
     ALL_PUSHDOWN_REFUSED,
     type ApiConnector,
@@ -24,7 +25,6 @@ import {
     GOOGLE_ADS_MICROS_FIELDS,
     GOOGLE_ADS_STRING_FILTERS,
 } from './googleAdsSemanticLayer';
-import { toGoogleApiError } from './googleApiError';
 
 export const GOOGLE_ADS_ORIGIN = 'https://googleads.googleapis.com';
 // Each version is sunset about a year after release; v26 runs to November 2027
@@ -226,8 +226,6 @@ export class GoogleAdsConnector implements ApiConnector {
         return {
             connector: ApiConnectorType.GOOGLE_ADS,
             label: 'Google Ads',
-            level: 3,
-            queryLanguage: 'GAQL',
             maxRows: GOOGLE_ADS_MAX_QUERY_ROWS,
             timeoutMs: GOOGLE_ADS_TIMEOUT_MS,
             limits: GOOGLE_ADS_LIMITS,

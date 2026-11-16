@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
 import { buildAccount } from '../../../auth/account/account.mock';
-import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/api/google/googleSignIn';
+import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { ExternalConnectionService } from './ExternalConnectionService';
 import { OAuthAuthorizationCodeTokenClient } from './OAuthAuthorizationCodeTokenClient';

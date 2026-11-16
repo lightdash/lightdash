@@ -9,6 +9,8 @@ import {
     type Explore,
     type MetricQuery,
 } from '@lightdash/common';
+import { compileSearchConsoleQuery } from '../live/integrations/searchConsole/compile';
+import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from '../live/integrations/searchConsole/run';
 import {
     buildApiSourceExplores,
     compileApiSourceMetricQuery,
@@ -22,8 +24,6 @@ import {
     toScannedLiveSourceFields,
 } from './apiSourceExplores';
 import { type ApiSourceScan } from './ApiSourceIntegration';
-import { compileSearchConsoleQuery } from './google/searchConsoleCompiler';
-import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from './google/SearchConsoleConnector';
 import { getInitialLiveSourceFieldEdits } from './liveSourceFields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';

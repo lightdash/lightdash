@@ -8,8 +8,8 @@ import {
     getGa4MetadataPath,
     getGa4ReportPath,
 } from '../../../services/QuerySourceService/api/google/Ga4Connector';
-import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/api/google/googleSignIn';
-import { getSearchConsoleQueryPath } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
+import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
+import { getSearchConsoleQueryPath } from '../../../services/QuerySourceService/live/integrations/searchConsole/run';
 import {
     validateApiSourceConnection,
     withApiSourceAccessRules,

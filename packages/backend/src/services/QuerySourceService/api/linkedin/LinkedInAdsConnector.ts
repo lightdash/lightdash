@@ -277,8 +277,6 @@ export class LinkedInAdsConnector implements ApiConnector {
         return {
             connector: ApiConnectorType.LINKEDIN_ADS,
             label: 'LinkedIn Ads',
-            level: 3,
-            queryLanguage: 'LinkedIn Ads adAnalytics JSON',
             maxRows: LINKEDIN_ADS_MAX_QUERY_ROWS,
             timeoutMs: LINKEDIN_ADS_TIMEOUT_MS,
             limits: LINKEDIN_ADS_LIMITS,

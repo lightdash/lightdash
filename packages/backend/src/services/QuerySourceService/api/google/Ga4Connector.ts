@@ -6,6 +6,7 @@ import {
     UnexpectedServerError,
 } from '@lightdash/common';
 import { z } from 'zod';
+import { toGoogleApiError } from '../../live/integrations/google/errors';
 import {
     ALL_PUSHDOWN_REFUSED,
     type ApiConnector,
@@ -21,7 +22,6 @@ import {
     GA4_METRIC_FILTERS,
     GA4_STRING_FILTERS,
 } from './ga4SemanticLayer';
-import { toGoogleApiError } from './googleApiError';
 
 export const GA4_DATA_ORIGIN = 'https://analyticsdata.googleapis.com';
 
@@ -193,8 +193,6 @@ export class Ga4Connector implements ApiConnector {
         return {
             connector: ApiConnectorType.GA4,
             label: 'Google Analytics',
-            level: 3,
-            queryLanguage: 'GA4 runReport JSON',
             maxRows: GA4_MAX_ROWS - 1,
             timeoutMs: GA4_TIMEOUT_MS,
             limits: GA4_LIMITS,

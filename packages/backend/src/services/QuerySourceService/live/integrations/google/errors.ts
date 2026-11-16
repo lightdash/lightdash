@@ -5,7 +5,7 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { ApiConnectorResponse } from '../ApiConnector';
+import type { ApiConnectorResponse } from '../../../api/ApiConnector';
 
 const googleErrorSchema = z.object({
     error: z.object({

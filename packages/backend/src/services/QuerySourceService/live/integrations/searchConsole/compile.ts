@@ -10,13 +10,13 @@ import {
     getApiDateRange,
     splitDateRangeFilter,
     toAbsoluteDateRange,
-} from '../apiDateRange';
+} from '../../../api/apiDateRange';
 import {
     getApiName,
     getApiSourceExplore,
     type CompiledApiSourceQuery,
-} from '../apiSourceExplore';
-import { escapeRe2 } from '../escapeRe2';
+} from '../../../api/apiSourceExplore';
+import { escapeRe2 } from '../../../api/escapeRe2';
 
 const anyOf = (values: string[]) => {
     const escaped = values.map(escapeRe2);

@@ -1,12 +1,12 @@
 import { ApiConnectorType, ParameterError } from '@lightdash/common';
 import { z } from 'zod';
+import { assertGoogleSignIn } from '../../live/integrations/google/signIn';
 import { getIsoDateInTimeZone } from '../apiDateRange';
 import {
     API_SOURCE_RESPONSE_MAX_BYTES,
     assertApiSourceOrigin,
     type ApiSourceIntegration,
 } from '../ApiSourceIntegration';
-import { assertGoogleSignIn } from './googleSignIn';
 import { compileYoutubeAnalyticsQuery } from './youtubeAnalyticsCompiler';
 import {
     YOUTUBE_ANALYTICS_CAPABILITIES,

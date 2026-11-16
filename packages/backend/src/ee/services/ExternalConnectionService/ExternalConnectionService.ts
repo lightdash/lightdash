@@ -82,7 +82,6 @@ import {
 } from '../../../services/QuerySourceService/api/apiSourceExplores';
 import { type ApiSourceScan } from '../../../services/QuerySourceService/api/ApiSourceIntegration';
 import { getApiSourceIntegration } from '../../../services/QuerySourceService/api/apiSourceIntegrations';
-import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/api/google/googleSignIn';
 import {
     getLinkedInAdsAccountPath,
     LINKEDIN_ADS_ORIGIN,
@@ -101,6 +100,7 @@ import {
     toFailedScan,
     toPostHogSchemaTable,
 } from '../../../services/QuerySourceService/api/posthog/postHogSchemaScan';
+import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
     normalizeCredentialUrlHref,

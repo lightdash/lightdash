@@ -8,9 +8,7 @@ import type {
     ApiSourceDimensionDefinition,
     ApiSourceExploreDefinition,
     ApiSourceMetricDefinition,
-} from '../apiSourceExplore';
-
-export const SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION = 1;
+} from '../../../api/apiSourceExplore';
 
 export const SEARCH_CONSOLE_STRING_FILTERS = [
     FilterOperator.EQUALS,

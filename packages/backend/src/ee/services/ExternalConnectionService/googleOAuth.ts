@@ -11,11 +11,11 @@ import {
     GOOGLE_ADS_LIST_CUSTOMERS_PATH,
     GOOGLE_ADS_ORIGIN,
 } from '../../../services/QuerySourceService/api/google/GoogleAdsConnector';
+import { YOUTUBE_ANALYTICS_ORIGIN } from '../../../services/QuerySourceService/api/google/YoutubeAnalyticsConnector';
 import {
     SEARCH_CONSOLE_ORIGIN,
     SEARCH_CONSOLE_SITES_PATH,
-} from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
-import { YOUTUBE_ANALYTICS_ORIGIN } from '../../../services/QuerySourceService/api/google/YoutubeAnalyticsConnector';
+} from '../../../services/QuerySourceService/live/integrations/searchConsole/run';
 
 export const GOOGLE_AUTHORIZE_URL =
     'https://accounts.google.com/o/oauth2/v2/auth';

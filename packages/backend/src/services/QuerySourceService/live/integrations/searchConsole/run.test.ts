@@ -1,15 +1,14 @@
 import {
+    ApiConnectorType,
     DimensionType,
     ParameterError,
     TooManyRequestsError,
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
-import type { ApiConnectorResponse } from '../ApiConnector';
-import {
-    getSearchConsoleQueryPath,
-    SearchConsoleConnector,
-} from './SearchConsoleConnector';
+import { searchConsoleIntegration } from '.';
+import type { ApiConnectorResponse } from '../../../api/ApiConnector';
+import { getSearchConsoleQueryPath } from './run';
 
 const jsonResponse = (
     body: unknown,
@@ -21,10 +20,13 @@ const createConnector = (response: ApiConnectorResponse) => {
     const send = vi.fn().mockResolvedValue(response);
     return {
         send,
-        connector: new SearchConsoleConnector({
-            siteUrl: 'https://lightdash.com/',
+        connector: searchConsoleIntegration.createConnector(
+            {
+                connector: ApiConnectorType.SEARCH_CONSOLE,
+                siteUrl: 'https://lightdash.com/',
+            },
             send,
-        }),
+        ).connector,
     };
 };
 
@@ -59,7 +61,7 @@ const topQueries = {
     ],
 };
 
-describe('SearchConsoleConnector', () => {
+describe('searchConsoleIntegration run', () => {
     it('sends the request to the site, asking for one row more than the limit', async () => {
         const { connector, send } = createConnector(jsonResponse(topQueries));
 

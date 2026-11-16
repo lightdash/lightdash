@@ -67,8 +67,6 @@ describe('PostHogConnector', () => {
         expect(connector.describe()).toEqual({
             connector: ApiConnectorType.POSTHOG,
             label: 'PostHog',
-            level: 5,
-            queryLanguage: 'HogQL',
             maxRows: 49_999,
             timeoutMs: 10_000,
             limits: {

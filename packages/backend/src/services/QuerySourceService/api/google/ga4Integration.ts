@@ -1,5 +1,6 @@
 import { ApiConnectorType, ParameterError } from '@lightdash/common';
 import { z } from 'zod';
+import { assertGoogleSignIn } from '../../live/integrations/google/signIn';
 import { getIsoDateInTimeZone } from '../apiDateRange';
 import {
     API_SOURCE_RESPONSE_MAX_BYTES,
@@ -19,7 +20,6 @@ import {
     GA4_SEMANTIC_LAYER_VERSION,
     withGa4MetadataFields,
 } from './ga4SemanticLayer';
-import { assertGoogleSignIn } from './googleSignIn';
 
 const GA4_TIMEOUT_MS = 30_000;
 const GA4_PROPERTY_ID = /^\d{1,20}$/;

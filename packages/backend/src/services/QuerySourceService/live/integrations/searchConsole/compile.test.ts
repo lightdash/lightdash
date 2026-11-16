@@ -6,17 +6,14 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
-import { buildApiSourceExplore } from '../apiSourceExplore';
-import { escapeRe2 } from '../escapeRe2';
+import { searchConsoleIntegration } from '.';
+import { buildApiSourceExplore } from '../../../api/apiSourceExplore';
+import { escapeRe2 } from '../../../api/escapeRe2';
 import {
     compileSearchConsoleQuery,
     getSearchConsoleEarliestDate,
-} from './searchConsoleCompiler';
-import { SEARCH_CONSOLE_CAPABILITIES } from './SearchConsoleConnector';
-import {
-    SEARCH_CONSOLE_PERFORMANCE_EXPLORE,
-    SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
-} from './searchConsoleSemanticLayer';
+} from './compile';
+import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from './explores';
 
 const EXPLORE = 'search_console_performance';
 const MAX_ROWS = 24_999;
@@ -27,8 +24,8 @@ const explore = buildApiSourceExplore({
     label: 'lightdash.com',
     connectionUuid: 'connection-uuid',
     integration: ApiConnectorType.SEARCH_CONSOLE,
-    baseVersion: SEARCH_CONSOLE_SEMANTIC_LAYER_VERSION,
-    capabilities: SEARCH_CONSOLE_CAPABILITIES,
+    baseVersion: 1,
+    capabilities: searchConsoleIntegration.baseLayer.capabilities,
     warehouseSqlBuilder: warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     ),

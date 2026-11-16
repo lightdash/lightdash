@@ -364,8 +364,6 @@ export class MetaAdsConnector implements ApiConnector {
         return {
             connector: ApiConnectorType.META_ADS,
             label: 'Meta Ads',
-            level: 3,
-            queryLanguage: 'Insights JSON',
             maxRows: META_ADS_MAX_QUERY_ROWS,
             timeoutMs: META_ADS_TIMEOUT_MS,
             limits: META_ADS_LIMITS,

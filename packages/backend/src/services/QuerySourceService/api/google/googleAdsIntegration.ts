@@ -1,5 +1,6 @@
 import { ApiConnectorType, ParameterError } from '@lightdash/common';
 import { z } from 'zod';
+import { assertGoogleSignIn } from '../../live/integrations/google/signIn';
 import { getIsoDateInTimeZone } from '../apiDateRange';
 import {
     API_SOURCE_RESPONSE_MAX_BYTES,
@@ -18,7 +19,6 @@ import {
     GOOGLE_ADS_PERFORMANCE_EXPLORE,
     GOOGLE_ADS_SEMANTIC_LAYER_VERSION,
 } from './googleAdsSemanticLayer';
-import { assertGoogleSignIn } from './googleSignIn';
 
 const GOOGLE_ADS_CUSTOMER_ID = /^\d{10}$/;
 const LABEL = 'Google Ads';

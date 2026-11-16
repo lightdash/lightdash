@@ -3,10 +3,10 @@ import {
     assertUnreachable,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
+import { searchConsoleIntegration } from '../live/integrations/searchConsole';
 import { type ApiSourceIntegration } from './ApiSourceIntegration';
 import { ga4Integration } from './google/ga4Integration';
 import { googleAdsIntegration } from './google/googleAdsIntegration';
-import { searchConsoleIntegration } from './google/searchConsoleIntegration';
 import { youtubeAnalyticsIntegration } from './google/youtubeAnalyticsIntegration';
 import { linkedInAdsIntegration } from './linkedin/linkedInAdsIntegration';
 import { metaAdsIntegration } from './meta/metaAdsIntegration';
