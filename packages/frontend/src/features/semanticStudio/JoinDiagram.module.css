@@ -200,11 +200,23 @@
     z-index: 5;
     display: flex;
     flex-direction: column;
-    gap: var(--mantine-spacing-sm);
     width: min(rem(340px), calc(100% - 2 * var(--mantine-spacing-sm)));
     max-height: calc(100% - 2 * var(--mantine-spacing-sm));
     overflow-y: auto;
-    padding: var(--mantine-spacing-sm);
+    padding: 0;
+}
+
+/* Same split as a table card: header, then a divider. */
+.detailsHead {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.detailsBody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm) 10px;
 }
 
 .wrap {

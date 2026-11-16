@@ -217,7 +217,12 @@ const JoinDetails: FC<{
     onClose: () => void;
 }> = ({ table, parent, joinCount, onClose }) => (
     <Paper withBorder shadow="sm" className={classes.details}>
-        <Group gap="xs" wrap="nowrap" align="flex-start">
+        <Group
+            gap="xs"
+            wrap="nowrap"
+            align="flex-start"
+            className={classes.detailsHead}
+        >
             <Box className={classes.nodeIcon}>
                 <MantineIcon icon={IconTable} size={14} />
             </Box>
@@ -245,51 +250,55 @@ const JoinDetails: FC<{
                 <MantineIcon icon={IconX} />
             </ActionIcon>
         </Group>
-        {table.description ? (
-            <Text fz="xs" c="dimmed" className={classes.wrap}>
-                {table.description}
-            </Text>
-        ) : null}
-        {table.isBase ? (
-            <Text fz="xs">
-                {joinCount === 0
-                    ? 'The base table of this explore. Nothing is joined to it.'
-                    : `The base table of this explore. ${joinCount} ${joinCount === 1 ? 'table is' : 'tables are'} joined from here.`}
-            </Text>
-        ) : (
-            <Stack gap="sm">
-                <Fact label="Joined to">
-                    <Text fz="xs" className={classes.wrap}>
-                        {parent?.label ?? table.parent}
-                    </Text>
-                </Fact>
-                <Fact label="Relationship">
-                    <RelationshipText table={table} />
-                </Fact>
-                <Fact label="Join type">
-                    <Text fz="xs">{table.joinType ?? 'left (default)'}</Text>
-                </Fact>
-                {table.isHidden ? (
-                    <Fact label="Visibility">
-                        <Text fz="xs">Hidden from the Explore sidebar</Text>
-                    </Fact>
-                ) : null}
-                <Box>
-                    <Group justify="space-between" wrap="nowrap" mb={4}>
-                        <Text fz="xs" c="dimmed">
-                            Condition
+        <Box className={classes.detailsBody}>
+            {table.description ? (
+                <Text fz="xs" c="dimmed" className={classes.wrap}>
+                    {table.description}
+                </Text>
+            ) : null}
+            {table.isBase ? (
+                <Text fz="xs">
+                    {joinCount === 0
+                        ? 'The base table of this explore. Nothing is joined to it.'
+                        : `The base table of this explore. ${joinCount} ${joinCount === 1 ? 'table is' : 'tables are'} joined from here.`}
+                </Text>
+            ) : (
+                <Stack gap="sm">
+                    <Fact label="Joined to">
+                        <Text fz="xs" className={classes.wrap}>
+                            {parent?.label ?? table.parent}
                         </Text>
-                        <CopyActionIcon
-                            value={table.keys ?? ''}
-                            copyLabel="Copy condition"
-                        />
-                    </Group>
-                    <Code block className={classes.condition}>
-                        {table.keys}
-                    </Code>
-                </Box>
-            </Stack>
-        )}
+                    </Fact>
+                    <Fact label="Relationship">
+                        <RelationshipText table={table} />
+                    </Fact>
+                    <Fact label="Join type">
+                        <Text fz="xs">
+                            {table.joinType ?? 'left (default)'}
+                        </Text>
+                    </Fact>
+                    {table.isHidden ? (
+                        <Fact label="Visibility">
+                            <Text fz="xs">Hidden from the Explore sidebar</Text>
+                        </Fact>
+                    ) : null}
+                    <Box>
+                        <Group justify="space-between" wrap="nowrap" mb={4}>
+                            <Text fz="xs" c="dimmed">
+                                Condition
+                            </Text>
+                            <CopyActionIcon
+                                value={table.keys ?? ''}
+                                copyLabel="Copy condition"
+                            />
+                        </Group>
+                        <Code block className={classes.condition}>
+                            {table.keys}
+                        </Code>
+                    </Box>
+                </Stack>
+            )}
+        </Box>
     </Paper>
 );
 
