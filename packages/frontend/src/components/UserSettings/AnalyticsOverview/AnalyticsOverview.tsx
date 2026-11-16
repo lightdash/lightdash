@@ -248,7 +248,9 @@ const AnalyticsOverview = ({
                 <Stack
                     gap="xs"
                     className={classes.filters}
-                    display={isAdoption ? 'none' : undefined}
+                    // Hidden, not removed, so the tab bar stays where it is on every tab
+                    style={isAdoption ? { visibility: 'hidden' } : undefined}
+                    aria-hidden={isAdoption || undefined}
                 >
                     <Group gap="md" className={classes.filterControls}>
                         <Tooltip
