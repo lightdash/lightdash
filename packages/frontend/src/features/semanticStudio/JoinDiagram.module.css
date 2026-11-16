@@ -121,8 +121,8 @@
 .details {
     --join-many-to-one: var(--mantine-color-ldGray-5);
     --join-one-to-one: var(--mantine-color-teal-6);
-    --join-one-to-many: var(--mantine-color-orange-6);
-    --join-many-to-many: var(--mantine-color-red-6);
+    --join-one-to-many: var(--mantine-color-violet-6);
+    --join-many-to-many: var(--mantine-color-yellow-7);
     --join-unset: var(--mantine-color-ldGray-4);
 }
 
