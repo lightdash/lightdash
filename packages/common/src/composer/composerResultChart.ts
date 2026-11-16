@@ -248,23 +248,24 @@ export const getComposerSplitStage = ({
         dimensions.filter((reference) => !queryMetrics.includes(reference)),
         queryMetrics,
     );
+    const pivotFieldIds = pivotColumns.map(fieldId);
     const pivotConfiguration = derivePivotConfigurationFromChart(
-        { chartConfig, pivotConfig: { columns: pivotColumns.map(fieldId) } },
+        { chartConfig, pivotConfig: { columns: pivotFieldIds } },
         { ...metricQuery, sorts: sorts.sorts },
         fields,
     );
     if (!pivotConfiguration) return null;
-    // The classic derivation drops an x that is also a y from the index,
-    // collapsing distinct x values into one point.
+    // The classic derivation leaves an x that is also a y out of the index;
+    // the split keeps it, or distinct x values collapse into one point.
     const xField =
         chartConfig.type === ChartType.CARTESIAN &&
         isCartesianChartConfig(chartConfig.config)
             ? chartConfig.config.layout.xField
-            : undefined;
+            : null;
     const indexColumn = normalizeIndexColumns(pivotConfiguration.indexColumn);
     const droppedX =
-        xField !== undefined &&
-        !pivotColumns.map(fieldId).includes(xField) &&
+        xField &&
+        !pivotFieldIds.includes(xField) &&
         !indexColumn.some(({ reference }) => reference === xField)
             ? xField
             : null;

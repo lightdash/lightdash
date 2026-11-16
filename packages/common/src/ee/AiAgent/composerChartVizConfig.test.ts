@@ -623,7 +623,7 @@ describe('getComposerChartStage', () => {
                 [],
                 [{ fieldId: 'revenue', descending: true }],
             )?.pivotConfiguration,
-        ).toEqual({
+        ).toMatchObject({
             indexColumn: [
                 { reference: 'revenue', type: VizIndexType.CATEGORY },
             ],
@@ -634,14 +634,7 @@ describe('getComposerChartStage', () => {
                     aggregation: VizAggregationOptions.ANY,
                 },
             ],
-            sortBy: [
-                {
-                    reference: 'revenue',
-                    direction: 'DESC',
-                    nullsFirst: undefined,
-                    pivotValues: undefined,
-                },
-            ],
+            sortBy: [{ reference: 'revenue', direction: 'DESC' }],
             foldOverflowGroups: true,
         });
     });

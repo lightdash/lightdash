@@ -6,23 +6,12 @@ import {
     getComposerChartPivotStage,
     getComposerChartStage,
     QuerySourceType,
-    SupportedDbtAdapter,
     type ComposerBuiltinChartVizConfig,
     type ComposerChartPipelineNode,
     type DuckdbSourceQuery,
-    type WarehouseClient,
 } from '@lightdash/common';
+import { DuckdbSqlBuilder } from '@lightdash/warehouses';
 import { PivotQueryBuilder } from './PivotQueryBuilder';
-
-const duckdb = {
-    getFieldQuoteChar: () => '"',
-    getAdapterType: () => SupportedDbtAdapter.DUCKDB,
-    getStartOfWeek: () => undefined,
-    getStringQuoteChar: () => "'",
-    escapeString: (value: string) => value.replaceAll("'", "''"),
-    supportsCteMaterialization: () => true,
-    credentials: { type: 'duckdb' },
-} as unknown as WarehouseClient;
 
 const runStage = async (
     stage: ComposerChartPipelineNode | DuckdbSourceQuery | null,
@@ -36,7 +25,7 @@ const runStage = async (
     const sql = new PivotQueryBuilder(
         stage.sql,
         stage.pivotConfiguration,
-        duckdb,
+        new DuckdbSqlBuilder(),
     ).toSql({ columnLimit: 100 });
     const instance = await DuckDBInstance.create(':memory:');
     const connection = await instance.connect();
@@ -61,6 +50,7 @@ const runStage = async (
             );
     } finally {
         connection.closeSync();
+        instance.closeSync();
     }
 };
 
