@@ -51,6 +51,7 @@ import {
     type TablePartitioning,
     type TimestampDomain,
     type WarehouseExecutionStats,
+    type WarehouseFetchStats,
     type WarehouseNestedColumnShape,
     type WarehouseQueryEstimate,
 } from '@lightdash/common';
@@ -61,6 +62,7 @@ import {
     WarehouseTableSchema,
 } from '../types';
 import { coerceTagToString } from '../utils/coerceTagToString';
+import { createFetchStats } from '../utils/fetchStats';
 import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
@@ -824,29 +826,56 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             data: WarehouseResults['rows'],
         ) => void | Promise<void>,
         options: QueryResultsOptions = {},
-    ) {
-        const processRows = createRowBatchProcessor(parseRow, streamCallback);
+    ): Promise<WarehouseFetchStats> {
+        const stats = createFetchStats();
+        const processRows = createRowBatchProcessor(parseRow, async (rows) => {
+            const writeStart = performance.now();
+            try {
+                await streamCallback(rows);
+            } finally {
+                stats.add('writeMs', performance.now() - writeStart);
+            }
+        });
+        const requestPage = async (
+            query: QueryResultsOptions,
+        ): Promise<QueryRowsResponse> => {
+            const requestStart = performance.now();
+            const page: QueryRowsResponse = await job.getQueryResults({
+                ...query,
+                autoPaginate: false,
+                maxResults: BIGQUERY_RESULTS_PAGE_SIZE,
+                skipParsing: true,
+            });
+            const [rows] = page;
+            stats.recordPage(
+                performance.now() - requestStart,
+                rows.length,
+                rows.length > 0
+                    ? JSON.stringify(rows[0]).length * rows.length
+                    : 0,
+            );
+            return page;
+        };
         let nextQuery: QueryResultsOptions | null = options;
         while (nextQuery) {
+            const waitStart = performance.now();
             const [rows, query, response]: QueryRowsResponse =
                 // eslint-disable-next-line no-await-in-loop
-                await job.getQueryResults({
-                    ...nextQuery,
-                    autoPaginate: false,
-                    maxResults: BIGQUERY_RESULTS_PAGE_SIZE,
-                    skipParsing: true,
-                });
+                await requestPage(nextQuery);
+            stats.add('waitMs', performance.now() - waitStart);
             if (rows.length > 0) {
                 if (!response?.schema) {
                     throw new WarehouseQueryError(
                         'Query response has no schema',
                     );
                 }
+                const processStart = performance.now();
                 for (
                     let offset = 0;
                     offset < rows.length;
                     offset += BIGQUERY_CONVERSION_BATCH_SIZE
                 ) {
+                    const convertStart = performance.now();
                     // eslint-disable-next-line no-underscore-dangle
                     const converted = BigQuery.mergeSchemaWithRows_(
                         response.schema,
@@ -859,12 +888,15 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                             parseJSON: options.parseJSON ?? false,
                         },
                     );
+                    stats.add('sdkConvertMs', performance.now() - convertStart);
                     // eslint-disable-next-line no-await-in-loop
                     await processRows(converted);
                 }
+                stats.add('processMs', performance.now() - processStart);
             }
             nextQuery = query ?? null;
         }
+        return stats.summary();
     }
 
     async streamQuery(
@@ -1355,9 +1387,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
             // If a callback is provided, stream the results to the callback
             let fetchMs = 0;
+            let fetchStats: WarehouseFetchStats | undefined;
             if (resultsStreamCallback) {
                 const fetchPhaseStart = performance.now();
-                await this.streamResults(job, (row) =>
+                fetchStats = await this.streamResults(job, (row) =>
                     resultsStreamCallback(row, fields),
                 );
                 fetchMs = performance.now() - fetchPhaseStart;
@@ -1376,6 +1409,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     job.id,
                     job.metadata?.statistics,
                 ),
+                ...(fetchStats && { fetchStats }),
             };
         } catch (e: unknown) {
             this.throwIfGoogleOauthTokenError(e);

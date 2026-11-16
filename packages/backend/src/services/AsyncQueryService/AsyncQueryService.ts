@@ -5954,8 +5954,12 @@ export class AsyncQueryService extends ProjectService {
                           .map(([phase, ms]) => `${phase}=${Math.round(ms)}ms`)
                           .join(' ')}]`
                     : '';
+                const { fetchStats } = queryResults.warehouseResults;
+                const fetchStatsStr = fetchStats
+                    ? ` fetch=[pages=${fetchStats.pages} rows=${fetchStats.rows} approx_bytes=${fetchStats.approxResponseBytes} request_total=${Math.round(fetchStats.requestTotalMs)}ms request_p50=${Math.round(fetchStats.requestP50Ms)}ms request_max=${Math.round(fetchStats.requestMaxMs)}ms wait=${Math.round(fetchStats.waitMs)}ms process=${Math.round(fetchStats.processMs)}ms sdk_convert=${Math.round(fetchStats.sdkConvertMs)}ms write=${Math.round(fetchStats.writeMs)}ms]`
+                    : '';
                 this.logger.info(
-                    `Query ${queryUuid} completed: source=${executionSource} s3_stream_create=${s3StreamCreatedMs}ms query_exec=${queryExecMs}ms s3_upload_close=${s3UploadCloseMs}ms db_update=${dbUpdateMs}ms total=${totalMs}ms rows=${pivotDetails?.totalRows ?? totalRows}${streamMetricsStr}${phasesStr}`,
+                    `Query ${queryUuid} completed: source=${executionSource} s3_stream_create=${s3StreamCreatedMs}ms query_exec=${queryExecMs}ms s3_upload_close=${s3UploadCloseMs}ms db_update=${dbUpdateMs}ms total=${totalMs}ms rows=${pivotDetails?.totalRows ?? totalRows}${streamMetricsStr}${phasesStr}${fetchStatsStr}`,
                 );
 
                 // Track successful query in Prometheus

@@ -526,6 +526,19 @@ export type WarehouseExecutionStats = {
     cacheHit: boolean | null;
 };
 
+export type WarehouseFetchStats = {
+    pages: number;
+    rows: number;
+    approxResponseBytes: number;
+    requestTotalMs: number;
+    requestP50Ms: number;
+    requestMaxMs: number;
+    waitMs: number;
+    processMs: number;
+    sdkConvertMs: number;
+    writeMs: number;
+};
+
 export type WarehouseExecuteAsyncQuery = {
     queryId: string | null;
     queryMetadata: WarehouseQueryMetadata | null;
@@ -534,6 +547,7 @@ export type WarehouseExecuteAsyncQuery = {
     phaseTimings: WarehousePhaseTimings;
     /** Omitted by warehouses that do not report execution statistics. */
     executionStats?: WarehouseExecutionStats;
+    fetchStats?: WarehouseFetchStats;
 };
 
 export enum TimeIntervalUnit {

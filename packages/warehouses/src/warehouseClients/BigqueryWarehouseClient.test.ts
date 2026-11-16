@@ -1803,3 +1803,90 @@ describe('BigQuery result streaming pages', () => {
         ).toBe(expected.map((row) => JSON.stringify(row)).join('\n'));
     });
 });
+
+describe('BigQuery result fetch stats', () => {
+    const schema = { fields: [{ name: 'id', type: 'INTEGER' }] };
+    const rawRows = (from: number, count: number) =>
+        Array.from({ length: count }, (_, index) => ({
+            f: [{ v: String(from + index) }],
+        }));
+
+    it('reports pages, rows, response size and phase durations for one query', async () => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const getQueryResults = vi
+            .fn()
+            .mockResolvedValueOnce([[], null, { totalRows: '7', schema }])
+            .mockResolvedValueOnce([
+                rawRows(0, 4),
+                { pageToken: 'second' },
+                { schema },
+            ])
+            .mockResolvedValueOnce([[], { pageToken: 'third' }, { schema }])
+            .mockResolvedValueOnce([rawRows(4, 3), null, { schema }]);
+        warehouse.client.createQueryJob = vi.fn(async () => [
+            {
+                id: 'job',
+                location: 'US',
+                metadata: {},
+                on: vi.fn((event: string, callback: () => void) => {
+                    if (event === 'complete') callback();
+                }),
+                getQueryResults,
+            },
+        ]) as unknown as BigQuery['createQueryJob'];
+        const rows: unknown[] = [];
+
+        const result = await warehouse.executeAsyncQuery(
+            { sql: 'SELECT 1', tags: {} },
+            (batch) => {
+                rows.push(...batch);
+            },
+        );
+
+        expect(rows).toEqual(Array.from({ length: 7 }, (_, id) => ({ id })));
+        const rowBytes = JSON.stringify({ f: [{ v: '0' }] }).length;
+        expect(result.fetchStats).toStrictEqual({
+            pages: 3,
+            rows: 7,
+            approxResponseBytes: rowBytes * 7,
+            requestTotalMs: expect.any(Number),
+            requestP50Ms: expect.any(Number),
+            requestMaxMs: expect.any(Number),
+            waitMs: expect.any(Number),
+            processMs: expect.any(Number),
+            sdkConvertMs: expect.any(Number),
+            writeMs: expect.any(Number),
+        });
+        const stats = result.fetchStats;
+        if (!stats) throw new Error('Expected fetch stats');
+        expect(stats.requestMaxMs).toBeGreaterThanOrEqual(stats.requestP50Ms);
+        expect(stats.requestTotalMs).toBeGreaterThanOrEqual(stats.requestMaxMs);
+        expect(stats.processMs).toBeGreaterThanOrEqual(stats.writeMs);
+    });
+
+    it('omits fetch stats when no rows are streamed', async () => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        warehouse.client.createQueryJob = vi.fn(async () => [
+            {
+                id: 'job',
+                location: 'US',
+                metadata: {},
+                on: vi.fn((event: string, callback: () => void) => {
+                    if (event === 'complete') callback();
+                }),
+                getQueryResults: vi.fn(async () => [
+                    [],
+                    null,
+                    { totalRows: '0', schema },
+                ]),
+            },
+        ]) as unknown as BigQuery['createQueryJob'];
+
+        const result = await warehouse.executeAsyncQuery({
+            sql: 'SELECT 1',
+            tags: {},
+        });
+
+        expect(result).not.toHaveProperty('fetchStats');
+    });
+});
