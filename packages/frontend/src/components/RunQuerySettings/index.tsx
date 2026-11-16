@@ -116,6 +116,7 @@ const RunQuerySettings: FC<Props> = memo(
                             aria-label={
                                 showCancel ? 'Cancel query' : 'Query settings'
                             }
+                            data-tour="explorer-run-settings"
                             {...targetProps}
                         >
                             <MantineIcon

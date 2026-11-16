@@ -123,25 +123,37 @@ vi.mock('./ChartDownloadOptions', () => ({
 }));
 vi.mock('../../ExportSelector', () => ({
     default: ({
-        getDownloadQueryUuid,
+        onDownloadData,
         getGsheetLink,
     }: {
+        onDownloadData: () => void;
+        getGsheetLink?: () => unknown;
+    }) => (
+        <>
+            <Button onClick={onDownloadData}>Download data</Button>
+            {getGsheetLink && <Button>Google Sheets</Button>}
+        </>
+    ),
+}));
+vi.mock('../../DashboardTiles/ExportDataModal', () => ({
+    default: ({
+        isOpen,
+        getDownloadQueryUuid,
+    }: {
+        isOpen: boolean;
         getDownloadQueryUuid: (
             limit: number,
             limitType: string,
             pivot: boolean,
         ) => Promise<string>;
-        getGsheetLink?: () => unknown;
-    }) => (
-        <>
+    }) =>
+        isOpen ? (
             <Button
                 onClick={() => void getDownloadQueryUuid(100, 'custom', false)}
             >
                 Download table data
             </Button>
-            {getGsheetLink && <Button>Google Sheets</Button>}
-        </>
-    ),
+        ) : null,
 }));
 
 import ChartDownloadMenu from './ChartDownloadMenu';
@@ -255,6 +267,7 @@ describe('ChartDownloadMenu', () => {
         mocks.chartType = ChartType.TABLE;
         renderMenu();
         fireEvent.click(screen.getByTestId('export-csv-button'));
+        fireEvent.click(screen.getByRole('button', { name: 'Download data' }));
         fireEvent.click(
             screen.getByRole('button', { name: 'Download table data' }),
         );
@@ -302,7 +315,7 @@ describe('ChartDownloadMenu', () => {
             renderMenu();
             fireEvent.click(screen.getByTestId('export-csv-button'));
             expect(
-                screen.getByRole('button', { name: 'Download table data' }),
+                screen.getByRole('button', { name: 'Download data' }),
             ).toBeInTheDocument();
             expect(
                 screen.queryByRole('button', { name: 'Google Sheets' }),

@@ -36,6 +36,7 @@ import {
     COLLAPSABLE_CARD_POPOVER_PROPS,
 } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
+import ExportDataModal from '../../DashboardTiles/ExportDataModal';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
 import { useAddDroppedFieldToQuery, useFieldDrop } from '../fieldDrag';
@@ -90,6 +91,8 @@ const ResultsCard: FC = memo(() => {
     );
     const { user } = useApp();
     const resultsExport = useResultsExport();
+    const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+    const [isDownloadOpen, setIsDownloadOpen] = useState(false);
     const isStale = useIsResultsStale();
     const isChartOpen = useExplorerSelector(selectIsVisualizationExpanded);
     // A field dropped here joins the query, which then runs
@@ -204,6 +207,8 @@ const ResultsCard: FC = memo(() => {
                         {resultsExport.canExport && (
                             <Popover
                                 {...COLLAPSABLE_CARD_POPOVER_PROPS}
+                                opened={isExportMenuOpen}
+                                onChange={setIsExportMenuOpen}
                                 disabled={resultsExport.disabled}
                                 position="bottom-end"
                             >
@@ -214,6 +219,11 @@ const ResultsCard: FC = memo(() => {
                                             aria-label="Export results"
                                             {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
                                             disabled={resultsExport.disabled}
+                                            onClick={() =>
+                                                setIsExportMenuOpen(
+                                                    (open) => !open,
+                                                )
+                                            }
                                             // Walkthrough action for
                                             // manage:ExportCsv. See
                                             // scripts/scope-tours.
@@ -239,22 +249,30 @@ const ResultsCard: FC = memo(() => {
 
                                 <Popover.Dropdown>
                                     <ExportSelector
-                                        projectUuid={projectUuid}
-                                        totalResults={
-                                            resultsExport.totalResults
-                                        }
-                                        getDownloadQueryUuid={
-                                            resultsExport.getDownloadQueryUuid
-                                        }
                                         getGsheetLink={
                                             resultsExport.getGsheetLink
                                         }
-                                        columnOrder={resultsExport.columnOrder}
-                                        chartName={resultsExport.chartName}
-                                        showTableNames
+                                        onDownloadData={() => {
+                                            setIsExportMenuOpen(false);
+                                            setIsDownloadOpen(true);
+                                        }}
                                     />
                                 </Popover.Dropdown>
                             </Popover>
+                        )}
+                        {resultsExport.canExport && (
+                            <ExportDataModal
+                                isOpen={isDownloadOpen}
+                                onClose={() => setIsDownloadOpen(false)}
+                                projectUuid={projectUuid}
+                                totalResults={resultsExport.totalResults}
+                                getDownloadQueryUuid={
+                                    resultsExport.getDownloadQueryUuid
+                                }
+                                columnOrder={resultsExport.columnOrder}
+                                chartName={resultsExport.chartName}
+                                showTableNames
+                            />
                         )}
                     </Group>
                 )
