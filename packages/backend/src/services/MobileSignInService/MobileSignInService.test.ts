@@ -1619,7 +1619,7 @@ describe('MobileSignInService mobile-qr-sign-in flag', () => {
         ).resolves.toMatchObject({ codeUuid: 'code-0000-test' });
         expect(featureFlagModel.get).toHaveBeenCalledWith({
             featureFlagId: 'mobile-qr-sign-in',
-            user: { organizationUuid },
+            user: expect.objectContaining({ userUuid, organizationUuid }),
         });
         await expect(service.claim(claimBody, {})).resolves.toMatchObject({
             interval: 2,
