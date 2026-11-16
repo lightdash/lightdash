@@ -949,6 +949,7 @@ const extractChartSlugsFromDashboards = (
     dashboards.reduce<string[]>((acc, dashboard) => {
         const slugs = dashboard.tiles
             .map((tile) =>
+                tile.type !== DashboardTileTypes.COMPOSER_CHART &&
                 'chartSlug' in tile.properties
                     ? (tile.properties.chartSlug as string)
                     : undefined,
@@ -956,6 +957,18 @@ const extractChartSlugsFromDashboards = (
             .filter((slug): slug is string => slug !== undefined);
         return [...acc, ...slugs];
     }, []);
+
+// Composer tile slugs name composer charts only, never a classic chart
+const extractComposerChartSlugsFromDashboards = (
+    dashboards: DashboardAsCode[],
+): string[] =>
+    dashboards.flatMap((dashboard) =>
+        dashboard.tiles.flatMap((tile) =>
+            tile.type === DashboardTileTypes.COMPOSER_CHART
+                ? [tile.properties.chartSlug]
+                : [],
+        ),
+    );
 
 const extractAppSlugsFromDashboards = (
     dashboards: DashboardAsCode[],
@@ -1003,6 +1016,7 @@ const extractChartTableNames = (charts: ChartAsCode[]): string[] => [
 export type DownloadContentResult = {
     total: number;
     chartSlugs: string[];
+    composerChartSlugs: string[];
     chartTableNames: string[];
     appSlugs: string[];
     // Custom chart types the downloaded charts render with (slug or legacy
@@ -1032,6 +1046,7 @@ export const downloadContent = async (
     let offset = 0;
     let total = 0;
     let chartSlugs: string[] = [];
+    let composerChartSlugs: string[] = [];
     let chartTableNames: string[] = [];
     let appSlugs: string[] = [];
     let chartTypeRefs: string[] = [];
@@ -1146,6 +1161,10 @@ export const downloadContent = async (
                 ...chartSlugs,
                 ...extractChartSlugsFromDashboards(results.dashboards),
             ];
+            composerChartSlugs = [
+                ...composerChartSlugs,
+                ...extractComposerChartSlugsFromDashboards(results.dashboards),
+            ];
             appSlugs = [
                 ...appSlugs,
                 ...extractAppSlugsFromDashboards(results.dashboards),
@@ -1206,6 +1225,7 @@ export const downloadContent = async (
     return {
         total,
         chartSlugs: [...new Set(chartSlugs)],
+        composerChartSlugs: [...new Set(composerChartSlugs)],
         chartTableNames: [...new Set(chartTableNames)],
         appSlugs: [...new Set(appSlugs)],
         chartTypeRefs: [...new Set(chartTypeRefs)],
@@ -2597,12 +2617,14 @@ export const downloadHandler = async (
                 );
             } else {
                 let chartSlugs: string[] = [];
+                let composerChartSlugs: string[] = [];
                 let appSlugs: string[] = [];
 
                 let dashMeta: MetadataEntry[];
                 ({
                     total: counts.dashboardsNum,
                     chartSlugs,
+                    composerChartSlugs,
                     appSlugs,
                     metadataEntries: dashMeta,
                 } = await output.runItem({
@@ -2628,80 +2650,72 @@ export const downloadHandler = async (
 
                 if (
                     hasFilters &&
-                    chartSlugs.length > 0 &&
+                    chartSlugs.length + composerChartSlugs.length > 0 &&
                     !options.skipCharts
                 ) {
                     output.startItem('Linked charts');
                     output.updateActive(
-                        `${chartSlugs.length} dashboard dependencies`,
+                        `${chartSlugs.length + composerChartSlugs.length} dashboard dependencies`,
                     );
-                    const {
-                        chartTableNames: linkedChartTableNames,
-                        metadataEntries: linkedChartMeta,
-                        chartTypeRefs: linkedChartVizRefs,
-                    } = await downloadContent(
-                        chartSlugs,
-                        'charts',
-                        projectId,
-                        projectName,
-                        options.path,
-                        options.languageMap,
-                        options.nested,
-                        skipEmbeddedSpaces,
-                        options.stripPivotSeries,
-                        options.rootSpaces,
-                        output.updateActive,
-                    );
-                    allMetadataEntries = [
-                        ...allMetadataEntries,
-                        ...linkedChartMeta,
+                    // An empty id list means every chart, so each kind is fetched only when named
+                    const linkedCharts =
+                        chartSlugs.length > 0
+                            ? await downloadContent(
+                                  chartSlugs,
+                                  'charts',
+                                  projectId,
+                                  projectName,
+                                  options.path,
+                                  options.languageMap,
+                                  options.nested,
+                                  skipEmbeddedSpaces,
+                                  options.stripPivotSeries,
+                                  options.rootSpaces,
+                                  output.updateActive,
+                              )
+                            : null;
+                    const linkedSqlCharts =
+                        chartSlugs.length > 0
+                            ? await downloadContent(
+                                  chartSlugs,
+                                  'sqlCharts',
+                                  projectId,
+                                  projectName,
+                                  options.path,
+                                  options.languageMap,
+                                  options.nested,
+                                  skipEmbeddedSpaces,
+                                  false,
+                                  options.rootSpaces,
+                                  output.updateActive,
+                              )
+                            : null;
+                    const linkedComposerCharts =
+                        composerChartSlugs.length > 0
+                            ? await downloadComposerCharts(
+                                  composerChartSlugs,
+                                  projectId,
+                                  projectName,
+                                  options.path,
+                                  options.nested,
+                                  output.updateActive,
+                              )
+                            : null;
+                    const linkedChartTableNames =
+                        linkedCharts?.chartTableNames ?? [];
+                    const linkedMeta = [
+                        ...(linkedCharts?.metadataEntries ?? []),
+                        ...(linkedSqlCharts?.metadataEntries ?? []),
+                        ...(linkedComposerCharts?.metadataEntries ?? []),
                     ];
+                    allMetadataEntries = [...allMetadataEntries, ...linkedMeta];
                     downloadedChartVizRefs = [
                         ...downloadedChartVizRefs,
-                        ...linkedChartVizRefs,
-                    ];
-
-                    const { metadataEntries: linkedSqlMeta } =
-                        await downloadContent(
-                            chartSlugs,
-                            'sqlCharts',
-                            projectId,
-                            projectName,
-                            options.path,
-                            options.languageMap,
-                            options.nested,
-                            skipEmbeddedSpaces,
-                            false,
-                            options.rootSpaces,
-                            output.updateActive,
-                        );
-                    allMetadataEntries = [
-                        ...allMetadataEntries,
-                        ...linkedSqlMeta,
-                    ];
-
-                    const linkedComposerCharts = await downloadComposerCharts(
-                        chartSlugs,
-                        projectId,
-                        projectName,
-                        options.path,
-                        options.nested,
-                        output.updateActive,
-                    );
-                    const linkedComposerMeta =
-                        linkedComposerCharts?.metadataEntries ?? [];
-                    allMetadataEntries = [
-                        ...allMetadataEntries,
-                        ...linkedComposerMeta,
-                    ];
-                    downloadedChartVizRefs = [
-                        ...downloadedChartVizRefs,
+                        ...(linkedCharts?.chartTypeRefs ?? []),
                         ...(linkedComposerCharts?.chartTypeRefs ?? []),
                     ];
 
-                    output.completeItem(
-                        `${linkedChartMeta.length + linkedSqlMeta.length + linkedComposerMeta.length} downloaded`,
-                    );
+                    output.completeItem(`${linkedMeta.length} downloaded`);
 
                     // Virtual views the linked charts are built on. Skipped
                     // when a broader step already downloaded every one.
