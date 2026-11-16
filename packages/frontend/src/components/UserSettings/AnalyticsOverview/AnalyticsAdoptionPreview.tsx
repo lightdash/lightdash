@@ -1,4 +1,4 @@
-import { ActionIcon, Alert, Box, Center, Loader, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Tooltip } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { useLayoutEffect, useState } from 'react';
 import { Link } from 'react-router';
@@ -12,32 +12,58 @@ import MantineIcon from '../../common/MantineIcon';
 
 const ADOPTION_APP_SLUG = 'analytics-project-adoption-app';
 
+// The app is only there where data apps are switched on and its build has finished. Everywhere else the tab falls
+// back to its charts, so the state is worked out once, by the page.
+export type AnalyticsAdoptionApp =
+    | { status: 'loading' | 'unavailable' }
+    | { status: 'ready'; appUuid: string; version: number; token: string };
+
+export const useAnalyticsAdoptionApp = (
+    projectUuid: string,
+): AnalyticsAdoptionApp => {
+    const app = useGetApp(projectUuid, ADOPTION_APP_SLUG);
+    const latest = app.data?.pages[0];
+    const appUuid = latest?.appUuid;
+    const version = latest?.latestReadyVersion ?? undefined;
+    const preview = useAppPreviewToken(
+        projectUuid,
+        appUuid,
+        version,
+        'standalone',
+    );
+    // A missing app fails at once; the retries that follow are not worth making people wait for
+    if (app.isError || app.failureCount > 0) return { status: 'unavailable' };
+    if (app.isLoading) return { status: 'loading' };
+    if (!appUuid || version === undefined) return { status: 'unavailable' };
+    if (getVisiblePreviewTokenError(preview.error, !!preview.data))
+        return { status: 'unavailable' };
+    if (!preview.data) {
+        return { status: preview.isLoading ? 'loading' : 'unavailable' };
+    }
+    return { status: 'ready', appUuid, version, token: preview.data };
+};
+
 export const AnalyticsAdoptionLink = ({
     projectUuid,
+    appUuid,
 }: {
     projectUuid: string;
-}) => {
-    const app = useGetApp(projectUuid, ADOPTION_APP_SLUG);
-    const appUuid = app.data?.pages[0]?.appUuid;
-
-    if (!appUuid) return null;
-
-    return (
-        <Tooltip label="Open Adoption app">
-            <ActionIcon
-                component={Link}
-                to={dataAppHref(projectUuid, appUuid)}
-                target="_blank"
-                rel="noreferrer"
-                variant="default"
-                size="sm"
-                aria-label="Open Adoption app"
-            >
-                <MantineIcon icon={IconExternalLink} />
-            </ActionIcon>
-        </Tooltip>
-    );
-};
+    appUuid: string;
+}) => (
+    <Tooltip label="Open Adoption app">
+        <ActionIcon
+            component={Link}
+            to={dataAppHref(projectUuid, appUuid)}
+            target="_blank"
+            rel="noreferrer"
+            variant="default"
+            size="sm"
+            aria-label="Open Adoption app"
+        >
+            <MantineIcon icon={IconExternalLink} />
+        </ActionIcon>
+    </Tooltip>
+);
 
 const MIN_APP_HEIGHT = 480;
 const APP_BOTTOM_GAP = 16;
@@ -82,56 +108,24 @@ const useRemainingHeight = (active: boolean) => {
 
 export const AnalyticsAdoptionPreview = ({
     projectUuid,
+    app,
     active = true,
 }: {
     projectUuid: string;
+    app: Extract<AnalyticsAdoptionApp, { status: 'ready' }>;
     active?: boolean;
 }) => {
-    const app = useGetApp(projectUuid, ADOPTION_APP_SLUG);
-    const latest = app.data?.pages[0];
-    const appUuid = latest?.appUuid;
-    const version = latest?.latestReadyVersion ?? undefined;
-    const preview = useAppPreviewToken(
-        projectUuid,
-        appUuid,
-        version,
-        'standalone',
-    );
     const origin = usePreviewOrigin();
     const fit = useRemainingHeight(active);
-
-    if (
-        app.isError ||
-        getVisiblePreviewTokenError(preview.error, !!preview.data)
-    ) {
-        return <Alert color="red">Could not open the Adoption app.</Alert>;
-    }
-
-    if (app.isLoading || (version !== undefined && preview.isLoading)) {
-        return (
-            <Center h={480} role="status" aria-label="Loading Adoption app">
-                <Loader size="sm" />
-            </Center>
-        );
-    }
-
-    if (!appUuid || version === undefined || !preview.data) {
-        return (
-            <Alert color="gray">
-                The Adoption app has no ready version yet.
-            </Alert>
-        );
-    }
-
     return (
         <Box ref={fit.ref} h={fit.height} pos="relative">
             <AppIframePreview
-                src={`${origin}/api/apps/${appUuid}/versions/${version}/t/${preview.data}/#transport=postMessage&projectUuid=${projectUuid}`}
-                previewToken={preview.data}
+                src={`${origin}/api/apps/${app.appUuid}/versions/${app.version}/t/${app.token}/#transport=postMessage&projectUuid=${projectUuid}`}
+                previewToken={app.token}
                 expectedPreviewOrigin={origin}
                 projectUuid={projectUuid}
-                appUuid={appUuid}
-                identityKey={appUuid}
+                appUuid={app.appUuid}
+                identityKey={app.appUuid}
                 urlStateSync
             />
         </Box>

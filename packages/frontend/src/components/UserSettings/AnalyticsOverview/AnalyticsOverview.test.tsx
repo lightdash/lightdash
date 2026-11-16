@@ -272,6 +272,25 @@ describe('Analytics settings overview', () => {
         expect(monthlyQueries()).toHaveLength(3);
     });
 
+    it('falls back to the Adoption charts and filters where the app cannot be opened', async () => {
+        // The app lookup fails here, as it does on an instance with data apps switched off
+        const launched = mockQueries();
+        renderOverview();
+        await userEvent.click(screen.getByRole('tab', { name: 'Adoption' }));
+        expect(
+            await screen.findByRole('region', { name: 'Dashboard audiences' }),
+        ).toBeVisible();
+        expect(screen.getByText('Last 30 days')).toBeVisible();
+        expect(
+            screen.queryByRole('status', { name: 'Loading Adoption app' }),
+        ).not.toBeInTheDocument();
+        await waitFor(() =>
+            expect(launched.map(({ query }) => query.exploreName)).toContain(
+                'content',
+            ),
+        );
+    });
+
     it('cancels a superseded query even when its creation response arrives after the project switch', async () => {
         mockQueries();
         const respond = Promise.withResolvers<{ queryUuid: string }>();

@@ -7,6 +7,8 @@ import {
     Button,
     ActionIcon,
     Box,
+    Center,
+    Loader,
     Badge,
     Group,
     ScrollArea,
@@ -40,6 +42,7 @@ import { PolymorphicPaperButton } from '../../common/PolymorphicPaperButton';
 import {
     AnalyticsAdoptionLink,
     AnalyticsAdoptionPreview,
+    useAnalyticsAdoptionApp,
 } from './AnalyticsAdoptionPreview';
 import classes from './AnalyticsOverview.module.css';
 import AnalyticsOverviewChart from './AnalyticsOverviewChart';
@@ -221,7 +224,12 @@ const AnalyticsOverview = ({
     const tab =
         analyticsTabs.find(({ id }) => id === activeTab) ?? analyticsTabs[0];
     // The Adoption app has its own controls and reads no dates or project
-    const isAdoption = tab.id === 'adoption';
+    // Where the app cannot be shown (data apps switched off, or no finished build) the tab is an ordinary one,
+    // with its charts, filters and dashboard link
+    const adoptionApp = useAnalyticsAdoptionApp(projectUuid);
+    const isAdoption =
+        tab.id === 'adoption' && adoptionApp.status !== 'unavailable';
+    const charts = isAdoption ? [] : tab.charts;
     const [hasOpenedAdoption, setHasOpenedAdoption] = useState(isAdoption);
     if (isAdoption && !hasOpenedAdoption) setHasOpenedAdoption(true);
     // The headline numbers summarise the whole instance, so they sit on the first tab only
@@ -233,7 +241,7 @@ const AnalyticsOverview = ({
         projectUuid,
         [
             ...headlineSpecs,
-            ...tab.charts.map(({ query }) => query),
+            ...charts.map(({ query }) => query),
             ...(tab.summary ? [tab.summary.query] : []),
         ],
         filters,
@@ -363,8 +371,13 @@ const AnalyticsOverview = ({
                         className={classes.tabActions}
                     >
                         {actions}
-                        {tab.id === 'adoption' ? (
-                            <AnalyticsAdoptionLink projectUuid={projectUuid} />
+                        {isAdoption ? (
+                            adoptionApp.status === 'ready' && (
+                                <AnalyticsAdoptionLink
+                                    projectUuid={projectUuid}
+                                    appUuid={adoptionApp.appUuid}
+                                />
+                            )
                         ) : (
                             <Tooltip
                                 label={
@@ -406,7 +419,7 @@ const AnalyticsOverview = ({
                     </Group>
                 </Group>
                 {/* Once opened, the Adoption app stays loaded behind the other tabs, so coming back to it is instant */}
-                {hasOpenedAdoption && (
+                {hasOpenedAdoption && adoptionApp.status === 'ready' && (
                     // Hidden by clipping, not by removing it from the layout: the app keeps its size behind the
                     // other tabs, so nothing in it is measured or drawn again on the way back
                     <Box
@@ -418,12 +431,23 @@ const AnalyticsOverview = ({
                     >
                         <AnalyticsAdoptionPreview
                             projectUuid={projectUuid}
+                            app={adoptionApp}
                             active={isAdoption}
                         />
                     </Box>
                 )}
                 <Tabs.Panel value={activeTab} pt={isAdoption ? 0 : 'lg'}>
-                    {isAdoption ? null : (
+                    {isAdoption ? (
+                        adoptionApp.status === 'loading' && (
+                            <Center
+                                h={480}
+                                role="status"
+                                aria-label="Loading Adoption app"
+                            >
+                                <Loader size="sm" />
+                            </Center>
+                        )
+                    ) : (
                         <Stack gap="md">
                             <Group gap="md" justify="flex-end" align="center">
                                 <Tooltip label="Excludes today so every day in the range is complete.">
@@ -527,8 +551,7 @@ const AnalyticsOverview = ({
                                     summary={tab.summary}
                                     result={
                                         currentQueries[
-                                            headlineSpecs.length +
-                                                tab.charts.length
+                                            headlineSpecs.length + charts.length
                                         ]
                                     }
                                 />
@@ -539,7 +562,7 @@ const AnalyticsOverview = ({
                                 className={classes.charts}
                                 data-overview={activeTab === 'overview'}
                             >
-                                {tab.charts.map((chart, index) => (
+                                {charts.map((chart, index) => (
                                     <AnalyticsOverviewChart
                                         key={`${tab.id}-${chart.title}`}
                                         chart={chart}
