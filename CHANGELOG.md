@@ -1,3 +1,11 @@
+## [3.271.1](https://github.com/lightdash/lightdash/compare/3.271.0...3.271.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** validate a saved chart's fields before a scoped agent runs it ([#32663](https://github.com/lightdash/lightdash/issues/32663)) ([f95bd04](https://github.com/lightdash/lightdash/commit/f95bd04875e06ab8acdbbb293e339a1a6d299714))
+* **ai:** validate the field before searching values in agent chat ([#32662](https://github.com/lightdash/lightdash/issues/32662)) ([c533558](https://github.com/lightdash/lightdash/commit/c533558ffb06b5c2b5fa839f49e68095e8bf41f1))
+
 # [3.271.0](https://github.com/lightdash/lightdash/compare/3.270.0...3.271.0) (2026-11-16)
 
 
