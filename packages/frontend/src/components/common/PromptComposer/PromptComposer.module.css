@@ -341,9 +341,10 @@
 }
 
 /* Tall attachments scroll inside the single-row composer instead of growing
- * it past a small panel, and the actions stay on the bottom row. */
+ * it past a small panel, and the actions stay on the bottom row. The height
+ * cuts the third card in half so it is clear there is more to scroll to. */
 .root[data-variant='inline'] .attachments {
-    max-height: rem(152px);
+    max-height: rem(172px);
     overflow-y: auto;
 }
 
