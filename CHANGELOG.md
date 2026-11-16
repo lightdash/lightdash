@@ -1,3 +1,10 @@
+# [3.270.0](https://github.com/lightdash/lightdash/compare/3.269.1...3.270.0) (2026-11-16)
+
+
+### Features
+
+* [d-cf024975] Keep the source project after mobile QR sign-in ([#32617](https://github.com/lightdash/lightdash/issues/32617)) ([28a985d](https://github.com/lightdash/lightdash/commit/28a985d87ca266234cdb74311a1bd54ee3fa34e0))
+
 ## [3.269.1](https://github.com/lightdash/lightdash/compare/3.269.0...3.269.1) (2026-11-16)
 
 

@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "3.269.1",
-  "previousVersion": "3.269.0",
-  "releaseDate": "2026-11-16T15:32:44.483Z",
+  "version": "3.270.0",
+  "previousVersion": "3.269.1",
+  "releaseDate": "2026-11-16T15:57:52.571Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261115140000_add_mobile_sign_in_source_project.ts",
+        "edition": "core",
+        "tables": [
+          "mobile_sign_in_codes"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
