@@ -111,6 +111,7 @@ import {
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import {
+    fromSession,
     getAccountWriteContext,
     getEmbedActorChartSpaceUuids,
     toSessionUser,
@@ -154,10 +155,10 @@ import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionC
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
+import { getCustomMetricExploreTables } from '../ProjectService/customMetricExploreTables';
 import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
 import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import type { ProjectService } from '../ProjectService/ProjectService';
-import { getCustomMetricExploreTables } from '../SavedChartsService/customMetricExploreTables';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -208,7 +209,10 @@ type DashboardServiceArguments = {
     contentVerificationModel: ContentVerificationModel;
     projectService: Pick<
         ProjectService,
-        'findExplores' | 'projectParametersModel' | 'getQueryTimezoneForProject'
+        | 'findExplores'
+        | 'projectParametersModel'
+        | 'getQueryTimezoneForProject'
+        | 'getExplore'
     >;
     getComposerChartService: () => Pick<
         ComposerChartService,
@@ -3731,15 +3735,17 @@ export class DashboardService
                 }),
             )
         ) {
+            const account = fromSession(user);
             const newHandWritten = await Promise.all(
                 affected.map(async (chart) =>
                     getNewHandWrittenAdditionalMetrics(
                         [metric],
                         chart.metricQuery.additionalMetrics ?? [],
                         await getCustomMetricExploreTables(
-                            this.projectModel,
+                            () => this.projectService,
+                            account,
                             chart.projectUuid,
-                            chart.metricQuery.exploreName,
+                            chart.metricQuery,
                         ),
                     ),
                 ),

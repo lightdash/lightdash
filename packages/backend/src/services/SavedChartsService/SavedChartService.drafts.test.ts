@@ -122,6 +122,7 @@ const buildService = (
         softDelete: vi.fn().mockResolvedValue(chart),
     };
     const service = new SavedChartService({
+        getProjectService: () => ({ getExplore: vi.fn() }),
         analytics: analyticsMock,
         lightdashConfig: {
             ...lightdashConfigMock,

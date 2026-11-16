@@ -180,11 +180,11 @@ import { BaseService } from '../BaseService';
 import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
+import { getCustomMetricExploreTables } from '../ProjectService/customMetricExploreTables';
 import { getAvailableParameterDefinitions } from '../ProjectService/parameters';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
-import { getCustomMetricExploreTables } from '../SavedChartsService/customMetricExploreTables';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
 import {
@@ -415,7 +415,7 @@ export class CoderService extends BaseService {
 
     static getChartContentAsCodePermissionChecks(
         nextChart: ChartAsCode,
-        currentChart: CurrentChartSqlItems | undefined,
+        currentChart: CurrentChartSqlItems | null,
         exploreTables: Explore['tables'],
     ): ContentAsCodeSqlPermissionCheckResult[] {
         return getChartContentAsCodePermissionChecks(
@@ -425,17 +425,24 @@ export class CoderService extends BaseService {
         );
     }
 
-    private async getCustomMetricExploreTables(
+    private async getChartExploreTables(
+        account: Account,
         projectUuid: string,
         chart: ChartAsCode,
     ): Promise<Explore['tables']> {
-        return chart.metricQuery.additionalMetrics?.length
-            ? getCustomMetricExploreTables(
-                  this.projectModel,
-                  projectUuid,
-                  chart.metricQuery.exploreName,
-              )
-            : {};
+        return getCustomMetricExploreTables(
+            () => {
+                if (!this.projectService) {
+                    throw new Error(
+                        'ProjectService is required to check custom metric uploads',
+                    );
+                }
+                return this.projectService;
+            },
+            account,
+            projectUuid,
+            chart.metricQuery,
+        );
     }
 
     directAccessService: DirectAccessService;
@@ -4739,8 +4746,9 @@ export class CoderService extends BaseService {
                 CoderService.handleContentAsCodeSqlPermissionChecks({
                     checks: CoderService.getChartContentAsCodePermissionChecks(
                         chartWithDefaults,
-                        undefined,
-                        await this.getCustomMetricExploreTables(
+                        null,
+                        await this.getChartExploreTables(
+                            options.account ?? fromSession(user),
                             projectUuid,
                             chartWithDefaults,
                         ),
@@ -5010,7 +5018,8 @@ export class CoderService extends BaseService {
                     chartWithDefaults,
                     currentChart ??
                         (await this.savedChartModel.get(chart.uuid)),
-                    await this.getCustomMetricExploreTables(
+                    await this.getChartExploreTables(
+                        options.account ?? fromSession(user),
                         projectUuid,
                         chartWithDefaults,
                     ),

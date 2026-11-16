@@ -24,7 +24,7 @@ export type CurrentChartSqlItems = {
 
 export const getChartContentAsCodePermissionChecks = (
     nextChart: ChartAsCode,
-    currentChart: CurrentChartSqlItems | undefined,
+    currentChart: CurrentChartSqlItems | null,
     exploreTables: Explore['tables'],
 ): ContentAsCodeSqlPermissionCheckResult[] => {
     const checks: ContentAsCodeSqlPermissionCheckResult[] = [];

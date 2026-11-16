@@ -103,6 +103,7 @@ const catalogModel = {
 
 const buildService = (lightdashConfig = lightdashConfigMock) =>
     new SavedChartService({
+        getProjectService: () => ({ getExplore: vi.fn() }),
         analytics: analyticsMock,
         lightdashConfig,
         projectModel,

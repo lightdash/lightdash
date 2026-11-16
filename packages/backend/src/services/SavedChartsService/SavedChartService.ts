@@ -123,7 +123,9 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import { getCustomMetricExploreTables } from '../ProjectService/customMetricExploreTables';
 import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -142,13 +144,13 @@ import {
     mergeDraftIntoChart,
     type ChartDraftOverlay,
 } from './chartDraftOverlay';
-import { getCustomMetricExploreTables } from './customMetricExploreTables';
 
 type SavedChartServiceArguments = {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     analytics: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
+    getProjectService: () => Pick<ProjectService, 'getExplore'>;
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
@@ -199,6 +201,8 @@ export class SavedChartService
 
     private readonly projectModel: ProjectModel;
 
+    private readonly getProjectService: SavedChartServiceArguments['getProjectService'];
+
     private readonly savedChartModel: SavedChartModel;
 
     private readonly spaceModel: SpaceModel;
@@ -245,6 +249,7 @@ export class SavedChartService
         this.analytics = args.analytics;
         this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
+        this.getProjectService = args.getProjectService;
         this.savedChartModel = args.savedChartModel;
         this.spaceModel = args.spaceModel;
         this.analyticsModel = args.analyticsModel;
@@ -1050,20 +1055,20 @@ export class SavedChartService
     }
 
     private async hasNewHandWrittenCustomMetrics(
+        account: Account,
         projectUuid: string,
         metricQuery: Pick<MetricQuery, 'exploreName' | 'additionalMetrics'>,
         savedAdditionalMetrics: AdditionalMetric[],
     ): Promise<boolean> {
-        const additionalMetrics = metricQuery.additionalMetrics ?? [];
-        if (additionalMetrics.length === 0) return false;
         const tables = await getCustomMetricExploreTables(
-            this.projectModel,
+            this.getProjectService,
+            account,
             projectUuid,
-            metricQuery.exploreName,
+            metricQuery,
         );
         return (
             getNewHandWrittenAdditionalMetrics(
-                additionalMetrics,
+                metricQuery.additionalMetrics ?? [],
                 savedAdditionalMetrics,
                 tables,
             ).length > 0
@@ -1247,6 +1252,7 @@ export class SavedChartService
                 }),
             ) &&
             (await this.hasNewHandWrittenCustomMetrics(
+                account,
                 projectUuid,
                 chartVersion.metricQuery,
                 oldAdditionalMetrics ?? [],
@@ -2544,6 +2550,7 @@ export class SavedChartService
                 subject('CustomFields', { organizationUuid, projectUuid }),
             ) &&
             (await this.hasNewHandWrittenCustomMetrics(
+                account,
                 projectUuid,
                 chartToSave.metricQuery,
                 [],

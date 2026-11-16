@@ -148,6 +148,12 @@ const projectModel = {
         projectUuid: 'project-uuid',
     })),
 };
+const projectService = {
+    getExplore: vi.fn(async (): Promise<Explore> => {
+        throw new NotFoundError('Explore not found');
+    }),
+};
+
 const analyticsModel = {
     addChartViewEvent: vi.fn(async () => undefined),
 };
@@ -165,6 +171,7 @@ describe('SavedChartService - Content Verification', () => {
         analytics: analyticsMock,
         lightdashConfig: lightdashConfigMock,
         projectModel: projectModel as unknown as ProjectModel,
+        getProjectService: () => projectService,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         analyticsModel: analyticsModel as unknown as AnalyticsModel,
@@ -566,10 +573,7 @@ describe('SavedChartService - Content Verification', () => {
                 'session-cookie',
             );
 
-            beforeEach(() => {
-                vi.mocked(projectModel.getExploreFromCache).mockResolvedValue(
-                    explore,
-                );
+            const savedWithMetric = () =>
                 savedChartModel.get.mockResolvedValueOnce({
                     ...savedChartData,
                     metricQuery: {
@@ -577,15 +581,9 @@ describe('SavedChartService - Content Verification', () => {
                         additionalMetrics: [metric('(SELECT 4242)')],
                     },
                 } as never);
-            });
 
-            afterEach(() => {
-                vi.mocked(projectModel.getExploreFromCache).mockImplementation(
-                    async () => null,
-                );
-                savedChartModel.get.mockImplementation(
-                    async () => savedChartData,
-                );
+            beforeEach(() => {
+                projectService.getExplore.mockResolvedValueOnce(explore);
             });
 
             it('rejects hand-written custom metric SQL on create without CustomFields permission', async () => {
@@ -598,6 +596,11 @@ describe('SavedChartService - Content Verification', () => {
                     'User cannot save queries with custom metrics written in SQL',
                 );
                 expect(savedChartModel.create).not.toHaveBeenCalled();
+                expect(projectService.getExplore).toHaveBeenCalledWith(
+                    account,
+                    'project-uuid',
+                    'orders',
+                );
             });
 
             it('allows a custom metric over a modelled field on create', async () => {
@@ -609,6 +612,7 @@ describe('SavedChartService - Content Verification', () => {
             });
 
             it('rejects new hand-written custom metric SQL on update without CustomFields permission', async () => {
+                savedWithMetric();
                 await expect(
                     service.createVersion(chartEditor, 'chart-uuid', {
                         tableName: baseChart.tableName,
@@ -623,6 +627,7 @@ describe('SavedChartService - Content Verification', () => {
             });
 
             it('allows unchanged hand-written custom metric SQL on update', async () => {
+                savedWithMetric();
                 await service.createVersion(chartEditor, 'chart-uuid', {
                     tableName: baseChart.tableName,
                     metricQuery: withMetric('(SELECT 4242)'),

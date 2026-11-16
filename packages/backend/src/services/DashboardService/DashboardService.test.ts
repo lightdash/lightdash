@@ -46,6 +46,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import {
@@ -137,6 +138,10 @@ const savedSqlModel = {
             uuid: publicSpace.uuid,
         },
     })),
+};
+
+const projectService = {
+    getExplore: vi.fn<ProjectService['getExplore']>(),
 };
 
 const projectModel = {
@@ -298,7 +303,7 @@ describe('DashboardService', () => {
             organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
-        projectService: {} as never,
+        projectService: projectService as never,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
     });
@@ -3194,7 +3199,7 @@ describe('DashboardService', () => {
                 [{ uuid: affectedChart.uuid, name: affectedChart.name }],
             );
             savedChartModel.get.mockResolvedValue(affectedChart as never);
-            projectModel.getExploreFromCache.mockResolvedValue({
+            projectService.getExplore.mockResolvedValue({
                 tables: {
                     orders: {
                         name: 'orders',
@@ -3205,10 +3210,6 @@ describe('DashboardService', () => {
                     },
                 },
             } as never);
-        });
-
-        afterEach(() => {
-            projectModel.getExploreFromCache.mockReset();
         });
 
         test('rejects hand-written SQL without CustomFields permission', async () => {
