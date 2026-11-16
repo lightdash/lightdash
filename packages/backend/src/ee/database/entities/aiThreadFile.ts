@@ -47,19 +47,10 @@ export type DbAiThreadImageObject = {
     created_at: Date;
     uploaded_at: Date | null;
     cleanup_attempted_at: Date | null;
-    object_deleted_at: Date | null;
 };
 
 export type AiThreadImageObjectTable = Knex.CompositeTableType<
     DbAiThreadImageObject,
-    Omit<
-        DbAiThreadImageObject,
-        'uploaded_at' | 'object_deleted_at' | 'cleanup_attempted_at'
-    >,
-    Partial<
-        Pick<
-            DbAiThreadImageObject,
-            'uploaded_at' | 'object_deleted_at' | 'cleanup_attempted_at'
-        >
-    >
+    Omit<DbAiThreadImageObject, 'uploaded_at' | 'cleanup_attempted_at'>,
+    Partial<Pick<DbAiThreadImageObject, 'uploaded_at' | 'cleanup_attempted_at'>>
 >;

@@ -319,7 +319,7 @@ test('organization cascades leave a retryable object cleanup record', async () =
             expect.objectContaining({ storage_key: storageKey }),
         ]),
     );
-    await model.markImageObjectDeleted(storageKey);
+    await model.removeImageObject(storageKey);
     expect(
         await migrated
             .database(AiThreadImageObjectTableName)

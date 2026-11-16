@@ -124,11 +124,7 @@ export const resolveThreadImages = async ({
     let bytesRead = 0;
     for (const { promptUuid, item } of references) {
         const file = availableFiles.get(item.fileUuid);
-        if (
-            !file ||
-            file.promptUuid !== promptUuid ||
-            file.objectDeletedAt !== null
-        ) {
+        if (!file || file.promptUuid !== promptUuid) {
             resolved.set(item.fileUuid, { status: 'missing' });
         } else if (file.uploadedAt === null) {
             resolved.set(item.fileUuid, { status: 'incomplete' });
