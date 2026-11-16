@@ -301,7 +301,7 @@ const flattenSchemaFields = (
             : [node];
     });
 
-const parseRow = (row: Record<string, AnyType>[]) =>
+export const parseBigqueryRow = (row: Record<string, AnyType>[]) =>
     Object.fromEntries(
         Object.entries(row).map(([name, value]) => [name, parseCell(value)]),
     );
@@ -828,14 +828,17 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         options: QueryResultsOptions = {},
     ): Promise<WarehouseFetchStats> {
         const stats = createFetchStats();
-        const processRows = createRowBatchProcessor(parseRow, async (rows) => {
-            const writeStart = performance.now();
-            try {
-                await streamCallback(rows);
-            } finally {
-                stats.add('writeMs', performance.now() - writeStart);
-            }
-        });
+        const processRows = createRowBatchProcessor(
+            parseBigqueryRow,
+            async (rows) => {
+                const writeStart = performance.now();
+                try {
+                    await streamCallback(rows);
+                } finally {
+                    stats.add('writeMs', performance.now() - writeStart);
+                }
+            },
+        );
         const requestPage = async (
             query: QueryResultsOptions,
         ): Promise<QueryRowsResponse> => {
@@ -856,19 +859,23 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             );
             return page;
         };
-        let nextQuery: QueryResultsOptions | null = options;
-        while (nextQuery) {
+        const prefetchPage = (query: QueryResultsOptions) => {
+            const page = requestPage(query);
+            page.catch(() => undefined);
+            return page;
+        };
+        let nextPage: Promise<QueryRowsResponse> | null = prefetchPage(options);
+        while (nextPage) {
             const waitStart = performance.now();
             const [rows, query, response]: QueryRowsResponse =
                 // eslint-disable-next-line no-await-in-loop
-                await requestPage(nextQuery);
+                await nextPage;
             stats.add('waitMs', performance.now() - waitStart);
-            if (rows.length > 0) {
-                if (!response?.schema) {
-                    throw new WarehouseQueryError(
-                        'Query response has no schema',
-                    );
-                }
+            if (rows.length > 0 && !response?.schema) {
+                throw new WarehouseQueryError('Query response has no schema');
+            }
+            nextPage = query ? prefetchPage(query) : null;
+            if (rows.length > 0 && response?.schema) {
                 const processStart = performance.now();
                 for (
                     let offset = 0;
@@ -894,7 +901,6 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 }
                 stats.add('processMs', performance.now() - processStart);
             }
-            nextQuery = query ?? null;
         }
         return stats.summary();
     }

@@ -1890,3 +1890,218 @@ describe('BigQuery result fetch stats', () => {
         expect(result).not.toHaveProperty('fetchStats');
     });
 });
+
+describe('BigQuery result page prefetch', () => {
+    const schema = { fields: [{ name: 'id', type: 'INTEGER' }] };
+
+    const deferred = <T>() => {
+        let resolve: (value: T) => void = () => undefined;
+        let reject: (reason: unknown) => void = () => undefined;
+        const promise = new Promise<T>((onResolve, onReject) => {
+            resolve = onResolve;
+            reject = onReject;
+        });
+        return { promise, resolve, reject };
+    };
+
+    const page = (
+        from: number,
+        count: number,
+        pageToken?: string,
+    ): QueryRowsResponse => [
+        Array.from({ length: count }, (_, index) => ({
+            f: [{ v: String(from + index) }],
+        })),
+        pageToken ? { pageToken } : null,
+        { schema },
+    ];
+
+    const ids = (count: number) =>
+        Array.from({ length: count }, (_, id) => ({ id }));
+
+    const flushEventLoop = async () => {
+        for (let turn = 0; turn < 10; turn += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((resolve) => {
+                setImmediate(resolve);
+            });
+        }
+    };
+
+    const setup = () => {
+        const pages: ReturnType<typeof deferred<QueryRowsResponse>>[] = [];
+        const getQueryResults = vi.fn((options: { maxResults?: number }) => {
+            if (options.maxResults === 0) {
+                return Promise.resolve([[], null, { totalRows: '0', schema }]);
+            }
+            const request = deferred<QueryRowsResponse>();
+            pages.push(request);
+            return request.promise;
+        });
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        warehouse.client.createQueryJob = vi.fn(async () => [
+            { id: 'job', getQueryResults },
+        ]) as unknown as BigQuery['createQueryJob'];
+        return { warehouse, pages };
+    };
+
+    it('requests the next page while the current page is written, and no page after it', async () => {
+        const { warehouse, pages } = setup();
+        const releaseFirstWrite = deferred<void>();
+        const received: unknown[] = [];
+        let writes = 0;
+        const done = warehouse.streamQuery(
+            'SELECT 1',
+            async ({ rows }) => {
+                received.push(...rows);
+                writes += 1;
+                if (writes === 1) await releaseFirstWrite.promise;
+            },
+            {},
+        );
+
+        await vi.waitFor(() => expect(pages).toHaveLength(1));
+        pages[0].resolve(page(0, 3, 'second'));
+        await vi.waitFor(() => expect(writes).toBe(1));
+        expect(pages).toHaveLength(2);
+
+        pages[1].resolve(page(3, 2, 'third'));
+        await flushEventLoop();
+        expect(pages).toHaveLength(2);
+        expect(received).toEqual(ids(3));
+
+        releaseFirstWrite.resolve();
+        await vi.waitFor(() => expect(pages).toHaveLength(3));
+        pages[2].resolve(page(5, 1));
+        await done;
+
+        expect(received).toEqual(ids(6));
+        expect(pages).toHaveLength(3);
+    });
+
+    it('makes no extra request after the last page', async () => {
+        const { warehouse, pages } = setup();
+        const received: unknown[] = [];
+        const done = warehouse.streamQuery(
+            'SELECT 1',
+            ({ rows }) => {
+                received.push(...rows);
+            },
+            {},
+        );
+
+        await vi.waitFor(() => expect(pages).toHaveLength(1));
+        pages[0].resolve(page(0, 2));
+        await done;
+        await flushEventLoop();
+
+        expect(received).toEqual(ids(2));
+        expect(pages).toHaveLength(1);
+    });
+
+    it('delivers the current page and then reports a failed prefetched page with the usual error mapping', async () => {
+        const { warehouse, pages } = setup();
+        const releaseWrite = deferred<void>();
+        const received: unknown[] = [];
+        const outcome = warehouse
+            .streamQuery(
+                'SELECT 1',
+                async ({ rows }) => {
+                    received.push(...rows);
+                    await releaseWrite.promise;
+                },
+                {},
+            )
+            .then(
+                () => null,
+                (error: unknown) => error,
+            );
+
+        await vi.waitFor(() => expect(pages).toHaveLength(1));
+        pages[0].resolve(page(0, 2, 'second'));
+        await vi.waitFor(() => expect(pages).toHaveLength(2));
+        pages[1].reject({
+            errors: [{ reason: 'rateLimitExceeded', message: 'Slow down' }],
+        });
+        await flushEventLoop();
+        expect(received).toEqual(ids(2));
+
+        releaseWrite.resolve();
+        const error = await outcome;
+
+        expect(error).toBeInstanceOf(WarehouseQueryError);
+        expect((error as Error).message).toBe(
+            'BigQuery rate limit exceeded. Slow down',
+        );
+        expect(pages).toHaveLength(2);
+    });
+
+    it('leaves no unhandled rejection when the write fails while the prefetched page fails', async () => {
+        const { warehouse, pages } = setup();
+        const unhandled: unknown[] = [];
+        const onUnhandled = (reason: unknown) => {
+            unhandled.push(reason);
+        };
+        process.on('unhandledRejection', onUnhandled);
+        try {
+            const writeError = new Error('Results stream closed');
+            const done = warehouse.streamQuery(
+                'SELECT 1',
+                () => {
+                    throw writeError;
+                },
+                {},
+            );
+
+            await vi.waitFor(() => expect(pages).toHaveLength(1));
+            pages[0].resolve(page(0, 2, 'second'));
+            await expect(done).rejects.toBe(writeError);
+            expect(pages).toHaveLength(2);
+
+            pages[1].reject(new Error('Page request failed'));
+            await flushEventLoop();
+
+            expect(unhandled).toEqual([]);
+            expect(pages).toHaveLength(2);
+        } finally {
+            process.off('unhandledRejection', onUnhandled);
+        }
+    });
+
+    it('starts no further page after the write aborts, even when the prefetched page arrives later', async () => {
+        const { warehouse, pages } = setup();
+        const releaseWrite = deferred<void>();
+        const abortError = new Error('Query cancelled');
+        const done = warehouse.streamQuery(
+            'SELECT 1',
+            async () => {
+                await releaseWrite.promise;
+                throw abortError;
+            },
+            {},
+        );
+
+        await vi.waitFor(() => expect(pages).toHaveLength(1));
+        pages[0].resolve(page(0, 2, 'second'));
+        await vi.waitFor(() => expect(pages).toHaveLength(2));
+        releaseWrite.resolve();
+        await expect(done).rejects.toBe(abortError);
+
+        pages[1].resolve(page(2, 2, 'third'));
+        await flushEventLoop();
+
+        expect(pages).toHaveLength(2);
+    });
+
+    it('does not prefetch after a page without a schema', async () => {
+        const { warehouse, pages } = setup();
+        const done = warehouse.streamQuery('SELECT 1', () => undefined, {});
+
+        await vi.waitFor(() => expect(pages).toHaveLength(1));
+        pages[0].resolve([[{ f: [{ v: '1' }] }], { pageToken: 'second' }, {}]);
+
+        await expect(done).rejects.toThrow('Query response has no schema');
+        await flushEventLoop();
+        expect(pages).toHaveLength(1);
+    });
+});
