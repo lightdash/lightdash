@@ -610,6 +610,42 @@ describe('getComposerChartStage', () => {
         expect(split('bar', null)?.foldOverflowGroups).toBeUndefined();
     });
 
+    test('x that is also a y stays an index column; sorts, y-only values and the fold still apply', () => {
+        expect(
+            stage(
+                viz({
+                    type: 'bar',
+                    x: 'revenue',
+                    y: ['revenue'],
+                    groupBy: ['status'],
+                    stack: true,
+                }),
+                [],
+                [{ fieldId: 'revenue', descending: true }],
+            )?.pivotConfiguration,
+        ).toEqual({
+            indexColumn: [
+                { reference: 'revenue', type: VizIndexType.CATEGORY },
+            ],
+            groupByColumns: [{ reference: 'status' }],
+            valuesColumns: [
+                {
+                    reference: 'revenue',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+            sortBy: [
+                {
+                    reference: 'revenue',
+                    direction: 'DESC',
+                    nullsFirst: undefined,
+                    pivotValues: undefined,
+                },
+            ],
+            foldOverflowGroups: true,
+        });
+    });
+
     test('a split without explicit x or y is rejected', () => {
         expect(() =>
             stage(viz({ type: 'line', y: ['revenue'], groupBy: ['status'] })),

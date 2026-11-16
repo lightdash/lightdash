@@ -1,4 +1,5 @@
 import { derivePivotConfigurationFromChart } from '../pivot/derivePivotConfigFromChart';
+import { normalizeIndexColumns } from '../pivot/utils';
 import {
     DimensionType,
     FieldType,
@@ -16,9 +17,14 @@ import {
     type SourceQuery,
 } from '../types/querySources';
 import { type ResultColumn } from '../types/results';
-import { type ChartConfig } from '../types/savedCharts';
+import {
+    ChartType,
+    isCartesianChartConfig,
+    type ChartConfig,
+} from '../types/savedCharts';
 import { TimeFrames } from '../types/timeFrames';
 import { getItemId, RESULT_COLUMN_TABLE } from '../utils/item';
+import { VizIndexType } from '../visualizations/types';
 
 /** Synthetic explore of a composer node result; its fields are the result columns. */
 export const COMPOSER_RESULT_EXPLORE_NAME = 'composer_result';
@@ -248,6 +254,20 @@ export const getComposerSplitStage = ({
         fields,
     );
     if (!pivotConfiguration) return null;
+    // The classic derivation drops an x that is also a y from the index,
+    // collapsing distinct x values into one point.
+    const xField =
+        chartConfig.type === ChartType.CARTESIAN &&
+        isCartesianChartConfig(chartConfig.config)
+            ? chartConfig.config.layout.xField
+            : undefined;
+    const indexColumn = normalizeIndexColumns(pivotConfiguration.indexColumn);
+    const droppedX =
+        xField !== undefined &&
+        !pivotColumns.map(fieldId).includes(xField) &&
+        !indexColumn.some(({ reference }) => reference === xField)
+            ? xField
+            : null;
     return {
         sourceType: QuerySourceType.DUCKDB,
         nodeId,
@@ -258,6 +278,15 @@ export const getComposerSplitStage = ({
             )
             .join(', ')} FROM ${quoteIdentifier(PIVOT_STAGE_SOURCE_NAME)}`,
         references: { [PIVOT_STAGE_SOURCE_NAME]: source },
-        pivotConfiguration,
+        pivotConfiguration:
+            droppedX === null
+                ? pivotConfiguration
+                : {
+                      ...pivotConfiguration,
+                      indexColumn: [
+                          ...indexColumn,
+                          { reference: droppedX, type: VizIndexType.CATEGORY },
+                      ],
+                  },
     };
 };
