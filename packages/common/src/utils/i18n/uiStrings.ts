@@ -131,6 +131,14 @@ export const DEFAULT_UI_STRINGS = {
     'tileMenu.exportImage': 'Export image',
     'tileMenu.viewUnderlyingData': 'View underlying data',
     'tile.composerChart.notAvailable': 'This chart is not available here',
+    'tile.filters.dashboardApplied.singular': 'Dashboard filter applied:',
+    'tile.filters.dashboardApplied.plural': 'Dashboard filters applied:',
+    'tile.filters.chart.singular': 'Chart filter:',
+    'tile.filters.chart.plural': 'Chart filters:',
+    'tile.filters.overriddenByDashboard': '(overridden by dashboard)',
+    'tile.filters.unknownField':
+        'Tried to reference field with unknown id: {fieldId}',
+    'tile.parameters.title': 'Parameters',
     'dateZoom.defaultZoom': 'Default zoom',
     'dateZoom.none': 'None',
     'dateZoom.viewModeTooltip':
