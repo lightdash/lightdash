@@ -36,6 +36,7 @@ export type VisualizationServices = {
         e: EchartsSeriesClickEvent,
         series: EChartsSeries[],
     ) => void;
+    onAxisSort?: (fieldId: string) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
     setPivotRows: (value: string[] | undefined) => void;

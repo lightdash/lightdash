@@ -1,13 +1,14 @@
 import {
     getItemLabel,
+    getItemLabelWithoutTableName,
     getUnusedDimensions,
     type ChartConfig,
     type ItemsMap,
     type MetricQuery,
     type PivotConfiguration,
 } from '@lightdash/common';
-import { Box, List, Tooltip } from '@mantine/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
+import { Box, Button, List, Tooltip } from '@mantine/core';
+import { IconAlertTriangle, IconArrowsSplit2 } from '@tabler/icons-react';
 import { isEqual } from 'es-toolkit/compat';
 import { useMemo, type FC } from 'react';
 import {
@@ -31,6 +32,8 @@ export type PivotMismatchWarningProps = {
     > & { metricQuery?: MetricQuery; fields?: ItemsMap };
     isLoading: boolean;
     maxColumnLimit: number | undefined;
+    /** Offers to group the chart by a dimension it does not use yet. */
+    onSplitBy?: (pivotDimensions: string[]) => void;
 };
 
 const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
@@ -39,6 +42,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     resultsData,
     isLoading,
     maxColumnLimit,
+    onSplitBy,
 }) => {
     const dirtyPivotDimensions = useMemo(
         () =>
@@ -127,24 +131,29 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     }, [resultsData?.pivotDetails?.groupByColumns, dirtyPivotDimensions]);
 
     // Determine if query includes dimensions not used in the cartesian chart config
-    const unusedDimensionLabels = useMemo(() => {
-        const { unusedDimensions } = getUnusedDimensions({
-            chartType: chartConfig.type,
-            chartConfig: chartConfig.config,
-            pivotDimensions: dirtyPivotDimensions,
-            queryDimensions: resultsData?.metricQuery?.dimensions ?? [],
-        });
-        return unusedDimensions.map((fieldId) => {
-            const field = resultsData.fields?.[fieldId];
-            return field ? getItemLabel(field) : fieldId;
-        });
-    }, [
-        resultsData?.metricQuery?.dimensions,
-        resultsData.fields,
-        chartConfig?.type,
-        chartConfig.config,
-        dirtyPivotDimensions,
-    ]);
+    const unusedDimensions = useMemo(
+        () =>
+            getUnusedDimensions({
+                chartType: chartConfig.type,
+                chartConfig: chartConfig.config,
+                pivotDimensions: dirtyPivotDimensions,
+                queryDimensions: resultsData?.metricQuery?.dimensions ?? [],
+            }).unusedDimensions,
+        [
+            resultsData?.metricQuery?.dimensions,
+            chartConfig?.type,
+            chartConfig.config,
+            dirtyPivotDimensions,
+        ],
+    );
+    const unusedDimensionLabels = useMemo(
+        () =>
+            unusedDimensions.map((fieldId) => {
+                const field = resultsData.fields?.[fieldId];
+                return field ? getItemLabel(field) : fieldId;
+            }),
+        [unusedDimensions, resultsData.fields],
+    );
 
     // Determine how many messages to show
     const messages = useMemo(() => {
@@ -186,36 +195,67 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         isWithinChartLimit,
     ]);
 
-    if (messages.length === 0) return null;
+    const splitDimension =
+        onSplitBy && !isLoading && !isQueryFetching
+            ? unusedDimensions[0]
+            : undefined;
+
+    const splitField = splitDimension
+        ? resultsData.fields?.[splitDimension]
+        : undefined;
+    const splitLabel = splitField
+        ? getItemLabelWithoutTableName(splitField)
+        : splitDimension;
+
+    if (messages.length === 0 && !splitDimension) return null;
 
     return (
-        <Tooltip
-            label={
-                messages.length === 1 ? (
-                    messages[0]
-                ) : (
-                    <List size={'xs'} pr={'sm'}>
-                        {messages.map((m, i) => (
-                            <List.Item key={i}>{m}</List.Item>
-                        ))}
-                    </List>
-                )
-            }
-            position={'bottom'}
-        >
-            <Box
-                component="span"
-                role="img"
-                aria-label="Results may be incorrect"
-                display="inline-flex"
-            >
-                <MantineIcon
-                    icon={IconAlertTriangle}
-                    color="yellow.8"
-                    size="md"
-                />
-            </Box>
-        </Tooltip>
+        <>
+            {splitDimension && (
+                <Button
+                    size="compact-xs"
+                    variant="light"
+                    leftSection={
+                        <MantineIcon icon={IconArrowsSplit2} size={12} />
+                    }
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onSplitBy?.([...dirtyPivotDimensions, splitDimension]);
+                    }}
+                >
+                    Split by {splitLabel}
+                </Button>
+            )}
+            {messages.length > 0 && (
+                <Tooltip
+                    label={
+                        messages.length === 1 ? (
+                            messages[0]
+                        ) : (
+                            <List size={'xs'} pr={'sm'}>
+                                {messages.map((m, i) => (
+                                    <List.Item key={i}>{m}</List.Item>
+                                ))}
+                            </List>
+                        )
+                    }
+                    position={'bottom'}
+                >
+                    <Box
+                        component="span"
+                        role="img"
+                        aria-label="Results may be incorrect"
+                        display="inline-flex"
+                    >
+                        <MantineIcon
+                            icon={IconAlertTriangle}
+                            color="yellow.8"
+                            size="md"
+                        />
+                    </Box>
+                </Tooltip>
+            )}
+        </>
     );
 };
 

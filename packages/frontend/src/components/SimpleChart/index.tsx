@@ -1,10 +1,16 @@
 import {
     getFormattedValue,
+    getItemLabelWithoutTableName,
     CartesianSeriesType,
     type PivotReference,
 } from '@lightdash/common';
-import { Box } from '@mantine/core';
-import { IconChartBarOff } from '@tabler/icons-react';
+import { Affix, Box, Paper, Text, UnstyledButton } from '@mantine/core';
+import {
+    IconArrowDown,
+    IconArrowsSort,
+    IconArrowUp,
+    IconChartBarOff,
+} from '@tabler/icons-react';
 import { format as echartsFormat, type ECharts } from 'echarts';
 import {
     type EChartsInstance,
@@ -29,6 +35,7 @@ import {
 } from '../../hooks/echarts/useLegendDoubleClickSelection';
 import { useLegendScrollPosition } from '../../hooks/echarts/useLegendScrollPosition';
 import LoadingChart from '../common/LoadingChart';
+import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { isCartesianVisualizationConfig } from '../LightdashVisualization/types';
@@ -42,11 +49,15 @@ import {
     CHART_POINTER_OPTIONS,
     createChartTooltipController,
 } from './chartTooltipController';
+import classes from './SimpleChart.module.css';
+import { withSortableAxes, type AxisFields } from './sortableAxes';
 
 type EchartsBaseClickEvent = {
     // The component name clicked,
     // component type, could be 'series'、'markLine'、'markPoint'、'timeLine', etc..
     componentType: string;
+    // which of several same-type components, e.g. the right-hand y axis
+    componentIndex?: number;
     // series type, could be 'line'、'bar'、'pie', etc.. Works when componentType is 'series'.
     seriesType: string;
     // the index in option.series. Works when componentType is 'series'.
@@ -215,7 +226,8 @@ const getPlotPointForAxisHover = (
 
 const SimpleChart: FC<SimpleChartProps> = memo(
     ({ onScreenshotReady, onScreenshotError, onChartReady, ...props }) => {
-        const { chartRef, onSeriesContextMenu } = useVisualizationServices();
+        const { chartRef, onSeriesContextMenu, onAxisSort } =
+            useVisualizationServices();
         const visualizationConfig = useVisualizationConfig();
         const {
             isLoading,
@@ -254,10 +266,45 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             );
         // Measured canvas width so outside legends can size their labels
         const [chartWidth, setChartWidth] = useState<number | null>(null);
-        const eChartsOptions = useEchartsCartesianConfig(
+        const baseEChartsOptions = useEchartsCartesianConfig(
             selectedLegends,
             props.isInDashboard,
             chartWidth,
+        );
+        // Axis titles sort the query when the host can take a sort
+        const layout = cartesianChartConfig?.validConfig?.layout;
+        const configuredSeries =
+            cartesianChartConfig?.validConfig?.eChartsConfig?.series;
+        const axisFields = useMemo<AxisFields>(() => {
+            // One value axis per side: the first series drawn against it
+            const valueFields = [0, 1].map(
+                (axisIndex) =>
+                    configuredSeries?.find(
+                        (series) => (series.yAxisIndex ?? 0) === axisIndex,
+                    )?.encode.yRef.field,
+            );
+            valueFields[0] ??= layout?.yField?.[0];
+            const categoryFields = [layout?.xField];
+            return layout?.flipAxes
+                ? { xAxis: valueFields, yAxis: categoryFields }
+                : { xAxis: categoryFields, yAxis: valueFields };
+        }, [
+            configuredSeries,
+            layout?.xField,
+            layout?.yField,
+            layout?.flipAxes,
+        ]);
+        const primarySort = resultsData?.metricQuery?.sorts?.[0];
+        const eChartsOptions = useMemo(
+            () =>
+                baseEChartsOptions && onAxisSort
+                    ? withSortableAxes(
+                          baseEChartsOptions,
+                          axisFields,
+                          primarySort,
+                      )
+                    : baseEChartsOptions,
+            [baseEChartsOptions, onAxisSort, axisFields, primarySort],
         );
 
         const hasSignaledScreenshotReady = useRef(false);
@@ -353,14 +400,37 @@ const SimpleChart: FC<SimpleChartProps> = memo(
 
         // A changed handler in onEvents makes echarts-for-react re-create the
         // instance, so the handler stays stable and reads committed values
-        const latestRef = useRef({ eChartsOptions, onSeriesContextMenu });
+        const latestRef = useRef({
+            eChartsOptions,
+            onSeriesContextMenu,
+            onAxisSort,
+            axisFields,
+        });
         useLayoutEffect(() => {
-            latestRef.current = { eChartsOptions, onSeriesContextMenu };
-        }, [eChartsOptions, onSeriesContextMenu]);
+            latestRef.current = {
+                eChartsOptions,
+                onSeriesContextMenu,
+                onAxisSort,
+                axisFields,
+            };
+        }, [eChartsOptions, onSeriesContextMenu, onAxisSort, axisFields]);
 
         const onChartContextMenu = useCallback((e: EchartsClickEvent) => {
-            const { eChartsOptions: options, onSeriesContextMenu: onMenu } =
-                latestRef.current;
+            const {
+                eChartsOptions: options,
+                onSeriesContextMenu: onMenu,
+                onAxisSort: onSort,
+                axisFields: fields,
+            } = latestRef.current;
+            if (
+                onSort &&
+                e.event.event.type === 'click' &&
+                (e.componentType === 'xAxis' || e.componentType === 'yAxis')
+            ) {
+                const fieldId = fields[e.componentType][e.componentIndex ?? 0];
+                if (fieldId) onSort(fieldId);
+                return;
+            }
             if (onMenu) {
                 if (e.event.event.defaultPrevented) {
                     return;
@@ -524,21 +594,81 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         // re-creating the entire ECharts instance on every render. The library
         // deep-compares onEvents via fast-deep-equal, which always returns false
         // for function values, triggering a full dispose+init cycle.
+        // Hovering an axis says what a click on it will sort by
+        const [sortHint, setSortHint] = useState<{
+            x: number;
+            y: number;
+            fieldId: string;
+        } | null>(null);
+        const onAxisHover = useCallback((e: EchartsClickEvent) => {
+            const { onAxisSort: onSort, axisFields: fields } =
+                latestRef.current;
+            if (
+                !onSort ||
+                (e.componentType !== 'xAxis' && e.componentType !== 'yAxis')
+            )
+                return;
+            const fieldId = fields[e.componentType][e.componentIndex ?? 0];
+            if (!fieldId) return;
+            const { clientX, clientY } = e.event.event;
+            setSortHint({ x: clientX, y: clientY, fieldId });
+        }, []);
+        const onAxisLeave = useCallback(() => setSortHint(null), []);
+        // An axis the chart draws no title for gets a ghost one on hover
+        const ghostAxes = useMemo(
+            () =>
+                (
+                    [
+                        { axis: 'xAxis', index: 0, side: 'bottom' },
+                        { axis: 'xAxis', index: 1, side: 'top' },
+                        { axis: 'yAxis', index: 0, side: 'left' },
+                        { axis: 'yAxis', index: 1, side: 'right' },
+                    ] as const
+                ).flatMap(({ axis, index, side }) => {
+                    const fieldId = axisFields[axis][index];
+                    const item = fieldId ? itemsMap?.[fieldId] : undefined;
+                    const drawn = baseEChartsOptions?.[axis]?.[index];
+                    if (!fieldId || !item || !drawn || drawn.name) return [];
+                    return [
+                        {
+                            side,
+                            fieldId,
+                            label: getItemLabelWithoutTableName(item),
+                        },
+                    ];
+                }),
+            [axisFields, itemsMap, baseEChartsOptions],
+        );
+        const sortHintItem = sortHint
+            ? itemsMap?.[sortHint.fieldId]
+            : undefined;
+
         const onEvents = useMemo(
             () => ({
                 contextmenu: onChartContextMenu,
                 click: onChartContextMenu,
+                // Only a chart that can sort listens for axis hovers
+                ...(onAxisSort
+                    ? { mouseover: onAxisHover, mouseout: onAxisLeave }
+                    : {}),
                 legendselectchanged: onLegendChange,
                 legendscroll: onLegendScroll,
             }),
-            [onChartContextMenu, onLegendChange, onLegendScroll],
+            [
+                onChartContextMenu,
+                onLegendChange,
+                onLegendScroll,
+                onAxisSort,
+                onAxisHover,
+                onAxisLeave,
+            ],
         );
 
         if (resultsData?.error) return <EmptyChart />;
         if (isLoading) return <LoadingChart />;
         if (!eChartsOptions) return <EmptyChart />;
 
-        return (
+        const chart = (
             <EChartsReact
                 className={props.className}
                 // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
@@ -564,6 +694,54 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 onEvents={onEvents}
                 onChartReady={handleChartReady}
             />
+        );
+        if (!onAxisSort) return chart;
+
+        return (
+            <Box
+                className={classes.sortHost}
+                data-expand={props.$shouldExpand || undefined}
+            >
+                {chart}
+                {ghostAxes.map(({ side, fieldId, label }) => (
+                    <UnstyledButton
+                        key={side}
+                        className={classes.ghostAxis}
+                        data-side={side}
+                        aria-label={`Sort by ${label}`}
+                        onClick={() => onAxisSort(fieldId)}
+                    >
+                        <MantineIcon
+                            icon={
+                                primarySort?.fieldId !== fieldId
+                                    ? IconArrowsSort
+                                    : primarySort.descending
+                                      ? IconArrowDown
+                                      : IconArrowUp
+                            }
+                            size={12}
+                        />
+                        {label}
+                    </UnstyledButton>
+                ))}
+                {sortHint && sortHintItem && (
+                    <Affix
+                        position={{
+                            left: sortHint.x + 14,
+                            top: sortHint.y + 14,
+                        }}
+                    >
+                        <Paper withBorder shadow="sm" px={8} py={4} radius="sm">
+                            <Text fz="xs">
+                                Click to sort by{' '}
+                                <Text span fw={600} inherit>
+                                    {getItemLabelWithoutTableName(sortHintItem)}
+                                </Text>
+                            </Text>
+                        </Paper>
+                    </Affix>
+                )}
+            </Box>
         );
     },
 );

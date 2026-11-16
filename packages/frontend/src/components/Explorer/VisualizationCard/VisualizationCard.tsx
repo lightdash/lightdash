@@ -360,6 +360,27 @@ const VisualizationCard: FC<Props> = memo((props) => {
         }
     }, [closeVisualizationConfig, isOpen]);
 
+    // Clicking an axis title sorts by its field, then flips the direction
+    const handleAxisSort = useCallback(
+        (fieldId: string) => {
+            const current = sorts[0];
+            const isMetric =
+                !!visualizationMetricQuery?.metrics.includes(fieldId);
+            dispatch(
+                explorerActions.setSortFields([
+                    {
+                        fieldId,
+                        descending:
+                            current?.fieldId === fieldId
+                                ? !current.descending
+                                : isMetric,
+                    },
+                ]),
+            );
+        },
+        [sorts, visualizationMetricQuery, dispatch],
+    );
+
     const onSeriesContextMenu = useCallback(
         (e: EchartsSeriesClickEvent, series: EChartsSeries[]) => {
             setEchartsClickEvent({
@@ -467,6 +488,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 isLoading={isLoadingQueryResults}
                 columnOrder={visualizationColumnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
+                onAxisSort={isEditMode ? handleAxisSort : undefined}
                 savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
                 savedChartReference={savedChartReference}
                 onChartConfigChange={handleSetChartConfig}
@@ -543,6 +565,11 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                     isLoading={isLoadingQueryResults}
                                     maxColumnLimit={
                                         health.data?.pivotTable?.maxColumnLimit
+                                    }
+                                    onSplitBy={
+                                        isEditMode
+                                            ? handleSetPivotFields
+                                            : undefined
                                     }
                                 />
                                 <VisualizationTimezone
