@@ -4,10 +4,10 @@ import {
     IconPlayerPlay,
     IconTable,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useTriedFields } from '../../../../../features/semanticStudio/useModelFieldChanges';
-import { useTryInExplore } from '../../../../../features/semanticStudio/useTryInExplore';
+import { useDevelopmentView } from '../../../../../features/semanticStudio/developmentView';
+import { TryItModal } from './TryItModal';
 import {
     useStudioPullRequest,
     type StudioPullRequest,
@@ -26,92 +26,79 @@ const buttonProps = (look: Look) =>
         : { size: 'compact-xs', variant: 'default' };
 
 const HINT =
-    'Opens Explore with your changes selected. Only you see them until they are merged.';
+    'Opens Explore over this page with your changes. Only you see them until they are merged.';
 
-/** Opening a model in Explore on the person's changes, with what changed already selected. */
-const useTryModel = (
-    projectUuid: string,
-    model: string,
-    previewProjectUuid: string | null,
-) => {
-    const fields = useTriedFields(projectUuid, model, previewProjectUuid);
-    const tryInExplore = useTryInExplore(projectUuid);
-    return () => tryInExplore(model, previewProjectUuid, fields);
-};
-
-const TryModelButton: FC<{
-    projectUuid: string;
-    model: string;
-    previewProjectUuid: string | null;
-    look: Look;
-}> = ({ projectUuid, model, previewProjectUuid, look }) => {
-    const onTry = useTryModel(projectUuid, model, previewProjectUuid);
-    return (
-        <Tooltip multiline w={240} label={HINT}>
-            <Button {...buttonProps(look)} flex="none" onClick={onTry}>
-                Try it
-            </Button>
-        </Tooltip>
-    );
-};
-
-const TryModelItem: FC<{
-    projectUuid: string;
-    model: string;
-    previewProjectUuid: string | null;
-}> = ({ projectUuid, model, previewProjectUuid }) => {
-    const onTry = useTryModel(projectUuid, model, previewProjectUuid);
-    return (
-        <Menu.Item
-            leftSection={<MantineIcon icon={IconTable} />}
-            onClick={onTry}
-        >
-            {model}
-        </Menu.Item>
-    );
-};
-
-/** The way to try a pull request's changes: one model opens straight in Explore, several ask which. */
+/** The way to try a pull request's changes in Explore, over the page: one model opens straight away, several ask which. */
 export const TryItButton: FC<{
     projectUuid: string;
     pullRequest: StudioPullRequest;
     look: Look;
 }> = ({ projectUuid, pullRequest, look }) => {
-    const { changedModels, previewProjectUuid } = pullRequest;
+    const { changedModels, previewProjectUuid, prUrl } = pullRequest;
+    const [isOn, setIsOn] = useDevelopmentView();
+    const [trying, setTrying] = useState<string | null>(null);
+    const wasOn = useRef(false);
+    const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
+    // The app reads the changes while the modal is open, and goes back to how it was after.
+    const open = (model: string) => {
+        wasOn.current = isOn;
+        setIsOn(true, previewProjectUuid);
+        setTrying(model);
+    };
+    const close = () => {
+        if (!wasOn.current) setIsOn(false);
+        setTrying(null);
+    };
     if (changedModels.length === 0) return null;
-    if (changedModels.length === 1) {
-        return (
-            <TryModelButton
-                projectUuid={projectUuid}
-                model={changedModels[0]}
-                previewProjectUuid={previewProjectUuid}
-                look={look}
-            />
-        );
-    }
     return (
-        <Menu position="bottom-end">
-            <Menu.Target>
-                <Button
-                    {...buttonProps(look)}
-                    flex="none"
-                    rightSection={<MantineIcon icon={IconChevronDown} />}
-                >
-                    Try it
-                </Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-                <Menu.Label>{HINT}</Menu.Label>
-                {changedModels.map((model) => (
-                    <TryModelItem
-                        key={model}
-                        projectUuid={projectUuid}
-                        model={model}
-                        previewProjectUuid={previewProjectUuid}
-                    />
-                ))}
-            </Menu.Dropdown>
-        </Menu>
+        <>
+            {changedModels.length === 1 ? (
+                <Tooltip multiline w={240} label={HINT}>
+                    <Button
+                        {...buttonProps(look)}
+                        flex="none"
+                        onClick={() => open(changedModels[0])}
+                    >
+                        Try it
+                    </Button>
+                </Tooltip>
+            ) : (
+                <Menu position="bottom-end">
+                    <Menu.Target>
+                        <Button
+                            {...buttonProps(look)}
+                            flex="none"
+                            rightSection={
+                                <MantineIcon icon={IconChevronDown} />
+                            }
+                        >
+                            Try it
+                        </Button>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Label>{HINT}</Menu.Label>
+                        {changedModels.map((model) => (
+                            <Menu.Item
+                                key={model}
+                                leftSection={<MantineIcon icon={IconTable} />}
+                                onClick={() => open(model)}
+                            >
+                                {model}
+                            </Menu.Item>
+                        ))}
+                    </Menu.Dropdown>
+                </Menu>
+            )}
+            {trying ? (
+                <TryItModal
+                    projectUuid={projectUuid}
+                    model={trying}
+                    previewProjectUuid={previewProjectUuid}
+                    title={`Trying ${trying}${number ? ` from #${number}` : ''}`}
+                    onClose={close}
+                />
+            ) : null}
+        </>
     );
 };
 

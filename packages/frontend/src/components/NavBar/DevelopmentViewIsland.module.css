@@ -7,25 +7,22 @@
     flex-direction: column;
     min-width: 0;
     max-width: calc(100vw - 2 * var(--mantine-spacing-md));
-    padding: 4px;
-    border: 1px solid var(--mantine-color-dark-4);
-    border-radius: 20px;
-    background: color-mix(
-        in srgb,
-        var(--mantine-color-dark-7) 92%,
-        transparent
-    );
-    backdrop-filter: blur(10px);
-    box-shadow:
-        0 12px 32px -12px rgb(0 0 0 / 0.5),
-        0 0 0 1px rgb(255 255 255 / 0.04) inset;
-    color: var(--mantine-color-white);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-md);
+    color: var(--mantine-color-text);
     font-size: var(--mantine-font-size-xs);
     font-weight: 500;
     white-space: nowrap;
     translate: -50% 0;
     transition: min-width 320ms cubic-bezier(0.22, 1, 0.36, 1);
     animation: arrive 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+:global(body:has([data-studio-try-it])) .island {
+    display: none;
 }
 
 .island[data-open] {
@@ -36,7 +33,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 2px;
+    gap: var(--mantine-spacing-sm);
 }
 
 /* The panel opens out of the pill: its row grows from nothing, so the dock itself gets taller. */
@@ -78,13 +75,13 @@
 
 .workspace + .intro {
     padding-top: 2px;
-    color: var(--mantine-color-dark-1);
+    color: var(--mantine-color-dimmed);
 }
 
 .intro {
     max-width: 268px;
     padding: 10px 10px 2px;
-    color: var(--mantine-color-white);
+    color: var(--mantine-color-dimmed);
     font-weight: 400;
     line-height: 1.45;
     white-space: normal;
@@ -92,7 +89,7 @@
 
 .heading {
     padding: 8px 10px 4px;
-    color: rgb(255 255 255 / 0.55);
+    color: var(--mantine-color-dimmed);
     font-weight: 400;
 }
 
@@ -102,14 +99,14 @@
     gap: 8px;
     width: 100%;
     padding: 6px 10px;
-    border-radius: 10px;
-    color: var(--mantine-color-white);
+    border-radius: var(--mantine-radius-sm);
+    color: var(--mantine-color-text);
     font-size: inherit;
     font-weight: 500;
 }
 
 .row:hover {
-    background: rgb(255 255 255 / 0.1);
+    background: var(--mantine-color-default-hover);
 }
 
 .row:focus-visible {
@@ -119,7 +116,7 @@
 
 .row[data-footer] {
     margin-top: 4px;
-    color: rgb(255 255 255 / 0.75);
+    color: var(--mantine-color-dimmed);
 }
 
 .rowLabel {
@@ -130,7 +127,7 @@
 }
 
 .rowHint {
-    color: rgb(255 255 255 / 0.4);
+    color: var(--mantine-color-dimmed);
     font-weight: 400;
     opacity: 0;
     transition: opacity 120ms ease;
@@ -161,8 +158,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 4px 10px 4px 12px;
-    border-radius: var(--mantine-radius-xl);
+    padding: 4px 8px;
+    border-radius: var(--mantine-radius-sm);
     color: inherit;
     font-size: inherit;
     font-weight: inherit;
@@ -171,7 +168,7 @@
 
 .state:hover,
 .state[aria-expanded='true'] {
-    background: rgb(255 255 255 / 0.1);
+    background: var(--mantine-color-default-hover);
 }
 
 .state:focus-visible {
@@ -202,25 +199,6 @@
         opacity: 0;
         scale: 2.8;
     }
-}
-
-.exit {
-    padding: 4px 12px;
-    border-radius: var(--mantine-radius-xl);
-    background: var(--mantine-color-white);
-    color: var(--mantine-color-dark-9);
-    font-size: inherit;
-    font-weight: 600;
-    transition: background-color 120ms ease;
-}
-
-.exit:hover {
-    background: var(--mantine-color-orange-1);
-}
-
-.exit:focus-visible {
-    outline: 2px solid var(--mantine-color-orange-5);
-    outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

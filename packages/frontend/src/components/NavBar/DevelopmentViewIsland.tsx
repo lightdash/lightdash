@@ -1,4 +1,4 @@
-import { Box, Tooltip, UnstyledButton } from '@mantine/core';
+import { Box, Button, Tooltip, UnstyledButton } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import {
     IconArrowUpRight,
@@ -175,12 +175,13 @@ export const DevelopmentViewIsland = () => {
                     disabled={isOpen}
                     label="You are viewing this project with your unpublished changes. Nobody else sees them, and charts and dashboards cannot be saved in this view."
                 >
-                    <UnstyledButton
-                        className={classes.exit}
+                    <Button
+                        size="xs"
+                        variant="default"
                         onClick={() => setIsOn(false)}
                     >
                         Back to live
-                    </UnstyledButton>
+                    </Button>
                 </Tooltip>
             </Box>
         </Box>
