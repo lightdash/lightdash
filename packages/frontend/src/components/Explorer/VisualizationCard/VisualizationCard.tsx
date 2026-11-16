@@ -40,6 +40,7 @@ import {
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
     selectHasSelectedFields,
+    selectIsResultsExpanded,
     selectIsVisualizationExpanded,
     selectMetricQuery,
     selectParameters,
@@ -226,6 +227,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const isVisualizationExpanded = useExplorerSelector(
         selectIsVisualizationExpanded,
     );
+    const isResultsOpen = useExplorerSelector(selectIsResultsExpanded);
     const hasSelectedFields = useExplorerSelector(selectHasSelectedFields);
     // Without the heading there is no way to expand the card, so force it open
     const isOpen = minimal || isVisualizationExpanded || isFullscreen;
@@ -526,7 +528,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
                             )
                         ) : (
                             <Group gap="xs" wrap="nowrap">
-                                {sorts.length > 0 && (
+                                {/* One sort chip on screen: Results shows it when open */}
+                                {sorts.length > 0 && !isResultsOpen && (
                                     <SortButton
                                         sorts={sorts}
                                         isEditMode={isEditMode}

@@ -239,9 +239,13 @@ const ResultsCard: FC = memo(() => {
                                     : 'rows'}
                             </Text>
                         )}
-                    {!isGroupedView && tableName && sorts.length > 0 && (
-                        <SortButton isEditMode={isEditMode} sorts={sorts} />
-                    )}
+                    {/* One sort chip on screen: the open Chart shows it otherwise */}
+                    {!isGroupedView &&
+                        tableName &&
+                        sorts.length > 0 &&
+                        (resultsIsOpen || !isChartOpen) && (
+                            <SortButton isEditMode={isEditMode} sorts={sorts} />
+                        )}
                 </Group>
             }
             rightHeaderElement={
