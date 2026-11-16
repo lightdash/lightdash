@@ -258,6 +258,7 @@ interface ServiceManifest {
     appStateService: unknown;
     projectContextService: unknown;
     roadmapService: unknown;
+    billingService: unknown;
     scimService: unknown;
     releaseHighlightsService: unknown;
     supportService: unknown;
@@ -2198,6 +2199,10 @@ export class ServiceRepository
 
     public getRoadmapService<RoadmapServiceImplT>(): RoadmapServiceImplT {
         return this.getService('roadmapService');
+    }
+
+    public getBillingService<BillingServiceImplT>(): BillingServiceImplT {
+        return this.getService('billingService');
     }
 
     public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {

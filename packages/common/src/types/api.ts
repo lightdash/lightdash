@@ -191,6 +191,7 @@ import {
     type ApiAwsWebIdentityResponse,
 } from './awsWebIdentity';
 import { type BigqueryProjectRecommendation } from './bigQuerySSO';
+import { type ApiBillingPortalLinkResponse } from './billing';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -1586,6 +1587,7 @@ type ApiResults =
     | ApiRoadmapResponse['results']
     | ApiRoadmapProjectResponse['results']
     | ApiRoadmapFollowProjectResponse['results']
+    | ApiBillingPortalLinkResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory

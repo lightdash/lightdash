@@ -250,6 +250,12 @@ export enum FeatureFlags {
      */
     MobileSettings = 'mobile-settings',
     /**
+     * Organization-scoped: the Billing page under Organization settings, which
+     * opens the customer billing portal. Cloud and development modes only.
+     * Off by default.
+     */
+    BillingPortal = 'billing-portal',
+    /**
      * Organization-scoped: the sign-in step on the Mobile page and its
      * endpoints. Off by default until an app release supports QR sign-in.
      */
