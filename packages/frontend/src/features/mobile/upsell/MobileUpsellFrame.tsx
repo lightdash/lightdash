@@ -83,7 +83,11 @@ const Pitch = ({
                         <div className={classes.qrColumn}>
                             {qr}
                             {isWaitingForScan && (
-                                <Text fz="xs" c="dimmed">
+                                <Text
+                                    fz="xs"
+                                    c="dimmed"
+                                    className={classes.rescanHint}
+                                >
                                     {MOBILE_SIGN_IN_STRINGS.rescanHint}
                                 </Text>
                             )}

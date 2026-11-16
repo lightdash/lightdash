@@ -13,6 +13,7 @@ import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { MobileSignInMenu } from './MobileSignInMenu';
 import { MOBILE_SIGN_IN_STRINGS } from './mobileStrings';
+import upsellClasses from './upsell/MobileUpsell.module.css';
 import { UPSELL_STRINGS } from './upsell/upsellStrings';
 
 vi.mock('../../api');
@@ -256,6 +257,8 @@ describe('MobileSignInMenu', () => {
             const hint = screen.getByText(MOBILE_SIGN_IN_STRINGS.rescanHint);
             expect(hint).toBeVisible();
             expect(hint.closest('[aria-hidden="true"]')).toBeNull();
+            expect(upsellClasses.rescanHint).toBeTruthy();
+            expect(hint).toHaveClass(upsellClasses.rescanHint);
             expect(hint.parentElement).toContainElement(qr);
             expect(document.querySelector('[data-idle]')).not.toContainElement(
                 hint,
