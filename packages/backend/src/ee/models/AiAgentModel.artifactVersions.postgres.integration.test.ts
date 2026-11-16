@@ -1,5 +1,6 @@
 import knex, { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AiAgentModel } from './AiAgentModel';
 
 // Concurrent writes need separate connections, so the tables live in a
@@ -63,9 +64,12 @@ describe('AiAgentModel.createOrUpdateArtifact concurrency (PostgreSQL)', () => {
                 deleted_at timestamptz
             );
         `);
-        model = new AiAgentModel({ database } as ConstructorParameters<
-            typeof AiAgentModel
-        >[0]);
+        model = new AiAgentModel({
+            database,
+            lightdashConfig: lightdashConfigMock,
+            encryptionUtil: {} as never,
+            aiThreadFileModel: {} as never,
+        });
     });
 
     afterAll(async () => {
@@ -116,8 +120,8 @@ describe('AiAgentModel.createOrUpdateArtifact concurrency (PostgreSQL)', () => {
         );
 
         expect(new Set(results.map((r) => r.artifactUuid)).size).toBe(1);
-        expect(results.map((r) => r.versionNumber).sort()).toEqual([
-            1, 2, 3, 4,
-        ]);
+        expect(
+            results.map((r) => r.versionNumber).sort((a, b) => a - b),
+        ).toEqual([1, 2, 3, 4]);
     });
 });
