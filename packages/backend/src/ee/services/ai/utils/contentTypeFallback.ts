@@ -1,21 +1,8 @@
-import { NotFoundError } from '@lightdash/common';
-
-export type ContentTypeMatch<T extends string, R> = {
-    value: R;
-    type: T;
-    /** Set when the slug was found under another type than requested. */
-    note: string | null;
-};
-
-const listTypes = (types: readonly string[]) =>
-    types.length > 1
-        ? `${types.slice(0, -1).join(', ')} and ${types[types.length - 1]}`
-        : types.join('');
+import { NotFoundError, ParameterError } from '@lightdash/common';
 
 /**
- * Reads `slug` as `type`; on NotFoundError tries the other `types` through the
- * same `read`, so every probe passes the same permission checks as a direct read.
- * Failed probes count as misses, so a forbidden match is never revealed.
+ * Reads `slug` as `type`; on NotFoundError probes the other `types` through the same `read`.
+ * A probe that throws is a miss, so it never reveals content a direct read would refuse.
  */
 export const readWithContentTypeFallback = async <T extends string, R>({
     slug,
@@ -27,33 +14,30 @@ export const readWithContentTypeFallback = async <T extends string, R>({
     type: T;
     types: readonly T[];
     read: (type: T) => Promise<R>;
-}): Promise<ContentTypeMatch<T, R>> => {
+}): Promise<{ value: R; type: T }> => {
     try {
-        return { value: await read(type), type, note: null };
+        return { value: await read(type), type };
     } catch (error) {
         if (!(error instanceof NotFoundError)) throw error;
-        const otherTypes = types.filter((other) => other !== type);
         const probes = await Promise.allSettled(
-            otherTypes.map(async (other) => ({
-                type: other,
-                value: await read(other),
-            })),
+            types
+                .filter((other) => other !== type)
+                .map(async (other) => ({
+                    value: await read(other),
+                    type: other,
+                })),
         );
         const matches = probes.flatMap((probe) =>
             probe.status === 'fulfilled' ? [probe.value] : [],
         );
         if (matches.length === 0) throw error;
         if (matches.length > 1) {
-            throw new NotFoundError(
-                `No ${type} "${slug}" was found, but "${slug}" matches a ${listTypes(
-                    matches.map((match) => match.type),
-                )}. Retry with one of those types.`,
+            throw new ParameterError(
+                `No ${type} "${slug}" was found, and "${slug}" matches more than one type: ${matches
+                    .map((match) => match.type)
+                    .join(', ')}. Retry with one of those types.`,
             );
         }
-        const [match] = matches;
-        return {
-            ...match,
-            note: `No ${type} "${slug}" was found; "${slug}" is a ${match.type}, so the ${match.type} was returned. Use type ${match.type} for further calls.`,
-        };
+        return matches[0];
     }
 };

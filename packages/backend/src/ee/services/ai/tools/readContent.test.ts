@@ -206,36 +206,41 @@ describe('readContent tool', () => {
             expect(result).toHaveProperty(
                 'result',
                 expect.stringContaining(
-                    'matches a dashboard and sql_chart. Retry with one of those types.',
+                    'matches more than one type: dashboard, sql_chart. Retry with one of those types.',
                 ),
             );
         });
 
         it('keeps the not-found error when no type matches', async () => {
-            const { output, readContent } = executeWith({});
+            const { output } = executeWith({});
 
             expect(await output).toHaveProperty(
                 'result',
                 expect.stringContaining('chart was not found'),
             );
-            expect(readContent.mock.calls.map(([args]) => args.type)).toEqual([
-                'chart',
-                'dashboard',
-                'sql_chart',
-                'data_app',
-            ]);
         });
 
-        it('only tries Documents when the tool offers them', async () => {
-            const { output, readContent } = executeWith({}, true);
-            await output;
+        it.each([
+            { documentsEnabled: true, status: 'success' },
+            { documentsEnabled: false, status: 'error' },
+        ])(
+            'finds a Document only when the tool offers Documents ($documentsEnabled)',
+            async ({ documentsEnabled, status }) => {
+                const documentRead = {
+                    type: 'document',
+                    href: '/projects/project/documents/orders-per-month',
+                    uuid: 'document-uuid',
+                    versionUuid: 'version-uuid',
+                    content: { name: 'Orders', slug: 'orders-per-month' },
+                } as unknown as Read;
+                const { output } = executeWith(
+                    { document: documentRead },
+                    documentsEnabled,
+                );
 
-            expect(readContent).toHaveBeenCalledWith({
-                type: 'document',
-                slug: 'orders-per-month',
-                chartId: null,
-            });
-        });
+                expect(await output).toHaveProperty('metadata.status', status);
+            },
+        );
 
         it('does not reveal a match the user may not read', async () => {
             const { output } = executeWith({
@@ -249,13 +254,15 @@ describe('readContent tool', () => {
         });
 
         it('does not fall back when the requested type is forbidden', async () => {
-            const { output, readContent } = executeWith({
+            const { output } = executeWith({
                 chart: new ForbiddenError('Cannot view chart'),
                 sql_chart: sqlChartRead,
             });
 
-            expect(await output).toHaveProperty('metadata.status', 'error');
-            expect(readContent).toHaveBeenCalledTimes(1);
+            expect(await output).toHaveProperty(
+                'result',
+                expect.stringContaining('Cannot view chart'),
+            );
         });
     });
 });

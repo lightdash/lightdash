@@ -91,31 +91,33 @@ export const getReadContent = ({
         execute: async (args) => {
             const { slug, type } = args;
             try {
-                (documentsEnabled
+                const argsSchema = documentsEnabled
                     ? mcpReadContentArgsSchema
-                    : toolReadContentArgsSchema
-                ).parse(args);
-                // chartId only applies to Documents; ignore it elsewhere.
-                const { value: read, note } = await readWithContentTypeFallback(
-                    {
-                        slug,
-                        type,
-                        types: (documentsEnabled
-                            ? mcpReadContentArgsSchema
-                            : toolReadContentArgsSchema
-                        ).shape.type.options,
-                        read: (readType) =>
-                            readContent(
-                                readType === 'document'
-                                    ? {
-                                          type: readType,
-                                          slug,
-                                          chartId: args.chartId ?? null,
-                                      }
-                                    : { slug, type: readType },
-                            ),
-                    },
-                );
+                    : toolReadContentArgsSchema;
+                argsSchema.parse(args);
+                const { value: read } = await readWithContentTypeFallback({
+                    slug,
+                    type,
+                    types: argsSchema.shape.type.options,
+                    read: (readType) =>
+                        readContent(
+                            readType === 'document'
+                                ? {
+                                      type: readType,
+                                      slug,
+                                      // chartId only applies to a requested Document.
+                                      chartId:
+                                          type === 'document'
+                                              ? (args.chartId ?? null)
+                                              : null,
+                                  }
+                                : { slug, type: readType },
+                        ),
+                });
+                const note =
+                    read.type === type
+                        ? null
+                        : `No ${type} "${slug}" was found; "${slug}" is a ${read.type}, so the ${read.type} was returned. Use type ${read.type} for further calls.`;
                 const structuredContent = toStructuredContent(read);
                 const metadata = {
                     status: 'success' as const,

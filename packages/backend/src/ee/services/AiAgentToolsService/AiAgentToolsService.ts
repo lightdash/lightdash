@@ -3662,9 +3662,7 @@ export class AiAgentToolsService extends BaseService {
                     await readWithContentTypeFallback({
                         slug,
                         type,
-                        types: Object.keys(
-                            CONTENT_AS_CODE_TYPE_LABELS,
-                        ) as ContentAsCodeType[],
+                        types: ['dashboard', 'chart', 'sql_chart'],
                         read: (readType) =>
                             this.readContentAsCode(
                                 context,
