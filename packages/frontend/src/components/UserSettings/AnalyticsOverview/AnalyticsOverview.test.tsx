@@ -220,7 +220,7 @@ describe('Analytics settings overview', () => {
         ).toBe(true);
     });
 
-    it('waits for the tab summary before loading previous-period comparisons', async () => {
+    it('loads only the tab own queries away from Overview, with no headline comparisons', async () => {
         const finishSummary = Promise.withResolvers<ReturnType<typeof ready>>();
         const launched = mockQueries((query) => {
             const days =
@@ -243,7 +243,8 @@ describe('Analytics settings overview', () => {
                             Date.parse(String(filterValue(query, 'start'))) ===
                         30 * 86_400_000,
                 );
-        await waitFor(() => expect(monthlyQueries()).toHaveLength(6));
+        // The headline numbers and their previous-period comparisons belong to Overview alone
+        await waitFor(() => expect(monthlyQueries()).toHaveLength(3));
         expect(
             monthlyQueries().filter((query) =>
                 query.metrics.includes('ai_usage_unique_users'),
@@ -261,12 +262,14 @@ describe('Analytics settings overview', () => {
                 ]),
             ),
         );
-        await waitFor(() => expect(monthlyQueries()).toHaveLength(9));
-        expect(
-            within(screen.getByRole('region', { name: 'AI calls' })).getByText(
-                '13,575',
-            ),
-        ).toBeVisible();
+        await waitFor(() =>
+            expect(
+                within(
+                    screen.getByRole('region', { name: 'AI calls' }),
+                ).getByText('13,575'),
+            ).toBeVisible(),
+        );
+        expect(monthlyQueries()).toHaveLength(3);
     });
 
     it('cancels a superseded query even when its creation response arrives after the project switch', async () => {
