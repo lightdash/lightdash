@@ -30,5 +30,10 @@ export const useAutoFetch = () => {
         [setIsSession],
     );
 
-    return { isEnabled, toggle, enableForSession };
+    return {
+        isEnabled,
+        isSessionOnly: isSession && !isSaved,
+        toggle,
+        enableForSession,
+    };
 };

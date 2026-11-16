@@ -13,8 +13,8 @@ import ExplorerDemo from './ExplorerDemo';
 const HIGHLIGHTS: { icon: Icon; title: string; body: string }[] = [
     {
         icon: IconHandMove,
-        title: 'Drag fields onto a chart',
-        body: 'Drop a field on Chart and it picks a chart type for you.',
+        title: 'Drag fields where you want them',
+        body: 'Drop a field on Chart, Results or Filters. Chart picks a chart type for you.',
     },
     {
         icon: IconRefresh,

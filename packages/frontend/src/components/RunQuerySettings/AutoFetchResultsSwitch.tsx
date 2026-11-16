@@ -3,7 +3,7 @@ import { memo, type FC } from 'react';
 import { useAutoFetch } from './useAutoFetch';
 
 const AutoFetchResultsSwitch: FC<{ size?: MantineSize }> = memo(({ size }) => {
-    const { isEnabled, toggle } = useAutoFetch();
+    const { isEnabled, isSessionOnly, toggle } = useAutoFetch();
 
     return (
         <Tooltip
@@ -14,6 +14,9 @@ const AutoFetchResultsSwitch: FC<{ size?: MantineSize }> = memo(({ size }) => {
             <Switch
                 size={size}
                 label="Auto-fetch results"
+                description={
+                    isSessionOnly ? 'On for this session only' : undefined
+                }
                 checked={isEnabled}
                 onChange={toggle}
                 // This removes the thumb icon from the switch
