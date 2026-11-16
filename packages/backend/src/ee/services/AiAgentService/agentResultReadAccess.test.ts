@@ -100,26 +100,36 @@ describe('agent result read access', () => {
         expect(f.aiAgentModel.getAgent).not.toHaveBeenCalled();
     });
 
-    test.each([
-        'deleted',
-        'another-project',
-        'no-access',
-        'data-access-off',
-    ] as const)('refuses an unavailable agent: %s', async (reason) => {
+    test('refuses with data_access_off when only Data Access is off', async () => {
         const f = setup();
-        if (reason === 'data-access-off') f.agent.enableDataAccess = false;
-        if (reason === 'deleted')
-            f.aiAgentModel.getAgent.mockResolvedValue(null);
-        if (reason === 'another-project') f.agent.projectUuid = 'other-project';
-        if (reason === 'no-access') f.agent.userAccess = ['someone'];
+        f.agent.enableDataAccess = false;
         await expect(
             f.service.canPersonReadAgentResult({
                 account: f.account,
                 projectUuid: 'project',
                 claim: f.claim,
             }),
-        ).resolves.toBe('agent_unavailable');
+        ).resolves.toBe('data_access_off');
     });
+
+    test.each(['deleted', 'another-project', 'no-access'] as const)(
+        'refuses an unavailable agent: %s',
+        async (reason) => {
+            const f = setup();
+            if (reason === 'deleted')
+                f.aiAgentModel.getAgent.mockResolvedValue(null);
+            if (reason === 'another-project')
+                f.agent.projectUuid = 'other-project';
+            if (reason === 'no-access') f.agent.userAccess = ['someone'];
+            await expect(
+                f.service.canPersonReadAgentResult({
+                    account: f.account,
+                    projectUuid: 'project',
+                    claim: f.claim,
+                }),
+            ).resolves.toBe('agent_unavailable');
+        },
+    );
 
     test.each([
         'mcp',

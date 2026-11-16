@@ -10420,15 +10420,15 @@ export class AiAgentService extends BaseService {
         if (
             agent === null ||
             agent.projectUuid !== projectUuid ||
-            // Results an agent produced while Data Access was on stop being
-            // readable as that agent once Data Access is off.
-            !agent.enableDataAccess ||
             !(await canAccessAiAgent(user, agent, {
                 auditedAbility: this.createAuditedAbility(user),
                 groupsModel: this.groupsModel,
             }))
         )
             return 'agent_unavailable';
+        // Results an agent produced while Data Access was on stop being
+        // readable as that agent once Data Access is off.
+        if (!agent.enableDataAccess) return 'data_access_off';
         return 'allowed';
     }
 

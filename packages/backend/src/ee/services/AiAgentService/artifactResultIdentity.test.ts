@@ -1109,7 +1109,7 @@ describe("artifact results read with the owner's own bearer token", () => {
                 queryUuid: 'execution',
             }),
         ).rejects.toThrow(
-            'These results came from an AI agent that has Data Access turned off or that you can no longer use. Run the query again to see them with your own access.',
+            "These results came from an AI agent and can no longer be read with this agent's Data Access. Run the query again to see them with your own access.",
         );
         expect(ctx.getDownloadStream).not.toHaveBeenCalled();
     });

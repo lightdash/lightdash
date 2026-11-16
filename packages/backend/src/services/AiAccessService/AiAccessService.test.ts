@@ -6910,7 +6910,12 @@ describe('result producer compatibility', () => {
             {
                 decision: 'agent_unavailable',
                 message:
-                    'These results came from an AI agent that has Data Access turned off or that you can no longer use. Run the query again to see them with your own access.',
+                    'These results came from an AI agent you can no longer use. Run the query again to see them with your own access.',
+            },
+            {
+                decision: 'data_access_off',
+                message:
+                    "These results came from an AI agent and can no longer be read with this agent's Data Access. Run the query again to see them with your own access.",
             },
             {
                 decision: null,
