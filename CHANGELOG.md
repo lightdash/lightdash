@@ -1,3 +1,29 @@
+## [3.267.2](https://github.com/lightdash/lightdash/compare/3.267.1...3.267.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** name /dbt only when the project has a /dbt mount ([#32643](https://github.com/lightdash/lightdash/issues/32643)) ([d8f1330](https://github.com/lightdash/lightdash/commit/d8f1330212f70dcb4d3843c8815bad38c9128963))
+* **ai:** offer repo and writeback tools only to users who can use them ([#32644](https://github.com/lightdash/lightdash/issues/32644)) ([77f322f](https://github.com/lightdash/lightdash/commit/77f322f11229874570ee789799e83583d0aa9bb8))
+* **ai:** tell agent which custom SQL content the user cannot save ([#32642](https://github.com/lightdash/lightdash/issues/32642)) ([3efe69a](https://github.com/lightdash/lightdash/commit/3efe69a16b6ed10fdaf18eec52a0e45f6d443221))
+* **composer:** name minimum CLI version in old-CLI upload refusal ([#32638](https://github.com/lightdash/lightdash/issues/32638)) ([033b034](https://github.com/lightdash/lightdash/commit/033b034ecaa17ddf1766780cf3d45941af83e9a3))
+
+## [3.267.1](https://github.com/lightdash/lightdash/compare/3.267.0...3.267.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** serialize parallel artifact writes per thread ([#32645](https://github.com/lightdash/lightdash/issues/32645)) ([e8dfe84](https://github.com/lightdash/lightdash/commit/e8dfe84653b2ce25f5c4de5e9d1f76f76ab3e3c6))
+
+# [3.267.0](https://github.com/lightdash/lightdash/compare/3.266.3...3.267.0) (2026-11-16)
+
+
+### Features
+
+* **live-sources:** hide filters a live data source can't run ([#32583](https://github.com/lightdash/lightdash/issues/32583)) ([a64d628](https://github.com/lightdash/lightdash/commit/a64d628d77ec2f93baf9d12a2213d5ef4a6d82e1))
+* **live-sources:** name fields and operators as the UI does in filter refusals ([#32582](https://github.com/lightdash/lightdash/issues/32582)) ([d134bcb](https://github.com/lightdash/lightdash/commit/d134bcb74e82d7a90a7e7072ddb5876d0d566fa5))
+* **live-sources:** support is after and is before date filters on Search Console ([#32581](https://github.com/lightdash/lightdash/issues/32581)) ([aea9ce3](https://github.com/lightdash/lightdash/commit/aea9ce3558552e51b1c0dec4cf19650e35e995ea))
+
 ## [3.266.3](https://github.com/lightdash/lightdash/compare/3.266.2...3.266.3) (2026-11-16)
 
 

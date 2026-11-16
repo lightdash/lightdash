@@ -1135,6 +1135,12 @@ describe('getSystemPromptV2 repository context', () => {
         );
     });
 
+    test('omits the /dbt hint without a /dbt mount', () => {
+        const content = promptText({ ...repoFsArgs, repoFsRoot: null });
+        expect(content).toContain('## Repository context');
+        expect(content).not.toContain('`/dbt`');
+    });
+
     test('appends the no-search caveat when code search is unsupported (GitLab)', () => {
         expect(
             promptText({ ...repoFsArgs, repoFsSupportsCodeSearch: false }),
