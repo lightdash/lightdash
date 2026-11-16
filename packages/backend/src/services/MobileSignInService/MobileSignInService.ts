@@ -20,8 +20,10 @@ import {
     type MobileSignInPlatform,
     type SessionUser,
 } from '@lightdash/common';
+import { createHmac } from 'crypto';
 import { type Request } from 'express';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { getFrontendBuildHash } from '../../buildHash';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
     createAuditLogEvent,
@@ -45,6 +47,7 @@ import {
 import { isMobileOAuthClient, OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
 import { getClientAddress } from '../../utils/clientAddress';
+import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
 import type { UserService } from '../UserService';
 import { MobileSignInOAuthError } from './MobileSignInOAuthError';
@@ -112,7 +115,19 @@ type RateLimit = {
 
 type RateLimitResult =
     | { allowed: true }
-    | { allowed: false; retryAfterSeconds: number };
+    | {
+          allowed: false;
+          retryAfterSeconds: number;
+          attempts: number;
+          windowStartedAt: Date;
+      };
+
+const MINT_RATE_LIMITED_LOG_MESSAGE =
+    'Mobile sign-in code minting rate limited';
+const MINT_RATE_LIMITED_LOG_FAILURE_MESSAGE =
+    'Failed to log mobile sign-in mint rate limit';
+const MINT_RATE_LIMITED_HANDLE_LABEL = 'mobile-sign-in-429-log-handle:v1';
+const MINT_RATE_LIMITED_HANDLE_LENGTH = 16;
 
 export const MOBILE_SIGN_IN_RATE_LIMITS = {
     mintPerUser: {
@@ -166,7 +181,7 @@ export type MobileSignInRedemption = {
 type MobileSignInServiceArguments = {
     lightdashConfig: Pick<
         LightdashConfig,
-        'siteUrl' | 'smtp' | 'trustProxy' | 'mode'
+        'siteUrl' | 'smtp' | 'trustProxy' | 'mode' | 'lightdashSecret'
     >;
     mobileSignInCodeModel: MobileSignInCodeModel;
     mobileAppLinkModel: Pick<
@@ -417,6 +432,7 @@ export class MobileSignInService extends BaseService {
             user.userUuid,
         );
         if (!rate.allowed) {
+            this.logMintRateLimited(user, rate, reason);
             throw new TooManyRequestsError('Too many sign-in codes', {
                 reason: MobileSignInRefusal.RATE_LIMITED,
                 retryAfterSeconds: rate.retryAfterSeconds,
@@ -601,6 +617,48 @@ export class MobileSignInService extends BaseService {
         };
     }
 
+    // The handle is an HMAC-SHA256 of the user UUID. Its key is derived from
+    // `lightdashSecret` (the instance's existing server secret) by HMAC-ing a
+    // fixed domain-separation label with it, so the secret itself never keys
+    // data directly and the handle cannot be reversed or rebuilt without it.
+    private mintRateLimitedHandle(userUuid: string): string {
+        const key = createHmac('sha256', this.lightdashConfig.lightdashSecret)
+            .update(MINT_RATE_LIMITED_HANDLE_LABEL)
+            .digest();
+        return createHmac('sha256', key)
+            .update(userUuid)
+            .digest('hex')
+            .slice(0, MINT_RATE_LIMITED_HANDLE_LENGTH);
+    }
+
+    private logMintRateLimited(
+        user: SessionUser,
+        rate: Extract<RateLimitResult, { allowed: false }>,
+        reason: MobileSignInMintReason,
+    ): void {
+        try {
+            Logger.warn(MINT_RATE_LIMITED_LOG_MESSAGE, {
+                code: 'rate_limited',
+                reason,
+                retryAfterSeconds: rate.retryAfterSeconds,
+                version: VERSION,
+                buildHash: getFrontendBuildHash(),
+                accountHandle: this.mintRateLimitedHandle(user.userUuid),
+                attempts: rate.attempts,
+                windowStartedAt: rate.windowStartedAt.toISOString(),
+                timestamp: this.now().toISOString(),
+            });
+        } catch (error) {
+            try {
+                Logger.warn(MINT_RATE_LIMITED_LOG_FAILURE_MESSAGE, {
+                    errorName: error instanceof Error ? error.name : 'unknown',
+                });
+            } catch {
+                return;
+            }
+        }
+    }
+
     private async consumeRate(
         rateLimit: RateLimit,
         key: string,
@@ -610,7 +668,12 @@ export class MobileSignInService extends BaseService {
             await this.mobileAppLinkModel.incrementRateCounter(counter);
         return count <= rateLimit.limit
             ? { allowed: true }
-            : { allowed: false, retryAfterSeconds };
+            : {
+                  allowed: false,
+                  retryAfterSeconds,
+                  attempts: count,
+                  windowStartedAt: counter.windowStartedAt,
+              };
     }
 
     private async assertUnderRedeemLimit(ip: string): Promise<void> {

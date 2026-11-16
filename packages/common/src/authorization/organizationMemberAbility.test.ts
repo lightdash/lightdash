@@ -93,6 +93,33 @@ describe('Organization member permissions', () => {
         );
     });
 
+    it('allows only admins to manage billing for their own organization', () => {
+        const canManageBilling = (
+            member: typeof ORGANIZATION_ADMIN,
+            organizationUuid: string,
+        ) =>
+            defineAbilityForOrganizationMember(member).can(
+                'manage',
+                subject('Billing', { organizationUuid }),
+            );
+
+        expect(
+            canManageBilling(
+                ORGANIZATION_ADMIN,
+                ORGANIZATION_ADMIN.organizationUuid,
+            ),
+        ).toBe(true);
+        expect(
+            canManageBilling(ORGANIZATION_ADMIN, 'another-organization'),
+        ).toBe(false);
+        expect(
+            canManageBilling(
+                ORGANIZATION_DEVELOPER,
+                ORGANIZATION_DEVELOPER.organizationUuid,
+            ),
+        ).toBe(false);
+    });
+
     it.each(['view', 'manage'] as const)(
         'allows only admins to %s their organization roadmap',
         (action) => {

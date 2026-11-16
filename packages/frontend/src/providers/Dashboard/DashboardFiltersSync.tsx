@@ -7,7 +7,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilters,
     type InteractivityOptions,
-    type SavedChartsInfoForDashboardAvailableFilters,
+    type DashboardAvailableFiltersTile,
 } from '@lightdash/common';
 import { clone, isEqual } from 'es-toolkit/compat';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
@@ -43,9 +43,7 @@ type Props = {
     dashboard: Dashboard | undefined;
     embedDashboard: (Dashboard & InteractivityOptions) | undefined;
     activeTab: Dashboard['tabs'][number] | undefined;
-    savedChartUuidsAndTileUuids:
-        | SavedChartsInfoForDashboardAvailableFilters
-        | undefined;
+    savedChartUuidsAndTileUuids: DashboardAvailableFiltersTile[] | undefined;
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[]>
         | undefined;

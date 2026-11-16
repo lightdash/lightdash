@@ -118,6 +118,8 @@ import {
     getAiAgentSkillListingText,
     getAppDisplayName,
     getComposerChartStage,
+    getComposerChartStageNodeId,
+    getComposerNodeSorts,
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
@@ -366,6 +368,7 @@ import {
 } from '../../../services/AiAccessService/agentExecutionContext';
 import { type AgentResultReadDecision } from '../../../services/AiAccessService/AiAccessService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { REQUEST_AUTHORITY } from '../../../services/AsyncQueryService/types';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
@@ -10710,12 +10713,23 @@ export class AiAgentService extends BaseService {
                           vizConfig.dataAppVizVersion ?? undefined,
                       )
                     : null;
-            const nodeIds = new Set(queries.map(({ nodeId }) => nodeId));
-            let nodeId = 'chart_stage';
-            while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
+            const nodeId = getComposerChartStageNodeId(
+                queries.flatMap((query) =>
+                    query.nodeId ? [query.nodeId] : [],
+                ),
+            );
+            const terminal = queries.find(
+                (query) => query.nodeId === terminalNodeId,
+            );
+            if (!terminal) {
+                throw new Error(
+                    `No query for terminal node "${terminalNodeId}"`,
+                );
+            }
             const query = getComposerChartStage({
                 vizConfig,
                 customChartTypeSlots: slots ?? [],
+                sorts: getComposerNodeSorts(terminal),
                 nodeId,
                 source: terminalNodeId,
             });
@@ -10908,7 +10922,7 @@ export class AiAgentService extends BaseService {
                         runtimeOptions?.userAttributeOverrides ?? {},
                     invalidateCache: false,
                     plans: {},
-                    binding: null,
+                    authority: REQUEST_AUTHORITY,
                     // Re-renders stay unattributed: prompt ids mark tool runs only.
                     aiAttribution: null,
                 });
@@ -11598,7 +11612,7 @@ export class AiAgentService extends BaseService {
                             runtimeOptions?.userAttributeOverrides ?? {},
                         invalidateCache: false,
                         plans: {},
-                        binding: null,
+                        authority: REQUEST_AUTHORITY,
                         // Re-renders stay unattributed: prompt ids mark tool runs only.
                         aiAttribution: null,
                     },

@@ -365,6 +365,16 @@ export const isExternalFetchDocumentContext = (
 ): context is ExternalFetchDocumentContext =>
     !!context && 'documentUuid' in context;
 
+/** A composer chart rendering a chart type; it pins one version. */
+export type ExternalFetchComposerChartContext = {
+    composerChartUuid: UUID;
+};
+
+export const isExternalFetchComposerChartContext = (
+    context: ExternalFetchRequest['chartContext'],
+): context is ExternalFetchComposerChartContext =>
+    !!context && 'composerChartUuid' in context;
+
 export type ExternalFetchRequest = {
     connectionAlias: string;
     method?: ExternalConnectionMethod;
@@ -374,7 +384,8 @@ export type ExternalFetchRequest = {
     /** Host-supplied identity of what is rendering a custom chart type. */
     chartContext?:
         | ExternalFetchSavedChartContext
-        | ExternalFetchDocumentContext;
+        | ExternalFetchDocumentContext
+        | ExternalFetchComposerChartContext;
 };
 
 export type ExternalFetchResponse = {

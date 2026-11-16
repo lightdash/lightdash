@@ -25,7 +25,7 @@ const submitArgs = {
     invalidateCache: false,
     pivotConfiguration: null,
     plan: null,
-    binding: null,
+    authority: { kind: 'request' as const },
 };
 
 describe('ExternalQuerySource', () => {

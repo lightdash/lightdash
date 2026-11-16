@@ -3,6 +3,7 @@ import {
     AgentCapability,
     ChartType,
     CustomDimensionType,
+    DashboardTileTypes,
     FeatureNotEnabledError,
     FieldType,
     ForbiddenError,
@@ -11,16 +12,23 @@ import {
     TableCalculationType,
     type ComposerChartPipelineNode,
     type CreateComposerChart,
+    type DashboardFilters,
+    type DataAppVizSchema,
+    type Explore,
+    type ParametersValuesMap,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { fromOauth, fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
+import type { AppModel } from '../../models/AppModel';
 import type { ComposerChartModel } from '../../models/ComposerChartModel';
 import type { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { ComposerChartService } from './ComposerChartService';
+import type { ComposerRunBinding } from './ComposerRunBinding';
 
 const projectUuid = grantFixture().approvedProjectUuids[0];
 const organizationUuid = defaultSessionUser.organizationUuid!;
@@ -148,18 +156,121 @@ const createBody = (
     },
 });
 
+const vizSchema: DataAppVizSchema = {
+    fields: [
+        {
+            name: 'category',
+            label: 'Category',
+            type: 'dimension',
+            required: true,
+        },
+        { name: 'value', label: 'Value', type: 'metric', required: true },
+    ],
+    configOptions: [],
+    colorPalette: null,
+};
+
+const customChartBody = (
+    config: Record<string, unknown>,
+): CreateComposerChart => {
+    const body = createBody(PIPELINES.sql);
+    return {
+        ...body,
+        chart: {
+            ...body.chart,
+            columns: [
+                { reference: 'status', fieldType: FieldType.DIMENSION },
+                { reference: 'n', fieldType: FieldType.METRIC },
+            ],
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'viz-uuid',
+                    fieldMapping: { category: 'status', value: 'n' },
+                    ...config,
+                } as never,
+            },
+        },
+    };
+};
+
 const setup = ({ flagEnabled = true } = {}) => {
+    const querySourceService = {
+        submitComposerRun: vi.fn(
+            async ({ binding }: { binding: ComposerRunBinding }) => ({
+                queries: binding.nodes.map(({ nodeId, sourceType }) => ({
+                    nodeId,
+                    sourceType,
+                    queryUuid: `${nodeId}-query`,
+                    cacheHit: false,
+                })),
+            }),
+        ),
+    };
+    const asyncQueryService = {
+        getExplore: vi.fn(
+            async (_account: unknown, _project: string, name: string) =>
+                ({
+                    name,
+                    baseTable: name,
+                    joinedTables: [],
+                    tables: { [name]: { dimensions: {}, metrics: {} } },
+                }) as unknown as Explore,
+        ),
+        getComposerTileContext: vi.fn(
+            async ({
+                dashboardFilters,
+                parameters,
+                excludedParameterKeys,
+            }: {
+                dashboardFilters: DashboardFilters;
+                parameters: ParametersValuesMap;
+                excludedParameterKeys: string[];
+            }) => ({
+                dashboardFilters,
+                dashboardValues: parameters,
+                excludedKeys: excludedParameterKeys,
+                projectDefinitions: { region: { label: 'Region' } },
+            }),
+        ),
+    };
     const composerChartModel = {
         create: vi.fn(async () => 'chart-uuid'),
         get: vi.fn(async () => ({ uuid: 'chart-uuid' })),
     };
+    const appModel = {
+        findAppsBySlugs: vi.fn(async () => []),
+        findAppsByUuids: vi.fn(async (_: string, uuids: string[]) =>
+            uuids.includes('viz-uuid') ? [{ app_id: 'viz-uuid' }] : [],
+        ),
+        getVersion: vi.fn(async (_: string, version: number) =>
+            version === 2
+                ? { version, status: 'ready', viz_schema: vizSchema }
+                : null,
+        ),
+        getLatestRenderableDataAppVizVersion: vi.fn(async () => ({
+            version: 2,
+            status: 'ready',
+            viz_schema: vizSchema,
+        })),
+    };
     const service = new ComposerChartService({
         composerChartModel: composerChartModel as unknown as ComposerChartModel,
+        appModel: appModel as unknown as AppModel,
         dashboardModel: {
             getSummaryByUuid: vi.fn(async () => ({
                 projectUuid,
                 organizationUuid,
                 spaceUuid: 'space-uuid',
+            })),
+            getByIdOrSlug: vi.fn(async () => ({
+                tiles: [
+                    {
+                        uuid: 'tile-uuid',
+                        type: DashboardTileTypes.COMPOSER_CHART,
+                        properties: { composerChartUuid: 'chart-uuid' },
+                    },
+                ],
             })),
         } as unknown as DashboardModel,
         featureFlagModel: {
@@ -177,8 +288,15 @@ const setup = ({ flagEnabled = true } = {}) => {
                 admins: [],
             })),
         } as unknown as SpacePermissionService,
+        queryHistoryModel: {
+            getByQueryUuid: vi.fn(async (queryUuid: string) => ({
+                fields: { [`${queryUuid}_field`]: {} },
+            })),
+        } as unknown as QueryHistoryModel,
+        getQuerySourceService: () => querySourceService,
+        getAsyncQueryService: () => asyncQueryService,
     });
-    return { service, composerChartModel };
+    return { service, composerChartModel, querySourceService };
 };
 
 describe('ComposerChartService.create', () => {
@@ -274,5 +392,321 @@ describe('ComposerChartService.create', () => {
         );
         await service.create(account, projectUuid, createBody(PIPELINES.sql));
         expect(composerChartModel.create).toHaveBeenCalledOnce();
+    });
+});
+
+describe('ComposerChartService.create with a custom chart type', () => {
+    test('pins the latest renderable version when the chart names none', async () => {
+        const { service, composerChartModel } = setup();
+        await service.create(
+            sessionAccount(abilityWithout(null)),
+            projectUuid,
+            customChartBody({}),
+        );
+        expect(composerChartModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                chart: expect.objectContaining({
+                    chartConfig: {
+                        type: ChartType.DATA_APP_VIZ,
+                        config: {
+                            dataAppVizUuid: 'viz-uuid',
+                            dataAppVizVersion: 2,
+                            fieldMapping: { category: 'status', value: 'n' },
+                        },
+                    },
+                }),
+            }),
+        );
+    });
+
+    test.each([
+        [
+            'a version that does not render',
+            { dataAppVizVersion: 1 },
+            'version 1',
+        ],
+        ['a type from another project', { dataAppVizUuid: 'other' }, 'other'],
+        [
+            'a metric slot bound to a dimension',
+            { fieldMapping: { category: 'status', value: 'status' } },
+            'value',
+        ],
+        [
+            'an unknown slot',
+            { fieldMapping: { category: 'status', value: 'n', size: 'n' } },
+            'size',
+        ],
+    ])('refuses %s, naming it', async (_, config, named) => {
+        const { service, composerChartModel } = setup();
+        await expect(
+            service.create(
+                sessionAccount(abilityWithout(null)),
+                projectUuid,
+                customChartBody(config),
+            ),
+        ).rejects.toThrow(named);
+        expect(composerChartModel.create).not.toHaveBeenCalled();
+    });
+});
+
+describe('ComposerChartService.run', () => {
+    const viewer = () =>
+        sessionAccount(
+            new Ability<PossibleAbilities>([
+                { subject: 'Dashboard', action: 'view' as const },
+            ]),
+        );
+    const runRequest = {
+        dashboardUuid,
+        tileUuid: 'tile-uuid',
+        dashboardFilters: {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        },
+        parameters: {},
+        excludedParameterKeys: [],
+        invalidateCache: false,
+    };
+    const setupRun = (
+        options: {
+            flagEnabled?: boolean;
+            chart?: CreateComposerChart['chart'];
+        } = {},
+    ) => {
+        const { service, composerChartModel, querySourceService } =
+            setup(options);
+        const body = createBody(PIPELINES.python);
+        const stored = body.pipeline;
+        Object.assign(composerChartModel, {
+            getOwner: vi.fn(async () => ({ projectUuid, dashboardUuid })),
+            get: vi.fn(async () => ({
+                uuid: 'chart-uuid',
+                projectUuid,
+                dashboardUuid,
+                pipeline: stored,
+                chart: options.chart ?? body.chart,
+            })),
+        });
+        const { submitComposerRun } = querySourceService;
+        // Semantic-layer nodes carry the tile's resolved parameters, none here
+        const resolvedNodes = stored.nodes.map((node) =>
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                ? { ...node, parameters: {} }
+                : node,
+        );
+        return { service, stored, resolvedNodes, submitComposerRun };
+    };
+
+    test('runs the stored pipeline for a dashboard viewer and returns every node query', async () => {
+        const { service, stored, resolvedNodes, submitComposerRun } =
+            setupRun();
+        const account = viewer();
+        const result = await service.run(
+            account,
+            projectUuid,
+            'chart-uuid',
+            runRequest,
+        );
+        expect(result.queries.map(({ nodeId }) => nodeId)).toEqual(
+            stored.nodes.map(({ nodeId }) => nodeId),
+        );
+        const { binding } = submitComposerRun.mock.calls[0][0];
+        expect(binding.nodes).toEqual(resolvedNodes);
+        expect(binding.stamp).toEqual({
+            composerChartUuid: 'chart-uuid',
+            dashboardUuid,
+            tileUuid: 'tile-uuid',
+        });
+        expect(() =>
+            binding.assertExecution(account, projectUuid),
+        ).not.toThrow();
+        expect(() =>
+            binding.assertExecution(account, 'another-project'),
+        ).toThrow(ForbiddenError);
+        expect(result.chartStageQueryUuid).toBeNull();
+    });
+
+    test('returns the terminal node’s fields map from its run', async () => {
+        const { service } = setupRun();
+        const result = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            runRequest,
+        );
+        expect(result.fields).toEqual({ 'result-query_field': {} });
+    });
+
+    test('runs a server-built series-split stage after the terminal node for a chart with a group-by', async () => {
+        const { service, resolvedNodes, submitComposerRun } = setupRun({
+            chart: {
+                schemaVersion: 1,
+                columns: [
+                    { reference: 'month', fieldType: FieldType.DIMENSION },
+                    { reference: 'method', fieldType: FieldType.DIMENSION },
+                    { reference: 'n', fieldType: FieldType.METRIC },
+                ],
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: { xField: 'month', yField: ['n'] },
+                        eChartsConfig: { series: [] },
+                    },
+                },
+                pivotConfig: { columns: ['method'] },
+                tableConfig: { columnOrder: [] },
+            },
+        });
+        const result = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            runRequest,
+        );
+        const { binding } = submitComposerRun.mock.calls[0][0];
+        expect(binding.nodes.slice(0, -1)).toEqual(resolvedNodes);
+        expect(binding.nodes.at(-1)).toMatchObject({
+            nodeId: 'chart_stage',
+            sourceType: QuerySourceType.DUCKDB,
+            references: { node_result: 'result' },
+        });
+        expect(result.chartStageQueryUuid).toBe('chart_stage-query');
+        expect(result.fields).toEqual({ 'result-query_field': {} });
+    });
+
+    test('writes the dashboard parameter onto the nodes and the shared map', async () => {
+        const { service, submitComposerRun } = setupRun();
+        const result = await service.run(viewer(), projectUuid, 'chart-uuid', {
+            ...runRequest,
+            parameters: { region: 'EU' },
+        });
+        const { binding } = submitComposerRun.mock.calls[0][0];
+        expect(binding.parameters).toEqual({ region: 'EU' });
+        expect(binding.nodes[0]).toMatchObject({
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            parameters: { region: 'EU' },
+        });
+        expect(result.appliedDashboardFilters).toEqual(
+            runRequest.dashboardFilters,
+        );
+    });
+
+    test('refuses a caller who cannot view the owning dashboard', async () => {
+        const { service, submitComposerRun } = setupRun();
+        await expect(
+            service.run(
+                sessionAccount(new Ability<PossibleAbilities>([])),
+                projectUuid,
+                'chart-uuid',
+                runRequest,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('refuses a run naming a dashboard that does not own the chart', async () => {
+        const { service, submitComposerRun } = setupRun();
+        await expect(
+            service.run(viewer(), projectUuid, 'chart-uuid', {
+                ...runRequest,
+                dashboardUuid: 'another-dashboard',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('refuses a run naming a tile that does not show this chart', async () => {
+        const { service, submitComposerRun } = setupRun();
+        await expect(
+            service.run(viewer(), projectUuid, 'chart-uuid', {
+                ...runRequest,
+                tileUuid: 'another-tile',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test('is refused with the composer-charts flag off', async () => {
+        const { service, submitComposerRun } = setupRun({ flagEnabled: false });
+        await expect(
+            service.run(viewer(), projectUuid, 'chart-uuid', runRequest),
+        ).rejects.toThrow(FeatureNotEnabledError);
+        expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+});
+
+describe('ComposerChartService.getParameterReferences', () => {
+    const setupLookup = ({ flagEnabled = true } = {}) => {
+        const { service, composerChartModel } = setup({ flagEnabled });
+        const nodes = [
+            semantic({ parameters: { region: 'eu' } }),
+            {
+                sourceType: QuerySourceType.SQL,
+                nodeId: 'raw',
+                title: 'Raw',
+                sql: 'select ${lightdash.parameters.currency} as currency',
+            },
+        ] satisfies ComposerChartPipelineNode[];
+        Object.assign(composerChartModel, {
+            getOwner: vi.fn(async () => ({ projectUuid, dashboardUuid })),
+            get: vi.fn(async () => ({
+                uuid: 'chart-uuid',
+                pipeline: { schemaVersion: 1, terminalNodeId: 'raw', nodes },
+            })),
+        });
+        return service;
+    };
+    const projectDefinitions = {
+        currency: { label: 'Currency' },
+        unused: { label: 'Unused' },
+    };
+
+    test('lists the stored nodes’ parameters and saved values without a run', async () => {
+        const result = await setupLookup().getParameterReferences(
+            sessionAccount(
+                new Ability<PossibleAbilities>([
+                    { subject: 'Dashboard', action: 'view' as const },
+                ]),
+            ),
+            projectUuid,
+            ['chart-uuid'],
+            projectDefinitions,
+        );
+        expect(result.get('chart-uuid')).toEqual({
+            parameterReferences: ['currency'],
+            parameterDefinitions: { currency: { label: 'Currency' } },
+            chartSavedValues: { region: 'eu' },
+            virtualViewSavedValues: {},
+            error: null,
+        });
+    });
+
+    test('refuses the lookup while composer charts are off', async () => {
+        await expect(
+            setupLookup({ flagEnabled: false }).getParameterReferences(
+                sessionAccount(
+                    new Ability<PossibleAbilities>([
+                        { subject: 'Dashboard', action: 'view' as const },
+                    ]),
+                ),
+                projectUuid,
+                ['chart-uuid'],
+                projectDefinitions,
+            ),
+        ).rejects.toThrow(FeatureNotEnabledError);
+    });
+
+    test('fails a chart the viewer cannot view', async () => {
+        const result = await setupLookup().getParameterReferences(
+            sessionAccount(new Ability<PossibleAbilities>([])),
+            projectUuid,
+            ['chart-uuid'],
+            projectDefinitions,
+        );
+        expect(result.get('chart-uuid')).toEqual({
+            parameterReferences: null,
+            error: expect.any(String),
+        });
     });
 });

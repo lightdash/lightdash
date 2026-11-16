@@ -253,9 +253,10 @@ run = "pnpm -F backend seed"
 env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # the knexfile adds the EE seeds only with a key set
 memory = "12gb"
 
+# generated/**: syncing main's committed routes.ts over a fork's regenerated one drops the branch's routes.
 [[tier]]
 name = "api-routes"
-files = ["packages/backend/src/controllers/**", "packages/backend/src/ee/controllers/**"]
+files = ["packages/backend/src/controllers/**", "packages/backend/src/ee/controllers/**", "packages/backend/src/generated/**"]
 run = "pnpm -F backend generate-api"
 env = { NODE_OPTIONS = "--max-old-space-size=8192" }  # tsoa exceeds the default V8 heap (same as CI)
 

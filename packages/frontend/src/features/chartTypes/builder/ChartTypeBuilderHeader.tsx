@@ -80,6 +80,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
         <Box className={classes.header} component="header">
             <Box className={classes.side}>
                 <Button
+                    className={classes.backButton}
                     size="xs"
                     component={Link}
                     to={backLink.to}
@@ -152,7 +153,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                     </>
                 )}
             </Box>
-            <Group gap="xs" wrap="nowrap">
+            <Group className={classes.actions} gap="xs" wrap="nowrap">
                 {upgradeAvailable && (
                     <Button
                         size="xs"
