@@ -320,7 +320,9 @@ export const TryItModal: FC<{
                             withContainerHeight
                             withFullHeight
                             withPaddedContent
-                            sidebar={<ExploreSideBar />}
+                            sidebar={
+                                <ExploreSideBar onBackToTables={onClose} />
+                            }
                         >
                             <Explorer hideHeader />
                         </Page>

@@ -565,9 +565,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                 </Menu.Target>
                 <Menu.Dropdown>
                     {tryModel ? (
-                        <Menu.Item
-                            onClick={() => tryInExplore(tryModel, null, null)}
-                        >
+                        <Menu.Item onClick={() => tryInExplore(tryModel, null)}>
                             Try in Explore
                         </Menu.Item>
                     ) : null}

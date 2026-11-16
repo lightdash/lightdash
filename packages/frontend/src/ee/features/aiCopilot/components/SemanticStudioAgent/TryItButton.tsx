@@ -1,6 +1,6 @@
 import { Button, Tooltip } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { lazy, Suspense, useRef, useState, type FC } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useDevelopmentView } from '../../../../../features/semanticStudio/developmentView';
 import {
@@ -50,6 +50,10 @@ export const TryItButton: FC<{
         if (!wasOn.current) setIsOn(false);
         setIsTrying(false);
     };
+    // Leaving while trying, such as the save bar swapping or going back, restores the view too.
+    const restore = useRef<(() => void) | null>(null);
+    restore.current = isTrying && !wasOn.current ? () => setIsOn(false) : null;
+    useEffect(() => () => restore.current?.(), []);
     if (changedModels.length === 0) return null;
     return (
         <>
