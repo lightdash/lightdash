@@ -1,6 +1,7 @@
 import { Ability, subject } from '@casl/ability';
 import {
     AlreadyExistsError,
+    assertDashboardWithinLimits,
     ChartSummary,
     ChartType,
     ConflictError,
@@ -2928,6 +2929,7 @@ export class PromoteService extends BaseService {
             dashboardUuidOrSlug,
             options?.projectUuid,
         );
+        assertDashboardWithinLimits(dashboard, this.lightdashConfig.dashboard);
 
         const { upstreamProjectUuid } = await this.projectModel.getSummary(
             dashboard.projectUuid,

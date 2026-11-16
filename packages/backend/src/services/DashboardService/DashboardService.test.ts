@@ -1976,6 +1976,20 @@ describe('DashboardService', () => {
             }),
         );
     });
+    test('should reject an update over the tiles-per-tab limit before saving', async () => {
+        const { maxTilesPerTab } = lightdashConfigMock.dashboard;
+        await expect(
+            service.update(user, dashboardUuid, {
+                ...updateDashboardDetailsAndTiles,
+                tiles: Array(maxTilesPerTab + 1).fill(
+                    updateDashboardTiles.tiles[0],
+                ),
+            }),
+        ).rejects.toThrow(ParameterError);
+
+        expect(dashboardModel.update).not.toHaveBeenCalled();
+        expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+    });
     test('should not fail save when an orphan chart is already gone', async () => {
         // Race with a retried save: getOrphanedCharts returns a chart that
         // permanentDelete then can't find. The save must still succeed.
