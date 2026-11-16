@@ -56,6 +56,7 @@ import {
     getComposerParameterReferences,
     getComposerSavedParameterValues,
     getSemanticExploreNames,
+    withSqlColumnFilters,
     type ComposerNodeExplores,
 } from './composerTileInputs';
 
@@ -678,6 +679,7 @@ export class ComposerChartService extends BaseService {
             chart,
             tileUuid: request.tileUuid,
             resolved,
+            dashboardFilters,
         });
         const { queries } = await traceSpan(
             {
@@ -708,6 +710,35 @@ export class ComposerChartService extends BaseService {
         const terminalQuery = terminalQueryUuid
             ? await this.queryHistoryModel.getByQueryUuid(terminalQueryUuid)
             : undefined;
+        // A SQL node's columns are discovered before its query is queued
+        const sqlColumnsByNodeId = Object.fromEntries(
+            await Promise.all(
+                queries
+                    .filter(
+                        ({ sourceType }) => sourceType === QuerySourceType.SQL,
+                    )
+                    .map(async ({ nodeId, queryUuid }) => {
+                        const history =
+                            await this.queryHistoryModel.getByQueryUuid(
+                                queryUuid,
+                            );
+                        return [
+                            nodeId,
+                            Object.values(history?.originalColumns ?? {}),
+                        ] as const;
+                    }),
+            ),
+        );
+        const applied = withSqlColumnFilters(filtered, {
+            tileUuid: request.tileUuid,
+            dashboardFilters,
+            sqlColumnsByNodeId: Object.fromEntries(
+                Object.entries(sqlColumnsByNodeId).map(([nodeId, columns]) => [
+                    nodeId,
+                    columns.map((column) => column.reference),
+                ]),
+            ),
+        });
         return {
             queries: queries.map(({ nodeId, sourceType, queryUuid }) => ({
                 nodeId,
@@ -716,9 +747,16 @@ export class ComposerChartService extends BaseService {
             })),
             fields: terminalQuery?.fields ?? {},
             chartStageQueryUuid: queryUuidOf(binding.chartStageNodeId),
-            appliedDashboardFilters: filtered.appliedDashboardFilters,
+            appliedDashboardFilters: applied.appliedDashboardFilters,
             appliedDashboardFiltersByNodeId:
-                filtered.appliedDashboardFiltersByNodeId,
+                applied.appliedDashboardFiltersByNodeId,
+            sqlColumns: [
+                ...new Map(
+                    Object.values(sqlColumnsByNodeId)
+                        .flat()
+                        .map((column) => [column.reference, column]),
+                ).values(),
+            ],
             parameterReferences: getComposerParameterReferences(
                 resolved.nodes,
                 exploreByNodeId,

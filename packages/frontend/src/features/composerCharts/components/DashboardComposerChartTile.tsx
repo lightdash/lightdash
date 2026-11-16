@@ -27,6 +27,7 @@ import useDashboardContext from '../../../providers/Dashboard/useDashboardContex
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import {
     dashboardParametersActions,
+    dashboardTileStatusActions,
     selectInvalidateCache,
     selectParameterValues,
     selectRefreshCounter,
@@ -147,6 +148,15 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                 references: run.parameterReferences,
             }),
         );
+        // Offered to the filter editor as on a SQL chart tile, once a run discovered them
+        if (run.sqlColumns.length > 0) {
+            dispatch(
+                dashboardTileStatusActions.updateSqlChartTilesMetadata({
+                    tileUuid: tile.uuid,
+                    metadata: { columns: run.sqlColumns },
+                }),
+            );
+        }
     }, [dispatch, tile.uuid, run]);
     const title = getTitle(tile);
     const terminal = useInfiniteQueryResults(

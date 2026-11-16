@@ -20,6 +20,7 @@ import {
     type SemanticLayerSourceQuery,
     type SqlSourceQuery,
 } from '../types/querySources';
+import { type ResultColumn } from '../types/results';
 import { ChartType, type ChartConfig } from '../types/savedCharts';
 import assertUnreachable from '../utils/assertUnreachable';
 
@@ -553,6 +554,8 @@ export type ComposerChartRunResults = {
     appliedDashboardFiltersByNodeId: Record<string, DashboardFilters>;
     /** The parameters the tile reports to its dashboard: its non-Python nodes' references. */
     parameterReferences: string[];
+    /** The SQL nodes' columns, one per name, that a filter can target on this tile. */
+    sqlColumns: ResultColumn[];
 };
 
 export type ApiComposerChartRunResponse = {

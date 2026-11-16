@@ -11339,6 +11339,11 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             userAttributeOverrides,
             requestedConnectionUuid,
+            // A composer tile's SQL node applies its column targets, as a SQL chart tile does
+            ...(authority.kind === 'composer' && {
+                dashboardFilters: authority.binding.dashboardFilters,
+                tileUuid: authority.binding.stamp.tileUuid,
+            }),
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
