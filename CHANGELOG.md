@@ -1,3 +1,10 @@
+# [3.268.0](https://github.com/lightdash/lightdash/compare/3.267.3...3.268.0) (2026-11-16)
+
+
+### Features
+
+* **composer:** dashboard filters on a SQL node's columns ([#32641](https://github.com/lightdash/lightdash/issues/32641)) ([e89c91e](https://github.com/lightdash/lightdash/commit/e89c91ec8434e17dea2e203b82e8ff85838498e6))
+
 ## [3.267.3](https://github.com/lightdash/lightdash/compare/3.267.2...3.267.3) (2026-11-16)
 
 
