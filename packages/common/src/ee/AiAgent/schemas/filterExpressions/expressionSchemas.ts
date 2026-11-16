@@ -152,14 +152,14 @@ export const customMetricsExpressionSchema = z
     .meta({ id: 'CustomMetricsExpression' });
 
 export const queryConfigExpressionSchemaV2 = queryConfigBaseSchema.extend({
-    customMetrics: customMetricsExpressionSchema,
-    tableCalculations: tableCalcsSchema,
-    filters: filterExpressionsSchema.nullable(),
+    customMetrics: customMetricsExpressionSchema.default(null),
+    tableCalculations: tableCalcsSchema.default(null),
+    filters: filterExpressionsSchema.nullable().default(null),
 });
 
 export const queryConfigExpressionSchemaV2FormulaOnly =
     queryConfigExpressionSchemaV2.extend({
-        tableCalculations: formulaTableCalcsSchema,
+        tableCalculations: formulaTableCalcsSchema.default(null),
     });
 
 export const queryConfigExpressionSchemaV4 =

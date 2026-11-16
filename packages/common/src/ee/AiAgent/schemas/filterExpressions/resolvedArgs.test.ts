@@ -292,6 +292,26 @@ describe('toolRunQueryExpressionResolvedArgsSchema', () => {
         },
     };
 
+    it('treats omitted customMetrics, tableCalculations and filters as none', () => {
+        const parsed = toolRunQueryExpressionResolvedArgsSchema.parse({
+            ...legacyResolvedArgs,
+            queryConfig: {
+                exploreName: 'orders',
+                dimensions: ['orders_region'],
+                metrics: ['orders_revenue'],
+                sorts: [],
+                limit: 500,
+            },
+            mergeConfig: null,
+        });
+
+        expect(parsed.queryConfig).toMatchObject({
+            customMetrics: null,
+            tableCalculations: null,
+            filters: null,
+        });
+    });
+
     it('accepts every payload the legacy persisted contract accepts, unchanged', () => {
         const legacyParsed =
             toolRunQueryArgsSchemaPersisted.parse(legacyResolvedArgs);
