@@ -62,7 +62,17 @@ export const toJoinGraph = (
 ): JoinGraph => {
     const { baseTable, joinedTables, tables } = explore;
     const labelOf = (name: string) => tables[name]?.label ?? name;
-    const descriptionOf = (name: string) => tables[name]?.description || null;
+    // A description that only names the table (`orders table`) says nothing new.
+    const descriptionOf = (name: string) => {
+        const description = tables[name]?.description?.trim();
+        if (!description) return null;
+        const names = [name, tables[name]?.originalName].filter(Boolean);
+        return names.some(
+            (n) => description.toLowerCase() === `${n} table`.toLowerCase(),
+        )
+            ? null
+            : description;
+    };
     const modelOf = (name: string) => {
         const original = tables[name]?.originalName;
         return original && original !== name ? original : null;

@@ -202,12 +202,12 @@ const Fact: FC<{ label: string; children: ReactNode }> = ({
     label,
     children,
 }) => (
-    <Group gap="xs" wrap="nowrap" align="baseline">
-        <Text fz="xs" c="dimmed" w={88} flex="none">
+    <Box>
+        <Text fz="xs" c="dimmed" mb={2}>
             {label}
         </Text>
-        <Box miw={0}>{children}</Box>
-    </Group>
+        {children}
+    </Box>
 );
 
 /** Everything a node truncates: the table, what it joins to and its full condition. */
@@ -258,7 +258,7 @@ const JoinDetails: FC<{
                     : `The base table of this explore. ${joinCount} ${joinCount === 1 ? 'table is' : 'tables are'} joined from here.`}
             </Text>
         ) : (
-            <Stack gap={6}>
+            <Stack gap="sm">
                 <Fact label="Joined to">
                     <Text fz="xs" className={classes.wrap}>
                         {parent?.label ?? table.parent}

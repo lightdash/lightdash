@@ -184,6 +184,27 @@ describe('toJoinGraph', () => {
     });
 });
 
+describe('table descriptions', () => {
+    it('keeps written descriptions and drops ones that only name the table', () => {
+        const graph = toJoinGraph(
+            explore(
+                'orders',
+                [join('customers', '${orders.c} = ${customers.c}')],
+                [
+                    table('orders', { description: 'orders table' }),
+                    table('customers', {
+                        description: 'One row per customer',
+                    }),
+                ],
+            ),
+        );
+        expect(graph.tables.map(({ description }) => description)).toEqual([
+            null,
+            'One row per customer',
+        ]);
+    });
+});
+
 describe('pathToBase', () => {
     it('walks from a chained join back to the base table', () => {
         const { tables } = toJoinGraph(
