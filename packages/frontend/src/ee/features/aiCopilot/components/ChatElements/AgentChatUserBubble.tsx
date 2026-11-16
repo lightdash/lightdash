@@ -33,6 +33,7 @@ import {
     getPromptContextItemHref,
     getPromptContextItemKey,
 } from './contentReferenceUtils';
+import { ThreadImageTileRow } from './ThreadImageCard';
 import { ThreadImageReference } from './ThreadImageReference';
 import { isPlainLeftClick } from './useDataAppPreviewLink';
 
@@ -311,17 +312,16 @@ export const UserBubble: FC<Props> = ({
             )}
 
             {images.length > 0 && (
-                <Group
-                    gap={6}
-                    mt={6}
-                    wrap="wrap"
-                    justify="flex-end"
-                    className={styles.contextGroup}
-                >
-                    {images.map((item) => (
-                        <ThreadImageReference key={item.fileUuid} item={item} />
-                    ))}
-                </Group>
+                <Box mt={6} className={styles.contextGroup}>
+                    <ThreadImageTileRow>
+                        {images.map((item) => (
+                            <ThreadImageReference
+                                key={item.fileUuid}
+                                item={item}
+                            />
+                        ))}
+                    </ThreadImageTileRow>
+                </Box>
             )}
 
             {message.steers.length > 0 && (

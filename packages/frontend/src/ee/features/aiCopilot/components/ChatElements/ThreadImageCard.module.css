@@ -19,8 +19,19 @@
     min-width: 0;
 }
 
+/* Tiles share one row and shrink together before any of them wraps. */
+.tileRow {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: rem(6px);
+    min-width: 0;
+    max-width: 100%;
+}
+
 .tile {
-    max-width: min(100%, 15rem);
+    flex: 1 1 6.5rem;
+    max-width: max-content;
     padding-right: var(--mantine-spacing-xs);
 }
 

@@ -12,6 +12,11 @@ export const ThreadImageGrid: FC<PropsWithChildren> = ({ children }) => (
     </Box>
 );
 
+/** Lays sent-image tiles out right aligned under a message. */
+export const ThreadImageTileRow: FC<PropsWithChildren> = ({ children }) => (
+    <Box className={classes.tileRow}>{children}</Box>
+);
+
 type Props = {
     fileName: string;
     width: number;
@@ -51,7 +56,10 @@ export const ThreadImageCard: FC<Props> = ({
                 </Box>
             )}
             <Stack gap={0} flex={1} miw={0}>
-                <TruncatedText maxWidth="100%" fz="xs">
+                <TruncatedText
+                    maxWidth={layout === 'tile' ? 180 : '100%'}
+                    fz="xs"
+                >
                     {fileName}
                 </TruncatedText>
                 <Text size="xs" c="dimmed">
