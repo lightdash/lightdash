@@ -46,6 +46,7 @@ import {
     getItemId,
     getModelsFromManifest,
     getPreAggregateExploreName,
+    getUserAbilityBuilder,
     isAiAccessQueryContext,
     JobStatusType,
     JobStepStatusType,
@@ -67,6 +68,7 @@ import {
     PersonSignInProvider,
     PreAggregateMissReason,
     PreviewWarehouseSignInExpiredError,
+    ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
     QuerySurface,
@@ -4551,6 +4553,243 @@ describe('ProjectService', () => {
             expect(projectModel.delete).toHaveBeenNthCalledWith(1, 'copy-1');
             expect(projectModel.delete).toHaveBeenNthCalledWith(2, 'copy-2');
             expect(projectModel.delete).toHaveBeenNthCalledWith(3, 'copy-3');
+        });
+    });
+
+    describe('updatePreviewExpiresAt', () => {
+        const ORG_UUID = 'preview-org';
+        const CREATOR_UUID = 'preview-creator';
+        const OTHER_USER_UUID = 'other-user';
+        const UPSTREAM_UUID = 'upstream-project';
+        const PREVIEW_UUID = 'preview-project';
+        const SELF_ROLE_UUID = '55555555-5555-4555-a555-555555555555';
+        const selfPreviewScopes = [
+            'view:Project',
+            'create:Job',
+            'manage:CompileProject',
+            'create:Project@preview',
+            'update:Project@self',
+        ];
+        const previewSummary = (overrides: Partial<ProjectSummary> = {}) =>
+            ({
+                name: 'Preview',
+                projectUuid: PREVIEW_UUID,
+                slug: 'preview',
+                organizationUuid: ORG_UUID,
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: UPSTREAM_UUID,
+                createdByUserUuid: CREATOR_UUID,
+                provisioningSource: null,
+                ...overrides,
+            }) as ProjectSummary;
+        const sessionUserWith = ({
+            userUuid = CREATOR_UUID,
+            role = OrganizationMemberRole.MEMBER,
+            roleUuid,
+            projectProfiles = [],
+        }: {
+            userUuid?: string;
+            role?: OrganizationMemberRole;
+            roleUuid?: string;
+            projectProfiles?: {
+                projectUuid: string;
+                role: ProjectMemberRole;
+                roleUuid?: string;
+            }[];
+        }): SessionUser => ({
+            ...user,
+            userUuid,
+            role,
+            organizationUuid: ORG_UUID,
+            organizationName: 'Preview org',
+            organizationCreatedAt: new Date(),
+            ability: getUserAbilityBuilder({
+                user: { role, organizationUuid: ORG_UUID, userUuid, roleUuid },
+                projectProfiles: projectProfiles.map((profile) => ({
+                    ...profile,
+                    roleUuid: profile.roleUuid,
+                    userUuid,
+                })),
+                permissionsConfig: {
+                    pat: { enabled: false, allowedOrgRoles: [] },
+                },
+                customRoleScopes: { [SELF_ROLE_UUID]: selfPreviewScopes },
+                customRolesEnabled: true,
+            }).builder.build(),
+        });
+        const updateExpiresAt = vi.fn(async () => undefined);
+        const previewService = (summary: ProjectSummary) =>
+            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
+                projectModel: {
+                    ...projectModel,
+                    getSummary: vi.fn(async () => summary),
+                    getPreviewExpirationSettings: vi.fn(async () => ({
+                        defaultPreviewExpirationHours: 24,
+                        maxPreviewExpirationHours: null,
+                    })),
+                    updateExpiresAt,
+                } as unknown as ProjectModel,
+            });
+
+        beforeEach(() => {
+            updateExpiresAt.mockClear();
+        });
+
+        test.each([
+            ['an org-level custom role', { roleUuid: SELF_ROLE_UUID }],
+            [
+                'a custom role on the upstream project',
+                {
+                    projectProfiles: [
+                        {
+                            projectUuid: UPSTREAM_UUID,
+                            role: ProjectMemberRole.VIEWER,
+                            roleUuid: SELF_ROLE_UUID,
+                        },
+                    ],
+                },
+            ],
+        ])(
+            'lets a non-admin creator with update:Project@self refresh their preview via %s',
+            async (_, args) => {
+                await expect(
+                    previewService(previewSummary()).updatePreviewExpiresAt(
+                        sessionUserWith(args),
+                        PREVIEW_UUID,
+                    ),
+                ).resolves.toMatchObject({ projectUuid: PREVIEW_UUID });
+                expect(updateExpiresAt).toHaveBeenCalledWith(
+                    PREVIEW_UUID,
+                    expect.any(Date),
+                );
+            },
+        );
+
+        test('lets an org admin refresh a preview someone else created', async () => {
+            await expect(
+                previewService(previewSummary()).updatePreviewExpiresAt(
+                    sessionUserWith({
+                        userUuid: OTHER_USER_UUID,
+                        role: OrganizationMemberRole.ADMIN,
+                    }),
+                    PREVIEW_UUID,
+                ),
+            ).resolves.toMatchObject({ projectUuid: PREVIEW_UUID });
+        });
+
+        test.each([
+            [
+                'a non-creator with update:Project@self',
+                previewSummary({ createdByUserUuid: OTHER_USER_UUID }),
+                { roleUuid: SELF_ROLE_UUID },
+            ],
+            [
+                'a creator whose preview is in another organization',
+                previewSummary({ organizationUuid: 'other-org' }),
+                { roleUuid: SELF_ROLE_UUID },
+            ],
+            [
+                'a creator whose role is on a different upstream project',
+                previewSummary(),
+                {
+                    projectProfiles: [
+                        {
+                            projectUuid: 'other-upstream',
+                            role: ProjectMemberRole.VIEWER,
+                            roleUuid: SELF_ROLE_UUID,
+                        },
+                    ],
+                },
+            ],
+            [
+                'an org viewer who created the preview',
+                previewSummary(),
+                { role: OrganizationMemberRole.VIEWER },
+            ],
+            [
+                'an org member who created the preview',
+                previewSummary(),
+                { role: OrganizationMemberRole.MEMBER },
+            ],
+        ])('denies %s', async (_, summary, args) => {
+            await expect(
+                previewService(summary).updatePreviewExpiresAt(
+                    sessionUserWith(args),
+                    PREVIEW_UUID,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(updateExpiresAt).not.toHaveBeenCalled();
+        });
+
+        describe('PATCH project on the same preview', () => {
+            const postgres: CreateWarehouseCredentials = {
+                type: WarehouseTypes.POSTGRES,
+                host: 'localhost',
+                port: 5432,
+                user: 'postgres',
+                password: 'postgres',
+                dbname: 'analytics',
+                schema: 'public',
+            };
+            const savedPreview = (createdByUserUuid = CREATOR_UUID) => ({
+                ...projectWithSensitiveFields,
+                warehouseConnection: postgres,
+                organizationUuid: ORG_UUID,
+                projectUuid: PREVIEW_UUID,
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: UPSTREAM_UUID,
+                createdByUserUuid,
+            });
+            const updateData = (): UpdateProject => ({
+                name: projectWithSensitiveFields.name,
+                dbtVersion: projectWithSensitiveFields.dbtVersion,
+                dbtConnection: projectWithSensitiveFields.dbtConnection,
+                warehouseConnection: postgres,
+            });
+
+            beforeEach(() => {
+                projectModel.update.mockClear();
+                jobModel.create.mockClear();
+            });
+
+            test('lets a non-admin creator with update:Project@self start the refresh', async () => {
+                projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                    savedPreview(),
+                );
+                await expect(
+                    getMockedProjectService(
+                        lightdashConfigWithGoogleOAuthMock,
+                    ).updateAndScheduleAsyncWork(
+                        PREVIEW_UUID,
+                        fromSession(
+                            sessionUserWith({ roleUuid: SELF_ROLE_UUID }),
+                        ),
+                        updateData(),
+                        RequestMethod.WEB_APP,
+                    ),
+                ).resolves.toMatchObject({ jobUuid: expect.any(String) });
+                expect(jobModel.create).toHaveBeenCalledOnce();
+            });
+
+            test('denies a non-admin with update:Project@self on a preview someone else created', async () => {
+                projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                    savedPreview(OTHER_USER_UUID),
+                );
+                await expect(
+                    getMockedProjectService(
+                        lightdashConfigWithGoogleOAuthMock,
+                    ).updateAndScheduleAsyncWork(
+                        PREVIEW_UUID,
+                        fromSession(
+                            sessionUserWith({ roleUuid: SELF_ROLE_UUID }),
+                        ),
+                        updateData(),
+                        RequestMethod.WEB_APP,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(projectModel.update).not.toHaveBeenCalled();
+                expect(jobModel.create).not.toHaveBeenCalled();
+            });
         });
     });
 

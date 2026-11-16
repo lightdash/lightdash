@@ -501,6 +501,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'Roadmap', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'Billing', {
+            organizationUuid: member.organizationUuid,
+        });
 
         can('manage', 'DataApp', {
             organizationUuid: member.organizationUuid,

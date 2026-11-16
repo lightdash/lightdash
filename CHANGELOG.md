@@ -1,3 +1,208 @@
+## [3.266.1](https://github.com/lightdash/lightdash/compare/3.266.0...3.266.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* honour user overrides throughout mobile QR sign-in ([#32633](https://github.com/lightdash/lightdash/issues/32633)) ([6eea4ce](https://github.com/lightdash/lightdash/commit/6eea4ce15660a53aea85345919fe09d3951b3958))
+
+# [3.266.0](https://github.com/lightdash/lightdash/compare/3.265.3...3.266.0) (2026-11-16)
+
+
+### Features
+
+* **cli:** composer charts as code in download, upload and lint ([#32610](https://github.com/lightdash/lightdash/issues/32610)) ([94f82bf](https://github.com/lightdash/lightdash/commit/94f82bf73be4037fc71095f59e647d0bbe8f9ab4))
+
+## [3.265.3](https://github.com/lightdash/lightdash/compare/3.265.2...3.265.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **organizations:** scope allowed email domain default projects to the organization ([#32629](https://github.com/lightdash/lightdash/issues/32629)) ([0021b55](https://github.com/lightdash/lightdash/commit/0021b552931d3038c3f6f53f5f5d0f071d6590dd))
+
+## [3.265.2](https://github.com/lightdash/lightdash/compare/3.265.1...3.265.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **embedding:** align exports and actor configuration ([#32507](https://github.com/lightdash/lightdash/issues/32507)) ([a588597](https://github.com/lightdash/lightdash/commit/a5885976c06f564cc34581428232d1b94bd13ee3))
+* prefer production projects in MCP context guidance ([#32545](https://github.com/lightdash/lightdash/issues/32545)) ([f18e1d2](https://github.com/lightdash/lightdash/commit/f18e1d2d2feacf9e8d7dc5fe53d9eb251af3b0db))
+
+## [3.265.1](https://github.com/lightdash/lightdash/compare/3.265.0...3.265.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **composer:** keep x in the series split when it is also a y ([#32627](https://github.com/lightdash/lightdash/issues/32627)) ([93ef6f9](https://github.com/lightdash/lightdash/commit/93ef6f93aa806a6a9ccb7d99d95455f1d67fc0a9))
+
+# [3.265.0](https://github.com/lightdash/lightdash/compare/3.264.0...3.265.0) (2026-11-16)
+
+
+### Features
+
+* **composer:** composer charts as code over the API ([#32603](https://github.com/lightdash/lightdash/issues/32603)) ([78f76d2](https://github.com/lightdash/lightdash/commit/78f76d28dd4e235c0bbb81887a48f6e4148a4d26))
+
+# [3.264.0](https://github.com/lightdash/lightdash/compare/3.263.1...3.264.0) (2026-11-16)
+
+
+### Bug Fixes
+
+* **previews:** carry the parent SSH key when a CLI preview is created ([#32620](https://github.com/lightdash/lightdash/issues/32620)) ([16d4d13](https://github.com/lightdash/lightdash/commit/16d4d138e26765ce62d8f84bb95f991d52b2f8a2))
+
+
+### Features
+
+* **billing:** add billing portal page to organization settings ([#32595](https://github.com/lightdash/lightdash/issues/32595)) ([f6c0f1d](https://github.com/lightdash/lightdash/commit/f6c0f1dc28a30417bda8c2dc6788bdefc27e211f))
+
+## [3.263.1](https://github.com/lightdash/lightdash/compare/3.263.0...3.263.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* let preview creators extend their preview expiration ([#32619](https://github.com/lightdash/lightdash/issues/32619)) ([f9a8097](https://github.com/lightdash/lightdash/commit/f9a80975a55c136344927023b8341d13dbe6ff9a))
+
+# [3.263.0](https://github.com/lightdash/lightdash/compare/3.262.0...3.263.0) (2026-11-16)
+
+
+### Features
+
+* **composer:** custom chart types on composer charts ([#32600](https://github.com/lightdash/lightdash/issues/32600)) ([a958993](https://github.com/lightdash/lightdash/commit/a958993347d94812fb40ef626c7e23661a1eb7df))
+
+# [3.262.0](https://github.com/lightdash/lightdash/compare/3.261.2...3.262.0) (2026-11-16)
+
+
+### Features
+
+* **composer:** dashboard filters and parameters reach the composer tile ([#32599](https://github.com/lightdash/lightdash/issues/32599)) ([14ba080](https://github.com/lightdash/lightdash/commit/14ba080d40a4188c036977c18ae954c00cea6598))
+
+## [3.261.2](https://github.com/lightdash/lightdash/compare/3.261.1...3.261.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **rainbow:** regenerate API routes when generated files change ([#32604](https://github.com/lightdash/lightdash/issues/32604)) ([66acdba](https://github.com/lightdash/lightdash/commit/66acdbaacd36a1c3d5f51076ee0503ddfa6b2cea))
+
+## [3.261.1](https://github.com/lightdash/lightdash/compare/3.261.0...3.261.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* remove the phone QR panel after sign-in ([7b16298](https://github.com/lightdash/lightdash/commit/7b162981b0375c735c250a40746967eb156eaca9))
+
+# [3.261.0](https://github.com/lightdash/lightdash/compare/3.260.0...3.261.0) (2026-11-15)
+
+
+### Features
+
+* **mobile:** log a structured record when QR sign-in code minting is rate limited [d-1d137406] ([#32615](https://github.com/lightdash/lightdash/issues/32615)) ([ca1fb02](https://github.com/lightdash/lightdash/commit/ca1fb02982a103565545a4bbea742dfa9e85e4f1))
+
+# [3.260.0](https://github.com/lightdash/lightdash/compare/3.259.1...3.260.0) (2026-11-14)
+
+
+### Features
+
+* show the mobile app pitch in the phone menu ([#32522](https://github.com/lightdash/lightdash/issues/32522)) ([304f05f](https://github.com/lightdash/lightdash/commit/304f05f5e0cb4e34df468cd2139777aba556dbd2))
+
+## [3.259.1](https://github.com/lightdash/lightdash/compare/3.259.0...3.259.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **oauth:** allow the claude: redirect scheme in strict OAuth mode ([#32606](https://github.com/lightdash/lightdash/issues/32606)) ([500379e](https://github.com/lightdash/lightdash/commit/500379ec196fa9b3b40cb14e13493f30ce996f5e)), closes [#32605](https://github.com/lightdash/lightdash/issues/32605)
+
+# [3.259.0](https://github.com/lightdash/lightdash/compare/3.258.2...3.259.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** the tile draws the chart, group-by through a server-built pivot stage ([#32588](https://github.com/lightdash/lightdash/issues/32588)) ([556ad09](https://github.com/lightdash/lightdash/commit/556ad09b06d88e945f2ba28507f2d32ec2a70847))
+
+## [3.258.2](https://github.com/lightdash/lightdash/compare/3.258.1...3.258.2) (2026-11-13)
+
+
+### Bug Fixes
+
+* **frontend:** keep Chart Studio inside the viewport on phones ([#32547](https://github.com/lightdash/lightdash/issues/32547)) ([30bdd45](https://github.com/lightdash/lightdash/commit/30bdd453b7bbae8870ab1704a0dab3de3a38d4a5))
+
+## [3.258.1](https://github.com/lightdash/lightdash/compare/3.258.0...3.258.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **cli:** skip uuid fetch in track.sh on CI/dev ([#32300](https://github.com/lightdash/lightdash/issues/32300)) ([9124c26](https://github.com/lightdash/lightdash/commit/9124c26749c1ca30e0c080c09d740af8fcafee69))
+
+# [3.258.0](https://github.com/lightdash/lightdash/compare/3.257.0...3.258.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** a viewer runs a composer chart (bound run) ([#32573](https://github.com/lightdash/lightdash/issues/32573)) ([71c2b97](https://github.com/lightdash/lightdash/commit/71c2b97f964baedc2663b9e8cbc1e98714dfdbbd))
+* **composer:** a viewer runs a composer chart (bound run) ([#32573](https://github.com/lightdash/lightdash/issues/32573)) ([eaa7f9e](https://github.com/lightdash/lightdash/commit/eaa7f9e7017702580bc6ddf71907004a70302338))
+
+# [3.257.0](https://github.com/lightdash/lightdash/compare/3.256.0...3.257.0) (2026-11-13)
+
+
+### Features
+
+* **exports:** include subtotal rows in XLSX exports of table charts ([#32491](https://github.com/lightdash/lightdash/issues/32491)) ([c090ca3](https://github.com/lightdash/lightdash/commit/c090ca39fd8995b6c1ef7f7f77dd5820552db012))
+* **exports:** include subtotal rows in XLSX exports of table charts ([#32491](https://github.com/lightdash/lightdash/issues/32491)) ([92ebb87](https://github.com/lightdash/lightdash/commit/92ebb8765ff63e9dfcfdc7a2eb179d25a647f134))
+
+# [3.256.0](https://github.com/lightdash/lightdash/compare/3.255.2...3.256.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **embed:** apply token parameter rules on the remaining query routes ([#32574](https://github.com/lightdash/lightdash/issues/32574)) ([645da28](https://github.com/lightdash/lightdash/commit/645da28f1a097fdbf9614ba9f03be07e3a29344d))
+
+
+### Features
+
+* **parameters:** list chart and dashboard parameters, and set them from embed tokens ([#32100](https://github.com/lightdash/lightdash/issues/32100)) ([5349fd0](https://github.com/lightdash/lightdash/commit/5349fd0d4103a871a58081e428535f862041217e))
+
+## [3.255.2](https://github.com/lightdash/lightdash/compare/3.255.1...3.255.2) (2026-11-13)
+
+
+### Bug Fixes
+
+* **dashboards:** keep merged chart parameter controls stable ([#32578](https://github.com/lightdash/lightdash/issues/32578)) ([63f5c41](https://github.com/lightdash/lightdash/commit/63f5c41456c08cf0472f68fc781b343a65fbf010))
+
+## [3.255.1](https://github.com/lightdash/lightdash/compare/3.255.0...3.255.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **project-access:** stay on the current page after changing a user's role ([#32577](https://github.com/lightdash/lightdash/issues/32577)) ([0b64daa](https://github.com/lightdash/lightdash/commit/0b64daaec9fac2d57925275839358a612a3d848f))
+
+# [3.255.0](https://github.com/lightdash/lightdash/compare/3.254.1...3.255.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* polish analytics settings layout and chart consistency ([#32550](https://github.com/lightdash/lightdash/issues/32550)) ([a14c74a](https://github.com/lightdash/lightdash/commit/a14c74af3707597babd8b6b475ea7b273c5b098e))
+
+
+### Features
+
+* **embed:** emit contentStateChanged with current filters, parameters and query ([#32421](https://github.com/lightdash/lightdash/issues/32421)) ([aba3e68](https://github.com/lightdash/lightdash/commit/aba3e68a2cb06b0dea681b86ba3700d37e115cc1))
+
+## [3.254.1](https://github.com/lightdash/lightdash/compare/3.254.0...3.254.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* preserve scheduler shutdown in Rainbow previews ([#32535](https://github.com/lightdash/lightdash/issues/32535)) ([d6e0776](https://github.com/lightdash/lightdash/commit/d6e0776a386de4c4629f50f4da65d8d52fa35d3c))
+
+
+### Performance Improvements
+
+* **results:** yield to the event loop while streaming warehouse rows [d-f5d48aa4] ([#32443](https://github.com/lightdash/lightdash/issues/32443)) ([19b0530](https://github.com/lightdash/lightdash/commit/19b053012b15e61d0f360a199e38a18d520e05f9))
+
+# [3.254.0](https://github.com/lightdash/lightdash/compare/3.253.1...3.254.0) (2026-11-13)
+
+
+### Features
+
+* **dashboards:** add keyboard shortcuts to the edit toolbar with hints on hold ([#32565](https://github.com/lightdash/lightdash/issues/32565)) ([245074c](https://github.com/lightdash/lightdash/commit/245074c4f83bfdf607c1765a6f0da6f5a214bcdc))
+
 ## [3.253.1](https://github.com/lightdash/lightdash/compare/3.253.0...3.253.1) (2026-11-13)
 
 

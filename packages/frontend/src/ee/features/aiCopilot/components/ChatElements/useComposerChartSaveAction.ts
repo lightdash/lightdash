@@ -5,11 +5,13 @@ import {
     getComposerPipelineWriteDeniedReason,
     savesAsComposerChart,
     type AiComposerChartArtifactConfig,
+    type ComposerChartSaveCustomChartType,
     type ComposerChartPipeline,
     type ComposerStoredChart,
     type ResultColumn,
 } from '@lightdash/common';
 import { useMemo } from 'react';
+import { useDataAppVizRenderMetadata } from '../../../../../features/chartTypes/hooks/useDataAppVizRender';
 import { type SavedComposerChartLink } from '../../../../../features/composerCharts/components/SaveComposerChartModal';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
@@ -30,6 +32,11 @@ export type ComposerChartSaveAction =
           } | null;
           link: (saved: SavedComposerChartLink) => Promise<void>;
       };
+
+const AUTHORING_RENDER_TARGET = {
+    isEmbedded: false,
+    savedChartUuid: undefined,
+};
 
 type Args = {
     projectUuid: string;
@@ -65,14 +72,48 @@ export const useComposerChartSaveAction = ({
             source.kind === 'artifact' ? source.versionUuid : '',
         );
 
+    // The pinned version's slot kinds decide which columns are metrics and which split.
+    const customVizConfig =
+        config.vizConfig?.type === 'custom' ? config.vizConfig : null;
+    const { data: renderMetadata, error: renderMetadataError } =
+        useDataAppVizRenderMetadata(
+            projectUuid,
+            customVizConfig?.dataAppVizUuid ?? null,
+            AUTHORING_RENDER_TARGET,
+            customVizConfig?.dataAppVizVersion ?? undefined,
+        );
+    const customChartType =
+        useMemo((): ComposerChartSaveCustomChartType | null => {
+            if (renderMetadataError) {
+                return {
+                    status: 'unavailable',
+                    reason:
+                        renderMetadataError.error.statusCode === 404
+                            ? 'The chart type this answer uses has been removed'
+                            : renderMetadataError.error.message,
+                };
+            }
+            if (renderMetadata?.state === 'ready') {
+                return { status: 'ready', slots: renderMetadata.schema.fields };
+            }
+            if (renderMetadata?.state === 'unavailable') {
+                return {
+                    status: 'unavailable',
+                    reason: 'The chart type version this answer uses is unavailable',
+                };
+            }
+            return null;
+        }, [renderMetadata, renderMetadataError]);
+
     const draft = useMemo(
         () =>
             getComposerChartSaveDraft({
                 config,
                 columns,
                 metadata: { title, description: description ?? '' },
+                customChartType,
             }),
-        [config, columns, title, description],
+        [config, columns, title, description, customChartType],
     );
 
     if (

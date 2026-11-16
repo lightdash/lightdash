@@ -1,4 +1,5 @@
 import {
+    normalizeEmbedJwt,
     type CreateEmbedJwt,
     type LanguageMap,
     type SavedChart,
@@ -87,10 +88,9 @@ const decodeEmbedJwtPayload = (
             Math.ceil(normalizedPayload.length / 4) * 4,
             '=',
         );
-        return JSON.parse(window.atob(paddedPayload)) as Pick<
-            CreateEmbedJwt,
-            'content' | 'writeActions'
-        >;
+        return normalizeEmbedJwt(
+            JSON.parse(window.atob(paddedPayload)) as CreateEmbedJwt,
+        );
     } catch {
         return undefined;
     }

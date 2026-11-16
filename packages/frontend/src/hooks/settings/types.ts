@@ -75,6 +75,8 @@ export type SettingsContext = {
     canAccessAnalyticsSettings: boolean;
     isAnalyticsProjectLoading: boolean;
     isOrganizationRoadmapEnabled: boolean;
+    isBillingPortalEnabled: boolean;
+    isBillingPortalFlagLoading: boolean;
     // Org admin and a contract in force.
     canAccessAiCredits: boolean;
     isAiCreditsLoading: boolean;

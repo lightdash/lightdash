@@ -191,6 +191,7 @@ import {
     type ApiAwsWebIdentityResponse,
 } from './awsWebIdentity';
 import { type BigqueryProjectRecommendation } from './bigQuerySSO';
+import { type ApiBillingPortalLinkResponse } from './billing';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -211,6 +212,8 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiComposerChartAsCodeListResponse,
+    type ApiComposerChartAsCodeUpsertResponse,
     type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodePullResponse,
     type ApiContentAsCodeSettingsResponse,
@@ -1586,6 +1589,7 @@ type ApiResults =
     | ApiRoadmapResponse['results']
     | ApiRoadmapProjectResponse['results']
     | ApiRoadmapFollowProjectResponse['results']
+    | ApiBillingPortalLinkResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory
@@ -1699,6 +1703,8 @@ type ApiResults =
     | ApiAlertAsCodeUpsertResponse['results']
     | ApiChartAsCodeListResponse['results']
     | ApiSqlChartAsCodeListResponse['results']
+    | ApiComposerChartAsCodeListResponse['results']
+    | ApiComposerChartAsCodeUpsertResponse['results']
     | ApiDashboardAsCodeListResponse['results']
     | ApiGoogleSheetsSyncAsCodeListResponse['results']
     | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']

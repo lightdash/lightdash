@@ -17,6 +17,7 @@ import type {
     ScanSchemaArgs,
     SubmitSourceQueryArgs,
 } from '../types';
+import { withoutDocumentAuthority } from './withoutDocumentAuthority';
 
 type SqlQuerySourceArguments = {
     asyncQueryService: AsyncQueryService;
@@ -107,6 +108,7 @@ export class SqlQuerySource implements QuerySourceClient {
         userAttributeOverrides,
         invalidateCache,
         pivotConfiguration,
+        authority,
     }: SubmitSourceQueryArgs): Promise<{
         queryUuid: string;
         cacheHit: boolean;
@@ -114,6 +116,7 @@ export class SqlQuerySource implements QuerySourceClient {
         const sourceQuery = SqlQuerySource.assertSourceQuery(query);
 
         const results = await this.asyncQueryService.executeAsyncSqlQuery({
+            authority: withoutDocumentAuthority(authority),
             account,
             projectUuid,
             sql: sourceQuery.sql,

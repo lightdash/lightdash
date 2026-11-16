@@ -10,7 +10,7 @@ import {
     canAddDashboardFiltersInEmbed,
     getDefaultChartTileSize,
     isFilterInteractivityEnabled,
-    isParameterInteractivityEnabled,
+    isParameterInteractivityVisible,
     isTileInEmbedExport,
     translateDashboardControlNames,
     type DashboardFilters,
@@ -19,10 +19,12 @@ import {
     type ParametersValuesMap,
     type SavedChart,
     getEmbedWriteSpaceUuids,
+    type DashboardVersionedFields,
 } from '@lightdash/common';
 import { Box, Button, Group, Tabs, TextInput } from '@mantine/core';
 import { useSessionStorage } from '@mantine/hooks';
 import { IconCheck, IconPencil, IconUnlink, IconX } from '@tabler/icons-react';
+import { isEqual } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,
@@ -46,10 +48,11 @@ import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../../../../components/DashboardTiles/UnmetRequirementsPlaceholder';
-import DashboardComposerChartTile from '../../../../../features/composerCharts/components/DashboardComposerChartTile';
+import { ComposerChartNotAvailableTile } from '../../../../../features/composerCharts/components/DashboardComposerChartTile';
 import {
     selectActiveTab,
     selectDashboardFilters,
+    selectDashboardParameters,
     selectDashboardTabs,
     selectDashboardTiles,
     selectHaveFiltersChanged,
@@ -61,7 +64,7 @@ import {
     dashboardParametersActions,
     useDashboardDispatch,
     useDashboardSelector,
-    useDashboardStore,
+    combineDashboardFilters,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
 } from '../../../../../features/dashboard/store';
@@ -116,6 +119,7 @@ import classes from './EmbedDashboard.module.css';
 import { EmbedDashboardAiAgentContextPublisher } from './EmbedDashboardAiAgentContextPublisher';
 import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
+import EmbedDashboardContentStateEvent from './EmbedDashboardContentStateEvent';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
 import {
     buildEmbedDashboardUpdate,
@@ -402,7 +406,7 @@ const EmbedDashboardGrid: FC<{
                                 />
                             ) : tile.type ===
                               DashboardTileTypes.COMPOSER_CHART ? (
-                                <DashboardComposerChartTile
+                                <ComposerChartNotAvailableTile
                                     key={tile.uuid}
                                     minimal
                                     tile={tile}
@@ -460,11 +464,11 @@ const EmbedDashboard: FC<{
         (c) => c.resetDashboardFilters,
     );
     const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
+    const dashboardParameters = useDashboardSelector(selectDashboardParameters);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const haveTabsChanged = useDashboardSelector(selectHaveTabsChanged);
-    const dashboardStore = useDashboardStore();
     const dashboardDispatch = useDashboardDispatch();
     const setDateZoomGranularity = useDashboardContext(
         (c) => c.setDateZoomGranularity,
@@ -624,7 +628,11 @@ const EmbedDashboard: FC<{
         }
     }, [dashboard, setDashboardTiles]);
 
-    useEmbedSavedParameters(dashboard);
+    useEmbedSavedParameters(
+        dashboard,
+        isEditMode,
+        isMinimal ? exportParameters : undefined,
+    );
 
     useEffect(() => {
         if (!dashboard || isEditMode) return;
@@ -838,7 +846,7 @@ const EmbedDashboard: FC<{
         isDateZoomDisabled !== savedIsDateZoomDisabled;
     // As the bar decides which kinds it shows
     const canDateZoom = dashboard?.canDateZoom === true;
-    const areParametersAllowed = isParameterInteractivityEnabled(
+    const areParametersAllowed = isParameterInteractivityVisible(
         dashboard?.parameterInteractivity,
     );
     const filtersInteractivity = dashboard?.dashboardFiltersInteractivity;
@@ -1091,61 +1099,70 @@ const EmbedDashboard: FC<{
         setIsEditMode,
     ]);
 
-    const handleSaveDashboard = useCallback(() => {
-        if (!dashboard) return;
+    const controlDrafts = useDashboardSelector(
+        (state) =>
+            isControlsEnabled && dashboard
+                ? getEmbedControlDrafts(state, dashboard.config, tokenAllows)
+                : null,
+        isEqual,
+    );
 
-        updateDashboard(
-            buildEmbedDashboardUpdate({
-                dashboard,
-                name: draftDashboardName.trim() || dashboard.name,
-                tiles: currentDashboardTiles,
-                tabs: dashboardTabs,
-                filters: {
-                    dimensions: [
-                        ...dashboardFilters.dimensions,
-                        ...dashboardTemporaryFilters.dimensions,
-                    ],
-                    metrics: [
-                        ...dashboardFilters.metrics,
-                        ...dashboardTemporaryFilters.metrics,
-                    ],
-                    tableCalculations: [
-                        ...dashboardFilters.tableCalculations,
-                        ...dashboardTemporaryFilters.tableCalculations,
-                    ],
-                },
-                filterLabelOverrides,
-                filtersInteractivity:
-                    dashboard.dashboardFiltersInteractivity ?? null,
-                isAddFilterDisabled,
-                isDateZoomDisabled: ownsDateZoomVisibility
-                    ? isDateZoomDisabled
-                    : null,
-                controlDrafts: isControlsEnabled
-                    ? getEmbedControlDrafts(
-                          dashboardStore.getState(),
-                          dashboard.config,
-                          tokenAllows,
-                      )
-                    : null,
-            }),
-        );
-    }, [
-        dashboard,
-        dashboardFilters,
-        dashboardStore,
-        dashboardTabs,
-        dashboardTemporaryFilters,
-        isAddFilterDisabled,
-        isDateZoomDisabled,
-        ownsDateZoomVisibility,
-        isControlsEnabled,
-        draftDashboardName,
-        currentDashboardTiles,
-        filterLabelOverrides,
-        tokenAllows,
-        updateDashboard,
-    ]);
+    // What Save writes
+    const dashboardUpdate = useMemo(
+        () =>
+            dashboard
+                ? buildEmbedDashboardUpdate({
+                      dashboard,
+                      name: draftDashboardName.trim() || dashboard.name,
+                      tiles: currentDashboardTiles,
+                      tabs: dashboardTabs,
+                      filters: combineDashboardFilters(
+                          dashboardFilters,
+                          dashboardTemporaryFilters,
+                      ),
+                      filterLabelOverrides,
+                      filtersInteractivity:
+                          dashboard.dashboardFiltersInteractivity ?? null,
+                      isAddFilterDisabled,
+                      isDateZoomDisabled: ownsDateZoomVisibility
+                          ? isDateZoomDisabled
+                          : null,
+                      controlDrafts,
+                  })
+                : undefined,
+        [
+            controlDrafts,
+            currentDashboardTiles,
+            dashboard,
+            dashboardFilters,
+            dashboardTabs,
+            dashboardTemporaryFilters,
+            draftDashboardName,
+            filterLabelOverrides,
+            isAddFilterDisabled,
+            isDateZoomDisabled,
+            ownsDateZoomVisibility,
+        ],
+    );
+
+    // The dashboard as it is now, for the content state event: Save's
+    // version with the parameters the viewer applied
+    const dashboardVersion = useMemo<DashboardVersionedFields | undefined>(
+        () =>
+            dashboardUpdate && {
+                tiles: dashboardUpdate.tiles,
+                tabs: dashboardUpdate.tabs,
+                filters: dashboardUpdate.filters,
+                config: dashboardUpdate.config,
+                parameters: dashboardParameters,
+            },
+        [dashboardParameters, dashboardUpdate],
+    );
+
+    const handleSaveDashboard = useCallback(() => {
+        if (!dashboardUpdate) return;
+        updateDashboard(dashboardUpdate);
+    }, [dashboardUpdate, updateDashboard]);
 
     // Readiness resets when tiles or the active tab change, so render after both settle.
     const isMinimalLayoutSettled =
@@ -1414,6 +1431,12 @@ const EmbedDashboard: FC<{
         >
             <div ref={setContentElement} className={classes.content}>
                 <DocumentTitle title={dashboard.name} />
+                {dashboardVersion && (
+                    <EmbedDashboardContentStateEvent
+                        dashboardUuid={dashboard.uuid}
+                        dashboardVersion={dashboardVersion}
+                    />
+                )}
                 {sharesViewWithAiAgent && (
                     <EmbedDashboardAiAgentContextPublisher />
                 )}

@@ -35,6 +35,7 @@ import {
     IconPlugConnected,
     IconRefresh,
     IconReportAnalytics,
+    IconCreditCard,
     IconRoad,
     IconRobotFace,
     IconSend,
@@ -89,6 +90,7 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
+        isBillingPortalEnabled,
         canAccessAiCredits,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
@@ -809,6 +811,30 @@ export const useSettingsNavigation = (
             });
         }
 
+        if (
+            isBillingPortalEnabled &&
+            ability?.can(
+                'manage',
+                subject('Billing', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            organizationItems.push({
+                label: 'Billing',
+                to: '/generalSettings/billing',
+                icon: IconCreditCard,
+                keywords: [
+                    'invoices',
+                    'payment method',
+                    'billing address',
+                    'subscription',
+                ],
+                children: [],
+                exact: true,
+            });
+        }
+
         const sections: SettingsNavigationSection[] = [
             {
                 id: 'your-settings',
@@ -1380,6 +1406,7 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
+        isBillingPortalEnabled,
         canAccessAiCredits,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,

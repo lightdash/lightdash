@@ -1,3 +1,4 @@
+import { Ability, subject } from '@casl/ability';
 import {
     AgentActorSurface,
     AgentCapability,
@@ -46,7 +47,9 @@ import {
     type LearnSandboxCommandPayload,
     type MetricQuery,
     type NotificationPayloadBase,
+    type ParameterInteractivityOptions,
     type ParametersValuesMap,
+    type PossibleAbilities,
     type ReadyQueryResultsPage,
     type ScheduledDeliveryPayload,
     type SchedulerAndTargets,
@@ -61,7 +64,12 @@ import {
 import ExecutionContext from 'node-execution-context';
 import type { Mock } from 'vitest';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
-import { fromSession } from '../auth/account';
+import { fromJwt, fromSession } from '../auth/account';
+import {
+    buildAccount,
+    defaultSessionUser,
+    defaultUserAttributes,
+} from '../auth/account/account.mock';
 import { managedExecutionFixture } from '../auth/agentConnectionGrants/managedExecution.mock';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
@@ -1546,6 +1554,207 @@ describe('learnSandboxCommand', () => {
     });
 });
 
+describe('embed dashboard bulk export authorization context', () => {
+    it.each([
+        { format: SchedulerFormat.CSV, permissionsMode: 'default' as const },
+        { format: SchedulerFormat.XLSX, permissionsMode: 'default' as const },
+        { format: SchedulerFormat.CSV, permissionsMode: 'roles' as const },
+        { format: SchedulerFormat.XLSX, permissionsMode: 'roles' as const },
+    ] as const)(
+        'passes the dashboard context to both tile downloads for $format in $permissionsMode mode',
+        async ({ format, permissionsMode }) => {
+            const base = buildAccount({ accountType: 'jwt' });
+            const { projectUuid } = base.embed;
+            const { organizationUuid } = base.embed.organization;
+            const dashboardUuid = 'test-dashboard-uuid';
+            const account = fromJwt({
+                decodedToken: {
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid,
+                        canExportDashboardCsv: permissionsMode === 'default',
+                        canExportCsv: false,
+                    },
+                    writeActions: {
+                        userUuid: defaultSessionUser.userUuid,
+                        writeSpaceUuids: ['space-1'],
+                        permissionsMode,
+                    },
+                },
+                embed: base.embed,
+                content: base.access.content,
+                userAttributes: defaultUserAttributes,
+                source: 'embed-jwt',
+                embedWriteUser: {
+                    ...defaultSessionUser,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            action: 'view',
+                            subject: 'EmbedDashboardCsvExport',
+                            conditions: { projectUuid, organizationUuid },
+                        },
+                    ]),
+                },
+            });
+            expect(
+                account.user.ability.can(
+                    'manage',
+                    subject('ExportCsv', {
+                        projectUuid,
+                        organizationUuid,
+                        metadata: { dashboardUuid },
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                account.user.ability.can(
+                    'export',
+                    subject('Dashboard', {
+                        projectUuid,
+                        organizationUuid,
+                        type: 'csv',
+                    }),
+                ),
+            ).toBe(false);
+
+            const downloadSyncQueryResults = vi.fn().mockResolvedValue({
+                fileUrl: 'https://files.example/tile.csv',
+            });
+            const logSchedulerJob = vi.fn();
+            const getAccountByUserUuid = vi.fn();
+            const createZipDownloadUrl = vi
+                .fn()
+                .mockResolvedValue('https://files.example/dashboard.zip');
+            const task = makeTaskWithDeps({
+                lightdashConfig: lightdashConfigMock,
+                analytics: asDep<'analytics'>({ trackAccount: vi.fn() }),
+                fileStorageClient: asDep<'fileStorageClient'>({
+                    isEnabled: () => true,
+                }),
+                featureFlagModel: asDep<'featureFlagModel'>({
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
+                }),
+                userService: asDep<'userService'>({ getAccountByUserUuid }),
+                schedulerService: asDep<'schedulerService'>({
+                    logSchedulerJob,
+                    dashboardModel: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue({
+                            uuid: dashboardUuid,
+                            projectUuid,
+                            organizationUuid,
+                            filters: {
+                                dimensions: [],
+                                metrics: [],
+                                tableCalculations: [],
+                            },
+                            tabs: [],
+                            tiles: [
+                                {
+                                    uuid: 'chart-tile',
+                                    type: DashboardTileTypes.SAVED_CHART,
+                                    x: 0,
+                                    y: 0,
+                                    w: 6,
+                                    h: 6,
+                                    properties: { savedChartUuid: 'chart-1' },
+                                },
+                                {
+                                    uuid: 'sql-tile',
+                                    type: DashboardTileTypes.SQL_CHART,
+                                    x: 6,
+                                    y: 0,
+                                    w: 6,
+                                    h: 6,
+                                    properties: { savedSqlUuid: 'sql-1' },
+                                },
+                            ],
+                        }),
+                    },
+                    savedChartModel: {
+                        get: vi.fn().mockResolvedValue({
+                            name: 'Chart',
+                            chartConfig: {
+                                type: ChartType.CARTESIAN,
+                                config: {},
+                            },
+                            tableConfig: { columnOrder: [] },
+                        }),
+                    },
+                }),
+                asyncQueryService: asDep<'asyncQueryService'>({
+                    executeAsyncDashboardChartQuery: vi
+                        .fn()
+                        .mockResolvedValue({ queryUuid: 'chart-query' }),
+                    executeAsyncDashboardSqlChartQuery: vi
+                        .fn()
+                        .mockResolvedValue({ queryUuid: 'sql-query' }),
+                    savedSqlModel: {
+                        getByUuid: vi.fn().mockResolvedValue({
+                            name: 'SQL chart',
+                            config: {},
+                        }),
+                    },
+                    downloadSyncQueryResults,
+                }),
+            });
+            Object.assign(task, {
+                createZipDownloadUrl,
+                getChartOrDashboard: vi.fn().mockResolvedValue({
+                    url: 'http://localhost/dashboard',
+                    minimalUrl: 'http://localhost/minimal/dashboard',
+                    pageType: LightdashPage.DASHBOARD,
+                    details: { name: 'Dashboard' },
+                    projectUuid,
+                    organizationUuid,
+                }),
+            });
+            await task.exportContentForTest(
+                {
+                    resourceType: SchedulerResourceType.DASHBOARD,
+                    resourceUuid: dashboardUuid,
+                    format,
+                    options: { formatted: true, limit: 'table' },
+                    userUuid: account.user.id,
+                    projectUuid,
+                    organizationUuid,
+                    schedulerUuid: undefined,
+                    encodedJwt: 'embed-jwt',
+                },
+                account,
+            );
+
+            expect(getAccountByUserUuid).not.toHaveBeenCalled();
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(2);
+            for (const queryUuid of ['chart-query', 'sql-query']) {
+                expect(downloadSyncQueryResults).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        account,
+                        queryUuid,
+                        type:
+                            format === SchedulerFormat.XLSX
+                                ? DownloadFileType.XLSX
+                                : DownloadFileType.CSV,
+                    }),
+                    expect.any(Object),
+                    dashboardUuid,
+                );
+            }
+            expect(createZipDownloadUrl).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    files: expect.any(Array),
+                    createdByUserUuid: null,
+                }),
+            );
+            expect(logSchedulerJob).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    status: SchedulerJobStatus.COMPLETED,
+                    details: expect.objectContaining({ numFailures: 0 }),
+                }),
+            );
+        },
+    );
+});
+
 describe('uploadGsheets — pivot routing', () => {
     const validPivotDetails: NonNullable<
         ReadyQueryResultsPage['pivotDetails']
@@ -2040,12 +2249,16 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
         exportParameters,
         tileParameters,
         embedParametersEnabled,
+        embedParameters = embedParametersEnabled === undefined
+            ? undefined
+            : { enabled: embedParametersEnabled },
         legacyDashboard = false,
     }: {
         dashboardControlsEnabled: boolean;
         exportParameters?: ParametersValuesMap;
         tileParameters?: ExportContentPayload['tileParameters'];
         embedParametersEnabled?: boolean;
+        embedParameters?: ParameterInteractivityOptions;
         legacyDashboard?: boolean;
     }) => {
         const executeAsyncDashboardChartQuery = vi
@@ -2148,8 +2361,8 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
             undefined,
             {
                 user: { id: 'user-1' },
-                isJwtUser: () => embedParametersEnabled !== undefined,
-                access: { parameters: { enabled: embedParametersEnabled } },
+                isJwtUser: () => embedParameters !== undefined,
+                access: { parameters: embedParameters },
                 organization: { organizationUuid: 'org-1' },
             },
         );
@@ -2256,6 +2469,77 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
                 'tile-2': { 'orders.status': 'placed' },
             },
         );
+    });
+
+    describe('embed export parameters', () => {
+        const everyTile = (parameters: ParametersValuesMap) => ({
+            'tile-1': parameters,
+            'tile-2': parameters,
+        });
+
+        it('layers saved values, then token values, then the viewer values', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    embedParameters: {
+                        enabled: true,
+                        values: { 'orders.status': 'token', region: 'EU' },
+                    },
+                    exportParameters: { region: 'US', channel: 'web' },
+                }),
+            ).resolves.toEqual(
+                everyTile({
+                    'orders.status': 'token',
+                    region: 'US',
+                    channel: 'web',
+                }),
+            );
+        });
+
+        it('drops a viewer value the token does not allow', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    embedParameters: {
+                        enabled: true,
+                        allowedParameters: ['region'],
+                    },
+                    exportParameters: {
+                        region: 'US',
+                        'orders.status': 'injected',
+                    },
+                }),
+            ).resolves.toEqual(
+                everyTile({ 'orders.status': 'placed', region: 'US' }),
+            );
+        });
+
+        it('keeps token values but drops viewer values without interactivity', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    embedParameters: {
+                        enabled: false,
+                        values: { region: 'EU' },
+                    },
+                    exportParameters: {
+                        region: 'US',
+                        'orders.status': 'injected',
+                    },
+                }),
+            ).resolves.toEqual(
+                everyTile({ 'orders.status': 'placed', region: 'EU' }),
+            );
+        });
+
+        it('a non-embed export replaces the saved values with the exported ones', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    exportParameters: { region: 'US' },
+                }),
+            ).resolves.toEqual(everyTile({ region: 'US' }));
+        });
     });
 });
 

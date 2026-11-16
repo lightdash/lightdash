@@ -86,7 +86,7 @@ const args = (
     invalidateCache: false,
     pivotConfiguration: null,
     plan: null,
-    binding: null,
+    authority: { kind: 'request' },
 });
 
 describe('MergeQuerySource', () => {

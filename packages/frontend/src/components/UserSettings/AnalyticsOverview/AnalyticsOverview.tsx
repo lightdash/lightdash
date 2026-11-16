@@ -42,6 +42,7 @@ import {
     formatAnalyticsNumber,
     type AnalyticsFilters,
 } from './analyticsOverviewConfig';
+import AnalyticsTabSummary from './AnalyticsTabSummary';
 import {
     useAnalyticsOverviewQueries,
     type AnalyticsOverviewQueryResult,
@@ -114,7 +115,7 @@ const HeadlineMetric = ({
             {query.isLoading ? (
                 <Skeleton h={38} my="xs" />
             ) : (
-                <Group gap="sm">
+                <Group gap="xs" wrap="nowrap">
                     <Text className={classes.metricValue}>
                         {value === undefined || value === null || query.isError
                             ? '—'
@@ -193,7 +194,11 @@ const AnalyticsOverview = ({
     const headlineSpecs = analyticsHeadlineMetrics.map(({ query }) => query);
     const currentQueries = useAnalyticsOverviewQueries(
         projectUuid,
-        [...headlineSpecs, ...tab.charts.map(({ query }) => query)],
+        [
+            ...headlineSpecs,
+            ...tab.charts.map(({ query }) => query),
+            ...(tab.summary ? [tab.summary.query] : []),
+        ],
         filters,
     );
     const previousFilters = {
@@ -229,17 +234,32 @@ const AnalyticsOverview = ({
                 </Button>
                 <Stack gap="xs" className={classes.filters}>
                     <Group gap="md" className={classes.filterControls}>
-                        <Select
-                            aria-label="Project"
-                            placeholder="All projects"
-                            clearable
-                            searchable
-                            data={projectOptions}
-                            value={selectedProject}
-                            onChange={setSelectedProject}
-                            disabled={projects.isLoading || projects.isError}
-                            className={classes.projectFilter}
-                        />
+                        <Tooltip
+                            label={
+                                selectedProject
+                                    ? projectNames[selectedProject]
+                                    : ''
+                            }
+                            disabled={!selectedProject}
+                            multiline
+                            maw={360}
+                            events={{ hover: true, focus: true, touch: true }}
+                        >
+                            <Select
+                                aria-label="Project"
+                                placeholder="All projects"
+                                clearable
+                                searchable
+                                data={projectOptions}
+                                value={selectedProject}
+                                onChange={setSelectedProject}
+                                disabled={
+                                    projects.isLoading || projects.isError
+                                }
+                                className={classes.projectFilter}
+                                classNames={{ input: classes.projectInput }}
+                            />
+                        </Tooltip>
                         <SegmentedControl
                             size="xs"
                             withItemsBorders={false}
@@ -314,15 +334,30 @@ const AnalyticsOverview = ({
                             className={classes.tabsViewport}
                         >
                             <Tabs.List className={classes.tabs}>
-                                {analyticsTabs.map(({ id, label }) => (
-                                    <Tabs.Tab
-                                        value={id}
-                                        key={id}
-                                        className={classes.tab}
-                                    >
-                                        {label}
-                                    </Tabs.Tab>
-                                ))}
+                                {analyticsTabs.map(
+                                    ({ id, label, description }) => (
+                                        <Tooltip
+                                            key={id}
+                                            label={description}
+                                            position="bottom"
+                                            multiline
+                                            maw={320}
+                                            openDelay={300}
+                                            events={{
+                                                hover: true,
+                                                focus: true,
+                                                touch: true,
+                                            }}
+                                        >
+                                            <Tabs.Tab
+                                                value={id}
+                                                className={classes.tab}
+                                            >
+                                                {label}
+                                            </Tabs.Tab>
+                                        </Tooltip>
+                                    ),
+                                )}
                             </Tabs.List>
                         </ScrollArea>
                         <Tooltip label="More tabs">
@@ -382,23 +417,38 @@ const AnalyticsOverview = ({
                     </Group>
                 </Group>
                 <Tabs.Panel value={activeTab} pt="lg">
-                    <SimpleGrid
-                        cols={{ base: 1, md: 2 }}
-                        spacing="md"
-                        className={classes.charts}
-                        data-overview={activeTab === 'overview'}
-                    >
-                        {tab.charts.map((chart, index) => (
-                            <AnalyticsOverviewChart
-                                key={`${tab.id}-${chart.title}`}
-                                chart={chart}
+                    <Stack gap="md">
+                        {tab.summary && (
+                            <AnalyticsTabSummary
+                                key={tab.id}
+                                summary={tab.summary}
                                 result={
-                                    currentQueries[headlineSpecs.length + index]
+                                    currentQueries[
+                                        headlineSpecs.length + tab.charts.length
+                                    ]
                                 }
-                                projectNames={projectNames}
                             />
-                        ))}
-                    </SimpleGrid>
+                        )}
+                        <SimpleGrid
+                            cols={{ base: 1, md: 2 }}
+                            spacing="md"
+                            className={classes.charts}
+                            data-overview={activeTab === 'overview'}
+                        >
+                            {tab.charts.map((chart, index) => (
+                                <AnalyticsOverviewChart
+                                    key={`${tab.id}-${chart.title}`}
+                                    chart={chart}
+                                    result={
+                                        currentQueries[
+                                            headlineSpecs.length + index
+                                        ]
+                                    }
+                                    projectNames={projectNames}
+                                />
+                            ))}
+                        </SimpleGrid>
+                    </Stack>
                 </Tabs.Panel>
             </Tabs>
         </Stack>

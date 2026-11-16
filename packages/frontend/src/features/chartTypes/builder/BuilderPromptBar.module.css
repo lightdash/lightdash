@@ -30,6 +30,12 @@
     max-width: 80%;
 }
 
+@media (max-width: $mantine-breakpoint-sm) {
+    .pillHost {
+        max-width: calc(100% - 2 * var(--mantine-spacing-md));
+    }
+}
+
 .queue {
     position: absolute;
     right: 0;
@@ -191,6 +197,7 @@
 /* The context tray scrolls, so the send controls never give up width to it. */
 .composer {
     --composer-toolbar-right-shrink: 0;
+    --composer-toolbar-section-min-width: 0;
 }
 
 .composer :global(.ProseMirror) {

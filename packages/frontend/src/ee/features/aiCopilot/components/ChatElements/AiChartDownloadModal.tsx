@@ -128,6 +128,7 @@ export const AiChartDownloadModal: FC<Props> = ({
             showTableNames={tableConfig?.showTableNames}
             conditionalFormattings={tableConfig?.conditionalFormattings}
             showColumnTotals={tableConfig?.showColumnCalculation}
+            showSubtotals={tableConfig?.showSubtotals}
         />
     );
 };

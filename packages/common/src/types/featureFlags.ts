@@ -250,6 +250,12 @@ export enum FeatureFlags {
      */
     MobileSettings = 'mobile-settings',
     /**
+     * Organization-scoped: the Billing page under Organization settings, which
+     * opens the customer billing portal. Cloud and development modes only.
+     * Off by default.
+     */
+    BillingPortal = 'billing-portal',
+    /**
      * Organization-scoped: the sign-in step on the Mobile page and its
      * endpoints. Off by default until an app release supports QR sign-in.
      */
@@ -275,7 +281,7 @@ export enum FeatureFlags {
     DashboardFitToScreenDefault = 'dashboard-fit-to-screen-default',
     /**
      * Org-scoped, off: composer charts as dashboard tiles. Not for orgs embedding with
-     * @lightdash/sdk < TBD (first with PR #32548): older SDKs crash the whole embed.
+     * @lightdash/sdk < 3.245.0 (first with PR #32548): older SDKs crash the whole embed.
      */
     ComposerCharts = 'composer-charts',
 }

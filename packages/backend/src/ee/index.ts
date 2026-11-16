@@ -108,6 +108,7 @@ import { AppStateService } from './services/AppStateService/AppStateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
 import { PreAggregationExternalResolver } from './services/AsyncQueryService/PreAggregationExternalResolver';
+import { BillingService } from './services/BillingService/BillingService';
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { ContentReviewNotificationService } from './services/ContentReviewNotificationService/ContentReviewNotificationService';
@@ -647,6 +648,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSpacePermissionService(),
                     coderService: repository.getCoderService(),
                     documentService: repository.getDocumentService(),
+                    composerChartService: repository.getComposerChartService(),
                     dashboardService: repository.getDashboardService(),
                     projectService: repository.getProjectService(),
                     promoteService: repository.getPromoteService(),
@@ -686,6 +688,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new RoadmapService({
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
+                }),
+            billingService: ({ context, models }) =>
+                new BillingService({
+                    analytics: context.lightdashAnalytics,
+                    lightdashConfig: context.lightdashConfig,
+                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
@@ -1534,6 +1542,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     refreshTokenRotation: models.getRefreshTokenRotation(),
                     aiAccessService: repository.getAiAccessService(),
                     getDocumentService: () => repository.getDocumentService(),
+                    getComposerChartService: () =>
+                        repository.getComposerChartService(),
                     contentDraftModel: models.getContentDraftModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
