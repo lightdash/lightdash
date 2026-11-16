@@ -885,6 +885,7 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;
+    /** @deprecated Always false. Autocomplete caching follows each project's results cache setting. */
     hasCacheAutocompleResults: boolean;
     appearance: {
         overrideColorPalette: string[] | undefined;
