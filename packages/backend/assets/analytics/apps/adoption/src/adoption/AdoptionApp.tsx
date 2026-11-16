@@ -4,7 +4,6 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
 import './adoption.css';
 import { Fingerprint } from './components/Fingerprint';
 import { FocusAreas } from './components/FocusAreas';
@@ -48,8 +47,6 @@ const MAP_HEIGHT = 560;
 const MIN_WAFFLE_HEIGHT = 240;
 // The map gives up height to fit the window too, down to this
 const MIN_MAP_HEIGHT = 220;
-// The legend is this tall for every colouring
-const LEGEND_HEIGHT = 61;
 // About how far under the drawing's bottom edge the detail card begins (the legend sits between)
 const DETAIL_BELOW_MAP_PX = 60;
 // Longer than the sweep takes to cross the map and the detail below it
@@ -557,64 +554,11 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
     );
 };
 
-const MembershipMap = ({ cells, config }: { cells: Cell[]; config: TeamConfig }) => {
-    const canvas = useContainerSize();
-    const fit = useFitHeight();
-    const organisation = useMemo(() => buildOrganisation(cells, config), [cells, config]);
-    const unit = getMarkUnit(organisation.total);
-    const teams = useMemo(
-        () => organisation.buckets.map((bucket) => toMapTeam(bucket, 'role', unit)),
-        [organisation.buckets, unit],
-    );
-    return (
-        // Drawn in grey as a placeholder: who is in each team is known before what they have used, and the marks take
-        // their colours once that arrives, with no change of colouring in between
-        <div className="overflow-hidden rounded-lg border bg-card" aria-hidden="true">
-            <div ref={fit.ref}>
-            <div ref={canvas.ref} className="ad-canvas" style={{ height: Math.min(MAP_HEIGHT, Math.max(fit.height ?? MAP_HEIGHT, MIN_MAP_HEIGHT)), filter: 'grayscale(1)', opacity: 0.45 }} inert>
-                {canvas.isMeasured && (
-                    <PeopleMap
-                        width={canvas.width}
-                        height={canvas.height}
-                        teams={teams}
-                        colourBy="role"
-                        selectedId={null}
-                        isFocused={false}
-                        layoutKey={`all:${unit}`}
-                        onSelect={() => {}}
-                    />
-                )}
-            </div>
-            </div>
-            {/* Holds the room the legend takes, so the drawing does not jump when it arrives */}
-            <div className="border-t" style={{ height: LEGEND_HEIGHT }} />
-        </div>
-    );
-};
-
-const Loading = ({ total, preview, detail }: { total: number | null; preview?: ReactNode; detail: DetailState }) => (
-    <div className="space-y-4">
-        <p className="m-0 text-sm" role="status">
-            {total === null
-                ? 'Loading adoption data…'
-                : `${total.toLocaleString()} current organization ${total === 1 ? 'member' : 'members'}. Loading activity…`}
-        </p>
-        {preview ?? (
-            <>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-                    {Array.from({ length: 5 }, (_, index) => (
-                        <Skeleton key={index} className="h-[76px]" />
-                    ))}
-                </div>
-                <Skeleton className="h-[560px]" />
-            </>
-        )}
-        <DetailPanel detail={detail}>
-            <div className="flex min-h-24 items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
-                <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                Loading details…
-            </div>
-        </DetailPanel>
+// Nothing of the app is drawn until all of it can be: a part-built page changes under the reader as the rest arrives
+const Loading = ({ total }: { total: number | null }) => (
+    <div className="flex min-h-[320px] flex-col items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
+        <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
+        {total === null ? 'Loading adoption data…' : `Loading activity for ${total.toLocaleString()} ${total === 1 ? 'person' : 'people'}…`}
     </div>
 );
 
@@ -704,19 +648,9 @@ export default function AdoptionApp() {
         lastChanged: formatChanged(author?.name ?? null, meta.updatedAt ? String(meta.updatedAt) : null),
     };
     const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
-    // Group counts cannot place people who have individual team assignments.
-    const canPreviewMap = !meta.loading && total !== null && total > 0 &&
-        Object.keys(config.primary).length === 0 &&
-        !config.teams?.some((team) => (team.memberIds?.length ?? 0) > 0);
     const props: LoaderProps = {
         main: { config, setConfig: setSaved, stateStatus, canManage: viewer.isAdmin, actionSlot, detail, setColourBy },
-        loadingView: (
-            <Loading
-                total={total}
-                detail={detail}
-                preview={canPreviewMap ? <MembershipMap cells={membership.data} config={config} /> : null}
-            />
-        ),
+        loadingView: <Loading total={total} />,
     };
     return (
         <div className="min-h-screen bg-background text-foreground">
