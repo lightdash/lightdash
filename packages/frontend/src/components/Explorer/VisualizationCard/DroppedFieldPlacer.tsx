@@ -94,8 +94,20 @@ const DroppedFieldPlacer: FC<Props> = ({ field, pickChartType, onPlaced }) => {
                 const item = itemsMap?.[fieldId];
                 showToastInfo({
                     title: `${item ? getItemLabelWithoutTableName(item) : 'Field'} added to the results`,
-                    subtitle:
-                        'The chart already has an x-axis and a grouping. Use Configure to place it.',
+                    subtitle: 'The chart already has an x-axis and a grouping.',
+                    action: {
+                        children: 'Configure',
+                        onClick: () => {
+                            explorerDispatch(
+                                explorerActions.openVisualizationConfig(),
+                            );
+                            explorerDispatch(
+                                explorerActions.setChartSidebarStep(
+                                    'configure',
+                                ),
+                            );
+                        },
+                    },
                 });
             }
         }
