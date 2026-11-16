@@ -313,6 +313,7 @@ export const UserBubble: FC<Props> = ({
             {images.length > 0 && (
                 <Group
                     gap={6}
+                    mt={6}
                     wrap="wrap"
                     justify="flex-end"
                     className={styles.contextGroup}
