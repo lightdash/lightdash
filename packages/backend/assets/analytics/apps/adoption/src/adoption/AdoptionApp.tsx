@@ -1,8 +1,6 @@
 import { useAppState } from '@lightdash/query-sdk';
-import { ChevronDown, ChevronRight, Info, Loader2, Settings2, SlidersHorizontal } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ChevronDown, ChevronRight, Loader2, Settings2, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import './adoption.css';
@@ -295,12 +293,11 @@ type MainProps = {
     stateStatus: { persisted: boolean; error: string | null; lastChanged: string | null };
     canManage: boolean;
     // Where the page header has room for the team controls
-    actionSlot: HTMLElement | null;
     detail: DetailState;
     setColourBy: (colour: ColourBy) => void;
 };
 
-const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, canManage, actionSlot, detail, setColourBy }: MainProps) => {
+const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, canManage, detail, setColourBy }: MainProps) => {
     const { colourBy, setIsOpen: setDetailOpenValue } = detail;
     // The features chosen for the Features colouring, one bit each; kept in the link
     const [featuresValue, setFeatures] = useAppState<number>('features', ALL_PARTS, { scope: 'url' });
@@ -447,6 +444,15 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                                 }}
                             />
                             <OptionsMenu hideNoTeam={hideNoTeam} canHideNoTeam={hasNoTeam} onHideNoTeam={setHideValue} />
+                            {teams.length === 0 && (
+                                <span className="text-xs text-muted-foreground">No teams yet{canManage ? '.' : '. An admin can set them up.'}</span>
+                            )}
+                            {canManage && (
+                                <Button variant="outline" size="sm" className="h-8" onClick={() => setIsMappingOpen(true)}>
+                                    <Settings2 />
+                                    Choose teams
+                                </Button>
+                            )}
                         </div>
                     </div>
                     {visible.total === 0 ? (
@@ -529,23 +535,6 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                     This organisation is too large to load in full, so some people are missing from this page.
                 </p>
             )}
-            {actionSlot &&
-                createPortal(
-                    <>
-                        {teams.length === 0 && (
-                            <span className="text-xs text-muted-foreground">
-                                No teams yet{canManage ? '.' : '. An admin can set them up.'}
-                            </span>
-                        )}
-                        {canManage && (
-                            <Button variant="outline" size="sm" className="h-8" onClick={() => setIsMappingOpen(true)}>
-                                <Settings2 />
-                                Choose teams
-                            </Button>
-                        )}
-                    </>,
-                    actionSlot,
-                )}
             {selected === null || isNamed ? (
                 renderViews(selected, { isNamed, isLoading: false, isTruncated: false })
             ) : (
@@ -662,37 +651,14 @@ export default function AdoptionApp() {
         error: meta.error ? (STATE_ERRORS[errorCode ?? ''] ?? 'The teams were not saved. Try again.') : null,
         lastChanged: formatChanged(author?.name ?? null, meta.updatedAt ? String(meta.updatedAt) : null),
     };
-    const [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
     const props: LoaderProps = {
-        main: { config, setConfig: setSaved, stateStatus, canManage: viewer.isAdmin, actionSlot, detail, setColourBy },
+        main: { config, setConfig: setSaved, stateStatus, canManage: viewer.isAdmin, detail, setColourBy },
         loadingView: <Loading total={total} />,
     };
     return (
         <div className="min-h-screen bg-background text-foreground">
             <div data-ad-page className="px-6 pb-4 pt-3">
-                <header className="mb-2 flex flex-wrap items-center justify-between gap-3">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-1.5">
-                            <h1 className="m-0 text-xl font-semibold tracking-tight">Adoption</h1>
-                            <TooltipProvider delayDuration={150}>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button type="button" className="rounded-full text-muted-foreground hover:text-foreground" aria-label="About adoption">
-                                            <Info className="h-4 w-4" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom" align="start" className="max-w-80 whitespace-normal">
-                                        Who in each team uses Lightdash, how recently, and for what. Each mark is a person. Use it to find teams that have
-                                        not taken it up, people who have stopped, and features a team is missing, then open a team to see who to talk to.
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        </div>
-                        {source.fixture && <p className="m-0 text-xs text-muted-foreground">Invented sample data ({source.fixture}).</p>}
-                    </div>
-                    {/* The team controls are drawn here by the page below once it has loaded */}
-                    <div ref={setActionSlot} className="flex items-center gap-3" />
-                </header>
+                {source.fixture && <p className="m-0 mb-2 text-xs text-muted-foreground">Invented sample data ({source.fixture}).</p>}
                 {membership.error ? (
                     <Failure text={membership.error} />
                 ) : membership.loading || meta.loading ? (
