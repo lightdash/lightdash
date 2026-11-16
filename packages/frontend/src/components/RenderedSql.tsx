@@ -43,6 +43,8 @@ const MONACO_READ_ONLY: EditorProps['options'] = {
 };
 
 const READ_ONLY_LINE_NUMBER_COLOR = { light: '#b4b4bd', dark: '#5c5c66' };
+// Monaco needs literal colours: these are the card surface in each scheme
+const READ_ONLY_BACKGROUND = { light: '#ffffff', dark: '#141417' };
 
 const getReadOnlyTheme = (colorScheme: 'light' | 'dark') => {
     const theme = getLightdashMonacoTheme(colorScheme);
@@ -52,6 +54,8 @@ const getReadOnlyTheme = (colorScheme: 'light' | 'dark') => {
             ...theme.colors,
             'editorLineNumber.foreground':
                 READ_ONLY_LINE_NUMBER_COLOR[colorScheme],
+            'editor.background': READ_ONLY_BACKGROUND[colorScheme],
+            'editorGutter.background': READ_ONLY_BACKGROUND[colorScheme],
         },
     };
 };
