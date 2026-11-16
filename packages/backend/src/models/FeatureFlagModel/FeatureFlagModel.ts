@@ -103,6 +103,14 @@ export class FeatureFlagModel {
         args: FeatureFlagLogicArgs,
         options: FeatureFlagQueryOptions,
     ): Promise<FeatureFlag> {
+        // 0. A flag whose backend is not configured is off, whatever enables it.
+        if (
+            args.featureFlagId === FeatureFlags.AiThreadImages &&
+            this.lightdashConfig.uploads.s3 === null
+        ) {
+            return { id: args.featureFlagId, enabled: false };
+        }
+
         // 1a. Env var enable-allowlist (self-hosted escape hatch) still wins
         // over the disable-allowlist when a flag is in both.
         const envEnabled = this.lightdashConfig.enabledFeatureFlags.has(

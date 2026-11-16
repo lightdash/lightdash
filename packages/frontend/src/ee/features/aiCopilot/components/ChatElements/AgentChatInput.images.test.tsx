@@ -366,17 +366,22 @@ test('a host control submits through the composer with its attachments', async (
     });
 });
 
-test('flag-off drops keep the document route', async () => {
+test('flag-off drops of a real image are refused instead of failing as a document', async () => {
     mocks.imagesEnabled = false;
     const { container } = renderInput();
-    expect(
-        screen.queryByLabelText('Image attachments'),
-    ).not.toBeInTheDocument();
-    const file = new File(['png'], 'chart.png', { type: 'image/png' });
+    const image = new File(
+        [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])],
+        'chart.png',
+    );
     fireEvent.drop(screen.getByRole('textbox').parentElement ?? container, {
-        dataTransfer: { types: ['Files'], files: [file] },
+        dataTransfer: { types: ['Files'], files: [image] },
     });
-    await waitFor(() => expect(mocks.documents).toHaveBeenCalledWith([file]));
+    await waitFor(() =>
+        expect(mocks.toast).toHaveBeenCalledWith({
+            title: 'Image attachments are not available here',
+        }),
+    );
+    expect(mocks.documents).not.toHaveBeenCalled();
     expect(mocks.images).not.toHaveBeenCalled();
 });
 

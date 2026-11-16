@@ -1272,6 +1272,32 @@ test('Should have no uploads S3 config until a bucket is set', () => {
     expect(parseConfig().uploads.s3).toBeNull();
 });
 
+test('Should let the uploads bucket live on its own store', () => {
+    process.env.S3_ACCESS_KEY = 'mock_access_key';
+    process.env.S3_SECRET_KEY = 'mock_secret_key';
+    process.env.UPLOADS_S3_BUCKET = 'uploads_bucket';
+    process.env.UPLOADS_S3_ENDPOINT = 'uploads_endpoint';
+    process.env.UPLOADS_S3_REGION = 'uploads_region';
+    process.env.UPLOADS_S3_ACCESS_KEY = 'uploads_access_key';
+    process.env.UPLOADS_S3_SECRET_KEY = 'uploads_secret_key';
+    try {
+        expect(parseConfig().uploads.s3).toEqual(
+            expect.objectContaining({
+                endpoint: 'uploads_endpoint',
+                bucket: 'uploads_bucket',
+                region: 'uploads_region',
+                accessKey: 'uploads_access_key',
+                secretKey: 'uploads_secret_key',
+            }),
+        );
+    } finally {
+        delete process.env.UPLOADS_S3_ENDPOINT;
+        delete process.env.UPLOADS_S3_REGION;
+        delete process.env.UPLOADS_S3_ACCESS_KEY;
+        delete process.env.UPLOADS_S3_SECRET_KEY;
+    }
+});
+
 test('Should inherit base S3 settings for the uploads bucket', () => {
     process.env.S3_ACCESS_KEY = 'mock_access_key';
     process.env.S3_SECRET_KEY = 'mock_secret_key';

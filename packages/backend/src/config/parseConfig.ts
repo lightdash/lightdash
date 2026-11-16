@@ -1066,7 +1066,15 @@ export const parseUploadsS3Config = (): LightdashConfig['uploads']['s3'] => {
     if (!bucket || !base) {
         return null;
     }
-    return { ...base, bucket };
+    // Same overrides as the static assets bucket, for uploads kept on another store.
+    return {
+        ...base,
+        bucket,
+        endpoint: process.env.UPLOADS_S3_ENDPOINT || base.endpoint,
+        region: process.env.UPLOADS_S3_REGION || base.region,
+        accessKey: process.env.UPLOADS_S3_ACCESS_KEY || base.accessKey,
+        secretKey: process.env.UPLOADS_S3_SECRET_KEY || base.secretKey,
+    };
 };
 
 export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
