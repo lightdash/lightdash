@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    LIVE_INTEGRATION_CATALOG,
     ParameterError,
     TimeFrames,
 } from '@lightdash/common';
@@ -27,15 +28,13 @@ import {
 } from './run';
 
 const YOUTUBE_CHANNEL_ID = /^UC[A-Za-z0-9_-]{22}$/;
-const LABEL = 'YouTube Analytics';
+const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.YOUTUBE_ANALYTICS];
+const LABEL = CATALOG.messageLabel;
 
 export const youtubeAnalyticsIntegration = defineLiveIntegration({
     connector: ApiConnectorType.YOUTUBE_ANALYTICS,
     label: LABEL,
-    settings: z.object({
-        connector: z.literal(ApiConnectorType.YOUTUBE_ANALYTICS),
-        channelId: z.string(),
-    }),
+    settings: CATALOG.settings,
     origins: [YOUTUBE_ANALYTICS_ORIGIN],
     // The query names the channel on every report, so the path can't narrow
     // a source to it.

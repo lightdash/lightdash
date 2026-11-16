@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    LIVE_INTEGRATION_CATALOG,
     ParameterError,
     POSTHOG_REGION_ORIGINS,
     SupportedDbtAdapter,
@@ -28,7 +29,8 @@ import {
     toPostHogError,
 } from './run';
 
-const LABEL = 'PostHog';
+const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.POSTHOG];
+const LABEL = CATALOG.messageLabel;
 const POSTHOG_PROJECT_ID = /^\d{1,12}$/;
 // PostHog weeks start on Monday, like its week field, not on ClickHouse's
 // default Sunday
@@ -40,10 +42,7 @@ const POSTHOG_SQL_BUILDER = warehouseSqlBuilderFromType(
 export const postHogIntegration = defineLiveIntegration({
     connector: ApiConnectorType.POSTHOG,
     label: LABEL,
-    settings: z.object({
-        connector: z.literal(ApiConnectorType.POSTHOG),
-        projectId: z.string(),
-    }),
+    settings: CATALOG.settings,
     origins: [POSTHOG_REGION_ORIGINS.us, POSTHOG_REGION_ORIGINS.eu],
     access: ({ projectId }) => ({
         pathPrefixes: [

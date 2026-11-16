@@ -1,4 +1,8 @@
-import { ApiConnectorType, ParameterError } from '@lightdash/common';
+import {
+    ApiConnectorType,
+    LIVE_INTEGRATION_CATALOG,
+    ParameterError,
+} from '@lightdash/common';
 import { z } from 'zod';
 import {
     ALL_PUSHDOWN_REFUSED,
@@ -22,7 +26,8 @@ import {
     searchConsoleRequestSchema,
 } from './run';
 
-const LABEL = 'Search Console';
+const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.SEARCH_CONSOLE];
+const LABEL = CATALOG.messageLabel;
 const SITE_URL = /^(sc-domain:[a-z0-9.-]+|https?:\/\/[^\s/?#]+\/[^\s?#]*)$/i;
 // Search Console reports dates in Pacific Time, whatever the property.
 const TIME_ZONE = 'America/Los_Angeles';
@@ -30,10 +35,7 @@ const TIME_ZONE = 'America/Los_Angeles';
 export const searchConsoleIntegration = defineLiveIntegration({
     connector: ApiConnectorType.SEARCH_CONSOLE,
     label: LABEL,
-    settings: z.object({
-        connector: z.literal(ApiConnectorType.SEARCH_CONSOLE),
-        siteUrl: z.string(),
-    }),
+    settings: CATALOG.settings,
     origins: [SEARCH_CONSOLE_ORIGIN],
     // The token already limits the source to sites the account can read.
     access: () => ({

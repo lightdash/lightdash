@@ -1,6 +1,7 @@
 import {
     ApiConnectorType,
     getMetaAdsInsightsPath,
+    LIVE_INTEGRATION_CATALOG,
     META_ADS_ORIGIN,
     ParameterError,
 } from '@lightdash/common';
@@ -25,16 +26,14 @@ import {
     runMetaAdsQuery,
 } from './run';
 
-const LABEL = 'Meta Ads';
+const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.META_ADS];
+const LABEL = CATALOG.messageLabel;
 const META_ADS_ACCOUNT_ID = /^\d{1,20}$/;
 
 export const metaAdsIntegration = defineLiveIntegration({
     connector: ApiConnectorType.META_ADS,
     label: LABEL,
-    settings: z.object({
-        connector: z.literal(ApiConnectorType.META_ADS),
-        adAccountId: z.string(),
-    }),
+    settings: CATALOG.settings,
     origins: [META_ADS_ORIGIN],
     access: ({ adAccountId }) => ({
         pathPrefixes: [getMetaAdsInsightsPath(adAccountId)],

@@ -22259,6 +22259,24 @@ describe('ProjectService.compileQueryForResponse', () => {
             });
         });
 
+        it('refuses a pivoted query, as running it does', async () => {
+            const args = liveArgs(developerAccount);
+            await expect(
+                service.compileQueryForResponse({
+                    ...args,
+                    body: {
+                        ...args.body,
+                        pivotConfiguration: {
+                            indexColumn: undefined,
+                            valuesColumns: [],
+                            groupByColumns: [],
+                            sortBy: undefined,
+                        } as never,
+                    },
+                }),
+            ).rejects.toThrow(ParameterError);
+        });
+
         it('hides the request from embeds without the SQL scope', async () => {
             await expect(
                 service.compileQueryForResponse(

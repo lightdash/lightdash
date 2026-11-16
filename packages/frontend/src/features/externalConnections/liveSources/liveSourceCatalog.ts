@@ -2,7 +2,6 @@ import {
     ApiConnectorType,
     getLiveIntegrationCatalogEntry,
     getLiveSourceTarget,
-    LIVE_INTEGRATION_CATALOG,
     REQUESTABLE_LIVE_INTEGRATIONS,
     type LiveIntegrationCatalogEntry,
 } from '@lightdash/common';
@@ -63,6 +62,17 @@ const ICONS: Record<string, string> = {
     jira: jiraIcon,
 };
 
+/** The order sources are offered in; every connector appears once. */
+const DISPLAY_ORDER = [
+    ApiConnectorType.POSTHOG,
+    ApiConnectorType.GA4,
+    ApiConnectorType.SEARCH_CONSOLE,
+    ApiConnectorType.META_ADS,
+    ApiConnectorType.GOOGLE_ADS,
+    ApiConnectorType.LINKEDIN_ADS,
+    ApiConnectorType.YOUTUBE_ANALYTICS,
+] as const satisfies readonly ApiConnectorType[];
+
 const toSetup = (entry: LiveIntegrationCatalogEntry): LiveSourceSetup =>
     entry.setup === 'token'
         ? { kind: 'token', form: META_ADS_TOKEN_FORM }
@@ -73,17 +83,15 @@ const toSetup = (entry: LiveIntegrationCatalogEntry): LiveSourceSetup =>
  * catalog with the app's icons and forms, then the requestable ones.
  */
 export const LIVE_SOURCE_CATALOG: LiveSourceCatalogEntry[] = [
-    ...(Object.keys(LIVE_INTEGRATION_CATALOG) as ApiConnectorType[]).map(
-        (connector): AvailableLiveSource => {
-            const entry = getLiveIntegrationCatalogEntry(connector);
-            return {
-                ...entry,
-                status: 'available',
-                icon: ICONS[connector],
-                setup: toSetup(entry),
-            };
-        },
-    ),
+    ...DISPLAY_ORDER.map((connector): AvailableLiveSource => {
+        const entry = getLiveIntegrationCatalogEntry(connector);
+        return {
+            ...entry,
+            status: 'available',
+            icon: ICONS[connector],
+            setup: toSetup(entry),
+        };
+    }),
     ...REQUESTABLE_LIVE_INTEGRATIONS.map(
         (entry): RequestableLiveSource => ({
             ...entry,

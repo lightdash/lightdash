@@ -39,7 +39,7 @@ Don't refuse queries in `compile`: callers run the shared check (`getApiSourceQu
 
 1. `packages/common/src/types/querySources.ts`: add the `ApiConnectorType` value.
 2. `packages/common/src/ee/externalConnections/types.ts`: add the settings type and put it in `ExternalConnectionApiSource`.
-3. `packages/common/src/ee/externalConnections/liveSourceCatalog.ts`: add the catalog entry (id, label, description, setup kind, `getTarget`). Typecheck fails until you do.
+3. `packages/common/src/utils/liveSourceIntegrations.ts`: add the `LIVE_INTEGRATION_CATALOG` entry (id, labels, description, setup kind, `settings` zod schema, `getTarget`, `agentQueryGuide`). The backend integration reads its settings schema from here. Typecheck fails until you do.
 4. `registry.ts`: add it to `LIVE_INTEGRATIONS` (typecheck fails until you do).
 5. `registry.test.ts`: add `SAMPLE_SETTINGS` for it. The conformance test then checks settings round-trip, early refusals, and that what it compiles runs and a failed call is explained.
 6. Frontend `packages/frontend/src/features/externalConnections/liveSources/liveSourceCatalog.ts`: add the icon (`icons/<name>.svg`, square, brand color). A new setup kind also needs its connect dialog.

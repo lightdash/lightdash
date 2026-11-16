@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    LIVE_INTEGRATION_CATALOG,
     ParameterError,
     TimeFrames,
 } from '@lightdash/common';
@@ -24,16 +25,13 @@ import {
 } from './run';
 
 const GOOGLE_ADS_CUSTOMER_ID = /^\d{10}$/;
-const LABEL = 'Google Ads';
+const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.GOOGLE_ADS];
+const LABEL = CATALOG.messageLabel;
 
 export const googleAdsIntegration = defineLiveIntegration({
     connector: ApiConnectorType.GOOGLE_ADS,
     label: LABEL,
-    settings: z.object({
-        connector: z.literal(ApiConnectorType.GOOGLE_ADS),
-        customerId: z.string(),
-        loginCustomerId: z.string().nullable(),
-    }),
+    settings: CATALOG.settings,
     origins: [GOOGLE_ADS_ORIGIN],
     // Google's only Ads scope also allows changes, so the source reaches
     // nothing but the read-only report endpoint of its one account.

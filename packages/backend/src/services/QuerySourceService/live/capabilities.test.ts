@@ -8,7 +8,7 @@ import {
     getItemLabelWithoutTableName,
     getItemMap,
     isFilterableItem,
-    LIVE_SOURCE_INTEGRATION_PROFILES,
+    LIVE_INTEGRATION_CATALOG,
     MetricType,
     ParameterError,
     UnitOfTime,
@@ -142,7 +142,7 @@ const operatorLabel = (
     return `"${label ?? operator}"`;
 };
 const sourceLabel = (connector: ApiConnectorType) =>
-    LIVE_SOURCE_INTEGRATION_PROFILES[connector].label;
+    LIVE_INTEGRATION_CATALOG[connector].messageLabel;
 
 const toFieldId = (connector: ApiConnectorType, name: string) =>
     `${connector}_${getLiveBaseLayer(connector).definitions[0].name}_${name}`;

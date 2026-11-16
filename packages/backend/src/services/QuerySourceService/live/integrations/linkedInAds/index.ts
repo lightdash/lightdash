@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    LIVE_INTEGRATION_CATALOG,
     ParameterError,
     TimeFrames,
 } from '@lightdash/common';
@@ -30,17 +31,15 @@ import {
 } from './run';
 
 const LINKEDIN_AD_ACCOUNT_ID = /^\d{1,20}$/;
-const LABEL = 'LinkedIn Ads';
+const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.LINKEDIN_ADS];
+const LABEL = CATALOG.messageLabel;
 // LinkedIn reports in UTC, whatever the project's time zone.
 const TIME_ZONE = 'UTC';
 
 export const linkedInAdsIntegration = defineLiveIntegration({
     connector: ApiConnectorType.LINKEDIN_ADS,
     label: LABEL,
-    settings: z.object({
-        connector: z.literal(ApiConnectorType.LINKEDIN_ADS),
-        adAccountId: z.string(),
-    }),
+    settings: CATALOG.settings,
     origins: [LINKEDIN_ADS_ORIGIN],
     access: ({ adAccountId }) => ({
         pathPrefixes: [

@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    LIVE_INTEGRATION_CATALOG,
     ParameterError,
     TimeFrames,
 } from '@lightdash/common';
@@ -30,16 +31,14 @@ import {
     scanGa4Metadata,
 } from './run';
 
-const LABEL = 'Google Analytics';
+const CATALOG = LIVE_INTEGRATION_CATALOG[ApiConnectorType.GA4];
+const LABEL = CATALOG.messageLabel;
 const GA4_PROPERTY_ID = /^\d{1,20}$/;
 
 export const ga4Integration = defineLiveIntegration({
     connector: ApiConnectorType.GA4,
     label: LABEL,
-    settings: z.object({
-        connector: z.literal(ApiConnectorType.GA4),
-        propertyId: z.string(),
-    }),
+    settings: CATALOG.settings,
     origins: [GA4_DATA_ORIGIN],
     access: ({ propertyId }) => ({
         pathPrefixes: [

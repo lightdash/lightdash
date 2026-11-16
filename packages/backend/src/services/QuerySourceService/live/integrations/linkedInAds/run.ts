@@ -1,6 +1,7 @@
 import {
     ApiConnectorType,
     DimensionType,
+    LIVE_INTEGRATION_CATALOG,
     ParameterError,
     TooManyRequestsError,
     UnexpectedServerError,
@@ -41,7 +42,8 @@ export const getLinkedInAdsCampaignsPath = (adAccountId: string) =>
 export const getLinkedInAdsCampaignGroupsPath = (adAccountId: string) =>
     `${getLinkedInAdsAccountPath(adAccountId)}/adCampaignGroups`;
 
-const LABEL = 'LinkedIn Ads';
+const LABEL =
+    LIVE_INTEGRATION_CATALOG[ApiConnectorType.LINKEDIN_ADS].messageLabel;
 // A response has at most 15,000 elements and adAnalytics has no pagination
 const LINKEDIN_ADS_MAX_ELEMENTS = 15_000;
 /** The most rows one query can ask for; one fewer than a response holds, to detect truncation. */

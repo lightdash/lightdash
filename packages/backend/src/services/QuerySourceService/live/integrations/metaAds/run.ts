@@ -2,6 +2,7 @@ import {
     ApiConnectorType,
     DimensionType,
     getMetaAdsInsightsPath,
+    LIVE_INTEGRATION_CATALOG,
 } from '@lightdash/common';
 import { z } from 'zod';
 import { assertMaxRows } from '../../integration';
@@ -13,7 +14,7 @@ import {
 } from '../../types';
 import { META_ADS_BREAKDOWNS } from './explores';
 
-const LABEL = 'Meta Ads';
+const LABEL = LIVE_INTEGRATION_CATALOG[ApiConnectorType.META_ADS].messageLabel;
 const INSIGHTS_PAGE_SIZE = 500;
 export const META_ADS_CALLS_PER_QUERY = 10;
 /** The most rows one query can read: every page it may fetch. */
