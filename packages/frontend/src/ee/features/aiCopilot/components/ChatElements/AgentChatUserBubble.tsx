@@ -1,10 +1,21 @@
 import { type AiAgentMessageUser, type AiAgentUser } from '@lightdash/common';
-import { Anchor, Box, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { IconWindowMaximize } from '@tabler/icons-react';
+import {
+    Anchor,
+    Badge,
+    Box,
+    Card,
+    Group,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconCode, IconWindowMaximize } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
 import { type FC, type MouseEvent } from 'react';
 import { Link, useParams } from 'react-router';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import { splitStudioChatCode } from '../../../../../features/semanticStudio/studioChatRefs';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
@@ -62,9 +73,10 @@ export const UserBubble: FC<Props> = ({
     const app = useApp();
     const showUserName =
         !!name && app.user?.data?.userUuid !== message.user.uuid;
-    const isEmptyMessage = message.message.trim().length === 0;
+    const { text, code } = splitStudioChatCode(message.message);
+    const isEmptyMessage = text.trim().length === 0;
     const { matchedKeys, segments } = buildContentReferenceSegments(
-        message.message,
+        text,
         message.context,
     );
     const hasInlineReferences = segments.some(
@@ -153,115 +165,142 @@ export const UserBubble: FC<Props> = ({
                 </Stack>
             )}
 
-            <Card
-                pos="relative"
-                radius="lg"
-                py="xs"
-                px="md"
-                withBorder={false}
-                className={`${styles.messageCard} ${
-                    isEmptyMessage ? styles.emptyMessageCard : ''
-                }`}
-            >
-                {isEmptyMessage ? (
-                    <Text size="xs" fs="italic" c="dimmed">
-                        No message
-                    </Text>
-                ) : hasInlineReferences && projectUuid ? (
-                    <Box className={`${styles.markdown} ${styles.messageText}`}>
-                        {segments.map((segment, idx) => {
-                            if (segment.type === 'text') {
-                                return (
-                                    <MDEditor.Markdown
-                                        key={`text-${idx}`}
-                                        source={segment.text}
-                                        className={`${styles.markdown} ${styles.inlineMarkdown}`}
-                                    />
-                                );
+            {code.length > 0 && (
+                <Group gap={4} justify="flex-end">
+                    {code.map((ref) => (
+                        <Badge
+                            key={`${ref.path}:${ref.from}-${ref.to}`}
+                            variant="default"
+                            radius="sm"
+                            tt="none"
+                            fw={500}
+                            title={ref.path}
+                            leftSection={
+                                <MantineIcon icon={IconCode} size={12} />
                             }
-                            // File/repository (and thread) references have no
-                            // in-app destination — only show the arrow and link
-                            // affordance when there is somewhere to navigate to.
-                            // Inside an embed only dashboards have a route;
-                            // every other reference is static there.
-                            const embedDashboardUuid =
-                                openEmbedDashboard &&
-                                !navigationDisabled &&
-                                segment.item.type === 'dashboard'
-                                    ? segment.item.dashboardUuid
+                        >
+                            {ref.path.split('/').pop()} {ref.from}-{ref.to}
+                        </Badge>
+                    ))}
+                </Group>
+            )}
+
+            {isEmptyMessage && code.length > 0 ? null : (
+                <Card
+                    pos="relative"
+                    radius="lg"
+                    py="xs"
+                    px="md"
+                    withBorder={false}
+                    className={`${styles.messageCard} ${
+                        isEmptyMessage ? styles.emptyMessageCard : ''
+                    }`}
+                >
+                    {isEmptyMessage ? (
+                        <Text size="xs" fs="italic" c="dimmed">
+                            No message
+                        </Text>
+                    ) : hasInlineReferences && projectUuid ? (
+                        <Box
+                            className={`${styles.markdown} ${styles.messageText}`}
+                        >
+                            {segments.map((segment, idx) => {
+                                if (segment.type === 'text') {
+                                    return (
+                                        <MDEditor.Markdown
+                                            key={`text-${idx}`}
+                                            source={segment.text}
+                                            className={`${styles.markdown} ${styles.inlineMarkdown}`}
+                                        />
+                                    );
+                                }
+                                // File/repository (and thread) references have no
+                                // in-app destination — only show the arrow and link
+                                // affordance when there is somewhere to navigate to.
+                                // Inside an embed only dashboards have a route;
+                                // every other reference is static there.
+                                const embedDashboardUuid =
+                                    openEmbedDashboard &&
+                                    !navigationDisabled &&
+                                    segment.item.type === 'dashboard'
+                                        ? segment.item.dashboardUuid
+                                        : null;
+                                const href =
+                                    openEmbedDashboard || navigationDisabled
+                                        ? null
+                                        : getPromptContextItemHref(
+                                              segment.item,
+                                              projectUuid,
+                                          );
+                                // Chart references open the in-place editor when
+                                // the host provides one; the href keeps modified
+                                // clicks (new tab) working.
+                                const chartUuid =
+                                    segment.item.type === 'chart'
+                                        ? segment.item.chartUuid
+                                        : null;
+                                const anchorId = embedDashboardUuid
+                                    ? `user-${message.uuid}-dashboard-${embedDashboardUuid}`
                                     : null;
-                            const href =
-                                openEmbedDashboard || navigationDisabled
-                                    ? null
-                                    : getPromptContextItemHref(
-                                          segment.item,
-                                          projectUuid,
-                                      );
-                            // Chart references open the in-place editor when
-                            // the host provides one; the href keeps modified
-                            // clicks (new tab) working.
-                            const chartUuid =
-                                segment.item.type === 'chart'
-                                    ? segment.item.chartUuid
-                                    : null;
-                            const anchorId = embedDashboardUuid
-                                ? `user-${message.uuid}-dashboard-${embedDashboardUuid}`
-                                : null;
-                            const handleClick =
-                                openEmbedDashboard && embedDashboardUuid
-                                    ? () =>
-                                          openEmbedDashboard(
-                                              embedDashboardUuid,
-                                              anchorId,
-                                          )
-                                    : !openEmbedDashboard &&
-                                        chartUuid &&
-                                        openChartEditor
-                                      ? (e: MouseEvent<HTMLAnchorElement>) => {
-                                            if (!isPlainLeftClick(e)) return;
-                                            e.preventDefault();
-                                            openChartEditor(chartUuid);
+                                const handleClick =
+                                    openEmbedDashboard && embedDashboardUuid
+                                        ? () =>
+                                              openEmbedDashboard(
+                                                  embedDashboardUuid,
+                                                  anchorId,
+                                              )
+                                        : !openEmbedDashboard &&
+                                            chartUuid &&
+                                            openChartEditor
+                                          ? (
+                                                e: MouseEvent<HTMLAnchorElement>,
+                                            ) => {
+                                                if (!isPlainLeftClick(e))
+                                                    return;
+                                                e.preventDefault();
+                                                openChartEditor(chartUuid);
+                                            }
+                                          : undefined;
+                                return (
+                                    <ContentReferenceLink
+                                        key={`${segment.key}-${idx}`}
+                                        chartKind={
+                                            segment.item.type === 'chart'
+                                                ? (segment.item.chartKind ??
+                                                  undefined)
+                                                : undefined
                                         }
-                                      : undefined;
-                            return (
-                                <ContentReferenceLink
-                                    key={`${segment.key}-${idx}`}
-                                    chartKind={
-                                        segment.item.type === 'chart'
-                                            ? (segment.item.chartKind ??
-                                              undefined)
-                                            : undefined
-                                    }
-                                    kind={segment.item.type}
-                                    data-chat-anchor={anchorId ?? undefined}
-                                    onClick={handleClick}
-                                    rel={href ? 'noreferrer' : undefined}
-                                    target={href ? '_blank' : undefined}
-                                    to={href ?? undefined}
-                                    showArrow={
-                                        href !== null ||
-                                        embedDashboardUuid !== null
-                                    }
-                                    trailingIcon={
-                                        handleClick && !embedDashboardUuid
-                                            ? IconWindowMaximize
-                                            : undefined
-                                    }
-                                >
-                                    {segment.item.type === 'skill'
-                                        ? segment.item.name
-                                        : segment.label}
-                                </ContentReferenceLink>
-                            );
-                        })}
-                    </Box>
-                ) : (
-                    <MDEditor.Markdown
-                        source={message.message}
-                        className={styles.markdown}
-                    />
-                )}
-            </Card>
+                                        kind={segment.item.type}
+                                        data-chat-anchor={anchorId ?? undefined}
+                                        onClick={handleClick}
+                                        rel={href ? 'noreferrer' : undefined}
+                                        target={href ? '_blank' : undefined}
+                                        to={href ?? undefined}
+                                        showArrow={
+                                            href !== null ||
+                                            embedDashboardUuid !== null
+                                        }
+                                        trailingIcon={
+                                            handleClick && !embedDashboardUuid
+                                                ? IconWindowMaximize
+                                                : undefined
+                                        }
+                                    >
+                                        {segment.item.type === 'skill'
+                                            ? segment.item.name
+                                            : segment.label}
+                                    </ContentReferenceLink>
+                                );
+                            })}
+                        </Box>
+                    ) : (
+                        <MDEditor.Markdown
+                            source={text}
+                            className={styles.markdown}
+                        />
+                    )}
+                </Card>
+            )}
 
             {message.steers.length > 0 && (
                 <Stack gap={4} align="flex-end">

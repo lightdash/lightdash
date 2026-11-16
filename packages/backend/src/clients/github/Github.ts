@@ -474,7 +474,7 @@ export const getRepoTree = async ({
     installationId?: string;
     token?: string;
 }): Promise<{
-    files: { path: string; size: number }[];
+    files: { path: string; size: number; sha: string }[];
     truncated: boolean;
     /** The tree's own hash: two listings with the same one hold the same files. */
     sha: string;
@@ -503,6 +503,7 @@ export const getRepoTree = async ({
             .map((entry) => ({
                 path: entry.path as string,
                 size: entry.size ?? 0,
+                sha: entry.sha ?? '',
             }));
         return {
             files,
@@ -1166,6 +1167,8 @@ export const getPullRequest = async ({
     state: 'open' | 'closed';
     merged: boolean;
     headRef: string;
+    /** The head commit, kept by GitHub after the branch is deleted. */
+    headSha: string;
     /** Full name (`owner/repo`) of the PR's head — differs from the base when the PR comes from a fork. */
     headRepoFullName: string | null;
     /** GitHub's mergeability (null until GitHub finishes computing it). */
@@ -1196,6 +1199,7 @@ export const getPullRequest = async ({
             state: response.data.state === 'closed' ? 'closed' : 'open',
             merged: response.data.merged === true,
             headRef: response.data.head.ref,
+            headSha: response.data.head.sha,
             headRepoFullName: response.data.head.repo?.full_name ?? null,
             mergeable: response.data.mergeable,
             mergeableState: response.data.mergeable_state,

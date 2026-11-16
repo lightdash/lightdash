@@ -1,6 +1,6 @@
 import { type AiAgentThread } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getOpenProposal } from './studioProposal';
+import { getOpenProposal, isInPullRequest } from './studioProposal';
 
 const thread = (
     ...replies: {
@@ -58,6 +58,17 @@ describe('getOpenProposal', () => {
         ).toEqual([]);
     });
 
+    it('keeps the proposal through a follow-up that proposes nothing', () => {
+        expect(
+            getOpenProposal(
+                thread(
+                    { message: '```diff\n+a\n```' },
+                    { message: 'It renames the column.' },
+                ),
+            ),
+        ).toEqual(['+a\n']);
+    });
+
     it('keeps the proposal while the reply asked to save it is still being written', () => {
         const proposed = { message: '```diff\n+a\n```' };
         expect(
@@ -92,5 +103,37 @@ describe('getOpenProposal', () => {
                 ),
             ),
         ).toEqual(['+a\n']);
+    });
+});
+
+describe('isInPullRequest', () => {
+    const proposed = [
+        '--- a/models/customers.yml',
+        '+++ b/models/customers.yml',
+        '@@ -39,2 +39,1 @@',
+        '-      old',
+        '+      One row per customer.',
+    ].join('\n');
+    const pullRequest = (added: string) =>
+        [
+            'diff --git a/models/customers.yml b/models/customers.yml',
+            '--- a/models/customers.yml',
+            '+++ b/models/customers.yml',
+            '@@ -39,2 +39,1 @@',
+            '-      old',
+            `+      ${added}`,
+        ].join('\n');
+
+    it('counts a proposal saved by hand as saved', () => {
+        expect(
+            isInPullRequest(proposed, pullRequest('One row per customer.')),
+        ).toBe(true);
+    });
+
+    it('keeps a proposal the pull request does not carry', () => {
+        expect(isInPullRequest(proposed, pullRequest('Something else.'))).toBe(
+            false,
+        );
+        expect(isInPullRequest(proposed, '')).toBe(false);
     });
 });

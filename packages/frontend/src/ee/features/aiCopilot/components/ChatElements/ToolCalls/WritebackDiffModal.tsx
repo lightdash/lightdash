@@ -22,7 +22,7 @@ import { IconFileDiff } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import MantineModal from '../../../../../../components/common/MantineModal';
 import { usePullRequestDiff } from '../../../hooks/usePullRequestDiff';
-import { splitPatchIntoFiles } from './splitPatch';
+import { recountHunks, splitPatchIntoFiles } from './splitPatch';
 import classes from './WritebackDiffModal.module.css';
 
 // Tokenize with both Pierre themes; the diff renders via CSS `light-dark()`.
@@ -212,7 +212,7 @@ export const FileDiff: FC<{ patch: string }> = ({ patch }) => {
             {/* A virtualizer draws no rows inside a scrolling box, so the diff draws whole and hides its header instead. */}
             <PatchDiff
                 key={patch}
-                patch={patch}
+                patch={recountHunks(patch)}
                 className={classes.diffHost}
                 options={{
                     diffStyle: 'unified',

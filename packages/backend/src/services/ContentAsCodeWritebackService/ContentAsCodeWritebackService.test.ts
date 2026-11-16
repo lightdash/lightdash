@@ -1664,7 +1664,11 @@ describe('ContentAsCodeWritebackService', () => {
 
         const stubRepo = (files: Record<string, string>) => {
             vi.mocked(getRepoTree).mockResolvedValue({
-                files: Object.keys(files).map((path) => ({ path, size: 1 })),
+                files: Object.keys(files).map((path) => ({
+                    path,
+                    size: 1,
+                    sha: '',
+                })),
                 truncated: false,
                 sha: 'tree-sha',
             });

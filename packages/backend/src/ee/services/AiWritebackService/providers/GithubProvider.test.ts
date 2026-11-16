@@ -6,6 +6,8 @@ import {
     deleteBranch,
     getBranchHeadSha,
     getPullRequest,
+    getRepoTree,
+    getWholeFileContent,
     updatePullRequest,
 } from '../../../../clients/github/Github';
 import type { GithubConnection, GithubInstallation } from '../types';
@@ -59,6 +61,7 @@ const openPr = {
     state: 'open' as const,
     merged: false,
     headRef: 'feature/x',
+    headSha: 'pr-head-sha',
     headRepoFullName: 'acme/analytics',
     mergeable: true,
     mergeableState: 'clean',
@@ -235,7 +238,12 @@ describe('GithubProvider API checkout', () => {
 
     const commit = (prUrl: string | null) =>
         provider
-            .openApiCheckout({ connection, installation, prUrl })
+            .openApiCheckout({
+                connection,
+                installation,
+                prUrl,
+                access: 'write',
+            })
             .then((checkout) =>
                 provider.commitApiChanges({
                     connection,
@@ -298,5 +306,68 @@ describe('GithubProvider API checkout', () => {
             commit('https://github.com/acme/analytics/pull/7'),
         ).rejects.toThrow(/merged/);
         expect(createSignedCommitOnBranch).not.toHaveBeenCalled();
+    });
+
+    it('reads a merged pull request at its last commit, its branch possibly gone', async () => {
+        mockGetPullRequest.mockResolvedValue({ ...openPr, merged: true });
+        const checkout = await provider.openApiCheckout({
+            connection,
+            installation,
+            prUrl: 'https://github.com/acme/analytics/pull/7',
+            access: 'read',
+        });
+        expect(checkout.headSha).toBe('pr-head-sha');
+        expect(getBranchHeadSha).not.toHaveBeenCalled();
+    });
+});
+
+describe('GithubProvider sandbox sync', () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it('copies in files the pull request changed outside the agent, and only those', async () => {
+        mockGetPullRequest.mockResolvedValue(openPr);
+        vi.mocked(getRepoTree).mockResolvedValue({
+            sha: 'remote-tree',
+            truncated: false,
+            files: [
+                { path: 'models/orders.yml', size: 1, sha: 'hand' },
+                { path: 'models/same.yml', size: 1, sha: 'same' },
+            ],
+        });
+        vi.mocked(getWholeFileContent).mockResolvedValue({
+            content: 'edited by hand',
+        } as never);
+        const listing = [
+            '100644 blob agent\tmodels/orders.yml',
+            '100644 blob same\tmodels/same.yml',
+            '100644 blob gone\tmodels/old.yml',
+            '120000 blob link\tescape',
+        ].join('\0');
+        const run = vi.fn(async (command: string) => {
+            if (command.includes('rev-parse'))
+                return { stdout: 'local-tree\n' };
+            return { stdout: command.includes('ls-tree') ? listing : '' };
+        });
+        const sandbox = {
+            commands: { run },
+            files: { write: vi.fn(), remove: vi.fn() },
+            git: { commit: vi.fn() },
+        };
+        await expect(
+            provider.syncSandboxWithPullRequest({
+                sandbox: sandbox as never,
+                connection,
+                installation,
+                prUrl: 'https://github.com/acme/analytics/pull/7',
+            }),
+        ).resolves.toEqual(['models/orders.yml', 'models/old.yml']);
+        expect(sandbox.files.write).toHaveBeenCalledWith(
+            '/home/user/repo/models/orders.yml',
+            'edited by hand',
+        );
+        expect(sandbox.files.remove).toHaveBeenCalledWith(
+            '/home/user/repo/models/old.yml',
+        );
+        expect(sandbox.git.commit).toHaveBeenCalledTimes(1);
     });
 });

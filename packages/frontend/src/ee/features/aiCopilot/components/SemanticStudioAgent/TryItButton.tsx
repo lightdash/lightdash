@@ -30,6 +30,35 @@ const buttonProps = (look: Look) =>
 const HINT =
     'Opens Explore over this page with your changes. Only you see them until they are merged.';
 
+/** Explore over the page with the person's changes; the app reads them only while it is open. */
+export const TryIt: FC<{
+    projectUuid: string;
+    models: string[];
+    previewProjectUuid: string | null;
+    /** The pull request being tried, or null for a draft. */
+    prUrl: string | null;
+    onClose: () => void;
+}> = ({ projectUuid, models, previewProjectUuid, prUrl, onClose }) => {
+    const [, setIsOn] = useDevelopmentView();
+    const turnOn = useRef({ setIsOn, previewProjectUuid });
+    useEffect(() => {
+        const { setIsOn: set, previewProjectUuid: preview } = turnOn.current;
+        set(true, preview);
+        return () => set(false);
+    }, []);
+    return (
+        <Suspense fallback={null}>
+            <TryItModal
+                projectUuid={projectUuid}
+                models={models}
+                previewProjectUuid={previewProjectUuid}
+                prUrl={prUrl}
+                onClose={onClose}
+            />
+        </Suspense>
+    );
+};
+
 /** Tries a pull request's changes in Explore, over the page, starting on its first changed model. */
 export const TryItButton: FC<{
     projectUuid: string;
@@ -37,41 +66,27 @@ export const TryItButton: FC<{
     look: Look;
 }> = ({ projectUuid, pullRequest, look }) => {
     const { changedModels, previewProjectUuid, prUrl } = pullRequest;
-    const [isOn, setIsOn] = useDevelopmentView();
     const [isTrying, setIsTrying] = useState(false);
-    const wasOn = useRef(false);
-    // The app reads the changes while the modal is open, and goes back to how it was after.
-    const open = () => {
-        wasOn.current = isOn;
-        setIsOn(true, previewProjectUuid);
-        setIsTrying(true);
-    };
-    const close = () => {
-        if (!wasOn.current) setIsOn(false);
-        setIsTrying(false);
-    };
-    // Leaving while trying, such as the save bar swapping or going back, restores the view too.
-    const restore = useRef<(() => void) | null>(null);
-    restore.current = isTrying && !wasOn.current ? () => setIsOn(false) : null;
-    useEffect(() => () => restore.current?.(), []);
     if (changedModels.length === 0) return null;
     return (
         <>
             <Tooltip multiline w={240} label={HINT}>
-                <Button {...buttonProps(look)} flex="none" onClick={open}>
+                <Button
+                    {...buttonProps(look)}
+                    flex="none"
+                    onClick={() => setIsTrying(true)}
+                >
                     Try it
                 </Button>
             </Tooltip>
             {isTrying ? (
-                <Suspense fallback={null}>
-                    <TryItModal
-                        projectUuid={projectUuid}
-                        models={changedModels}
-                        previewProjectUuid={previewProjectUuid}
-                        prUrl={prUrl}
-                        onClose={close}
-                    />
-                </Suspense>
+                <TryIt
+                    projectUuid={projectUuid}
+                    models={changedModels}
+                    previewProjectUuid={previewProjectUuid}
+                    prUrl={prUrl}
+                    onClose={() => setIsTrying(false)}
+                />
             ) : null}
         </>
     );

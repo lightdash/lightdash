@@ -1,4 +1,5 @@
 import { useLocalStorage } from '@mantine/hooks';
+import { useCallback } from 'react';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { useCanEditSemanticLayer } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import {
@@ -12,18 +13,34 @@ import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
 export type StoredThread = { threadUuid: string; agentUuid: string };
 
-export const useChatOpen = () =>
-    useLocalStorage({
-        key: 'semantic-studio-agent-open',
-        defaultValue: true,
-    });
-
 /** The chat this browser has open; it follows the active workspace, see useSyncStudioWorkspace. */
 export const useStoredStudioThread = (projectUuid: string) =>
     useLocalStorage<StoredThread | null>({
         key: `semantic-studio-agent-thread-${projectUuid}`,
         defaultValue: null,
     });
+
+/** Whether the chat is open on the change you are on; closing it is remembered per change. */
+export const useChatOpen = (projectUuid: string) => {
+    const [stored] = useStoredStudioThread(projectUuid);
+    const [closed, setClosed] = useLocalStorage<string[]>({
+        key: 'semantic-studio-chat-closed',
+        defaultValue: [],
+    });
+    const change = stored?.threadUuid ?? 'new';
+    const setIsOpen = useCallback(
+        (isOpen: boolean) =>
+            setClosed((current) => {
+                // Opening also reopens a blank new change, which starting one asks for before it has a thread.
+                const others = current.filter(
+                    (key) => key !== change && !(isOpen && key === 'new'),
+                );
+                return isOpen ? others : [...others, change].slice(-50);
+            }),
+        [change, setClosed],
+    );
+    return [!closed.includes(change), setIsOpen] as const;
+};
 
 /** A Studio chat's thread; one that no longer exists is forgotten instead of failing on every load. */
 export const useStudioThread = (

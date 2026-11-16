@@ -2,19 +2,29 @@ import {
     isToolEditDbtProjectResult,
     type ApiError,
     type CiChecks,
+    type SemanticStudioWorkspace,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { useStudioWorkspaces } from '../../../../../features/semanticStudio/useStudioWorkspaces';
 import { findPreviewProjectUuid } from '../../../../../features/semanticStudio/useTryInExplore';
 import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import { pullRequestCiChecksQuery } from '../../hooks/usePullRequestCiChecks';
-import { getOpenProposal } from './studioProposal';
+import { useWholePullRequestDiff } from '../../hooks/usePullRequestDiff';
+import {
+    getModelsOfFiles,
+    splitPatchIntoFiles,
+} from '../ChatElements/ToolCalls/splitPatch';
+import { getOpenProposal, isInPullRequest } from './studioProposal';
 import { useStudioAgent, useStudioThread } from './useSemanticStudioChat';
 
-/** The pull request a Studio conversation on a dbt project is building up. */
+/** The pull request of a Studio change on a dbt project. */
 export type StudioPullRequest = {
     prUrl: string;
+    /** The commit the agent last pushed, when the change's latest save was its. */
     commitSha: string | null;
+    /** Changes whenever the pull request may have moved, by the agent or by hand. */
+    revision: string;
     additions: number | null;
     deletions: number | null;
     /** Models any turn of this pull request changed. */
@@ -22,13 +32,19 @@ export type StudioPullRequest = {
     /** The project built from the pull request's branch, where its models can be looked at. */
     previewProjectUuid: string | null;
     ciChecks: CiChecks | null;
+    state: 'open' | 'merged' | 'closed';
     /** Still open, so the next change joins it. */
     isOpen: boolean;
+    isMine: boolean;
 };
 
-/** The latest pull request of this project's Studio conversation, or null when it has opened none. */
+/**
+ * A change's pull request: the change's own record first, so hand saves, merges and others' changes count,
+ * then what the agent's results in its conversation add. Without `shown`, the change your chat is on.
+ */
 export const useStudioPullRequest = (
     projectUuid: string,
+    shown?: SemanticStudioWorkspace | null,
 ): StudioPullRequest | null => {
     const { thread } = useStudioAgent(projectUuid);
     const { data } = useStudioThread(
@@ -36,7 +52,16 @@ export const useStudioPullRequest = (
         thread?.agent.uuid,
         thread?.threadUuid,
     );
-    const results = (data?.messages ?? [])
+    const { data: workspaces } = useStudioWorkspaces(projectUuid);
+    const workspace =
+        shown !== undefined
+            ? shown
+            : (workspaces?.mine.find(
+                  ({ threadUuid }) => threadUuid === thread?.threadUuid,
+              ) ?? null);
+    const isChatOfChange =
+        !workspace || workspace.threadUuid === thread?.threadUuid;
+    const results = (isChatOfChange ? (data?.messages ?? []) : [])
         .flatMap((message) =>
             message.role === 'assistant'
                 ? message.toolResults.filter(isToolEditDbtProjectResult)
@@ -47,34 +72,58 @@ export const useStudioPullRequest = (
                 ? [{ ...result.metadata, prUrl: result.metadata.prUrl }]
                 : [],
         );
-    const metadata = results.at(-1);
+    const prUrl = workspace?.pullRequest?.url ?? results.at(-1)?.prUrl ?? null;
+    const ofThisPullRequest = results.filter(
+        (result) => result.prUrl === prUrl,
+    );
+    const metadata = ofThisPullRequest.at(-1);
+    const revision = `${metadata?.commitSha ?? ''}:${workspace ? String(workspace.updatedAt) : ''}`;
     const lightdashApi = useLightdashApi();
-    // A save adds a commit, and the page should not leave the pull request while that commit's checks load.
+    // Checks are read at the branch head, since a hand save moves it without the agent knowing.
     const { data: ciChecks } = useQuery<CiChecks | null, ApiError>({
-        ...pullRequestCiChecksQuery(
-            lightdashApi,
-            projectUuid,
-            metadata?.prUrl ?? null,
-            metadata?.commitSha ?? null,
-        ),
+        ...pullRequestCiChecksQuery(lightdashApi, projectUuid, prUrl, null),
+        queryKey: ['pullRequestCiChecks', projectUuid, prUrl, null, revision],
+        // A save adds a commit, and the page should not leave the pull request while that commit's checks load.
         keepPreviousData: true,
     });
-    if (!metadata) return null;
-    return {
-        prUrl: metadata.prUrl,
-        commitSha: metadata.commitSha ?? null,
-        additions: metadata.additions ?? null,
-        deletions: metadata.deletions ?? null,
-        changedModels: [
-            ...new Set(
-                results
-                    .filter(({ prUrl }) => prUrl === metadata.prUrl)
-                    .flatMap(({ changedModels }) => changedModels ?? []),
+    const agentModels = [
+        ...new Set(
+            ofThisPullRequest.flatMap(
+                ({ changedModels }) => changedModels ?? [],
             ),
-        ].sort(),
-        previewProjectUuid: findPreviewProjectUuid(metadata.previewUrl),
+        ),
+    ].sort();
+    // A hand save tells no agent which models it changed, so they are read off the pull request's files.
+    const { data: diff } = useWholePullRequestDiff(
+        projectUuid,
+        prUrl ?? '',
+        metadata?.commitSha ?? null,
+        agentModels.length === 0,
+    );
+    const diffModels = useMemo(
+        () =>
+            diff?.diff ? getModelsOfFiles(splitPatchIntoFiles(diff.diff)) : [],
+        [diff],
+    );
+    if (!prUrl) return null;
+    const known = workspace?.pullRequest?.state ?? null;
+    const state: StudioPullRequest['state'] = ciChecks
+        ? ciChecks.merged
+            ? 'merged'
+            : ciChecks.state
+        : (known ?? 'open');
+    return {
+        prUrl,
+        commitSha: metadata?.commitSha ?? null,
+        revision,
+        additions: metadata?.additions ?? null,
+        deletions: metadata?.deletions ?? null,
+        changedModels: agentModels.length > 0 ? agentModels : diffModels,
+        previewProjectUuid: findPreviewProjectUuid(metadata?.previewUrl),
         ciChecks: ciChecks ?? null,
-        isOpen: !!ciChecks && !ciChecks.merged && ciChecks.state === 'open',
+        state,
+        isOpen: state === 'open',
+        isMine: workspace?.isMine ?? true,
     };
 };
 
@@ -120,8 +169,13 @@ export const useStudioProposal = (projectUuid: string): string[] => {
         thread?.agent.uuid,
         thread?.threadUuid,
     );
+    // A proposal saved by hand is in the pull request without the agent knowing.
+    const prUrl = useStudioPullRequest(projectUuid)?.prUrl ?? '';
+    const { data: diff } = useWholePullRequestDiff(projectUuid, prUrl, null);
     return useMemo(() => {
-        const proposal = data ? getOpenProposal(data.messages) : NO_PROPOSAL;
+        const proposal = (
+            data ? getOpenProposal(data.messages) : NO_PROPOSAL
+        ).filter((code) => !isInPullRequest(code, diff?.diff ?? ''));
         return proposal.length > 0 ? proposal : NO_PROPOSAL;
-    }, [data]);
+    }, [data, diff]);
 };

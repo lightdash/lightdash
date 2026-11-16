@@ -20,6 +20,7 @@ const openPullRequest = () => ({
     state: 'open' as const,
     merged: false,
     headRef: 'feature/writeback',
+    headSha: 'pr-head-sha',
     headRepoFullName: 'acme/analytics',
     mergeable: true,
     mergeableState: 'clean',

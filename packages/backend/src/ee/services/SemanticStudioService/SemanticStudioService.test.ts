@@ -321,6 +321,10 @@ const setup = ({
         throw new Error('not used in these tests');
     };
     const args: SemanticStudioServiceArguments = {
+        aiWritebackService: {
+            openStudioCheckout: unused,
+            saveWithScript: unused,
+        },
         workspaceModel: {
             findActive: async () =>
                 activeWorkspace && {
@@ -348,6 +352,7 @@ const setup = ({
             rename: unused,
             finish: async () => 0,
             attachPullRequest: async () => undefined,
+            attachThreadPullRequest: async () => undefined,
             recordPullRequestState: unused,
         },
         featureFlagModel: {

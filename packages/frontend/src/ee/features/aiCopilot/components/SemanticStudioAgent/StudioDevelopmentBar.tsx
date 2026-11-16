@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { IconDots, IconExternalLink } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -14,6 +15,7 @@ import {
     getDevelopmentPreview,
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
+import { rememberGoingLive } from '../../../../../features/semanticStudio/useGoingLive';
 import { useProject } from '../../../../../hooks/useProject';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../hooks/useMergePullRequest';
@@ -58,8 +60,9 @@ export const StudioDevelopmentBar: FC<{
     projectUuid: string;
     pullRequest: StudioPullRequest;
 }> = ({ projectUuid, pullRequest }) => {
-    const { prUrl, commitSha, previewProjectUuid, ciChecks } = pullRequest;
+    const { prUrl, previewProjectUuid, ciChecks, isMine } = pullRequest;
     const { data: project } = useProject(projectUuid);
+    const queryClient = useQueryClient();
     const { mutate: merge, isLoading: isMerging } =
         useMergePullRequest(projectUuid);
     const { mutate: close, isLoading: isClosing } =
@@ -93,27 +96,29 @@ export const StudioDevelopmentBar: FC<{
                 pullRequest={pullRequest}
                 look="primary"
             />
-            <Tooltip
-                multiline
-                w={240}
-                label={
-                    canMerge
-                        ? `Merges ${destination}.`
-                        : getBlockedReason(ciChecks)
-                }
-            >
-                <Button
-                    size="xs"
-                    variant="default"
-                    data-disabled={!canMerge || undefined}
-                    aria-disabled={!canMerge}
-                    onClick={() => {
-                        if (canMerge) setMerging(true);
-                    }}
+            {isMine ? (
+                <Tooltip
+                    multiline
+                    w={240}
+                    label={
+                        canMerge
+                            ? `Merges ${destination}.`
+                            : getBlockedReason(ciChecks)
+                    }
                 >
-                    Merge
-                </Button>
-            </Tooltip>
+                    <Button
+                        size="xs"
+                        variant="default"
+                        data-disabled={!canMerge || undefined}
+                        aria-disabled={!canMerge}
+                        onClick={() => {
+                            if (canMerge) setMerging(true);
+                        }}
+                    >
+                        Merge
+                    </Button>
+                </Tooltip>
+            ) : null}
             <Menu position="bottom-end">
                 <Menu.Target>
                     <ActionIcon
@@ -146,10 +151,17 @@ export const StudioDevelopmentBar: FC<{
                     >
                         Open {name}
                     </Menu.Item>
-                    <Menu.Divider />
-                    <Menu.Item color="red" onClick={() => setDiscarding(true)}>
-                        Discard changes
-                    </Menu.Item>
+                    {isMine ? (
+                        <>
+                            <Menu.Divider />
+                            <Menu.Item
+                                color="red"
+                                onClick={() => setDiscarding(true)}
+                            >
+                                Discard changes
+                            </Menu.Item>
+                        </>
+                    ) : null}
                 </Menu.Dropdown>
             </Menu>
             {merging ? (
@@ -162,8 +174,17 @@ export const StudioDevelopmentBar: FC<{
                     onClose={() => setMerging(false)}
                     onConfirm={() =>
                         merge(
-                            { prUrl, sha: commitSha },
-                            { onSettled: () => setMerging(false) },
+                            { prUrl, sha: null },
+                            {
+                                onSuccess: ({ compileJobUuid }) =>
+                                    rememberGoingLive(
+                                        queryClient,
+                                        projectUuid,
+                                        prUrl,
+                                        compileJobUuid,
+                                    ),
+                                onSettled: () => setMerging(false),
+                            },
                         )
                     }
                 />

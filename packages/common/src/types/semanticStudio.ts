@@ -62,6 +62,48 @@ export type SemanticLayerStoredModels = { models: string[] };
 export type ApiSemanticLayerStoredModelsResponse =
     ApiSuccess<SemanticLayerStoredModels>;
 
+/** A project's model files in its repository, at a change's pull request or the branch it deploys from. */
+export type SemanticStudioSources = {
+    branch: string;
+    prUrl: string | null;
+    /** Paths relative to the dbt project, YAML and SQL only. */
+    files: string[];
+};
+
+export type ApiSemanticStudioSourcesResponse =
+    ApiSuccess<SemanticStudioSources>;
+
+export type SemanticStudioSourceFile = {
+    path: string;
+    content: string | null;
+};
+
+export type ApiSemanticStudioSourceFileResponse =
+    ApiSuccess<SemanticStudioSourceFile>;
+
+export type SaveSemanticStudioSourceRequest = {
+    path: string;
+    content: string;
+    /** The change's open pull request to add the commit to, or null to open one. */
+    prUrl: string | null;
+    /** The Studio conversation the change belongs to, so Try it sees the edit. */
+    threadUuid: string | null;
+};
+
+/** `failed` carries why the edit was not saved; `checked` is false when only dbt can check it, such as SQL. */
+export type SemanticStudioSourceSave =
+    | {
+          status: 'saved';
+          prUrl: string;
+          prAction: 'opened' | 'updated';
+          commitSha: string;
+          checked: boolean;
+      }
+    | { status: 'failed'; error: string };
+
+export type ApiSemanticStudioSourceSaveResponse =
+    ApiSuccess<SemanticStudioSourceSave>;
+
 /** How one model's part of a change fared when it was checked on top of a draft. */
 export type SemanticLayerDraftItemResult = {
     model: string;
