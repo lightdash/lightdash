@@ -37,7 +37,8 @@ test('history shows dimensions without a thumbnail, link or preview URL', () => 
     const { container } = renderWithProviders(
         <ThreadImageReference item={image} />,
     );
-    expect(screen.getByText('revenue.png · 1600×900')).toBeInTheDocument();
+    expect(screen.getByText('revenue.png')).toBeInTheDocument();
+    expect(screen.getByText('1600×900')).toBeInTheDocument();
     expect(container.querySelector('img')).toBeNull();
     expect(container.querySelector('a')).toBeNull();
     expect(container.innerHTML).not.toContain('blob:');

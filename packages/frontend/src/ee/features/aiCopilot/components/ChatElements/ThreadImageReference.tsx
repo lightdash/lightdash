@@ -1,5 +1,5 @@
 import { type AiPromptContextItem } from '@lightdash/common';
-import { ContentReferenceLink } from './ContentReferenceLink';
+import { ThreadImageCard } from './ThreadImageCard';
 
 /** History is metadata-only: no image fetch, object URL or persisted thumbnail. */
 export const ThreadImageReference = ({
@@ -7,11 +7,12 @@ export const ThreadImageReference = ({
 }: {
     item: Extract<AiPromptContextItem, { type: 'thread_image' }>;
 }) => (
-    <ContentReferenceLink
-        kind="thread_image"
-        showArrow={false}
-        title={item.fileName}
-    >
-        {`${item.fileName} · ${item.width}×${item.height}`}
-    </ContentReferenceLink>
+    <ThreadImageCard
+        fileName={item.fileName}
+        width={item.width}
+        height={item.height}
+        previewUrl={null}
+        layout="standalone"
+        action={null}
+    />
 );

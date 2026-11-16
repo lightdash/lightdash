@@ -3,17 +3,7 @@ import {
     isTabularThreadFileName,
     type AiPromptContextItem,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Group,
-    Image,
-    Loader,
-    Paper,
-    Pill,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Group, Loader, Pill, Stack, Tooltip } from '@mantine/core';
 import {
     IconFileText,
     IconSitemap,
@@ -21,7 +11,6 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import TruncatedText from '../../../../../components/common/TruncatedText';
 import { ElementRefPill } from '../../../../../features/apps/components/ElementRefPill';
 import {
     elementRefKey,
@@ -33,7 +22,7 @@ import {
     type ThreadFileAttachment,
 } from '../../hooks/useThreadFileAttachment';
 import { type ThreadComposerNode } from '../../store/aiAgentThreadComposerNodesSlice';
-import classes from './PromptAttachments.module.css';
+import { ThreadImageCard, ThreadImageGrid } from './ThreadImageCard';
 
 export type ExternalSourceAttachment = Extract<
     AiPromptContextItem,
@@ -86,29 +75,16 @@ export const PromptAttachments = <T extends ElementRef>({
     return (
         <Stack gap="xs">
             {images.length > 0 && (
-                <Group gap="xs">
+                <ThreadImageGrid>
                     {images.map((attachment) => (
-                        <Paper
+                        <ThreadImageCard
                             key={attachment.fileUuid}
-                            p="xs"
-                            className={classes.imageAttachment}
-                        >
-                            <Group gap="xs" wrap="nowrap">
-                                <Image
-                                    src={attachment.previewUrl}
-                                    alt={attachment.fileName}
-                                    w={64}
-                                    h={48}
-                                    fit="contain"
-                                />
-                                <Stack gap={0} flex={1} miw={0}>
-                                    <TruncatedText maxWidth="100%" fz="xs">
-                                        {attachment.fileName}
-                                    </TruncatedText>
-                                    <Text size="xs" c="dimmed">
-                                        {attachment.width}×{attachment.height}
-                                    </Text>
-                                </Stack>
+                            fileName={attachment.fileName}
+                            width={attachment.width}
+                            height={attachment.height}
+                            previewUrl={attachment.previewUrl}
+                            layout="grid"
+                            action={
                                 <Tooltip
                                     label={`Remove ${attachment.fileName}`}
                                 >
@@ -125,10 +101,10 @@ export const PromptAttachments = <T extends ElementRef>({
                                         <MantineIcon icon={IconX} size={14} />
                                     </ActionIcon>
                                 </Tooltip>
-                            </Group>
-                        </Paper>
+                            }
+                        />
                     ))}
-                </Group>
+                </ThreadImageGrid>
             )}
             {hasPills && (
                 <Pill.Group>
