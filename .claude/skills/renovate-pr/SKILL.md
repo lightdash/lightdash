@@ -177,12 +177,12 @@ sfw pnpm install
 The running app is what we're testing against, not just the diff:
 
 ```
-/docker-dev start
+./scripts/dev-fast-start.sh
 ```
 
-Wait for the State Detection to report all `OK:` lines and PM2 processes to be `online`. If the build or PM2 startup fails, that's the first signal — the bump may have broken the install or runtime resolution. Report this immediately and stop.
+Wait for the script to print its `OK:` lines and exit 0, and for the PM2 processes to be `online`. If the build or PM2 startup fails, that's the first signal — the bump may have broken the install or runtime resolution. Report this immediately and stop.
 
-When using a worktree, `/docker-dev start` claims a fresh port slot for this instance (per the docker-dev port-allocation flow), so it won't conflict with another running Lightdash instance in the main checkout or another worktree.
+When using a worktree, `scripts/dev-fast-start.sh` claims a fresh port slot for this instance (with `scripts/dev-ports.sh`), so it won't conflict with another running Lightdash instance in the main checkout or another worktree.
 
 ## Phase 6: Test the change with /debug-local tooling
 

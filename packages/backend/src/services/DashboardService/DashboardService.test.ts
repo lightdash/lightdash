@@ -262,6 +262,7 @@ describe('DashboardService', () => {
     const service = new DashboardService({
         featureFlagModel,
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
+        getComposerChartService: () => ({ getParameterReferences: vi.fn() }),
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         dashboardModel: dashboardModel as unknown as DashboardModel,

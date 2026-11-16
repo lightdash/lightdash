@@ -10,6 +10,8 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiComposerChartAsCodeListResponse,
+    type ApiComposerChartAsCodeUpsertResponse,
     type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodePullResponse,
     type ApiContentAsCodeSettingsResponse,
@@ -44,6 +46,7 @@ import {
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
     type ChartAsCode,
+    type ComposerChartAsCode,
     type ContentAsCodeReleasableType,
     type ContentAsCodeSettingsStamp,
     type ContentAsCodeSnapshotPrune,
@@ -58,6 +61,7 @@ import {
     type ScheduledDeliveryAsCode,
     type SpaceAsCode,
     type SqlChartAsCode,
+    type UUID,
     type VirtualViewAsCode,
 } from '@lightdash/common';
 import {
@@ -83,6 +87,7 @@ import {
     CODE_READ_MIDDLEWARES,
     CODE_WRITE_MIDDLEWARES,
     codeSuccess,
+    refuseComposerChartFile,
     toDraftSummary,
     toWritebackSummary,
 } from './CoderControllerUtils';
@@ -707,6 +712,36 @@ export class ProjectCoderController extends BaseController {
     }
 
     /**
+     * Gets composer charts in code representation. Works with the composer-charts flag off.
+     * @summary Get composer charts as code
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/composerCharts')
+    @OperationId('getCodeComposerCharts')
+    async getComposerChartsAsCode(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+        @Query() ids?: string[],
+        @Query() offset?: number,
+    ): Promise<ApiComposerChartAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getCoderService()
+                .getComposerCharts(
+                    toSessionUser(req.account),
+                    req.account,
+                    projectUuid,
+                    ids,
+                    offset,
+                ),
+        );
+    }
+
+    /**
      * Get virtual views in code representation
      * @summary List virtual views as code
      */
@@ -1038,7 +1073,7 @@ export class ProjectCoderController extends BaseController {
      * @summary Upsert chart as code
      */
     @Tags('Projects')
-    @Middlewares(CODE_READ_MIDDLEWARES)
+    @Middlewares([...CODE_READ_MIDDLEWARES, refuseComposerChartFile])
     @SuccessResponse('200', 'Success')
     @Post('/code/charts/{slug}')
     @OperationId('upsertCodeChart')
@@ -1115,6 +1150,44 @@ export class ProjectCoderController extends BaseController {
                     spaceNames: sqlChart.spaceNames,
                 },
             ),
+        );
+    }
+
+    /**
+     * Upserts a composer chart from code representation. An unchanged file writes nothing.
+     * @summary Upsert composer chart as code
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/composerCharts/{slug}')
+    @OperationId('upsertCodeComposerChart')
+    async upsertComposerChartAsCode(
+        @Path() projectUuid: UUID,
+        @Path() slug: string,
+        @Body()
+        composerChart: ComposerChartAsCode & {
+            skipSpaceCreate?: boolean;
+            publicSpaceCreate?: boolean;
+            spaceNames?: Record<string, string>;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiComposerChartAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const { skipSpaceCreate, publicSpaceCreate, spaceNames, ...file } =
+            composerChart;
+        return codeSuccess(
+            await this.services
+                .getCoderService()
+                .upsertComposerChart(
+                    toSessionUser(req.account),
+                    req.account,
+                    projectUuid,
+                    slug,
+                    file,
+                    { skipSpaceCreate, publicSpaceCreate, spaceNames },
+                ),
         );
     }
 

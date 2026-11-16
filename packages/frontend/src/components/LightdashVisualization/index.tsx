@@ -179,6 +179,7 @@ const LightdashVisualization = memo(
                     chartContent = (
                         <SimpleStatistic
                             minimal={minimal}
+                            enableContextMenu={enableContextMenu}
                             isTitleHidden={isTitleHidden}
                             description={description}
                             onScreenshotReady={onScreenshotReady}

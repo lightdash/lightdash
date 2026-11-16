@@ -31,8 +31,10 @@ const trackedApiSend =
         return json<T>(response);
     };
 
-export const createComposerDashboard = (api: TrackedApi) =>
-    createVia(trackedApiSend(api));
+export const createComposerDashboard = (
+    api: TrackedApi,
+    options?: Parameters<typeof createVia>[1],
+) => createVia(trackedApiSend(api), options);
 
 // Delete right after the test: content-as-code CLI specs on the same preview refuse composer tiles.
 export const deleteComposerDashboard = (

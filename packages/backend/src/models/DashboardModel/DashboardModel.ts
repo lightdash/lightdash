@@ -1390,7 +1390,8 @@ export class DashboardModel {
                 database.raw(
                     ` COALESCE(
                         ${SavedChartsTableName}.slug,
-                        ${SavedSqlTableName}.slug
+                        ${SavedSqlTableName}.slug,
+                        ${ComposerChartsTableName}.slug
                     ) AS chart_slug`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
@@ -1708,6 +1709,7 @@ export class DashboardModel {
                                 hide_title,
                                 composer_chart_uuid,
                                 name,
+                                chart_slug,
                             });
                         default: {
                             return assertUnreachable(
@@ -2970,7 +2972,8 @@ export class DashboardModel {
                 this.database.raw(
                     ` COALESCE(
                         ${SavedChartsTableName}.slug,
-                        ${SavedSqlTableName}.slug
+                        ${SavedSqlTableName}.slug,
+                        ${ComposerChartsTableName}.slug
                     ) AS chart_slug`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
@@ -3269,6 +3272,7 @@ export class DashboardModel {
                                 hide_title,
                                 composer_chart_uuid,
                                 name,
+                                chart_slug,
                             });
                         default: {
                             return assertUnreachable(

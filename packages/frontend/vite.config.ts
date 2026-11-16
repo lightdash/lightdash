@@ -173,8 +173,6 @@ export default defineConfig({
             'host.docker.internal', // for headless browser in docker (scheduled deliveries)
             '.lightdash.dev', // for cloudflared tunnels,
             '.exe.xyz', // for exe.dev devboxes
-            '.e2b.app', // for Amp orb portals
-            '.onamp.dev', // for Amp orb portals
             ...(FE_HOST ? [FE_HOST] : []),
         ],
         watch: {

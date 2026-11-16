@@ -171,6 +171,41 @@ describe('DashboardAsCodeInternalization', () => {
             expect(languageMap).not.toHaveProperty('config');
         });
 
+        it('should emit the title of a composer chart tile beside the other tiles', () => {
+            const languageMap =
+                new DashboardAsCodeInternalization().getLanguageMap({
+                    ...dashboardAsCode,
+                    tiles: [
+                        ...dashboardAsCode.tiles,
+                        {
+                            uuid: undefined,
+                            tileSlug: 'orders-by-status',
+                            type: DashboardTileTypes.COMPOSER_CHART,
+                            x: 0,
+                            y: 3,
+                            h: 3,
+                            w: 9,
+                            properties: {
+                                title: 'Orders by status',
+                                hideTitle: false,
+                                chartSlug: 'orders-by-status',
+                            },
+                        },
+                    ],
+                });
+
+            expect(languageMap.dashboard['sales-overview'].tiles).toEqual([
+                {
+                    type: DashboardTileTypes.MARKDOWN,
+                    properties: { title: 'Notes', content: 'Some content' },
+                },
+                {
+                    type: DashboardTileTypes.COMPOSER_CHART,
+                    properties: { title: 'Orders by status' },
+                },
+            ]);
+        });
+
         it('should handle a dashboard without filters', () => {
             const { filters, ...dashboardWithoutFilters } = dashboardAsCode;
 

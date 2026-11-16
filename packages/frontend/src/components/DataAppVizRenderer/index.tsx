@@ -16,6 +16,7 @@ import { Anchor, Box, Stack, Text } from '@mantine/core';
 import { IconPuzzle } from '@tabler/icons-react';
 import {
     useCallback,
+    useContext,
     useEffect,
     useMemo,
     useRef,
@@ -30,6 +31,7 @@ import { useChartVersionPreview } from '../../features/apps/ChartVersionPreview/
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { type SdkManifest } from '../../features/apps/hooks/useAppSdkBridge';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
+import { ComposerChartRenderTargetContext } from '../../features/chartTypes/composerChartRenderTarget';
 import { useDocumentRenderTarget } from '../../features/chartTypes/documentRenderTarget/useDocumentRenderTarget';
 import {
     useDataAppVizPreviewToken,
@@ -214,6 +216,7 @@ const DataAppVizRenderer: FC<Props> = ({
 
     const chartVersionUuid = useChartVersionPreview();
     const documentTarget = useDocumentRenderTarget();
+    const composerChartUuid = useContext(ComposerChartRenderTargetContext);
     const savedDataAppVizConfig =
         savedChartReference?.chartConfig.type === ChartType.DATA_APP_VIZ
             ? savedChartReference.chartConfig.config
@@ -233,14 +236,24 @@ const DataAppVizRenderer: FC<Props> = ({
             savedChartUuid: renderSavedChartUuid,
             chartVersionUuid,
             document: documentTarget,
+            composerChartUuid,
         }),
-        [embedToken, renderSavedChartUuid, chartVersionUuid, documentTarget],
+        [
+            embedToken,
+            renderSavedChartUuid,
+            chartVersionUuid,
+            documentTarget,
+            composerChartUuid,
+        ],
     );
     // External connections authorize through whatever renders the chart, in
     // the same order as the render target: a Document chart, then a saved chart.
     const chartContext = useMemo<
         ExternalFetchRequest['chartContext'] | undefined
     >(() => {
+        if (!embedToken && composerChartUuid) {
+            return { composerChartUuid };
+        }
         if (!embedToken && documentTarget) {
             return {
                 documentUuid: documentTarget.documentUuid,
@@ -254,11 +267,21 @@ const DataAppVizRenderer: FC<Props> = ({
                   chartVersionUuid,
               }
             : undefined;
-    }, [embedToken, documentTarget, renderSavedChartUuid, chartVersionUuid]);
+    }, [
+        embedToken,
+        composerChartUuid,
+        documentTarget,
+        renderSavedChartUuid,
+        chartVersionUuid,
+    ]);
     // Embedded previews retain their recorded version; Chart Studio's
     // chart-less edit canvas previews the latest generated version.
     const renderPinnedVersion =
-        embedToken || renderSavedChartUuid || documentTarget || !isEditMode
+        embedToken ||
+        renderSavedChartUuid ||
+        documentTarget ||
+        composerChartUuid ||
+        !isEditMode
             ? config?.dataAppVizVersion
             : undefined;
     const { data: renderMetadata, error: renderMetadataError } =

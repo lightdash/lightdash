@@ -229,6 +229,16 @@ agent. It belongs to a dashboard. Running it never changes it.
 _Avoid_: pipeline chart, saved composer query, composer tile (the dashboard
 tile that shows one)
 
+**Bound run**:
+A run of a stored chart's pipeline for someone viewing it. Only the stored
+nodes run, and the viewer's own write permissions are not checked.
+_Avoid_: viewer run, document run
+
+**Run binding**:
+The server-only proof a bound run carries: who is viewing, which stored chart,
+and the nodes resolved from it. No API can create one.
+_Avoid_: query context, token
+
 **Lineage**:
 The composer artifact view beside the chart that shows the pipeline: a graph
 on top and one step per node below, with each node's row count and whether it

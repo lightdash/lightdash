@@ -2,6 +2,8 @@ import {
     parseComposerPipeline,
     parseComposerStoredChart,
 } from '../../composer/composerChart';
+import { getComposerChartPivotStage } from '../../composer/composerChartDraw';
+import { getComposerNodeSorts } from '../../composer/composerResultChart';
 import { DimensionType, FieldType } from '../../types/field';
 import { MergeJoinType } from '../../types/mergeQuery';
 import { QuerySourceType, type SourceQuery } from '../../types/querySources';
@@ -12,6 +14,7 @@ import {
     getComposerChartSaveDraft,
     savesAsComposerChart,
 } from './composerChartSave';
+import { getComposerChartStage } from './composerChartVizConfig';
 import {
     composerChartVizConfigSchemaPersisted,
     type ComposerBuiltinChartVizConfig,
@@ -89,6 +92,7 @@ describe('getComposerChartSaveDraft', () => {
                 ),
                 columns,
                 metadata,
+                customChartType: null,
             }),
         );
 
@@ -107,6 +111,7 @@ describe('getComposerChartSaveDraft', () => {
                 ),
                 columns,
                 metadata,
+                customChartType: null,
             }),
         );
 
@@ -138,6 +143,7 @@ describe('getComposerChartSaveDraft', () => {
                 ),
                 columns,
                 metadata,
+                customChartType: null,
             }),
         );
 
@@ -150,12 +156,78 @@ describe('getComposerChartSaveDraft', () => {
         expect(parsed.pivotConfig).toEqual({ columns: ['status'] });
     });
 
+    test.each([
+        viz({
+            type: 'bar',
+            x: 'orders_order_date_month',
+            y: ['orders_total_order_amount'],
+            groupBy: ['orders_status'],
+            stack: true,
+        }),
+        viz({
+            type: 'area',
+            x: 'orders_order_date_month',
+            y: ['orders_total_order_amount'],
+            groupBy: ['orders_status'],
+        }),
+    ])(
+        'the saved chart pivots like the $type answer it came from',
+        (vizConfig) => {
+            const sorted: SourceQuery = {
+                ...orders,
+                sorts: [
+                    { fieldId: 'orders_total_order_amount', descending: true },
+                ],
+            };
+            const { pipeline, chart } = ready(
+                getComposerChartSaveDraft({
+                    config: answer(vizConfig, [sorted], 'orders'),
+                    columns: [
+                        {
+                            reference: 'orders_status',
+                            type: DimensionType.STRING,
+                        },
+                        {
+                            reference: 'orders_order_date_month',
+                            type: DimensionType.DATE,
+                        },
+                        {
+                            reference: 'orders_total_order_amount',
+                            type: DimensionType.NUMBER,
+                        },
+                    ],
+                    metadata,
+                    customChartType: null,
+                }),
+            );
+            const pivotOf = (stage: SourceQuery | null) =>
+                stage?.sourceType === QuerySourceType.DUCKDB
+                    ? stage.pivotConfiguration
+                    : null;
+
+            const answerPivot = pivotOf(
+                getComposerChartStage({
+                    vizConfig,
+                    customChartTypeSlots: [],
+                    sorts: getComposerNodeSorts(sorted),
+                    nodeId: 'chart_stage',
+                    source: 'orders',
+                }),
+            );
+            expect(answerPivot).toMatchObject({ foldOverflowGroups: true });
+            expect(
+                pivotOf(getComposerChartPivotStage(pipeline, chart)),
+            ).toEqual(answerPivot);
+        },
+    );
+
     test('a table, or no viz config, keeps every column with numbers as metrics', () => {
         const { chart } = ready(
             getComposerChartSaveDraft({
                 config: answer(null),
                 columns,
                 metadata,
+                customChartType: null,
             }),
         );
 
@@ -174,6 +246,7 @@ describe('getComposerChartSaveDraft', () => {
                 config: answer(null),
                 columns: [{ reference: 'a.b', type: DimensionType.STRING }],
                 metadata,
+                customChartType: null,
             }),
         );
 
@@ -191,19 +264,6 @@ describe('getComposerChartSaveDraft', () => {
             answer(viz({ type: 'bar' })),
             [],
             'Waiting for the result to load',
-        ],
-        [
-            'with a custom chart type',
-            answer({
-                type: 'custom',
-                customChartTypeSlug: 'ribbon',
-                fieldMapping: { x: 'status' },
-                options: null,
-                dataAppVizUuid: 'viz-uuid',
-                dataAppVizVersion: 1,
-            }),
-            columns,
-            'Answers with a custom chart type cannot be saved to a dashboard yet',
         ],
         [
             'when a node it reads cannot run on a dashboard',
@@ -226,6 +286,7 @@ describe('getComposerChartSaveDraft', () => {
                 config,
                 columns: resultColumns,
                 metadata,
+                customChartType: null,
             }),
         ).toEqual({ status: 'unavailable', reason });
     });
@@ -292,4 +353,76 @@ describe('savesAsComposerChart', () => {
     ])('%s saves as a composer chart', (_, config) => {
         expect(savesAsComposerChart(config)).toBe(true);
     });
+});
+
+describe('getComposerChartSaveDraft with a custom chart type', () => {
+    const custom = answer({
+        type: 'custom',
+        customChartTypeSlug: 'ribbon',
+        fieldMapping: { category: 'month', value: 'revenue', series: 'status' },
+        options: { showLegend: false },
+        dataAppVizUuid: 'viz-uuid',
+        dataAppVizVersion: 3,
+    });
+    const slots = [
+        { name: 'category', type: 'dimension' as const },
+        { name: 'value', type: 'metric' as const },
+        { name: 'series', type: 'series' as const },
+    ];
+
+    test('keeps the pinned version, takes roles from slot kinds and splits on series slots', () => {
+        const { chart } = ready(
+            getComposerChartSaveDraft({
+                config: custom,
+                columns,
+                metadata,
+                customChartType: { status: 'ready', slots },
+            }),
+        );
+        expect(chart).toMatchObject({
+            columns: [
+                { reference: 'month', fieldType: FieldType.DIMENSION },
+                { reference: 'status', fieldType: FieldType.DIMENSION },
+                { reference: 'revenue', fieldType: FieldType.METRIC },
+            ],
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'viz-uuid',
+                    dataAppVizVersion: 3,
+                    fieldMapping: {
+                        category: 'month',
+                        value: 'revenue',
+                        series: 'status',
+                    },
+                    optionValues: { showLegend: false },
+                },
+            },
+            pivotConfig: { columns: ['status'] },
+        });
+        expect(parseComposerStoredChart(chart)).toEqual(chart);
+    });
+
+    test.each([
+        [null, 'Waiting for the custom chart type to load'],
+        [
+            {
+                status: 'unavailable' as const,
+                reason: 'The chart type was deleted',
+            },
+            'The chart type was deleted',
+        ],
+    ])(
+        'is unavailable while the type cannot be read',
+        (customChartType, reason) => {
+            expect(
+                getComposerChartSaveDraft({
+                    config: custom,
+                    columns,
+                    metadata,
+                    customChartType,
+                }),
+            ).toEqual({ status: 'unavailable', reason });
+        },
+    );
 });
