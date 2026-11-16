@@ -28,7 +28,6 @@ import {
     type NodeProps,
     type NodeTypes,
     Panel,
-    type ReactFlowInstance,
 } from '@xyflow/react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
@@ -201,26 +200,8 @@ const TableNode: FC<NodeProps<TableFlowNode>> = ({ data }) => (
 const nodeTypes: NodeTypes = { table: TableNode };
 const edgeTypes: EdgeTypes = { join: DefaultEdge };
 
-const FIT_VIEW_OPTIONS = { padding: 0.15, maxZoom: 1 };
-const READABLE_ZOOM = 0.6;
-const EDGE_GAP = 24;
-
-/**
- * Fits the graph; one too wide to read at that size opens at a readable zoom
- * with the base table on the left, and pans from there.
- */
-const openReadable = async (flow: ReactFlowInstance<TableFlowNode, Edge>) => {
-    await flow.fitView(FIT_VIEW_OPTIONS);
-    const { y, zoom } = flow.getViewport();
-    if (zoom >= READABLE_ZOOM) return;
-    const bounds = flow.getNodesBounds(flow.getNodes());
-    const centerY = bounds.y + bounds.height / 2;
-    await flow.setViewport({
-        x: EDGE_GAP - bounds.x * READABLE_ZOOM,
-        y: y + centerY * (zoom - READABLE_ZOOM),
-        zoom: READABLE_ZOOM,
-    });
-};
+// Centred; never larger than 100%, and wide graphs stay readable and pan.
+const FIT_VIEW_OPTIONS = { padding: 0.15, minZoom: 0.6, maxZoom: 1 };
 
 const Fact: FC<{ label: string; children: ReactNode }> = ({
     label,
@@ -401,7 +382,8 @@ export const JoinDiagram: FC<{ projectUuid: string; exploreName: string }> = ({
                         edges={flow.edges}
                         nodeTypes={nodeTypes}
                         edgeTypes={edgeTypes}
-                        onInit={openReadable}
+                        fitView
+                        fitViewOptions={FIT_VIEW_OPTIONS}
                         onNodeClick={(_, node) =>
                             setSelectedId((current) =>
                                 current === node.id ? null : node.id,
