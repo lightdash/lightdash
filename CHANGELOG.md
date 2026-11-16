@@ -1,3 +1,10 @@
+## [3.263.1](https://github.com/lightdash/lightdash/compare/3.263.0...3.263.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* let preview creators extend their preview expiration ([#32619](https://github.com/lightdash/lightdash/issues/32619)) ([f9a8097](https://github.com/lightdash/lightdash/commit/f9a80975a55c136344927023b8341d13dbe6ff9a))
+
 # [3.263.0](https://github.com/lightdash/lightdash/compare/3.262.0...3.263.0) (2026-11-16)
 
 
