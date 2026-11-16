@@ -1,3 +1,10 @@
+# [3.271.0](https://github.com/lightdash/lightdash/compare/3.270.0...3.271.0) (2026-11-16)
+
+
+### Features
+
+* **mobile:** [d-0c6e551f] show a scan to install, then scan again hint under the sign-in code ([#32658](https://github.com/lightdash/lightdash/issues/32658)) ([1b21238](https://github.com/lightdash/lightdash/commit/1b212388c4e8b8e1c7e588dab490d0d3de158ba0))
+
 # [3.270.0](https://github.com/lightdash/lightdash/compare/3.269.1...3.270.0) (2026-11-16)
 
 
