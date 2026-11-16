@@ -337,6 +337,11 @@ export type AiAgentArgs = AnyAiModel & {
     // Gates createScheduledDelivery the same way, so a role without
     // create:ScheduledDeliveries keeps content tools but loses scheduling.
     canCreateScheduledDeliveries: boolean;
+    // Prompt wording only: the content tools prompt warns when the user lacks
+    // manage:CustomSql (with SQL mode), manage:CustomFields or manage:CustomSqlTableCalculations.
+    canSaveSqlCharts: boolean;
+    canAuthorCustomSqlFields: boolean;
+    canAuthorSqlTableCalculations: boolean;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
     // When the modern Slack streaming card is driving progress, tools render

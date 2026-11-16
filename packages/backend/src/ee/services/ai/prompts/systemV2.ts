@@ -88,6 +88,10 @@ export type CapabilitySectionArgs = {
     availableSkills?: AiAgentSkillReference[];
     // False when the content tools load for Documents alone. Defaults to true.
     canSaveCharts?: boolean;
+    // Content permissions the prompt warns about when missing. Default to true.
+    canSaveSqlCharts?: boolean;
+    canAuthorCustomSqlFields?: boolean;
+    canAuthorSqlTableCalculations?: boolean;
     enableDocumentNudges?: boolean;
     enableDocumentCustomCharts?: boolean;
     slackChannelId?: string | null;
@@ -126,6 +130,11 @@ const getCapabilitySections = (
                       ? getContentToolsSection({
                             canRunQuery,
                             viaComposerQueries: composer,
+                            canSaveSqlCharts: args.canSaveSqlCharts ?? true,
+                            canAuthorCustomSqlFields:
+                                args.canAuthorCustomSqlFields ?? true,
+                            canAuthorSqlTableCalculations:
+                                args.canAuthorSqlTableCalculations ?? true,
                         })
                       : '',
                   sections.has('documents')
