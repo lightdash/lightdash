@@ -1,3 +1,10 @@
+## [3.265.1](https://github.com/lightdash/lightdash/compare/3.265.0...3.265.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **composer:** keep x in the series split when it is also a y ([#32627](https://github.com/lightdash/lightdash/issues/32627)) ([93ef6f9](https://github.com/lightdash/lightdash/commit/93ef6f93aa806a6a9ccb7d99d95455f1d67fc0a9))
+
 # [3.265.0](https://github.com/lightdash/lightdash/compare/3.264.0...3.265.0) (2026-11-16)
 
 
