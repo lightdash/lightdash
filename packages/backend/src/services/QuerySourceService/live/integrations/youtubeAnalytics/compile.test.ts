@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { youtubeAnalyticsIntegration } from '.';
+import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { connectLiveSource } from '../../liveSource.mock';
 import { compileYoutubeAnalyticsQuery } from './compile';
@@ -69,9 +70,19 @@ const compile = (metricQuery: MetricQuery) => {
     return { ...compiled, request: JSON.parse(compiled.query) };
 };
 
+const compileLive = (metricQuery: MetricQuery) => {
+    const compiled = compileLiveMetricQuery({
+        explore,
+        metricQuery,
+        timezone: 'UTC',
+        now: new Date(`${TODAY}T12:00:00Z`),
+    });
+    return { ...compiled, request: JSON.parse(compiled.query) };
+};
+
 describe('compileYoutubeAnalyticsQuery', () => {
     it('reads the last 28 days by day and maps columns to fields', () => {
-        const { request, fieldIdsByColumn, localSorts } = compile(query());
+        const { request, fieldIdsByColumn, localSorts } = compileLive(query());
         expect(request).toEqual({
             startDate: '2026-10-12',
             endDate: '2026-11-08',
@@ -87,7 +98,7 @@ describe('compileYoutubeAnalyticsQuery', () => {
     });
 
     it('produces a request the connector accepts and maps back to fields', async () => {
-        const { query: request, fieldIdsByColumn } = compile(query());
+        const { query: request, fieldIdsByColumn } = compileLive(query());
         const source = connectLiveSource(
             youtubeAnalyticsIntegration,
             {

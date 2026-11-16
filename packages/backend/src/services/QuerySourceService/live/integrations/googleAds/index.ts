@@ -57,6 +57,8 @@ export const googleAdsIntegration = defineLiveIntegration({
     // GAQL ANDs one flat list of conditions, so OR and nested groups are
     // refused. Dates are a finite range in the account's own time zone, and
     // metric filters apply to the returned rows.
+    // Week, month and quarter already arrive as their first day
+    periodFormats: { [TimeFrames.YEAR]: 'year' },
     capabilities: {
         filters: {
             operators: {

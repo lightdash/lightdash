@@ -6,12 +6,14 @@ import type {
     Explore,
     ExternalConnectionAuthType,
     MetricQuery,
+    TimeFrames,
     WarehouseSqlBuilder,
 } from '@lightdash/common';
 import type { z } from 'zod';
 import type {
-    CompiledLiveQuery,
+    LiveCompiledRequest,
     LiveExploreDefinition,
+    LivePeriodFormat,
 } from './explores/definition';
 
 /**
@@ -59,7 +61,12 @@ export type LiveIntegration<
      * Throws a ParameterError saying what to fix; `jsonRequest` covers JSON.
      */
     parseRequest: (query: string) => Request;
-    compile: (args: LiveCompileArgs) => CompiledLiveQuery;
+    compile: (args: LiveCompileArgs) => LiveCompiledRequest;
+    /**
+     * Time grains the API returns as compact periods (e.g. GA4's YYYYWW);
+     * their columns are turned into the period's first day.
+     */
+    periodFormats?: Partial<Record<TimeFrames, LivePeriodFormat>>;
     run: (args: LiveRunArgs<C, Request>) => Promise<LiveRunResult>;
     /** Turns a response outside 2xx into an error that says what to change. */
     toError: (response: LiveHttpResponse, settings: ApiSourceOf<C>) => Error;

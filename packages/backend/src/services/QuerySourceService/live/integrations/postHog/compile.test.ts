@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { postHogIntegration } from '.';
+import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { compilePostHogQuery } from './compile';
 import {
@@ -69,6 +70,14 @@ const compile = (metricQuery: MetricQuery, explore = buildExplore()) =>
         timezone: 'UTC',
     });
 
+const compileLive = (metricQuery: MetricQuery, explore = buildExplore()) =>
+    compileLiveMetricQuery({
+        explore,
+        metricQuery,
+        timezone: 'UTC',
+        now: new Date('2026-11-04T12:00:00Z'),
+    });
+
 beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-11-04T12:00:00Z'));
@@ -88,7 +97,7 @@ describe('PostHog semantic layer', () => {
 
 describe('compilePostHogQuery', () => {
     test('compiles one HogQL query, reading the last 30 days by default', () => {
-        const { query: hogql, ...compiled } = compile(query());
+        const { query: hogql, ...compiled } = compileLive(query());
         expect(hogql).toMatchSnapshot();
         expect(hogql).toContain(
             `(toDate("${EXPLORE}".timestamp)) >= ('2026-10-05')`,
@@ -180,7 +189,7 @@ describe('compilePostHogQuery', () => {
 
 describe('compilePostHogQuery with SQL features', () => {
     test('selects table calculations as columns of the HogQL query', () => {
-        const { query: hogql, fieldIdsByColumn } = compile(
+        const { query: hogql, fieldIdsByColumn } = compileLive(
             query({
                 tableCalculations: [
                     {

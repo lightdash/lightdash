@@ -9,6 +9,7 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { linkedInAdsIntegration } from '.';
 import { type LiveTransport } from '../../calls';
+import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { connectLiveSource } from '../../liveSource.mock';
 import { compileLinkedInAdsQuery } from './compile';
@@ -68,6 +69,16 @@ const compile = (metricQuery: MetricQuery) => {
     return { ...compiled, request: JSON.parse(compiled.query) };
 };
 
+const compileLive = (metricQuery: MetricQuery) => {
+    const compiled = compileLiveMetricQuery({
+        explore,
+        metricQuery,
+        timezone: 'UTC',
+        now: new Date(`${TODAY}T12:00:00Z`),
+    });
+    return { ...compiled, request: JSON.parse(compiled.query) };
+};
+
 const connect = (send: LiveTransport) =>
     connectLiveSource(
         linkedInAdsIntegration,
@@ -80,7 +91,7 @@ const between = (start: string, end: string) =>
 
 describe('compileLinkedInAdsQuery', () => {
     it('compiles a campaign report over the last 28 days', () => {
-        const { request, fieldIdsByColumn } = compile(query());
+        const { request, fieldIdsByColumn } = compileLive(query());
         expect(request).toEqual({
             pivot: 'CAMPAIGN',
             timeGranularity: 'ALL',
@@ -211,7 +222,7 @@ describe('compileLinkedInAdsQuery', () => {
         });
 
         it('returns one row per campaign when an ID is selected with the type', async () => {
-            const { query: request, fieldIdsByColumn } = compile(
+            const { query: request, fieldIdsByColumn } = compileLive(
                 query({
                     dimensions: [field('campaign_type'), field('campaign_id')],
                     metrics: [field('clicks')],
@@ -305,7 +316,7 @@ describe('compileLinkedInAdsQuery', () => {
     });
 
     it('produces a request the connector accepts and maps back to fields', async () => {
-        const { query: request, fieldIdsByColumn } = compile(
+        const { query: request, fieldIdsByColumn } = compileLive(
             query({
                 dimensions: [field('date_month'), field('campaign_id')],
                 metrics: [field('cost')],
@@ -347,7 +358,7 @@ describe('compileLinkedInAdsQuery', () => {
 
     it('sorts on the returned rows, reading them all', () => {
         const sorts = [{ fieldId: field('impressions'), descending: true }];
-        const { requestLimit, localSorts } = compile(
+        const { requestLimit, localSorts } = compileLive(
             query({ sorts, limit: 10 }),
         );
         expect(requestLimit).toBe(LINKEDIN_ADS_MAX_QUERY_ROWS);

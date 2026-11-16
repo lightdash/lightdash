@@ -210,14 +210,14 @@ describe('compileLiveMetricQuery', () => {
                 metricQuery,
                 timezone: 'Asia/Tokyo',
                 now,
-            }),
+            }).query,
         ).toEqual(
             compileSearchConsoleQuery({
                 explore,
                 metricQuery,
                 today: '2026-11-03',
                 maxRows: SEARCH_CONSOLE_MAX_QUERY_ROWS,
-            }),
+            }).query,
         );
     });
 

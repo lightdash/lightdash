@@ -12,7 +12,7 @@ import { compileMetricQuery } from '../../../../../queryCompiler';
 import { MetricQueryBuilder } from '../../../../../utils/QueryBuilder/MetricQueryBuilder';
 import {
     getLiveExplore,
-    type CompiledLiveQuery,
+    type LiveCompiledRequest,
 } from '../../explores/definition';
 
 const withDefaultDateRange = (
@@ -65,7 +65,7 @@ export const compilePostHogQuery = ({
     metricQuery: MetricQuery;
     warehouseSqlBuilder: WarehouseSqlBuilder;
     timezone: string;
-}): CompiledLiveQuery => {
+}): LiveCompiledRequest => {
     const apiSource = getLiveExplore(explore);
     const query = apiSource.dateRange
         ? withDefaultDateRange(metricQuery, apiSource.dateRange)
@@ -113,11 +113,8 @@ export const compilePostHogQuery = ({
 
     return {
         query: hogql,
-        requestLimit: query.limit,
-        limit: query.limit,
         fieldIdsByColumn: Object.fromEntries(
             [...columnByFieldId].map(([fieldId, column]) => [column, fieldId]),
         ),
-        localSorts: [],
     };
 };

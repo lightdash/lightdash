@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { searchConsoleIntegration } from '.';
+import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { escapeRe2 } from '../../query/escapeRe2';
 import {
@@ -65,6 +66,16 @@ const compile = (metricQuery: MetricQuery) => {
     return { ...compiled, request: JSON.parse(compiled.query) };
 };
 
+const compileLive = (metricQuery: MetricQuery) => {
+    const compiled = compileLiveMetricQuery({
+        explore,
+        metricQuery,
+        timezone: 'UTC',
+        now: new Date('2026-11-04T12:00:00Z'),
+    });
+    return { ...compiled, request: JSON.parse(compiled.query) };
+};
+
 describe('Search Console semantic layer', () => {
     test('keeps its field ids stable', () => {
         expect(Object.keys(explore.apiSource?.fields ?? {})).toMatchSnapshot();
@@ -74,7 +85,7 @@ describe('Search Console semantic layer', () => {
 describe('compileSearchConsoleQuery', () => {
     test('compiles a top-queries question into one request in API order', () => {
         const { request, fieldIdsByColumn, localSorts, requestLimit, limit } =
-            compile(query());
+            compileLive(query());
         expect(request).toEqual({
             startDate: '2026-10-07',
             endDate: '2026-11-03',
@@ -92,7 +103,7 @@ describe('compileSearchConsoleQuery', () => {
 
     test('fetches every row and sorts locally when ordered by anything but clicks', () => {
         const sorts = [{ fieldId: field('ctr'), descending: true }];
-        const { request, localSorts, requestLimit, limit } = compile(
+        const { request, localSorts, requestLimit, limit } = compileLive(
             query({ sorts }),
         );
         expect(request.rowLimit).toBe(MAX_ROWS);
@@ -102,7 +113,7 @@ describe('compileSearchConsoleQuery', () => {
 
     test('sorts locally by clicks when grouping by date, which the API returns by date', () => {
         const sorts = [{ fieldId: field('clicks'), descending: true }];
-        const { request, localSorts, requestLimit, limit } = compile(
+        const { request, localSorts, requestLimit, limit } = compileLive(
             query({ dimensions: [field('date')], sorts }),
         );
         expect(request.rowLimit).toBe(MAX_ROWS);

@@ -6,7 +6,10 @@ import {
     type FilterRule,
     type MetricQuery,
 } from '@lightdash/common';
-import { buildLiveExplores } from '../../explores/build';
+import {
+    buildLiveExplores,
+    compileLiveMetricQuery,
+} from '../../explores/build';
 import { compileGoogleAdsQuery } from './compile';
 
 const [explore] = buildLiveExplores({
@@ -35,35 +38,44 @@ const rule = (
     values,
 });
 
-const compile = (
-    query: Partial<Omit<MetricQuery, 'filters'>> & {
-        dimensionRules?: FilterRule[];
-        metricRules?: FilterRule[];
-    },
-) => {
+type TestQuery = Partial<Omit<MetricQuery, 'filters'>> & {
+    dimensionRules?: FilterRule[];
+    metricRules?: FilterRule[];
+};
+
+const toMetricQuery = (query: TestQuery): MetricQuery => {
     const { dimensionRules, metricRules, ...rest } = query;
-    return compileGoogleAdsQuery({
+    return {
+        exploreName: explore.name,
+        dimensions: [],
+        metrics: [id('clicks')],
+        sorts: [],
+        limit: 500,
+        tableCalculations: [],
+        ...rest,
+        filters: {
+            ...(dimensionRules
+                ? { dimensions: { id: 'd', and: dimensionRules } }
+                : {}),
+            ...(metricRules ? { metrics: { id: 'm', and: metricRules } } : {}),
+        },
+    } as MetricQuery;
+};
+
+const compile = (query: TestQuery) =>
+    compileGoogleAdsQuery({
         explore: explore as Explore,
         today: '2026-11-09',
-        metricQuery: {
-            exploreName: explore.name,
-            dimensions: [],
-            metrics: [id('clicks')],
-            sorts: [],
-            limit: 500,
-            tableCalculations: [],
-            ...rest,
-            filters: {
-                ...(dimensionRules
-                    ? { dimensions: { id: 'd', and: dimensionRules } }
-                    : {}),
-                ...(metricRules
-                    ? { metrics: { id: 'm', and: metricRules } }
-                    : {}),
-            },
-        } as MetricQuery,
+        metricQuery: toMetricQuery(query),
     });
-};
+
+const compileLive = (query: TestQuery) =>
+    compileLiveMetricQuery({
+        explore: explore as Explore,
+        metricQuery: toMetricQuery(query),
+        timezone: 'UTC',
+        now: new Date('2026-11-09T12:00:00Z'),
+    });
 
 const DEFAULT_RANGE = "segments.date BETWEEN '2026-10-10' AND '2026-11-08'";
 
@@ -90,7 +102,7 @@ describe('compileGoogleAdsQuery', () => {
     });
 
     it('splits by segments without leaving the account level', () => {
-        const { query, fieldIdsByColumn } = compile({
+        const { query, fieldIdsByColumn } = compileLive({
             dimensions: [id('date'), id('device')],
         });
 
@@ -117,7 +129,7 @@ describe('compileGoogleAdsQuery', () => {
     });
 
     it('selects a metric for dimension-only queries and leaves it out of the results', () => {
-        const { query, fieldIdsByColumn } = compile({
+        const { query, fieldIdsByColumn } = compileLive({
             dimensions: [id('campaign_name')],
             metrics: [],
         });
@@ -130,15 +142,15 @@ describe('compileGoogleAdsQuery', () => {
 
     it('turns years into dates and leaves the other grains alone', () => {
         expect(
-            compile({ dimensions: [id('date_year')] }).periodColumns,
+            compileLive({ dimensions: [id('date_year')] }).periodColumns,
         ).toEqual({ 'segments.year': 'year' });
         expect(
-            compile({ dimensions: [id('date_month')] }).periodColumns,
+            compileLive({ dimensions: [id('date_month')] }).periodColumns,
         ).toEqual({});
     });
 
     it('sorts in the API', () => {
-        const compiled = compile({
+        const compiled = compileLive({
             dimensions: [id('date')],
             sorts: [
                 { fieldId: id('clicks'), descending: true },

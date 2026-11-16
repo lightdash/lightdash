@@ -237,14 +237,27 @@ export const buildLiveExplore = ({
     };
 };
 
-/** A metric query compiled into one connector call, plus what to do with its rows. */
-export type CompiledLiveQuery = {
-    /** The connector's own request, e.g. a GA4 runReport body. */
+/** What an integration's `compile` writes; `compileLiveMetricQuery` adds the rest. */
+export type LiveCompiledRequest = {
+    /** The integration's own request, e.g. a GA4 runReport body. */
     query: string;
-    /** Rows to ask the connector for; more than `limit` when rows are sorted locally. */
+    /**
+     * Sorts the API can't apply. Rows are then read up to `limits.maxRows`
+     * and sorted here; see `getLiveRequestLimit`.
+     */
+    localSorts?: SortField[];
+    /** The field each response column answers; defaults to the fields' API names. */
+    fieldIdsByColumn?: Record<string, FieldId>;
+};
+
+/** A metric query compiled into one integration request, plus what to do with its rows. */
+export type CompiledLiveQuery = {
+    /** The integration's own request, e.g. a GA4 runReport body. */
+    query: string;
+    /** Rows to ask the API for; more than `limit` when rows are sorted locally. */
     requestLimit: number;
     limit: number;
-    /** The field each column of the connector's rows answers. */
+    /** The field each column of the API's rows answers. */
     fieldIdsByColumn: Record<string, FieldId>;
     /** Sorts the API can't apply; they run on the returned rows. */
     localSorts: SortField[];
@@ -254,6 +267,13 @@ export type CompiledLiveQuery = {
      */
     periodColumns?: Record<string, LivePeriodFormat>;
 };
+
+/** Rows a query reads: all it may, when its rows are sorted here. */
+export const getLiveRequestLimit = (
+    limit: number,
+    localSorts: SortField[],
+    maxRows: number,
+) => (localSorts.length > 0 ? maxRows : limit);
 
 export type LivePeriodFormat = 'iso_week' | 'year_month' | 'year';
 

@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { ga4Integration } from '.';
+import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { compileGa4Query, GA4_EARLIEST_DATE } from './compile';
 import { GA4_REPORT_EXPLORE, withGa4MetadataFields } from './explores';
@@ -61,6 +62,16 @@ const compile = (metricQuery: MetricQuery, explore = buildExplore()) => {
     return { ...compiled, request: JSON.parse(compiled.query) };
 };
 
+const compileLive = (metricQuery: MetricQuery, explore = buildExplore()) => {
+    const compiled = compileLiveMetricQuery({
+        explore,
+        metricQuery,
+        timezone: 'UTC',
+        now: new Date('2026-11-04T12:00:00Z'),
+    });
+    return { ...compiled, request: JSON.parse(compiled.query) };
+};
+
 describe('GA4 semantic layer', () => {
     test('keeps its field ids stable', () => {
         expect(
@@ -71,11 +82,12 @@ describe('GA4 semantic layer', () => {
 
 describe('compileGa4Query', () => {
     test('compiles a query into one runReport body', () => {
-        const { request, fieldIdsByColumn, localSorts, requestLimit } = compile(
-            query({
-                sorts: [{ fieldId: field('sessions'), descending: true }],
-            }),
-        );
+        const { request, fieldIdsByColumn, localSorts, requestLimit } =
+            compileLive(
+                query({
+                    sorts: [{ fieldId: field('sessions'), descending: true }],
+                }),
+            );
         expect(request).toEqual({
             dateRanges: [{ startDate: '28daysAgo', endDate: '1daysAgo' }],
             dimensions: [{ name: 'sessionDefaultChannelGroup' }],
@@ -256,7 +268,7 @@ describe('compileGa4Query', () => {
     });
 
     test('asks for a metric it drops when the query has none', () => {
-        const { request, fieldIdsByColumn } = compile(
+        const { request, fieldIdsByColumn } = compileLive(
             query({ metrics: [], sorts: [] }),
         );
         expect(request.metrics).toEqual([{ name: 'eventCount' }]);
@@ -277,7 +289,7 @@ describe('compileGa4Query', () => {
                 ],
             }),
         );
-        const { request, fieldIdsByColumn } = compile(
+        const { request, fieldIdsByColumn } = compileLive(
             query({ dimensions: [field('custom_event_plan_type')] }),
             explore,
         );
@@ -335,7 +347,7 @@ describe('compileGa4Query dates', () => {
     });
 
     test('groups by week, month and year of the date and reads them as dates', () => {
-        const { request, periodColumns, fieldIdsByColumn } = compile(
+        const { request, periodColumns, fieldIdsByColumn } = compileLive(
             query({
                 dimensions: [
                     field('date_week'),
@@ -359,7 +371,8 @@ describe('compileGa4Query dates', () => {
 
     test('keeps year and month text where it is the text dimension', () => {
         expect(
-            compile(query({ dimensions: [field('year_month')] })).periodColumns,
+            compileLive(query({ dimensions: [field('year_month')] }))
+                .periodColumns,
         ).toEqual({});
     });
 });

@@ -11,7 +11,7 @@ import {
     getLiveExplore,
     toFieldCombinationIssue,
     toLiveQueryError,
-    type CompiledLiveQuery,
+    type LiveCompiledRequest,
 } from '../../explores/definition';
 import { resolveAbsoluteDateRange } from '../../query/dateRange';
 import { getGrainIssues, type LiveGrain } from '../../query/grain';
@@ -134,7 +134,7 @@ export const compileLinkedInAdsQuery = ({
     explore: Explore;
     metricQuery: MetricQuery;
     today: string;
-}): CompiledLiveQuery => {
+}): LiveCompiledRequest => {
     const apiSource = getLiveExplore(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const { otherFilters, ...dateRange } = resolveAbsoluteDateRange({
@@ -201,10 +201,6 @@ export const compileLinkedInAdsQuery = ({
         );
     }
 
-    const isApiOrder = metricQuery.sorts.length === 0;
-    const requestLimit = isApiOrder
-        ? metricQuery.limit
-        : LINKEDIN_ADS_MAX_QUERY_ROWS;
     const campaignIds = campaigns.flatMap(toIds);
     const campaignGroupIds = campaignGroups.flatMap(toIds);
     const request = {
@@ -224,13 +220,6 @@ export const compileLinkedInAdsQuery = ({
     };
     return {
         query: JSON.stringify(request),
-        requestLimit,
-        limit: metricQuery.limit,
-        fieldIdsByColumn: Object.fromEntries(
-            [...metricQuery.dimensions, ...metricQuery.metrics].map(
-                (fieldId) => [apiName(fieldId), fieldId],
-            ),
-        ),
         // adAnalytics sorts on a few metrics only and has no pagination, so
         // every row is here to sort.
         localSorts: metricQuery.sorts,

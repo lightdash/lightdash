@@ -11,7 +11,7 @@ import {
     getLiveExplore,
     toFieldCombinationIssue,
     toLiveQueryError,
-    type CompiledLiveQuery,
+    type LiveCompiledRequest,
 } from '../../explores/definition';
 import {
     getLiveDateRange,
@@ -204,7 +204,7 @@ export const compileYoutubeAnalyticsQuery = ({
     explore: Explore;
     metricQuery: MetricQuery;
     today: string;
-}): CompiledLiveQuery => {
+}): LiveCompiledRequest => {
     const apiSource = getLiveExplore(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const { dateRule, otherFilters } = apiSource.dateRange
@@ -267,13 +267,5 @@ export const compileYoutubeAnalyticsQuery = ({
     };
     return {
         query: JSON.stringify(request),
-        requestLimit: metricQuery.limit,
-        limit: metricQuery.limit,
-        fieldIdsByColumn: Object.fromEntries(
-            [...metricQuery.dimensions, ...metricQuery.metrics].map(
-                (fieldId) => [apiName(fieldId), fieldId],
-            ),
-        ),
-        localSorts: [],
     };
 };

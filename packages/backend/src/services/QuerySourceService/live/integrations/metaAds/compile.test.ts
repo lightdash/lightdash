@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { metaAdsIntegration } from '.';
+import { compileLiveMetricQuery } from '../../explores/build';
 import { buildLiveExplore } from '../../explores/definition';
 import { connectLiveSource } from '../../liveSource.mock';
 import { compileMetaAdsQuery } from './compile';
@@ -62,6 +63,14 @@ const compile = (metricQuery: MetricQuery, today = '2026-11-09') =>
         metricQuery,
         today,
         maxRows: META_ADS_MAX_QUERY_ROWS,
+    });
+
+const compileLive = (metricQuery: MetricQuery, today = '2026-11-09') =>
+    compileLiveMetricQuery({
+        explore,
+        metricQuery,
+        timezone: 'UTC',
+        now: new Date(`${today}T12:00:00Z`),
     });
 
 const request = (metricQuery: MetricQuery, today?: string) =>
@@ -143,7 +152,8 @@ describe('compileMetaAdsQuery', () => {
             const metricQuery = query({
                 dimensions: [field('objective'), field('campaign_id')],
             });
-            const { query: compiled, fieldIdsByColumn } = compile(metricQuery);
+            const { query: compiled, fieldIdsByColumn } =
+                compileLive(metricQuery);
             const source = connectLiveSource(
                 metaAdsIntegration,
                 { connector: ApiConnectorType.META_ADS, adAccountId: '123' },
@@ -221,7 +231,7 @@ describe('compileMetaAdsQuery', () => {
     });
 
     it('maps result columns back onto field ids', () => {
-        const compiled = compile(
+        const compiled = compileLive(
             query({
                 dimensions: [field('date')],
                 metrics: [field('purchases'), field('link_clicks')],
@@ -439,7 +449,7 @@ describe('compileMetaAdsQuery', () => {
     });
 
     it('asks Meta to sort by one of its own metrics', () => {
-        const compiled = compile(
+        const compiled = compileLive(
             query({
                 sorts: [{ fieldId: field('spend'), descending: true }],
                 limit: 10,
@@ -468,7 +478,7 @@ describe('compileMetaAdsQuery', () => {
             ],
         ],
     ])('sorts %s after reading every row', (_name, sorts) => {
-        const compiled = compile(query({ sorts, limit: 10 }));
+        const compiled = compileLive(query({ sorts, limit: 10 }));
 
         expect(JSON.parse(compiled.query).sort).toBeUndefined();
         expect(compiled.requestLimit).toBe(META_ADS_MAX_QUERY_ROWS);

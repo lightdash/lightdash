@@ -9,7 +9,8 @@ import {
 import {
     getApiName,
     getLiveExplore,
-    type CompiledLiveQuery,
+    getLiveRequestLimit,
+    type LiveCompiledRequest,
 } from '../../explores/definition';
 import {
     getLiveDateRange,
@@ -101,7 +102,7 @@ export const compileSearchConsoleQuery = ({
     metricQuery: MetricQuery;
     today: string;
     maxRows: number;
-}): CompiledLiveQuery => {
+}): LiveCompiledRequest => {
     const apiSource = getLiveExplore(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const { dateRule, otherFilters } = apiSource.dateRange
@@ -141,24 +142,17 @@ export const compileSearchConsoleQuery = ({
             otherSorts.length === 0 &&
             firstSort.descending &&
             apiName(firstSort.fieldId) === 'clicks');
-    const requestLimit = isApiOrder ? metricQuery.limit : maxRows;
+    const localSorts = isApiOrder ? [] : metricQuery.sorts;
     const request = {
         ...dateRange,
         dimensions: metricQuery.dimensions.map(apiName),
         ...(filters.length > 0
             ? { dimensionFilterGroups: [{ groupType: 'and', filters }] }
             : {}),
-        rowLimit: requestLimit,
+        rowLimit: getLiveRequestLimit(metricQuery.limit, localSorts, maxRows),
     };
     return {
         query: JSON.stringify(request),
-        requestLimit,
-        limit: metricQuery.limit,
-        fieldIdsByColumn: Object.fromEntries(
-            [...metricQuery.dimensions, ...metricQuery.metrics].map(
-                (fieldId) => [apiName(fieldId), fieldId],
-            ),
-        ),
-        localSorts: isApiOrder ? [] : metricQuery.sorts,
+        localSorts,
     };
 };

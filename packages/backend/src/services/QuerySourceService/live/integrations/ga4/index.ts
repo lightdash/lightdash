@@ -12,7 +12,7 @@ import {
 import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { toGoogleApiError } from '../google/errors';
 import { assertGoogleSignIn } from '../google/signIn';
-import { compileGa4Query } from './compile';
+import { compileGa4Query, GA4_PERIOD_FORMATS } from './compile';
 import {
     GA4_DATE_FILTERS,
     GA4_METRIC_FILTERS,
@@ -63,6 +63,7 @@ export const ga4Integration = defineLiveIntegration({
     // too. Dates are one range in the property's time zone, which the API
     // can't override, grouped by day, ISO week, month or year. Everything
     // SQL-like is refused.
+    periodFormats: GA4_PERIOD_FORMATS,
     capabilities: {
         filters: {
             operators: {

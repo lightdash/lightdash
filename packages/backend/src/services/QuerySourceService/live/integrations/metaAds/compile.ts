@@ -11,9 +11,10 @@ import {
     getActiveFilterRules,
     getApiName,
     getLiveExplore,
+    getLiveRequestLimit,
     toFieldCombinationIssue,
     toLiveQueryError,
-    type CompiledLiveQuery,
+    type LiveCompiledRequest,
 } from '../../explores/definition';
 import { resolveAbsoluteDateRange } from '../../query/dateRange';
 import { getGrainIssues, type LiveGrain } from '../../query/grain';
@@ -145,7 +146,7 @@ export const compileMetaAdsQuery = ({
     metricQuery: MetricQuery;
     today: string;
     maxRows: number;
-}): CompiledLiveQuery => {
+}): LiveCompiledRequest => {
     const apiSource = getLiveExplore(explore);
     const apiName = (fieldId: FieldId) => getApiName(apiSource, fieldId);
     const dateFieldId = apiSource.dateRange?.fieldId ?? null;
@@ -255,7 +256,7 @@ export const compileMetaAdsQuery = ({
 
     const apiSort = getApiSort(metricQuery.sorts, metricQuery.metrics, apiName);
     const isApiOrder = metricQuery.sorts.length === 0 || apiSort !== null;
-    const requestLimit = isApiOrder ? metricQuery.limit : maxRows;
+    const localSorts = isApiOrder ? [] : metricQuery.sorts;
     const filtering = rules.flatMap((rule) =>
         toFilters(apiName(rule.target.fieldId), rule),
     );
@@ -267,17 +268,10 @@ export const compileMetaAdsQuery = ({
         ...(breakdowns.length > 0 ? { breakdowns } : {}),
         ...(filtering.length > 0 ? { filtering } : {}),
         ...(apiSort ? { sort: [apiSort] } : {}),
-        limit: requestLimit,
+        limit: getLiveRequestLimit(metricQuery.limit, localSorts, maxRows),
     };
     return {
         query: JSON.stringify(request),
-        requestLimit,
-        limit: metricQuery.limit,
-        fieldIdsByColumn: Object.fromEntries(
-            [...metricQuery.dimensions, ...metricQuery.metrics].map(
-                (fieldId) => [apiName(fieldId), fieldId],
-            ),
-        ),
-        localSorts: isApiOrder ? [] : metricQuery.sorts,
+        localSorts,
     };
 };

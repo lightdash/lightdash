@@ -15,7 +15,7 @@ import {
     getLiveExplore,
     toFieldCombinationIssue,
     toLiveQueryError,
-    type CompiledLiveQuery,
+    type LiveCompiledRequest,
 } from '../../explores/definition';
 import { resolveAbsoluteDateRange } from '../../query/dateRange';
 import { escapeRe2 } from '../../query/escapeRe2';
@@ -236,7 +236,7 @@ export const compileGoogleAdsQuery = ({
     explore: Explore;
     metricQuery: MetricQuery;
     today: string;
-}): CompiledLiveQuery => {
+}): LiveCompiledRequest => {
     const apiSource = getLiveExplore(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const { startDate, endDate, otherFilters } = resolveAbsoluteDateRange({
@@ -300,28 +300,15 @@ export const compileGoogleAdsQuery = ({
                 `${apiName(fieldId)} ${descending ? 'DESC' : 'ASC'}`,
         )
         .join(', ');
-    const requestLimit = metricQuery.limit;
     const query = [
         `SELECT ${[...selectedDimensions, ...selectedMetrics].join(', ')}`,
         `FROM ${fromResource}`,
         `WHERE ${conditions.join(' AND ')}`,
         ...(orderBy ? [`ORDER BY ${orderBy}`] : []),
-        `LIMIT ${requestLimit}`,
+        `LIMIT ${metricQuery.limit}`,
     ].join(' ');
 
     return {
         query,
-        requestLimit,
-        limit: metricQuery.limit,
-        fieldIdsByColumn: Object.fromEntries(
-            [...metricQuery.dimensions, ...metricQuery.metrics].map(
-                (fieldId) => [apiName(fieldId), fieldId],
-            ),
-        ),
-        localSorts: [],
-        // Week, month and quarter already arrive as their first day
-        periodColumns: selectedDimensions.includes('segments.year')
-            ? { 'segments.year': 'year' }
-            : {},
     };
 };

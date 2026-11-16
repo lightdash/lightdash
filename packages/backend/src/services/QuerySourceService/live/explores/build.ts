@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     DimensionType,
     getItemId,
+    getItemMap,
     isDimension,
     SupportedDbtAdapter,
     UnexpectedServerError,
@@ -21,6 +22,8 @@ import { getLiveIntegration } from '../registry';
 import { type LiveCapabilities, type LiveScanResult } from '../types';
 import {
     buildLiveExplore,
+    getApiName,
+    getLiveRequestLimit,
     type CompiledLiveQuery,
     type LiveExploreDefinition,
     type LivePeriodFormat,
@@ -311,18 +314,58 @@ export const compileLiveMetricQuery = ({
     timezone: string;
     now: Date;
 }): CompiledLiveQuery => {
-    const integration = explore.apiSource?.integration;
-    if (integration === undefined) {
+    const { apiSource } = explore;
+    if (!apiSource) {
         throw new UnexpectedServerError(
             `"${explore.name}" isn't a live data source explore`,
         );
     }
-    return getLiveIntegration(integration).compile({
-        explore,
-        metricQuery,
-        timezone,
-        now,
-    });
+    const { compile, limits, periodFormats } = getLiveIntegration(
+        apiSource.integration,
+    );
+    const {
+        query,
+        localSorts = [],
+        fieldIdsByColumn = Object.fromEntries(
+            [...metricQuery.dimensions, ...metricQuery.metrics].map(
+                (fieldId) => [getApiName(apiSource, fieldId), fieldId],
+            ),
+        ),
+    } = compile({ explore, metricQuery, timezone, now });
+    const getPeriodColumns = (formats: typeof periodFormats & object) => {
+        const columnByFieldId = new Map(
+            Object.entries(fieldIdsByColumn).map(([column, fieldId]) => [
+                fieldId,
+                column,
+            ]),
+        );
+        const itemsMap = getItemMap(explore);
+        return Object.fromEntries(
+            metricQuery.dimensions.flatMap((fieldId) => {
+                const item = itemsMap[fieldId];
+                const format =
+                    item && isDimension(item) && item.timeInterval
+                        ? formats[item.timeInterval]
+                        : undefined;
+                const column = columnByFieldId.get(fieldId);
+                return format && column ? [[column, format]] : [];
+            }),
+        );
+    };
+    return {
+        query,
+        requestLimit: getLiveRequestLimit(
+            metricQuery.limit,
+            localSorts,
+            limits.maxRows,
+        ),
+        limit: metricQuery.limit,
+        fieldIdsByColumn,
+        localSorts,
+        ...(periodFormats
+            ? { periodColumns: getPeriodColumns(periodFormats) }
+            : {}),
+    };
 };
 
 const compareValues = (left: unknown, right: unknown): number => {

@@ -15,7 +15,7 @@ import {
 import {
     getApiName,
     getLiveExplore,
-    type CompiledLiveQuery,
+    type LiveCompiledRequest,
     type LivePeriodFormat,
 } from '../../explores/definition';
 import {
@@ -203,11 +203,13 @@ const getDateRanges = (
 };
 
 // How GA4 reports the grains of the date dimension: isoYearIsoWeek, yearMonth, year
-const PERIOD_FORMATS: Partial<Record<TimeFrames, LivePeriodFormat>> = {
-    [TimeFrames.WEEK]: 'iso_week',
-    [TimeFrames.MONTH]: 'year_month',
-    [TimeFrames.YEAR]: 'year',
-};
+/** GA4 returns weeks, months and years as YYYYWW, YYYYMM and YYYY. */
+export const GA4_PERIOD_FORMATS: Partial<Record<TimeFrames, LivePeriodFormat>> =
+    {
+        [TimeFrames.WEEK]: 'iso_week',
+        [TimeFrames.MONTH]: 'year_month',
+        [TimeFrames.YEAR]: 'year',
+    };
 
 /**
  * Compiles a metric query on a GA4 explore into one runReport body. Dates
@@ -222,7 +224,7 @@ export const compileGa4Query = ({
     explore: Explore;
     metricQuery: MetricQuery;
     today: string;
-}): CompiledLiveQuery => {
+}): LiveCompiledRequest => {
     const apiSource = getLiveExplore(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const caseSensitive = explore.caseSensitive ?? true;
@@ -245,12 +247,6 @@ export const compileGa4Query = ({
         (rule) => getMetricExpression(apiName(rule.target.fieldId), rule),
     );
     const metricIds = new Set(metricQuery.metrics);
-    const dimensionsById = new Map(
-        getDimensions(explore).map((dimension) => [
-            getItemId(dimension),
-            dimension,
-        ]),
-    );
     const request = {
         dateRanges: getDateRanges(apiSource, dateRule, today),
         dimensions: metricQuery.dimensions.map((fieldId) => ({
@@ -276,22 +272,10 @@ export const compileGa4Query = ({
     };
     return {
         query: JSON.stringify(request),
-        requestLimit: metricQuery.limit,
-        limit: metricQuery.limit,
         fieldIdsByColumn: Object.fromEntries(
             [...metricQuery.dimensions, ...metricQuery.metrics].map(
                 (fieldId) => [toGa4ColumnName(apiName(fieldId)), fieldId],
             ),
-        ),
-        localSorts: [],
-        periodColumns: Object.fromEntries(
-            metricQuery.dimensions.flatMap((fieldId) => {
-                const { timeInterval } = dimensionsById.get(fieldId) ?? {};
-                const format = timeInterval && PERIOD_FORMATS[timeInterval];
-                return format
-                    ? [[toGa4ColumnName(apiName(fieldId)), format]]
-                    : [];
-            }),
         ),
     };
 };
