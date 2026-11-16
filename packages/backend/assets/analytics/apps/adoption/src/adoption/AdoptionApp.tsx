@@ -115,13 +115,13 @@ const Segmented = <T extends string>({
                         {index > 0 && <span aria-hidden className={`my-1.5 w-px ${hasLine ? 'bg-border' : 'bg-transparent'}`} />}
                         {extra ? (
                             <span className={`inline-flex items-stretch rounded ${pill}`}>
-                                <button type="button" aria-pressed={value === option} className="rounded-l py-1 pl-2.5 pr-1 text-xs font-medium" onClick={() => onChange(option)}>
+                                <button type="button" aria-pressed={value === option} className="rounded-l py-1 pl-2 pr-1 text-xs font-medium sm:pl-2.5" onClick={() => onChange(option)}>
                                     {labels[option]}
                                 </button>
                                 {extra}
                             </span>
                         ) : (
-                            <button type="button" aria-pressed={value === option} className={`rounded px-2.5 py-1 text-xs font-medium ${pill}`} onClick={() => onChange(option)}>
+                            <button type="button" aria-pressed={value === option} className={`rounded px-2 py-1 text-xs font-medium sm:px-2.5 ${pill}`} onClick={() => onChange(option)}>
                                 {labels[option]}
                             </button>
                         )}
@@ -424,7 +424,7 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                             )}
                         </nav>
                         {/* On a narrow page the two choices take a row of their own, under the name and the buttons */}
-                        <div className="order-3 flex basis-full flex-wrap items-center gap-x-4 gap-y-2 sm:order-2 sm:ml-auto sm:basis-auto">
+                        <div className="order-3 flex basis-full flex-wrap items-center gap-x-2 gap-y-2 sm:order-2 sm:ml-auto sm:basis-auto sm:gap-x-4">
                             <Segmented label="Layout" options={LAYOUTS} labels={LAYOUT_LABELS} value={layout} onChange={setLayout} />
                             <Segmented
                                 label="Colour by"
@@ -661,7 +661,7 @@ export default function AdoptionApp() {
     };
     return (
         <div className="min-h-screen bg-background text-foreground">
-            <div data-ad-page className="px-6 pb-4 pt-3">
+            <div data-ad-page className="px-3 pb-4 pt-3 sm:px-6">
                 {source.fixture && <p className="m-0 mb-2 text-xs text-muted-foreground">Invented sample data ({source.fixture}).</p>}
                 {membership.error ? (
                     <Failure text={membership.error} />
