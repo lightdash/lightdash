@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { getOpenProposal } from './studioProposal';
 
 const thread = (
-    ...replies: { message: string; tools?: string[] }[]
+    ...replies: { message: string; tools?: string[]; pending?: boolean }[]
 ): AiAgentThread['messages'] =>
-    replies.map(({ message, tools = [] }) => ({
+    replies.map(({ message, tools = [], pending = false }) => ({
         role: 'assistant',
+        status: pending ? 'pending' : 'idle',
         message,
         toolCalls: tools.map((toolName) => ({ toolName })),
     })) as unknown as AiAgentThread['messages'];
@@ -37,6 +38,27 @@ describe('getOpenProposal', () => {
         ).toEqual([]);
         expect(
             getOpenProposal(thread({ message: 'No change needed.' })),
+        ).toEqual([]);
+    });
+
+    it('keeps the proposal while the reply asked to save it is still being written', () => {
+        const proposed = { message: '```diff\n+a\n```' };
+        expect(
+            getOpenProposal(
+                thread(proposed, {
+                    message: '',
+                    tools: ['editDbtProject'],
+                    pending: true,
+                }),
+            ),
+        ).toEqual(['+a\n']);
+        expect(
+            getOpenProposal(
+                thread(proposed, {
+                    message: 'Opened it.',
+                    tools: ['editDbtProject'],
+                }),
+            ),
         ).toEqual([]);
     });
 });
