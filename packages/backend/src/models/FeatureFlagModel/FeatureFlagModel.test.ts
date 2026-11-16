@@ -276,6 +276,43 @@ describe('FeatureFlagModel', () => {
         });
     });
 
+    describe('ai-thread-images needs an uploads bucket', () => {
+        const enabledByEnv = {
+            enabledFeatureFlags: new Set<string>([FeatureFlags.AiThreadImages]),
+        };
+        it('is off without a bucket even when the flag is forced on', async () => {
+            const model = buildModel({
+                ...enabledByEnv,
+                uploads: { s3: null },
+            });
+            await expect(
+                model.get({ featureFlagId: FeatureFlags.AiThreadImages }),
+            ).resolves.toEqual({
+                id: FeatureFlags.AiThreadImages,
+                enabled: false,
+            });
+        });
+        it('follows the flag once a bucket is configured', async () => {
+            const model = buildModel({
+                ...enabledByEnv,
+                uploads: {
+                    s3: {
+                        endpoint: 'http://localhost:9000',
+                        bucket: 'uploads',
+                        region: 'us-east-1',
+                        expirationTime: 259200,
+                    },
+                },
+            });
+            await expect(
+                model.get({ featureFlagId: FeatureFlags.AiThreadImages }),
+            ).resolves.toEqual({
+                id: FeatureFlags.AiThreadImages,
+                enabled: true,
+            });
+        });
+    });
+
     describe('env var override', () => {
         it('returns enabled for any flag listed in LIGHTDASH_ENABLE_FEATURE_FLAGS', async () => {
             const model = buildModel({

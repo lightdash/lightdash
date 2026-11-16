@@ -1113,10 +1113,12 @@ export const AgentChatInput = ({
             const csvFiles: File[] = [];
             const documentFiles: File[] = [];
             try {
+                let refusedImage = false;
                 for (const file of files) {
-                    if (imagesEnabled && (await isThreadImageFile(file)))
-                        images.push(file);
-                    else if (
+                    if (await isThreadImageFile(file)) {
+                        if (imagesEnabled) images.push(file);
+                        else refusedImage = true;
+                    } else if (
                         canAttachExternalSource &&
                         isTabularThreadFileName(file.name)
                     )
@@ -1124,6 +1126,10 @@ export const AgentChatInput = ({
                     else documentFiles.push(file);
                 }
                 if (!composerMountedRef.current) return;
+                if (refusedImage)
+                    showToastError({
+                        title: 'Image attachments are not available here',
+                    });
                 if (images.length > 0) void attachThreadImages(images);
                 if (csvFiles.length > 0) void attachCsvFiles(csvFiles);
                 if (documentFiles.length > 0) {
@@ -1186,6 +1192,12 @@ export const AgentChatInput = ({
     );
     const { isDraggingFiles, dropTargetProps } = useFileDropTarget({
         enabled: canUseAttachControl,
+        // With images off, a drag of nothing but images has nowhere to go.
+        // An empty list means the browser did not say what is being dragged.
+        acceptsFileTypes: (types) =>
+            imagesEnabled ||
+            types.length === 0 ||
+            types.some((type) => !type.startsWith('image/')),
         onDropFiles: handleDroppedFiles,
     });
     const renderDropOverlay = (variant: 'card' | 'inline') =>
