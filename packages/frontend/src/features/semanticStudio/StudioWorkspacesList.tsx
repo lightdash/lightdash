@@ -79,6 +79,7 @@ const MineRow: FC<{
     <UnstyledButton
         className={classes.row}
         data-current={workspace.isActive || undefined}
+        aria-current={workspace.isActive || undefined}
         onClick={onOpen}
     >
         <RunRing run={run} size={40} />
@@ -87,9 +88,6 @@ const MineRow: FC<{
                 <Text component="span" className={classes.name}>
                     {workspace.name}
                 </Text>
-                {workspace.isActive ? (
-                    <span className={classes.here}>You're here</span>
-                ) : null}
             </span>
             <span className={classes.meta} data-kind={run.kind}>
                 <RunMeta
@@ -167,7 +165,9 @@ export const StudioWorkspacesList: FC<{
             <header className={classes.hero}>
                 <Text className={classes.title}>Changes</Text>
                 <Text className={classes.lede}>
-                    Each change runs from its first proposal until it is live.
+                    {rows.length === 0
+                        ? 'Nothing in flight yet. Ask for a change to get started.'
+                        : 'Pick up where you and your team left off.'}
                 </Text>
             </header>
             {rows.length === 0 ? (

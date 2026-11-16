@@ -8,6 +8,7 @@ import { assertUnreachable } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
+    Avatar,
     Box,
     Breadcrumbs,
     Button,
@@ -43,7 +44,12 @@ import {
     type FC,
     type KeyboardEvent,
 } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router';
+import {
+    createSearchParams,
+    useLocation,
+    useNavigate,
+    useSearchParams,
+} from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
 import { StudioChanges } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioChanges';
@@ -977,6 +983,23 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
 
     const isEmpty = view.project.explores.length === 0;
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const routeWorkspaceUuid = parseSemanticStudioWorkspaceUuid(pathname);
+    // On a change's own page the bare path shows it; elsewhere it is a view.
+    const changesParams = useMemo(
+        (): Record<string, string> =>
+            routeWorkspaceUuid ? {} : { [VIEW_PARAM]: 'changes' },
+        [routeWorkspaceUuid],
+    );
+    // Any other view leaves the change's page, so its id drops from the path.
+    const setStudioParams = (params: Record<string, string>) => {
+        if (!routeWorkspaceUuid) return setSearchParams(params);
+        void navigate({
+            pathname: getSemanticStudioUrl(view.project.id, { ref: null }),
+            search: createSearchParams(params).toString(),
+        });
+    };
     const { data: draft } = useSemanticLayerDraft(view.project.id);
     useDraftFreshness(view.project.id);
     const { data: project } = useProject(view.project.id);
@@ -1035,10 +1058,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const wasSaving = useRef(false);
     useEffect(() => {
         if (wasSaving.current && !saving && development) {
-            setSearchParams({ [VIEW_PARAM]: 'changes' });
+            setSearchParams(changesParams, { replace: true });
         }
         wasSaving.current = !!saving;
-    }, [saving, development, setSearchParams]);
+    }, [saving, development, setSearchParams, changesParams]);
     const proposal = useStudioProposal(view.project.id);
     const hasProposal = !keepsDraft && proposal.length > 0;
     // A dbt project's changes are its conversation's: what it proposes, and what its pull request holds.
@@ -1058,9 +1081,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const [storedThread, setStoredThread] = useStoredStudioThread(
         view.project.id,
     );
-    const navigate = useNavigate();
-    const { pathname } = useLocation();
-    const routeWorkspaceUuid = parseSemanticStudioWorkspaceUuid(pathname);
     const allWorkspaces = useMemo(
         () => [
             ...(workspaces?.mine ?? []),
@@ -1157,10 +1177,22 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const lastProposalKey = useRef(proposalKey);
     useEffect(() => {
         if (proposalKey && proposalKey !== lastProposalKey.current) {
-            setSearchParams({ [VIEW_PARAM]: 'changes' });
+            setSearchParams(changesParams, { replace: true });
         }
         lastProposalKey.current = proposalKey;
-    }, [proposalKey, setSearchParams]);
+    }, [proposalKey, setSearchParams, changesParams]);
+    // Changes asked for by view get their change's own address once it is known, so a reload or a link lands on it.
+    const changeToAddress =
+        searchParams.get(VIEW_PARAM) === 'changes' && !routeWorkspaceUuid
+            ? (shownWorkspace?.workspaceUuid ?? null)
+            : null;
+    useEffect(() => {
+        if (!changeToAddress) return;
+        void navigate(
+            getSemanticStudioWorkspaceUrl(view.project.id, changeToAddress),
+            { replace: true },
+        );
+    }, [changeToAddress, navigate, view.project.id]);
     // The workspace the conversation made, named for where its changes stand.
     const pullRequestNumber = /\/(\d+)\/?$/.exec(development?.prUrl ?? '')?.[1];
     const workspace = saving
@@ -1200,18 +1232,16 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         null;
     const switchView = (next: string) => {
         if (next === 'code') {
-            setSearchParams({ [VIEW_PARAM]: 'code' });
+            setStudioParams({ [VIEW_PARAM]: 'code' });
         } else if (next === 'changes') {
             setSearchParams(
-                keepsDraft
-                    ? { [DRAFT_PARAM]: DRAFT_REVIEW }
-                    : { [VIEW_PARAM]: 'changes' },
+                keepsDraft ? { [DRAFT_PARAM]: DRAFT_REVIEW } : changesParams,
             );
         } else if (requestedFile && modelled.includes(requestedFile)) {
             view.select({ type: 'explore', exploreId: requestedFile });
         } else {
             // Named, since with changes to check the bare page shows those.
-            setSearchParams(hasChanges ? { [VIEW_PARAM]: 'models' } : {});
+            setStudioParams(hasChanges ? { [VIEW_PARAM]: 'models' } : {});
         }
     };
 
@@ -1261,7 +1291,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     };
     const showChanges = () =>
         hasWorkspaces
-            ? setSearchParams({ [VIEW_PARAM]: 'workspaces' })
+            ? setStudioParams({ [VIEW_PARAM]: 'workspaces' })
             : switchView('changes');
     const startNewChange = () => {
         startNewThread();
@@ -1357,6 +1387,19 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 {changeActions}
             </div>
             <div className={classes.changeMeta}>
+                {shownWorkspace ? (
+                    <Tooltip
+                        label={`Started by ${shownWorkspace.isMine ? 'you' : shownWorkspace.owner.name}`}
+                    >
+                        <Avatar
+                            size={20}
+                            radius="xl"
+                            color="initials"
+                            name={shownWorkspace.owner.name}
+                            aria-label={`Started by ${shownWorkspace.owner.name}`}
+                        />
+                    </Tooltip>
+                ) : null}
                 {stage ? <StudioStageLine stage={stage} /> : null}
                 {shownWorkspace ? (
                     <Text component="span" fz="xs" c="dimmed">
