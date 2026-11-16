@@ -1794,6 +1794,13 @@ describe('EmbedService', () => {
                 noExternalId: true,
                 allowed: false,
             },
+            {
+                name: 'read-only token with a thread owner and no viewer id',
+                readOnly: true,
+                noExternalId: true,
+                threadOwnershipIdentifier: 'dashboard-1',
+                allowed: true,
+            },
         ])('$name', async ({ allowed, ...scenario }) => {
             const builder = new AbilityBuilder<MemberAbility>(Ability);
             const target = {
@@ -1861,7 +1868,16 @@ describe('EmbedService', () => {
             ).getEmbedWriteContext.bind(scopedService);
             const content = scenario.dashboard
                 ? { type: 'dashboard' as const, dashboardUuid: 'dashboard' }
-                : { type: 'aiAgent' as const, agentUuid: 'agent' };
+                : {
+                      type: 'aiAgent' as const,
+                      agentUuid: 'agent',
+                      ...(scenario.threadOwnershipIdentifier
+                          ? {
+                                threadOwnershipIdentifier:
+                                    scenario.threadOwnershipIdentifier,
+                            }
+                          : {}),
+                  };
             const defaultMode = scenario.explicitDefault
                 ? 'default'
                 : undefined;
@@ -1900,9 +1916,9 @@ describe('EmbedService', () => {
                     writableSpaces: [],
                 });
             }
-            if (scenario.noExternalId) {
+            if (scenario.noExternalId && !allowed) {
                 expect(context?.aiAgentErrorMessage).toBe(
-                    'Embed tokens without write spaces must include user.externalId',
+                    'Embed tokens without write spaces must include user.externalId or content.threadOwnershipIdentifier',
                 );
             }
             if (scenario.scope === 'view:AiAgent' && !allowed) {

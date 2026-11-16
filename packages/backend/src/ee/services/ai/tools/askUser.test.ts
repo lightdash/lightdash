@@ -76,6 +76,7 @@ describe('canOfferAskUser', () => {
     const webPrompt = {
         threadCreatedFrom: 'web_app',
         threadEmbedSpaceUuid: null,
+        threadEmbedOwnerIdentifier: null,
         externalUserId: null,
         battleProfile: null,
     } as AiWebAppPrompt;
@@ -90,6 +91,10 @@ describe('canOfferAskUser', () => {
         ['a Battle thread', { ...webPrompt, battleProfile: 'fast' }],
         ['an embed', { ...webPrompt, threadEmbedSpaceUuid: 'space-1' }],
         ['a read-only embed', { ...webPrompt, externalUserId: 'viewer-1' }],
+        [
+            'a read-only embed without a viewer id',
+            { ...webPrompt, threadEmbedOwnerIdentifier: 'dashboard-1' },
+        ],
     ])('withholds it from %s', (_, prompt) => {
         expect(canOfferAskUser(prompt as AiWebAppPrompt, 'standard')).toBe(
             false,

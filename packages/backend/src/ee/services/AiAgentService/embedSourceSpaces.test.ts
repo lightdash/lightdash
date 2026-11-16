@@ -21,6 +21,7 @@ const SECOND_WRITE_SPACE_UUID = 'write-space-2';
 const THREAD_UUID = 'thread-1';
 const EMBED_ACTOR_UUID = 'embed-write-user-1';
 const EXTERNAL_USER_ID = 'viewer-1';
+const THREAD_OWNER_ID = 'dashboard-1-editors';
 
 const user = {
     userUuid: EMBED_ACTOR_UUID,
@@ -53,13 +54,20 @@ type WriteActions = {
 const buildEmbedAccount = (
     writeActions: WriteActions,
     externalId?: string,
+    threadOwnershipIdentifier?: string,
 ): AnonymousAccount =>
     ({
         isJwtUser: () => true,
         authentication: {
             type: 'jwt',
             data: {
-                content: { type: 'aiAgent', agentUuid: AGENT_UUID },
+                content: {
+                    type: 'aiAgent',
+                    agentUuid: AGENT_UUID,
+                    ...(threadOwnershipIdentifier
+                        ? { threadOwnershipIdentifier }
+                        : {}),
+                },
                 writeActions,
                 ...(externalId ? { user: { externalId } } : {}),
             },
@@ -84,7 +92,7 @@ const buildService = (agent: AiAgent) => {
             async (_: string, scope: EmbedThreadScope) =>
                 scope.type === 'writeSpaces'
                     ? scope.writeSpaceUuids.includes(WRITE_SPACE_UUID)
-                    : scope.externalUserId === EXTERNAL_USER_ID,
+                    : scope.ownerIdentifier === EXTERNAL_USER_ID,
         ),
         createWebAppThread: vi.fn(async () => THREAD_UUID),
         createWebAppPrompt: vi.fn(async () => 'prompt-1'),
@@ -243,7 +251,7 @@ describe('embedded agent thread spaces', () => {
                         WRITE_SPACE_UUID,
                         SECOND_WRITE_SPACE_UUID,
                     ],
-                    externalUserId: null,
+                    ownerIdentifier: null,
                 },
             }),
         );
@@ -264,9 +272,60 @@ describe('embedded agent thread spaces', () => {
                         WRITE_SPACE_UUID,
                         SECOND_WRITE_SPACE_UUID,
                     ],
-                    externalUserId: EXTERNAL_USER_ID,
+                    ownerIdentifier: EXTERNAL_USER_ID,
                 },
             }),
+        );
+    });
+
+    it('shares write-space threads between viewers with the same thread owner', async () => {
+        const { service, aiAgentModel } = buildService(buildAgent([]));
+        await Promise.all(
+            [EXTERNAL_USER_ID, 'viewer-2', undefined].map((externalId) =>
+                service.listEmbedAgentThreads(
+                    buildEmbedAccount(
+                        writeActions,
+                        externalId,
+                        THREAD_OWNER_ID,
+                    ),
+                    PROJECT_UUID,
+                    AGENT_UUID,
+                ),
+            ),
+        );
+        expect(aiAgentModel.findThreads).toHaveBeenCalledTimes(3);
+        [1, 2, 3].forEach((call) =>
+            expect(aiAgentModel.findThreads).toHaveBeenNthCalledWith(
+                call,
+                expect.objectContaining({
+                    embedThreadScope: {
+                        type: 'writeSpaces',
+                        writeSpaceUuids: [
+                            WRITE_SPACE_UUID,
+                            SECOND_WRITE_SPACE_UUID,
+                        ],
+                        ownerIdentifier: THREAD_OWNER_ID,
+                    },
+                }),
+            ),
+        );
+    });
+
+    it('stores the thread owner on the thread and the viewer on the prompt', async () => {
+        const { service, aiAgentModel } = buildService(buildAgent([]));
+        await service.createEmbedAgentThread(
+            buildEmbedAccount(writeActions, EXTERNAL_USER_ID, THREAD_OWNER_ID),
+            PROJECT_UUID,
+            AGENT_UUID,
+            { prompt: 'How many orders last week?' },
+        );
+        expect(aiAgentModel.createWebAppThread).toHaveBeenCalledWith(
+            expect.objectContaining({
+                embedOwnerIdentifier: THREAD_OWNER_ID,
+            }),
+        );
+        expect(aiAgentModel.createWebAppPrompt).toHaveBeenCalledWith(
+            expect.objectContaining({ externalUserId: EXTERNAL_USER_ID }),
         );
     });
 
@@ -284,7 +343,7 @@ describe('embedded agent thread spaces', () => {
             {
                 type: 'writeSpaces',
                 writeSpaceUuids: [WRITE_SPACE_UUID, SECOND_WRITE_SPACE_UUID],
-                externalUserId: null,
+                ownerIdentifier: null,
             },
         );
     });
@@ -355,18 +414,52 @@ describe('read-only embedded agent tokens', () => {
                     OTHER_SOURCE_SPACE_UUID,
                 ],
                 threadScope: {
-                    type: 'externalUser',
-                    externalUserId: EXTERNAL_USER_ID,
+                    type: 'owner',
+                    ownerIdentifier: EXTERNAL_USER_ID,
                 },
             }),
         );
     });
 
-    it('refuses a read-only token without a viewer id', async () => {
+    it('scopes threads to the thread owner over the viewer', async () => {
+        await expect(
+            getRuntimeOptions(
+                buildEmbedAccount(
+                    readOnlyActions,
+                    EXTERNAL_USER_ID,
+                    THREAD_OWNER_ID,
+                ),
+            ),
+        ).resolves.toEqual(
+            expect.objectContaining({
+                threadScope: {
+                    type: 'owner',
+                    ownerIdentifier: THREAD_OWNER_ID,
+                },
+            }),
+        );
+    });
+
+    it('accepts a read-only token with a thread owner and no viewer id', async () => {
+        await expect(
+            getRuntimeOptions(
+                buildEmbedAccount(readOnlyActions, undefined, THREAD_OWNER_ID),
+            ),
+        ).resolves.toEqual(
+            expect.objectContaining({
+                threadScope: {
+                    type: 'owner',
+                    ownerIdentifier: THREAD_OWNER_ID,
+                },
+            }),
+        );
+    });
+
+    it('refuses a read-only token without a thread owner', async () => {
         await expect(
             getRuntimeOptions(buildEmbedAccount(readOnlyActions)),
         ).rejects.toThrow(
-            'Embed tokens without write spaces must include user.externalId',
+            'Embed tokens without write spaces must include user.externalId or content.threadOwnershipIdentifier',
         );
     });
 
@@ -380,8 +473,8 @@ describe('read-only embedded agent tokens', () => {
         expect(aiAgentModel.findThreads).toHaveBeenCalledWith(
             expect.objectContaining({
                 embedThreadScope: {
-                    type: 'externalUser',
-                    externalUserId: EXTERNAL_USER_ID,
+                    type: 'owner',
+                    ownerIdentifier: EXTERNAL_USER_ID,
                 },
             }),
         );
@@ -398,7 +491,7 @@ describe('read-only embedded agent tokens', () => {
         );
         expect(aiAgentModel.isWebAppThreadInEmbedScope).toHaveBeenCalledWith(
             THREAD_UUID,
-            { type: 'externalUser', externalUserId: EXTERNAL_USER_ID },
+            { type: 'owner', ownerIdentifier: EXTERNAL_USER_ID },
         );
 
         await expect(
@@ -423,7 +516,7 @@ describe('read-only embedded agent tokens', () => {
         expect(aiAgentModel.createWebAppThread).toHaveBeenCalledWith(
             expect.objectContaining({
                 embedSpaceUuids: [],
-                embedExternalUserId: EXTERNAL_USER_ID,
+                embedOwnerIdentifier: EXTERNAL_USER_ID,
             }),
         );
     });
@@ -442,7 +535,7 @@ describe('read-only embedded agent tokens', () => {
         expect(aiAgentModel.createWebAppThread).toHaveBeenCalledWith(
             expect.objectContaining({
                 embedSpaceUuids: [WRITE_SPACE_UUID],
-                embedExternalUserId: EXTERNAL_USER_ID,
+                embedOwnerIdentifier: EXTERNAL_USER_ID,
             }),
         );
     });

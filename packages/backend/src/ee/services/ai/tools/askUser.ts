@@ -32,6 +32,7 @@ export const canOfferAskUser = (
     !isSlackPrompt(prompt) &&
     prompt.threadCreatedFrom === 'web_app' &&
     prompt.threadEmbedSpaceUuid === null &&
+    prompt.threadEmbedOwnerIdentifier === null &&
     prompt.externalUserId === null &&
     prompt.battleProfile === null &&
     executionMode === 'standard';
