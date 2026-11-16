@@ -1,5 +1,5 @@
 import { useAppState } from '@lightdash/query-sdk';
-import { ChevronDown, ChevronRight, Settings2, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronRight, Loader2, Settings2, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
@@ -249,6 +249,36 @@ const TeamPeople = ({
     );
 };
 
+type DetailState = {
+    colourBy: ColourBy;
+    isOpen: boolean;
+    setIsOpen: (open: boolean) => void;
+};
+
+const DETAIL_TITLES: Record<ColourBy, string> = {
+    usage: 'Feature fingerprint',
+    activity: 'Recent activity',
+    role: 'Roles',
+    growth: 'Growth status',
+};
+
+const DetailPanel = ({ detail, children }: { detail: DetailState; children: ReactNode }) => (
+    <div className="min-w-0 overflow-hidden rounded-lg border bg-card">
+        <h2 className="m-0 text-sm font-semibold">
+            <button
+                type="button"
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50"
+                aria-expanded={detail.isOpen}
+                onClick={() => detail.setIsOpen(!detail.isOpen)}
+            >
+                {detail.isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                {DETAIL_TITLES[detail.colourBy]}
+            </button>
+        </h2>
+        {detail.isOpen && <div key={detail.colourBy} className="border-t">{children}</div>}
+    </div>
+);
+
 type MainProps = {
     cells: Cell[];
     // Everyone's names came with the overview
@@ -260,26 +290,25 @@ type MainProps = {
     canManage: boolean;
     // Where the page header has room for the team controls
     actionSlot: HTMLElement | null;
+    detail: DetailState;
+    setColourBy: (colour: ColourBy) => void;
 };
 
-const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, canManage, actionSlot }: MainProps) => {
+const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, canManage, actionSlot, detail, setColourBy }: MainProps) => {
+    const { colourBy, setIsOpen: setIsDetailOpen } = detail;
     // The features chosen for the Features colouring, one bit each; kept in the link
     const [featuresValue, setFeatures] = useAppState<number>('features', ALL_PARTS, { scope: 'url' });
     // None chosen is allowed: every mark is then drawn as using no features
     const features = typeof featuresValue === 'number' && Number.isFinite(featuresValue) ? featuresValue & ALL_PARTS : ALL_PARTS;
     const featureCount = popcount(features);
     const [layoutValue, setLayout] = useAppState<string>('layout', 'map', { scope: 'url' });
-    const [colourValue, setColourBy] = useAppState<string>('colour', 'usage', { scope: 'url' });
     const [teamValue, setTeamValue] = useAppState<string>('team', '', { scope: 'url' });
     const [hideValue, setHideValue] = useAppState<boolean>('hideNoTeam', false, { scope: 'url' });
-    // Remembered for each person: the detail under the map starts collapsed
-    const [isDetailOpen, setIsDetailOpen] = useAppState<boolean>('detailOpen', false);
     // Remembered for each person, like the detail: where to spend effort, under the detail
     const [isFocusOpen, setIsFocusOpen] = useAppState<boolean>('focusOpen', false);
     const [isMappingOpen, setIsMappingOpen] = useState(false);
     // Values from the link are checked before use
     const layout: Layout = LAYOUTS.find((each) => each === layoutValue) ?? 'map';
-    const colourBy: ColourBy = COLOUR_BYS.find((each) => each === colourValue) ?? 'usage';
 
     const organisation = useMemo(() => buildOrganisation(cells, config), [cells, config]);
     const hasNoTeam = organisation.buckets.some((bucket) => bucket.isNoTeam);
@@ -435,32 +464,15 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                             )}
                     <Legend colourBy={colourBy} counts={countByKind(legendCells, colourBy)} notes={[]} hasSharedMarks={false} />
                 </div>
-                {/* The detail under the map follows the colouring */}
-                <div className="min-w-0 overflow-hidden rounded-lg border bg-card">
-                        <h2 className="m-0 text-sm font-semibold">
-                            <button
-                                type="button"
-                                className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-muted/50"
-                                aria-expanded={isDetailOpen}
-                                onClick={() => setIsDetailOpen(!isDetailOpen)}
-                            >
-                                {isDetailOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                                {colourBy === 'usage' ? 'Feature fingerprint' : colourBy === 'activity' ? 'Recent activity' : colourBy === 'growth' ? 'Growth status' : 'Roles'}
-                            </button>
-                        </h2>
-                        {isDetailOpen && (
-                            // Remounted with each colouring so its marks populate afresh
-                            <div key={colourBy} className="border-t">
-                                {colourBy === 'growth' ? (
-                                    <GrowthDetail organisation={detailOrganisation} selectedId={selected?.team.id ?? null} onOpen={(teamId) => select(teamId)} focus={detailPeople} />
-                                ) : colourBy === 'usage' ? (
-                                    <Fingerprint organisation={detailOrganisation} selectedId={selected?.team.id ?? null} selectedPart={null} shownParts={ALL_PARTS} onOpen={(teamId) => select(teamId)} focus={detailPeople} sweep={detailSweep} />
-                                ) : (
-                                    <RecentActivity organisation={detailOrganisation} selectedId={selected?.team.id ?? null} onOpen={(teamId) => select(teamId)} focus={detailPeople} mode={colourBy === 'role' ? 'role' : 'activity'} sweep={detailSweep} />
-                                )}
-                            </div>
-                        )}
-                </div>
+                <DetailPanel detail={detail}>
+                    {colourBy === 'growth' ? (
+                        <GrowthDetail organisation={detailOrganisation} selectedId={selected?.team.id ?? null} onOpen={(teamId) => select(teamId)} focus={detailPeople} />
+                    ) : colourBy === 'usage' ? (
+                        <Fingerprint organisation={detailOrganisation} selectedId={selected?.team.id ?? null} selectedPart={null} shownParts={ALL_PARTS} onOpen={(teamId) => select(teamId)} focus={detailPeople} sweep={detailSweep} />
+                    ) : (
+                        <RecentActivity organisation={detailOrganisation} selectedId={selected?.team.id ?? null} onOpen={(teamId) => select(teamId)} focus={detailPeople} mode={colourBy === 'role' ? 'role' : 'activity'} sweep={detailSweep} />
+                    )}
+                </DetailPanel>
                 <FocusAreas
                     organisation={organisation}
                     isOpen={isFocusOpen}
@@ -553,7 +565,7 @@ const MembershipMap = ({ cells, config }: { cells: Cell[]; config: TeamConfig })
     );
 };
 
-const Loading = ({ total, preview }: { total: number | null; preview?: ReactNode }) => (
+const Loading = ({ total, preview, detail }: { total: number | null; preview?: ReactNode; detail: DetailState }) => (
     <div className="space-y-4">
         <p className="m-0 text-sm" role="status">
             {total === null
@@ -570,6 +582,12 @@ const Loading = ({ total, preview }: { total: number | null; preview?: ReactNode
                 <Skeleton className="h-[560px]" />
             </>
         )}
+        <DetailPanel detail={detail}>
+            <div className="flex min-h-24 items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
+                <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                Loading details…
+            </div>
+        </DetailPanel>
     </div>
 );
 
@@ -642,6 +660,13 @@ export default function AdoptionApp() {
     const viewer = source.useViewer();
     const [saved, setSaved, meta] = useAppState<TeamConfig>('teams', source.fixtureTeams ?? DEFAULT_TEAM_CONFIG, { scope: 'shared' });
     const config = useMemo(() => readConfig(saved), [saved]);
+    const [colourValue, setColourBy] = useAppState<string>('colour', 'usage', { scope: 'url' });
+    const [isDetailOpen, setIsDetailOpen] = useAppState<boolean>('detailOpen', false);
+    const detail: DetailState = {
+        colourBy: COLOUR_BYS.find((each) => each === colourValue) ?? 'usage',
+        isOpen: isDetailOpen,
+        setIsOpen: setIsDetailOpen,
+    };
     const membership = source.useMembership();
     const total = membership.loading || membership.truncated ? null : sumCounts(membership.data);
     const author = meta.updatedBy as { name?: string } | null;
@@ -657,10 +682,11 @@ export default function AdoptionApp() {
         Object.keys(config.primary).length === 0 &&
         !config.teams?.some((team) => (team.memberIds?.length ?? 0) > 0);
     const props: LoaderProps = {
-        main: { config, setConfig: setSaved, stateStatus, canManage: viewer.isAdmin, actionSlot },
+        main: { config, setConfig: setSaved, stateStatus, canManage: viewer.isAdmin, actionSlot, detail, setColourBy },
         loadingView: (
             <Loading
                 total={total}
+                detail={detail}
                 preview={canPreviewMap ? <MembershipMap cells={membership.data} config={config} /> : null}
             />
         ),
