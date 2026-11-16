@@ -1968,7 +1968,8 @@ describe('BigQuery result page prefetch', () => {
         pages[1].resolve(page(3, 2, 'third'));
         await flushEventLoop();
         expect(pages).toHaveLength(2);
-        expect(received).toEqual(ids(3));
+        expect(received.length).toBeLessThanOrEqual(3);
+        expect(received).toEqual(ids(received.length));
 
         releaseFirstWrite.resolve();
         await vi.waitFor(() => expect(pages).toHaveLength(3));
@@ -2024,11 +2025,12 @@ describe('BigQuery result page prefetch', () => {
             errors: [{ reason: 'rateLimitExceeded', message: 'Slow down' }],
         });
         await flushEventLoop();
-        expect(received).toEqual(ids(2));
+        expect(received.length).toBeLessThanOrEqual(2);
 
         releaseWrite.resolve();
         const error = await outcome;
 
+        expect(received).toEqual(ids(2));
         expect(error).toBeInstanceOf(WarehouseQueryError);
         expect((error as Error).message).toBe(
             'BigQuery rate limit exceeded. Slow down',

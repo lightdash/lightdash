@@ -209,14 +209,14 @@ describe('BigQuery result prefetch benchmark', () => {
             const before: Sample[] = [];
             const after: Sample[] = [];
             for (let run = 0; run < RUNS; run += 1) {
-                // eslint-disable-next-line no-await-in-loop
-                before.push(
-                    await measure(serialStreamResults, bodies, latencyMs),
-                );
-                // eslint-disable-next-line no-await-in-loop
-                after.push(
-                    await measure(prefetchStreamResults, bodies, latencyMs),
-                );
+                const serialSample =
+                    // eslint-disable-next-line no-await-in-loop
+                    await measure(serialStreamResults, bodies, latencyMs);
+                before.push(serialSample);
+                const prefetchSample =
+                    // eslint-disable-next-line no-await-in-loop
+                    await measure(prefetchStreamResults, bodies, latencyMs);
+                after.push(prefetchSample);
             }
             results[latencyMs] = { before, after };
             for (const [label, samples] of [
