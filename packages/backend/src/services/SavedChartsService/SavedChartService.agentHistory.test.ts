@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import { fromSession } from '../../auth/account';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
 import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import {
@@ -82,6 +83,7 @@ const setup = (enabled: boolean, organizationEnabled = enabled) => {
         addVersion: vi.fn(),
     };
     const dependencies = {
+        lightdashConfig: lightdashConfigMock,
         featureFlagModel,
         savedChartModel,
         dashboardModel,

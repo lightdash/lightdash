@@ -18,6 +18,7 @@ import {
     MergeJoinType,
     MetricType,
     OrganizationMemberRole,
+    ParameterError,
     PossibleAbilities,
     PromotionAction,
     reconcileDashboardControlOrder,
@@ -785,6 +786,31 @@ const registerContentAccessTests = (
         ).rejects.toThrow('You don\'t have access to update chart "chart"');
         expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
         expect(service.promoteService.getPromoteCharts).not.toHaveBeenCalled();
+    });
+
+    it('rejects an upload over the tiles-per-tab limit before writing', async () => {
+        const service = buildService();
+        const getOrCreateSpace = vi.spyOn(service, 'getOrCreateSpace');
+        const user = makeUser([{ subject: 'ContentAsCode', action: 'manage' }]);
+        const markdownTile = {
+            type: 'markdown',
+            x: 0,
+            y: 0,
+            w: 6,
+            h: 3,
+            properties: { title: 'Note', content: 'text' },
+        };
+
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
+                ...dashboardAsCode,
+                tiles: Array(
+                    lightdashConfigMock.dashboard.maxTilesPerTab + 1,
+                ).fill(markdownTile),
+            } as unknown as DashboardAsCode),
+        ).rejects.toThrow(ParameterError);
+        expect(getOrCreateSpace).not.toHaveBeenCalled();
+        expect(service.dashboardModel.create).not.toHaveBeenCalled();
     });
 
     it('does not let ContentAsCode alone create dashboards in a space', async () => {

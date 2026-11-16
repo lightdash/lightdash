@@ -49,6 +49,7 @@ import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
 import { isAlreadyReported } from '../../../sentry/aiAgentErrors';
@@ -395,7 +396,19 @@ describe('AiAgentToolsService', () => {
                 .fn()
                 .mockResolvedValue(executionStats);
             const service = makeService({
-                explores: { orders: makeExplore({ name: 'orders' }) },
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        dimensions: {
+                            status: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'status',
+                                table: 'orders',
+                            },
+                        },
+                    }),
+                },
                 searchFieldUniqueValues,
                 asyncQueryService: {
                     executeAsyncSqlQuery,
@@ -1549,7 +1562,17 @@ describe('AiAgentToolsService', () => {
         const service = makeService({
             explores: {
                 posthog_events: {
-                    ...makeExplore({ name: 'posthog_events' }),
+                    ...makeExplore({
+                        name: 'posthog_events',
+                        dimensions: {
+                            event: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'event',
+                                table: 'posthog_events',
+                            },
+                        },
+                    }),
                     type: ExploreType.API_SOURCE,
                 },
             },
@@ -2285,6 +2308,86 @@ describe('AiAgentToolsService', () => {
         expect(searchFieldUniqueValues).not.toHaveBeenCalled();
     });
 
+    it.each([
+        ['an explore outside the agent tags', 'payments', 'payments_method'],
+        ['a field outside the agent tags', 'orders', 'orders_email'],
+        ['a field that does not exist', 'orders', 'orders_hidden'],
+    ])(
+        'does not search agent field values for %s',
+        async (_case, table, fieldId) => {
+            const searchFieldUniqueValues = vi.fn();
+            const searchFieldValuesAndWait = vi.fn();
+            const dimension = (name: string, tags?: string[]) => ({
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.STRING,
+                name,
+                table: name === 'method' ? 'payments' : 'orders',
+                tags,
+            });
+            const service = makeService({
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        dimensions: {
+                            status: dimension('status', ['ai']),
+                            email: dimension('email', ['internal']),
+                        },
+                    }),
+                    payments: makeExplore({
+                        name: 'payments',
+                        tags: ['internal'],
+                        dimensions: { method: dimension('method') },
+                    }),
+                },
+                searchFieldUniqueValues,
+                asyncQueryService: { searchFieldValuesAndWait },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ source: 'ai_agent', tags: ['ai'] }),
+            );
+
+            await expect(
+                runtime.searchFieldValues({ table, fieldId, query: 'x' }),
+            ).rejects.toThrow(NotFoundError);
+            expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+            expect(searchFieldValuesAndWait).not.toHaveBeenCalled();
+        },
+    );
+
+    it('searches agent field values for a field inside the agent tags', async () => {
+        const searchFieldUniqueValues = vi
+            .fn()
+            .mockResolvedValue({ results: ['shipped'] });
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    dimensions: {
+                        status: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                            name: 'status',
+                            table: 'orders',
+                            tags: ['ai'],
+                        },
+                    },
+                }),
+            },
+            searchFieldUniqueValues,
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ source: 'ai_agent', tags: ['ai'] }),
+        );
+
+        await expect(
+            runtime.searchFieldValues({
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: 'ship',
+            }),
+        ).resolves.toEqual(['shipped']);
+    });
+
     it('does not read content outside the scoped agent spaces', async () => {
         const dashboardService = { getByIdOrSlug: vi.fn() };
         const service = makeService({
@@ -2540,6 +2643,120 @@ describe('AiAgentToolsService', () => {
             }),
         ).rejects.toThrow(NotFoundError);
         expect(executeDashboardChartQueryAndGetResults).not.toHaveBeenCalled();
+    });
+
+    describe('saved chart queries for a tag-scoped agent', () => {
+        const dimension = (name: string, tags: string[]) => ({
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            name,
+            table: 'orders',
+            tags,
+        });
+        const explores = {
+            orders: makeExplore({
+                name: 'orders',
+                dimensions: {
+                    status: dimension('status', ['ai']),
+                    email: dimension('email', ['internal']),
+                },
+            }),
+            payments: makeExplore({ name: 'payments', tags: ['internal'] }),
+        };
+        const chartOn = (exploreName: string, dimensions: string[]) => ({
+            uuid: 'chart-uuid',
+            spaceUuid: 'space-uuid',
+            metricQuery: { exploreName, dimensions, metrics: [] },
+        });
+        const setup = (savedChart: ReturnType<typeof chartOn>) => {
+            const executeSavedChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+            const executeDashboardChartQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ rows: [] });
+            const service = makeService({
+                explores,
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue(savedChart),
+                },
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'dashboard-uuid',
+                        spaceUuid: 'space-uuid',
+                        filters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        config: { isDateZoomDisabled: true },
+                        tiles: [
+                            {
+                                uuid: 'tile-uuid',
+                                type: DashboardTileTypes.SAVED_CHART,
+                                properties: { savedChartUuid: 'chart-uuid' },
+                            },
+                        ],
+                    }),
+                },
+                asyncQueryService: {
+                    executeSavedChartQueryAndGetResults,
+                    executeDashboardChartQueryAndGetResults,
+                },
+            });
+            return {
+                runtime: service.createRuntime(
+                    makeRuntimeContext({ tags: ['ai'] }),
+                ),
+                executeSavedChartQueryAndGetResults,
+                executeDashboardChartQueryAndGetResults,
+            };
+        };
+
+        describe.each([
+            ['a chart', null],
+            ['a dashboard chart', 'dashboard'],
+        ])('%s', (_source, dashboardSlug) => {
+            it.each([
+                ['an explore outside the agent tags', chartOn('payments', [])],
+                [
+                    'a field outside the agent tags',
+                    chartOn('orders', ['orders_status', 'orders_email']),
+                ],
+            ])('does not run on %s', async (_case, savedChart) => {
+                const {
+                    runtime,
+                    executeSavedChartQueryAndGetResults,
+                    executeDashboardChartQueryAndGetResults,
+                } = setup(savedChart);
+
+                await expect(
+                    runtime.runSavedChartQuery({
+                        chartUuid: 'chart-uuid',
+                        dashboardSlug,
+                        limit: 100,
+                    }),
+                ).rejects.toThrow(NotFoundError);
+                expect(
+                    executeSavedChartQueryAndGetResults,
+                ).not.toHaveBeenCalled();
+                expect(
+                    executeDashboardChartQueryAndGetResults,
+                ).not.toHaveBeenCalled();
+            });
+
+            it('runs on fields inside the agent tags', async () => {
+                const { runtime } = setup(chartOn('orders', ['orders_status']));
+
+                await expect(
+                    runtime.runSavedChartQuery({
+                        chartUuid: 'chart-uuid',
+                        dashboardSlug,
+                        limit: 100,
+                    }),
+                ).resolves.toEqual({ rows: [] });
+            });
+        });
     });
 
     describe('date zoom on a dashboard chart query', () => {
@@ -2927,6 +3144,48 @@ describe('AiAgentToolsService', () => {
                 ],
             }),
         ).resolves.toBeDefined();
+    });
+
+    it('names the actual type instead of editing a SQL chart as a chart', async () => {
+        const upsertChart = vi.fn();
+        const upsertSqlChart = vi.fn();
+        const service = makeService({
+            coderService: {
+                getChartsForRead: vi.fn().mockResolvedValue({ charts: [] }),
+                getDashboardsForRead: vi
+                    .fn()
+                    .mockResolvedValue({ dashboards: [] }),
+                getSqlChartsForRead: vi.fn().mockResolvedValue({
+                    sqlCharts: [
+                        {
+                            slug: 'orders-by-status',
+                            spaceSlug: 'allowed-space',
+                        },
+                    ],
+                }),
+                upsertChart,
+                upsertSqlChart,
+            },
+            savedSqlService: {
+                assertCanViewSqlChartBySlug: vi
+                    .fn()
+                    .mockResolvedValue(undefined),
+            },
+            aiAgentContentValidation: { validatePatch: vi.fn() },
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        await expect(
+            runtime.editContent({
+                slug: 'orders-by-status',
+                type: 'chart',
+                patch: [{ op: 'replace', path: '/name', value: 'Orders' }],
+            }),
+        ).rejects.toThrow(
+            'No chart "orders-by-status" could be edited; "orders-by-status" is a sql_chart. Edit it with type sql_chart.',
+        );
+        expect(upsertChart).not.toHaveBeenCalled();
+        expect(upsertSqlChart).not.toHaveBeenCalled();
     });
 
     describe('agent merge authoring', () => {
@@ -7688,6 +7947,7 @@ describe.each(agentActionTestCases)(
                     ),
                 });
                 const coderService = new CoderService({
+                    lightdashConfig: lightdashConfigMock,
                     savedChartModel: model,
                     dashboardModel: model,
                     promoteService,

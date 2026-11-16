@@ -323,6 +323,8 @@ export type AiAgentArgs = AnyAiModel & {
     // The thread owns at least one attached document, so readAttachments is
     // registered.
     enableReadAttachments: boolean;
+    // The thread has at least one pinned conversation, so readPinnedThread is registered.
+    enableReadPinnedThread: boolean;
     // A web app thread whose UI renders askUser questions, so the tool is offered.
     enableAskUser: boolean;
     enableFilterExpressions: boolean;
@@ -332,6 +334,8 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether the repo host has server-side code search (GitHub yes, GitLab no).
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
+    // Semantic Studio saves changes with a code mode script instead of the sandbox.
+    semanticStudioCodeMode: boolean;
     canRunSql: boolean;
     // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.

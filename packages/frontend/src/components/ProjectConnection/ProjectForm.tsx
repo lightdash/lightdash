@@ -14,11 +14,13 @@ import { useProjectFormContext } from './useProjectFormContext';
 import WarehouseSchemaInput from './WarehouseSchemaInput';
 import WarehouseSettingsForm from './WarehouseSettingsForm';
 
-// These warehouses only read the schema when running dbt
+// These warehouses only read the schema when running dbt, and onboarding
+// prefills it, so the field stays hidden until it has an error. BigQuery
+// needs its dataset to find tables and has no conventional default, so it
+// stays visible.
 const DBT_ONLY_SCHEMA_WAREHOUSES = new Set<WarehouseTypes>([
     WarehouseTypes.POSTGRES,
     WarehouseTypes.REDSHIFT,
-    WarehouseTypes.BIGQUERY,
 ]);
 
 interface Props {

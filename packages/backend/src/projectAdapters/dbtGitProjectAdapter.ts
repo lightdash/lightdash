@@ -174,6 +174,17 @@ export class DbtGitProjectAdapter
         );
     }
 
+    /** The commit the clone is at, or null before the clone or once it is gone. */
+    async findHeadCommit(): Promise<string | null> {
+        try {
+            return (
+                await this.git.cwd(this.localRepositoryDir).revparse(['HEAD'])
+            ).trim();
+        } catch {
+            return null;
+        }
+    }
+
     public async test(options?: { signal?: AbortSignal }) {
         if (options?.signal) {
             await this.prepareRepository(options.signal);

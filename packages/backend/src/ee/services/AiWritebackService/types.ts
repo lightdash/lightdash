@@ -366,4 +366,6 @@ export type AiWritebackRunArgs = {
     aiWritebackRunUuid?: string;
     /** Handed the dbt project a turn's changes parse to, so they can be tried before a preview is built. */
     onDbtProject?: (project: ParsedDbtProject) => Promise<void>;
+    /** Semantic Studio only: continue the thread's open pull request even when no sandbox made it, such as one a script opened. */
+    continuesThreadPullRequest?: boolean;
 };

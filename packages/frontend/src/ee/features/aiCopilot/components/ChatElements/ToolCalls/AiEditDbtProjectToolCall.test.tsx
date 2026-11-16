@@ -26,6 +26,9 @@ vi.mock('../../../hooks/useProjectAiAgents', () => ({
     useCreateAgentThreadMessageMutation: () => ({ mutate: vi.fn() }),
 }));
 vi.mock('./WritebackDiffModal', () => ({ WritebackDiffModal: () => null }));
+vi.mock('../../SemanticStudioAgent/TryItButton', () => ({
+    PullRequestCardTryIt: () => null,
+}));
 
 describe('Bitbucket dbt writeback card', () => {
     afterEach(() => vi.clearAllMocks());

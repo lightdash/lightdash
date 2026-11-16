@@ -4,6 +4,7 @@ import { Group, Stack, Button } from '@mantine/core';
 import { IconFolderPlus, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { type ContentTableSortingState } from '../components/common/ContentTable';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import { type ContentViewValue } from '../components/common/ResourceView/AdminContentViewFilter';
@@ -18,6 +19,10 @@ import useSearchParams from '../hooks/useSearchParams';
 import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 import styles from './Spaces.module.css';
+
+const allSpacesInitialSorting: ContentTableSortingState = [
+    { id: ColumnVisibility.NAME, desc: false },
+];
 
 const Spaces: FC = () => {
     const projectUuid = useProjectUuid()!;
@@ -175,6 +180,7 @@ const Spaces: FC = () => {
                                 [ColumnVisibility.ACCESS]: true,
                                 [ColumnVisibility.CONTENT]: true,
                             }}
+                            initialSorting={allSpacesInitialSorting}
                             contentView={contentViewProps}
                             enableBottomToolbar={false}
                             enableRowSelection={userCanManageSpace}
