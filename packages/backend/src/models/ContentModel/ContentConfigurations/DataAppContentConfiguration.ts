@@ -148,12 +148,7 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     knex.raw(`${AppsTableName}.app_id::text as uuid`),
                     `${AppsTableName}.name`,
                     `${AppsTableName}.description`,
-                    // Apps don't have a real slug column yet — synthesize one
-                    // for the content listing URL shape. Uniqueness isn't
-                    // relied upon since we link by UUID.
-                    knex.raw(
-                        `'data-app-' || ${AppsTableName}.app_id::text as slug`,
-                    ),
+                    `${AppsTableName}.slug`,
                     `${SpaceTableName}.space_uuid`,
                     `${SpaceTableName}.name as space_name`,
                     `${ProjectTableName}.project_uuid`,

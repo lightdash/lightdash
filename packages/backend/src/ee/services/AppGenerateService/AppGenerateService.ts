@@ -13905,11 +13905,16 @@ export class AppGenerateService extends BaseService {
     async readDataApp(
         user: SessionUser,
         projectUuid: string,
-        slug: string,
+        appUuidOrSlug: string,
     ): Promise<DataAppReadSource> {
-        const app = await this.appModel.findAppBySlug(projectUuid, slug);
+        const app = await this.appModel.findAppByUuidOrSlug(
+            projectUuid,
+            appUuidOrSlug,
+        );
         if (!app) {
-            throw new NotFoundError(`Data app "${slug}" was not found`);
+            throw new NotFoundError(
+                `Data app "${appUuidOrSlug}" was not found`,
+            );
         }
         await this.assertCanViewApp(user, app);
 
@@ -13918,7 +13923,7 @@ export class AppGenerateService extends BaseService {
         );
         if (!readyVersion) {
             throw new NotFoundError(
-                `Data app "${slug}" has no ready version yet, so it cannot be read`,
+                `Data app "${app.slug}" has no ready version yet, so it cannot be read`,
             );
         }
 

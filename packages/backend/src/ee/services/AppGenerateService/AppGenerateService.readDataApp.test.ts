@@ -83,7 +83,7 @@ function buildService(appModel: Record<string, unknown>): AppGenerateService {
         catalogModel: {} as never,
         userModel: {} as never,
         appModel: {
-            findAppBySlug: vi.fn().mockResolvedValue(fakeApp),
+            findAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             countVersions: vi.fn().mockResolvedValue(2),
             findAppCreator: vi.fn().mockResolvedValue({
                 userUuid: 'user-uuid',
@@ -218,7 +218,7 @@ describe('AppGenerateService.readDataApp', () => {
 
     it('fails clearly when no app matches the slug', async () => {
         const svc = buildService({
-            findAppBySlug: vi.fn().mockResolvedValue(undefined),
+            findAppByUuidOrSlug: vi.fn().mockResolvedValue(undefined),
         });
 
         await expect(

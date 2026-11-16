@@ -475,7 +475,6 @@ const renderDashboard = (dashboard: ContentItemOf<'dashboard'>) => (
 
 const renderDataApp = (dataApp: ContentItemOf<'data_app'>) => (
     <dataApp
-        dataAppUuid={dataApp.uuid}
         slug={dataApp.slug}
         searchRank={dataApp.searchRank}
         spaceUuid={dataApp.spaceUuid}

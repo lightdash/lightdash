@@ -344,7 +344,7 @@ describe('getFindContent', () => {
         });
 
         expect(output.result).toContain('<dataApp');
-        expect(output.result).toContain('dataAppUuid="app-uuid-1"');
+        expect(output.result).not.toContain('dataAppUuid');
         expect(output.result).toContain('slug="sales-forecast"');
         expect(output.result).toContain('searchRank="0.75"');
         expect(output.result).toContain('spaceUuid="space-uuid-1"');
