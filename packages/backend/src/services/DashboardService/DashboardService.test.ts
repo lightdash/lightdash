@@ -1981,9 +1981,7 @@ describe('DashboardService', () => {
         await expect(
             service.update(user, dashboardUuid, {
                 ...updateDashboardDetailsAndTiles,
-                tiles: Array(maxTilesPerTab + 1).fill(
-                    updateDashboardTiles.tiles[0],
-                ),
+                tiles: Array(maxTilesPerTab + 1).fill(createDashboard.tiles[0]),
             }),
         ).rejects.toThrow(ParameterError);
 
