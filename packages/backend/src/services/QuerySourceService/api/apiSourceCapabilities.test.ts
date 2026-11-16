@@ -3,6 +3,12 @@ import {
     DimensionType,
     FilterOperator,
     getApiSourceQueryIssues,
+    getFilterOperatorOptions,
+    getFilterTypeFromItem,
+    getItemLabelWithoutTableName,
+    getItemMap,
+    isFilterableItem,
+    LIVE_SOURCE_INTEGRATION_PROFILES,
     MetricType,
     ParameterError,
     UnitOfTime,
@@ -122,6 +128,25 @@ const withoutCapabilities = (explore: Explore): Explore => {
     const { capabilities, ...apiSource } = explore.apiSource;
     return { ...explore, apiSource };
 };
+
+// Refusals name fields and operators as the UI does
+const fieldLabel = (connector: ApiConnectorType, fieldId: string) =>
+    getItemLabelWithoutTableName(getItemMap(build(connector))[fieldId]);
+const operatorLabel = (
+    connector: ApiConnectorType,
+    fieldId: string,
+    operator: FilterOperator,
+) => {
+    const item = getItemMap(build(connector))[fieldId];
+    const label = isFilterableItem(item)
+        ? getFilterOperatorOptions(getFilterTypeFromItem(item), item).find(
+              ({ value }) => value === operator,
+          )?.label
+        : undefined;
+    return `"${label ?? operator}"`;
+};
+const sourceLabel = (connector: ApiConnectorType) =>
+    LIVE_SOURCE_INTEGRATION_PROFILES[connector].label;
 
 const toFieldId = (connector: ApiConnectorType, name: string) =>
     `${connector}_${getApiSourceBaseLayer(connector).definitions[0].name}_${name}`;
@@ -340,7 +365,7 @@ const CASES: Case[] = [
         expected: {},
         stale: {
             [ApiConnectorType.SEARCH_CONSOLE]: [
-                `Search Console matches one value per filter; filter "${id(ApiConnectorType.SEARCH_CONSOLE, 'dimension')}" by one value at a time.`,
+                `Search Console matches one value per filter; filter ${fieldLabel(ApiConnectorType.SEARCH_CONSOLE, id(ApiConnectorType.SEARCH_CONSOLE, 'dimension'))} by one value at a time.`,
             ],
         },
     },
@@ -364,7 +389,7 @@ const CASES: Case[] = [
         expected: wherever(
             ({ metricFilters }) => !metricFilters,
             (connector) =>
-                `"${id(connector, 'metric')}" can't be filtered on this live data source.`,
+                `${fieldLabel(connector, id(connector, 'metric'))} can't be filtered on ${sourceLabel(connector)}.`,
         ),
     },
     {
@@ -460,7 +485,11 @@ const CASES: Case[] = [
             ({ dates }) =>
                 !dates.operators.includes(FilterOperator.NOT_IN_THE_PAST),
             (connector, { dates }) =>
-                `"${date(connector)}" can't be filtered with "notInThePast". Use one of: ${dates.operators.join(', ')}.`,
+                `${fieldLabel(connector, date(connector))} can't use ${operatorLabel(connector, date(connector), FilterOperator.NOT_IN_THE_PAST)} on ${sourceLabel(connector)}. Use one of: ${dates.operators
+                    .map((operator) =>
+                        operatorLabel(connector, date(connector), operator),
+                    )
+                    .join(', ')}.`,
         ),
     },
 ];
@@ -485,9 +514,10 @@ const getMessages = (
     context?: ApiSourceQueryContext,
 ) => {
     if (!explore.apiSource) throw new Error('Not a live explore');
-    return getApiSourceQueryIssues(explore.apiSource, metricQuery, context).map(
-        ({ message }) => message,
-    );
+    return getApiSourceQueryIssues(explore.apiSource, metricQuery, {
+        itemsMap: getItemMap(explore),
+        ...context,
+    }).map(({ message }) => message);
 };
 
 describe('live data source capabilities keep their refusals', () => {
