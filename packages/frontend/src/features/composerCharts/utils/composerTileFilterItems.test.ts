@@ -23,6 +23,14 @@ const semantic = (
     metrics: [],
 });
 
+const duckdb: ComposerChartPipelineNode = {
+    sourceType: QuerySourceType.DUCKDB,
+    nodeId: 'summary',
+    title: 'Summary',
+    sql: 'select * from orders',
+    references: ['orders'],
+};
+
 const sql: ComposerChartPipelineNode = {
     sourceType: QuerySourceType.SQL,
     nodeId: 'result',
@@ -56,13 +64,14 @@ const statusField: FilterableDimension = {
 };
 
 describe('getComposerTileFilterItems', () => {
-    it('names no node when the pipeline has one semantic-layer node', () => {
+    it('names no node when only one node can take filters', () => {
         const items = getComposerTileFilterItems({
-            nodes: [semantic('orders', 'Orders'), sql],
+            nodes: [semantic('orders', 'Orders'), duckdb],
             appliedDashboardFiltersByNodeId: {
                 orders: applied(statusRule('orders')),
             },
             fields: [statusField],
+            sqlColumns: [],
         });
         expect(items).toEqual([
             {
@@ -85,6 +94,7 @@ describe('getComposerTileFilterItems', () => {
                 orders: applied(statusRule('orders')),
             },
             fields: [statusField],
+            sqlColumns: [],
         });
         expect(
             items.map(({ key, sourceLabel, field }) => [
@@ -96,6 +106,36 @@ describe('getComposerTileFilterItems', () => {
             ['orders:status-filter', 'Orders', statusField],
             // The tile's filterable fields have no payments_status
             ['payments:status-filter', 'Payments', null],
+        ]);
+    });
+
+    it('labels a SQL column filter from the column the run reported', () => {
+        const sqlRule: DashboardFilterRule = {
+            ...statusRule('orders'),
+            target: { fieldId: 'status', tableName: '', isSqlColumn: true },
+        };
+        const items = getComposerTileFilterItems({
+            nodes: [semantic('orders', 'Orders'), sql],
+            appliedDashboardFiltersByNodeId: {
+                orders: applied(statusRule('orders')),
+                result: applied(sqlRule),
+            },
+            fields: [statusField],
+            sqlColumns: [{ reference: 'status', type: DimensionType.STRING }],
+        });
+        expect(
+            items.map(({ key, sourceLabel, field }) => [
+                key,
+                sourceLabel,
+                field,
+            ]),
+        ).toEqual([
+            ['orders:status-filter', 'Orders', statusField],
+            [
+                'result:status-filter',
+                'Result',
+                expect.objectContaining({ name: 'status', label: 'status' }),
+            ],
         ]);
     });
 });

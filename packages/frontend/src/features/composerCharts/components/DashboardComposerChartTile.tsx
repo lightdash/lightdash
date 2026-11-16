@@ -185,6 +185,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                       appliedDashboardFiltersByNodeId:
                           run.appliedDashboardFiltersByNodeId,
                       fields: filterableFields ?? [],
+                      sqlColumns: run.sqlColumns,
                   })
                 : [],
         [chart, run, filterableFields],
