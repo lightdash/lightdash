@@ -9,6 +9,7 @@ import {
     formatJoinKeys,
     isFanOut,
     layoutJoinGraph,
+    pathToBase,
     toJoinGraph,
 } from './joinGraph';
 
@@ -48,10 +49,14 @@ describe('toJoinGraph', () => {
             {
                 id: 'orders',
                 label: 'Orders',
+                description: null,
                 modelName: null,
                 isBase: true,
                 isHidden: false,
+                parent: null,
+                relationship: null,
                 keys: null,
+                keyColumns: [],
                 joinType: null,
             },
         ]);
@@ -83,35 +88,33 @@ describe('toJoinGraph', () => {
             {
                 id: 'customers',
                 label: 'Customers',
+                description: null,
                 modelName: null,
                 isBase: false,
                 isHidden: false,
+                parent: 'orders',
+                relationship: JoinRelationship.MANY_TO_ONE,
                 keys: 'orders.customer_id = customers.customer_id',
+                keyColumns: ['customer_id'],
                 joinType: 'left',
             },
             {
                 id: 'payments',
                 label: 'Payments',
+                description: null,
                 modelName: null,
                 isBase: false,
                 isHidden: true,
+                parent: 'orders',
+                relationship: JoinRelationship.ONE_TO_MANY,
                 keys: 'payments.order_id = orders.id',
+                keyColumns: ['order_id'],
                 joinType: null,
             },
         ]);
         expect(graph.links).toEqual([
-            {
-                id: 'orders->customers',
-                source: 'orders',
-                target: 'customers',
-                relationship: JoinRelationship.MANY_TO_ONE,
-            },
-            {
-                id: 'orders->payments',
-                source: 'orders',
-                target: 'payments',
-                relationship: JoinRelationship.ONE_TO_MANY,
-            },
+            { id: 'orders->customers', source: 'orders', target: 'customers' },
+            { id: 'orders->payments', source: 'orders', target: 'payments' },
         ]);
     });
 
@@ -178,6 +181,33 @@ describe('toJoinGraph', () => {
             label: 'Shipping address',
             modelName: 'addresses',
         });
+    });
+});
+
+describe('pathToBase', () => {
+    it('walks from a chained join back to the base table', () => {
+        const { tables } = toJoinGraph(
+            explore(
+                'orders',
+                [
+                    join('customers', '${orders.c} = ${customers.c}'),
+                    join('regions', '${customers.r} = ${regions.r}'),
+                    join('payments', '${orders.id} = ${payments.order_id}'),
+                ],
+                [
+                    table('orders'),
+                    table('customers'),
+                    table('regions'),
+                    table('payments'),
+                ],
+            ),
+        );
+        expect([...pathToBase(tables, 'regions')]).toEqual([
+            'regions',
+            'customers',
+            'orders',
+        ]);
+        expect([...pathToBase(tables, 'orders')]).toEqual(['orders']);
     });
 });
 

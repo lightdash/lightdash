@@ -10,22 +10,22 @@ export type JoinTableNode = {
     /** The table's name in the explore: its alias when joined under one. */
     id: string;
     label: string;
+    description: string | null;
     /** The model it reads, when joined under an alias. */
     modelName: string | null;
     isBase: boolean;
     isHidden: boolean;
+    /** The table the condition joins it to; null for the base table. */
+    parent: string | null;
+    relationship: JoinRelationship | null;
     /** The join condition, `${a.x} = ${b.y}` shown as `a.x = b.y`. */
     keys: string | null;
+    /** The joined table's own columns in the condition, for a short label. */
+    keyColumns: string[];
     joinType: string | null;
 };
 
-export type JoinLink = {
-    id: string;
-    /** The table the condition joins it to: the base table, or an earlier join. */
-    source: string;
-    target: string;
-    relationship: JoinRelationship | null;
-};
+export type JoinLink = { id: string; source: string; target: string };
 
 export type JoinGraph = { tables: JoinTableNode[]; links: JoinLink[] };
 
@@ -34,6 +34,14 @@ const REFERENCE = /\$\{\s*([^.}\s]+)\.([^}\s]+)\s*\}/g;
 /** `${orders.customer_id} = ${customers.customer_id}` -> `orders.customer_id = customers.customer_id`. */
 export const formatJoinKeys = (sqlOn: string): string =>
     sqlOn.replace(REFERENCE, '$1.$2').replace(/\s+/g, ' ').trim();
+
+const ownColumns = (join: CompiledExploreJoin): string[] => [
+    ...new Set(
+        [...join.sqlOn.matchAll(REFERENCE)]
+            .filter(([, table]) => table === join.table)
+            .map(([, , column]) => column),
+    ),
+];
 
 const referencedTables = (join: CompiledExploreJoin): string[] =>
     join.tablesReferences ??
@@ -54,6 +62,7 @@ export const toJoinGraph = (
 ): JoinGraph => {
     const { baseTable, joinedTables, tables } = explore;
     const labelOf = (name: string) => tables[name]?.label ?? name;
+    const descriptionOf = (name: string) => tables[name]?.description || null;
     const modelOf = (name: string) => {
         const original = tables[name]?.originalName;
         return original && original !== name ? original : null;
@@ -61,32 +70,51 @@ export const toJoinGraph = (
     const base: JoinTableNode = {
         id: baseTable,
         label: labelOf(baseTable),
+        description: descriptionOf(baseTable),
         modelName: modelOf(baseTable),
         isBase: true,
         isHidden: false,
+        parent: null,
+        relationship: null,
         keys: null,
+        keyColumns: [],
         joinType: null,
     };
     const known = new Set([baseTable, ...joinedTables.map((j) => j.table)]);
     const joined = joinedTables.map<JoinTableNode>((join) => ({
         id: join.table,
         label: labelOf(join.table),
+        description: descriptionOf(join.table),
         modelName: modelOf(join.table),
         isBase: false,
         isHidden: join.hidden ?? false,
+        parent: parentOf(join, known, baseTable),
+        relationship: join.relationship ?? null,
         keys: formatJoinKeys(join.sqlOn),
+        keyColumns: ownColumns(join),
         joinType: join.type ?? null,
     }));
-    const links = joinedTables.map<JoinLink>((join) => {
-        const source = parentOf(join, known, baseTable);
-        return {
-            id: `${source}->${join.table}`,
-            source,
-            target: join.table,
-            relationship: join.relationship ?? null,
-        };
-    });
+    const links = joined.map<JoinLink>(({ id, parent }) => ({
+        id: `${parent}->${id}`,
+        source: parent ?? baseTable,
+        target: id,
+    }));
     return { tables: [base, ...joined], links };
+};
+
+/** The table and every table between it and the base table. */
+export const pathToBase = (
+    tables: readonly JoinTableNode[],
+    id: string,
+): Set<string> => {
+    const parentById = new Map(tables.map((table) => [table.id, table.parent]));
+    const path = new Set<string>();
+    let current: string | null | undefined = id;
+    while (current && !path.has(current)) {
+        path.add(current);
+        current = parentById.get(current);
+    }
+    return path;
 };
 
 /** Joining many rows per row of the table it joins to repeats that table's rows. */
@@ -94,8 +122,8 @@ export const isFanOut = (relationship: JoinRelationship | null): boolean =>
     relationship === JoinRelationship.ONE_TO_MANY ||
     relationship === JoinRelationship.MANY_TO_MANY;
 
-const JOIN_NODE_WIDTH = 240;
-const JOIN_NODE_HEIGHT = 76;
+export const JOIN_NODE_WIDTH = 232;
+export const JOIN_NODE_HEIGHT = 82;
 
 /** Left-to-right positions, top-left corners, base table first. */
 export const layoutJoinGraph = ({
@@ -103,7 +131,7 @@ export const layoutJoinGraph = ({
     links,
 }: JoinGraph): Map<string, { x: number; y: number }> => {
     const graph = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-    graph.setGraph({ rankdir: 'LR', ranksep: 80, nodesep: 20 });
+    graph.setGraph({ rankdir: 'LR', ranksep: 56, nodesep: 16 });
     tables.forEach((table) =>
         graph.setNode(table.id, {
             width: JOIN_NODE_WIDTH,
