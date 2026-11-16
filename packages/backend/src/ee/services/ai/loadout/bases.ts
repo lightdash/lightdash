@@ -18,7 +18,6 @@ const CORE_TOOLS: readonly AgentToolName[] = [
     'getProjectInfo',
     'listKnowledgeDocuments',
     'getKnowledgeDocumentContent',
-    'readPinnedThread',
     'resolveUrl',
     'runSavedChart',
     'generateHashes',
@@ -140,6 +139,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             'legacyDashboards',
             'sqlCatalog',
             'projectContext',
+            'readPinnedThread',
         ],
     }),
 };

@@ -13,7 +13,6 @@
         "grepFields",
         "listKnowledgeDocuments",
         "listProjects",
-        "readPinnedThread",
         "resolveUrl",
         "runSavedChart",
         "runSql",

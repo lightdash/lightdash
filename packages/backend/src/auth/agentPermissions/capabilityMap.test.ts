@@ -237,6 +237,7 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         enableGenerateDataApp: true,
         enableRepoDiscovery: true,
         enableReadAttachments: true,
+        enableReadPinnedThread: true,
         enableFilterExpressions: true,
         projectContextEnabled: true,
         aiAgentMemoryEnabled: true,

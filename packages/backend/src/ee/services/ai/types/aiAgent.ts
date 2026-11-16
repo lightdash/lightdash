@@ -314,6 +314,8 @@ export type AiAgentArgs = AnyAiModel & {
     // The thread owns at least one attached document, so readAttachments is
     // registered.
     enableReadAttachments: boolean;
+    // The thread has at least one pinned conversation, so readPinnedThread is registered.
+    enableReadPinnedThread: boolean;
     // A web app thread whose UI renders askUser questions, so the tool is offered.
     enableAskUser: boolean;
     enableFilterExpressions: boolean;

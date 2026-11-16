@@ -145,6 +145,13 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
         section: null,
         skills: [],
     },
+    readPinnedThread: {
+        description: 'Read conversations pinned as context on the thread',
+        when: (input) => input.enableReadPinnedThread,
+        tools: ['readPinnedThread'],
+        section: null,
+        skills: [],
+    },
     intentRouting: {
         description: 'Start each turn with the tools its intent needs',
         when: hasDecisionsInStandardMode,

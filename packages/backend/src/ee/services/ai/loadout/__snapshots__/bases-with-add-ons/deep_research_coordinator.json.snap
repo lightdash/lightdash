@@ -4,6 +4,7 @@
         "contentReads",
         "legacyDashboards",
         "projectContext",
+        "readPinnedThread",
         "sqlCatalog"
     ],
     "toolNames": [
