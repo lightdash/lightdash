@@ -1,6 +1,7 @@
 import { Ability, subject } from '@casl/ability';
 import {
     AlreadyExistsError,
+    assertDashboardWithinLimits,
     ChartSummary,
     ChartType,
     ConflictError,
@@ -2960,6 +2961,10 @@ export class PromoteService extends BaseService {
                 user.organizationUuid!,
                 promotedDashboard,
                 upstreamDashboard,
+            );
+            assertDashboardWithinLimits(
+                dashboard,
+                this.lightdashConfig.dashboard,
             );
 
             // Check permissions for all chart tiles

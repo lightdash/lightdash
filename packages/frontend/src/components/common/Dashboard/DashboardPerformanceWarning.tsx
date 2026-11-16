@@ -27,10 +27,10 @@ export const DashboardPerformanceWarning: FC<Props> = ({
                         Speed up this dashboard
                     </Text>
                     <Text size="xs">
-                        With {performanceWarning.totalChartCount} charts, load
+                        With {performanceWarning.totalTileCount} tiles, load
                         times can be slower depending on the user's machine.{' '}
                         {performanceWarning.totalTabs <= 1
-                            ? `We recommend splitting this into multiple dashboard tabs, limited to ${performanceWarning.tabsExceedingLimit[0]?.limit ?? 10} charts per tab to keep things snappy for your team.`
+                            ? `We recommend splitting this into multiple dashboard tabs, limited to ${performanceWarning.tabsExceedingLimit[0]?.limit ?? 10} tiles per tab to keep things snappy for your team.`
                             : `We recommend splitting this into multiple dashboards to keep things snappy for your team.`}
                     </Text>
                 </Box>

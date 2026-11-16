@@ -49,6 +49,7 @@ import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
 import { isAlreadyReported } from '../../../sentry/aiAgentErrors';
@@ -7730,6 +7731,7 @@ describe.each(agentActionTestCases)(
                     ),
                 });
                 const coderService = new CoderService({
+                    lightdashConfig: lightdashConfigMock,
                     savedChartModel: model,
                     dashboardModel: model,
                     promoteService,
