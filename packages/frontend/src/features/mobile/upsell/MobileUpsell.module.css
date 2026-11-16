@@ -176,7 +176,7 @@
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .rescanArrow {
+    .rescanArrow svg {
         rotate: 90deg;
     }
 
