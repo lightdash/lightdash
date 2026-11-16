@@ -601,6 +601,12 @@ export const REST_OPERATION_CAPABILITIES = {
     'AppGenerateController.getDataAppVizUpgradeImpact': [
         AgentCapability.ReadDiscover,
     ],
+    'AppGenerateController.getComposerChartDataAppVizPreviewToken': [
+        AgentCapability.ReadDiscover,
+    ],
+    'AppGenerateController.getComposerChartDataAppVizRenderMetadata': [
+        AgentCapability.ReadDiscover,
+    ],
     'AppGenerateController.getDocumentDataAppVizPreviewToken': [
         AgentCapability.ReadDiscover,
     ],
@@ -692,6 +698,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'CommentsController.resolveComment': [AgentCapability.ContentWrite],
     'ComposerChartController.create': [AgentCapability.ContentWrite],
     'ComposerChartController.get': [AgentCapability.ReadDiscover],
+    'ComposerChartController.run': [AgentCapability.Query],
     'ContentController.bulkDeleteContent': [AgentCapability.Delete],
     'ContentController.bulkMoveContent': [AgentCapability.Publish],
     'ContentController.deleteContent': [AgentCapability.Delete],
@@ -1444,6 +1451,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.ReadDiscover,
     ],
     'ProjectCoderController.getSpacesAsCode': [AgentCapability.ReadDiscover],
+    'ProjectCoderController.getComposerChartsAsCode': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectCoderController.getSqlChartsAsCode': [AgentCapability.ReadDiscover],
     'ProjectCoderController.getVirtualViewsAsCode': [
         AgentCapability.ReadDiscover,
@@ -1555,6 +1565,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.Publish,
     ],
     'ProjectCoderController.upsertSpaceAsCode': [AgentCapability.ContentWrite],
+    'ProjectCoderController.upsertComposerChartAsCode': [
+        AgentCapability.ContentWrite,
+    ],
     'ProjectCoderController.upsertSqlChartAsCode': [
         AgentCapability.RawSql,
         AgentCapability.ContentWrite,
@@ -1702,6 +1715,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectDashboardControllerV2.delete': [AgentCapability.Delete],
     'ProjectDashboardControllerV2.get': [AgentCapability.ReadDiscover],
     'ProjectDashboardControllerV2.getComments': [AgentCapability.ReadDiscover],
+    'ProjectDashboardControllerV2.getParameters': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectDashboardControllerV2.getTileParameterReferences': [
         AgentCapability.ReadDiscover,
     ],
@@ -1784,6 +1800,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'ProjectSavedChartControllerV2.delete': [AgentCapability.Delete],
     'ProjectSavedChartControllerV2.get': [AgentCapability.ReadDiscover],
+    'ProjectSavedChartControllerV2.getParameters': [
+        AgentCapability.ReadDiscover,
+    ],
     'PullRequestsController.listPullRequests': [AgentCapability.ReadDiscover],
     'QueryController.cancelAsyncQuery': [AgentCapability.ReadDiscover],
     'QueryController.downloadResults': [AgentCapability.Export],

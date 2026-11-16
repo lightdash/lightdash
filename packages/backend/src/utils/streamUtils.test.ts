@@ -1,6 +1,8 @@
+import { performance } from 'node:perf_hooks';
+import { Writable } from 'node:stream';
 import { Readable } from 'stream';
 import { describe, expect, it } from 'vitest';
-import { splitJsonlStream } from './streamUtils';
+import { createJsonlWriter, splitJsonlStream } from './streamUtils';
 
 const collect = async (stream: Readable): Promise<string[]> => {
     const lines: string[] = [];
@@ -83,5 +85,50 @@ describe('splitJsonlStream', () => {
             },
         });
         await expect(collect(erroring)).rejects.toThrow('boom');
+    });
+});
+
+describe('createJsonlWriter', () => {
+    afterEach(() => vi.restoreAllMocks());
+    it('writes identical JSONL bytes across batches with backpressure', async () => {
+        const chunks: string[] = [];
+        const sink = new Writable({
+            highWaterMark: 1,
+            write(chunk, _encoding, callback) {
+                chunks.push(chunk.toString());
+                setImmediate(callback);
+            },
+        });
+        const rows = Array.from({ length: 1000 }, (_, id) => ({
+            id,
+            text: 'é\u2028\n'.repeat(100),
+            date: new Date(id),
+            value: null,
+        }));
+        const write = createJsonlWriter(sink);
+        await write(rows.slice(0, 123));
+        await write(rows.slice(123));
+        expect(chunks.join('')).toBe(
+            rows.map((row) => `${JSON.stringify(row)}\n`).join(''),
+        );
+        expect(chunks.length).toBeGreaterThan(2);
+    });
+    it('yields across repeated small writes when the elapsed budget is spent', async () => {
+        let now = 0;
+        vi.spyOn(performance, 'now').mockImplementation(() => now);
+        const sink = new Writable({
+            write(_chunk, _encoding, callback) {
+                callback();
+            },
+        });
+        const write = createJsonlWriter(sink);
+        await write([{ id: 1 }]);
+        let ran = false;
+        setImmediate(() => {
+            ran = true;
+        });
+        now = 21;
+        await write([{ id: 2 }]);
+        expect(ran).toBe(true);
     });
 });

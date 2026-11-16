@@ -16,7 +16,16 @@ export type ResolvedDataAppVizBinding = {
 };
 
 /** Where the binding came from, so failures tell the author how to fix them. */
-type BindingSource = 'contentAsCode' | 'document';
+type BindingSource = 'contentAsCode' | 'document' | 'composerChart';
+
+const DOCUMENT_HINTS = {
+    missingSlug: () =>
+        ' Install the chart type in this project, or pick a different chart type.',
+    unrenderableVersion:
+        ' Omit dataAppVizVersion to use the latest renderable version.',
+    foreignUuid:
+        ' Chart type uuids are project-specific: reference it by dataAppVizSlug instead.',
+};
 
 const HINTS: Record<
     BindingSource,
@@ -34,13 +43,11 @@ const HINTS: Record<
         foreignUuid:
             ' Chart type uuids are project-specific: re-download the chart with a current CLI to get a portable dataAppVizSlug, upload the chart type into this project, then re-upload this chart.',
     },
-    document: {
-        missingSlug: () =>
-            ' Install the chart type in this project, or pick a different chart type.',
-        unrenderableVersion:
-            ' Omit dataAppVizVersion to use the latest renderable version.',
+    document: DOCUMENT_HINTS,
+    composerChart: {
+        ...DOCUMENT_HINTS,
         foreignUuid:
-            ' Chart type uuids are project-specific: reference it by dataAppVizSlug instead.',
+            ' Chart type uuids are project-specific: use the uuid of a chart type in this project.',
     },
 };
 

@@ -97,6 +97,7 @@ import { McpGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admi
 import { AiCreditsSettingsPage } from '../ee/features/aiCredits/AiCreditsSettingsPage';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
+import Billing from '../ee/pages/Billing';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
@@ -199,6 +200,8 @@ const Settings: FC = () => {
         canAccessAnalyticsSettings,
         isAnalyticsProjectLoading,
         isOrganizationRoadmapEnabled,
+        isBillingPortalEnabled,
+        isBillingPortalFlagLoading,
         canAccessAiCredits,
         isAiCreditsLoading,
         isSsoOrganizationSettingsEnabled,
@@ -702,6 +705,25 @@ const Settings: FC = () => {
         }
 
         if (
+            isBillingPortalEnabled &&
+            user?.ability.can(
+                'manage',
+                subject('Billing', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            allowedRoutes.push({
+                path: '/billing',
+                element: (
+                    <TrackPage name={PageName.BILLING}>
+                        <Billing />
+                    </TrackPage>
+                ),
+            });
+        }
+
+        if (
             isAgentIdentityEnabled &&
             user?.ability.can('manage', 'Organization')
         ) {
@@ -906,6 +928,7 @@ const Settings: FC = () => {
         isChartStudioAvailable,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
+        isBillingPortalEnabled,
         canAccessAiCredits,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
@@ -1069,6 +1092,10 @@ const Settings: FC = () => {
         isMobileSettingsFlagLoading &&
         Boolean(matchPath('/generalSettings/mobile', location.pathname));
 
+    const isAwaitingBillingRoute =
+        isBillingPortalFlagLoading &&
+        Boolean(matchPath('/generalSettings/billing', location.pathname));
+
     const isAwaitingAiCreditsRoute =
         isAiCreditsLoading &&
         Boolean(matchPath('/generalSettings/aiCredits', location.pathname));
@@ -1105,6 +1132,7 @@ const Settings: FC = () => {
         isAwaitingDataAppsRoute ||
         isAwaitingAnalyticsRoute ||
         isAwaitingMobileRoute ||
+        isAwaitingBillingRoute ||
         isAwaitingAiCreditsRoute
     ) {
         return <PageSpinner />;

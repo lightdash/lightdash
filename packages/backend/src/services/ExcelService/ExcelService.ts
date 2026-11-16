@@ -58,9 +58,15 @@ import {
     prepareFlatPivotExport,
     unpivotResultsStream,
 } from '../../utils/flatPivotExport';
+import {
+    interleaveSubtotalRows,
+    type SubtotalExportLevel,
+} from '../../utils/subtotalExport';
 
 export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;
+
+    private static readonly EXCEL_MAX_OUTLINE_LEVEL = 7;
 
     private static isTzActive(
         timezone: string | undefined,
@@ -888,6 +894,7 @@ export class ExcelService {
         conditionalFormattings?: ConditionalFormattingConfig[],
         minMaxMap?: ConditionalFormattingMinMaxMap,
         columnTotals?: Record<string, number>,
+        subtotalLevels?: SubtotalExportLevel[],
     ): Promise<{ truncated: boolean }> {
         // Use the same approach as our working tests - direct filename instead of stream
         const workbook = new Excel.stream.xlsx.WorkbookWriter({
@@ -897,7 +904,24 @@ export class ExcelService {
             // exceeds V8's max string length (~512MB) on large exports.
             useSharedStrings: false,
         });
-        const worksheet = workbook.addWorksheet('Sheet1');
+        // Subtotal rows are outline summaries, so each group expands in Excel
+        const worksheet = workbook.addWorksheet(
+            'Sheet1',
+            subtotalLevels?.length
+                ? {
+                      properties: {
+                          outlineLevelRow: Math.min(
+                              subtotalLevels.length,
+                              ExcelService.EXCEL_MAX_OUTLINE_LEVEL,
+                          ),
+                          outlineProperties: {
+                              summaryBelow: false,
+                              summaryRight: false,
+                          },
+                      },
+                  }
+                : undefined,
+        );
 
         // Set up columns with formatting
         worksheet.columns = headers.map((header, index) => {
@@ -919,61 +943,79 @@ export class ExcelService {
             return column;
         });
 
-        let actualRowCount = 0;
+        const writeRow = (
+            parsedRow: Record<string, unknown>,
+            lineCount: number,
+            isSubtotal: boolean,
+            outlineLevel: number,
+        ) => {
+            const rowData = ExcelService.convertRowToExcel(
+                parsedRow,
+                fields,
+                onlyRaw,
+                sortedFieldIds,
+                timezone,
+            );
 
-        // Use streamJsonlData for clean line processing with automatic truncation
+            if (!Array.isArray(rowData) || rowData.length === 0) {
+                Logger.warn(`Invalid row data on row ${lineCount}, skipping`);
+                return;
+            }
+
+            const rowObject: Record<string, string | number | Date | null> = {};
+            rowData.forEach((value, colIndex) => {
+                rowObject[`col_${colIndex}`] = value;
+            });
+
+            const row = worksheet.addRow(rowObject);
+
+            if (subtotalLevels?.length) {
+                // Groups start collapsed, and stay so when a parent is expanded
+                row.outlineLevel = Math.min(
+                    outlineLevel,
+                    ExcelService.EXCEL_MAX_OUTLINE_LEVEL,
+                );
+                row.hidden = outlineLevel > 0;
+                // exceljs derives `collapsed` from the sheet outline level instead
+                Object.defineProperty(row, 'collapsed', { value: isSubtotal });
+            }
+
+            if (isSubtotal) {
+                row.font = { bold: true };
+            } else if (conditionalFormattings?.length) {
+                ExcelService.applyConditionalFormattingToRow({
+                    excelRow: row,
+                    parsedRow,
+                    fields,
+                    sortedFieldIds,
+                    conditionalFormattings,
+                    minMaxMap: minMaxMap ?? {},
+                });
+            }
+
+            row.commit();
+        };
+
+        // Subtotal rows sit above their group, so rows are held back and regrouped
+        const bufferedRows: Record<string, unknown>[] = [];
         const { truncated } = await streamJsonlData<void>({
             readStream: resultsStream,
             onRow: (parsedRow: Record<string, unknown>, lineCount: number) => {
-                // Convert row data for Excel
-                const rowData = ExcelService.convertRowToExcel(
-                    parsedRow,
-                    fields,
-                    onlyRaw,
-                    sortedFieldIds,
-                    timezone,
-                );
-
-                if (Array.isArray(rowData) && rowData.length > 0) {
-                    actualRowCount += 1;
-
-                    // Stream directly to Excel temp file
-                    const rowObject: Record<
-                        string,
-                        string | number | Date | null
-                    > = {};
-                    rowData.forEach(
-                        (
-                            value: string | number | Date | null,
-                            colIndex: number,
-                        ) => {
-                            rowObject[`col_${colIndex}`] = value;
-                        },
-                    );
-
-                    const row = worksheet.addRow(rowObject);
-
-                    if (conditionalFormattings?.length) {
-                        ExcelService.applyConditionalFormattingToRow({
-                            excelRow: row,
-                            parsedRow,
-                            fields,
-                            sortedFieldIds,
-                            conditionalFormattings,
-                            minMaxMap: minMaxMap ?? {},
-                        });
-                    }
-
-                    row.commit();
+                if (subtotalLevels?.length) {
+                    bufferedRows.push(parsedRow);
                 } else {
-                    Logger.warn(
-                        `Invalid row data on row ${lineCount}, skipping`,
-                    );
+                    writeRow(parsedRow, lineCount, false, 0);
                 }
-                // Return void since we're processing rows directly
             },
             maxLines: ExcelService.EXCEL_ROW_LIMIT,
         });
+
+        if (subtotalLevels?.length) {
+            interleaveSubtotalRows(bufferedRows, subtotalLevels).forEach(
+                ({ kind, depth, row }, index) =>
+                    writeRow(row, index + 1, kind === 'subtotal', depth),
+            );
+        }
 
         if (columnTotals && Object.keys(columnTotals).length > 0) {
             const totalsRow: Record<string, string | number> = {};
@@ -1019,6 +1061,8 @@ export class ExcelService {
             conditionalFormattings?: ConditionalFormattingConfig[];
             // Warehouse-computed totals appended as a final row, keyed by field id
             columnTotals?: Record<string, number>;
+            // Warehouse-computed subtotals, one row above each group
+            subtotalLevels?: SubtotalExportLevel[];
             pivotValuesColumns?: PivotValuesColumn[];
         } = {},
         timezone?: string,
@@ -1033,6 +1077,7 @@ export class ExcelService {
             attachmentDownloadName,
             conditionalFormattings,
             columnTotals,
+            subtotalLevels,
             pivotValuesColumns,
         } = options;
 
@@ -1109,6 +1154,7 @@ export class ExcelService {
                 exportConfig.conditionalFormattings,
                 minMaxMap,
                 exportConfig.columnTotals,
+                exportConfig.pivotValuesColumns ? undefined : subtotalLevels,
             );
 
             // Generate filename with truncated flag

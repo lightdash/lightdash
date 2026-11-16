@@ -272,6 +272,8 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                         visualizationConfig.chartConfig.conditionalFormattings,
                     showColumnTotals:
                         visualizationConfig.chartConfig.showColumnCalculation,
+                    showSubtotals:
+                        visualizationConfig.chartConfig.showSubtotals,
                 };
                 return {
                     key: 'chart',

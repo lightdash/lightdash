@@ -245,9 +245,42 @@ describe('signed analytics file manifests', () => {
         );
     });
 
+    it('buffers a whole 36 MiB table with 4 MiB files and reuses downloads', async () => {
+        const body = Buffer.alloc(4 * 1024 * 1024);
+        const contents = Array.from({ length: 9 }, (_, i) => ({
+            Key: key().replace('part-1', `larger-${i}`),
+            ETag: 'larger-v1',
+            Size: body.length,
+        }));
+        send.mockImplementation(async (command) =>
+            command instanceof ListObjectsV2Command
+                ? { Contents: contents }
+                : {
+                      Body: Readable.from([body]),
+                      ETag: 'larger-v1',
+                      ContentLength: body.length,
+                  },
+        );
+        const resolve = createS3AnalyticsSourceResolver(config);
+        const first = await resolve(['query_events']);
+        expect(first.fileBuffers?.size).toBe(9);
+        const warm = await resolve(['query_events']);
+        expect(warm.fileBuffers?.size).toBe(9);
+        for (const [url, buffer] of first.fileBuffers!) {
+            expect(warm.fileBuffers?.get(url)).toBe(buffer);
+            expect(buffer.byteLength).toBe(body.length);
+        }
+        expect(
+            send.mock.calls.filter(
+                ([command]) => command instanceof GetObjectCommand,
+            ),
+        ).toHaveLength(9);
+        expect(getSignedUrl).not.toHaveBeenCalled();
+    });
+
     it('avoids downloading a table that cannot fit the per-query budget', async () => {
         const body = Buffer.alloc(1024 * 1024);
-        const contents = Array.from({ length: 33 }, (_, i) => ({
+        const contents = Array.from({ length: 65 }, (_, i) => ({
             Key: key().replace('part-1', `budget-${i}`),
             ETag: 'budget-v1',
             Size: body.length,
@@ -268,7 +301,7 @@ describe('signed analytics file manifests', () => {
         const resolve = createS3AnalyticsSourceResolver(config);
         const first = await resolve(['query_events']);
         expect(first.fileBuffers).toBeUndefined();
-        expect(first.tables[0].urls).toHaveLength(33);
+        expect(first.tables[0].urls).toHaveLength(65);
         const downloads = () =>
             send.mock.calls.filter(
                 ([command]) => command instanceof GetObjectCommand,
@@ -321,7 +354,9 @@ describe('signed analytics file manifests', () => {
         let etag = 'remote-v1';
         const objectKey = key().replace('part-1', 'remote');
         send.mockImplementation(async () => ({
-            Contents: [{ Key: objectKey, ETag: etag, Size: 2 * 1024 * 1024 }],
+            Contents: [
+                { Key: objectKey, ETag: etag, Size: 4 * 1024 * 1024 + 1 },
+            ],
         }));
         const resolve = createS3AnalyticsSourceResolver(config);
         const sources = await Promise.all(
@@ -348,7 +383,7 @@ describe('signed analytics file manifests', () => {
     it('keeps signature reuse separate across storage configurations and rejects revoked listing access', async () => {
         send.mockResolvedValue({
             Contents: [
-                { Key: key(), ETag: 'config-v1', Size: 2 * 1024 * 1024 },
+                { Key: key(), ETag: 'config-v1', Size: 4 * 1024 * 1024 + 1 },
             ],
         });
         const resolve = createS3AnalyticsSourceResolver(config);
@@ -414,7 +449,11 @@ describe('signed analytics file manifests', () => {
         } as unknown as ReturnType<typeof createS3ClientFromConfig>);
         send.mockResolvedValue({
             Contents: [
-                { Key: key(), ETag: 'credential-v1', Size: 2 * 1024 * 1024 },
+                {
+                    Key: key(),
+                    ETag: 'credential-v1',
+                    Size: 4 * 1024 * 1024 + 1,
+                },
             ],
         });
         const resolve = createS3AnalyticsSourceResolver(config);

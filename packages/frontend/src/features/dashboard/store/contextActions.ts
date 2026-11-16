@@ -55,6 +55,7 @@ import {
     selectHasParameterOrderChanged,
     selectHaveFiltersChanged,
     selectHavePinnedParametersChanged,
+    selectParameterPicks,
     selectRawTemporaryFilters,
     selectSavedParameters,
     selectTilesWithDateZoomApplied,
@@ -382,6 +383,14 @@ export const createDashboardContextActions = (
             ),
         setParameter: (key: string, value: ParameterValue | null) =>
             dispatch(dashboardParametersActions.setParameter({ key, value })),
+        setParameterPicks: (
+            value: SetStateAction<Record<string, ParameterValue | null>>,
+        ) =>
+            dispatch(
+                dashboardParametersActions.setParameterPicks(
+                    resolve(value, () => selectParameterPicks(getState())),
+                ),
+            ),
         clearAllParameters: () =>
             dispatch(dashboardParametersActions.clearAllParameters()),
         addParameterReferences: (
@@ -407,11 +416,13 @@ export const createDashboardContextActions = (
         setTileVirtualViewSavedParameters: (
             tileUuid: string,
             values: ParametersValuesMap,
+            isPartial: boolean,
         ) =>
             dispatch(
                 dashboardParametersActions.setTileVirtualViewSavedParameters({
                     tileUuid,
                     values,
+                    isPartial,
                 }),
             ),
         addParameterDefinitions: (parameters: ParameterDefinitions) =>

@@ -54,6 +54,36 @@ describe('AnalyticsFileCache', () => {
         expect(send).toHaveBeenCalledTimes(3);
     });
 
+    it('caches a 4 MiB compacted file and reuses its authenticated bytes', async () => {
+        const cache = new AnalyticsFileCache();
+        const body = Buffer.alloc(4 * 1024 * 1024, 'a');
+        const send = vi.fn(async () => ({
+            Body: Readable.from([body]),
+            ContentLength: body.length,
+            ETag: 'v1',
+        }));
+        const s3 = client(send);
+        const first = await cache.get(
+            scope,
+            s3,
+            'bucket',
+            key,
+            'v1',
+            body.length,
+        );
+        const cached = await cache.get(
+            scope,
+            s3,
+            'bucket',
+            key,
+            'v1',
+            body.length,
+        );
+        expect(first?.equals(body)).toBe(true);
+        expect(cached).toBe(first);
+        expect(send).toHaveBeenCalledOnce();
+    });
+
     it('falls back for large, unversioned or unbounded files', async () => {
         const cache = new AnalyticsFileCache();
         const send = vi.fn();
@@ -61,7 +91,7 @@ describe('AnalyticsFileCache', () => {
         for (const [etag, size] of [
             [undefined, 4],
             ['v1', undefined],
-            ['v1', 1024 * 1024 + 1],
+            ['v1', 4 * 1024 * 1024 + 1],
             ['v1', -1],
         ] as const) {
             expect(

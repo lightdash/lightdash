@@ -82,6 +82,8 @@ const buildService = ({ members = [], groups = [], gateError }: Setup = {}) => {
         } as never,
         userModel: {} as never,
         warehouseConnectionModel: {} as never,
+        composerChartModel: {} as never,
+        composerChartService: {} as never,
         directAccessService: { assertEnabled, replacePolicy } as never,
     });
     return { service, assertEnabled, replacePolicy };

@@ -33,7 +33,10 @@ import {
     type S3ConnectionConfig,
 } from '../../../clients/Aws/S3BaseClient';
 import Logger from '../../../logging/logger';
-import { analyticsFileCache } from './AnalyticsFileCache';
+import {
+    analyticsFileCache,
+    MAX_ANALYTICS_CACHE_FILE_BYTES,
+} from './AnalyticsFileCache';
 import { analyticsSignedUrlCache } from './AnalyticsSignedUrlCache';
 
 type S3AnalyticsSourceConfig = {
@@ -48,7 +51,7 @@ const SIGNED_URL_LIFETIME_SECONDS = 900;
 const MAX_FILES = 10_000;
 const PREPARATION_CONCURRENCY = 8;
 const EXPIRY_MARGIN_MS = 120_000;
-const MAX_BUFFERED_BYTES = 32 * 1024 * 1024;
+const MAX_BUFFERED_BYTES = 64 * 1024 * 1024;
 
 type AnalyticsFile = {
     key: string;
@@ -334,7 +337,7 @@ export const createS3AnalyticsSourceResolver = ({
                             size &&
                             Number.isSafeInteger(size) &&
                             size > 0 &&
-                            size <= 1024 * 1024,
+                            size <= MAX_ANALYTICS_CACHE_FILE_BYTES,
                     ) && bufferedBytes + bytes <= MAX_BUFFERED_BYTES;
                 const downloadStart = performance.now();
                 const buffers = canBuffer

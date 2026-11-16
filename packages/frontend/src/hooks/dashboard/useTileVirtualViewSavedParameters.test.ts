@@ -27,17 +27,20 @@ describe('useTileVirtualViewSavedParameters', () => {
     });
 
     it("reports the explore's saved values with dashboard controls on", () => {
-        renderHook(() => useTileVirtualViewSavedParameters('tile-1', explore));
+        renderHook(() =>
+            useTileVirtualViewSavedParameters('tile-1', explore, false),
+        );
 
         expect(setTileVirtualViewSavedParameters).toHaveBeenCalledWith(
             'tile-1',
             { status: 'Shipped' },
+            false,
         );
     });
 
     it('reports nothing while the explore is loading', () => {
         renderHook(() =>
-            useTileVirtualViewSavedParameters('tile-1', undefined),
+            useTileVirtualViewSavedParameters('tile-1', undefined, false),
         );
 
         expect(setTileVirtualViewSavedParameters).not.toHaveBeenCalled();
@@ -48,19 +51,54 @@ describe('useTileVirtualViewSavedParameters', () => {
             useTileVirtualViewSavedParameters(
                 'tile-1',
                 {} as unknown as ApiExploreResults,
+                false,
             ),
         );
 
         expect(setTileVirtualViewSavedParameters).toHaveBeenCalledWith(
             'tile-1',
             {},
+            false,
+        );
+    });
+
+    it("reports a merged chart's primary explore values as a partial answer", () => {
+        renderHook(() =>
+            useTileVirtualViewSavedParameters('tile-1', explore, true),
+        );
+
+        expect(setTileVirtualViewSavedParameters).toHaveBeenCalledWith(
+            'tile-1',
+            { status: 'Shipped' },
+            true,
+        );
+    });
+
+    it('reports again in full when the chart is no longer merged', () => {
+        const { rerender } = renderHook(
+            ({ isMergedChart }) =>
+                useTileVirtualViewSavedParameters(
+                    'tile-1',
+                    explore,
+                    isMergedChart,
+                ),
+            { initialProps: { isMergedChart: true } },
+        );
+        rerender({ isMergedChart: false });
+
+        expect(setTileVirtualViewSavedParameters).toHaveBeenLastCalledWith(
+            'tile-1',
+            { status: 'Shipped' },
+            false,
         );
     });
 
     it('reports nothing with dashboard controls off', () => {
         flag.enabled = false;
 
-        renderHook(() => useTileVirtualViewSavedParameters('tile-1', explore));
+        renderHook(() =>
+            useTileVirtualViewSavedParameters('tile-1', explore, false),
+        );
 
         expect(setTileVirtualViewSavedParameters).not.toHaveBeenCalled();
     });

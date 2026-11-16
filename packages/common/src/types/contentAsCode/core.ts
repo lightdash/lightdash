@@ -7,6 +7,7 @@ export enum ContentAsCodeType {
     CHART = 'chart',
     DASHBOARD = 'dashboard',
     SQL_CHART = 'sql_chart',
+    COMPOSER_CHART = 'composer_chart',
     SPACE = 'space',
     AI_AGENT = 'ai_agent',
     SCHEDULED_DELIVERY = 'scheduled_delivery',

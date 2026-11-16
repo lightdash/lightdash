@@ -14,7 +14,10 @@ import {
 import { type ResultColumn } from '../../types/results';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { type AiComposerChartArtifactConfig } from './composerArtifact';
-import { getComposerRunQueryChart } from './composerChartVizConfig';
+import {
+    getComposerRunQueryChart,
+    type ComposerCustomChartTypeSlot,
+} from './composerChartVizConfig';
 import { getComposerMergeNodeChart } from './composerMergeChart';
 
 export type ComposerChartSaveDraft =
@@ -23,6 +26,11 @@ export type ComposerChartSaveDraft =
           pipeline: ComposerChartPipeline;
           chart: ComposerStoredChart;
       }
+    | { status: 'unavailable'; reason: string };
+
+/** An answer's custom chart type as its pinned version declares it, or why it cannot be read. */
+export type ComposerChartSaveCustomChartType =
+    | { status: 'ready'; slots: ComposerCustomChartTypeSlot[] }
     | { status: 'unavailable'; reason: string };
 
 const unavailable = (reason: string): ComposerChartSaveDraft => ({
@@ -94,19 +102,27 @@ export const getComposerChartSaveDraft = ({
     config,
     columns,
     metadata,
+    customChartType,
 }: {
     config: AiComposerChartArtifactConfig;
     /** The presented node's result columns, from the run the panel did. */
     columns: ResultColumn[];
     metadata: { title: string; description: string };
+    /** Null until the answer's custom chart type has loaded, and for answers without one. */
+    customChartType: ComposerChartSaveCustomChartType | null;
 }): ComposerChartSaveDraft => {
     if (config.schemaVersion !== 2) {
         return unavailable('Older answers cannot be saved to a dashboard');
     }
+    let customChartTypeSlots: ComposerCustomChartTypeSlot[] = [];
     if (config.vizConfig?.type === 'custom') {
-        return unavailable(
-            'Answers with a custom chart type cannot be saved to a dashboard yet',
-        );
+        if (customChartType === null) {
+            return unavailable('Waiting for the custom chart type to load');
+        }
+        if (customChartType.status === 'unavailable') {
+            return unavailable(customChartType.reason);
+        }
+        customChartTypeSlots = customChartType.slots;
     }
     if (columns.length === 0) {
         return unavailable('Waiting for the result to load');
@@ -138,7 +154,7 @@ export const getComposerChartSaveDraft = ({
                 labels: null,
             },
             metadata,
-            customChartTypeSlots: [],
+            customChartTypeSlots,
         });
     } catch (e) {
         return unavailable(e instanceof Error ? e.message : String(e));

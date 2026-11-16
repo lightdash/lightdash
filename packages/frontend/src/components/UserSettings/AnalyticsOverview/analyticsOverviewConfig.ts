@@ -76,8 +76,8 @@ export type AnalyticsFilters = {
 export type AnalyticsChartSpec = {
     title: string;
     query: AnalyticsQuerySpec;
-    metric: string;
-    kind: 'time' | 'ranking';
+    series: { metric: string; label: string }[];
+    kind: 'time' | 'ranking' | 'donut';
 };
 
 const query = (
@@ -96,7 +96,7 @@ const time = (
 ): AnalyticsChartSpec => ({
     title,
     query: query(source, [sources[source].date], [metric], filters, true),
-    metric,
+    series: [{ metric, label: title }],
     kind: 'time',
 });
 
@@ -109,7 +109,7 @@ const ranking = (
 ): AnalyticsChartSpec => ({
     title,
     query: query(source, dimensions, [metric], filters),
-    metric,
+    series: [{ metric, label: title }],
     kind: 'ranking',
 });
 
@@ -121,15 +121,15 @@ const activityDaily = query(
     true,
 );
 const activeUsers: AnalyticsChartSpec = {
-    title: 'Daily active users',
+    title: 'Daily observed active people',
     query: activityDaily,
-    metric: 'unique_users',
+    series: [{ metric: 'unique_users', label: 'Active people' }],
     kind: 'time',
 };
 const dailyQueries: AnalyticsChartSpec = {
     ...activeUsers,
     title: 'Queries per day',
-    metric: 'total_queries',
+    series: [{ metric: 'total_queries', label: 'Queries' }],
 };
 const topUsers = ranking(
     'Most active users',
@@ -142,6 +142,10 @@ const dailyRequests = time(
     'requests',
     'total_requests',
 );
+const appSeries = [
+    { metric: 'total_views', label: 'App loads' },
+    { metric: 'unique_viewers', label: 'Observed viewers' },
+];
 const inventoryFilter = {
     content_type: ['saved_chart', 'sql_chart', 'dashboard'],
 };
@@ -186,77 +190,164 @@ export const analyticsHeadlineMetrics = [
     },
 ];
 
+const analyticsAiSummary = {
+    query: query(
+        'tokens',
+        [],
+        [
+            'total_ai_calls',
+            'total_tokens_used',
+            'unique_users',
+            'total_output_tokens',
+        ],
+    ),
+    metrics: [
+        { title: 'AI calls', metric: 'total_ai_calls', compact: false },
+        { title: 'Tokens used', metric: 'total_tokens_used', compact: true },
+        { title: 'Users using AI', metric: 'unique_users', compact: false },
+        {
+            title: 'Output tokens',
+            metric: 'total_output_tokens',
+            compact: true,
+        },
+    ],
+};
+
+export type AnalyticsSummarySpec = {
+    query: AnalyticsQuerySpec;
+    metrics: { title: string; metric: string; compact: boolean }[];
+};
+
+const querySummary: AnalyticsSummarySpec = {
+    query: query(
+        'queries',
+        [],
+        [
+            'total_queries',
+            'unique_users',
+            'avg_warehouse_execution_time_ms',
+            'p90_warehouse_execution_time_ms',
+        ],
+    ),
+    metrics: [
+        { title: 'Queries executed', metric: 'total_queries', compact: false },
+        {
+            title: 'Users running queries',
+            metric: 'unique_users',
+            compact: false,
+        },
+        {
+            title: 'Avg. warehouse time (ms)',
+            metric: 'avg_warehouse_execution_time_ms',
+            compact: false,
+        },
+        {
+            title: 'P90 warehouse time (ms)',
+            metric: 'p90_warehouse_execution_time_ms',
+            compact: false,
+        },
+    ],
+};
+const appSummary: AnalyticsSummarySpec = {
+    query: query('apps', [], ['total_views', 'unique_viewers', 'unique_apps'], {
+        event_name: ['data_app.view'],
+    }),
+    metrics: [
+        { title: 'Recorded app loads', metric: 'total_views', compact: false },
+        {
+            title: 'Distinct app viewers',
+            metric: 'unique_viewers',
+            compact: false,
+        },
+        {
+            title: 'Apps with recorded loads',
+            metric: 'unique_apps',
+            compact: false,
+        },
+    ],
+};
+const embedSummary: AnalyticsSummarySpec = {
+    query: query(
+        'embed',
+        [],
+        ['total_loads', 'unique_viewers', 'unique_dashboards'],
+    ),
+    metrics: [
+        {
+            title: 'Observed dashboard loads',
+            metric: 'total_loads',
+            compact: false,
+        },
+        {
+            title: 'Identified external viewers',
+            metric: 'unique_viewers',
+            compact: false,
+        },
+        {
+            title: 'Dashboards loaded',
+            metric: 'unique_dashboards',
+            compact: false,
+        },
+    ],
+};
 export const analyticsDateRangeDays = [7, 30, 90];
 
 // Settings has a small, independent selection; full dashboards remain managed by sync.
 export const analyticsTabs: {
     id: string;
     label: string;
+    description: string;
     dashboardSlug: string | null;
     charts: AnalyticsChartSpec[];
+    summary: AnalyticsSummarySpec | null;
 }[] = [
     {
         id: 'overview',
+        summary: null,
         label: 'Overview',
+        description:
+            'A quick view of active users, query activity, content creation and AI agent requests.',
         dashboardSlug: null,
         charts: [activeUsers, topUsers, dailyQueries, dailyRequests],
     },
     {
         id: 'agents',
+        summary: analyticsAiSummary,
         label: 'Agents & AI',
+        description:
+            'AI consumption and agent request adoption, outcomes and feedback.',
         dashboardSlug: 'lightdash-analytics-overview',
         charts: [
-            dailyRequests,
-            ranking(
-                'Requests by agent',
-                'requests',
-                ['agent_name', 'agent_id'],
-                'total_requests',
-            ),
-            ranking(
-                'Request outcomes',
-                'outcomes',
-                ['status'],
-                'total_requests',
-            ),
-            ranking(
-                'Requests by channel',
-                'requests',
-                ['surface'],
-                'total_requests',
-            ),
+            time('AI calls by day', 'tokens', 'total_ai_calls'),
+            time('Tokens used by day', 'tokens', 'total_tokens_used'),
         ],
     },
     {
         id: 'queries',
+        summary: querySummary,
         label: 'Queries',
+        description:
+            'Query performance, failures, origins, caching and the metrics and dimensions people use.',
         dashboardSlug: 'lightdash-analytics-query-activity',
         charts: [
-            dailyQueries,
-            ranking(
-                'Most queried metrics',
-                'semantic',
-                ['field_label', 'table_name', 'field_id'],
-                'total_queries',
-                { field_kind: ['metric'] },
-            ),
-            ranking(
-                'Queries by cache status',
-                'queries',
-                ['cache_hit'],
-                'total_queries',
-            ),
-            ranking(
-                'Queries by origin',
-                'queries',
-                ['workload_origin'],
-                'total_queries',
-            ),
+            time('Queries by day', 'queries', 'total_queries'),
+            {
+                ...ranking(
+                    'How often are queries served from cache?',
+                    'queries',
+                    ['cache_hit'],
+                    'total_queries',
+                ),
+                kind: 'donut',
+            },
         ],
     },
     {
         id: 'people',
+        summary: null,
         label: 'Users',
+        description:
+            'Observed activity, returning users and activity channels.',
         dashboardSlug: 'lightdash-analytics-people',
         charts: [
             activeUsers,
@@ -277,7 +368,9 @@ export const analyticsTabs: {
     },
     {
         id: 'content',
+        summary: null,
         label: 'Content',
+        description: 'Audience, trust, adoption and current content inventory.',
         dashboardSlug: 'lightdash-analytics-content',
         charts: [
             time(
@@ -304,27 +397,43 @@ export const analyticsTabs: {
     },
     {
         id: 'apps',
+        summary: appSummary,
         label: 'Apps',
+        description:
+            'App loads, audiences, builders and generation consumption.',
         dashboardSlug: 'lightdash-analytics-apps',
         charts: [
-            time('App loads per day', 'apps', 'total_views'),
-            ranking(
-                'Most used apps',
-                'apps',
-                ['app_name', 'app_id'],
-                'total_views',
-            ),
-            time('Apps created per day', 'apps', 'unique_apps', {
-                event_name: ['data_app.created'],
-            }),
-            time('App generation tokens', 'tokens', 'total_tokens_used', {
-                feature: ['data-app'],
-            }),
+            {
+                title: 'Daily app loads and viewers',
+                query: query(
+                    'apps',
+                    ['event_ts_day'],
+                    ['total_views', 'unique_viewers'],
+                    { event_name: ['data_app.view'] },
+                    true,
+                ),
+                series: appSeries,
+                kind: 'time',
+            },
+            {
+                title: 'Apps · loads and observed viewers',
+                query: query(
+                    'apps',
+                    ['app_name', 'project_name', 'app_id', 'project_id'],
+                    ['total_views', 'unique_viewers'],
+                    { event_name: ['data_app.view'] },
+                ),
+                series: appSeries,
+                kind: 'ranking',
+            },
         ],
     },
     {
         id: 'tools',
+        summary: null,
         label: 'Tools & operations',
+        description:
+            'MCP tool activity, exports and operational capture boundaries.',
         dashboardSlug: 'lightdash-analytics-tools',
         charts: [
             time('Tool calls per day', 'tools', 'total_calls'),
@@ -346,7 +455,10 @@ export const analyticsTabs: {
     },
     {
         id: 'adoption',
+        summary: null,
         label: 'Adoption',
+        description:
+            'See who is active, which apps and dashboards people use, and how Ask AI use develops.',
         dashboardSlug: 'lightdash-analytics-adoption',
         charts: [
             activeUsers,
@@ -367,24 +479,27 @@ export const analyticsTabs: {
     },
     {
         id: 'tokens',
+        summary: null,
         label: 'AI usage',
+        description:
+            'All captured token usage for the selected dates. The full dashboard also includes billing-specific views with a narrower scope.',
         dashboardSlug: 'lightdash-analytics-ai-tokens',
         charts: [
-            time('Tokens per day', 'tokens', 'total_tokens_used'),
+            time('Tokens per day · all usage', 'tokens', 'total_tokens_used'),
             ranking(
-                'Tokens by feature',
+                'Tokens by feature · all usage',
                 'tokens',
                 ['feature'],
                 'total_tokens_used',
             ),
             ranking(
-                'Tokens by channel',
+                'Tokens by channel · all usage',
                 'tokens',
                 ['channel'],
                 'total_tokens_used',
             ),
             ranking(
-                'Tokens by model',
+                'Tokens by model · all usage',
                 'tokens',
                 ['model'],
                 'total_tokens_used',
@@ -393,23 +508,18 @@ export const analyticsTabs: {
     },
     {
         id: 'embed',
+        summary: embedSummary,
         label: 'Embed',
+        description:
+            'Observed embedded-dashboard loads, external viewers and query health.',
         dashboardSlug: 'lightdash-analytics-embed',
         charts: [
-            time('Embed loads per day', 'embed', 'total_loads'),
+            time('Dashboard loads each day', 'embed', 'total_loads'),
             ranking(
-                'Most loaded embeds',
+                'Most-loaded dashboards',
                 'embed',
                 ['dashboard_label'],
                 'total_loads',
-            ),
-            time('External viewers per day', 'embed', 'unique_viewers'),
-            ranking(
-                'Embed query outcomes',
-                'queries',
-                ['status'],
-                'total_queries',
-                { context: ['embed'] },
             ),
         ],
     },
@@ -476,7 +586,7 @@ export const buildAnalyticsQuery = (
         limit: spec.daily
             ? Math.max(...analyticsDateRangeDays)
             : spec.dimensions.length
-              ? 8
+              ? 10
               : 1,
         tableCalculations: [],
         timezone: 'UTC',

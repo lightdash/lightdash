@@ -4,6 +4,7 @@ import {
     getControlTileUuids,
     getParameterControlSetter,
     getShadowedReservedNames,
+    isParameterControlLockedInEmbed,
     type DashboardParameterControl,
     type ParameterValue,
 } from '@lightdash/common';
@@ -16,6 +17,7 @@ import {
     selectDashboardParameterDefinitions,
     selectDashboardTabs,
     selectDashboardTiles,
+    selectEmbedDashboard,
     selectMissingParametersByTile,
     selectParameterControls,
     selectParameterPicks,
@@ -349,3 +351,13 @@ export const ParameterBarContext = createContext<ParameterBar>(NO_ENTRIES);
 /** The bar's parameter controls, built once by `ParameterBarProvider`; none outside it. */
 export const useParameterBarControls = (): ParameterBar =>
     useContext(ParameterBarContext);
+
+/** Whether an embed's token keeps a parameter control from the viewer; never outside an embed. */
+export const useIsParameterControlLockedInEmbed = () => {
+    const interactivity = useDashboardSelector(
+        (state) => selectEmbedDashboard(state)?.parameterInteractivity,
+    );
+    return (control: DashboardParameterControl): boolean =>
+        interactivity !== undefined &&
+        isParameterControlLockedInEmbed(interactivity, control);
+};

@@ -20,6 +20,7 @@ import {
     isEmbedReadOnlyAiAgentToken,
     isJwtUser,
     MemberAbility,
+    normalizeEmbedJwt,
     OauthAccount,
     OAuthAgentConnectionGrant,
     Organization,
@@ -87,7 +88,7 @@ const extractOrganizationFromUser = (
 };
 
 export const fromJwt = ({
-    decodedToken,
+    decodedToken: token,
     embed,
     source,
     userAttributes,
@@ -103,6 +104,7 @@ export const fromJwt = ({
     embedWriteUser?: SessionUser;
     embedWriteContext?: AnonymousAccount['embedWriteContext'];
 }): AnonymousAccount => {
+    const decodedToken = normalizeEmbedJwt(token);
     if (
         isDashboardContent(decodedToken.content) &&
         decodedToken.writeActions?.permissionsMode === 'roles' &&
@@ -151,6 +153,7 @@ export const fromJwt = ({
             ),
         };
         parameters = {
+            ...parameters,
             enabled: abilities.can(
                 'view',
                 subject('EmbedDashboardParameters', { ...target }),

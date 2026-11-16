@@ -119,7 +119,7 @@ describe('Analytics settings overview', () => {
             screen.getByRole('tab', { name: 'Agents & AI' }),
         ).toHaveAttribute('aria-selected', 'true');
         expect(
-            screen.getByRole('region', { name: 'Requests by agent' }),
+            screen.getByRole('region', { name: 'AI calls by day' }),
         ).toBeVisible();
         expect(
             screen.queryByRole('region', { name: 'Most active users' }),
@@ -218,6 +218,55 @@ describe('Analytics settings overview', () => {
                     filterValue(current[0], 'start'),
             ),
         ).toBe(true);
+    });
+
+    it('waits for the tab summary before loading previous-period comparisons', async () => {
+        const finishSummary = Promise.withResolvers<ReturnType<typeof ready>>();
+        const launched = mockQueries((query) => {
+            const days =
+                (Date.parse(String(filterValue(query, 'end'))) -
+                    Date.parse(String(filterValue(query, 'start')))) /
+                86_400_000;
+            if (days === 30 && query.metrics.includes('ai_usage_unique_users'))
+                return finishSummary.promise;
+            return ready();
+        });
+        renderOverview();
+        await userEvent.click(screen.getByRole('tab', { name: 'Agents & AI' }));
+        await userEvent.click(screen.getByText('Last 30 days'));
+        const monthlyQueries = () =>
+            launched
+                .map(({ query }) => query)
+                .filter(
+                    (query) =>
+                        Date.parse(String(filterValue(query, 'end'))) -
+                            Date.parse(String(filterValue(query, 'start'))) ===
+                        30 * 86_400_000,
+                );
+        await waitFor(() => expect(monthlyQueries()).toHaveLength(6));
+        expect(
+            monthlyQueries().filter((query) =>
+                query.metrics.includes('ai_usage_unique_users'),
+            ),
+        ).toHaveLength(1);
+        await act(async () =>
+            finishSummary.resolve(
+                ready([
+                    {
+                        ai_usage_total_ai_calls: 13575,
+                        ai_usage_total_tokens_used: 121410000,
+                        ai_usage_unique_users: 2,
+                        ai_usage_total_output_tokens: 2750000,
+                    },
+                ]),
+            ),
+        );
+        await waitFor(() => expect(monthlyQueries()).toHaveLength(9));
+        expect(
+            within(screen.getByRole('region', { name: 'AI calls' })).getByText(
+                '13,575',
+            ),
+        ).toBeVisible();
     });
 
     it('cancels a superseded query even when its creation response arrives after the project switch', async () => {

@@ -127,6 +127,9 @@ const makeMcpService = ({
     },
     agent = null,
     availableAgents = [],
+    projects = [
+        { projectUuid, name: 'Project', type: 'DEFAULT', expiresAt: null },
+    ],
     spaces = [],
     contentResults = { data: [], pagination: undefined },
 }: {
@@ -143,6 +146,12 @@ const makeMcpService = ({
         tags: string[] | null;
         spaceAccess: string[];
     } | null;
+    projects?: Array<{
+        projectUuid: string;
+        name: string;
+        type: string;
+        expiresAt: Date | null;
+    }>;
     availableAgents?: Array<{
         uuid: string;
         name: string;
@@ -298,14 +307,7 @@ const makeMcpService = ({
             getContext: vi.fn().mockResolvedValue({ context }),
         },
         projectModel: {
-            getAllByOrganizationUuid: vi.fn().mockResolvedValue([
-                {
-                    projectUuid,
-                    name: 'Project',
-                    type: 'DEFAULT',
-                    expiresAt: null,
-                },
-            ]),
+            getAllByOrganizationUuid: vi.fn().mockResolvedValue(projects),
         },
         projectService,
         searchModel: {},
@@ -354,6 +356,8 @@ describe('MCP list_content', () => {
             activeProject: {
                 projectUuid,
                 projectName: 'Project',
+                type: 'DEFAULT',
+                isPinned: false,
                 selectedTags: null,
             },
             activeAgent: null,
@@ -368,6 +372,64 @@ describe('MCP list_content', () => {
             ],
         });
     });
+
+    it.each([false, true])(
+        'identifies an active preview and its pinned scope: pinned=%s',
+        async (isPinned) => {
+            const projects = [
+                {
+                    projectUuid,
+                    name: 'Preview',
+                    type: 'PREVIEW',
+                    expiresAt: null,
+                },
+                {
+                    projectUuid: 'production-a',
+                    name: 'Production A',
+                    type: 'DEFAULT',
+                    expiresAt: null,
+                },
+                {
+                    projectUuid: 'production-b',
+                    name: 'Production B',
+                    type: 'DEFAULT',
+                    expiresAt: null,
+                },
+            ];
+            makeMcpService({ projects });
+
+            const result = await getToolCallback(McpToolName.GET_CONTEXT)(
+                {},
+                {
+                    ...extra,
+                    authInfo: {
+                        ...extra.authInfo,
+                        extra: {
+                            ...extra.authInfo.extra,
+                            ...(isPinned
+                                ? { headerProjectUuid: projectUuid }
+                                : {}),
+                        },
+                    },
+                },
+            );
+
+            expect(result).toMatchObject({
+                structuredContent: {
+                    activeProject: {
+                        projectUuid,
+                        projectName: 'Preview',
+                        type: 'PREVIEW',
+                        isPinned,
+                    },
+                    availableProjects: projects.map((project) => ({
+                        ...project,
+                        availableAgents: [],
+                    })),
+                },
+            });
+        },
+    );
 
     it('omits an active agent that is no longer accessible', async () => {
         makeMcpService({

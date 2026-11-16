@@ -72,3 +72,20 @@ describe('Query activity attribution', () => {
         ).toBeNull();
     });
 });
+
+describe('query.completed chart kind', () => {
+    const tags = { query_context: QueryExecutionContext.DASHBOARD };
+    it('names a composer chart node, a classic chart run, and neither', () => {
+        expect(
+            queryUsageProperties(tags, {
+                ...usage,
+                chartKind: 'composer_chart',
+            }).chartKind,
+        ).toBe('composer_chart');
+        expect(
+            queryUsageProperties({ ...tags, chart_uuid: 'chart' }, usage)
+                .chartKind,
+        ).toBe('classic_chart');
+        expect(queryUsageProperties(tags, usage).chartKind).toBeNull();
+    });
+});
