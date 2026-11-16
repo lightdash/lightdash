@@ -2929,7 +2929,6 @@ export class PromoteService extends BaseService {
             dashboardUuidOrSlug,
             options?.projectUuid,
         );
-        assertDashboardWithinLimits(dashboard, this.lightdashConfig.dashboard);
 
         const { upstreamProjectUuid } = await this.projectModel.getSummary(
             dashboard.projectUuid,
@@ -2962,6 +2961,10 @@ export class PromoteService extends BaseService {
                 user.organizationUuid!,
                 promotedDashboard,
                 upstreamDashboard,
+            );
+            assertDashboardWithinLimits(
+                dashboard,
+                this.lightdashConfig.dashboard,
             );
 
             // Check permissions for all chart tiles

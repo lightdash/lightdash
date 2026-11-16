@@ -5161,6 +5161,10 @@ export class DashboardService
                 'Dashboard tile positions must cover every chart within the 36-column grid without overlap.',
             );
         }
+        assertDashboardWithinLimits(
+            { tiles: data.charts.map(() => ({})), tabs: [] },
+            this.lightdashConfig.dashboard,
+        );
         // 1. Create empty dashboard
         const emptyDashboard: CreateDashboard = {
             name: data.name,
