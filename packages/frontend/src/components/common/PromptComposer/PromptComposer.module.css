@@ -340,6 +340,17 @@
     padding: 0 var(--mantine-spacing-xs) rem(4px) var(--composer-inline-inset);
 }
 
+/* Tall attachments scroll inside the single-row composer instead of growing
+ * it past a small panel, and the actions stay on the bottom row. */
+.root[data-variant='inline'] .attachments {
+    max-height: rem(152px);
+    overflow-y: auto;
+}
+
+.root[data-variant='inline'][data-has-attachments] {
+    align-items: flex-end;
+}
+
 .toolbar {
     display: flex;
     align-items: center;
