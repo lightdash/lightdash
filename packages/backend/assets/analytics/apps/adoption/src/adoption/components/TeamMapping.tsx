@@ -1,10 +1,17 @@
-import { ArrowLeft, Pencil, Plus, RefreshCw, Trash2, Users } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useAppState } from '@lightdash/query-sdk';
+import { ArrowLeft, Check, Pencil, Plus, RefreshCw, Trash2, Users } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { formatPeople, type Cell, type GroupInfo, type Person, type Team, type TeamConfig } from '../model';
 import { GroupPicker } from './GroupPicker';
 import { TeamEditor } from './TeamEditor';
+
+// Where teams might be kept already. Lightdash cannot read any of them yet: asking is how the first ones get chosen.
+const TEAM_SOURCES = ['Salesforce', 'HubSpot', 'Workday', 'BambooHR', 'HiBob', 'Okta', 'Microsoft Entra ID', 'Google Workspace'];
+const OTHER_SOURCE = 'Something else';
+type SourceRequest = { source: string; at: string };
 
 const newTeamId = (): string =>
     `team:${typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
@@ -31,7 +38,14 @@ export const TeamMapping = ({ open, onOpenChange, groups, people, directory, con
     const [primary, setPrimary] = useState(config.primary);
     const [isDirty, setIsDirty] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [sync, setSync] = useState<'idle' | 'syncing' | 'done'>('idle');
+    // Syncing teams from another system does not exist yet. The button opens a request for it instead, kept with the
+    // app for everyone who manages teams, so the same organisation does not ask twice without knowing
+    const [isRequesting, setIsRequesting] = useState(false);
+    const [chosenSource, setChosenSource] = useState<string | null>(null);
+    const [otherSource, setOtherSource] = useState('');
+    const [savedRequest, setSavedRequest] = useAppState<SourceRequest | null>('teamSourceRequest', null, { scope: 'shared' });
+    const request = savedRequest && typeof savedRequest === 'object' && typeof savedRequest.source === 'string' ? savedRequest : null;
+    const requestedSource = chosenSource === OTHER_SOURCE ? otherSource.trim() : (chosenSource ?? '');
     // Names of people picked in this screen, which the overview may not have loaded
     const [picked, setPicked] = useState<Map<string, string>>(new Map());
     // The draft starts again from what is saved each time the screen opens
@@ -43,15 +57,11 @@ export const TeamMapping = ({ open, onOpenChange, groups, people, directory, con
             setPrimary(config.primary);
             setIsDirty(false);
             setEditingId(null);
-            setSync('idle');
+            setIsRequesting(false);
+            setChosenSource(null);
+            setOtherSource('');
         }
     }
-    // The CRM sync is only a preview for now: it pretends to work, then says nothing is connected
-    useEffect(() => {
-        if (sync !== 'syncing') return undefined;
-        const timer = window.setTimeout(() => setSync('done'), 1200);
-        return () => window.clearTimeout(timer);
-    }, [sync]);
 
     const groupsById = useMemo(() => new Map(groups.map((group) => [group.id, group])), [groups]);
     const nameOf = useMemo(() => {
@@ -107,7 +117,53 @@ export const TeamMapping = ({ open, onOpenChange, groups, people, directory, con
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col gap-3" aria-describedby={undefined}>
-                {editing ? (
+                {isRequesting ? (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Back to teams" onClick={() => setIsRequesting(false)}>
+                                    <ArrowLeft />
+                                </Button>
+                                Sync teams from another system
+                            </DialogTitle>
+                        </DialogHeader>
+                        <p className="m-0 text-sm text-muted-foreground">
+                            Lightdash cannot sync teams from a CRM or HR system yet. Tell us where your teams are kept and we will count it towards
+                            what we connect first. Until then, build teams here from groups and people.
+                        </p>
+                        {request && (
+                            <p className="m-0 flex items-center gap-1.5 text-sm">
+                                <Check className="h-4 w-4" />
+                                Your organisation asked for {request.source} on {new Date(request.at).toLocaleDateString(undefined, { dateStyle: 'medium' })}.
+                            </p>
+                        )}
+                        <div className="flex flex-wrap gap-2" role="group" aria-label="Where your teams are kept">
+                            {[...TEAM_SOURCES, OTHER_SOURCE].map((each) => (
+                                <Button key={each} variant={chosenSource === each ? 'default' : 'outline'} size="sm" aria-pressed={chosenSource === each} onClick={() => setChosenSource(each)}>
+                                    {each}
+                                </Button>
+                            ))}
+                        </div>
+                        {chosenSource === OTHER_SOURCE && (
+                            <Input autoFocus aria-label="The system your teams are kept in" placeholder="Name of the system" maxLength={80} value={otherSource} onChange={(event) => setOtherSource(event.target.value)} />
+                        )}
+                        <DialogFooter className="gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setIsRequesting(false)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                size="sm"
+                                disabled={requestedSource === ''}
+                                onClick={() => {
+                                    setSavedRequest({ source: requestedSource, at: new Date().toISOString() });
+                                    setIsRequesting(false);
+                                }}
+                            >
+                                {request ? 'Change request' : 'Request this sync'}
+                            </Button>
+                        </DialogFooter>
+                    </>
+                ) : editing ? (
                     <>
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
@@ -151,11 +207,11 @@ export const TeamMapping = ({ open, onOpenChange, groups, people, directory, con
                                     Create from a group
                                 </Button>
                             </GroupPicker>
-                            <Button variant="outline" size="sm" disabled={sync === 'syncing'} onClick={() => setSync('syncing')}>
-                                <RefreshCw className={sync === 'syncing' ? 'animate-spin' : undefined} />
+                            <Button variant="outline" size="sm" onClick={() => setIsRequesting(true)}>
+                                <RefreshCw />
                                 Sync from CRM
                             </Button>
-                            {sync === 'done' && <span className="text-xs text-muted-foreground">No CRM is connected yet, so nothing was synced.</span>}
+                            {request && <span className="text-xs text-muted-foreground">Sync from {request.source} requested.</span>}
                         </div>
                         <div className="min-h-0 flex-1 overflow-y-auto rounded-md border">
                             <table className="w-full text-sm">

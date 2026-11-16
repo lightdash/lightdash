@@ -11,6 +11,7 @@ import { RecentActivity } from './components/RecentActivity';
 import { TeamMapping } from './components/TeamMapping';
 import { useContainerSize } from './components/useContainerSize';
 import { useFitHeight } from './components/useFitHeight';
+import { PEOPLE_ROW_LIMIT } from './queries/queries';
 import { source, type PeopleFilter } from './queries/source';
 import { GrowthDetail } from './growth/GrowthDetail';
 import { getFollowSweep, SWEEP_ON } from './map/colourTransition';
@@ -578,7 +579,7 @@ type LoaderProps = {
     loadingView: ReactNode;
 };
 
-// 150 people or fewer: one query brings everyone by name
+// Up to as many people as one query can bring: everyone comes by name, so opening a team has nothing more to load
 const NamedOrganisation = ({ main, loadingView }: LoaderProps) => {
     const everyone = useMemo<PeopleFilter>(() => ({ kind: 'everyone' }), []);
     const people = source.usePeople(everyone);
@@ -663,7 +664,7 @@ export default function AdoptionApp() {
                     <Failure text={membership.error} />
                 ) : membership.loading || meta.loading ? (
                     props.loadingView
-                ) : total !== null && total <= NAMED_PEOPLE_LIMIT ? (
+                ) : total !== null && total < PEOPLE_ROW_LIMIT ? (
                     <div className="contents" {...membership.lineage}>
                         <NamedOrganisation {...props} />
                     </div>
