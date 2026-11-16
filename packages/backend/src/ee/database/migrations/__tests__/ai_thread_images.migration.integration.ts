@@ -120,7 +120,6 @@ const image = async (
             height: dimensions.height,
             size_bytes: sizeBytes,
             created_at: new Date(),
-            expires_at: new Date(Date.now() + 30 * 86400000),
         },
     });
     return { file, storageKey };
@@ -271,29 +270,25 @@ test('more than five images are refused before any claim is committed', async ()
     expect(await model.findForThread(owner.threadUuid)).toEqual([]);
 });
 
-test('expired images cannot be claimed, and their metadata survives byte deletion', async () => {
+test('images are kept at any age while their thread exists, and cleaned up once it is deleted', async () => {
     const owner = await fixture();
     const { file, storageKey } = await image(owner);
     await model.markImageUploaded(storageKey);
     await claim(owner, [file.uuid]);
     await migrated.database.raw(
-        'UPDATE ai_thread_image_object SET created_at = ?, expires_at = ? WHERE storage_key = ?',
-        [
-            new Date(Date.now() - 31 * 86400000),
-            new Date(Date.now() - 1000),
-            storageKey,
-        ],
+        'UPDATE ai_thread_image_object SET created_at = ? WHERE storage_key = ?',
+        [new Date(Date.now() - 400 * 86400000), storageKey],
     );
-    expect(await model.findImageObjectsForCleanup()).toEqual(
+    expect(await model.findImageObjectsForCleanup()).not.toEqual(
         expect.arrayContaining([
             expect.objectContaining({ storage_key: storageKey }),
         ]),
     );
-    await model.markImageObjectDeleted(storageKey);
-    expect(await model.findForThread(owner.threadUuid)).toMatchObject([
-        { kind: 'image', objectDeletedAt: expect.any(Date) },
-    ]);
-    expect(await model.findImageObjectsForCleanup()).not.toEqual(
+    await migrated
+        .database('ai_thread')
+        .where('ai_thread_uuid', owner.threadUuid)
+        .delete();
+    expect(await model.findImageObjectsForCleanup()).toEqual(
         expect.arrayContaining([
             expect.objectContaining({ storage_key: storageKey }),
         ]),

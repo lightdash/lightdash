@@ -13,7 +13,7 @@ import { type AiThreadFileWithContent } from '../../models/AiThreadFileModel';
 
 export type ResolvedThreadImage =
     | { status: 'available'; part: FilePart }
-    | { status: 'expired' | 'missing' | 'incomplete' };
+    | { status: 'missing' | 'incomplete' };
 
 class ThreadImageIntegrityError extends Error {
     constructor(message: string) {
@@ -124,13 +124,7 @@ export const resolveThreadImages = async ({
     let bytesRead = 0;
     for (const { promptUuid, item } of references) {
         const file = availableFiles.get(item.fileUuid);
-        const expiresAt = Math.min(
-            Date.parse(item.expiresAt),
-            file?.expiresAt.getTime() ?? Infinity,
-        );
-        if (expiresAt <= Date.now()) {
-            resolved.set(item.fileUuid, { status: 'expired' });
-        } else if (
+        if (
             !file ||
             file.promptUuid !== promptUuid ||
             file.objectDeletedAt !== null
@@ -145,18 +139,14 @@ export const resolveThreadImages = async ({
                 // eslint-disable-next-line no-await-in-loop -- Bound memory and stop before reading beyond the shared byte budget.
                 const bytes = await readImageBytes(file, storage);
                 bytesRead += bytes.length;
-                if (expiresAt <= Date.now()) {
-                    resolved.set(item.fileUuid, { status: 'expired' });
-                } else {
-                    resolved.set(item.fileUuid, {
-                        status: 'available',
-                        part: {
-                            type: 'file',
-                            data: { type: 'data', data: bytes },
-                            mediaType: file.mediaType,
-                        },
-                    });
-                }
+                resolved.set(item.fileUuid, {
+                    status: 'available',
+                    part: {
+                        type: 'file',
+                        data: { type: 'data', data: bytes },
+                        mediaType: file.mediaType,
+                    },
+                });
             } catch (error) {
                 if (error instanceof ThreadImageIntegrityError)
                     Sentry.captureException(error);
@@ -179,12 +169,4 @@ export const withoutFileParts = (messages: ModelMessage[]): ModelMessage[] =>
                   ),
               }
             : message,
-    );
-
-/** Expired references resolve without storage, so only live ones need it. */
-export const hasLiveThreadImage = (context: AiPromptContext) =>
-    context.some(
-        (item) =>
-            item.type === 'thread_image' &&
-            Date.parse(item.expiresAt) > Date.now(),
     );

@@ -47,7 +47,6 @@ export type DbAiThreadImageObject = {
     created_at: Date;
     uploaded_at: Date | null;
     cleanup_attempted_at: Date | null;
-    expires_at: Date;
     object_deleted_at: Date | null;
 };
 

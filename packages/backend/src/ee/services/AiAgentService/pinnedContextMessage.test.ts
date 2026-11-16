@@ -809,7 +809,6 @@ describe('AiAgentService.createPinnedContextMessage images', () => {
         width: 100,
         height: 50,
         mediaType: 'image/png',
-        expiresAt: '2100-01-01T00:00:00.000Z',
     };
 
     it('adds binary native image parts and identifies their content as untrusted reference', () => {
@@ -845,8 +844,7 @@ describe('AiAgentService.createPinnedContextMessage images', () => {
         expect(JSON.stringify(message)).not.toContain('storageKey');
     });
 
-    it.each<{ status: 'expired' | 'missing' | 'incomplete'; text: string }>([
-        { status: 'expired', text: 'expired after 30 days' },
+    it.each<{ status: 'missing' | 'incomplete'; text: string }>([
         { status: 'missing', text: 'image bytes are missing' },
         { status: 'incomplete', text: 'upload did not complete' },
     ])(

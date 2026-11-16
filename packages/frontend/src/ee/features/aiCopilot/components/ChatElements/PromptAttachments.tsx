@@ -106,8 +106,7 @@ export const PromptAttachments = <T extends ElementRef>({
                                         {attachment.fileName}
                                     </TruncatedText>
                                     <Text size="xs" c="dimmed">
-                                        {attachment.width}×{attachment.height} ·
-                                        30-day access
+                                        {attachment.width}×{attachment.height}
                                     </Text>
                                 </Stack>
                                 <Tooltip

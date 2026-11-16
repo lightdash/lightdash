@@ -198,7 +198,7 @@ these paths cannot await one definitive attachment claim. Deep research cannot
 consume an image-bearing draft. Urgent steering sends text immediately and leaves
 images unsent for the next normal message. Image submission failures keep the draft
 and local previews; successful claims release local previews. History shows metadata,
-dimensions and expiry, not downloadable images or persisted thumbnails.
+dimensions, not downloadable images or persisted thumbnails.
 
 Enable only after every API/worker pod and browser bundle supports `thread_image`.
 Reload existing browser tabs before use. Older readers cannot load image-bearing
@@ -208,12 +208,13 @@ the composer needs a flag refetch or page reload. ENV changes need a process res
 
 Images additionally require a private, durable `UPLOADS_S3_BUCKET`; the purgeable
 exports-bucket fallback is refused. The scheduler must run even while the flag is
-off. Images expire for model access 30 days after upload; physical deletion is
+off. Images are kept for as long as their thread exists. Deleting the thread,
+by hand or through thread retention, removes its images; physical deletion is
 asynchronous and retried in bounded batches. Unsent uploads expire after 24 hours.
 An independent cleanup ledger survives thread, prompt and organization deletion.
 Unreferenced objects have a one-hour grace period for interrupted uploads.
 Operators must ensure bucket versioning/noncurrent-object retention does not retain
-expired image versions beyond the retention contract. Disabling the flag stops new
+deleted image versions. Disabling the flag stops new
 attachments, not historical replay or cleanup, and does not erase completed writes.
 
 The final serialized model request is measured after provider image encoding,

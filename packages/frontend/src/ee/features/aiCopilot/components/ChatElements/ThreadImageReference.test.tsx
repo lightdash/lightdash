@@ -18,7 +18,6 @@ const image: Extract<AiPromptContextItem, { type: 'thread_image' }> & {
     mediaType: 'image/png',
     width: 1600,
     height: 900,
-    expiresAt: '2100-01-01T00:00:00.000Z',
     previewUrl: 'blob:private-local-preview',
 };
 
@@ -34,27 +33,12 @@ test('images remain metadata pills even if the prompt mentions the filename', ()
     expect(result.matchedKeys.size).toBe(0);
 });
 
-test('history shows dimensions and expiry without a thumbnail, link or preview URL', () => {
+test('history shows dimensions without a thumbnail, link or preview URL', () => {
     const { container } = renderWithProviders(
         <ThreadImageReference item={image} />,
     );
-    expect(
-        screen.getByText(/revenue.png · 1600×900 · Expires/),
-    ).toBeInTheDocument();
+    expect(screen.getByText('revenue.png · 1600×900')).toBeInTheDocument();
     expect(container.querySelector('img')).toBeNull();
     expect(container.querySelector('a')).toBeNull();
     expect(container.innerHTML).not.toContain('blob:');
-});
-
-test('expired history gives re-upload guidance while preserving original metadata', () => {
-    renderWithProviders(
-        <ThreadImageReference
-            item={{ ...image, expiresAt: '2000-01-01T00:00:00.000Z' }}
-        />,
-    );
-    expect(
-        screen.getByText(
-            /revenue.png · 1600×900 · Expired — re-upload to use again/,
-        ),
-    ).toBeInTheDocument();
 });

@@ -37,7 +37,6 @@ const setup = (durableUploadsConfigured = true) => {
                 mediaType: object.media_type,
                 width: object.width,
                 height: object.height,
-                expiresAt: object.expires_at,
                 threadUuid: null,
                 promptUuid: null,
                 createdAt: object.created_at,
@@ -125,11 +124,10 @@ const cleanupObject = (key: string): DbAiThreadImageObject => ({
     created_at: new Date(0),
     uploaded_at: null,
     cleanup_attempted_at: null,
-    expires_at: new Date(1),
     object_deleted_at: null,
 });
 
-test('uploads binary bytes with sniffed media type, private key and fixed expiration', async () => {
+test('uploads binary bytes with sniffed media type, private key and no expiry', async () => {
     const { service, model, storage, chunks } = setup();
     const bytes = await png();
     const file = await service.uploadImage(account, {
@@ -148,9 +146,7 @@ test('uploads binary bytes with sniffed media type, private key and fixed expira
     expect(created?.object.storage_key).toMatch(
         /^ai-chat-images\/test-org-uuid\/[0-9a-f-]+\.png$/,
     );
-    expect(created?.object.expires_at.getTime()).toBe(
-        (created?.object.created_at.getTime() ?? 0) + 30 * 86400000,
-    );
+    expect(created?.object).not.toHaveProperty('expires_at');
     expect(await sharp(Buffer.concat(chunks)).raw().toBuffer()).toEqual(
         await sharp(bytes).raw().toBuffer(),
     );
@@ -290,7 +286,7 @@ test('missing objects are marked deleted, while storage failures remain retryabl
     expect(model.markImageObjectDeleted).toHaveBeenCalledWith('success');
 });
 
-test('expired-image cleanup drains batches using one fixed attempt cutoff', async () => {
+test('orphaned-image cleanup drains batches using one fixed attempt cutoff', async () => {
     const { service, model } = setup();
     model.findImageObjectsForCleanup
         .mockResolvedValueOnce(

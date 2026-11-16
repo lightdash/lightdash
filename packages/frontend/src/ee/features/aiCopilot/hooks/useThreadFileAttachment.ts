@@ -364,9 +364,6 @@ export const useThreadFileAttachment = ({
                             mediaType: uploaded.mediaType,
                             width: uploaded.width,
                             height: uploaded.height,
-                            expiresAt: new Date(
-                                uploaded.expiresAt,
-                            ).toISOString(),
                             previewUrl: URL.createObjectURL(normalized),
                         };
                         disposableFileUuidsRef.current.add(uploaded.uuid);

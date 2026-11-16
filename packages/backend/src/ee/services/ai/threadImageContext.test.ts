@@ -9,11 +9,7 @@ import { Readable } from 'node:stream';
 import sharp from 'sharp';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import { type AiThreadFileWithContent } from '../../models/AiThreadFileModel';
-import {
-    hasLiveThreadImage,
-    resolveThreadImages,
-    withoutFileParts,
-} from './threadImageContext';
+import { resolveThreadImages, withoutFileParts } from './threadImageContext';
 
 vi.mock('@sentry/node', () => ({ captureException: vi.fn() }));
 beforeEach(() => vi.clearAllMocks());
@@ -31,7 +27,6 @@ const setup = async (uuid = 'image-1', promptUuid = 'prompt-1') => {
         fileName: 'chart.png',
         threadUuid: 'thread-1',
         createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 86400000),
         sizeBytes: bytes.length,
         width: 2,
         height: 2,
@@ -48,7 +43,6 @@ const setup = async (uuid = 'image-1', promptUuid = 'prompt-1') => {
         height: file.height,
         mediaType: file.mediaType,
         sizeBytes: file.sizeBytes,
-        expiresAt: file.expiresAt.toISOString(),
     };
     const contextMap = new Map<string, AiPromptContext>([[promptUuid, [item]]]);
     const storage = {
@@ -105,20 +99,6 @@ test('retains both first-prompt and follow-up image identities', async () => {
     });
     expect([...images.keys()]).toEqual(['image-1', 'image-2']);
     expect(first.storage.getFileStream).toHaveBeenCalledTimes(2);
-});
-
-test('snapshot expiry prevents storage reads even before asynchronous object deletion', async () => {
-    const { read, item, storage } = await setup();
-    item.expiresAt = '2000-01-01T00:00:00.000Z';
-    expect((await read()).get(item.fileUuid)).toEqual({ status: 'expired' });
-    expect(storage.getFileStream).not.toHaveBeenCalled();
-});
-
-test('authoritative ledger expiry also prevents storage reads', async () => {
-    const { read, file, storage } = await setup();
-    file.expiresAt = new Date(0);
-    expect((await read()).get(file.uuid)).toEqual({ status: 'expired' });
-    expect(storage.getFileStream).not.toHaveBeenCalled();
 });
 
 test('retains a missing-file placeholder when the attachment row is gone', async () => {
@@ -232,20 +212,6 @@ test('the deadline also terminates a stalled response stream', async () => {
     }
 });
 
-test('an image expiring during its read is not sent to the model', async () => {
-    const { read, file, bytes, storage } = await setup();
-    vi.useFakeTimers();
-    try {
-        storage.getFileStream.mockImplementation(async () => {
-            vi.setSystemTime(file.expiresAt);
-            return { stream: Readable.from([bytes]), contentDisposition: null };
-        });
-        expect((await read()).get(file.uuid)).toEqual({ status: 'expired' });
-    } finally {
-        vi.useRealTimers();
-    }
-});
-
 test('actual bytes cannot exceed the thread budget through under-reported historical snapshots', async () => {
     const { file, item, contextMap, storage } = await setup();
     const bytes = Buffer.alloc(AI_THREAD_IMAGE_MAX_BYTES);
@@ -316,24 +282,4 @@ test('title history keeps the text of a turn and drops its files', () => {
         },
         { role: 'assistant', content: 'Done' },
     ]);
-});
-
-test('only an unexpired image reference needs durable storage', () => {
-    const reference = (expiresAt: string): AiPromptContext[number] => ({
-        type: 'thread_image',
-        fileUuid: 'image-1',
-        fileName: 'chart.png',
-        mediaType: 'image/png',
-        sizeBytes: 3,
-        width: 1,
-        height: 1,
-        expiresAt,
-    });
-    expect(hasLiveThreadImage([])).toBe(false);
-    expect(hasLiveThreadImage([reference('2000-01-01T00:00:00.000Z')])).toBe(
-        false,
-    );
-    expect(hasLiveThreadImage([reference('2999-01-01T00:00:00.000Z')])).toBe(
-        true,
-    );
 });

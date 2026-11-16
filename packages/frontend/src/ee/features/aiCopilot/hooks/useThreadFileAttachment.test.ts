@@ -49,7 +49,6 @@ const uploaded = (uuid: string, sizeBytes = 100, fileName = 'chart.png') => ({
     threadUuid: null,
     promptUuid: null,
     createdAt: '2026-10-29T12:00:00.000Z',
-    expiresAt: '2026-11-28T12:00:00.000Z',
     width: 800,
     height: 400,
     mediaType: 'image/png',
@@ -121,7 +120,6 @@ test('images upload as private binary, wire dates are ISO strings, and retain do
             fileUuid: 'file-1',
             width: 800,
             height: 400,
-            expiresAt: '2026-11-28T12:00:00.000Z',
             previewUrl: expect.stringContaining('blob:'),
         }),
     );
