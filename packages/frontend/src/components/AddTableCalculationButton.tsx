@@ -1,4 +1,11 @@
-import { ActionIcon, Menu, Text, Tooltip, UnstyledButton } from '@mantine/core';
+import {
+    ActionIcon,
+    Menu,
+    Text,
+    ThemeIcon,
+    Tooltip,
+    UnstyledButton,
+} from '@mantine/core';
 import { IconCode, IconMathFunction, IconPlus } from '@tabler/icons-react';
 import { memo, useState } from 'react';
 import { MergeTableCalculationModal } from '../features/mergeQuery/components/MergeTableCalculationModal';
@@ -43,30 +50,50 @@ const AddTableCalculationButton = memo<Props>(
                                 <MantineIcon icon={IconPlus} />
                             </UnstyledButton>
                         </Menu.Target>
-                        <Menu.Dropdown maw={280}>
+                        <Menu.Dropdown w={300} p={6}>
                             <Menu.Label>Add a column</Menu.Label>
                             <Menu.Item
+                                className={classes.menuItem}
                                 leftSection={
-                                    <MantineIcon icon={IconMathFunction} />
+                                    <ThemeIcon
+                                        variant="light"
+                                        color="green"
+                                        size={30}
+                                        radius="md"
+                                    >
+                                        <MantineIcon icon={IconMathFunction} />
+                                    </ThemeIcon>
                                 }
                                 disabled={!!disabledReason}
                                 onClick={handleClick}
                             >
-                                Table calculation
-                                <Text fz="xs" c="dimmed">
+                                <Text fz="sm" fw={500}>
+                                    Table calculation
+                                </Text>
+                                <Text fz="xs" c="dimmed" lh={1.35}>
                                     {disabledReason ??
                                         'A formula on top of your results, like a running total'}
                                 </Text>
                             </Menu.Item>
                             {onAddCustomDimension && (
                                 <Menu.Item
+                                    className={classes.menuItem}
                                     leftSection={
-                                        <MantineIcon icon={IconCode} />
+                                        <ThemeIcon
+                                            variant="light"
+                                            color="blue"
+                                            size={30}
+                                            radius="md"
+                                        >
+                                            <MantineIcon icon={IconCode} />
+                                        </ThemeIcon>
                                     }
                                     onClick={onAddCustomDimension}
                                 >
-                                    Custom dimension
-                                    <Text fz="xs" c="dimmed">
+                                    <Text fz="sm" fw={500}>
+                                        Custom dimension
+                                    </Text>
+                                    <Text fz="xs" c="dimmed" lh={1.35}>
                                         A new field from your raw data, written
                                         in SQL
                                     </Text>
