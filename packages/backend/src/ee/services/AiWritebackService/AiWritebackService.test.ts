@@ -55,6 +55,7 @@ import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
     AiWritebackService,
+    findDbtErrorLines,
     mergeSourceCodeRepoAccess,
     workstreamLockKey,
 } from './AiWritebackService';
@@ -3722,6 +3723,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             expect(host).toMatch(/^[a-z0-9.-]+\.[a-z]{2,}$/i); // a real hostname
         });
         expect(allow).toContain('api.anthropic.com');
+        expect(allow).toContain('hub.getdbt.com');
     });
 
     it('runs claude with the data-apps Anthropic key', async () => {
@@ -6281,5 +6283,15 @@ describe('AiWritebackService.canReadSourceCode', () => {
         await expect(
             service.canReadSourceCode({ user: user(true), projectUuid: 'p1' }),
         ).resolves.toBe(false);
+    });
+});
+
+describe('findDbtErrorLines', () => {
+    it('keeps the error lines and drops the SQL around them', () => {
+        expect(
+            findDbtErrorLines(
+                'select secret_col\nfrom orders\n  Compilation Error in model orders\nDone.',
+            ),
+        ).toEqual(['Compilation Error in model orders']);
     });
 });

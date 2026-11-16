@@ -407,7 +407,7 @@ export const ChangesSwitch: FC<{
                 if (unavailableReason === undefined) onChange(!isOnMyChanges);
             }}
         >
-            {isOnMyChanges ? 'Viewing my changes' : 'View my changes'}
+            {isOnMyChanges ? 'Viewing my changes' : 'Try my changes'}
         </Button>
     </Tooltip>
 );
