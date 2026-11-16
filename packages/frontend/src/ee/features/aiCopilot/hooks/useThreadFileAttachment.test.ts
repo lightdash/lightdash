@@ -340,6 +340,35 @@ test('authoritative server size growth is checked again; the overflow upload is 
     expect(mocks.createUrl).toHaveBeenCalledTimes(4);
 });
 
+test('images become ready in the order they were picked, whichever upload finishes first', async () => {
+    const requests = [deferred<unknown>(), deferred<unknown>()];
+    let index = 0;
+    mocks.api.mockImplementation(async () => {
+        const pending = requests[index];
+        index += 1;
+        if (!pending) throw new Error('Unexpected upload');
+        return pending.promise;
+    });
+    const { result, onReady } = render();
+    let task = Promise.resolve();
+    act(() => {
+        task = result.current.attachImages([image('first'), image('second')]);
+    });
+    await waitFor(() => expect(mocks.api).toHaveBeenCalledTimes(2));
+    await act(async () => {
+        requests[1]?.resolve(uploaded('server-second', 1024));
+        await Promise.resolve();
+    });
+    expect(onReady).not.toHaveBeenCalled();
+    await act(async () => {
+        requests[0]?.resolve(uploaded('server-first', 1024));
+        await task;
+    });
+    expect(
+        onReady.mock.calls.map(([attachment]) => attachment.fileUuid),
+    ).toEqual(['server-first', 'server-second']);
+});
+
 test('cancellation during normalization frees the slot and never uploads or creates a preview', async () => {
     const preparation = deferred<File>();
     mocks.normalize.mockReturnValueOnce(preparation.promise);

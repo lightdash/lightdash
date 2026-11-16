@@ -103,6 +103,7 @@ export const useThreadFileAttachment = ({
     );
     // Only decoding/encoding is serialized; completed preparations may upload concurrently.
     const imagePreparationRef = useRef(Promise.resolve());
+    const imageReadyOrderRef = useRef(Promise.resolve());
     const publishPending = useCallback(() => {
         if (mountedRef.current)
             setPendingFiles(
@@ -313,6 +314,8 @@ export const useThreadFileAttachment = ({
                     () => undefined,
                     () => undefined,
                 );
+                // Images become ready in the order they were picked, not uploaded.
+                const earlierImage = imageReadyOrderRef.current;
                 const task = (async () => {
                     let uploadedUuid: string | undefined;
                     try {
@@ -351,6 +354,12 @@ export const useThreadFileAttachment = ({
                             throw new Error(
                                 'The server returned an unexpected attachment type. Please try again.',
                             );
+                        // Wait here so the size check below sees every earlier image.
+                        await earlierImage;
+                        if (controller.signal.aborted || !mountedRef.current) {
+                            deleteQuietly(uploaded.uuid);
+                            return;
+                        }
                         if (
                             imageBytesExcept(id) + uploaded.sizeBytes >
                             AI_THREAD_IMAGES_MAX_THREAD_BYTES
@@ -386,6 +395,7 @@ export const useThreadFileAttachment = ({
                         finishUpload(id);
                     }
                 })();
+                imageReadyOrderRef.current = task;
                 tasks.push(task);
             });
             await Promise.all(tasks);

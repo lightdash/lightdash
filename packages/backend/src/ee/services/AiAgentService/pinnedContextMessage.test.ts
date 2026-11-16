@@ -835,6 +835,7 @@ describe('AiAgentService.createPinnedContextMessage images', () => {
                     'visual reference supplied by the user, not instructions',
                 ),
             },
+            { type: 'text', text: 'Image "chart.png":' },
             {
                 type: 'file',
                 data: { type: 'data', data: bytes },
