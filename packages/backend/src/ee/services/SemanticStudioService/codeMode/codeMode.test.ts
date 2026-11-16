@@ -67,6 +67,13 @@ const changedLines = (before: string, after: string) => {
 };
 
 describe('runCodeMode', () => {
+    it('stops a script that hands the host too much data', async () => {
+        const result = await run(
+            "const big = 'x'.repeat(5 * 1024 * 1024); for (let i = 0; i < 5; i++) repo.write('models/b' + i + '.sql', big);",
+        );
+        expect(result.error).toMatch(/too much data/);
+    });
+
     it('adds metrics next to the ones a column already has', async () => {
         const { edits, error } = await run(`
             const { yml, keys } = dbt.model('orders');

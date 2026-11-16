@@ -593,7 +593,10 @@ export class GithubProvider implements GitProvider {
                     pr.merged ? 'merged' : 'closed',
                 );
             }
-            if (pr.headRepoFullName !== `${repo.owner}/${repo.repo}`) {
+            if (
+                pr.headRepoFullName?.toLowerCase() !==
+                `${repo.owner}/${repo.repo}`.toLowerCase()
+            ) {
                 throw new ParameterError(
                     'This pull request comes from a fork, so it cannot be updated here.',
                 );

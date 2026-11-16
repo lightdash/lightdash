@@ -1973,6 +1973,26 @@ export class AiWritebackService extends BaseService {
             }
             if (dryRun) return { status: 'checked' };
 
+            // A policy that denies deleting files holds here as on the sandbox path.
+            if (
+                ran.edits.some(({ after }) => after === null) &&
+                args.agentPermissionsApply &&
+                (await this.agentPermissionService.isManaged(
+                    turn.organizationUuid,
+                ))
+            ) {
+                await this.agentPermissionService.assertOperation({
+                    account: fromSession(user),
+                    organizationUuid: turn.organizationUuid,
+                    projectUuid,
+                    kind: 'tool_effect',
+                    key: 'editRepo.delete_file',
+                    surface:
+                        agentExecutionContext.getStore()?.surface ??
+                        AiWritebackService.getAgentSurface(args.source),
+                });
+            }
+
             if (aiWritebackRunUuid) {
                 const claimed =
                     await this.aiWritebackRunModel.claimForFinalize(

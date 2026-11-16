@@ -6269,7 +6269,7 @@ describe('AiWritebackService.saveWithScript compile check', () => {
                 script,
                 { dryRun, assertPublishAllowed: null, checkDbt },
             );
-        return { save, provider, checkout };
+        return { save, provider, checkout, service };
     };
 
     it('sends what does not compile back to the model and commits nothing', async () => {
@@ -6283,6 +6283,35 @@ describe('AiWritebackService.saveWithScript compile check', () => {
             error: 'It does not compile: orders: bad metric',
             logs: [],
         });
+        expect(provider.commitApiChanges).not.toHaveBeenCalled();
+    });
+
+    it('holds a policy that denies deleting files', async () => {
+        const { provider, checkout, service } = setUp();
+        checkout.readFile.mockImplementation(async (path: string) =>
+            path === 'dbt/models/old.sql' ? 'select 1' : null,
+        );
+        const denied = new Error('Deleting files is not allowed');
+        Object.assign(service, {
+            agentPermissionService: {
+                isManaged: vi.fn().mockResolvedValue(true),
+                assertOperation: vi.fn().mockRejectedValue(denied),
+            },
+        });
+        const run = service.saveWithScript(
+            {
+                user: defaultSessionUser,
+                projectUuid: 'project-1',
+                prompt: 'Remove old',
+                aiThreadUuid: undefined,
+                prUrl: null,
+                source: 'web',
+                agentPermissionsApply: true,
+            } as AnyType,
+            "repo.remove('models/old.sql');",
+            { dryRun: false, assertPublishAllowed: null, checkDbt: null },
+        );
+        await expect(run).rejects.toThrow(denied.message);
         expect(provider.commitApiChanges).not.toHaveBeenCalled();
     });
 

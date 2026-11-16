@@ -386,6 +386,10 @@ export const runCodeMode = async (
         },
     };
 
+    // The heap limit covers the script only; what it hands the host is capped too.
+    let received = 0;
+    const MAX_RECEIVED = 16 * 1024 * 1024;
+    const MAX_LOGS = 200;
     const vm = await newAsyncContext();
     try {
         vm.runtime.setMemoryLimit(64 * 1024 * 1024);
@@ -394,7 +398,16 @@ export const runCodeMode = async (
         );
         Object.entries(ops).forEach(([name, op]) => {
             vm.newAsyncifiedFunction(name, async (...handles) => {
-                const args = handles.map((h) => JSON.parse(vm.getString(h)));
+                const raw = handles.map((h) => vm.getString(h));
+                received += raw.reduce((sum, arg) => sum + arg.length, 0);
+                if (received > MAX_RECEIVED) {
+                    return vm.newString(
+                        JSON.stringify({
+                            error: 'The script passed too much data; edit fewer or smaller files.',
+                        }),
+                    );
+                }
+                const args = raw.map((arg) => JSON.parse(arg));
                 try {
                     return vm.newString(
                         JSON.stringify({ value: (await op(...args)) ?? null }),
@@ -407,7 +420,8 @@ export const runCodeMode = async (
             }).consume((fn) => vm.setProp(vm.global, name, fn));
         });
         vm.newFunction('__log', (h) => {
-            logs.push(vm.getString(h));
+            if (logs.length < MAX_LOGS)
+                logs.push(vm.getString(h).slice(0, 2000));
         }).consume((fn) => vm.setProp(vm.global, '__log', fn));
 
         const result = await vm.evalCodeAsync(`${PRELUDE}\n${script}`);

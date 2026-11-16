@@ -376,6 +376,12 @@ export const getFileContent = async ({
             headers,
         });
 
+        // Over 1 MB the API returns no content, which must not read as an empty file.
+        if ('encoding' in response.data && response.data.encoding === 'none') {
+            throw new UnexpectedGitError(
+                `file ${fileName} is too large to read through the GitHub API`,
+            );
+        }
         if ('content' in response.data) {
             const content = Buffer.from(
                 response.data.content,
