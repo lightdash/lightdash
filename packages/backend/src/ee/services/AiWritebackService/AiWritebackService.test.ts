@@ -54,6 +54,7 @@ import {
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
+    findDbtErrorLines,
     AiWritebackService,
     mergeSourceCodeRepoAccess,
     workstreamLockKey,
@@ -6210,4 +6211,14 @@ test('a committed writeback run retains its initiating action when dispatch fail
             outcome: 'allowed',
         }),
     );
+});
+
+describe('findDbtErrorLines', () => {
+    it('keeps the error lines and drops the SQL around them', () => {
+        expect(
+            findDbtErrorLines(
+                'select secret_col\nfrom orders\n  Compilation Error in model orders\nDone.',
+            ),
+        ).toEqual(['Compilation Error in model orders']);
+    });
 });

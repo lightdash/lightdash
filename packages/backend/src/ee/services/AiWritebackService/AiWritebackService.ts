@@ -411,6 +411,14 @@ const getRepoContextAnalyticsProperties = (repoContext: RepoContext | null) => {
     };
 };
 
+/** dbt prints errors to stdout among model SQL, so only its error lines are logged. */
+export const findDbtErrorLines = (output: string): string[] =>
+    output
+        .split('\n')
+        .filter((line) => /error/i.test(line))
+        .slice(-10)
+        .map((line) => line.trim().slice(0, 300));
+
 export class AiWritebackService extends BaseService {
     private readonly agentPermissionService: AiWritebackServiceDeps['agentPermissionService'];
 
@@ -4235,11 +4243,12 @@ export class AiWritebackService extends BaseService {
                 clearTimeout(timer);
             }
         } catch (error) {
-            // dbt prints its errors to stdout, so keep the tail of both.
-            const output =
+            const errorLines =
                 error instanceof SandboxCommandError
-                    ? `\n${`${error.stderr}\n${error.stdout}`.trim().slice(-2000)}`
-                    : '';
+                    ? findDbtErrorLines(`${error.stderr}\n${error.stdout}`)
+                    : [];
+            const output =
+                errorLines.length > 0 ? `\n${errorLines.join('\n')}` : '';
             this.logger.warn(
                 `AiWriteback: could not prepare the change to be tried before its preview: ${getErrorMessage(
                     error,
