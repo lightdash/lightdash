@@ -17649,6 +17649,20 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
                     );
                 }
+                // Same manage:SourceCode check the writeback service enforces.
+                if (
+                    aiWritebackEnabled &&
+                    !this.createAuditedAbility(user).can(
+                        'manage',
+                        subject('SourceCode', {
+                            organizationUuid: promptProject.organizationUuid,
+                            projectUuid: promptProject.projectUuid,
+                            isProtectedBranch: false,
+                        }),
+                    )
+                ) {
+                    aiWritebackEnabled = false;
+                }
                 const writebackConnectionSupport =
                     getWritebackConnectionSupport(promptProject.dbtConnection);
                 if (
@@ -17725,12 +17739,17 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         )
                     ).length > 0;
 
-                const repoDiscoveryEnabled = hasTrustedPromptUserIdentity;
-                if (!repoDiscoveryEnabled) {
+                if (!hasTrustedPromptUserIdentity) {
                     this.logger.info(
                         `Disabling repo discovery for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
                     );
                 }
+                const repoDiscoveryEnabled =
+                    hasTrustedPromptUserIdentity &&
+                    (await this.aiWritebackService.canReadSourceCode({
+                        user,
+                        projectUuid: promptProject.projectUuid,
+                    }));
 
                 // The dbt project's root within the repo, so the prompt can point the
                 // exploreRepo agent at it (instead of hardcoding "dbt/"). Derived from
