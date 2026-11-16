@@ -6,6 +6,9 @@ import {
     FeatureNotEnabledError,
     ForbiddenError,
     getComposerPipelineWriteDeniedReason,
+    getErrorMessage,
+    getExploreParameterDefinitions,
+    getReferencedParameterDefinitions,
     isComposerChartAvailableFiltersTile,
     isDashboardComposerChartTile,
     NotFoundError,
@@ -15,6 +18,7 @@ import {
     QuerySourceType,
     type Account,
     type CaslSubjectNames,
+    type ChartParameterReferencesResult,
     type ComposerAvailableFilterSource,
     type ComposerChart,
     type ComposerChartPipeline,
@@ -22,6 +26,7 @@ import {
     type ComposerChartRunResults,
     type CreateComposerChart,
     type DashboardAvailableFiltersTile,
+    type ParameterDefinitions,
     type RegisteredAccount,
     type UUID,
 } from '@lightdash/common';
@@ -41,6 +46,7 @@ import {
     applyDashboardFiltersToComposerNodes,
     applyDashboardParametersToComposerNodes,
     getComposerParameterReferences,
+    getComposerSavedParameterValues,
     type ComposerNodeExplores,
 } from './composerTileInputs';
 
@@ -291,6 +297,84 @@ export class ComposerChartService extends BaseService {
     }
 
     /** The viewer's explore of each semantic-layer node, loaded with their user attributes. */
+    /** Each chart's parameters for the dashboard's tile lookup, read from its stored nodes without a run. */
+    async getParameterReferences(
+        account: Account,
+        projectUuid: string,
+        composerChartUuids: string[],
+        projectDefinitions: ParameterDefinitions,
+    ): Promise<Map<string, ChartParameterReferencesResult>> {
+        assertRegisteredAccount(account);
+        const results = await Promise.all(
+            composerChartUuids.map(
+                async (
+                    uuid,
+                ): Promise<[string, ChartParameterReferencesResult]> => {
+                    try {
+                        const { organizationUuid } = await this.assertCanView(
+                            account,
+                            projectUuid,
+                            uuid,
+                        );
+                        const { pipeline } =
+                            await this.composerChartModel.get(uuid);
+                        const exploreByNodeId = await this.getNodeExplores(
+                            account,
+                            { organizationUuid, projectUuid },
+                            pipeline,
+                        );
+                        const explores = Object.values(exploreByNodeId);
+                        const parameterReferences =
+                            getComposerParameterReferences(
+                                pipeline.nodes,
+                                exploreByNodeId,
+                            );
+                        // A project parameter wins over a model's copy of its name, as on saved charts
+                        const definitions = {
+                            ...Object.assign(
+                                {},
+                                ...explores.map(getExploreParameterDefinitions),
+                            ),
+                            ...projectDefinitions,
+                        };
+                        return [
+                            uuid,
+                            {
+                                parameterReferences,
+                                parameterDefinitions:
+                                    getReferencedParameterDefinitions(
+                                        definitions,
+                                        parameterReferences,
+                                    ),
+                                chartSavedValues:
+                                    getComposerSavedParameterValues(
+                                        pipeline.nodes,
+                                    ),
+                                virtualViewSavedValues: Object.assign(
+                                    {},
+                                    ...explores.map(
+                                        (explore) =>
+                                            explore.savedParameterValues ?? {},
+                                    ),
+                                ),
+                                error: null,
+                            },
+                        ];
+                    } catch (e) {
+                        return [
+                            uuid,
+                            {
+                                parameterReferences: null,
+                                error: getErrorMessage(e),
+                            },
+                        ];
+                    }
+                },
+            ),
+        );
+        return new Map(results);
+    }
+
     private async getNodeExplores(
         account: RegisteredAccount,
         { organizationUuid, projectUuid }: ProjectSubject,
@@ -383,13 +467,8 @@ export class ComposerChartService extends BaseService {
                 dashboardUuid,
                 tileUuid: request.tileUuid,
                 dashboardFilters: request.dashboardFilters,
-                chartSavedValues: Object.assign(
-                    {},
-                    ...chart.pipeline.nodes.map((node) =>
-                        node.sourceType === QuerySourceType.SEMANTIC_LAYER
-                            ? (node.parameters ?? {})
-                            : {},
-                    ),
+                chartSavedValues: getComposerSavedParameterValues(
+                    chart.pipeline.nodes,
                 ),
                 parameters: request.parameters,
                 excludedParameterKeys: request.excludedParameterKeys,

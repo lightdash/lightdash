@@ -553,6 +553,8 @@ export class ServiceRepository
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    getComposerChartService: () =>
+                        this.getComposerChartService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                 }),

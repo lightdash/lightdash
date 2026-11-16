@@ -24,6 +24,7 @@ import {
     selectHasTilesThatSupportFilters,
     selectSavedChartUuidsAndTileUuids,
     selectSavedChartUuidsAndTileUuidsKey,
+    selectTileQuerySources,
     selectTileUuidsKey,
 } from './dashboardEditSelectors';
 
@@ -256,17 +257,34 @@ describe('tile selectors', () => {
         const state = storeWith(
             reducer(undefined, actions.setTiles([tile('a'), composer])),
         );
+        const composerItem = {
+            tileType: DashboardTileTypes.COMPOSER_CHART,
+            tileUuid: 'c',
+            composerChartUuid: 'composer-c',
+        };
+        const embed = {
+            ...state,
+            source: { ...state.source, embedToken: 'token' },
+        };
         expect(selectSavedChartUuidsAndTileUuids(state)).toEqual([
             { tileUuid: 'a', savedChartUuid: 'chart-a' },
-            { tileUuid: 'c', composerChartUuid: 'composer-c' },
+            composerItem,
         ]);
         expect(selectHasTilesThatSupportFilters(state)).toBe(true);
-        expect(
-            selectSavedChartUuidsAndTileUuids({
-                ...state,
-                source: { ...state.source, embedToken: 'token' },
-            }),
-        ).toEqual([{ tileUuid: 'a', savedChartUuid: 'chart-a' }]);
+        expect(selectSavedChartUuidsAndTileUuids(embed)).toEqual([
+            { tileUuid: 'a', savedChartUuid: 'chart-a' },
+        ]);
+        // The parameter lookup lists them too; saved charts keep the untagged shape
+        const savedQuery = {
+            tileUuid: 'a',
+            savedChartUuid: 'chart-a',
+            savedSqlUuid: null,
+        };
+        expect(selectTileQuerySources(state)).toEqual([
+            savedQuery,
+            composerItem,
+        ]);
+        expect(selectTileQuerySources(embed)).toEqual([savedQuery]);
     });
 
     it('reports whether any tile supports filters', () => {

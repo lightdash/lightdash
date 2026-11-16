@@ -524,3 +524,63 @@ describe('ComposerChartService.run', () => {
         expect(submitComposerRun).not.toHaveBeenCalled();
     });
 });
+
+describe('ComposerChartService.getParameterReferences', () => {
+    const setupLookup = () => {
+        const { service, composerChartModel } = setup();
+        const nodes = [
+            semantic({ parameters: { region: 'eu' } }),
+            {
+                sourceType: QuerySourceType.SQL,
+                nodeId: 'raw',
+                title: 'Raw',
+                sql: 'select ${lightdash.parameters.currency} as currency',
+            },
+        ] satisfies ComposerChartPipelineNode[];
+        Object.assign(composerChartModel, {
+            getOwner: vi.fn(async () => ({ projectUuid, dashboardUuid })),
+            get: vi.fn(async () => ({
+                uuid: 'chart-uuid',
+                pipeline: { schemaVersion: 1, terminalNodeId: 'raw', nodes },
+            })),
+        });
+        return service;
+    };
+    const projectDefinitions = {
+        currency: { label: 'Currency' },
+        unused: { label: 'Unused' },
+    };
+
+    test('lists the stored nodes’ parameters and saved values without a run', async () => {
+        const result = await setupLookup().getParameterReferences(
+            sessionAccount(
+                new Ability<PossibleAbilities>([
+                    { subject: 'Dashboard', action: 'view' as const },
+                ]),
+            ),
+            projectUuid,
+            ['chart-uuid'],
+            projectDefinitions,
+        );
+        expect(result.get('chart-uuid')).toEqual({
+            parameterReferences: ['currency'],
+            parameterDefinitions: { currency: { label: 'Currency' } },
+            chartSavedValues: { region: 'eu' },
+            virtualViewSavedValues: {},
+            error: null,
+        });
+    });
+
+    test('fails a chart the viewer cannot view', async () => {
+        const result = await setupLookup().getParameterReferences(
+            sessionAccount(new Ability<PossibleAbilities>([])),
+            projectUuid,
+            ['chart-uuid'],
+            projectDefinitions,
+        );
+        expect(result.get('chart-uuid')).toEqual({
+            parameterReferences: null,
+            error: expect.any(String),
+        });
+    });
+});

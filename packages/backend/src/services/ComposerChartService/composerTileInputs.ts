@@ -24,6 +24,19 @@ import {
 /** The viewer's explore of each semantic-layer node, keyed by node id. */
 export type ComposerNodeExplores = Record<string, Explore>;
 
+/** The values saved on the semantic-layer nodes, as one chart's saved values */
+export const getComposerSavedParameterValues = (
+    nodes: ComposerChartPipelineNode[],
+): ParametersValuesMap =>
+    Object.assign(
+        {},
+        ...nodes.map((node) =>
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                ? (node.parameters ?? {})
+                : {},
+        ),
+    );
+
 const hasRules = (filters: DashboardFilters) =>
     filters.dimensions.length > 0 ||
     filters.metrics.length > 0 ||

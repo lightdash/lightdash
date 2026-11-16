@@ -10,6 +10,7 @@ import {
     NotFoundError,
     ParameterError,
     type Account,
+    type ChartParameterReferencesResult,
     type Explore,
     type SavedChartDAO,
     type SavedMergeDefinition,
@@ -179,6 +180,27 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
     const dashboardModel = {
         getByIdOrSlug: vi.fn(async () => embeddedDashboard),
     };
+    const composerChartService = {
+        getParameterReferences: vi.fn(
+            async (
+                _account: Account,
+                _projectUuid: string,
+                uuids: string[],
+            ): Promise<Map<string, ChartParameterReferencesResult>> =>
+                new Map(
+                    uuids.map((uuid) => [
+                        uuid,
+                        {
+                            parameterReferences: ['currency'],
+                            parameterDefinitions: {},
+                            chartSavedValues: { currency: 'usd' },
+                            virtualViewSavedValues: {},
+                            error: null,
+                        },
+                    ]),
+                ),
+        ),
+    };
     const service = new DashboardService({
         lightdashConfig: lightdashConfigMock,
         savedChartModel,
@@ -187,9 +209,11 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
         projectService,
         dashboardModel,
         featureFlagModel,
+        getComposerChartService: () => composerChartService,
     } as unknown as ConstructorParameters<typeof DashboardService>[0]);
     return {
         service,
+        composerChartService,
         featureFlagModel,
         savedSqlModel,
         savedChartModel,
@@ -231,6 +255,39 @@ const chartTile = (tileUuid: string, savedChartUuid: string) => ({
 const noSavedValues = { chartSavedValues: {}, virtualViewSavedValues: {} };
 
 describe('DashboardService.getTileParameterReferences', () => {
+    it('lists a composer tile through the composer chart service, beside a saved chart', async () => {
+        const { service, composerChartService } = setup();
+
+        const result = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            [
+                chartTile('tile-1', 'plain'),
+                {
+                    tileType: DashboardTileTypes.COMPOSER_CHART,
+                    tileUuid: 'composer-tile',
+                    composerChartUuid: 'composer-chart',
+                },
+            ],
+        );
+
+        expect(result[0]).toMatchObject({
+            tileUuid: 'tile-1',
+            parameterReferences: ['orders.region'],
+        });
+        expect(result[1]).toEqual({
+            tileUuid: 'composer-tile',
+            parameterReferences: ['currency'],
+            parameterDefinitions: {},
+            chartSavedValues: { currency: 'usd' },
+            virtualViewSavedValues: {},
+            error: null,
+        });
+        expect(
+            composerChartService.getParameterReferences,
+        ).toHaveBeenCalledWith(account, projectUuid, ['composer-chart'], {});
+    });
+
     it('reads the explore and the chart query, without compiling', async () => {
         const { service, projectService } = setup();
 

@@ -36,6 +36,7 @@ import {
     getReferencedParameterDefinitions,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
+    isComposerChartTileParameterReferencesTile,
     isDashboardChartTileType,
     isDashboardComposerChartTile,
     isDashboardControlOrder,
@@ -73,6 +74,7 @@ import {
     type Account,
     type AnonymousAccount,
     type ChartFieldUpdates,
+    type ChartParameterReferencesResult,
     type ChartVersionDifference,
     type ChartVersionSummary,
     type ContentDraftStaleness,
@@ -150,6 +152,7 @@ import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
+import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
 import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
 import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import type { ProjectService } from '../ProjectService/ProjectService';
@@ -205,6 +208,10 @@ type DashboardServiceArguments = {
         ProjectService,
         'findExplores' | 'projectParametersModel' | 'getQueryTimezoneForProject'
     >;
+    getComposerChartService: () => Pick<
+        ComposerChartService,
+        'getParameterReferences'
+    >;
 };
 
 type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
@@ -227,15 +234,7 @@ type DashboardDraftOverlay = Partial<
 const TILE_LOAD_CONCURRENCY = 5;
 const MAX_PARAMETER_REFERENCE_TILES = 200;
 
-type ParameterReferencesResult =
-    | {
-          parameterReferences: string[];
-          parameterDefinitions: ParameterDefinitions;
-          chartSavedValues: ParametersValuesMap;
-          virtualViewSavedValues: ParametersValuesMap;
-          error: null;
-      }
-    | { parameterReferences: null; error: string };
+type ParameterReferencesResult = ChartParameterReferencesResult;
 
 const parameterReferencesFailure = (e: unknown): ParameterReferencesResult => ({
     parameterReferences: null,
@@ -376,6 +375,8 @@ export class DashboardService
     contentVerificationModel: ContentVerificationModel;
 
     private readonly projectService: DashboardServiceArguments['projectService'];
+
+    private readonly getComposerChartService: DashboardServiceArguments['getComposerChartService'];
 
     async scheduleExportContent(
         account: Account,
@@ -536,6 +537,7 @@ export class DashboardService
         spacePermissionService,
         contentVerificationModel,
         projectService,
+        getComposerChartService,
     }: DashboardServiceArguments) {
         super();
         this.featureFlagModel = featureFlagModel;
@@ -566,6 +568,7 @@ export class DashboardService
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
         this.projectService = projectService;
+        this.getComposerChartService = getComposerChartService;
     }
 
     async verifyDashboard(
@@ -1332,12 +1335,24 @@ export class DashboardService
         sources: (DashboardTileParameterReferencesTile | null)[],
         projectDefinitions: ParameterDefinitions,
     ): Promise<DashboardTileParameterReferences[]> {
-        // One kind failing outright keeps the other kind's results
-        const [chartResults, sqlResults] = await Promise.all([
+        const savedSources = sources.flatMap((tile) =>
+            tile && !isComposerChartTileParameterReferencesTile(tile)
+                ? [tile]
+                : [],
+        );
+        const composerUuids = uniq(
+            sources.flatMap((tile) =>
+                tile && isComposerChartTileParameterReferencesTile(tile)
+                    ? [tile.composerChartUuid]
+                    : [],
+            ),
+        );
+        // One kind failing outright keeps the other kinds' results
+        const [chartResults, sqlResults, composerResults] = await Promise.all([
             this.getSavedChartParameterReferences(
                 account,
                 projectUuid,
-                uniq(sources.flatMap((tile) => tile?.savedChartUuid ?? [])),
+                uniq(savedSources.flatMap((tile) => tile.savedChartUuid ?? [])),
                 projectDefinitions,
             )
                 .then(toLookup)
@@ -1345,8 +1360,19 @@ export class DashboardService
             this.getSavedSqlParameterReferences(
                 account,
                 projectUuid,
-                uniq(sources.flatMap((tile) => tile?.savedSqlUuid ?? [])),
+                uniq(savedSources.flatMap((tile) => tile.savedSqlUuid ?? [])),
                 projectDefinitions,
+            )
+                .then(toLookup)
+                .catch(getFailedResults),
+            (composerUuids.length === 0
+                ? Promise.resolve(new Map<string, ParameterReferencesResult>())
+                : this.getComposerChartService().getParameterReferences(
+                      account,
+                      projectUuid,
+                      composerUuids,
+                      projectDefinitions,
+                  )
             )
                 .then(toLookup)
                 .catch(getFailedResults),
@@ -1361,12 +1387,16 @@ export class DashboardService
                     ),
                 };
             }
-            const result =
-                (source.savedChartUuid &&
-                    chartResults(source.savedChartUuid)) ||
-                (source.savedSqlUuid && sqlResults(source.savedSqlUuid)) ||
-                parameterReferencesFailure('Tile has no saved chart');
-            return { tileUuid, ...result };
+            const result = isComposerChartTileParameterReferencesTile(source)
+                ? composerResults(source.composerChartUuid)
+                : (source.savedChartUuid &&
+                      chartResults(source.savedChartUuid)) ||
+                  (source.savedSqlUuid && sqlResults(source.savedSqlUuid));
+            return {
+                tileUuid,
+                ...(result ||
+                    parameterReferencesFailure('Tile has no saved chart')),
+            };
         });
     }
 

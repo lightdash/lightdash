@@ -481,24 +481,27 @@ export type DashboardAvailableFilters = {
 };
 
 export type SavedChartsInfoForDashboardAvailableFilters = {
+    // Optional: clients send it from a later release; older ones omit it
+    tileType?: DashboardTileTypes.SAVED_CHART;
     tileUuid: string;
     savedChartUuid: string;
 }[];
 
 /** A tile the app's available-filters lookup lists fields for; embeds send saved charts only. */
 export type ComposerChartAvailableFiltersTile = {
+    tileType: DashboardTileTypes.COMPOSER_CHART;
     tileUuid: string;
     composerChartUuid: string;
 };
 
-// Saved-chart items carry no discriminant on the wire, so the composer key tells them apart
 export type DashboardAvailableFiltersTile =
     | SavedChartsInfoForDashboardAvailableFilters[number]
     | ComposerChartAvailableFiltersTile;
 
 export const isComposerChartAvailableFiltersTile = (
     tile: DashboardAvailableFiltersTile,
-): tile is ComposerChartAvailableFiltersTile => 'composerChartUuid' in tile;
+): tile is ComposerChartAvailableFiltersTile =>
+    tile.tileType === DashboardTileTypes.COMPOSER_CHART;
 
 /** A composer chart the caller may view, with its semantic-layer nodes' explores. */
 export type ComposerAvailableFilterSource = {
@@ -507,11 +510,28 @@ export type ComposerAvailableFilterSource = {
     exploreNames: string[];
 };
 
-export type DashboardTileParameterReferencesTile = {
+export type SavedQueryTileParameterReferencesTile = {
+    // Optional: clients send it from a later release; older ones omit it
+    tileType?: DashboardTileTypes.SAVED_CHART | DashboardTileTypes.SQL_CHART;
     tileUuid: string;
     savedChartUuid: string | null;
     savedSqlUuid: string | null;
 };
+
+export type ComposerChartTileParameterReferencesTile = {
+    tileType: DashboardTileTypes.COMPOSER_CHART;
+    tileUuid: string;
+    composerChartUuid: string;
+};
+
+export type DashboardTileParameterReferencesTile =
+    | SavedQueryTileParameterReferencesTile
+    | ComposerChartTileParameterReferencesTile;
+
+export const isComposerChartTileParameterReferencesTile = (
+    tile: DashboardTileParameterReferencesTile,
+): tile is ComposerChartTileParameterReferencesTile =>
+    tile.tileType === DashboardTileTypes.COMPOSER_CHART;
 
 export type DashboardTileParameterReferencesRequest = {
     tiles: DashboardTileParameterReferencesTile[];
@@ -527,6 +547,17 @@ export type DashboardTileParameterReferences =
           error: null;
       }
     | { tileUuid: string; parameterReferences: null; error: string };
+
+/** One chart's parameters as the tile lookup lists them */
+export type ChartParameterReferencesResult =
+    | {
+          parameterReferences: string[];
+          parameterDefinitions: ParameterDefinitions;
+          chartSavedValues: ParametersValuesMap;
+          virtualViewSavedValues: ParametersValuesMap;
+          error: null;
+      }
+    | { parameterReferences: null; error: string };
 
 export type ApiDashboardTileParameterReferencesResponse = {
     status: 'ok';

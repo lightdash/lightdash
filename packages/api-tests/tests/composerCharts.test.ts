@@ -989,7 +989,11 @@ describe('Composer charts', () => {
                     allFilterableFields: { table: string; name: string }[];
                 }>
             >('/api/v1/dashboards/availableFilters', [
-                { tileUuid, composerChartUuid: chart.uuid },
+                {
+                    tileType: DashboardTileTypes.COMPOSER_CHART,
+                    tileUuid,
+                    composerChartUuid: chart.uuid,
+                },
             ]);
             expect(resp.status).toBe(200);
             const { savedQueryFilters, allFilterableFields } =
@@ -1006,7 +1010,11 @@ describe('Composer charts', () => {
             const refused = await outsider.post<
                 Body<{ savedQueryFilters: Record<string, number[]> }>
             >('/api/v1/dashboards/availableFilters', [
-                { tileUuid, composerChartUuid: chart.uuid },
+                {
+                    tileType: DashboardTileTypes.COMPOSER_CHART,
+                    tileUuid,
+                    composerChartUuid: chart.uuid,
+                },
             ]);
             expect(refused.body.results.savedQueryFilters).toEqual({});
         });

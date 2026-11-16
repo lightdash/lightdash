@@ -1,6 +1,7 @@
 import {
     DashboardTileTypes,
     isComposerChartAvailableFiltersTile,
+    isComposerChartTileParameterReferencesTile,
     isDashboardChartTileType,
     isDashboardComposerChartTile,
     isDashboardSqlChartTile,
@@ -114,6 +115,7 @@ export const selectSavedChartUuidsAndTileUuids = createSelector(
             )
                 return [
                     {
+                        tileType: DashboardTileTypes.COMPOSER_CHART,
                         tileUuid: tile.uuid,
                         composerChartUuid: tile.properties.composerChartUuid,
                     },
@@ -124,10 +126,10 @@ export const selectSavedChartUuidsAndTileUuids = createSelector(
     { memoizeOptions: { resultEqualityCheck: isEqual } },
 );
 
-/** Every chart and SQL chart tile with its saved query, on every tab */
+/** Every chart and SQL chart tile with its saved query, and outside embeds every composer chart tile, on every tab */
 export const selectTileQuerySources = createSelector(
-    [selectDashboardTiles],
-    (tiles) =>
+    [selectDashboardTiles, selectIsEmbed],
+    (tiles, isEmbed) =>
         tiles?.flatMap<DashboardTileParameterReferencesTile>((tile) => {
             if (
                 isDashboardChartTileType(tile) &&
@@ -148,6 +150,18 @@ export const selectTileQuerySources = createSelector(
                         savedSqlUuid: tile.properties.savedSqlUuid,
                     },
                 ];
+            if (
+                !isEmbed &&
+                isDashboardComposerChartTile(tile) &&
+                tile.properties.composerChartUuid
+            )
+                return [
+                    {
+                        tileType: DashboardTileTypes.COMPOSER_CHART,
+                        tileUuid: tile.uuid,
+                        composerChartUuid: tile.properties.composerChartUuid,
+                    },
+                ];
             return [];
         }) ?? [],
 );
@@ -157,9 +171,10 @@ export const selectTileQuerySourcesKey = createSelector(
     [selectTileQuerySources],
     (sources) =>
         sources
-            .map(
-                ({ tileUuid, savedChartUuid, savedSqlUuid }) =>
-                    `${tileUuid}:${savedChartUuid ?? ''}:${savedSqlUuid ?? ''}`,
+            .map((source) =>
+                isComposerChartTileParameterReferencesTile(source)
+                    ? `${source.tileUuid}:composer:${source.composerChartUuid}`
+                    : `${source.tileUuid}:${source.savedChartUuid ?? ''}:${source.savedSqlUuid ?? ''}`,
             )
             .sort()
             .join(','),
