@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { ApiConnectorResponse } from '../../../api/ApiConnector';
+import type { LiveHttpResponse } from '../../connector';
 import { toGoogleApiError } from '../google/errors';
 
 const googleAdsFailureSchema = z.object({
@@ -23,7 +23,7 @@ const googleAdsFailureSchema = z.object({
  * is in the GoogleAdsFailure details.
  */
 export const toGoogleAdsApiError = (
-    response: ApiConnectorResponse,
+    response: LiveHttpResponse,
     resource: string,
 ): Error => {
     const parsed = googleAdsFailureSchema.safeParse(response.body);

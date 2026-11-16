@@ -11,7 +11,7 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
-import type { MeteredApiConnector } from '../api/ApiConnector';
+import type { MeteredLiveConnector } from '../live/connector';
 import type {
     QuerySourceClient,
     ScanSchemaArgs,
@@ -24,7 +24,7 @@ export type ApiConnectorResolver = (
     account: RegisteredAccount,
     projectUuid: string,
     connectionUuid: string,
-) => Promise<MeteredApiConnector>;
+) => Promise<MeteredLiveConnector>;
 
 /** Schema tables of the connections the caller may query, from their last scans. */
 export type ApiSchemaTablesResolver = (

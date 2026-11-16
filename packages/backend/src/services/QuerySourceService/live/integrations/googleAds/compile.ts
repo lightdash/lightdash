@@ -9,21 +9,18 @@ import {
     type FilterRule,
     type MetricQuery,
 } from '@lightdash/common';
-import { resolveAbsoluteDateRange } from '../../../api/apiDateRange';
 import {
     getActiveFilterRules,
     getApiName,
-    getApiSourceExplore,
-    toApiSourceQueryError,
+    getLiveExplore,
     toFieldCombinationIssue,
-    type CompiledApiSourceQuery,
-} from '../../../api/apiSourceExplore';
-import {
-    getGrainIssues,
-    type ApiSourceGrain,
-} from '../../../api/apiSourceGrain';
-import { getFinestLevel, isFinerLevel } from '../../../api/apiSourceLevels';
-import { escapeRe2 } from '../../../api/escapeRe2';
+    toLiveQueryError,
+    type CompiledLiveQuery,
+} from '../../explores/definition';
+import { resolveAbsoluteDateRange } from '../../query/dateRange';
+import { escapeRe2 } from '../../query/escapeRe2';
+import { getGrainIssues, type LiveGrain } from '../../query/grain';
+import { getFinestLevel, isFinerLevel } from '../../query/levels';
 import { GOOGLE_ADS_MICROS_FIELDS } from './explores';
 
 // Reports need a metric; dimension-only queries ask for this one and drop it.
@@ -163,7 +160,7 @@ const toMetricConditions = (apiName: string, rule: FilterRule): string[] => {
     }
 };
 
-const GRAINS: Partial<Record<GoogleAdsResource, ApiSourceGrain>> = {
+const GRAINS: Partial<Record<GoogleAdsResource, LiveGrain>> = {
     campaign: {
         entity: 'campaign',
         identities: [['campaign.id'], ['campaign.name']],
@@ -239,8 +236,8 @@ export const compileGoogleAdsQuery = ({
     explore: Explore;
     metricQuery: MetricQuery;
     today: string;
-}): CompiledApiSourceQuery => {
-    const apiSource = getApiSourceExplore(explore);
+}): CompiledLiveQuery => {
+    const apiSource = getLiveExplore(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const { startDate, endDate, otherFilters } = resolveAbsoluteDateRange({
         dateRange: apiSource.dateRange ?? undefined,
@@ -281,7 +278,7 @@ export const compileGoogleAdsQuery = ({
         }),
     ];
     if (issues.length > 0) {
-        throw toApiSourceQueryError(issues);
+        throw toLiveQueryError(issues);
     }
 
     const conditions = [

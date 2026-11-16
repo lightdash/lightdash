@@ -6,10 +6,10 @@ import {
     type ApiSourceMetricAggregation,
 } from '@lightdash/common';
 import type {
-    ApiSourceDimensionDefinition,
-    ApiSourceExploreDefinition,
-    ApiSourceMetricDefinition,
-} from '../../../api/apiSourceExplore';
+    LiveDimensionDefinition,
+    LiveExploreDefinition,
+    LiveMetricDefinition,
+} from '../../explores/definition';
 
 export const YOUTUBE_ANALYTICS_DATE_FILTERS = [
     FilterOperator.IN_THE_PAST,
@@ -30,7 +30,7 @@ const dimension = (
     label: string,
     description: string,
     filterOperators: FilterOperator[] = [],
-): ApiSourceDimensionDefinition => ({
+): LiveDimensionDefinition => ({
     name,
     apiName,
     label,
@@ -53,7 +53,7 @@ const metric = (
     aggregation: ApiSourceMetricAggregation,
     description: string,
     format?: string,
-): ApiSourceMetricDefinition => ({
+): LiveMetricDefinition => ({
     name,
     apiName,
     label,
@@ -94,7 +94,7 @@ const CHANNEL_ONLY_METRICS = [
  * One channel's activity. Field combinations follow YouTube's documented
  * channel reports; anything else is refused by the compiler.
  */
-export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE: ApiSourceExploreDefinition = {
+export const YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE: LiveExploreDefinition = {
     name: 'activity',
     label: 'Channel activity',
     description:

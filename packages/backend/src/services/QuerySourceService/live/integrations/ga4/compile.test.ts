@@ -8,14 +8,14 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { ga4Integration } from '.';
-import { buildApiSourceExplore } from '../../../api/apiSourceExplore';
+import { buildLiveExplore } from '../../explores/definition';
 import { compileGa4Query, GA4_EARLIEST_DATE } from './compile';
 import { GA4_REPORT_EXPLORE, withGa4MetadataFields } from './explores';
 
 const EXPLORE = 'ga4_report';
 
 const buildExplore = (definition = GA4_REPORT_EXPLORE) =>
-    buildApiSourceExplore({
+    buildLiveExplore({
         definition,
         exploreName: EXPLORE,
         label: 'Marketing site',

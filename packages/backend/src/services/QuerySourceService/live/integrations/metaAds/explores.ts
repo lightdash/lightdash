@@ -6,10 +6,10 @@ import {
     type ApiSourceMetricAggregation,
 } from '@lightdash/common';
 import type {
-    ApiSourceDimensionDefinition,
-    ApiSourceExploreDefinition,
-    ApiSourceMetricDefinition,
-} from '../../../api/apiSourceExplore';
+    LiveDimensionDefinition,
+    LiveExploreDefinition,
+    LiveMetricDefinition,
+} from '../../explores/definition';
 
 export const META_ADS_DATE_FILTERS = [
     FilterOperator.IN_THE_PAST,
@@ -91,7 +91,7 @@ const dimension = (
     label: string,
     description: string,
     filterOperators: FilterOperator[] = [],
-): ApiSourceDimensionDefinition => ({
+): LiveDimensionDefinition => ({
     name,
     apiName: name,
     label,
@@ -110,7 +110,7 @@ const metric = (
     aggregation: ApiSourceMetricAggregation,
     description: string,
     format?: string,
-): ApiSourceMetricDefinition => ({
+): LiveMetricDefinition => ({
     name,
     apiName,
     label,
@@ -130,7 +130,7 @@ const ATTRIBUTION_NOTE =
 // the rows of a report so it can't be rebuilt by summing them, and frequency
 // divides by reach. CTR and CPC recompute from their parts; CPM carries a
 // factor of 1,000 that a ratio can't express.
-export const META_ADS_INSIGHTS_EXPLORE: ApiSourceExploreDefinition = {
+export const META_ADS_INSIGHTS_EXPLORE: LiveExploreDefinition = {
     name: 'insights',
     label: 'Insights',
     description:

@@ -1,8 +1,5 @@
 import { FilterOperator, type FilterRule } from '@lightdash/common';
-import {
-    getActiveFilterRules,
-    toFieldCombinationIssue,
-} from './apiSourceExplore';
+import { getActiveFilterRules, toFieldCombinationIssue } from './definition';
 
 const rule = (id: string, values: unknown[], disabled = false): FilterRule => ({
     id,

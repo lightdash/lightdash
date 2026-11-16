@@ -1,6 +1,6 @@
 import { TooManyRequestsError } from '@lightdash/common';
 import { randomUUID } from 'node:crypto';
-import type { ApiConnectorLimits } from '../../../services/QuerySourceService/api/ApiConnector';
+import type { LiveCallLimits } from '../../../services/QuerySourceService/live/connector';
 import type { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 
 type CallLimiterModel = Pick<
@@ -55,7 +55,7 @@ export class ApiSourceCallLimiter {
 
     async run<T>(
         connection: LimitedConnection,
-        limits: ApiConnectorLimits,
+        limits: LiveCallLimits,
         call: () => Promise<T>,
     ): Promise<T> {
         const leaseUuid = randomUUID();
@@ -84,7 +84,7 @@ export class ApiSourceCallLimiter {
 
     private async acquireSlot(
         connection: LimitedConnection,
-        limits: ApiConnectorLimits,
+        limits: LiveCallLimits,
         leaseUuid: string,
     ): Promise<void> {
         const giveUpAt = this.now().getTime() + SLOT_WAIT_MS;

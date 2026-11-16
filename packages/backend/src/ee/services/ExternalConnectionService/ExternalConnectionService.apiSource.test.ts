@@ -11,11 +11,11 @@ import {
     type ExternalConnection,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
-import { getApiSourceDefinitionHashes } from '../../../services/QuerySourceService/api/apiSourceExplores';
+import { getLiveDefinitionHashes } from '../../../services/QuerySourceService/live/explores/build';
 import {
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
-} from '../../../services/QuerySourceService/api/liveSourceFields';
+} from '../../../services/QuerySourceService/live/explores/fields';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { type DeletedLiveSource } from '../../models/ExternalConnectionModel';
@@ -947,7 +947,7 @@ describe('ExternalConnectionService live source explores', () => {
             },
         ];
         const currentHashes = Object.values(
-            getApiSourceDefinitionHashes(ApiConnectorType.POSTHOG),
+            getLiveDefinitionHashes(ApiConnectorType.POSTHOG),
         ).map((definitionHash) => ({
             connectionUuid: 'conn-1',
             definitionHash,

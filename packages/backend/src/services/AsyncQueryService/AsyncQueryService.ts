@@ -394,23 +394,23 @@ import {
     validatePagination,
 } from '../ProjectService/resultsPagination';
 import type {
-    ApiConnector,
-    ApiConnectorCall,
-    ApiConnectorResult,
-    MeteredApiConnector,
-} from '../QuerySourceService/api/ApiConnector';
+    LiveConnector,
+    LiveConnectorCall,
+    LiveConnectorResult,
+    MeteredLiveConnector,
+} from '../QuerySourceService/live/connector';
 import {
-    getApiQueryOutcome,
+    assertLiveResultComplete,
+    compileLiveMetricQuery,
+    toLiveResult,
+} from '../QuerySourceService/live/explores/build';
+import { toLiveQueryError } from '../QuerySourceService/live/explores/definition';
+import {
+    getLiveQueryOutcome,
     getLiveSourceUpstreamErrorCode,
     isLiveSourceErrorReportable,
-    type ApiQueryOutcome,
-} from '../QuerySourceService/api/apiQueryOutcome';
-import { toApiSourceQueryError } from '../QuerySourceService/api/apiSourceExplore';
-import {
-    assertApiResultComplete,
-    compileApiSourceMetricQuery,
-    toApiSourceResult,
-} from '../QuerySourceService/api/apiSourceExplores';
+    type LiveQueryOutcome,
+} from '../QuerySourceService/live/query/outcome';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import type { ApiConnectorResolver } from '../QuerySourceService/sources/ApiQuerySource';
 import {
@@ -739,7 +739,7 @@ type ExecuteAsyncQueryArgs = Pick<
 };
 
 /** Turns a connector's rows into the rows and columns a result stores. */
-type ApiResultShaper = (result: ApiConnectorResult) => {
+type ApiResultShaper = (result: LiveConnectorResult) => {
     rows: Record<string, unknown>[];
     columns: ResultColumns;
 };
@@ -12826,7 +12826,7 @@ export class AsyncQueryService extends ProjectService {
                 context,
                 querySurface,
             });
-            throw toApiSourceQueryError(issues);
+            throw toLiveQueryError(issues);
         }
         if (!this.getApiSourceConnector) {
             throw new ForbiddenError('Live data sources are not enabled');
@@ -12841,7 +12841,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             apiSource.connectionUuid,
         );
-        const compiled = compileApiSourceMetricQuery({
+        const compiled = compileLiveMetricQuery({
             explore,
             metricQuery,
             timezone: queryComposer.getTimezone() ?? 'UTC',
@@ -12869,13 +12869,13 @@ export class AsyncQueryService extends ProjectService {
             history: { fields, requestParameters, metricQuery, explore },
             toResult: (result) => {
                 const { label, maxRows } = connector.describe();
-                assertApiResultComplete({
+                assertLiveResultComplete({
                     compiled,
                     hasMoreRows: result.hasMoreRows,
                     label,
                     maxRows,
                 });
-                return toApiSourceResult({
+                return toLiveResult({
                     compiled,
                     rows: result.rows,
                     fields,
@@ -12914,7 +12914,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account;
         projectUuid: string;
         organizationUuid: string;
-        connector: MeteredApiConnector;
+        connector: MeteredLiveConnector;
         payload: ApiSourcePayload;
         limit: number;
         cacheKeySql: string;
@@ -13119,7 +13119,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string;
         projectUuid: string;
         organizationUuid: string;
-        connector: MeteredApiConnector;
+        connector: MeteredLiveConnector;
         payload: ApiSourcePayload;
         limit: number;
         cacheKey: string;
@@ -13148,7 +13148,7 @@ export class AsyncQueryService extends ProjectService {
                 let executeMs: number | null = null;
                 const logCall = (
                     call: Pick<
-                        ApiConnectorCall,
+                        LiveConnectorCall,
                         | 'outcome'
                         | 'errorMessage'
                         | 'rowCount'
@@ -13286,7 +13286,7 @@ export class AsyncQueryService extends ProjectService {
                     );
                 } catch (e) {
                     const message = getErrorMessage(e);
-                    const outcome = getApiQueryOutcome(e);
+                    const outcome = getLiveQueryOutcome(e);
                     const errorCode = getLiveSourceUpstreamErrorCode(outcome);
                     span.setAttributes({
                         'lightdash.error': message,
@@ -13393,11 +13393,11 @@ export class AsyncQueryService extends ProjectService {
 
     /** One connector call, measured by outcome; rethrows what it caught. */
     private async executeApiConnector(
-        connector: ApiConnector,
+        connector: LiveConnector,
         connectorType: ApiConnectorType,
         payload: ApiSourcePayload,
         limit: number,
-    ): Promise<ApiConnectorResult> {
+    ): Promise<LiveConnectorResult> {
         const startedAt = Date.now();
         this.prometheusMetrics?.trackApiSourceInflight(connectorType, 1);
         try {
@@ -13416,7 +13416,7 @@ export class AsyncQueryService extends ProjectService {
         } catch (error) {
             this.prometheusMetrics?.observeApiSourceRequest(
                 connectorType,
-                getApiQueryOutcome(error),
+                getLiveQueryOutcome(error),
                 Date.now() - startedAt,
             );
             throw error;
@@ -13449,7 +13449,7 @@ export class AsyncQueryService extends ProjectService {
         context: QueryExecutionContext;
         connector: ApiConnectorType;
         queryCreatedAt: Date;
-        outcome: ApiQueryOutcome;
+        outcome: LiveQueryOutcome;
         liveSourceErrorCode?: LiveSourceUpstreamErrorCode | null;
         errorMessage: string | null;
         totalRowCount: number | null;

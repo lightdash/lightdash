@@ -9,31 +9,31 @@ import {
     type Explore,
     type MetricQuery,
 } from '@lightdash/common';
-import { compileSearchConsoleQuery } from '../live/integrations/searchConsole/compile';
-import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from '../live/integrations/searchConsole/run';
+import { type LiveScanResult } from '../integration';
+import { compileSearchConsoleQuery } from '../integrations/searchConsole/compile';
+import { SEARCH_CONSOLE_MAX_QUERY_ROWS } from '../integrations/searchConsole/run';
 import {
-    buildApiSourceExplores,
-    compileApiSourceMetricQuery,
-    describeApiSourceTarget,
-    getApiSourceDefinitionHashes,
-    getApiSourceExploreNames,
+    buildLiveExplores,
+    compileLiveMetricQuery,
+    describeLiveTarget,
     getLegacyLiveSourceName,
-    getLostApiSourceFieldIds,
-    toApiSourceResult,
+    getLiveDefinitionHashes,
+    getLiveExploreNames,
+    getLostLiveFieldIds,
+    toLiveResult,
     toPeriodStart,
     toScannedLiveSourceFields,
-} from './apiSourceExplores';
-import { type ApiSourceScan } from './ApiSourceIntegration';
-import { getInitialLiveSourceFieldEdits } from './liveSourceFields';
+} from './build';
+import { getInitialLiveSourceFieldEdits } from './fields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
 
 const buildOne = (
-    apiSource: Parameters<typeof buildApiSourceExplores>[0]['apiSource'],
-    scan: ApiSourceScan = {},
+    apiSource: Parameters<typeof buildLiveExplores>[0]['apiSource'],
+    scan: LiveScanResult = {},
 ): Explore => {
     const scannedFields = toScannedLiveSourceFields(apiSource.connector, scan);
-    const [explore, ...rest] = buildApiSourceExplores({
+    const [explore, ...rest] = buildLiveExplores({
         connectionUuid: CONNECTION_UUID,
         sourceName: getLegacyLiveSourceName(
             apiSource.connector,
@@ -78,7 +78,7 @@ const query = (
 
 describe('live source names', () => {
     test('a stored source name prefixes every explore of the source', () => {
-        const [explore] = buildApiSourceExplores({
+        const [explore] = buildLiveExplores({
             connectionUuid: CONNECTION_UUID,
             sourceName: 'posthog',
             name: 'PostHog',
@@ -88,7 +88,7 @@ describe('live source names', () => {
         });
         expect(explore.name).toBe('posthog_events');
         expect(
-            getApiSourceExploreNames(ApiConnectorType.POSTHOG, 'posthog'),
+            getLiveExploreNames(ApiConnectorType.POSTHOG, 'posthog'),
         ).toEqual(['posthog_events']);
     });
 
@@ -120,7 +120,7 @@ describe('live source names', () => {
     });
 });
 
-describe('buildApiSourceExplores', () => {
+describe('buildLiveExplores', () => {
     test('names each explore after its integration and connection', () => {
         expect(
             [ga4(), searchConsole(), posthog()].map(
@@ -193,7 +193,7 @@ describe('buildApiSourceExplores', () => {
     });
 });
 
-describe('compileApiSourceMetricQuery', () => {
+describe('compileLiveMetricQuery', () => {
     // 05:00 UTC is still the previous day in Pacific Time
     const now = new Date('2026-11-04T05:00:00Z');
 
@@ -204,7 +204,7 @@ describe('compileApiSourceMetricQuery', () => {
             metrics: ['clicks'],
         });
         expect(
-            compileApiSourceMetricQuery({
+            compileLiveMetricQuery({
                 explore,
                 metricQuery,
                 timezone: 'Asia/Tokyo',
@@ -224,7 +224,7 @@ describe('compileApiSourceMetricQuery', () => {
         const ga4Explore = ga4();
         const posthogExplore = posthog();
         const ga4Request = JSON.parse(
-            compileApiSourceMetricQuery({
+            compileLiveMetricQuery({
                 explore: ga4Explore,
                 metricQuery: query(ga4Explore, {
                     dimensions: ['session_default_channel_group'],
@@ -236,7 +236,7 @@ describe('compileApiSourceMetricQuery', () => {
         );
         expect(ga4Request.metrics).toEqual([{ name: 'sessions' }]);
 
-        const { query: hogql } = compileApiSourceMetricQuery({
+        const { query: hogql } = compileLiveMetricQuery({
             explore: posthogExplore,
             metricQuery: query(posthogExplore, {
                 dimensions: ['event'],
@@ -254,7 +254,7 @@ describe('compileApiSourceMetricQuery', () => {
         vi.setSystemTime(new Date('2026-11-04T12:00:00Z'));
         try {
             const explore = posthog();
-            const { query: hogql } = compileApiSourceMetricQuery({
+            const { query: hogql } = compileLiveMetricQuery({
                 explore,
                 metricQuery: query(
                     explore,
@@ -300,7 +300,7 @@ describe('compileApiSourceMetricQuery', () => {
                 person: { results: [] },
             },
         });
-        const [explore] = buildApiSourceExplores({
+        const [explore] = buildLiveExplores({
             connectionUuid: CONNECTION_UUID,
             sourceName: 'posthog',
             name: 'PostHog',
@@ -316,7 +316,7 @@ describe('compileApiSourceMetricQuery', () => {
         expect(Object.keys(getItemMap(explore))).not.toContain(plan);
 
         const compile = (overrides: Partial<MetricQuery>) => () =>
-            compileApiSourceMetricQuery({
+            compileLiveMetricQuery({
                 explore,
                 metricQuery: query(
                     explore,
@@ -353,7 +353,7 @@ describe('compileApiSourceMetricQuery', () => {
     test('refuses an explore that is not a live data source', () => {
         const explore = { ...ga4(), apiSource: undefined };
         expect(() =>
-            compileApiSourceMetricQuery({
+            compileLiveMetricQuery({
                 explore,
                 metricQuery: query(explore, {
                     dimensions: [],
@@ -366,7 +366,7 @@ describe('compileApiSourceMetricQuery', () => {
     });
 });
 
-describe('toApiSourceResult', () => {
+describe('toLiveResult', () => {
     const explore = ga4();
     const channel = `${explore.name}_session_default_channel_group`;
     const sessions = `${explore.name}_sessions`;
@@ -383,7 +383,7 @@ describe('toApiSourceResult', () => {
     };
 
     test('keys rows by field id, sorts them locally with missing values last and applies the limit', () => {
-        const result = toApiSourceResult({
+        const result = toLiveResult({
             compiled,
             rows: [
                 { sessionDefaultChannelGroup: 'Direct', sessions: 5 },
@@ -407,7 +407,7 @@ describe('toApiSourceResult', () => {
     });
 
     test('fills columns the integration left out with null', () => {
-        const { rows } = toApiSourceResult({
+        const { rows } = toLiveResult({
             compiled: { ...compiled, localSorts: [] },
             rows: [{ sessionDefaultChannelGroup: 'Direct' }],
             fields,
@@ -417,7 +417,7 @@ describe('toApiSourceResult', () => {
 
     test('turns compact GA4 periods into the first day of the period', () => {
         const month = `${explore.name}_date_month`;
-        const { rows, columns } = toApiSourceResult({
+        const { rows, columns } = toLiveResult({
             compiled: {
                 ...compiled,
                 fieldIdsByColumn: { yearMonth: month, sessions },
@@ -450,9 +450,9 @@ describe('toPeriodStart', () => {
 });
 
 describe('definition hashes', () => {
-    const scan: ApiSourceScan = {};
+    const scan: LiveScanResult = {};
     const build = (sourceName: string, name: string) =>
-        buildApiSourceExplores({
+        buildLiveExplores({
             connectionUuid: CONNECTION_UUID,
             sourceName,
             name,
@@ -470,7 +470,7 @@ describe('definition hashes', () => {
     it.each(Object.values(ApiConnectorType))(
         'hashes %s from code alone, the same for every source',
         (connector) => {
-            const hashes = getApiSourceDefinitionHashes(connector);
+            const hashes = getLiveDefinitionHashes(connector);
             expect(Object.values(hashes).length).toBeGreaterThan(0);
             Object.values(hashes).forEach((hash) =>
                 expect(hash).toMatch(/^[0-9a-f]{64}$/),
@@ -486,7 +486,7 @@ describe('definition hashes', () => {
         );
         expect(first.apiSource?.definitionHash).toBe(
             Object.values(
-                getApiSourceDefinitionHashes(ApiConnectorType.SEARCH_CONSOLE),
+                getLiveDefinitionHashes(ApiConnectorType.SEARCH_CONSOLE),
             )[0],
         );
     });
@@ -497,7 +497,7 @@ describe('definition hashes', () => {
             siteUrl: 'sc-domain:example.com',
         } as const;
         const [plain] = build('site', 'Site');
-        const [edited] = buildApiSourceExplores({
+        const [edited] = buildLiveExplores({
             connectionUuid: CONNECTION_UUID,
             sourceName: 'site',
             name: 'Site',
@@ -581,9 +581,7 @@ describe('explore AI hints', () => {
             'Meta Ads account 789',
         ],
     ])('describes the target of %j', (apiSource, origin, label, expected) => {
-        expect(describeApiSourceTarget(apiSource, origin, label)).toBe(
-            expected,
-        );
+        expect(describeLiveTarget(apiSource, origin, label)).toBe(expected);
     });
 
     it('stores the target first, then the admin text, and keeps the hash', () => {
@@ -599,11 +597,11 @@ describe('explore AI hints', () => {
             scannedFields: [],
             edits: {},
         };
-        const [hinted] = buildApiSourceExplores({
+        const [hinted] = buildLiveExplores({
             ...args,
             aiHint: ['Search Console site https://example.com/', 'EU store'],
         });
-        const [plain] = buildApiSourceExplores(args);
+        const [plain] = buildLiveExplores(args);
         expect(hinted.aiHint).toEqual([
             'Search Console site https://example.com/',
             'EU store',
@@ -618,7 +616,7 @@ describe('explore AI hints', () => {
     });
 });
 
-describe('getLostApiSourceFieldIds', () => {
+describe('getLostLiveFieldIds', () => {
     const rebuilt = [
         {
             name: 'site_performance',
@@ -628,7 +626,7 @@ describe('getLostApiSourceFieldIds', () => {
 
     it('reports a stored field the rebuild no longer has', () => {
         expect(
-            getLostApiSourceFieldIds({
+            getLostLiveFieldIds({
                 storedFieldIds: [
                     'site_performance_clicks',
                     'site_performance_custom',
@@ -641,7 +639,7 @@ describe('getLostApiSourceFieldIds', () => {
 
     it('allows dropping a field an admin took out of use', () => {
         expect(
-            getLostApiSourceFieldIds({
+            getLostLiveFieldIds({
                 storedFieldIds: ['site_performance_custom'],
                 rebuilt,
                 edits: { custom: { inUse: false, lastEdit: null } },

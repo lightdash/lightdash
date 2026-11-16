@@ -1,8 +1,8 @@
 import { ApiConnectorType, DimensionType } from '@lightdash/common';
 import { z } from 'zod';
-import type { ApiConnectorColumn } from '../../../api/ApiConnector';
-import { tooManyRowsError } from '../../../api/apiSourceRows';
+import type { LiveColumn } from '../../connector';
 import type { LiveRunArgs, LiveRunResult } from '../../defineLiveIntegration';
+import { tooManyRowsError } from '../../query/rows';
 
 export const YOUTUBE_ANALYTICS_ORIGIN =
     'https://youtubeanalytics.googleapis.com';
@@ -116,12 +116,10 @@ export const runYoutubeAnalyticsQuery = async ({
         throw tooManyRowsError({ label: 'YouTube Analytics', maxRows });
     }
 
-    const columns: ApiConnectorColumn[] = headers.map(
-        ({ name, columnType }) => ({
-            name,
-            type: getColumnType(name, columnType),
-        }),
-    );
+    const columns: LiveColumn[] = headers.map(({ name, columnType }) => ({
+        name,
+        type: getColumnType(name, columnType),
+    }));
     const rows = apiRows
         .slice(0, rowLimit)
         .map((row) =>

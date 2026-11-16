@@ -6,10 +6,10 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import type {
-    ApiSourceDimensionDefinition,
-    ApiSourceExploreDefinition,
-    ApiSourceMetricDefinition,
-} from '../../../api/apiSourceExplore';
+    LiveDimensionDefinition,
+    LiveExploreDefinition,
+    LiveMetricDefinition,
+} from '../../explores/definition';
 
 /** Properties a scan keeps per kind; PostHog projects can define thousands. */
 export const POSTHOG_MAX_SCANNED_PROPERTIES = 2000;
@@ -95,7 +95,7 @@ const dimension = ({
     type?: DimensionType;
     sql?: string;
     description?: string;
-}): ApiSourceDimensionDefinition => ({
+}): LiveDimensionDefinition => ({
     name,
     apiName,
     label,
@@ -116,7 +116,7 @@ const metric = (
     aggregation: ApiSourceMetricAggregation,
     sql: string,
     description: string,
-): ApiSourceMetricDefinition => ({
+): LiveMetricDefinition => ({
     name,
     apiName: name,
     label,
@@ -134,7 +134,7 @@ const eventProperty = (
     description: string,
 ) => dimension({ name, apiName: `properties.${property}`, label, description });
 
-export const POSTHOG_EVENTS_EXPLORE: ApiSourceExploreDefinition = {
+export const POSTHOG_EVENTS_EXPLORE: LiveExploreDefinition = {
     name: 'events',
     label: 'Events',
     description:
@@ -309,9 +309,9 @@ export type PostHogPropertyKind = 'event' | 'person';
  * are skipped; unreadable definitions add nothing.
  */
 export const withPostHogPropertyFields = (
-    definition: ApiSourceExploreDefinition,
+    definition: LiveExploreDefinition,
     propertyDefinitions: Record<PostHogPropertyKind, unknown>,
-): ApiSourceExploreDefinition => {
+): LiveExploreDefinition => {
     const taken = new Set([
         ...definition.dimensions.map(({ name }) => name),
         ...definition.metrics.map(({ name }) => name),

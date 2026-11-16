@@ -9,10 +9,7 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { postHogIntegration } from '.';
-import type {
-    ApiConnectorResponse,
-    ApiConnectorTransport,
-} from '../../../api/ApiConnector';
+import type { LiveHttpResponse, LiveTransport } from '../../connector';
 import {
     clickHouseTypeToDimensionType,
     getPostHogPropertyDefinitionsPrefix,
@@ -52,9 +49,9 @@ const jsonResponse = (
     body: unknown,
     status = 200,
     headers: Record<string, string> = {},
-): ApiConnectorResponse => ({ status, headers, body });
+): LiveHttpResponse => ({ status, headers, body });
 
-const createConnector = (response: ApiConnectorResponse) => {
+const createConnector = (response: LiveHttpResponse) => {
     const send = vi.fn().mockResolvedValue(response);
     return {
         connector: postHogIntegration.createConnector(
@@ -273,7 +270,7 @@ describe('postHogIntegration run', () => {
 });
 
 describe('postHogIntegration scan', () => {
-    const scanWith = (send: ApiConnectorTransport) =>
+    const scanWith = (send: LiveTransport) =>
         postHogIntegration.createConnector(
             { connector: ApiConnectorType.POSTHOG, projectId: '303731' },
             send,

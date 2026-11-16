@@ -7,10 +7,10 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import type {
-    ApiSourceDimensionDefinition,
-    ApiSourceExploreDefinition,
-    ApiSourceMetricDefinition,
-} from '../../../api/apiSourceExplore';
+    LiveDimensionDefinition,
+    LiveExploreDefinition,
+    LiveMetricDefinition,
+} from '../../explores/definition';
 
 export const GA4_STRING_FILTERS = [
     FilterOperator.EQUALS,
@@ -48,7 +48,7 @@ const dimension = (
     apiName: string,
     label: string,
     description?: string,
-): ApiSourceDimensionDefinition => ({
+): LiveDimensionDefinition => ({
     name,
     apiName,
     label,
@@ -65,7 +65,7 @@ const metric = (
     description?: string,
     format?: string,
     aggregation?: ApiSourceMetricAggregation,
-): ApiSourceMetricDefinition => ({
+): LiveMetricDefinition => ({
     name,
     apiName,
     label,
@@ -97,7 +97,7 @@ const SESSION_AND_EVENT_METRICS = [
     'key_events',
 ];
 
-export const GA4_REPORT_EXPLORE: ApiSourceExploreDefinition = {
+export const GA4_REPORT_EXPLORE: LiveExploreDefinition = {
     name: 'report',
     label: 'Report',
     description:
@@ -424,9 +424,9 @@ const toScannedFieldName = (apiName: string) =>
  * defaults, since only the hand-written fields know more.
  */
 export const withGa4MetadataFields = (
-    definition: ApiSourceExploreDefinition,
+    definition: LiveExploreDefinition,
     metadata: unknown,
-): ApiSourceExploreDefinition => {
+): LiveExploreDefinition => {
     const parsed = metadataSchema.safeParse(metadata);
     if (!parsed.success) {
         return definition;

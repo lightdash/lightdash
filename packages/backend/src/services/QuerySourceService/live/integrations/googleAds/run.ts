@@ -4,9 +4,9 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { ApiConnectorColumn } from '../../../api/ApiConnector';
-import { readRowsWithinCap } from '../../../api/apiSourceRows';
+import type { LiveColumn } from '../../connector';
 import type { LiveRunArgs, LiveRunResult } from '../../defineLiveIntegration';
+import { readRowsWithinCap } from '../../query/rows';
 import { GOOGLE_ADS_MICROS_FIELDS } from './explores';
 
 export const GOOGLE_ADS_ORIGIN = 'https://googleads.googleapis.com';
@@ -161,7 +161,7 @@ export const runGoogleAdsQuery = async ({
             }),
         ),
     );
-    const columns: ApiConnectorColumn[] = fields.map((name) => ({
+    const columns: LiveColumn[] = fields.map((name) => ({
         name,
         type: getColumnType(name),
     }));

@@ -7,16 +7,16 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import {
-    getApiDateRange,
+    getApiName,
+    getLiveExplore,
+    type CompiledLiveQuery,
+} from '../../explores/definition';
+import {
+    getLiveDateRange,
     splitDateRangeFilter,
     toAbsoluteDateRange,
-} from '../../../api/apiDateRange';
-import {
-    getApiName,
-    getApiSourceExplore,
-    type CompiledApiSourceQuery,
-} from '../../../api/apiSourceExplore';
-import { escapeRe2 } from '../../../api/escapeRe2';
+} from '../../query/dateRange';
+import { escapeRe2 } from '../../query/escapeRe2';
 
 const anyOf = (values: string[]) => {
     const escaped = values.map(escapeRe2);
@@ -101,8 +101,8 @@ export const compileSearchConsoleQuery = ({
     metricQuery: MetricQuery;
     today: string;
     maxRows: number;
-}): CompiledApiSourceQuery => {
-    const apiSource = getApiSourceExplore(explore);
+}): CompiledLiveQuery => {
+    const apiSource = getLiveExplore(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const { dateRule, otherFilters } = apiSource.dateRange
         ? splitDateRangeFilter(
@@ -112,7 +112,7 @@ export const compileSearchConsoleQuery = ({
         : { dateRule: null, otherFilters: metricQuery.filters.dimensions };
     const earliestDate = getSearchConsoleEarliestDate(today);
     const dateRange = toAbsoluteDateRange(
-        getApiDateRange({
+        getLiveDateRange({
             rule: dateRule,
             defaultDays: apiSource.dateRange?.defaultDays ?? 28,
             today,

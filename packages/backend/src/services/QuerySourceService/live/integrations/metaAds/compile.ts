@@ -7,20 +7,17 @@ import {
     type MetricQuery,
     type SortField,
 } from '@lightdash/common';
-import { resolveAbsoluteDateRange } from '../../../api/apiDateRange';
 import {
     getActiveFilterRules,
     getApiName,
-    getApiSourceExplore,
-    toApiSourceQueryError,
+    getLiveExplore,
     toFieldCombinationIssue,
-    type CompiledApiSourceQuery,
-} from '../../../api/apiSourceExplore';
-import {
-    getGrainIssues,
-    type ApiSourceGrain,
-} from '../../../api/apiSourceGrain';
-import { getFinestLevel, isFinerLevel } from '../../../api/apiSourceLevels';
+    toLiveQueryError,
+    type CompiledLiveQuery,
+} from '../../explores/definition';
+import { resolveAbsoluteDateRange } from '../../query/dateRange';
+import { getGrainIssues, type LiveGrain } from '../../query/grain';
+import { getFinestLevel, isFinerLevel } from '../../query/levels';
 import {
     META_ADS_BREAKDOWNS,
     META_ADS_FIELD_LEVELS,
@@ -34,7 +31,7 @@ const BREAKDOWNS: ReadonlySet<string> = new Set(META_ADS_BREAKDOWNS);
 const REACH_BREAKDOWN_MONTHS = 13;
 
 // Names aren't unique, so a name identifies a row only with its parent.
-const GRAINS: Partial<Record<MetaAdsLevel, ApiSourceGrain>> = {
+const GRAINS: Partial<Record<MetaAdsLevel, LiveGrain>> = {
     campaign: {
         entity: 'campaign',
         identities: [['campaign_id'], ['campaign_name']],
@@ -62,7 +59,7 @@ const GRAINS: Partial<Record<MetaAdsLevel, ApiSourceGrain>> = {
 };
 
 const refuse = (fieldId: FieldId | null, message: string) =>
-    toApiSourceQueryError([toFieldCombinationIssue(fieldId, message)]);
+    toLiveQueryError([toFieldCombinationIssue(fieldId, message)]);
 
 type MetaAdsFilter = {
     field: string;
@@ -148,8 +145,8 @@ export const compileMetaAdsQuery = ({
     metricQuery: MetricQuery;
     today: string;
     maxRows: number;
-}): CompiledApiSourceQuery => {
-    const apiSource = getApiSourceExplore(explore);
+}): CompiledLiveQuery => {
+    const apiSource = getLiveExplore(explore);
     const apiName = (fieldId: FieldId) => getApiName(apiSource, fieldId);
     const dateFieldId = apiSource.dateRange?.fieldId ?? null;
     const { startDate, endDate, otherFilters } = resolveAbsoluteDateRange({
@@ -203,7 +200,7 @@ export const compileMetaAdsQuery = ({
         apiName,
     });
     if (grainIssues.length > 0) {
-        throw toApiSourceQueryError(grainIssues);
+        throw toLiveQueryError(grainIssues);
     }
 
     if (

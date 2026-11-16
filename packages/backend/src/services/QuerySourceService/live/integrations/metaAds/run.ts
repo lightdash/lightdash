@@ -4,13 +4,13 @@ import {
     getMetaAdsInsightsPath,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { ApiConnectorColumn } from '../../../api/ApiConnector';
-import { readRowsWithinCap } from '../../../api/apiSourceRows';
+import type { LiveColumn } from '../../connector';
 import {
     assertMaxRows,
     type LiveRunArgs,
     type LiveRunResult,
 } from '../../defineLiveIntegration';
+import { readRowsWithinCap } from '../../query/rows';
 import { META_ADS_BREAKDOWNS } from './explores';
 
 const LABEL = 'Meta Ads';
@@ -159,7 +159,7 @@ const readActionColumn = (
 
 const toRow = (
     row: Record<string, unknown>,
-    columns: ApiConnectorColumn[],
+    columns: LiveColumn[],
     timeIncrement: MetaAdsRequest['time_increment'],
 ): Record<string, unknown> =>
     Object.fromEntries(
@@ -187,7 +187,7 @@ const getColumns = ({
     fields,
     breakdowns,
     time_increment: timeIncrement,
-}: MetaAdsRequest): ApiConnectorColumn[] => [
+}: MetaAdsRequest): LiveColumn[] => [
     ...(timeIncrement && timeIncrement !== 'all_days'
         ? [{ name: 'date_start', type: DimensionType.DATE }]
         : []),

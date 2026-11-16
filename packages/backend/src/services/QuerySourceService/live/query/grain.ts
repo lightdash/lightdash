@@ -5,14 +5,14 @@ import {
     type Explore,
     type FieldId,
 } from '@lightdash/common';
-import { toFieldCombinationIssue } from './apiSourceExplore';
+import { toFieldCombinationIssue } from '../explores/definition';
 
 /**
  * What an ads API returns one row per at a level, and which selected fields
  * tell those rows apart. Each identity is a set of API names that identify a
  * row only together, like an ad set name with its campaign name.
  */
-export type ApiSourceGrain = {
+export type LiveGrain = {
     entity: string;
     identities: readonly (readonly string[])[];
     /** How to fix the query, like "Add Campaign name or Campaign ID." */
@@ -36,7 +36,7 @@ export const getGrainIssues = <Level extends string>({
 }: {
     explore: Explore;
     integration: string;
-    grains: Partial<Record<Level, ApiSourceGrain>>;
+    grains: Partial<Record<Level, LiveGrain>>;
     /** The level the request reports at. */
     level: Level;
     levelOf: (apiName: string) => Level | null | undefined;

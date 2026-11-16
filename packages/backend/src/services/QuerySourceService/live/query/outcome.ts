@@ -9,7 +9,7 @@ import {
     type LiveSourceUpstreamErrorCode,
 } from '@lightdash/common';
 
-export const API_QUERY_OUTCOMES = [
+export const LIVE_QUERY_OUTCOMES = [
     'ok',
     'invalid_request',
     'query_error',
@@ -20,10 +20,10 @@ export const API_QUERY_OUTCOMES = [
     'internal_error',
 ] as const;
 
-export type ApiQueryOutcome = (typeof API_QUERY_OUTCOMES)[number];
+export type LiveQueryOutcome = (typeof LIVE_QUERY_OUTCOMES)[number];
 
 /** Buckets a failed api query by cause, from the errors connectors throw. */
-export const getApiQueryOutcome = (error: unknown): ApiQueryOutcome => {
+export const getLiveQueryOutcome = (error: unknown): LiveQueryOutcome => {
     if (error instanceof ParameterError) return 'invalid_request';
     if (error instanceof WarehouseQueryError) return 'query_error';
     if (error instanceof WarehouseConnectionError) return 'connection_error';
@@ -35,7 +35,7 @@ export const getApiQueryOutcome = (error: unknown): ApiQueryOutcome => {
 
 /** The stable code of a failed api query, from its outcome; null when it succeeded. */
 export const getLiveSourceUpstreamErrorCode = (
-    outcome: ApiQueryOutcome,
+    outcome: LiveQueryOutcome,
 ): LiveSourceUpstreamErrorCode | null => {
     switch (outcome) {
         case 'ok':

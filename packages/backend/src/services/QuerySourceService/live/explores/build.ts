@@ -16,24 +16,21 @@ import {
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
 import { isPlainObject, memoize } from 'es-toolkit/compat';
+import { type LiveBaseLayer, type LiveScanResult } from '../integration';
+import { tooManyRowsError } from '../query/rows';
+import { getLiveIntegration } from '../registry';
 import {
-    assertApiSourceQuery,
-    buildApiSourceExplore,
-    type ApiSourceExploreDefinition,
-    type ApiSourcePeriodFormat,
-    type CompiledApiSourceQuery,
-} from './apiSourceExplore';
-import {
-    type ApiSourceBaseLayer,
-    type ApiSourceScan,
-} from './ApiSourceIntegration';
-import { getApiSourceIntegration } from './apiSourceIntegrations';
-import { tooManyRowsError } from './apiSourceRows';
+    assertLiveQuery,
+    buildLiveExplore,
+    type CompiledLiveQuery,
+    type LiveExploreDefinition,
+    type LivePeriodFormat,
+} from './definition';
 import {
     applyLiveSourceFieldEdits,
     type LiveSourceFieldEdits,
     type ScannedLiveSourceField,
-} from './liveSourceFields';
+} from './fields';
 
 const DEFAULT_SQL_BUILDER = warehouseSqlBuilderFromType(
     SupportedDbtAdapter.DUCKDB,
@@ -55,10 +52,10 @@ const DEFAULT_SQL_BUILDER = warehouseSqlBuilderFromType(
  *   as its permanent wide model, and planned models reserve their names
  *   up front (`plannedModelNames`) so a dbt explore can't take them first
  *
- * `apiSourceNames.test.ts` snapshots every integration's explore names and
+ * `explores/names.test.ts` snapshots every integration's explore names and
  * field ids; a failing snapshot means saved content would break.
  */
-export const getApiSourceExploreName = (
+export const getLiveExploreName = (
     sourceName: string,
     definitionName: string,
 ) => `${sourceName}_${definitionName}`;
@@ -69,42 +66,40 @@ export const getLegacyLiveSourceName = (
     connectionUuid: string,
 ) => `${connector}_${connectionUuid.replace(/-/g, '').slice(0, 8)}`;
 
-export const getApiSourceBaseLayer = (
-    connector: ApiConnectorType,
-): ApiSourceBaseLayer => getApiSourceIntegration(connector).baseLayer;
+export const getLiveBaseLayer = (connector: ApiConnectorType): LiveBaseLayer =>
+    getLiveIntegration(connector).baseLayer;
 
 /** The wide model of an integration, which scans and field edits apply to. */
-export const getApiSourceWideDefinition = (
+export const getLiveWideDefinition = (
     connector: ApiConnectorType,
-): ApiSourceExploreDefinition =>
-    getApiSourceBaseLayer(connector).definitions[0];
+): LiveExploreDefinition => getLiveBaseLayer(connector).definitions[0];
 
 /** The explore names a source with this name gets today. */
-export const getApiSourceExploreNames = (
+export const getLiveExploreNames = (
     connector: ApiConnectorType,
     sourceName: string,
 ): string[] =>
-    getApiSourceBaseLayer(connector).definitions.map(({ name }) =>
-        getApiSourceExploreName(sourceName, name),
+    getLiveBaseLayer(connector).definitions.map(({ name }) =>
+        getLiveExploreName(sourceName, name),
     );
 
 /** The explore names kept free for the integration's planned models. */
-export const getApiSourceReservedExploreNames = (
+export const getLiveReservedExploreNames = (
     connector: ApiConnectorType,
     sourceName: string,
 ): string[] =>
-    getApiSourceBaseLayer(connector).plannedModelNames.map((modelName) =>
-        getApiSourceExploreName(sourceName, modelName),
+    getLiveBaseLayer(connector).plannedModelNames.map((modelName) =>
+        getLiveExploreName(sourceName, modelName),
     );
 
 /** The fields a scan found beyond the integration's built-in ones. */
 export const toScannedLiveSourceFields = (
     connector: ApiConnectorType,
-    scan: ApiSourceScan,
+    scan: LiveScanResult,
 ): ScannedLiveSourceField[] => {
-    const definition = getApiSourceWideDefinition(connector);
+    const definition = getLiveWideDefinition(connector);
     const { withScannedFields, isInternalField } =
-        getApiSourceIntegration(connector);
+        getLiveIntegration(connector);
     const scanned = withScannedFields?.(definition, scan) ?? definition;
     const builtInNames = new Set([
         ...definition.dimensions.map(({ name }) => name),
@@ -136,7 +131,7 @@ export const toScannedLiveSourceFields = (
 const buildDefinitionExplore = (
     connector: ApiConnectorType,
     args: Pick<
-        Parameters<typeof buildApiSourceExplore>[0],
+        Parameters<typeof buildLiveExplore>[0],
         | 'definition'
         | 'exploreName'
         | 'label'
@@ -145,14 +140,14 @@ const buildDefinitionExplore = (
         | 'aiHint'
     >,
 ) => {
-    const { baseVersion, capabilities } = getApiSourceBaseLayer(connector);
-    return buildApiSourceExplore({
+    const { baseVersion, capabilities } = getLiveBaseLayer(connector);
+    return buildLiveExplore({
         ...args,
         integration: connector,
         baseVersion,
         capabilities,
         warehouseSqlBuilder:
-            getApiSourceIntegration(connector).warehouseSqlBuilder ??
+            getLiveIntegration(connector).warehouseSqlBuilder ??
             DEFAULT_SQL_BUILDER,
     });
 };
@@ -175,17 +170,17 @@ const toStableJson = (value: unknown): string =>
  * one source (prefix, label, connection, scanned fields, field edits), so it
  * changes when the code's output does, and nobody has to bump a version.
  */
-export const getApiSourceDefinitionHashes = memoize(
+export const getLiveDefinitionHashes = memoize(
     (connector: ApiConnectorType): Record<string, string> =>
         Object.fromEntries(
-            getApiSourceBaseLayer(connector).definitions.map((definition) => [
+            getLiveBaseLayer(connector).definitions.map((definition) => [
                 definition.name,
                 createHash('sha256')
                     .update(
                         toStableJson(
                             buildDefinitionExplore(connector, {
                                 definition,
-                                exploreName: getApiSourceExploreName(
+                                exploreName: getLiveExploreName(
                                     'source',
                                     definition.name,
                                 ),
@@ -206,7 +201,7 @@ export const getApiSourceDefinitionHashes = memoize(
  * Field ids stored today that a rebuild would lose, which would break the
  * charts on them. A field an admin took out of use isn't lost.
  */
-export const getLostApiSourceFieldIds = ({
+export const getLostLiveFieldIds = ({
     storedFieldIds,
     rebuilt,
     edits,
@@ -229,19 +224,19 @@ export const getLostApiSourceFieldIds = ({
 };
 
 /** What the source reads, for the AI agent. Admins can't remove this. */
-export const describeApiSourceTarget = (
+export const describeLiveTarget = (
     apiSource: ExternalConnectionApiSource,
     origin: string,
     targetLabel: string | null,
 ): string =>
-    getApiSourceIntegration(apiSource.connector).describeTarget({
+    getLiveIntegration(apiSource.connector).describeTarget({
         apiSource,
         origin,
         targetLabel,
     });
 
 /** The explores a live data source answers metric queries with. */
-export const buildApiSourceExplores = ({
+export const buildLiveExplores = ({
     connectionUuid,
     sourceName,
     name: label,
@@ -261,12 +256,12 @@ export const buildApiSourceExplores = ({
 }): Explore[] => {
     const {
         definitions: [wide, ...others],
-    } = getApiSourceBaseLayer(apiSource.connector);
-    const definitionHashes = getApiSourceDefinitionHashes(apiSource.connector);
-    const build = (definition: ApiSourceExploreDefinition, isWide: boolean) =>
+    } = getLiveBaseLayer(apiSource.connector);
+    const definitionHashes = getLiveDefinitionHashes(apiSource.connector);
+    const build = (definition: LiveExploreDefinition, isWide: boolean) =>
         buildDefinitionExplore(apiSource.connector, {
             definition,
-            exploreName: getApiSourceExploreName(sourceName, definition.name),
+            exploreName: getLiveExploreName(sourceName, definition.name),
             // The wide model keeps the source's name; the others add theirs
             label: isWide ? label : `${label} ${definition.label}`,
             connectionUuid,
@@ -283,7 +278,7 @@ export const buildApiSourceExplores = ({
 };
 
 /** Compiles a metric query on a live data source explore into its integration's request. */
-export const compileApiSourceMetricQuery = ({
+export const compileLiveMetricQuery = ({
     explore,
     metricQuery,
     timezone,
@@ -293,15 +288,15 @@ export const compileApiSourceMetricQuery = ({
     metricQuery: MetricQuery;
     timezone: string;
     now: Date;
-}): CompiledApiSourceQuery => {
+}): CompiledLiveQuery => {
     const integration = explore.apiSource?.integration;
     if (integration === undefined) {
         throw new UnexpectedServerError(
             `"${explore.name}" isn't a live data source explore`,
         );
     }
-    assertApiSourceQuery(explore, metricQuery);
-    return getApiSourceIntegration(integration).compile({
+    assertLiveQuery(explore, metricQuery);
+    return getLiveIntegration(integration).compile({
         explore,
         metricQuery,
         timezone,
@@ -351,7 +346,7 @@ const DAY_MS = 86_400_000;
 /** The first day of a compact period such as 202644 (ISO week), 202610 or 2026. */
 export const toPeriodStart = (
     value: unknown,
-    format: ApiSourcePeriodFormat,
+    format: LivePeriodFormat,
 ): unknown => {
     const text = String(value);
     const pad = (number: number) => String(number).padStart(2, '0');
@@ -387,13 +382,13 @@ export const toPeriodStart = (
  * would rank only the rows read, so the top rows shown could be the wrong
  * ones. A result in the API's own order only loses rows past its limit.
  */
-export const assertApiResultComplete = ({
+export const assertLiveResultComplete = ({
     compiled,
     hasMoreRows,
     label,
     maxRows,
 }: {
-    compiled: Pick<CompiledApiSourceQuery, 'localSorts'>;
+    compiled: Pick<CompiledLiveQuery, 'localSorts'>;
     hasMoreRows: boolean;
     label: string;
     maxRows: number;
@@ -404,12 +399,12 @@ export const assertApiResultComplete = ({
 };
 
 /** The connector's rows as result rows keyed by field id, sorted and limited. */
-export const toApiSourceResult = ({
+export const toLiveResult = ({
     compiled,
     rows,
     fields,
 }: {
-    compiled: CompiledApiSourceQuery;
+    compiled: CompiledLiveQuery;
     rows: Record<string, unknown>[];
     fields: ItemsMap;
 }): { rows: Record<string, unknown>[]; columns: ResultColumns } => {

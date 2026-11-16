@@ -5,7 +5,7 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { ApiConnectorResponse } from '../../../api/ApiConnector';
+import type { LiveHttpResponse } from '../../connector';
 
 const errorSchema = z.object({
     error: z.object({
@@ -23,7 +23,7 @@ const META_TOO_MUCH_DATA_SUBCODE = 1487534;
 
 /** Turns an Insights error response into an error that says what to change. */
 export const toMetaAdsError = (
-    response: ApiConnectorResponse,
+    response: LiveHttpResponse,
     adAccountId: string,
 ): Error => {
     const parsed = errorSchema.safeParse(response.body);

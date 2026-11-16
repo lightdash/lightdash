@@ -7,10 +7,10 @@ import {
 } from '@lightdash/common';
 import { linkedInAdsIntegration } from '.';
 import type {
-    ApiConnector,
-    ApiConnectorRequest,
-    ApiConnectorResponse,
-} from '../../../api/ApiConnector';
+    LiveConnector,
+    LiveHttpRequest,
+    LiveHttpResponse,
+} from '../../connector';
 import {
     getLinkedInAdsCampaignGroupsPath,
     getLinkedInAdsCampaignsPath,
@@ -19,7 +19,7 @@ import {
 
 const ACCOUNT = '507404993';
 
-const jsonResponse = (body: unknown, status = 200): ApiConnectorResponse => ({
+const jsonResponse = (body: unknown, status = 200): LiveHttpResponse => ({
     status,
     headers: {},
     body,
@@ -36,11 +36,9 @@ const element = (id: string, day: number, impressions: number) => ({
 });
 
 const createConnector = (
-    respond: (request: ApiConnectorRequest) => ApiConnectorResponse,
+    respond: (request: LiveHttpRequest) => LiveHttpResponse,
 ) => {
-    const send = vi.fn(async (request: ApiConnectorRequest) =>
-        respond(request),
-    );
+    const send = vi.fn(async (request: LiveHttpRequest) => respond(request));
     return {
         send,
         connector: linkedInAdsIntegration.createConnector(
@@ -59,7 +57,7 @@ const REQUEST = {
 };
 
 const execute = (
-    connector: ApiConnector,
+    connector: LiveConnector,
     request: Record<string, unknown>,
     limit = 100,
 ) =>

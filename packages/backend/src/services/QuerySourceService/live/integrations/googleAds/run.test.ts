@@ -7,19 +7,16 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { googleAdsIntegration } from '.';
-import type {
-    ApiConnector,
-    ApiConnectorResponse,
-} from '../../../api/ApiConnector';
+import type { LiveConnector, LiveHttpResponse } from '../../connector';
 import { getGoogleAdsSearchPath, GOOGLE_ADS_MAX_QUERY_ROWS } from './run';
 
 const jsonResponse = (
     body: unknown,
     status = 200,
     headers: Record<string, string> = {},
-): ApiConnectorResponse => ({ status, headers, body });
+): LiveHttpResponse => ({ status, headers, body });
 
-const createConnector = (response: ApiConnectorResponse) => {
+const createConnector = (response: LiveHttpResponse) => {
     const send = vi.fn().mockResolvedValue(response);
     return {
         send,
@@ -34,7 +31,7 @@ const createConnector = (response: ApiConnectorResponse) => {
     };
 };
 
-const run = (connector: ApiConnector, query: string, limit = 2) =>
+const run = (connector: LiveConnector, query: string, limit = 2) =>
     connector.execute({ payload: { kind: 'query', query }, limit });
 
 const CAMPAIGN_QUERY =

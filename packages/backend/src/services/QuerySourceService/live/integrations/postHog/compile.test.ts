@@ -12,7 +12,7 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { postHogIntegration } from '.';
-import { buildApiSourceExplore } from '../../../api/apiSourceExplore';
+import { buildLiveExplore } from '../../explores/definition';
 import { compilePostHogQuery } from './compile';
 import {
     POSTHOG_EVENTS_EXPLORE,
@@ -26,7 +26,7 @@ const warehouseSqlBuilder = warehouseSqlBuilderFromType(
 );
 
 const buildExplore = (definition = POSTHOG_EVENTS_EXPLORE) =>
-    buildApiSourceExplore({
+    buildLiveExplore({
         definition,
         exploreName: EXPLORE,
         label: 'Product',

@@ -4,14 +4,14 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { ApiConnectorColumn } from '../../../api/ApiConnector';
-import type { ApiSourceScan } from '../../../api/ApiSourceIntegration';
+import type { LiveColumn } from '../../connector';
 import {
     assertMaxRows,
     type LiveCalls,
     type LiveRunArgs,
     type LiveRunResult,
 } from '../../defineLiveIntegration';
+import type { LiveScanResult } from '../../integration';
 
 export const GA4_DATA_ORIGIN = 'https://analyticsdata.googleapis.com';
 
@@ -111,7 +111,7 @@ export const scanGa4Metadata = async ({
 }: {
     settings: { propertyId: string };
     calls: LiveCalls;
-}): Promise<ApiSourceScan> => {
+}): Promise<LiveScanResult> => {
     const response = await calls.send({
         method: 'GET',
         path: getGa4MetadataPath(propertyId),
@@ -142,7 +142,7 @@ export const runGa4Query = async ({
         ({ name }) => name,
     );
     const metricNames = (report.metricHeaders ?? []).map(({ name }) => name);
-    const columns: ApiConnectorColumn[] = [
+    const columns: LiveColumn[] = [
         ...dimensionNames.map((name) => ({
             name: toGa4ColumnName(name),
             type: name === 'date' ? DimensionType.DATE : DimensionType.STRING,

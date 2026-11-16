@@ -7,8 +7,8 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { searchConsoleIntegration } from '.';
-import { buildApiSourceExplore } from '../../../api/apiSourceExplore';
-import { escapeRe2 } from '../../../api/escapeRe2';
+import { buildLiveExplore } from '../../explores/definition';
+import { escapeRe2 } from '../../query/escapeRe2';
 import {
     compileSearchConsoleQuery,
     getSearchConsoleEarliestDate,
@@ -18,7 +18,7 @@ import { SEARCH_CONSOLE_PERFORMANCE_EXPLORE } from './explores';
 const EXPLORE = 'search_console_performance';
 const MAX_ROWS = 24_999;
 
-const explore = buildApiSourceExplore({
+const explore = buildLiveExplore({
     definition: SEARCH_CONSOLE_PERFORMANCE_EXPLORE,
     exploreName: EXPLORE,
     label: 'lightdash.com',

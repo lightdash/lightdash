@@ -1,4 +1,4 @@
-import { getFinestLevel, isFinerLevel } from './apiSourceLevels';
+import { getFinestLevel, isFinerLevel } from './levels';
 
 const LEVELS = ['account', 'campaign', 'ad'] as const;
 

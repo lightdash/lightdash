@@ -4,12 +4,12 @@ import {
     TimeFrames,
 } from '@lightdash/common';
 import { z } from 'zod';
-import { ALL_PUSHDOWN_REFUSED } from '../../../api/ApiConnector';
-import { getIsoDateInTimeZone } from '../../../api/apiDateRange';
+import { ALL_PUSHDOWN_REFUSED } from '../../connector';
 import {
     defineLiveIntegration,
     jsonRequest,
 } from '../../defineLiveIntegration';
+import { getIsoDateInTimeZone } from '../../query/dateRange';
 import { toGoogleApiError } from '../google/errors';
 import { assertGoogleSignIn } from '../google/signIn';
 import { compileYoutubeAnalyticsQuery } from './compile';

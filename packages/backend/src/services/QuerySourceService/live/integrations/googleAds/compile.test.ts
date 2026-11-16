@@ -6,10 +6,10 @@ import {
     type FilterRule,
     type MetricQuery,
 } from '@lightdash/common';
-import { buildApiSourceExplores } from '../../../api/apiSourceExplores';
+import { buildLiveExplores } from '../../explores/build';
 import { compileGoogleAdsQuery } from './compile';
 
-const [explore] = buildApiSourceExplores({
+const [explore] = buildLiveExplores({
     connectionUuid: 'c1',
     sourceName: 'google_ads',
     name: 'Google Ads',

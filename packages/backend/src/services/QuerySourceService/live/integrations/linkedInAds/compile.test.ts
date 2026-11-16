@@ -8,8 +8,8 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { linkedInAdsIntegration } from '.';
-import type { ApiConnectorTransport } from '../../../api/ApiConnector';
-import { buildApiSourceExplore } from '../../../api/apiSourceExplore';
+import type { LiveTransport } from '../../connector';
+import { buildLiveExplore } from '../../explores/definition';
 import { compileLinkedInAdsQuery } from './compile';
 import { LINKEDIN_ADS_PERFORMANCE_EXPLORE } from './explores';
 import { LINKEDIN_ADS_MAX_QUERY_ROWS } from './run';
@@ -17,7 +17,7 @@ import { LINKEDIN_ADS_MAX_QUERY_ROWS } from './run';
 const EXPLORE = 'linkedin_performance';
 const TODAY = '2026-11-09';
 
-const explore = buildApiSourceExplore({
+const explore = buildLiveExplore({
     definition: LINKEDIN_ADS_PERFORMANCE_EXPLORE,
     exploreName: EXPLORE,
     label: 'LinkedIn',
@@ -67,7 +67,7 @@ const compile = (metricQuery: MetricQuery) => {
     return { ...compiled, request: JSON.parse(compiled.query) };
 };
 
-const createConnector = (send: ApiConnectorTransport) =>
+const createConnector = (send: LiveTransport) =>
     linkedInAdsIntegration.createConnector(
         { connector: ApiConnectorType.LINKEDIN_ADS, adAccountId: '1' },
         send,

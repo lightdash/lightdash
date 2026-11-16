@@ -7,7 +7,7 @@ import {
     type ApiSourceQuery,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
-import type { ApiConnector } from '../api/ApiConnector';
+import type { LiveConnector } from '../live/connector';
 import type { SubmitSourceQueryArgs } from '../types';
 import { ApiQuerySource } from './ApiQuerySource';
 
@@ -17,7 +17,7 @@ const hogql =
     'SELECT toStartOfWeek(timestamp) AS week, count(DISTINCT person_id) AS wau FROM events GROUP BY week';
 
 const connectionUuid = '22222222-2222-4222-8222-222222222222';
-const connector: ApiConnector = {
+const connector: LiveConnector = {
     describe: vi.fn(),
     execute: vi.fn(),
 };

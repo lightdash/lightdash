@@ -13,16 +13,16 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import {
-    getApiDateRange,
-    splitDateRangeFilter,
-    type ApiDateBound,
-} from '../../../api/apiDateRange';
-import {
     getApiName,
-    getApiSourceExplore,
-    type ApiSourcePeriodFormat,
-    type CompiledApiSourceQuery,
-} from '../../../api/apiSourceExplore';
+    getLiveExplore,
+    type CompiledLiveQuery,
+    type LivePeriodFormat,
+} from '../../explores/definition';
+import {
+    getLiveDateRange,
+    splitDateRangeFilter,
+    type LiveDateBound,
+} from '../../query/dateRange';
 import { toGa4ColumnName } from './run';
 
 type Ga4Expression = Record<string, unknown>;
@@ -181,7 +181,7 @@ const toFilterExpression = (
 // (https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/DateRange)
 export const GA4_EARLIEST_DATE = '2015-08-14';
 
-const toGa4Date = (bound: ApiDateBound) => {
+const toGa4Date = (bound: LiveDateBound) => {
     if ('date' in bound) {
         return bound.date;
     }
@@ -193,7 +193,7 @@ const getDateRanges = (
     dateRule: FilterRule | null,
     today: string,
 ) => {
-    const { start, end } = getApiDateRange({
+    const { start, end } = getLiveDateRange({
         rule: dateRule,
         defaultDays: apiSource.dateRange?.defaultDays ?? 28,
         today,
@@ -203,7 +203,7 @@ const getDateRanges = (
 };
 
 // How GA4 reports the grains of the date dimension: isoYearIsoWeek, yearMonth, year
-const PERIOD_FORMATS: Partial<Record<TimeFrames, ApiSourcePeriodFormat>> = {
+const PERIOD_FORMATS: Partial<Record<TimeFrames, LivePeriodFormat>> = {
     [TimeFrames.WEEK]: 'iso_week',
     [TimeFrames.MONTH]: 'year_month',
     [TimeFrames.YEAR]: 'year',
@@ -222,8 +222,8 @@ export const compileGa4Query = ({
     explore: Explore;
     metricQuery: MetricQuery;
     today: string;
-}): CompiledApiSourceQuery => {
-    const apiSource = getApiSourceExplore(explore);
+}): CompiledLiveQuery => {
+    const apiSource = getLiveExplore(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const caseSensitive = explore.caseSensitive ?? true;
     const { dateRule, otherFilters } = apiSource.dateRange

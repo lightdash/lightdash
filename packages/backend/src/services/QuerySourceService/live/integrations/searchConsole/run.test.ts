@@ -7,16 +7,16 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { searchConsoleIntegration } from '.';
-import type { ApiConnectorResponse } from '../../../api/ApiConnector';
+import type { LiveHttpResponse } from '../../connector';
 import { getSearchConsoleQueryPath } from './run';
 
 const jsonResponse = (
     body: unknown,
     status = 200,
     headers: Record<string, string> = {},
-): ApiConnectorResponse => ({ status, headers, body });
+): LiveHttpResponse => ({ status, headers, body });
 
-const createConnector = (response: ApiConnectorResponse) => {
+const createConnector = (response: LiveHttpResponse) => {
     const send = vi.fn().mockResolvedValue(response);
     return {
         send,

@@ -5,10 +5,10 @@ import type {
     DimensionType,
     QueryExecutionContext,
 } from '@lightdash/common';
-import type { ApiQueryOutcome } from './apiQueryOutcome';
+import type { LiveQueryOutcome } from './query/outcome';
 
 /** How hard Lightdash may call the API through one connection, across all servers. */
-export type ApiConnectorLimits = {
+export type LiveCallLimits = {
     concurrentCalls: number;
     callsPerMinute: number;
     callsPerHour: number;
@@ -16,15 +16,15 @@ export type ApiConnectorLimits = {
     callsPerQuery: number;
 };
 
-export type ApiConnectorDescription = {
+export type LiveConnectorDescription = {
     connector: ApiConnectorType;
     label: string;
     /** Most rows one execution can return. */
     maxRows: number;
     /** How long the API lets one query run before failing it. */
     timeoutMs: number;
-    limits: ApiConnectorLimits;
-    capabilities: ApiConnectorCapabilities;
+    limits: LiveCallLimits;
+    capabilities: LiveCapabilities;
 };
 
 /**
@@ -32,10 +32,10 @@ export type ApiConnectorDescription = {
  * connector. Metric additivity is tagged on each metric of the semantic
  * layer and joins these when an explore is built.
  */
-export type ApiConnectorCapabilities = Omit<ApiSourceCapabilities, 'metrics'>;
+export type LiveCapabilities = Omit<ApiSourceCapabilities, 'metrics'>;
 
 /** Every feature the shared check gates, refused. */
-export const ALL_PUSHDOWN_REFUSED: ApiConnectorCapabilities['pushdown'] = {
+export const ALL_PUSHDOWN_REFUSED: LiveCapabilities['pushdown'] = {
     tableCalculations: 'refused',
     customDimensions: 'refused',
     customMetrics: 'refused',
@@ -44,24 +44,24 @@ export const ALL_PUSHDOWN_REFUSED: ApiConnectorCapabilities['pushdown'] = {
     dateZoom: 'refused',
 };
 
-export type ApiConnectorColumn = {
+export type LiveColumn = {
     name: string;
     type: DimensionType;
 };
 
-export type ApiConnectorResult = {
-    columns: ApiConnectorColumn[];
+export type LiveConnectorResult = {
+    columns: LiveColumn[];
     rows: Record<string, unknown>[];
     /**
      * True when the API had rows past the ones read. A query sorted on our
-     * side is refused then, see assertApiResultComplete.
+     * side is refused then, see assertLiveResultComplete.
      */
     hasMoreRows: boolean;
     /** Bytes the API reports reading, or null when it doesn't report them. */
     bytesRead: number | null;
 };
 
-export type ApiConnectorRequest = {
+export type LiveHttpRequest = {
     method: 'GET' | 'POST';
     /** Path on the API's origin, e.g. /api/projects/1/query/ */
     path: string;
@@ -71,7 +71,7 @@ export type ApiConnectorRequest = {
     body: unknown;
 };
 
-export type ApiConnectorResponse = {
+export type LiveHttpResponse = {
     status: number;
     /** Header names in lowercase. */
     headers: Record<string, string>;
@@ -80,23 +80,23 @@ export type ApiConnectorResponse = {
 };
 
 /** Sends a request with the connection's credentials attached, so connectors never hold them. */
-export type ApiConnectorTransport = (
-    request: ApiConnectorRequest,
-) => Promise<ApiConnectorResponse>;
+export type LiveTransport = (
+    request: LiveHttpRequest,
+) => Promise<LiveHttpResponse>;
 
-export type ApiConnectorExecuteArgs = {
+export type LiveConnectorExecuteArgs = {
     payload: ApiSourcePayload;
     limit: number;
 };
 
 /** One external API an api query source can call live. */
-export interface ApiConnector {
-    describe(): ApiConnectorDescription;
-    execute(args: ApiConnectorExecuteArgs): Promise<ApiConnectorResult>;
+export interface LiveConnector {
+    describe(): LiveConnectorDescription;
+    execute(args: LiveConnectorExecuteArgs): Promise<LiveConnectorResult>;
 }
 
 /** What one query's calls cost, counted by the transport so failed queries count too. */
-export type ApiConnectorUsage = {
+export type LiveConnectorUsage = {
     apiCalls: number;
     responseBytes: number;
     /** Status of the last response, or null when no response arrived. */
@@ -104,12 +104,12 @@ export type ApiConnectorUsage = {
 };
 
 /** A finished query, as its connection's call log keeps it. */
-export type ApiConnectorCall = {
+export type LiveConnectorCall = {
     queryUuid: string;
     context: QueryExecutionContext;
     query: string;
     rowLimit: number;
-    outcome: ApiQueryOutcome;
+    outcome: LiveQueryOutcome;
     errorMessage: string | null;
     durationMs: number;
     rowCount: number | null;
@@ -119,8 +119,8 @@ export type ApiConnectorCall = {
 };
 
 /** A connector bound to one connection for one query, metering what it sends. */
-export interface MeteredApiConnector extends ApiConnector {
-    usage(): ApiConnectorUsage;
+export interface MeteredLiveConnector extends LiveConnector {
+    usage(): LiveConnectorUsage;
     /** Logs the finished query against its connection; never throws. */
-    logCall(call: ApiConnectorCall): Promise<void>;
+    logCall(call: LiveConnectorCall): Promise<void>;
 }

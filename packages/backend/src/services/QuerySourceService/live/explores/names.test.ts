@@ -4,26 +4,26 @@ import {
     getItemMap,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
+import { type LiveScanResult } from '../integration';
 import {
-    buildApiSourceExplores,
-    getApiSourceBaseLayer,
-    getApiSourceReservedExploreNames,
+    buildLiveExplores,
+    getLiveBaseLayer,
+    getLiveReservedExploreNames,
     toScannedLiveSourceFields,
-} from './apiSourceExplores';
-import { type ApiSourceScan } from './ApiSourceIntegration';
-import { type LiveSourceFieldEdits } from './liveSourceFields';
+} from './build';
+import { type LiveSourceFieldEdits } from './fields';
 
 /**
  * Locks every live data source explore name and field id. Saved charts,
  * dashboard filters and scheduled deliveries store them, so a rename breaks
  * customer content. Update the snapshot only for a deliberate, additive
- * change, never to rename or remove an id. See `getApiSourceExploreName`.
+ * change, never to rename or remove an id. See `getLiveExploreName`.
  */
 
 const SOURCES: {
     name: string;
     apiSource: ExternalConnectionApiSource;
-    scan: ApiSourceScan;
+    scan: LiveScanResult;
 }[] = [
     {
         name: 'Google Analytics',
@@ -113,7 +113,7 @@ describe('live data source names', () => {
                 scan,
             );
             // Every field in use, so the snapshot holds every id a chart can store
-            const { definitions } = getApiSourceBaseLayer(apiSource.connector);
+            const { definitions } = getLiveBaseLayer(apiSource.connector);
             const everyFieldInUse: LiveSourceFieldEdits = Object.fromEntries(
                 [
                     ...definitions.flatMap((definition) => [
@@ -123,7 +123,7 @@ describe('live data source names', () => {
                     ...scannedFields.map((field) => field.definition),
                 ].map((field) => [field.name, { inUse: true, lastEdit: null }]),
             );
-            const explores = buildApiSourceExplores({
+            const explores = buildLiveExplores({
                 connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
                 sourceName,
                 name,
@@ -137,7 +137,7 @@ describe('live data source names', () => {
                     name: explore.name,
                     fieldIds: Object.keys(getItemMap(explore)).sort(),
                 })),
-                reservedExploreNames: getApiSourceReservedExploreNames(
+                reservedExploreNames: getLiveReservedExploreNames(
                     apiSource.connector,
                     sourceName,
                 ),

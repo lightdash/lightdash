@@ -27,7 +27,7 @@ import {
     type TimeFrames,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { type ApiConnectorCapabilities } from './ApiConnector';
+import { type LiveCapabilities } from '../connector';
 
 type ApiSourceFieldDefinition = {
     /** Stable within the explore: saved charts reference it forever, so never rename it. */
@@ -43,13 +43,13 @@ type ApiSourceFieldDefinition = {
     groups?: string[];
 };
 
-export type ApiSourceDimensionDefinition = ApiSourceFieldDefinition & {
+export type LiveDimensionDefinition = ApiSourceFieldDefinition & {
     type: DimensionType;
     /** A coarser grain of a date dimension that the API groups by itself. */
     timeInterval?: { base: string; grain: TimeFrames };
 };
 
-export type ApiSourceMetricDefinition = ApiSourceFieldDefinition & {
+export type LiveMetricDefinition = ApiSourceFieldDefinition & {
     type: MetricType;
     format?: string;
     /**
@@ -61,12 +61,12 @@ export type ApiSourceMetricDefinition = ApiSourceFieldDefinition & {
 };
 
 /** One explore of an integration's semantic layer, written by hand or found by a scan. */
-export type ApiSourceExploreDefinition = {
+export type LiveExploreDefinition = {
     name: string;
     label: string;
     description: string;
-    dimensions: ApiSourceDimensionDefinition[];
-    metrics: ApiSourceMetricDefinition[];
+    dimensions: LiveDimensionDefinition[];
+    metrics: LiveMetricDefinition[];
     maxDimensions: number | null;
     maxMetrics: number | null;
     dateRange: { dimension: string; defaultDays: number } | null;
@@ -74,7 +74,7 @@ export type ApiSourceExploreDefinition = {
 };
 
 /** Builds a live data source explore whose field ids are `<exploreName>_<field name>`. */
-export const buildApiSourceExplore = ({
+export const buildLiveExplore = ({
     definition,
     exploreName,
     label,
@@ -86,14 +86,14 @@ export const buildApiSourceExplore = ({
     warehouseSqlBuilder,
     aiHint,
 }: {
-    definition: ApiSourceExploreDefinition;
+    definition: LiveExploreDefinition;
     exploreName: string;
     label: string;
     connectionUuid: string;
     integration: ApiConnectorType;
     baseVersion: number;
     definitionHash?: string;
-    capabilities: ApiConnectorCapabilities;
+    capabilities: LiveCapabilities;
     warehouseSqlBuilder: WarehouseSqlBuilder;
     aiHint?: string[];
 }): Explore => {
@@ -115,7 +115,7 @@ export const buildApiSourceExplore = ({
         ),
     );
     const toTimeIntervalProperties = (
-        dimension: ApiSourceDimensionDefinition,
+        dimension: LiveDimensionDefinition,
     ): Partial<Dimension> => {
         // A base that is also its own finest grain stays selectable
         if (!dimension.timeInterval) {
@@ -238,7 +238,7 @@ export const buildApiSourceExplore = ({
 };
 
 /** A metric query compiled into one connector call, plus what to do with its rows. */
-export type CompiledApiSourceQuery = {
+export type CompiledLiveQuery = {
     /** The connector's own request, e.g. a GA4 runReport body. */
     query: string;
     /** Rows to ask the connector for; more than `limit` when rows are sorted locally. */
@@ -252,13 +252,13 @@ export type CompiledApiSourceQuery = {
      * Columns holding compact periods (GA4's YYYYWW ISO weeks, YYYYMM or
      * YYYY), turned into the period's first day so they read as dates.
      */
-    periodColumns?: Record<string, ApiSourcePeriodFormat>;
+    periodColumns?: Record<string, LivePeriodFormat>;
 };
 
-export type ApiSourcePeriodFormat = 'iso_week' | 'year_month' | 'year';
+export type LivePeriodFormat = 'iso_week' | 'year_month' | 'year';
 
 /** The explore's live data source rules; fails for any other explore. */
-export const getApiSourceExplore = (explore: Explore): ApiSourceExplore => {
+export const getLiveExplore = (explore: Explore): ApiSourceExplore => {
     const { apiSource } = explore;
     if (explore.type !== ExploreType.API_SOURCE || !apiSource) {
         throw new ParameterError(
@@ -290,7 +290,7 @@ export const toFieldCombinationIssue = (
  * One error for every fixable reason the API can't answer a query, its
  * messages joined and its refusal codes in `data`.
  */
-export const toApiSourceQueryError = (
+export const toLiveQueryError = (
     issues: ApiSourceQueryIssue[],
 ): ParameterError => {
     const data: LiveSourceErrorData & { liveSourceFieldIds: string[] } = {
@@ -310,18 +310,18 @@ export const toApiSourceQueryError = (
  * Fails with every fixable reason the API can't answer the query, from the
  * shared check every entry point runs, so compilers only translate.
  */
-export const assertApiSourceQuery = (
+export const assertLiveQuery = (
     explore: Explore,
     metricQuery: MetricQuery,
     context: ApiSourceQueryContext = {},
 ): ApiSourceExplore => {
-    const apiSource = getApiSourceExplore(explore);
+    const apiSource = getLiveExplore(explore);
     const issues = getApiSourceQueryIssues(apiSource, metricQuery, {
         itemsMap: getItemMap(explore),
         ...context,
     });
     if (issues.length > 0) {
-        throw toApiSourceQueryError(issues);
+        throw toLiveQueryError(issues);
     }
     return apiSource;
 };

@@ -5,7 +5,7 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type { ApiConnectorResponse } from '../../../api/ApiConnector';
+import type { LiveHttpResponse } from '../../connector';
 
 const googleErrorSchema = z.object({
     error: z.object({
@@ -16,7 +16,7 @@ const googleErrorSchema = z.object({
 
 /** Turns a Google API error response into an error that says what to change. */
 export const toGoogleApiError = (
-    response: ApiConnectorResponse,
+    response: LiveHttpResponse,
     { label, resource }: { label: string; resource: string },
 ): Error => {
     const parsed = googleErrorSchema.safeParse(response.body);

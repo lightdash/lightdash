@@ -4,21 +4,21 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import {
-    assertApiResultComplete,
-    buildApiSourceExplores,
-    compileApiSourceMetricQuery,
+    assertLiveResultComplete,
+    buildLiveExplores,
+    compileLiveMetricQuery,
     getLegacyLiveSourceName,
     toScannedLiveSourceFields,
-} from './apiSourceExplores';
-import { getInitialLiveSourceFieldEdits } from './liveSourceFields';
+} from '../explores/build';
+import { getInitialLiveSourceFieldEdits } from '../explores/fields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
 
 const build = (
-    apiSource: Parameters<typeof buildApiSourceExplores>[0]['apiSource'],
+    apiSource: Parameters<typeof buildLiveExplores>[0]['apiSource'],
 ): Explore => {
     const scannedFields = toScannedLiveSourceFields(apiSource.connector, {});
-    const [explore] = buildApiSourceExplores({
+    const [explore] = buildLiveExplores({
         connectionUuid: CONNECTION_UUID,
         sourceName: getLegacyLiveSourceName(
             apiSource.connector,
@@ -57,8 +57,8 @@ const MESSAGE =
 
 const check =
     (explore: Explore, metricQuery: MetricQuery, hasMoreRows: boolean) => () =>
-        assertApiResultComplete({
-            compiled: compileApiSourceMetricQuery({
+        assertLiveResultComplete({
+            compiled: compileLiveMetricQuery({
                 explore,
                 metricQuery,
                 timezone: 'UTC',

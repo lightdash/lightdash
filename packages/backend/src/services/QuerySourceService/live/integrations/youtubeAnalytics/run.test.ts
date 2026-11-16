@@ -7,21 +7,18 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { youtubeAnalyticsIntegration } from '.';
-import type {
-    ApiConnector,
-    ApiConnectorResponse,
-} from '../../../api/ApiConnector';
+import type { LiveConnector, LiveHttpResponse } from '../../connector';
 import { YOUTUBE_ANALYTICS_REPORTS_PATH } from './run';
 
 const CHANNEL = 'UCabcdefghijklmnopqrstuv';
 
-const jsonResponse = (body: unknown, status = 200): ApiConnectorResponse => ({
+const jsonResponse = (body: unknown, status = 200): LiveHttpResponse => ({
     status,
     headers: {},
     body,
 });
 
-const createConnector = (response: ApiConnectorResponse) => {
+const createConnector = (response: LiveHttpResponse) => {
     const send = vi.fn().mockResolvedValue(response);
     return {
         send,
@@ -36,7 +33,7 @@ const createConnector = (response: ApiConnectorResponse) => {
 };
 
 const execute = (
-    connector: ApiConnector,
+    connector: LiveConnector,
     request: Record<string, unknown>,
     limit = 2,
 ) =>

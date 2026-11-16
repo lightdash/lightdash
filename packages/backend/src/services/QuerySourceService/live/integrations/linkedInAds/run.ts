@@ -8,16 +8,13 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type {
-    ApiConnectorColumn,
-    ApiConnectorResponse,
-} from '../../../api/ApiConnector';
-import { tooManyRowsError } from '../../../api/apiSourceRows';
+import type { LiveColumn, LiveHttpResponse } from '../../connector';
 import type {
     LiveCalls,
     LiveRunArgs,
     LiveRunResult,
 } from '../../defineLiveIntegration';
+import { tooManyRowsError } from '../../query/rows';
 import {
     LINKEDIN_ADS_CAMPAIGN_COLUMNS,
     LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS,
@@ -144,7 +141,7 @@ const urnList = (kind: string, ids: string[]) =>
 
 /** Turns a LinkedIn API error response into an error that says what to change. */
 export const toLinkedInApiError = (
-    response: ApiConnectorResponse,
+    response: LiveHttpResponse,
     adAccountId: string,
 ): Error => {
     const parsed = errorSchema.safeParse(response.body);
@@ -384,7 +381,7 @@ export const runLinkedInAdsQuery = async ({
             ),
         };
     });
-    const columns: ApiConnectorColumn[] = [
+    const columns: LiveColumn[] = [
         ...request.dimensions.map((name) => ({
             name,
             type: getColumnType(name),

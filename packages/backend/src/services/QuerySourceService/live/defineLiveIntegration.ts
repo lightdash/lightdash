@@ -8,27 +8,27 @@ import {
 } from '@lightdash/common';
 import { type z } from 'zod';
 import {
-    type ApiConnectorCapabilities,
-    type ApiConnectorColumn,
-    type ApiConnectorLimits,
-    type ApiConnectorRequest,
-    type ApiConnectorResponse,
-    type ApiConnectorResult,
-} from '../api/ApiConnector';
+    type LiveCallLimits,
+    type LiveCapabilities,
+    type LiveColumn,
+    type LiveConnectorResult,
+    type LiveHttpRequest,
+    type LiveHttpResponse,
+} from './connector';
 import {
-    type ApiSourceExploreDefinition,
-    type CompiledApiSourceQuery,
-} from '../api/apiSourceExplore';
+    type CompiledLiveQuery,
+    type LiveExploreDefinition,
+} from './explores/definition';
 import {
-    API_SOURCE_RESPONSE_MAX_BYTES,
-    assertApiSourceOrigin,
-    type ApiSourceCompileArgs,
-    type ApiSourceIntegration,
-    type ApiSourceScan,
-} from '../api/ApiSourceIntegration';
+    assertLiveOrigin,
+    LIVE_RESPONSE_MAX_BYTES,
+    type LiveCompileArgs,
+    type LiveIntegration,
+    type LiveScanResult,
+} from './integration';
 
 /** How hard Lightdash may call the API, and how much one call may return. */
-export type LiveLimits = ApiConnectorLimits & {
+export type LiveLimits = LiveCallLimits & {
     /** How long the API lets one call run before failing it. */
     timeoutMs: number;
     /** Most rows one query can return; named in the too-many-rows error. */
@@ -38,12 +38,12 @@ export type LiveLimits = ApiConnectorLimits & {
 /** The calls `run` makes, with the connection's credentials and limits applied. */
 export type LiveCalls = {
     /** Sends one call; a status outside 2xx throws the integration's `toError`. */
-    send(request: ApiConnectorRequest): Promise<ApiConnectorResponse>;
+    send(request: LiveHttpRequest): Promise<LiveHttpResponse>;
     /**
      * Sends one call and returns its body, checked against `response`. A
      * status outside 2xx throws the integration's `toError`.
      */
-    fetch<T>(request: ApiConnectorRequest, response: z.ZodType<T>): Promise<T>;
+    fetch<T>(request: LiveHttpRequest, response: z.ZodType<T>): Promise<T>;
 };
 
 export type LiveRunArgs<C extends ApiConnectorType, Request> = {
@@ -58,7 +58,7 @@ export type LiveRunArgs<C extends ApiConnectorType, Request> = {
 };
 
 export type LiveRunResult = {
-    columns: ApiConnectorColumn[];
+    columns: LiveColumn[];
     rows: Record<string, unknown>[];
     /** True when the API had rows past the ones read. */
     hasMoreRows: boolean;
@@ -74,9 +74,9 @@ export type LiveConnectionCheck = {
 
 /**
  * One external API Lightdash queries live. Write one of these per
- * integration and list it in `apiSourceIntegrations.ts`.
+ * integration and list it in `live/registry.ts`.
  */
-export type LiveIntegration<C extends ApiConnectorType, Request> = {
+export type LiveIntegrationDefinition<C extends ApiConnectorType, Request> = {
     connector: C;
     label: string;
     /** The shape stored on the connection. */
@@ -90,12 +90,9 @@ export type LiveIntegration<C extends ApiConnectorType, Request> = {
         headers?: Record<string, string> | null;
     };
     limits: LiveLimits;
-    capabilities: ApiConnectorCapabilities;
+    capabilities: LiveCapabilities;
     /** The first is the wide model: scans and field edits apply to it. */
-    explores: readonly [
-        ApiSourceExploreDefinition,
-        ...ApiSourceExploreDefinition[],
-    ];
+    explores: readonly [LiveExploreDefinition, ...LiveExploreDefinition[]];
     /** Explore names reserved for models not built yet. */
     plannedModelNames: readonly string[];
     /** Throws a ParameterError naming the setting the admin has to change. */
@@ -113,23 +110,20 @@ export type LiveIntegration<C extends ApiConnectorType, Request> = {
      * Throws a ParameterError saying what to fix; `jsonRequest` covers JSON.
      */
     parseRequest: (query: string) => Request;
-    compile: (args: ApiSourceCompileArgs) => CompiledApiSourceQuery;
+    compile: (args: LiveCompileArgs) => CompiledLiveQuery;
     run: (args: LiveRunArgs<C, Request>) => Promise<LiveRunResult>;
     /** Turns a response outside 2xx into an error that says what to change. */
-    toError: (
-        response: ApiConnectorResponse,
-        settings: ApiSourceOf<C>,
-    ) => Error;
+    toError: (response: LiveHttpResponse, settings: ApiSourceOf<C>) => Error;
     /** Reads fields the API reports itself; omitted when every field is built in. */
     scan?: {
         read: (args: {
             settings: ApiSourceOf<C>;
             calls: LiveCalls;
-        }) => Promise<ApiSourceScan>;
+        }) => Promise<LiveScanResult>;
         withScannedFields: (
-            definition: ApiSourceExploreDefinition,
-            scan: ApiSourceScan,
-        ) => ApiSourceExploreDefinition;
+            definition: LiveExploreDefinition,
+            scan: LiveScanResult,
+        ) => LiveExploreDefinition;
         /** Scanned fields kept out of the default field list. */
         isInternalField?: (apiName: string) => boolean;
     };
@@ -170,8 +164,8 @@ const isOk = (status: number) => status >= 200 && status < 300;
 
 /** Builds the integration the rest of the backend reads. */
 export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
-    live: LiveIntegration<C, Request>,
-): ApiSourceIntegration<C> => {
+    live: LiveIntegrationDefinition<C, Request>,
+): LiveIntegration<C> => {
     const { label, limits, scan } = live;
     return {
         connector: live.connector,
@@ -189,7 +183,7 @@ export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
                 allowedMethods: access.methods,
                 allowedContentTypes: ['application/json'],
                 timeoutMs: limits.timeoutMs,
-                responseMaxBytes: API_SOURCE_RESPONSE_MAX_BYTES,
+                responseMaxBytes: LIVE_RESPONSE_MAX_BYTES,
                 ...(access.headers !== undefined
                     ? { customHeaders: access.headers }
                     : {}),
@@ -197,7 +191,7 @@ export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
         },
         validateConnection: ({ apiSource, type, origin, oauthTokenUrl }) => {
             live.validate(apiSource);
-            assertApiSourceOrigin(label, origin, live.origins);
+            assertLiveOrigin(label, origin, live.origins);
             live.checkAuth({ type, origin, oauthTokenUrl });
         },
         describeTarget: ({ apiSource, origin, targetLabel }) =>
@@ -213,7 +207,7 @@ export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
               }
             : {}),
         createConnector: (settings, transport) => {
-            const send = async (request: ApiConnectorRequest) => {
+            const send = async (request: LiveHttpRequest) => {
                 const response = await transport(request);
                 if (!isOk(response.status)) {
                     throw live.toError(response, settings);
@@ -251,7 +245,7 @@ export const defineLiveIntegration = <C extends ApiConnectorType, Request>(
                     execute: async ({
                         payload,
                         limit,
-                    }): Promise<ApiConnectorResult> => {
+                    }): Promise<LiveConnectorResult> => {
                         if (!Number.isInteger(limit) || limit < 1) {
                             throw new ParameterError(
                                 'limit must be a positive number of rows',

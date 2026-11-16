@@ -6,10 +6,10 @@ import {
     type ApiSourceMetricAggregation,
 } from '@lightdash/common';
 import type {
-    ApiSourceDimensionDefinition,
-    ApiSourceExploreDefinition,
-    ApiSourceMetricDefinition,
-} from '../../../api/apiSourceExplore';
+    LiveDimensionDefinition,
+    LiveExploreDefinition,
+    LiveMetricDefinition,
+} from '../../explores/definition';
 
 export const LINKEDIN_ADS_DATE_FILTERS = [
     FilterOperator.IN_THE_PAST,
@@ -46,7 +46,7 @@ const dateGrain = (
     label: string,
     grain: TimeFrames,
     description: string,
-): ApiSourceDimensionDefinition => ({
+): LiveDimensionDefinition => ({
     name,
     apiName,
     label,
@@ -63,7 +63,7 @@ const dimension = (
     group: string,
     description: string,
     filterOperators: FilterOperator[] = [],
-): ApiSourceDimensionDefinition => ({
+): LiveDimensionDefinition => ({
     name,
     apiName,
     label,
@@ -86,8 +86,8 @@ const metric = (
     label: string,
     group: string,
     description: string,
-    overrides: Partial<ApiSourceMetricDefinition> = {},
-): ApiSourceMetricDefinition => ({
+    overrides: Partial<LiveMetricDefinition> = {},
+): LiveMetricDefinition => ({
     name,
     apiName,
     label,
@@ -99,7 +99,7 @@ const metric = (
     ...overrides,
 });
 
-const money = (description: string): Partial<ApiSourceMetricDefinition> => ({
+const money = (description: string): Partial<LiveMetricDefinition> => ({
     description,
     format: '#,##0.00',
 });
@@ -109,7 +109,7 @@ const money = (description: string): Partial<ApiSourceMetricDefinition> => ({
  * ads only: organic Company Page analytics come from a different API,
  * permission and account (see the planned model names).
  */
-export const LINKEDIN_ADS_PERFORMANCE_EXPLORE: ApiSourceExploreDefinition = {
+export const LINKEDIN_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
     name: 'performance',
     label: 'Performance',
     description:

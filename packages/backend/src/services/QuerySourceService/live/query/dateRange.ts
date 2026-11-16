@@ -10,13 +10,13 @@ import {
 } from '@lightdash/common';
 
 /** A calendar date, or a day counted back from today in the API's time zone. */
-export type ApiDateBound = { date: string } | { daysAgo: number };
+export type LiveDateBound = { date: string } | { daysAgo: number };
 
 /** The dates an API query covers, both ends included. */
-export type ApiDateRange = { start: ApiDateBound; end: ApiDateBound };
+export type LiveDateRange = { start: LiveDateBound; end: LiveDateBound };
 
-const daysAgo = (days: number): ApiDateBound => ({ daysAgo: days });
-const onDate = (date: string): ApiDateBound => ({ date });
+const daysAgo = (days: number): LiveDateBound => ({ daysAgo: days });
+const onDate = (date: string): LiveDateBound => ({ date });
 
 const DAY_MS = 86_400_000;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
@@ -116,12 +116,12 @@ const getCompletedPeriod = (
     unit: UnitOfTime,
     count: number,
     today: string,
-): ApiDateRange => ({
+): LiveDateRange => ({
     start: onDate(getPeriodStart(unit, today, count)),
     end: onDate(addDays(getPeriodStart(unit, today, 0), -1)),
 });
 
-const getPastRange = (rule: FilterRule, today: string): ApiDateRange => {
+const getPastRange = (rule: FilterRule, today: string): LiveDateRange => {
     const count = Number(rule.values?.[0]);
     if (!Number.isInteger(count) || count < 1) {
         throw new ParameterError(
@@ -180,7 +180,7 @@ const getNotPastRange = (
     rule: FilterRule,
     today: string,
     earliestDate: string,
-): ApiDateRange => {
+): LiveDateRange => {
     const settings: { completed?: boolean } = rule.settings ?? {};
     if (settings.completed) {
         throw new ParameterError(
@@ -202,7 +202,7 @@ const getNotPastRange = (
  * without one. Open-ended filters such as "after" or "before" start at
  * `earliestDate`, the first day the API reports.
  */
-export const getApiDateRange = ({
+export const getLiveDateRange = ({
     rule,
     defaultDays,
     today,
@@ -212,7 +212,7 @@ export const getApiDateRange = ({
     defaultDays: number;
     today: string;
     earliestDate?: string;
-}): ApiDateRange => {
+}): LiveDateRange => {
     if (!rule) {
         return { start: daysAgo(defaultDays), end: daysAgo(1) };
     }
@@ -280,12 +280,12 @@ export const getApiDateRange = ({
 };
 
 /** A bound as a calendar date, for APIs without relative dates. */
-export const toAbsoluteDate = (bound: ApiDateBound, today: string): string =>
+export const toAbsoluteDate = (bound: LiveDateBound, today: string): string =>
     'date' in bound ? bound.date : addDays(today, -bound.daysAgo);
 
 /** The range as calendar dates, for APIs without relative dates. */
 export const toAbsoluteDateRange = (
-    range: ApiDateRange,
+    range: LiveDateRange,
     today: string,
 ): { startDate: string; endDate: string } => ({
     startDate: toAbsoluteDate(range.start, today),
@@ -314,7 +314,7 @@ export const resolveAbsoluteDateRange = ({
         : { dateRule: null, otherFilters: filters };
     return {
         ...toAbsoluteDateRange(
-            getApiDateRange({
+            getLiveDateRange({
                 rule: dateRule,
                 defaultDays: dateRange?.defaultDays ?? 30,
                 today,

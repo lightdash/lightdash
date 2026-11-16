@@ -9,14 +9,14 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { youtubeAnalyticsIntegration } from '.';
-import { buildApiSourceExplore } from '../../../api/apiSourceExplore';
+import { buildLiveExplore } from '../../explores/definition';
 import { compileYoutubeAnalyticsQuery } from './compile';
 import { YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE } from './explores';
 
 const EXPLORE = 'youtube_activity';
 const TODAY = '2026-11-09';
 
-const explore = buildApiSourceExplore({
+const explore = buildLiveExplore({
     definition: YOUTUBE_ANALYTICS_ACTIVITY_EXPLORE,
     exploreName: EXPLORE,
     label: 'Channel',

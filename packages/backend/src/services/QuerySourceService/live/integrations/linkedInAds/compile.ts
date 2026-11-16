@@ -5,19 +5,16 @@ import {
     type FilterRule,
     type MetricQuery,
 } from '@lightdash/common';
-import { resolveAbsoluteDateRange } from '../../../api/apiDateRange';
 import {
     getActiveFilterRules,
     getApiName,
-    getApiSourceExplore,
-    toApiSourceQueryError,
+    getLiveExplore,
     toFieldCombinationIssue,
-    type CompiledApiSourceQuery,
-} from '../../../api/apiSourceExplore';
-import {
-    getGrainIssues,
-    type ApiSourceGrain,
-} from '../../../api/apiSourceGrain';
+    toLiveQueryError,
+    type CompiledLiveQuery,
+} from '../../explores/definition';
+import { resolveAbsoluteDateRange } from '../../query/dateRange';
+import { getGrainIssues, type LiveGrain } from '../../query/grain';
 import {
     LINKEDIN_ADS_CAMPAIGN_COLUMNS,
     LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS,
@@ -38,7 +35,7 @@ const TIME_GRANULARITIES: Record<string, string> = {
 };
 
 const refuse = (fieldId: string | null, message: string) =>
-    toApiSourceQueryError([toFieldCombinationIssue(fieldId, message)]);
+    toLiveQueryError([toFieldCombinationIssue(fieldId, message)]);
 
 const includesColumn = (columns: readonly string[], name: string) =>
     columns.includes(name);
@@ -62,7 +59,7 @@ const getPivot = (dimensions: string[]): LinkedInAdsPivot => {
 
 // A campaign or campaign group name identifies its rows on its own, as a
 // campaign name does on Google Ads and Meta Ads.
-const GRAINS: Partial<Record<LinkedInAdsPivot, ApiSourceGrain>> = {
+const GRAINS: Partial<Record<LinkedInAdsPivot, LiveGrain>> = {
     CAMPAIGN: {
         entity: 'campaign',
         identities: [['campaign.id'], ['campaign.name']],
@@ -137,8 +134,8 @@ export const compileLinkedInAdsQuery = ({
     explore: Explore;
     metricQuery: MetricQuery;
     today: string;
-}): CompiledApiSourceQuery => {
-    const apiSource = getApiSourceExplore(explore);
+}): CompiledLiveQuery => {
+    const apiSource = getLiveExplore(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const { otherFilters, ...dateRange } = resolveAbsoluteDateRange({
         dateRange: apiSource.dateRange ?? undefined,
@@ -165,7 +162,7 @@ export const compileLinkedInAdsQuery = ({
         apiName,
     });
     if (grainIssues.length > 0) {
-        throw toApiSourceQueryError(grainIssues);
+        throw toLiveQueryError(grainIssues);
     }
 
     const metrics =

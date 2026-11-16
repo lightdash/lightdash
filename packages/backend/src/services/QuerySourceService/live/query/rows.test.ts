@@ -1,5 +1,5 @@
 import { ParameterError } from '@lightdash/common';
-import { readRowsWithinCap } from './apiSourceRows';
+import { readRowsWithinCap } from './rows';
 
 const rowsOf = (count: number) =>
     Array.from({ length: count }, (_, index) => ({ index }));

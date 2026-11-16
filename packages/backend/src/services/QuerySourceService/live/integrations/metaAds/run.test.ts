@@ -7,19 +7,16 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import { metaAdsIntegration } from '.';
-import type {
-    ApiConnector,
-    ApiConnectorResponse,
-} from '../../../api/ApiConnector';
+import type { LiveConnector, LiveHttpResponse } from '../../connector';
 import { META_ADS_MAX_QUERY_ROWS } from './run';
 
-const jsonResponse = (body: unknown, status = 200): ApiConnectorResponse => ({
+const jsonResponse = (body: unknown, status = 200): LiveHttpResponse => ({
     status,
     headers: {},
     body,
 });
 
-const createConnector = (...responses: ApiConnectorResponse[]) => {
+const createConnector = (...responses: LiveHttpResponse[]) => {
     const send = vi.fn();
     responses.forEach((response) => send.mockResolvedValueOnce(response));
     return {
@@ -38,7 +35,7 @@ const BASE_REQUEST = {
 };
 
 const execute = (
-    connector: ApiConnector,
+    connector: LiveConnector,
     request: Record<string, unknown> = BASE_REQUEST,
     limit = 2,
 ) =>

@@ -1,5 +1,5 @@
 import { DimensionType, WarehouseQueryError } from '@lightdash/common';
-import type { ApiConnectorResult } from '../../../api/ApiConnector';
+import type { LiveConnectorResult } from '../../connector';
 import {
     POSTHOG_EVENTS_QUERY,
     POSTHOG_PROPERTY_KEYS_QUERY,
@@ -13,7 +13,7 @@ const now = new Date('2026-11-02T10:00:00Z');
 const result = (
     rows: Record<string, unknown>[],
     hasMoreRows = false,
-): ApiConnectorResult => ({ columns: [], rows, hasMoreRows, bytesRead: null });
+): LiveConnectorResult => ({ columns: [], rows, hasMoreRows, bytesRead: null });
 
 const eventsResult = result(
     [

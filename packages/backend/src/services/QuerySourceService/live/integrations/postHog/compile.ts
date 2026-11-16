@@ -11,9 +11,9 @@ import {
 import { compileMetricQuery } from '../../../../../queryCompiler';
 import { MetricQueryBuilder } from '../../../../../utils/QueryBuilder/MetricQueryBuilder';
 import {
-    getApiSourceExplore,
-    type CompiledApiSourceQuery,
-} from '../../../api/apiSourceExplore';
+    getLiveExplore,
+    type CompiledLiveQuery,
+} from '../../explores/definition';
 
 const withDefaultDateRange = (
     metricQuery: MetricQuery,
@@ -65,8 +65,8 @@ export const compilePostHogQuery = ({
     metricQuery: MetricQuery;
     warehouseSqlBuilder: WarehouseSqlBuilder;
     timezone: string;
-}): CompiledApiSourceQuery => {
-    const apiSource = getApiSourceExplore(explore);
+}): CompiledLiveQuery => {
+    const apiSource = getLiveExplore(explore);
     const query = apiSource.dateRange
         ? withDefaultDateRange(metricQuery, apiSource.dateRange)
         : metricQuery;

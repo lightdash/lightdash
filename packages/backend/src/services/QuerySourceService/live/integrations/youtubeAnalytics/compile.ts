@@ -6,18 +6,18 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import {
-    getApiDateRange,
-    splitDateRangeFilter,
-    toAbsoluteDateRange,
-} from '../../../api/apiDateRange';
-import {
     getActiveFilterRules,
     getApiName,
-    getApiSourceExplore,
-    toApiSourceQueryError,
+    getLiveExplore,
     toFieldCombinationIssue,
-    type CompiledApiSourceQuery,
-} from '../../../api/apiSourceExplore';
+    toLiveQueryError,
+    type CompiledLiveQuery,
+} from '../../explores/definition';
+import {
+    getLiveDateRange,
+    splitDateRangeFilter,
+    toAbsoluteDateRange,
+} from '../../query/dateRange';
 
 const refuse = ({
     fieldId,
@@ -25,7 +25,7 @@ const refuse = ({
 }: {
     fieldId: string | null;
     message: string;
-}) => toApiSourceQueryError([toFieldCombinationIssue(fieldId, message)]);
+}) => toLiveQueryError([toFieldCombinationIssue(fieldId, message)]);
 
 // Reports need a metric; dimension-only queries ask for this one and drop it.
 const DIMENSION_ONLY_METRIC = 'views';
@@ -204,8 +204,8 @@ export const compileYoutubeAnalyticsQuery = ({
     explore: Explore;
     metricQuery: MetricQuery;
     today: string;
-}): CompiledApiSourceQuery => {
-    const apiSource = getApiSourceExplore(explore);
+}): CompiledLiveQuery => {
+    const apiSource = getLiveExplore(explore);
     const apiName = (fieldId: string) => getApiName(apiSource, fieldId);
     const { dateRule, otherFilters } = apiSource.dateRange
         ? splitDateRangeFilter(
@@ -231,7 +231,7 @@ export const compileYoutubeAnalyticsQuery = ({
     const filters = toFilters(rules, apiName);
 
     const absoluteRange = toAbsoluteDateRange(
-        getApiDateRange({
+        getLiveDateRange({
             rule: dateRule,
             defaultDays: apiSource.dateRange?.defaultDays ?? 28,
             today,

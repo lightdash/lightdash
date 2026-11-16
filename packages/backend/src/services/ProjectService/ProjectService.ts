@@ -541,7 +541,7 @@ import {
 } from '../MultiConnectionCompiler/MultiConnectionCompiler';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
-import { compileApiSourceMetricQuery } from '../QuerySourceService/api/apiSourceExplores';
+import { compileLiveMetricQuery } from '../QuerySourceService/live/explores/build';
 import { resolveCliPreviewDeploy } from '../resolveCliPreviewDeploy';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
@@ -9958,7 +9958,7 @@ export class ProjectService
             projectTimezone: await this.getQueryTimezoneForProject(projectUuid),
             userTimezone: getAccountUserTimezone(account),
         });
-        const { query } = compileApiSourceMetricQuery({
+        const { query } = compileLiveMetricQuery({
             explore,
             metricQuery,
             timezone,

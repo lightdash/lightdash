@@ -8,13 +8,13 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
-    API_QUERY_OUTCOMES,
-    getApiQueryOutcome,
+    getLiveQueryOutcome,
     getLiveSourceUpstreamErrorCode,
     isLiveSourceErrorReportable,
-} from './apiQueryOutcome';
+    LIVE_QUERY_OUTCOMES,
+} from './outcome';
 
-describe('getApiQueryOutcome', () => {
+describe('getLiveQueryOutcome', () => {
     it.each([
         [new ParameterError('blocked'), 'invalid_request'],
         [new WarehouseQueryError('bad HogQL'), 'query_error'],
@@ -24,7 +24,7 @@ describe('getApiQueryOutcome', () => {
         [new UnexpectedServerError('502'), 'upstream_error'],
         [new Error('S3 is not enabled'), 'internal_error'],
     ])('buckets %s as %s', (error, outcome) => {
-        expect(getApiQueryOutcome(error)).toBe(outcome);
+        expect(getLiveQueryOutcome(error)).toBe(outcome);
     });
 });
 
@@ -32,7 +32,7 @@ describe('getLiveSourceUpstreamErrorCode', () => {
     it('gives every failed outcome a stable code', () => {
         expect(
             Object.fromEntries(
-                API_QUERY_OUTCOMES.map((outcome) => [
+                LIVE_QUERY_OUTCOMES.map((outcome) => [
                     outcome,
                     getLiveSourceUpstreamErrorCode(outcome),
                 ]),

@@ -3,18 +3,18 @@ import {
     assertUnreachable,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
-import { ga4Integration } from '../live/integrations/ga4';
-import { googleAdsIntegration } from '../live/integrations/googleAds';
-import { linkedInAdsIntegration } from '../live/integrations/linkedInAds';
-import { metaAdsIntegration } from '../live/integrations/metaAds';
-import { postHogIntegration } from '../live/integrations/postHog';
-import { searchConsoleIntegration } from '../live/integrations/searchConsole';
-import { youtubeAnalyticsIntegration } from '../live/integrations/youtubeAnalytics';
-import { type ApiSourceIntegration } from './ApiSourceIntegration';
+import { type LiveIntegration } from './integration';
+import { ga4Integration } from './integrations/ga4';
+import { googleAdsIntegration } from './integrations/googleAds';
+import { linkedInAdsIntegration } from './integrations/linkedInAds';
+import { metaAdsIntegration } from './integrations/metaAds';
+import { postHogIntegration } from './integrations/postHog';
+import { searchConsoleIntegration } from './integrations/searchConsole';
+import { youtubeAnalyticsIntegration } from './integrations/youtubeAnalytics';
 
 /** One entry per integration; a missing one fails typecheck. */
-const API_SOURCE_INTEGRATIONS: {
-    [C in ApiConnectorType]: ApiSourceIntegration<C>;
+const LIVE_INTEGRATIONS: {
+    [C in ApiConnectorType]: LiveIntegration<C>;
 } = {
     [ApiConnectorType.GA4]: ga4Integration,
     [ApiConnectorType.SEARCH_CONSOLE]: searchConsoleIntegration,
@@ -25,16 +25,14 @@ const API_SOURCE_INTEGRATIONS: {
     [ApiConnectorType.LINKEDIN_ADS]: linkedInAdsIntegration,
 };
 
-export const getApiSourceIntegration = (
+export const getLiveIntegration = (
     connector: ApiConnectorType,
-): ApiSourceIntegration => {
-    if (!Object.hasOwn(API_SOURCE_INTEGRATIONS, connector)) {
+): LiveIntegration => {
+    if (!Object.hasOwn(LIVE_INTEGRATIONS, connector)) {
         return assertUnreachable(connector as never, 'Unknown api connector');
     }
     // Reached by the source's own connector, so its settings always match
-    return API_SOURCE_INTEGRATIONS[
-        connector
-    ] as unknown as ApiSourceIntegration;
+    return LIVE_INTEGRATIONS[connector] as unknown as LiveIntegration;
 };
 
 /** A stored shape no integration understands reads as null. */
@@ -49,10 +47,10 @@ export const parseStoredApiSource = (
         return null;
     }
     const connector = value.connector as ApiConnectorType;
-    if (!Object.hasOwn(API_SOURCE_INTEGRATIONS, connector)) {
+    if (!Object.hasOwn(LIVE_INTEGRATIONS, connector)) {
         return null;
     }
     const parsed =
-        getApiSourceIntegration(connector).settingsSchema.safeParse(value);
+        getLiveIntegration(connector).settingsSchema.safeParse(value);
     return parsed.success ? parsed.data : null;
 };

@@ -9,21 +9,21 @@ import {
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
-    type ApiSourceDimensionDefinition,
-    type ApiSourceExploreDefinition,
-    type ApiSourceMetricDefinition,
-} from './apiSourceExplore';
+    type LiveDimensionDefinition,
+    type LiveExploreDefinition,
+    type LiveMetricDefinition,
+} from './definition';
 
 /** A field the integration offered at its last scan, beyond the built-in ones. */
 export type ScannedLiveSourceField =
     | {
           kind: 'dimension';
-          definition: ApiSourceDimensionDefinition;
+          definition: LiveDimensionDefinition;
           isInternal: boolean;
       }
     | {
           kind: 'metric';
-          definition: ApiSourceMetricDefinition;
+          definition: LiveMetricDefinition;
           isInternal: boolean;
       };
 
@@ -133,7 +133,7 @@ export const parseLiveSourceFieldState = (
 
 type ResolvedField = {
     kind: 'dimension' | 'metric';
-    definition: ApiSourceDimensionDefinition | ApiSourceMetricDefinition;
+    definition: LiveDimensionDefinition | LiveMetricDefinition;
     isBuiltIn: boolean;
     isInternal: boolean;
     edit: LiveSourceFieldEdit | null;
@@ -143,7 +143,7 @@ const resolveFields = ({
     base,
     scannedFields,
 }: {
-    base: ApiSourceExploreDefinition;
+    base: LiveExploreDefinition;
     scannedFields: ScannedLiveSourceField[];
 }) => {
     const builtInNames = new Set([
@@ -170,7 +170,7 @@ const resolveFields = ({
 };
 
 /** The field every query on the explore filters by; it can never be taken out of use. */
-export const getRequiredFieldNames = (base: ApiSourceExploreDefinition) =>
+export const getRequiredFieldNames = (base: LiveExploreDefinition) =>
     base.dateRange ? [base.dateRange.dimension] : [];
 
 const isFieldInUse = (
@@ -186,7 +186,7 @@ export const listLiveSourceFields = ({
     edits,
     usageByFieldName,
 }: {
-    base: ApiSourceExploreDefinition;
+    base: LiveExploreDefinition;
     scannedFields: ScannedLiveSourceField[];
     edits: LiveSourceFieldEdits;
     usageByFieldName: Record<string, number>;
@@ -222,10 +222,10 @@ export const applyLiveSourceFieldEdits = ({
     scannedFields,
     edits,
 }: {
-    base: ApiSourceExploreDefinition;
+    base: LiveExploreDefinition;
     scannedFields: ScannedLiveSourceField[];
     edits: LiveSourceFieldEdits;
-}): ApiSourceExploreDefinition => {
+}): LiveExploreDefinition => {
     const required = new Set(getRequiredFieldNames(base));
     const inUse = resolveFields({ base, scannedFields }).flatMap((field) => {
         const edit = Object.hasOwn(edits, field.definition.name)
@@ -252,12 +252,12 @@ export const applyLiveSourceFieldEdits = ({
         ...base,
         dimensions: inUse.flatMap((field) =>
             field.kind === 'dimension'
-                ? [field.definition as ApiSourceDimensionDefinition]
+                ? [field.definition as LiveDimensionDefinition]
                 : [],
         ),
         metrics: inUse.flatMap((field) =>
             field.kind === 'metric'
-                ? [field.definition as ApiSourceMetricDefinition]
+                ? [field.definition as LiveMetricDefinition]
                 : [],
         ),
     };

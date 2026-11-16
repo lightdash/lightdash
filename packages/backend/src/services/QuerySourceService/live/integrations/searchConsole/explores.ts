@@ -5,10 +5,10 @@ import {
     type ApiSourceMetricAggregation,
 } from '@lightdash/common';
 import type {
-    ApiSourceDimensionDefinition,
-    ApiSourceExploreDefinition,
-    ApiSourceMetricDefinition,
-} from '../../../api/apiSourceExplore';
+    LiveDimensionDefinition,
+    LiveExploreDefinition,
+    LiveMetricDefinition,
+} from '../../explores/definition';
 
 export const SEARCH_CONSOLE_STRING_FILTERS = [
     FilterOperator.EQUALS,
@@ -37,7 +37,7 @@ const dimension = (
     name: string,
     label: string,
     description?: string,
-): ApiSourceDimensionDefinition => ({
+): LiveDimensionDefinition => ({
     name,
     apiName: name,
     label,
@@ -54,7 +54,7 @@ const metric = (
     aggregation: ApiSourceMetricAggregation,
     description: string,
     format?: string,
-): ApiSourceMetricDefinition => ({
+): LiveMetricDefinition => ({
     name,
     apiName: name,
     label,
@@ -71,7 +71,7 @@ const metric = (
 // impressions are counts, CTR is clicks / impressions and position is an
 // impression-weighted average, which summed rows can't rebuild.
 
-export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: ApiSourceExploreDefinition = {
+export const SEARCH_CONSOLE_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
     name: 'performance',
     label: 'Search performance',
     description:

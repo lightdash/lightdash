@@ -4,13 +4,10 @@ import {
     type ExternalConnectionApiSource,
     type MetricQuery,
 } from '@lightdash/common';
-import type { ApiConnectorResponse } from '../api/ApiConnector';
-import {
-    buildApiSourceExplores,
-    compileApiSourceMetricQuery,
-} from '../api/apiSourceExplores';
-import { getApiSourceIntegration } from '../api/apiSourceIntegrations';
-import { getInitialLiveSourceFieldEdits } from '../api/liveSourceFields';
+import type { LiveHttpResponse } from './connector';
+import { buildLiveExplores, compileLiveMetricQuery } from './explores/build';
+import { getInitialLiveSourceFieldEdits } from './explores/fields';
+import { getLiveIntegration } from './registry';
 
 /**
  * Checks every integration in the registry keeps the contract the rest of
@@ -53,7 +50,7 @@ const SAMPLE_SETTINGS: {
     },
 };
 
-const SERVER_ERROR: ApiConnectorResponse = {
+const SERVER_ERROR: LiveHttpResponse = {
     status: 500,
     headers: {},
     body: { error: { message: 'boom' } },
@@ -61,7 +58,7 @@ const SERVER_ERROR: ApiConnectorResponse = {
 
 const connect = (settings: ExternalConnectionApiSource) => {
     const send = vi.fn().mockResolvedValue(SERVER_ERROR);
-    const { connector } = getApiSourceIntegration(
+    const { connector } = getLiveIntegration(
         settings.connector,
     ).createConnector(settings, send);
     return { send, connector };
@@ -70,7 +67,7 @@ const connect = (settings: ExternalConnectionApiSource) => {
 describe.each(Object.values(SAMPLE_SETTINGS))(
     'live integration $connector',
     (settings) => {
-        const integration = getApiSourceIntegration(settings.connector);
+        const integration = getLiveIntegration(settings.connector);
 
         test('stores its settings as they are', () => {
             expect(integration.settingsSchema.parse(settings)).toEqual(
@@ -101,7 +98,7 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
         });
 
         test('runs what it compiles, and explains a failed call', async () => {
-            const [explore] = buildApiSourceExplores({
+            const [explore] = buildLiveExplores({
                 connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
                 sourceName: settings.connector,
                 name: 'Source',
@@ -122,7 +119,7 @@ describe.each(Object.values(SAMPLE_SETTINGS))(
                 limit: 10,
                 tableCalculations: [],
             };
-            const compiled = compileApiSourceMetricQuery({
+            const compiled = compileLiveMetricQuery({
                 explore,
                 metricQuery,
                 timezone: 'UTC',

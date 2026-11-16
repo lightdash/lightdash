@@ -9,14 +9,14 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { metaAdsIntegration } from '.';
-import { buildApiSourceExplore } from '../../../api/apiSourceExplore';
+import { buildLiveExplore } from '../../explores/definition';
 import { compileMetaAdsQuery } from './compile';
 import { META_ADS_INSIGHTS_EXPLORE } from './explores';
 import { META_ADS_MAX_QUERY_ROWS } from './run';
 
 const EXPLORE = 'meta_ads_insights';
 
-const explore = buildApiSourceExplore({
+const explore = buildLiveExplore({
     definition: META_ADS_INSIGHTS_EXPLORE,
     exploreName: EXPLORE,
     label: 'Meta Ads',

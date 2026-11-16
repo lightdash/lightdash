@@ -5,12 +5,12 @@ import {
     type FilterRule,
 } from '@lightdash/common';
 import {
-    getApiDateRange,
     getIsoDateInTimeZone,
+    getLiveDateRange,
     resolveAbsoluteDateRange,
     splitDateRangeFilter,
     toAbsoluteDateRange,
-} from './apiDateRange';
+} from './dateRange';
 
 const DATE = 'report_date';
 const TODAY = '2026-11-04'; // a Wednesday
@@ -29,7 +29,7 @@ const rule = (
 });
 
 const range = (dateRule: FilterRule | null) =>
-    getApiDateRange({ rule: dateRule, defaultDays: 28, today: TODAY });
+    getLiveDateRange({ rule: dateRule, defaultDays: 28, today: TODAY });
 
 describe('splitDateRangeFilter', () => {
     const channel = rule(
@@ -68,7 +68,7 @@ describe('splitDateRangeFilter', () => {
     });
 });
 
-describe('getApiDateRange', () => {
+describe('getLiveDateRange', () => {
     test('uses the last full days without a date filter', () => {
         expect(range(null)).toEqual({
             start: { daysAgo: 28 },
@@ -183,9 +183,9 @@ describe('getApiDateRange', () => {
     });
 });
 
-describe('getApiDateRange with open-ended filters', () => {
+describe('getLiveDateRange with open-ended filters', () => {
     const openRange = (dateRule: FilterRule) =>
-        getApiDateRange({
+        getLiveDateRange({
             rule: dateRule,
             defaultDays: 28,
             today: TODAY,

@@ -6,10 +6,10 @@ import {
     type ApiSourceMetricAggregation,
 } from '@lightdash/common';
 import type {
-    ApiSourceDimensionDefinition,
-    ApiSourceExploreDefinition,
-    ApiSourceMetricDefinition,
-} from '../../../api/apiSourceExplore';
+    LiveDimensionDefinition,
+    LiveExploreDefinition,
+    LiveMetricDefinition,
+} from '../../explores/definition';
 
 export const GOOGLE_ADS_STRING_FILTERS = [
     FilterOperator.EQUALS,
@@ -55,7 +55,7 @@ const dateGrain = (
     label: string,
     grain: TimeFrames,
     description: string,
-): ApiSourceDimensionDefinition => ({
+): LiveDimensionDefinition => ({
     name,
     apiName,
     label,
@@ -71,7 +71,7 @@ const exactDimension = (
     label: string,
     group: string | undefined,
     description: string,
-): ApiSourceDimensionDefinition => ({
+): LiveDimensionDefinition => ({
     name,
     apiName,
     label,
@@ -87,7 +87,7 @@ const textDimension = (
     label: string,
     group: string,
     description: string,
-): ApiSourceDimensionDefinition => ({
+): LiveDimensionDefinition => ({
     ...exactDimension(name, apiName, label, group, description),
     filterOperators: GOOGLE_ADS_STRING_FILTERS,
 });
@@ -100,7 +100,7 @@ const metric = (
     aggregation: ApiSourceMetricAggregation,
     description: string,
     format?: string,
-): ApiSourceMetricDefinition => ({
+): LiveMetricDefinition => ({
     name,
     apiName,
     label,
@@ -142,7 +142,7 @@ const IMPRESSION_SHARE_NOTE =
  * one row per resource and segment, so `googleAdsCompiler` picks the resource
  * from the fields selected: see its comment for what it has to refuse.
  */
-export const GOOGLE_ADS_PERFORMANCE_EXPLORE: ApiSourceExploreDefinition = {
+export const GOOGLE_ADS_PERFORMANCE_EXPLORE: LiveExploreDefinition = {
     name: 'performance',
     label: 'Ad performance',
     description:

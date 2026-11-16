@@ -290,7 +290,7 @@ import {
     tablesConfiguration,
     validExplore,
 } from '../ProjectService/ProjectService.mock';
-import { buildApiSourceExplores } from '../QuerySourceService/api/apiSourceExplores';
+import { buildLiveExplores } from '../QuerySourceService/live/explores/build';
 import { QuerySourceRegistry } from '../QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { SemanticLayerQuerySource } from '../QuerySourceService/sources/SemanticLayerQuerySource';
@@ -2247,7 +2247,7 @@ describe('AsyncQueryService', () => {
 
     describe('metric queries on live data source explores', () => {
         const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
-        const [apiExplore] = buildApiSourceExplores({
+        const [apiExplore] = buildLiveExplores({
             connectionUuid: CONNECTION_UUID,
             sourceName: 'ga4_03386598',
             name: 'Marketing site',
@@ -15252,7 +15252,7 @@ describe('AsyncQueryService', () => {
         );
 
         describe('dashboard date zoom on a live data source tile', () => {
-            const [liveExplore] = buildApiSourceExplores({
+            const [liveExplore] = buildLiveExplores({
                 connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
                 sourceName: 'ga4_03386598',
                 name: 'Marketing site',

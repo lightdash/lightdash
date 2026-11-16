@@ -10,17 +10,14 @@ import {
     type ApiSourceOf,
 } from '@lightdash/common';
 import { z } from 'zod';
-import type {
-    ApiConnectorColumn,
-    ApiConnectorResponse,
-} from '../../../api/ApiConnector';
-import type { ApiSourceScan } from '../../../api/ApiSourceIntegration';
+import type { LiveColumn, LiveHttpResponse } from '../../connector';
 import {
     assertMaxRows,
     type LiveCalls,
     type LiveRunArgs,
     type LiveRunResult,
 } from '../../defineLiveIntegration';
+import type { LiveScanResult } from '../../integration';
 import {
     POSTHOG_MAX_SCANNED_PROPERTIES,
     type PostHogPropertyKind,
@@ -99,7 +96,7 @@ const toResultValue = (value: unknown): unknown =>
 const toColumns = (
     names: string[],
     types: [string, string][],
-): ApiConnectorColumn[] => {
+): LiveColumn[] => {
     const unsafe = names.filter((name) => !COLUMN_NAME.test(name));
     if (unsafe.length > 0) {
         throw new WarehouseQueryError(
@@ -220,7 +217,7 @@ export const scanPostHogProperties = async ({
 }: {
     settings: PostHogSettings;
     calls: LiveCalls;
-}): Promise<ApiSourceScan> => {
+}): Promise<LiveScanResult> => {
     const [event, person] = await Promise.all([
         readPropertyDefinitions(projectId, 'event', calls),
         readPropertyDefinitions(projectId, 'person', calls),
@@ -229,7 +226,7 @@ export const scanPostHogProperties = async ({
 };
 
 export const toPostHogError = (
-    response: ApiConnectorResponse,
+    response: LiveHttpResponse,
     { projectId }: PostHogSettings,
 ): Error => {
     const parsed = errorSchema.safeParse(response.body);

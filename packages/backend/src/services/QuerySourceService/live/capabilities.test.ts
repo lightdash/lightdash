@@ -18,14 +18,14 @@ import {
     type LiveSourceRefusalCode,
     type MetricQuery,
 } from '@lightdash/common';
-import { type ApiConnectorCapabilities } from './ApiConnector';
-import { assertApiSourceQuery } from './apiSourceExplore';
+import { type LiveCapabilities } from './connector';
 import {
-    buildApiSourceExplores,
-    compileApiSourceMetricQuery,
-    getApiSourceBaseLayer,
-} from './apiSourceExplores';
-import { getInitialLiveSourceFieldEdits } from './liveSourceFields';
+    buildLiveExplores,
+    compileLiveMetricQuery,
+    getLiveBaseLayer,
+} from './explores/build';
+import { assertLiveQuery } from './explores/definition';
+import { getInitialLiveSourceFieldEdits } from './explores/fields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
 // One entry per integration, with the built-in fields every case uses, by
@@ -108,7 +108,7 @@ const getSource = (connector: ApiConnectorType) => {
 
 const build = (connector: ApiConnectorType): Explore => {
     const { apiSource } = getSource(connector);
-    const [explore] = buildApiSourceExplores({
+    const [explore] = buildLiveExplores({
         connectionUuid: CONNECTION_UUID,
         sourceName: connector,
         name: 'Source',
@@ -149,7 +149,7 @@ const sourceLabel = (connector: ApiConnectorType) =>
     LIVE_SOURCE_INTEGRATION_PROFILES[connector].label;
 
 const toFieldId = (connector: ApiConnectorType, name: string) =>
-    `${connector}_${getApiSourceBaseLayer(connector).definitions[0].name}_${name}`;
+    `${connector}_${getLiveBaseLayer(connector).definitions[0].name}_${name}`;
 
 const rule = (
     fieldId: string,
@@ -186,24 +186,23 @@ const everywhere = (message: string): Refusals =>
 
 /** Refused by the connectors whose declaration matches, in each one's words. */
 const wherever = (
-    matches: (capabilities: ApiConnectorCapabilities) => boolean,
+    matches: (capabilities: LiveCapabilities) => boolean,
     message: (
         connector: ApiConnectorType,
-        capabilities: ApiConnectorCapabilities,
+        capabilities: LiveCapabilities,
     ) => string,
 ): Refusals =>
     Object.fromEntries(
         CONNECTORS.flatMap((connector) => {
-            const { capabilities } = getApiSourceBaseLayer(connector);
+            const { capabilities } = getLiveBaseLayer(connector);
             return matches(capabilities)
                 ? [[connector, [message(connector, capabilities)]]]
                 : [];
         }),
     );
 
-const isFlatAnd = ({ filters }: ApiConnectorCapabilities) => !filters.or;
-const needsDateRange = ({ dates }: ApiConnectorCapabilities) =>
-    dates.rangeRequired;
+const isFlatAnd = ({ filters }: LiveCapabilities) => !filters.or;
+const needsDateRange = ({ dates }: LiveCapabilities) => dates.rangeRequired;
 
 // Report APIs refuse what PostHog compiles into HogQL; PostHog explores
 // cached before capabilities still refuse it until they are refreshed
@@ -551,14 +550,14 @@ describe('live data source capabilities keep their refusals', () => {
                 // Every entry point throws the same joined message
                 if (messages.length > 0) {
                     expect(() =>
-                        assertApiSourceQuery(explore, metricQuery, context),
+                        assertLiveQuery(explore, metricQuery, context),
                     ).toThrow(ParameterError);
                     expect(() =>
-                        assertApiSourceQuery(explore, metricQuery, context),
+                        assertLiveQuery(explore, metricQuery, context),
                     ).toThrow(messages.join(' '));
                     // Every refusal carries its codes for the API response
                     try {
-                        assertApiSourceQuery(explore, metricQuery, context);
+                        assertLiveQuery(explore, metricQuery, context);
                     } catch (error) {
                         expect(error).toMatchObject({
                             data: {
@@ -571,7 +570,7 @@ describe('live data source capabilities keep their refusals', () => {
                 }
                 if (messages.length > 0 && !context) {
                     expect(() =>
-                        compileApiSourceMetricQuery({
+                        compileLiveMetricQuery({
                             explore,
                             metricQuery,
                             timezone: 'UTC',
@@ -586,7 +585,7 @@ describe('live data source capabilities keep their refusals', () => {
 
 describe('connector capability declarations', () => {
     describe.each(CONNECTORS)('%s', (connector) => {
-        const { capabilities, definitions } = getApiSourceBaseLayer(connector);
+        const { capabilities, definitions } = getLiveBaseLayer(connector);
 
         test('every field filters with operators its type allows', () => {
             definitions.forEach((definition) => {

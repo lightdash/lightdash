@@ -4,7 +4,7 @@ import {
     type ApiSourceSchemaScan,
     type QuerySourceSchemaTable,
 } from '@lightdash/common';
-import type { ApiConnector } from '../../../api/ApiConnector';
+import type { LiveConnector } from '../../connector';
 
 export const POSTHOG_SCAN_WINDOW_DAYS = 30;
 const MAX_EVENTS = 1_000;
@@ -36,7 +36,7 @@ GROUP BY property_key
 ORDER BY occurrences DESC`;
 
 /** Each query needs its own connector: a metered connector allows one call per query. */
-type GetConnector = () => Promise<Pick<ApiConnector, 'execute'>>;
+type GetConnector = () => Promise<Pick<LiveConnector, 'execute'>>;
 
 /** Two HogQL calls: event names with counts, then property keys from a sample. */
 export const scanPostHogSchema = async (
