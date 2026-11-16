@@ -37,6 +37,7 @@ vi.mock('../../../../../hooks/useCompiledSql', () => ({
 }));
 vi.mock('../../../../../hooks/useExplore', () => ({
     useExploreByProjectUuid: vi.fn(() => ({ data: undefined })),
+    useExploreQueries: vi.fn(() => []),
 }));
 vi.mock(
     '../../../../../features/externalConnections/liveSources/apiSourceExplore',

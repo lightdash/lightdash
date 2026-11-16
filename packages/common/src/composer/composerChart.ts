@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { type CaslSubjectNames } from '../authorization/types';
 import { ParameterError } from '../types/errors';
+import { type Explore } from '../types/explore';
 import {
     FieldType,
     isCustomSqlDimension,
@@ -21,6 +22,7 @@ import {
     type SqlSourceQuery,
 } from '../types/querySources';
 import { ChartType, type ChartConfig } from '../types/savedCharts';
+import { getHandWrittenAdditionalMetrics } from '../utils/additionalMetrics';
 import assertUnreachable from '../utils/assertUnreachable';
 
 type StoredNode<T> = T & {
@@ -429,6 +431,28 @@ export const parseComposerStoredChart = (document: unknown) =>
 export const parseComposerChartInput = (document: unknown) =>
     parseChart(document, { pinned: false });
 
+type ComposerSemanticLayerNode = Extract<
+    ComposerChartPipelineNode,
+    { sourceType: QuerySourceType.SEMANTIC_LAYER }
+>;
+
+const getSemanticLayerNodes = (pipeline: ComposerChartPipeline) =>
+    pipeline.nodes.filter(
+        (node): node is ComposerSemanticLayerNode =>
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER,
+    );
+
+/** Explores whose fields decide whether a custom metric's SQL is hand-written. */
+export const getComposerCustomMetricExploreNames = (
+    pipeline: ComposerChartPipeline,
+): string[] => [
+    ...new Set(
+        getSemanticLayerNodes(pipeline)
+            .filter((node) => (node.additionalMetrics ?? []).length > 0)
+            .map((node) => node.exploreName),
+    ),
+];
+
 /**
  * Why the author may not write this pipeline, null when they may. The server
  * refuses with it and the client disables Save with it.
@@ -436,11 +460,10 @@ export const parseComposerChartInput = (document: unknown) =>
 export const getComposerPipelineWriteDeniedReason = (
     pipeline: ComposerChartPipeline,
     cannotManage: (subjectName: CaslSubjectNames) => boolean,
+    exploreTables: Record<string, Explore['tables']>,
 ): string | null => {
     const kinds = new Set(pipeline.nodes.map((node) => node.sourceType));
-    const semanticNodes = pipeline.nodes.filter(
-        (node) => node.sourceType === QuerySourceType.SEMANTIC_LAYER,
-    );
+    const semanticNodes = getSemanticLayerNodes(pipeline);
 
     if (cannotManage('ComposerChart')) {
         return 'You do not have permission to save composer charts';
@@ -468,9 +491,39 @@ export const getComposerPipelineWriteDeniedReason = (
         return 'Saving a composer chart with a custom SQL dimension requires permission to manage custom fields';
     }
     if (
-        semanticNodes.some((node) =>
-            (node.tableCalculations ?? []).some(isSqlTableCalculation),
-        ) &&
+        cannotManage('CustomFields') &&
+        semanticNodes.some((node) => {
+            const metrics = node.additionalMetrics ?? [];
+            const tables = exploreTables[node.exploreName];
+            return (
+                metrics.length > 0 &&
+                (!tables ||
+                    getHandWrittenAdditionalMetrics(metrics, tables).length > 0)
+            );
+        })
+    ) {
+        return 'Saving a composer chart with a custom metric written in SQL requires permission to manage custom fields';
+    }
+    if (
+        pipeline.nodes.some((node) => {
+            switch (node.sourceType) {
+                case QuerySourceType.SEMANTIC_LAYER:
+                    return (node.tableCalculations ?? []).some(
+                        isSqlTableCalculation,
+                    );
+                case QuerySourceType.MERGE:
+                    // A merge calculation without a formula is SQL
+                    return (node.tableCalculations ?? []).some(
+                        (calculation) => !calculation.formula,
+                    );
+                case QuerySourceType.SQL:
+                case QuerySourceType.DUCKDB:
+                case QuerySourceType.PYTHON:
+                    return false;
+                default:
+                    return assertUnreachable(node, 'Unknown composer node');
+            }
+        }) &&
         cannotManage('CustomSqlTableCalculations')
     ) {
         return 'Saving a composer chart with a SQL table calculation requires permission to manage SQL table calculations';
