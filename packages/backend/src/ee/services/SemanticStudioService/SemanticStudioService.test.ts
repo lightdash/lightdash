@@ -2326,6 +2326,22 @@ describe('SemanticStudioService', () => {
             ).toEqual({ enabled: true, appliesAs: 'live' });
         });
 
+        it('shows changes only to those who can make them', async () => {
+            const dbt = setup({ dbtConnection: DBT_IN_GITHUB }).service;
+            await expect(
+                dbt.listWorkspaces(viewer, PROJECT_UUID),
+            ).rejects.toThrow(/cannot change/);
+            await expect(
+                dbt.listWorkspaces(deployer, PROJECT_UUID),
+            ).rejects.toThrow(/cannot change/);
+            await expect(
+                dbt.getWorkspace(viewer, PROJECT_UUID, 'workspace-uuid'),
+            ).rejects.toThrow(/cannot change/);
+            await expect(
+                dbt.finishWorkspace(viewer, PROJECT_UUID, 'workspace-uuid'),
+            ).rejects.toThrow(/cannot change/);
+        });
+
         it('keeps no draft on a dbt project, where the agent edits the repository', async () => {
             const dbt = () => setup({ dbtConnection: DBT_IN_GITHUB });
             expect(

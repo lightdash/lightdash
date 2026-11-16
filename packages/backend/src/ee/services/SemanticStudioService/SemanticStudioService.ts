@@ -2094,21 +2094,6 @@ export class SemanticStudioService extends BaseService {
         }
     }
 
-    private async assertCanViewProject(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
-        if (
-            this.createAuditedAbility(user).cannot(
-                'view',
-                subject('Project', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-    }
-
     private async assertCanUseStudio(
         user: SessionUser,
         projectUuid: string,
@@ -2271,7 +2256,7 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<SemanticStudioWorkspaces> {
-        await this.assertCanViewProject(user, projectUuid);
+        await this.assertCanUseStudio(user, projectUuid);
         const all = await this.workspaceModel.findInProject(
             projectUuid,
             user.userUuid,
@@ -2305,7 +2290,15 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
         workspaceUuid: string,
     ): Promise<SemanticStudioWorkspace> {
-        await this.assertCanViewProject(user, projectUuid);
+        await this.assertCanUseStudio(user, projectUuid);
+        return this.loadWorkspace(user, projectUuid, workspaceUuid);
+    }
+
+    private async loadWorkspace(
+        user: SessionUser,
+        projectUuid: string,
+        workspaceUuid: string,
+    ): Promise<SemanticStudioWorkspace> {
         const workspace = await this.workspaceModel.find(
             workspaceUuid,
             user.userUuid,
@@ -2336,7 +2329,7 @@ export class SemanticStudioService extends BaseService {
             threadUuid,
             name: name.trim().slice(0, 120) || 'Untitled change',
         });
-        return this.getWorkspace(user, projectUuid, workspaceUuid);
+        return this.loadWorkspace(user, projectUuid, workspaceUuid);
     }
 
     private async getOwnWorkspace(
@@ -2344,7 +2337,8 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
         workspaceUuid: string,
     ): Promise<SemanticStudioWorkspace> {
-        const workspace = await this.getWorkspace(
+        await this.assertCanUseStudio(user, projectUuid);
+        const workspace = await this.loadWorkspace(
             user,
             projectUuid,
             workspaceUuid,
@@ -2360,13 +2354,12 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
         workspaceUuid: string,
     ): Promise<SemanticStudioWorkspace> {
-        await this.assertCanUseStudio(user, projectUuid);
         await this.getOwnWorkspace(user, projectUuid, workspaceUuid);
         await this.workspaceModel.activate(
             { projectUuid, userUuid: user.userUuid },
             workspaceUuid,
         );
-        return this.getWorkspace(user, projectUuid, workspaceUuid);
+        return this.loadWorkspace(user, projectUuid, workspaceUuid);
     }
 
     /** Leaves the active workspace, so the next conversation starts a new one. */
@@ -2374,7 +2367,7 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<void> {
-        await this.assertCanViewProject(user, projectUuid);
+        await this.assertCanUseStudio(user, projectUuid);
         await this.workspaceModel.leave({
             projectUuid,
             userUuid: user.userUuid,
@@ -2395,7 +2388,7 @@ export class SemanticStudioService extends BaseService {
             workspaceUuid,
             trimmed,
         );
-        return this.getWorkspace(user, projectUuid, workspaceUuid);
+        return this.loadWorkspace(user, projectUuid, workspaceUuid);
     }
 
     /** Ends a workspace whose changes were discarded; it stays as history. */
