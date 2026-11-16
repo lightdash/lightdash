@@ -36,7 +36,7 @@ type AiThreadFileServiceDependencies = {
         | 'sweepExpiredUnclaimed'
         | 'findImageObjectsForCleanup'
         | 'markImageCleanupAttempted'
-        | 'markImageObjectDeleted'
+        | 'removeImageObject'
     >;
     aiAgentService: Pick<AiAgentService, 'getIsCopilotEnabled'>;
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
@@ -280,17 +280,15 @@ export class AiThreadFileService extends BaseService {
                     object.storage_key,
                 );
                 try {
-                    if (object.object_deleted_at === null) {
-                        try {
-                            await this.uploadsFileStorageClient.deleteFile(
-                                object.storage_key,
-                                { abortSignal: AbortSignal.timeout(30_000) },
-                            );
-                        } catch (error) {
-                            if (!(error instanceof NotFoundError)) throw error;
-                        }
+                    try {
+                        await this.uploadsFileStorageClient.deleteFile(
+                            object.storage_key,
+                            { abortSignal: AbortSignal.timeout(30_000) },
+                        );
+                    } catch (error) {
+                        if (!(error instanceof NotFoundError)) throw error;
                     }
-                    await this.aiThreadFileModel.markImageObjectDeleted(
+                    await this.aiThreadFileModel.removeImageObject(
                         object.storage_key,
                     );
                 } catch (error) {

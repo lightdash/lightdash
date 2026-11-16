@@ -21,7 +21,6 @@ export type AiThreadFileWithContent =
     | (Extract<AiThreadFile, { kind: 'image' }> & {
           storageKey: string;
           uploadedAt: Date | null;
-          objectDeletedAt: Date | null;
       });
 
 const UNCLAIMED_TTL_INTERVAL = `${AI_THREAD_FILE_UNCLAIMED_TTL_HOURS} hours`;
@@ -90,7 +89,7 @@ export class AiThreadFileModel {
         fileName: string;
         object: Omit<
             DbAiThreadImageObject,
-            'uploaded_at' | 'object_deleted_at' | 'cleanup_attempted_at'
+            'uploaded_at' | 'cleanup_attempted_at'
         >;
     }): Promise<AiThreadFile> {
         return this.database.transaction(async (trx) => {
@@ -171,8 +170,7 @@ export class AiThreadFileModel {
                                 'storage_key',
                                 db(AiThreadImageObjectTableName)
                                     .select('storage_key')
-                                    .whereNotNull('uploaded_at')
-                                    .whereNull('object_deleted_at'),
+                                    .whereNotNull('uploaded_at'),
                             ),
                     ),
             );
@@ -265,7 +263,6 @@ export class AiThreadFileModel {
                         ...file,
                         storageKey: image.storage_key,
                         uploadedAt: image.uploaded_at,
-                        objectDeletedAt: image.object_deleted_at,
                     };
                 default:
                     return assertUnreachable(file, 'Unknown attachment kind');
@@ -364,10 +361,8 @@ export class AiThreadFileModel {
             .update({ cleanup_attempted_at: new Date() });
     }
 
-    async markImageObjectDeleted(storageKey: string): Promise<void> {
-        await this.database(AiThreadImageObjectTableName)
-            .where('storage_key', storageKey)
-            .update({ object_deleted_at: new Date() });
+    /** Forgets an image whose bytes are gone; a referenced one is left alone. */
+    async removeImageObject(storageKey: string): Promise<void> {
         await this.database(AiThreadImageObjectTableName)
             .where('storage_key', storageKey)
             .whereNotExists(

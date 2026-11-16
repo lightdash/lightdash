@@ -33,7 +33,6 @@ const setup = async (uuid = 'image-1', promptUuid = 'prompt-1') => {
         mediaType: 'image/png',
         storageKey: `private/${uuid}.png`,
         uploadedAt: new Date(),
-        objectDeletedAt: null,
     };
     const item: Extract<AiPromptContext[number], { type: 'thread_image' }> = {
         type: 'thread_image',

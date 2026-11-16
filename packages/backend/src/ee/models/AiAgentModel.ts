@@ -358,6 +358,14 @@ const isTurnDecisionRow = (
         (operation) => operation === row.operation,
     );
 
+// One shape for what a prompt stores about an image and what a reader requires.
+const threadImageSnapshotSchema = z.object({
+    sizeBytes: z.number().int().positive(),
+    mediaType: z.enum(AI_THREAD_IMAGE_MEDIA_TYPES),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+}) satisfies z.ZodType<AiPromptThreadImageSnapshot>;
+
 const storedChoicesSchema = z.object({
     options: z.array(z.object({ label: z.string(), prompt: z.string() })),
 });
@@ -7978,7 +7986,7 @@ export class AiAgentModel {
                             mediaType: image.media_type,
                             width: image.width,
                             height: image.height,
-                        } satisfies AiPromptThreadImageSnapshot,
+                        } satisfies z.infer<typeof threadImageSnapshotSchema>,
                     };
                 }
                 case 'thread_file': {
@@ -8626,14 +8634,9 @@ export class AiAgentModel {
                 };
             }
             case 'thread_image': {
-                const snapshot = z
-                    .object({
-                        sizeBytes: z.number().int().positive(),
-                        mediaType: z.enum(AI_THREAD_IMAGE_MEDIA_TYPES),
-                        width: z.number().int().positive(),
-                        height: z.number().int().positive(),
-                    })
-                    .parse(row.runtime_overrides);
+                const snapshot = threadImageSnapshotSchema.parse(
+                    row.runtime_overrides,
+                );
                 return {
                     type: 'thread_image',
                     fileUuid: requireEntityUuid(),

@@ -62,8 +62,8 @@ const setup = (durableUploadsConfigured = true) => {
         markImageCleanupAttempted: vi
             .fn<AiThreadFileModel['markImageCleanupAttempted']>()
             .mockResolvedValue(),
-        markImageObjectDeleted: vi
-            .fn<AiThreadFileModel['markImageObjectDeleted']>()
+        removeImageObject: vi
+            .fn<AiThreadFileModel['removeImageObject']>()
             .mockResolvedValue(),
     };
     const featureFlagModel = {
@@ -124,7 +124,6 @@ const cleanupObject = (key: string): DbAiThreadImageObject => ({
     created_at: new Date(0),
     uploaded_at: null,
     cleanup_attempted_at: null,
-    object_deleted_at: null,
 });
 
 test('uploads binary bytes with sniffed media type, private key and no expiry', async () => {
@@ -281,9 +280,9 @@ test('missing objects are marked deleted, while storage failures remain retryabl
         .mockRejectedValueOnce(new Error('unavailable'));
     await service.sweepExpiredUnclaimed();
     expect(model.markImageCleanupAttempted).toHaveBeenCalledTimes(3);
-    expect(model.markImageObjectDeleted).toHaveBeenCalledWith('missing');
-    expect(model.markImageObjectDeleted).not.toHaveBeenCalledWith('retry');
-    expect(model.markImageObjectDeleted).toHaveBeenCalledWith('success');
+    expect(model.removeImageObject).toHaveBeenCalledWith('missing');
+    expect(model.removeImageObject).not.toHaveBeenCalledWith('retry');
+    expect(model.removeImageObject).toHaveBeenCalledWith('success');
 });
 
 test('orphaned-image cleanup drains batches using one fixed attempt cutoff', async () => {
@@ -296,7 +295,7 @@ test('orphaned-image cleanup drains batches using one fixed attempt cutoff', asy
         )
         .mockResolvedValueOnce([cleanupObject('last')]);
     await service.sweepExpiredUnclaimed();
-    expect(model.markImageObjectDeleted).toHaveBeenCalledTimes(101);
+    expect(model.removeImageObject).toHaveBeenCalledTimes(101);
     expect(model.findImageObjectsForCleanup.mock.calls[0]?.[0]).toBe(
         model.findImageObjectsForCleanup.mock.calls[1]?.[0],
     );
@@ -311,5 +310,5 @@ test('without durable uploads storage cleanup deletes nothing and keeps every re
     expect(model.sweepExpiredUnclaimed).toHaveBeenCalled();
     expect(storage.deleteFile).not.toHaveBeenCalled();
     expect(model.markImageCleanupAttempted).not.toHaveBeenCalled();
-    expect(model.markImageObjectDeleted).not.toHaveBeenCalled();
+    expect(model.removeImageObject).not.toHaveBeenCalled();
 });
