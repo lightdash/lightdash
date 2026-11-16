@@ -5,6 +5,8 @@ const MIN_CHANGE_PX = 4;
 
 // How tall a box may be for the whole page to fit the window without scrolling: the window's height less everything
 // above the box and everything below it, up to the end of the page marked `data-ad-page`. Null until measured.
+// Parts of the page marked `data-ad-flex` are sized from this figure too, so their own height is left out of what is
+// below: the result is the room for the box and those parts together, whatever size each has at the moment.
 export const useFitHeight = (): { ref: (element: HTMLDivElement | null) => void; height: number | null } => {
     const [element, setElement] = useState<HTMLDivElement | null>(null);
     const [height, setHeight] = useState<number | null>(null);
@@ -16,7 +18,8 @@ export const useFitHeight = (): { ref: (element: HTMLDivElement | null) => void;
         }
         const measure = () => {
             const box = element.getBoundingClientRect();
-            const below = page.getBoundingClientRect().bottom - box.bottom;
+            const flexible = [...page.querySelectorAll<HTMLElement>('[data-ad-flex]')].reduce((sum, each) => sum + each.getBoundingClientRect().height, 0);
+            const below = page.getBoundingClientRect().bottom - box.bottom - flexible;
             const next = Math.round(window.innerHeight - (box.top + window.scrollY) - below);
             setHeight((previous) => (previous !== null && Math.abs(previous - next) <= MIN_CHANGE_PX ? previous : next));
         };

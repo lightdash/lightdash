@@ -67,7 +67,7 @@ export const Fingerprint = ({ organisation, selectedId, selectedPart, shownParts
     // The line under the top row is there to part it from rows below, so it goes when the people are folded away
     const divider = (peopleRows ? arePeopleShown && peopleRows.length > 0 : rows.length > 0) ? 'border-b' : '';
     return (
-        <div className="max-h-[max(220px,30vh)] overflow-x-auto overflow-y-auto pb-2">
+        <div data-ad-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-x-auto overflow-y-auto pb-2">
             <table className="w-full border-separate border-spacing-0 text-sm">
                 <thead className="sticky top-0 z-20 bg-card">
                     <tr>

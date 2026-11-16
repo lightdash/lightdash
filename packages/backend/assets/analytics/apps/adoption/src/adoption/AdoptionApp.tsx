@@ -44,10 +44,14 @@ import {
 import { WaffleView } from './waffle/WaffleView';
 
 const MAP_HEIGHT = 560;
-// The waffle shrinks its squares to fit the window, but is never squeezed below this
-const MIN_WAFFLE_HEIGHT = 240;
 // The map gives up height to fit the window too, down to this
 const MIN_MAP_HEIGHT = 220;
+// With a section open under it, the drawing keeps this share of the room and never less than this height; the open
+// section takes the rest, so the drawing is the same size whichever section is open
+const OPEN_MAP_SHARE = 0.5;
+const MIN_OPEN_MAP_HEIGHT = 200;
+const MIN_SECTION_HEIGHT = 140;
+const MAX_SECTION_HEIGHT = 480;
 // About how far under the drawing's bottom edge the detail card begins (the legend sits between)
 const DETAIL_BELOW_MAP_PX = 60;
 // Longer than the sweep takes to cross the map and the detail below it
@@ -348,6 +352,15 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
     );
     const canvas = useContainerSize();
     const fit = useFitHeight();
+    const isFocusShown = isFocusOpen && !detail.isOpen;
+    // The room the window leaves is split once: all of it to the drawing while both sections are closed, and a fixed
+    // share each to the drawing and to whichever section is open
+    const room = fit.height ?? MAP_HEIGHT;
+    const isSectionOpen = detail.isOpen || isFocusShown;
+    const drawingHeight = isSectionOpen
+        ? Math.min(MAP_HEIGHT, Math.max(Math.round(room * OPEN_MAP_SHARE), MIN_OPEN_MAP_HEIGHT))
+        : Math.min(MAP_HEIGHT, Math.max(room, MIN_MAP_HEIGHT));
+    const sectionHeight = Math.min(MAX_SECTION_HEIGHT, Math.max(room - drawingHeight, MIN_SECTION_HEIGHT));
     // The detail's marks populate with the sweep that crosses the map, for as long as that takes after a change of
     // colouring; never on first load or when the detail is opened later, when the map does not sweep either
     const [isSweeping, setIsSweeping] = useState(false);
@@ -444,7 +457,7 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                             ) : layout === 'map' ? (
                                 // The outer box is measured for the room the window leaves; the inner one is the map's own size
                                 <div ref={fit.ref}>
-                                <div ref={canvas.ref} className="ad-canvas" style={{ height: Math.min(MAP_HEIGHT, Math.max(fit.height ?? MAP_HEIGHT, MIN_MAP_HEIGHT)) }}>
+                                <div ref={canvas.ref} className="ad-canvas" style={{ height: drawingHeight }}>
                                     {canvas.isMeasured && (
                                         <PeopleMap
                                             width={canvas.width}
@@ -466,7 +479,7 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                                     {canvas.isMeasured && (
                                         <WaffleView
                                             width={canvas.width}
-                                            maxHeight={Math.min(MAP_HEIGHT, Math.max(fit.height ?? MAP_HEIGHT, MIN_WAFFLE_HEIGHT))}
+                                            maxHeight={drawingHeight}
                                             teams={mapTeams}
                                             colourBy={colourBy}
                                             selectedId={selected?.team.id ?? null}
@@ -490,9 +503,9 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
                 </DetailPanel>
                 <FocusAreas
                     organisation={organisation}
-                    isOpen={isFocusOpen && !detail.isOpen}
+                    isOpen={isFocusShown}
                     onToggle={() => {
-                        const next = !(isFocusOpen && !detail.isOpen);
+                        const next = !isFocusShown;
                         if (next) setDetailOpenValue(false);
                         setIsFocusOpen(next);
                     }}
@@ -509,7 +522,7 @@ const Main = ({ cells, isNamed, isTruncated, config, setConfig, stateStatus, can
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4" style={{ ['--ad-body-h' as string]: `${sectionHeight}px` }}>
             {isTruncated && (
                 <p className="m-0 rounded-md border border-destructive px-3 py-2 text-sm text-destructive">
                     This organisation is too large to load in full, so some people are missing from this page.

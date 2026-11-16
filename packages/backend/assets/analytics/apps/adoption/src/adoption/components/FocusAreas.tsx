@@ -106,15 +106,15 @@ export const FocusAreas = ({ organisation, isOpen, onToggle, onPick }: Props) =>
                 </h2>
             </div>
             {isOpen && (
-                <div className="grid gap-x-8 gap-y-4 border-t px-4 py-3 md:grid-cols-3">
+                <div data-ad-flex className="grid h-[var(--ad-body-h,198px)] gap-x-8 gap-y-4 overflow-y-auto border-t px-4 py-3 md:grid-cols-3 md:grid-rows-[minmax(0,1fr)] md:overflow-hidden">
                     {areas.map(({ area, entries }) => (
-                        <section key={area.key} className="min-w-0">
+                        <section key={area.key} className="flex min-h-0 min-w-0 flex-col">
                             <h3 className="m-0 flex items-baseline justify-between pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground" title={area.hint}>
                                 {area.title}
                                 <span className="ad-count font-normal normal-case tracking-normal">{entries.length === 1 ? '1 team' : `${formatCount(entries.length)} teams`}</span>
                             </h3>
-                            {/* Room for three teams; the rest are a scroll away */}
-                            <div className="max-h-[150px] overflow-y-auto">
+                            {/* The list takes the room the section is given; the rest are a scroll away */}
+                            <div className="max-h-[150px] overflow-y-auto md:max-h-none md:min-h-0 md:flex-1">
                                 {entries.map((entry) => (
                                     <button
                                         key={entry.id}

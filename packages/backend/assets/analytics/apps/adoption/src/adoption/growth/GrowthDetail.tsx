@@ -70,7 +70,7 @@ export const GrowthDetail = ({ organisation, selectedId, onOpen, focus }: Props)
 
     if (people) {
         return (
-            <div className="max-h-[max(220px,30vh)] overflow-y-auto px-4 pb-3">
+            <div data-ad-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-y-auto px-4 pb-3">
                 <div className={`${PERSON_COLUMNS} sticky top-0 z-10 bg-card py-2 text-xs text-muted-foreground`}>
                     <span>Person</span>
                     <span>Status</span>
@@ -116,7 +116,7 @@ export const GrowthDetail = ({ organisation, selectedId, onOpen, focus }: Props)
     );
 
     return (
-        <div className="max-h-[max(220px,30vh)] overflow-y-auto px-4 pb-3">
+        <div data-ad-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-y-auto px-4 pb-3">
             <div className={`${COLUMNS} sticky top-0 z-10 bg-card py-2 text-xs text-muted-foreground`}>
                 <span>Team</span>
                 <span className="text-right">People</span>

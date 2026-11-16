@@ -114,7 +114,7 @@ export const RecentActivity = ({ organisation, selectedId, onOpen, focus, mode, 
         });
         let row = 0;
         return (
-            <div className="max-h-[max(220px,30vh)] overflow-y-auto px-4 pb-3">
+            <div data-ad-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-y-auto px-4 pb-3">
                 <div className={`${columns} sticky top-0 z-10 bg-card py-2 text-xs text-muted-foreground`}>
                     <span>{mode === 'role' ? 'Role and person' : 'Last active and person'}</span>
                     {mode === 'role' && <span>Last active</span>}
@@ -179,7 +179,7 @@ export const RecentActivity = ({ organisation, selectedId, onOpen, focus, mode, 
     );
 
     return (
-        <div className="max-h-[max(220px,30vh)] overflow-y-auto px-4 pb-3">
+        <div data-ad-flex className="h-[var(--ad-body-h,max(220px,30vh))] overflow-y-auto px-4 pb-3">
             <div className="sticky top-0 z-10 grid grid-cols-[minmax(120px,220px)_minmax(0,1fr)_96px] items-end gap-x-4 bg-card py-2 text-xs text-muted-foreground">
                 <span>Team</span>
                 <span>{mode === 'role' ? 'Roles' : 'Last active'}</span>
