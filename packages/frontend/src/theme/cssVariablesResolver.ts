@@ -31,7 +31,7 @@ import {
     Z_INDEX_TOUR,
     Z_INDEX_TOUR_CARD,
 } from '../components/common/Page/constants';
-import { LD_FIELD_COLORS } from './fieldColors';
+import { getFieldColorVariables, LD_FIELD_COLORS } from './fieldColors';
 import { DROPDOWN_DURATION, DROPDOWN_EASING } from './motion';
 
 /**
@@ -95,12 +95,7 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--ld-motion-easing': 'ease',
         // The highest the dashboard's scroll-to-top button reaches
         '--dashboard-scroll-to-top-reach': `${SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER + SCROLL_TO_TOP_SIZE}px`,
-        '--ld-field-dimension-bg': LD_FIELD_COLORS.dimension.bg,
-        '--ld-field-dimension-bg-hover': LD_FIELD_COLORS.dimension.bgHover,
-        '--ld-field-dimension-color': LD_FIELD_COLORS.dimension.color,
-        '--ld-field-metric-bg': LD_FIELD_COLORS.metric.bg,
-        '--ld-field-metric-bg-hover': LD_FIELD_COLORS.metric.bgHover,
-        '--ld-field-metric-color': LD_FIELD_COLORS.metric.color,
+        ...getFieldColorVariables(),
         '--ld-field-default-bg': LD_FIELD_COLORS.DEFAULT.bg,
         '--ld-field-default-bg-hover': LD_FIELD_COLORS.DEFAULT.bgHover,
         '--ld-field-default-color': LD_FIELD_COLORS.DEFAULT.color,

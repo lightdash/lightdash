@@ -1,0 +1,27 @@
+.trigger {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: var(--mantine-radius-xl);
+    transition: transform 150ms ease;
+}
+
+.trigger:hover {
+    transform: scale(1.15) rotate(-8deg);
+}
+
+.trigger span {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 1.5px solid var(--mantine-color-body);
+}
+
+.trigger span[data-kind='dimension'] {
+    background: var(--ld-field-dimension-color);
+}
+
+.trigger span[data-kind='metric'] {
+    background: var(--ld-field-metric-color);
+    margin-left: -5px;
+}
