@@ -135,9 +135,8 @@ describe('withLineage', () => {
     };
     const result = withLineage(toJoinGraph(source), toModelLineage(source));
 
-    it('draws only models the explore does not read as cards', () => {
+    it('draws only upstream models the explore does not read as cards', () => {
         expect(result.cards.map(({ nodeId }) => nodeId).sort()).toEqual([
-            'dbt:report',
             'dbt:stg_deals',
             'dbt:stg_sales',
         ]);
@@ -148,12 +147,10 @@ describe('withLineage', () => {
             'lineage:dbt:stg_deals->deals',
             'lineage:dbt:stg_sales->industry_targets',
             'lineage:dbt:stg_sales->segment_targets',
-            'lineage:industry_targets->dbt:report',
-            'lineage:segment_targets->dbt:report',
         ]);
     });
 
-    it('relates a table to its upstream and downstream models', () => {
+    it('relates a table to its upstream models', () => {
         expect([...result.relatedTo('deals')].sort()).toEqual([
             'dbt:stg_deals',
             'deals',

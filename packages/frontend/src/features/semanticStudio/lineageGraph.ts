@@ -109,11 +109,11 @@ export const toModelLineage = (
     return { models, links: linkList };
 };
 
-/** A dbt model drawn beside the explore's tables. */
+/** A dbt model upstream of the explore, drawn to the left of its tables. */
 export type LineageCard = LineageModelNode & { nodeId: string };
 
 export type JoinsWithLineage = {
-    /** Models the explore does not read; the ones it reads are its tables. */
+    /** Upstream models the explore does not read; the ones it reads are its tables. */
     cards: LineageCard[];
     /** "Built from" edges, between table and model node ids. */
     links: JoinLink[];
@@ -123,7 +123,7 @@ export type JoinsWithLineage = {
 
 const cardId = (model: string) => `dbt:${model}`;
 
-/** Lays dbt lineage over the join graph: a model the explore reads is its table's node. */
+/** Lays the dbt models upstream of the explore over its join graph; a model the explore reads is its table's node. */
 export const withLineage = (
     graph: JoinGraph,
     lineage: ModelLineage,
@@ -140,10 +140,19 @@ export const withLineage = (
             nodeIdsOf(id).map((nodeId) => [nodeId, id] as const),
         ),
     );
+    // From the sources up to the explore: nothing built from its tables.
+    const kept = new Set(
+        lineage.models
+            .filter(({ role }) => role !== 'downstream' && role !== 'other')
+            .map(({ id }) => id),
+    );
+    const upstreamLinks = lineage.links.filter(
+        ({ source, target }) => kept.has(source) && kept.has(target),
+    );
     const cards = lineage.models
-        .filter(({ id }) => !tablesByModel.has(id))
+        .filter(({ id }) => kept.has(id) && !tablesByModel.has(id))
         .map<LineageCard>((model) => ({ ...model, nodeId: cardId(model.id) }));
-    const links = lineage.links.flatMap(({ source, target }) =>
+    const links = upstreamLinks.flatMap(({ source, target }) =>
         nodeIdsOf(source).flatMap((from) =>
             nodeIdsOf(target).map<JoinLink>((to) => ({
                 id: `lineage:${from}->${to}`,
@@ -156,7 +165,7 @@ export const withLineage = (
         const model = modelByNodeId.get(nodeId);
         if (!model) return new Set([nodeId]);
         return new Set(
-            [...relatedModels(lineage.links, model)].flatMap(nodeIdsOf),
+            [...relatedModels(upstreamLinks, model)].flatMap(nodeIdsOf),
         );
     };
     return { cards, links, relatedTo };
