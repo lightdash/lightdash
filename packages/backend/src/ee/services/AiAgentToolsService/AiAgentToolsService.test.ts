@@ -396,7 +396,19 @@ describe('AiAgentToolsService', () => {
                 .fn()
                 .mockResolvedValue(executionStats);
             const service = makeService({
-                explores: { orders: makeExplore({ name: 'orders' }) },
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        dimensions: {
+                            status: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'status',
+                                table: 'orders',
+                            },
+                        },
+                    }),
+                },
                 searchFieldUniqueValues,
                 asyncQueryService: {
                     executeAsyncSqlQuery,
@@ -1550,7 +1562,17 @@ describe('AiAgentToolsService', () => {
         const service = makeService({
             explores: {
                 posthog_events: {
-                    ...makeExplore({ name: 'posthog_events' }),
+                    ...makeExplore({
+                        name: 'posthog_events',
+                        dimensions: {
+                            event: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'event',
+                                table: 'posthog_events',
+                            },
+                        },
+                    }),
                     type: ExploreType.API_SOURCE,
                 },
             },
@@ -2284,6 +2306,86 @@ describe('AiAgentToolsService', () => {
             }),
         ).rejects.toThrow(NotFoundError);
         expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['an explore outside the agent tags', 'payments', 'payments_method'],
+        ['a field outside the agent tags', 'orders', 'orders_email'],
+        ['a field that does not exist', 'orders', 'orders_hidden'],
+    ])(
+        'does not search agent field values for %s',
+        async (_case, table, fieldId) => {
+            const searchFieldUniqueValues = vi.fn();
+            const searchFieldValuesAndWait = vi.fn();
+            const dimension = (name: string, tags?: string[]) => ({
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.STRING,
+                name,
+                table: name === 'method' ? 'payments' : 'orders',
+                tags,
+            });
+            const service = makeService({
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        dimensions: {
+                            status: dimension('status', ['ai']),
+                            email: dimension('email', ['internal']),
+                        },
+                    }),
+                    payments: makeExplore({
+                        name: 'payments',
+                        tags: ['internal'],
+                        dimensions: { method: dimension('method') },
+                    }),
+                },
+                searchFieldUniqueValues,
+                asyncQueryService: { searchFieldValuesAndWait },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ source: 'ai_agent', tags: ['ai'] }),
+            );
+
+            await expect(
+                runtime.searchFieldValues({ table, fieldId, query: 'x' }),
+            ).rejects.toThrow(NotFoundError);
+            expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+            expect(searchFieldValuesAndWait).not.toHaveBeenCalled();
+        },
+    );
+
+    it('searches agent field values for a field inside the agent tags', async () => {
+        const searchFieldUniqueValues = vi
+            .fn()
+            .mockResolvedValue({ results: ['shipped'] });
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    dimensions: {
+                        status: {
+                            fieldType: FieldType.DIMENSION,
+                            type: DimensionType.STRING,
+                            name: 'status',
+                            table: 'orders',
+                            tags: ['ai'],
+                        },
+                    },
+                }),
+            },
+            searchFieldUniqueValues,
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ source: 'ai_agent', tags: ['ai'] }),
+        );
+
+        await expect(
+            runtime.searchFieldValues({
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: 'ship',
+            }),
+        ).resolves.toEqual(['shipped']);
     });
 
     it('does not read content outside the scoped agent spaces', async () => {

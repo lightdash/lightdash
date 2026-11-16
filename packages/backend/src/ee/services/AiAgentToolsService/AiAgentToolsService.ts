@@ -5536,22 +5536,18 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.searchFieldValues`,
             args,
             async () => {
-                if (context.source === 'mcp') {
-                    const explore = await this.getExploreForRuntime(context, {
-                        table: args.table,
-                    });
-                    AiAgentToolsService.assertFieldInExplore(
-                        args.fieldId,
-                        explore,
-                    );
-                }
+                // Every source may only search fields of an explore in its scope.
+                const explore = await this.getExploreForRuntime(context, {
+                    table: args.table,
+                });
+                AiAgentToolsService.assertFieldInExplore(args.fieldId, explore);
 
                 const query = args.query ?? '';
                 const isEmptyQuery = query.trim() === '';
 
                 // Serve values known from field metadata before the warehouse guard.
-                const curatedResult = await this.getStaticFieldValues(
-                    context,
+                const curatedResult = AiAgentToolsService.getStaticFieldValues(
+                    explore,
                     args,
                     query,
                 );
@@ -5607,12 +5603,9 @@ export class AiAgentToolsService extends BaseService {
                     context.source === 'mcp'
                         ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
                         : QueryExecutionContext.AI;
-                const explore = await this.getExploreForRuntime(context, {
-                    table: args.table,
-                }).catch(() => null);
                 // Live sources answer through their API, which only the async query path reaches
                 const results =
-                    explore?.type === ExploreType.API_SOURCE
+                    explore.type === ExploreType.API_SOURCE
                         ? await this.asyncQueryService.searchFieldValuesAndWait(
                               {
                                   account: context.account,
@@ -5656,22 +5649,11 @@ export class AiAgentToolsService extends BaseService {
     }
 
     /** Serve values known from field metadata without querying the warehouse. */
-    private async getStaticFieldValues(
-        context: AiAgentToolsRuntimeContext,
+    private static getStaticFieldValues(
+        explore: Explore,
         args: Parameters<SearchFieldValuesFn>[0],
         query: string,
-    ): Promise<FieldValueSearchResult<string | boolean> | undefined> {
-        let explore: Explore;
-        try {
-            explore = await this.getExploreForRuntime(context, {
-                table: args.table,
-            });
-        } catch (e) {
-            Logger.warn(
-                `[ai-field-values] could not resolve explore "${args.table}" for curated values: ${getErrorMessage(e)}`,
-            );
-            return undefined;
-        }
+    ): FieldValueSearchResult<string | boolean> | undefined {
         const field = findFieldByIdInExplore(explore, args.fieldId);
         if (!field || !isDimension(field)) return undefined;
         if (
