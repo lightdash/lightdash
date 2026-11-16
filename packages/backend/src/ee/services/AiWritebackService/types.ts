@@ -318,6 +318,16 @@ export type GithubIdentity = {
     id: number;
 };
 
+export type ParsedDbtProject = {
+    manifestJson: string;
+    /** The project's `lightdash.config.yml`; null when it has none. */
+    lightdashConfigYaml: string | null;
+    /** Files this turn's commit changed, relative to the dbt project. */
+    changedFiles: string[];
+    /** The pull request the change was committed to. */
+    prUrl: string | null;
+};
+
 export type AiWritebackRunArgs = {
     agentPermissionsApply: boolean;
     user: SessionUser;
@@ -354,4 +364,6 @@ export type AiWritebackRunArgs = {
      */
     onProgress?: (message: string) => void;
     aiWritebackRunUuid?: string;
+    /** Handed the dbt project a turn's changes parse to, so they can be tried before a preview is built. */
+    onDbtProject?: (project: ParsedDbtProject) => Promise<void>;
 };

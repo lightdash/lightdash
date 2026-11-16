@@ -181,6 +181,7 @@ type VisualizationConfigProviderProps = PropsWithChildren<{
     colorPalette: string[];
     colorMappings: ReturnType<typeof useChartColorMappings>['colorMappings'];
     nullColor: string;
+    otherColor: string;
     computedSeries: Series[] | undefined;
 }>;
 
@@ -191,6 +192,7 @@ const VisualizationConfigProvider: FC<VisualizationConfigProviderProps> = ({
     colorPalette,
     colorMappings,
     nullColor,
+    otherColor,
     computedSeries,
     children,
 }) => {
@@ -208,6 +210,7 @@ const VisualizationConfigProvider: FC<VisualizationConfigProviderProps> = ({
                 colorPalette,
                 colorMappings,
                 nullColor,
+                otherColor,
                 chartConfig,
                 itemsMap,
                 computedSeries,
@@ -216,6 +219,7 @@ const VisualizationConfigProvider: FC<VisualizationConfigProviderProps> = ({
             colorPalette,
             colorMappings,
             nullColor,
+            otherColor,
             chartConfig,
             itemsMap,
             computedSeries,
@@ -407,6 +411,9 @@ const VisualizationProvider: FC<
     }, [chartConfig, forwardChartConfig]);
 
     const nullColor = theme.colors.ldGray[6];
+    // The "Other" group (groups past the pivot column limit) is lighter than
+    // the null color so it reads as the remainder.
+    const otherColor = theme.colors.ldGray[4];
     // Group colors do not depend on the chart config, so they keep their
     // identity while it is edited.
     const { getGroupColor } = useMemo(
@@ -538,6 +545,7 @@ const VisualizationProvider: FC<
                 colorPalette={colorPalette}
                 colorMappings={colorMappings}
                 nullColor={nullColor}
+                otherColor={otherColor}
                 computedSeries={computedSeries}
             >
                 {children}
@@ -549,6 +557,7 @@ const VisualizationProvider: FC<
             colorPalette,
             colorMappings,
             nullColor,
+            otherColor,
             computedSeries,
             children,
         ],

@@ -12,8 +12,8 @@ const now = new Date('2026-11-02T10:00:00Z');
 
 const result = (
     rows: Record<string, unknown>[],
-    truncated = false,
-): ApiConnectorResult => ({ columns: [], rows, truncated, bytesRead: null });
+    hasMoreRows = false,
+): ApiConnectorResult => ({ columns: [], rows, hasMoreRows, bytesRead: null });
 
 const eventsResult = result(
     [

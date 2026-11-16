@@ -54,6 +54,12 @@ import {
     toolAnalyzeFieldImpactOutputSchema,
 } from './toolAnalyzeFieldImpactArgs';
 import {
+    ASK_USER_TOOL_NAME,
+    TOOL_ASK_USER_DESCRIPTION,
+    toolAskUserArgsSchema,
+    toolAskUserOutputSchema,
+} from './toolAskUserArgs';
+import {
     TOOL_LIST_SKILLS_DESCRIPTION,
     TOOL_LOAD_SKILL_DESCRIPTION_MCP,
     TOOL_LOAD_SKILL_RESOURCE_DESCRIPTION,
@@ -430,6 +436,8 @@ const mcpGetContextOutputSchema = z.object({
         .object({
             projectUuid: z.string(),
             projectName: z.string(),
+            type: z.string(),
+            isPinned: z.boolean(),
             selectedTags: z.array(z.string()).nullable(),
         })
         .nullable(),
@@ -1065,6 +1073,20 @@ export const updateUserNameToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolUpdateUserNameArgsSchema,
     agent: { outputSchema: toolUpdateUserNameOutputSchema },
+});
+
+export const askUserToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'askUser',
+    typeof toolAskUserArgsSchema,
+    typeof toolAskUserArgsSchema,
+    typeof toolAskUserOutputSchema
+> = defineTool({
+    name: ASK_USER_TOOL_NAME,
+    title: 'Ask user',
+    description: TOOL_ASK_USER_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolAskUserArgsSchema,
+    agent: { outputSchema: toolAskUserOutputSchema },
 });
 
 export const runContentQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1742,7 +1764,7 @@ export const mcpListProjectsToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'listProjects',
     title: 'List projects',
     description:
-        'List all accessible projects in the organization. Projects contain explores, fields, and content. Prefer get_context for bootstrap, then pass the selected projectUuid explicitly to every project-scoped operation. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.',
+        'List all accessible projects in the organization. Projects contain explores, fields, and content. Prefer get_context for bootstrap, then pass the selected projectUuid explicitly to every project-scoped operation. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so queries can fail with 403 errors even when the schema is still visible. For ordinary business analysis, select a PREVIEW project only if the user explicitly requests or confirms it. If the appropriate DEFAULT project is ambiguous, ask which project to use rather than substituting an unrelated project. Preserve any pinned project scope.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
@@ -1784,7 +1806,7 @@ export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'getContext',
     title: 'Get context',
     description:
-        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call. When agent-specific scope is useful and routing is available, use route_agent and pass its returned agentUuid explicitly. If routing is unavailable, pick an agent from list_agents and pass its agentUuid explicitly; omit agentUuid when full project scope is desired. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.',
+        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call. When agent-specific scope is useful and routing is available, use route_agent and pass its returned agentUuid explicitly. If routing is unavailable, pick an agent from list_agents and pass its agentUuid explicitly; omit agentUuid when full project scope is desired. This tool reports context but does not establish implicit execution state. Project type identifies DEFAULT (production) and PREVIEW (temporary development/testing) environments. When activeProject.isPinned is true, activeProject is the only allowed project; if it is a PREVIEW, identify it as a preview and ask for confirmation before ordinary business analysis unless the user explicitly requested it. Otherwise activeProject is a stored default, not a restriction or evidence of intent to analyze a preview. Use the project the user requested, including an explicitly requested preview. For ordinary business analysis in an unpinned session without a requested project, use activeProject only if its type is DEFAULT; otherwise use the only DEFAULT project in availableProjects, or ask which to use when there are several. If none are available, explain that no production project is available. Do not silently select a preview or substitute an unrelated project. If the requested project is unavailable or rejected, explain rather than substitute another project.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: {
@@ -1993,6 +2015,7 @@ type AgentToolDefinitionsByName = {
     createContent: typeof createContentToolDefinition;
     createScheduledDelivery: typeof createScheduledDeliveryToolDefinition;
     updateUserName: typeof updateUserNameToolDefinition;
+    askUser: typeof askUserToolDefinition;
     runContentQuery: typeof runContentQueryToolDefinition;
     listContent: typeof listContentToolDefinition;
     loadSkill: typeof loadSkillToolDefinition;
@@ -2055,6 +2078,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     createContent: createContentToolDefinition,
     createScheduledDelivery: createScheduledDeliveryToolDefinition,
     updateUserName: updateUserNameToolDefinition,
+    askUser: askUserToolDefinition,
     runContentQuery: runContentQueryToolDefinition,
     listContent: listContentToolDefinition,
     loadSkill: loadSkillToolDefinition,
@@ -2124,6 +2148,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     createContentToolDefinition,
     createScheduledDeliveryToolDefinition,
     updateUserNameToolDefinition,
+    askUserToolDefinition,
     runContentQueryToolDefinition,
     listContentToolDefinition,
     loadSkillToolDefinition,

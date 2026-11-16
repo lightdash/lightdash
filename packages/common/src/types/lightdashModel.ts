@@ -48,6 +48,7 @@ export type LightdashModelMetric = DbtColumnLightdashMetric;
  * Explore configuration in Lightdash Model
  */
 export type LightdashModelExplore = {
+    combine_joined_fields?: boolean;
     label?: string;
     description?: string;
     tags?: string | string[];

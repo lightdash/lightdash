@@ -32,6 +32,7 @@ declare module 'express-session' {
             state?: string | undefined;
             linear?: {
                 clientId: string;
+                encryptedClientSecret: string;
                 codeVerifier: string;
                 redirectUri: string;
             };
@@ -67,6 +68,10 @@ declare module 'express-session' {
             messageTs?: string | undefined;
             threadTs?: string | undefined;
             trigger?: 'vote' | 'app_mention' | undefined;
+        };
+        headlessServiceAccount?: {
+            userUuid: string;
+            serviceAccountUuid: string;
         };
         impersonation?: {
             adminUserUuid: string;

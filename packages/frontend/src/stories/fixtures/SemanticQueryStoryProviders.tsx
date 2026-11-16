@@ -4,7 +4,11 @@ import { MemoryRouter } from 'react-router';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 import TrackingProvider from '../../providers/Tracking/TrackingProvider';
 import AppProviderMock from '../../testing/__mocks__/providers/AppProvider.mock';
-import { ordersExplore, STORY_PROJECT_UUID } from './semanticQueryStoryData';
+import {
+    ordersExplore,
+    sessionsExplore,
+    STORY_PROJECT_UUID,
+} from './semanticQueryStoryData';
 
 const createStoryQueryClient = () => {
     const client = createQueryClient({
@@ -18,6 +22,10 @@ const createStoryQueryClient = () => {
     client.setQueryData(
         ['tables', 'orders', STORY_PROJECT_UUID],
         ordersExplore,
+    );
+    client.setQueryData(
+        ['tables', 'web_sessions', STORY_PROJECT_UUID],
+        sessionsExplore,
     );
     return client;
 };

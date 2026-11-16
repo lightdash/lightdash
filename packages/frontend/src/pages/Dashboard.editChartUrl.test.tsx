@@ -104,6 +104,7 @@ vi.mock('../providers/Dashboard/useDashboardContext', async () => {
         setDashboardTabs: vi.fn(),
         setDashboardFilters: vi.fn(),
         setDashboardTemporaryFilters: vi.fn(),
+        setDateZoomGranularity: vi.fn(),
         setDashboardCustomMetrics: vi.fn(),
         setHaveTilesChanged: vi.fn(),
         setHaveFiltersChanged: vi.fn(),

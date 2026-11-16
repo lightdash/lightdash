@@ -1,0 +1,12 @@
+/* The transform shrinks what is drawn, not the layout box, so the outer
+   height follows the scaled grid */
+.canvas[data-zoomed] {
+    height: var(--canvas-zoom-height);
+}
+
+/* Only while zoomed: a transform makes the grid a containing block for
+   fixed descendants */
+.canvas[data-zoomed] > .content {
+    transform: scale(var(--canvas-zoom));
+    transform-origin: top center;
+}

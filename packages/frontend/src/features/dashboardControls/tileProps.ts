@@ -31,3 +31,25 @@ export const getTileTitle = (tile: DashboardTile, fallback: string): string => {
         return tile.properties.chartName;
     return fallback;
 };
+
+/** A tile's ring: none unreachable; available off the control; else by the active field or key. */
+export const getTileHighlight = ({
+    isReachable,
+    isOnControl,
+    activeId,
+    isOnActive,
+}: {
+    isReachable: boolean;
+    isOnControl: boolean;
+    activeId: string | null;
+    isOnActive: (id: string) => boolean;
+}): TileHighlight | null =>
+    !isReachable
+        ? null
+        : !isOnControl
+          ? 'available'
+          : activeId === null
+            ? 'filtered'
+            : isOnActive(activeId)
+              ? 'mapped'
+              : 'other';

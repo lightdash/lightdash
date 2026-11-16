@@ -11,6 +11,7 @@ import {
     ProjectType,
     QueryExecutionContext,
     supportsAiServiceAccount,
+    WarehouseConnectionError,
     WarehouseTypes,
     type Account,
     type AiServiceAccountCredentialInput,
@@ -20,6 +21,7 @@ import {
     type ApiAiServiceAccountStatusResponse,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
+import { SnowflakePrivateKeyError } from '@lightdash/warehouses';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
 import { createAuditLogEvent } from '../../logging/auditLog';
@@ -35,6 +37,7 @@ import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import {
     getAthenaServiceAccountTestErrorMessage,
+    getSnowflakeServiceAccountTestError,
     getUserPasswordServiceAccountTestErrorMessage,
 } from '../../utils/aiServiceAccountErrors';
 import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
@@ -920,7 +923,16 @@ export class AiServiceAccountService extends BaseService {
             if (error instanceof AiServiceAccountSlotResolutionError)
                 inheritedFromProjectUuid = error.inheritedFromProjectUuid;
             if (secrets === null && error instanceof NotFoundError) throw error;
-            failureReason = queryStarted ? 'query_failed' : 'connection_failed';
+            failureReason =
+                queryStarted &&
+                !(error instanceof WarehouseConnectionError) &&
+                !(error instanceof SnowflakePrivateKeyError)
+                    ? 'query_failed'
+                    : 'connection_failed';
+            const snowflakeError =
+                connection.type === WarehouseTypes.SNOWFLAKE
+                    ? getSnowflakeServiceAccountTestError(error)
+                    : null;
             this.logger.warn('AI service account test failed', {
                 userUuid: account.user.id,
                 organizationUuid,
@@ -939,6 +951,9 @@ export class AiServiceAccountService extends BaseService {
                                   error,
                               ),
                       }
+                    : {}),
+                ...(snowflakeError
+                    ? { snowflakeErrorCategory: snowflakeError.category }
                     : {}),
             });
             result = {
@@ -959,6 +974,9 @@ export class AiServiceAccountService extends BaseService {
                             return getAthenaServiceAccountTestErrorMessage(
                                 error,
                             );
+                        case WarehouseTypes.SNOWFLAKE:
+                            return getSnowflakeServiceAccountTestError(error)
+                                .message;
                         default:
                             return 'Could not verify the shared agent account. Check the credentials and connection settings.';
                     }

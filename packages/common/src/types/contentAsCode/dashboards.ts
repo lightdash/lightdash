@@ -4,6 +4,7 @@ import type { ContentVerificationInfo } from '../contentVerification';
 import type {
     Dashboard,
     DashboardChartTileProperties,
+    DashboardComposerChartTileProperties,
     DashboardConfig,
     DashboardControlRefKind,
     DashboardControlSection,
@@ -17,6 +18,7 @@ import type {
     DashboardTile,
     DashboardTileTypes,
     DateZoomControl,
+    DateZoomTileTarget,
 } from '../dashboard';
 import type { DashboardFilterRule } from '../filter';
 import type { PromotionChanges } from '../promotion';
@@ -78,6 +80,15 @@ export type DashboardSqlChartTileAsCode = DashboardTileAsCodeBase & {
     > & { chartSlug: string | null };
 };
 
+/** Names a composer chart the dashboard owns; the slug is looked up among composer charts only. */
+export type DashboardComposerChartTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.COMPOSER_CHART;
+    properties: Pick<
+        DashboardComposerChartTileProperties['properties'],
+        'title' | 'hideTitle'
+    > & { chartSlug: string };
+};
+
 export type DashboardMarkdownTileAsCode = DashboardTileAsCodeBase & {
     type: DashboardTileTypes.MARKDOWN;
     properties: DashboardMarkdownTileProperties['properties'];
@@ -111,6 +122,7 @@ export type DashboardDataAppTileAsCode = DashboardTileAsCodeBase & {
 export type DashboardTileAsCode =
     | DashboardChartTileAsCode
     | DashboardSqlChartTileAsCode
+    | DashboardComposerChartTileAsCode
     | DashboardMarkdownTileAsCode
     | DashboardLoomTileAsCode
     | DashboardHeadingTileAsCode
@@ -151,10 +163,20 @@ export type DashboardFilterRuleAsCode = DashboardFilterRule & {
 
 export type DateZoomControlAsCode = {
     uuid: DateZoomControl['uuid'];
+    /** Resolves `controlOrder` refs in this file; derived on download, never stored */
+    slug?: string;
     name: DateZoomControl['name'];
     granularity: DateZoomControl['granularity'];
     hidden?: DateZoomControl['hidden'];
     sectionSlug?: string;
+};
+
+export type DateZoomTileTargetAsCode = {
+    controlUuid: DateZoomTileTarget['controlUuid'];
+    /** Slug of the control at `controlUuid`; written on download, ignored on upload */
+    controlSlug?: string;
+    fieldId: DateZoomTileTarget['fieldId'];
+    tableName: DateZoomTileTarget['tableName'];
 };
 
 export type DashboardParameterControlAsCode = {
@@ -186,15 +208,13 @@ export type DashboardConfigAsCode = {
     defaultDateZoomGranularity?: DashboardConfig['defaultDateZoomGranularity'];
     dateZoomConfig?: {
         controls: DateZoomControlAsCode[];
-        tileTargets: NonNullable<
-            DashboardConfig['dateZoomConfig']
-        >['tileTargets'];
+        tileTargets: Record<string, DateZoomTileTargetAsCode>;
     };
     requiredFiltersNote?: DashboardConfig['requiredFiltersNote'];
     customMetrics?: DashboardConfig['customMetrics'];
     controlSections?: DashboardControlSectionAsCode[];
     parameterControls?: DashboardParameterControlAsCode[];
-    /** The order of filters, parameter controls and sections on the bar. Absent: the default order. */
+    /** The order of filters, parameter controls, date zoom controls and sections on the bar. Absent: the default order. */
     controlOrder?: DashboardControlRefAsCode[];
 };
 

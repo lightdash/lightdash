@@ -2,13 +2,25 @@ import {
     assertRegisteredAccount,
     type ApiErrorPayload,
     type ApiSemanticLayerDraftApplyResponse,
+    type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
+    type ApiSemanticLayerDraftKeepRequest,
+    type ApiSemanticLayerDraftMoveRequest,
     type ApiSemanticLayerDraftResponse,
+    type ApiSemanticLayerDraftStateResponse,
+    type ApiSemanticLayerDraftTakeLiveRequest,
+    type ApiSemanticLayerDraftUsageResponse,
     type ApiSemanticLayerModelResponse,
     type ApiSemanticLayerStatusResponse,
+    type ApiSemanticLayerStoredModelsResponse,
     type ApiSemanticLayerUndoResponse,
+    type ApiSemanticStudioWorkspaceResponse,
+    type ApiSemanticStudioWorkspacesResponse,
     type ApiSuccessEmpty,
+    type SemanticLayerFieldUsageBody,
     type SemanticLayerUndoRequest,
+    type SemanticStudioWorkspaceRenameBody,
+    type SemanticStudioWorkspaceStartBody,
     type UUID,
 } from '@lightdash/common';
 import {
@@ -17,6 +29,7 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Query,
@@ -58,13 +71,195 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: {
-                enabled: await this.getService().canEditModels(
-                    toSessionUser(req.account),
-                    projectUuid,
-                ),
-            },
+            results: await this.getService().getStatus(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
         };
+    }
+
+    /**
+     * The names of the models whose YAML the project keeps.
+     * @summary List stored semantic layer models
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/models')
+    @OperationId('getSemanticLayerStoredModels')
+    async getStoredModels(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerStoredModelsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getStoredModels(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * Studio work in this project: yours in flight, others' in flight, and yours finished lately.
+     * @summary List Semantic Studio workspaces
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/workspaces')
+    @OperationId('listSemanticStudioWorkspaces')
+    async listWorkspaces(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticStudioWorkspacesResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().listWorkspaces(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * Makes a Studio conversation's workspace your active one, starting it when it has none.
+     * @summary Start a Semantic Studio workspace
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/workspaces')
+    @OperationId('startSemanticStudioWorkspace')
+    async startWorkspace(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: SemanticStudioWorkspaceStartBody,
+    ): Promise<ApiSemanticStudioWorkspaceResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().startWorkspace(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Leaves your active workspace, so your next conversation starts a new one.
+     * @summary Leave my Semantic Studio workspace
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/workspaces/leave')
+    @OperationId('leaveSemanticStudioWorkspace')
+    async leaveWorkspace(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().leaveWorkspace(
+            toSessionUser(req.account),
+            projectUuid,
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * One workspace in this project.
+     * @summary Get a Semantic Studio workspace
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/workspaces/{workspaceUuid}')
+    @OperationId('getSemanticStudioWorkspace')
+    async getWorkspace(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() workspaceUuid: UUID,
+    ): Promise<ApiSemanticStudioWorkspaceResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getWorkspace(
+                toSessionUser(req.account),
+                projectUuid,
+                workspaceUuid,
+            ),
+        };
+    }
+
+    /**
+     * Renames one of your workspaces.
+     * @summary Rename a Semantic Studio workspace
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('/workspaces/{workspaceUuid}')
+    @OperationId('renameSemanticStudioWorkspace')
+    async renameWorkspace(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() workspaceUuid: UUID,
+        @Body() body: SemanticStudioWorkspaceRenameBody,
+    ): Promise<ApiSemanticStudioWorkspaceResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().renameWorkspace(
+                toSessionUser(req.account),
+                projectUuid,
+                workspaceUuid,
+                body.name,
+            ),
+        };
+    }
+
+    /**
+     * Makes one of your workspaces the active one.
+     * @summary Switch to a Semantic Studio workspace
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/workspaces/{workspaceUuid}/activate')
+    @OperationId('activateSemanticStudioWorkspace')
+    async activateWorkspace(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() workspaceUuid: UUID,
+    ): Promise<ApiSemanticStudioWorkspaceResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().activateWorkspace(
+                toSessionUser(req.account),
+                projectUuid,
+                workspaceUuid,
+            ),
+        };
+    }
+
+    /**
+     * Ends one of your workspaces after its changes were discarded; it stays as history.
+     * @summary Finish a Semantic Studio workspace
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/workspaces/{workspaceUuid}/finish')
+    @OperationId('finishSemanticStudioWorkspace')
+    async finishWorkspace(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() workspaceUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().finishWorkspace(
+            toSessionUser(req.account),
+            projectUuid,
+            workspaceUuid,
+        );
+        return { status: 'ok', results: undefined };
     }
 
     /**
@@ -87,6 +282,50 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 modelName,
+            ),
+        };
+    }
+
+    /**
+     * A value that changes whenever this person's draft would read differently.
+     * @summary Get the state of my semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/draft/state')
+    @OperationId('getSemanticLayerDraftState')
+    async getDraftState(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftStateResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getDraftState(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * The models this person has changes in development on, by name.
+     * @summary List the models in my semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/draft/models')
+    @OperationId('getSemanticLayerDraftedModels')
+    async getDraftedModels(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftedModelsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getDraftedModels(
+                toSessionUser(req.account),
+                projectUuid,
             ),
         };
     }
@@ -133,6 +372,52 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 model ?? null,
+            ),
+        };
+    }
+
+    /**
+     * Saved charts and dashboards that read any of the given fields, which a pull request defines differently or removes.
+     * @summary Get the saved content that reads changed fields
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/field-usage')
+    @OperationId('getSemanticLayerFieldUsage')
+    async getFieldUsage(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: SemanticLayerFieldUsageBody,
+    ): Promise<ApiSemanticLayerDraftUsageResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getFieldUsage(
+                toSessionUser(req.account),
+                projectUuid,
+                body.fields,
+            ),
+        };
+    }
+
+    /**
+     * Saved charts and dashboards that read a field this person's draft defines differently or removes.
+     * @summary Get the saved content my semantic layer draft changes
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/draft/usage')
+    @OperationId('getSemanticLayerDraftUsage')
+    async getDraftUsage(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftUsageResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getDraftUsage(
+                toSessionUser(req.account),
+                projectUuid,
             ),
         };
     }
@@ -243,6 +528,78 @@ export class SemanticStudioController extends BaseController {
             toSessionUser(req.account),
             projectUuid,
             { kind: 'all' },
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Moves one change one place earlier or later in this person's draft.
+     * @summary Reorder a change in my semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/changes/{draftChangeUuid}/move')
+    @OperationId('moveSemanticLayerDraftChange')
+    async moveDraftChange(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() draftChangeUuid: UUID,
+        @Body() body: ApiSemanticLayerDraftMoveRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().moveDraftChange(
+            toSessionUser(req.account),
+            projectUuid,
+            draftChangeUuid,
+            body.direction,
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Keeps this person's draft of a model over what was published to it since they started.
+     * @summary Keep my draft of a model over what was published since
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/models/{model}/keep')
+    @OperationId('keepSemanticLayerDraftModel')
+    async keepDraftModel(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+        @Body() body: ApiSemanticLayerDraftKeepRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().keepDraftModel(
+            toSessionUser(req.account),
+            projectUuid,
+            model,
+            body.liveVersion,
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Leaves one part of this person's drafted model as it is live.
+     * @summary Take the live version of one part of my drafted model
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/models/{model}/take-live')
+    @OperationId('takeLiveSemanticLayerDraftPart')
+    async takeLiveDraftPart(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+        @Body() body: ApiSemanticLayerDraftTakeLiveRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().takeLiveDraftPart(
+            toSessionUser(req.account),
+            projectUuid,
+            model,
+            body.path,
         );
         return { status: 'ok', results: undefined };
     }

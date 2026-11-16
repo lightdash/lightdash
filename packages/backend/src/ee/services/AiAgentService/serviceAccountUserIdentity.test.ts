@@ -141,6 +141,9 @@ const buildService = () => {
                 threadContext: null,
             }),
         },
+        aiWritebackService: {
+            canReadSourceCode: vi.fn().mockResolvedValue(false),
+        },
         aiAgentToolsService: {
             canGenerateDataApp: vi.fn().mockResolvedValue(false),
             canAuthorContent: vi.fn().mockResolvedValue(false),

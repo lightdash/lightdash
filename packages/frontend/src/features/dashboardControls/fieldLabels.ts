@@ -31,6 +31,22 @@ export const formatTilesOf = (
     ),
 });
 
+/** "Applies to 2 of 5 tiles", "Applies to 5 tiles" for all of them, "Applies to no tiles". */
+export const formatAppliesToTiles = (
+    getUiString: UiStringResolver,
+    applied: number,
+    total: number,
+): string => {
+    if (applied === 0) return getUiString('controls.dateZoom.appliesToNoTiles');
+    const tilesOf = formatTilesOf(getUiString, applied, total);
+    return interpolateUiString(getUiString('controls.appliesTo'), {
+        tiles:
+            applied === total
+                ? formatTileCount(getUiString, total)
+                : `${tilesOf.count} ${tilesOf.noun}`,
+    });
+};
+
 /** A section's members: "N filters", or "N controls" once parameter controls are among them. */
 export const formatSectionCount = (
     getUiString: UiStringResolver,

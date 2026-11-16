@@ -1,6 +1,13 @@
 import { Group, SegmentedControl, Text, Tooltip } from '@mantine/core';
+import { useHotkeys } from '@mantine/hooks';
 import { IconFilter } from '@tabler/icons-react';
 import { type FC } from 'react';
+import {
+    EDIT_SHORTCUTS,
+    nextInCycle,
+    toHotkeyItems,
+} from '../../components/common/Dashboard/editShortcuts';
+import { ShortcutHint } from '../../components/common/Dashboard/ShortcutHint';
 import MantineIcon from '../../components/common/MantineIcon';
 
 export type EditFiltersVisibility = 'all' | 'summary' | 'hidden';
@@ -32,35 +39,50 @@ type Props = {
 export const EditFiltersVisibilityControl: FC<Props> = ({
     value,
     onChange,
-}) => (
-    <Group gap="xs" wrap="nowrap">
-        <Group gap="xxs" wrap="nowrap">
-            <MantineIcon icon={IconFilter} color="dimmed" />
-            <Text fz="xs" c="dimmed" fw={500}>
-                Filters
-            </Text>
-        </Group>
-        <SegmentedControl
-            size="xs"
-            aria-label="Filters visibility while editing"
-            value={value}
-            onChange={(next) => {
-                if (isEditFiltersVisibility(next)) onChange(next);
-            }}
-            data={OPTIONS.map((option) => ({
-                value: option.value,
-                label: (
-                    <Tooltip
-                        label={option.tooltip}
-                        position="bottom"
-                        openDelay={200}
-                    >
-                        <Text span inherit>
-                            {option.label}
-                        </Text>
-                    </Tooltip>
+}) => {
+    useHotkeys(
+        toHotkeyItems(EDIT_SHORTCUTS.filters, () =>
+            onChange(
+                nextInCycle(
+                    OPTIONS.map((option) => option.value),
+                    value,
                 ),
-            }))}
-        />
-    </Group>
-);
+            ),
+        ),
+    );
+
+    return (
+        <ShortcutHint shortcut={EDIT_SHORTCUTS.filters} position="top">
+            <Group gap="xs" wrap="nowrap">
+                <Group gap="xxs" wrap="nowrap">
+                    <MantineIcon icon={IconFilter} color="dimmed" />
+                    <Text fz="xs" c="dimmed" fw={500}>
+                        Filters
+                    </Text>
+                </Group>
+                <SegmentedControl
+                    size="xs"
+                    aria-label="Filters visibility while editing"
+                    value={value}
+                    onChange={(next) => {
+                        if (isEditFiltersVisibility(next)) onChange(next);
+                    }}
+                    data={OPTIONS.map((option) => ({
+                        value: option.value,
+                        label: (
+                            <Tooltip
+                                label={option.tooltip}
+                                position="bottom"
+                                openDelay={200}
+                            >
+                                <Text span inherit>
+                                    {option.label}
+                                </Text>
+                            </Tooltip>
+                        ),
+                    }))}
+                />
+            </Group>
+        </ShortcutHint>
+    );
+};

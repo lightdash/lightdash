@@ -121,7 +121,6 @@ export const storyProject = {
 const ENABLED_FLAGS: string[] = [
     FeatureFlags.NewOnboarding,
     FeatureFlags.ApiQuerySources,
-    FeatureFlags.ExternalSources,
 ];
 
 export type StubRequest = {

@@ -6,6 +6,7 @@ describeContentAsCodeSchemaContract({
     documentSchema: 'ExternalConnectionAsCode',
     skippedModelFields: [
         // Live API sources are configured in the app, not as code.
+        'aiHint',
         'apiSource',
         'createdAt',
         'createdByUserUuid',
@@ -16,6 +17,8 @@ describeContentAsCodeSchemaContract({
         'liveSourceName',
         'organizationUuid',
         'projectUuid',
+        // Saved from the connection picker of a live API source.
+        'targetLabel',
         // Carried by the document as `authType`.
         'type',
         'updatedAt',

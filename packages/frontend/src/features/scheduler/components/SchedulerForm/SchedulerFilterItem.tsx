@@ -78,6 +78,7 @@ type SchedulerFilterItemProps<R extends SchedulerOverridableRule> = {
     tilesWithFilter?: string[];
     /** Show the rule without any controls. */
     readOnly?: boolean;
+    valuesOnly?: boolean;
 };
 
 export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
@@ -91,12 +92,14 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
     removeTooltip = 'Remove filter',
     tilesWithFilter,
     readOnly = false,
+    valuesOnly = false,
 }: SchedulerFilterItemProps<R>) => {
     const { getField } = useFiltersContext();
     const getUiString = useUiStrings();
     const item = getField(savedFilter);
     const field = item && isFilterableItem(item) ? item : undefined;
     const [isEditing, setIsEditing] = useState(false);
+    const activeFilter = schedulerFilter ?? savedFilter;
 
     const filterType = useMemo(() => {
         return field ? getFilterTypeFromItem(field) : FilterType.STRING;
@@ -203,24 +206,31 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                                 </ActionIcon>
                             </Tooltip>
                         )}
-                        <ActionIcon
-                            size="xs"
-                            aria-label={
-                                isEditing ? 'Done editing' : 'Edit filter'
-                            }
-                            onClick={() => {
-                                setIsEditing(!isEditing);
-                            }}
-                        >
-                            <MantineIcon
-                                icon={isEditing ? IconCheck : IconPencil}
-                            />
-                        </ActionIcon>
+                        {(!valuesOnly ||
+                            isWithValueFilter(activeFilter.operator)) && (
+                            <ActionIcon
+                                size="xs"
+                                aria-label={
+                                    isEditing ? 'Done editing' : 'Edit filter'
+                                }
+                                onClick={() => {
+                                    setIsEditing(!isEditing);
+                                }}
+                            >
+                                <MantineIcon
+                                    icon={isEditing ? IconCheck : IconPencil}
+                                />
+                            </ActionIcon>
+                        )}
                         {onRemove && (
                             <Tooltip label={removeTooltip} fz="xs">
                                 <ActionIcon
                                     size="xs"
-                                    aria-label="Remove filter"
+                                    aria-label={
+                                        valuesOnly
+                                            ? 'Use chart default'
+                                            : 'Remove filter'
+                                    }
                                     onClick={onRemove}
                                 >
                                     <MantineIcon icon={IconTrash} />
@@ -239,6 +249,7 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
             {isEditing && (
                 <Flex gap="xs" wrap="wrap">
                     <Select
+                        disabled={valuesOnly}
                         flex="0 0 180px"
                         size="xs"
                         value={

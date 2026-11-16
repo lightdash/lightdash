@@ -6,6 +6,7 @@ import {
 } from '../analytics/eventStream/queryError';
 import { queryEventsCompactedColumns } from '../analytics/eventStream/queryEventsStream';
 import { QUERY_HISTORY_BACKFILL_EVENT } from '../analytics/eventStream/queryHistoryBackfill';
+import { queryHistoryRequestColumnSql } from '../database/entities/queryHistory';
 import { isStatementTimeout } from '../database/errors';
 
 const HISTORY_WINDOW_MS = 60 * 60 * 1000;
@@ -96,12 +97,12 @@ export class UsageQueryHistoryModel {
                     )
                     .select(
                         this.database.raw(
-                            "COALESCE(q.request_parameters->>'chartUuid', q.request_parameters->>'savedSqlUuid') as chart_id",
+                            `COALESCE(${queryHistoryRequestColumnSql('q', 'request_chart_uuid')}, ${queryHistoryRequestColumnSql('q', 'request_saved_sql_uuid')}) as chart_id`,
                         ),
                     )
                     .select(
                         this.database.raw(
-                            "q.request_parameters->>'dashboardUuid' as dashboard_id",
+                            `${queryHistoryRequestColumnSql('q', 'request_dashboard_uuid')} as dashboard_id`,
                         ),
                     )
                     .orderBy('q.created_at')

@@ -22,19 +22,3 @@
     inline-size: var(--parameter-remove-size);
     block-size: var(--parameter-remove-size);
 }
-
-/* A tile it sets has no value: the shipped parameter pill's warning, as a
-   border, so the box keeps its size */
-.parameterPill.parameterPill.parameterPill.parameterPill[data-missing]:not(
-        :disabled,
-        [data-open]
-    ) {
-    border-color: var(--mantine-color-yellow-6);
-}
-
-/* Hidden from viewers: muted for the editor who still sees it */
-.parameterPill.parameterPill.parameterPill.parameterPill[data-hidden]:not(
-        :disabled
-    ) {
-    color: var(--mantine-color-dimmed);
-}

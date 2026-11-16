@@ -46,6 +46,7 @@ import {
     getItemId,
     getModelsFromManifest,
     getPreAggregateExploreName,
+    getUserAbilityBuilder,
     isAiAccessQueryContext,
     JobStatusType,
     JobStepStatusType,
@@ -67,6 +68,7 @@ import {
     PersonSignInProvider,
     PreAggregateMissReason,
     PreviewWarehouseSignInExpiredError,
+    ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
     QuerySurface,
@@ -273,6 +275,7 @@ import {
 } from '../WarehouseClientFactory/WarehouseClientFactory';
 import { getAgentTableListScopeFingerprint } from './agentTableList';
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
+import { developmentView } from './developmentView';
 import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
@@ -1499,6 +1502,7 @@ describe('ProjectService', () => {
                     expect(enterprise).toHaveBeenCalledExactlyOnceWith({
                         organizationUuid: 'organization-uuid',
                         projectUuid: 'copy',
+                        spaceUuid: 'training-space',
                         createdByUserUuid: 'creator',
                     });
                     expect(reported).not.toHaveBeenCalled();
@@ -1511,7 +1515,9 @@ describe('ProjectService', () => {
                     await expect(
                         seedAll(createLearnService(enterprise)),
                     ).resolves.toBeUndefined();
-                    expect(enterprise).toHaveBeenCalledTimes(1);
+                    expect(enterprise).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({ spaceUuid: null }),
+                    );
                     expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
                 });
 
@@ -3879,6 +3885,124 @@ describe('ProjectService', () => {
         scheduleCompileProjectSpy.mockRestore();
     });
 
+    test.each([
+        { flagEnabled: false, requireUserCredentials: undefined },
+        { flagEnabled: true, requireUserCredentials: true },
+    ])(
+        'CLI preview on a different Snowflake warehouse requires user credentials only when inheriting across warehouses ($flagEnabled)',
+        async ({ flagEnabled, requireUserCredentials }) => {
+            const upstreamProjectUuid = 'upstream-project-uuid';
+            const developer: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                account: 'account',
+                user: 'developer',
+                password: 'developer-password',
+                database: 'DEV',
+                warehouse: 'DEV_WH',
+                schema: 'dbt_developer',
+            };
+            const featureFlagModel = {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            flagEnabled &&
+                            featureFlagId ===
+                                FeatureFlags.PreviewInheritsAcrossWarehouses,
+                    }),
+                ),
+            };
+            const previewService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    featureFlagModel:
+                        featureFlagModel as unknown as FeatureFlagModel,
+                },
+            );
+            const previewUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Test organization',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'create' },
+                ]),
+            };
+            const spies = [
+                vi
+                    .spyOn(
+                        previewService as unknown as {
+                            validateProjectCreationPermissions: () => Promise<true>;
+                        },
+                        'validateProjectCreationPermissions',
+                    )
+                    .mockResolvedValue(true),
+                vi
+                    .spyOn(previewService, 'getPreviewExpiresAt')
+                    .mockResolvedValue(null),
+                vi
+                    .spyOn(previewService, 'copyUserAccessOnPreview')
+                    .mockResolvedValue(),
+                vi
+                    .spyOn(projectModel, 'getWarehouseCredentialsForBinding')
+                    .mockResolvedValue({
+                        ...developer,
+                        user: 'service_user',
+                        password: 'parent-password',
+                        database: 'PROD',
+                        warehouse: 'PROD_WH',
+                        schema: 'analytics',
+                        requireUserCredentials: true,
+                    }),
+            ];
+            projectModel.createWithOptionalCredentials.mockClear();
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                'created-preview-project-uuid',
+            );
+
+            try {
+                await previewService.createWithoutCompile(
+                    previewUser,
+                    {
+                        name: 'Preview on a development warehouse',
+                        type: ProjectType.PREVIEW,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        warehouseConnection: developer,
+                        upstreamProjectUuid,
+                        copyContent: false,
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    },
+                    RequestMethod.CLI,
+                );
+
+                const created = (
+                    projectModel.createWithOptionalCredentials.mock
+                        .calls as unknown as [
+                        string,
+                        string,
+                        { warehouseConnection?: CreateWarehouseCredentials },
+                    ][]
+                )[0][2].warehouseConnection;
+                expect(created).toMatchObject(developer);
+                expect(created?.requireUserCredentials).toBe(
+                    requireUserCredentials,
+                );
+                if (flagEnabled) {
+                    expect(featureFlagModel.get).toHaveBeenCalledWith({
+                        user: {
+                            organizationUuid: previewUser.organizationUuid,
+                        },
+                        featureFlagId:
+                            FeatureFlags.PreviewInheritsAcrossWarehouses,
+                    });
+                }
+            } finally {
+                spies.forEach((spy) => spy.mockRestore());
+            }
+        },
+    );
+
     test.each([RequestMethod.WEB_APP, RequestMethod.CLI])(
         'copies additional dbt sources when creating a preview through %s',
         async (requestMethod) => {
@@ -4429,6 +4553,243 @@ describe('ProjectService', () => {
             expect(projectModel.delete).toHaveBeenNthCalledWith(1, 'copy-1');
             expect(projectModel.delete).toHaveBeenNthCalledWith(2, 'copy-2');
             expect(projectModel.delete).toHaveBeenNthCalledWith(3, 'copy-3');
+        });
+    });
+
+    describe('updatePreviewExpiresAt', () => {
+        const ORG_UUID = 'preview-org';
+        const CREATOR_UUID = 'preview-creator';
+        const OTHER_USER_UUID = 'other-user';
+        const UPSTREAM_UUID = 'upstream-project';
+        const PREVIEW_UUID = 'preview-project';
+        const SELF_ROLE_UUID = '55555555-5555-4555-a555-555555555555';
+        const selfPreviewScopes = [
+            'view:Project',
+            'create:Job',
+            'manage:CompileProject',
+            'create:Project@preview',
+            'update:Project@self',
+        ];
+        const previewSummary = (overrides: Partial<ProjectSummary> = {}) =>
+            ({
+                name: 'Preview',
+                projectUuid: PREVIEW_UUID,
+                slug: 'preview',
+                organizationUuid: ORG_UUID,
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: UPSTREAM_UUID,
+                createdByUserUuid: CREATOR_UUID,
+                provisioningSource: null,
+                ...overrides,
+            }) as ProjectSummary;
+        const sessionUserWith = ({
+            userUuid = CREATOR_UUID,
+            role = OrganizationMemberRole.MEMBER,
+            roleUuid,
+            projectProfiles = [],
+        }: {
+            userUuid?: string;
+            role?: OrganizationMemberRole;
+            roleUuid?: string;
+            projectProfiles?: {
+                projectUuid: string;
+                role: ProjectMemberRole;
+                roleUuid?: string;
+            }[];
+        }): SessionUser => ({
+            ...user,
+            userUuid,
+            role,
+            organizationUuid: ORG_UUID,
+            organizationName: 'Preview org',
+            organizationCreatedAt: new Date(),
+            ability: getUserAbilityBuilder({
+                user: { role, organizationUuid: ORG_UUID, userUuid, roleUuid },
+                projectProfiles: projectProfiles.map((profile) => ({
+                    ...profile,
+                    roleUuid: profile.roleUuid,
+                    userUuid,
+                })),
+                permissionsConfig: {
+                    pat: { enabled: false, allowedOrgRoles: [] },
+                },
+                customRoleScopes: { [SELF_ROLE_UUID]: selfPreviewScopes },
+                customRolesEnabled: true,
+            }).builder.build(),
+        });
+        const updateExpiresAt = vi.fn(async () => undefined);
+        const previewService = (summary: ProjectSummary) =>
+            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
+                projectModel: {
+                    ...projectModel,
+                    getSummary: vi.fn(async () => summary),
+                    getPreviewExpirationSettings: vi.fn(async () => ({
+                        defaultPreviewExpirationHours: 24,
+                        maxPreviewExpirationHours: null,
+                    })),
+                    updateExpiresAt,
+                } as unknown as ProjectModel,
+            });
+
+        beforeEach(() => {
+            updateExpiresAt.mockClear();
+        });
+
+        test.each([
+            ['an org-level custom role', { roleUuid: SELF_ROLE_UUID }],
+            [
+                'a custom role on the upstream project',
+                {
+                    projectProfiles: [
+                        {
+                            projectUuid: UPSTREAM_UUID,
+                            role: ProjectMemberRole.VIEWER,
+                            roleUuid: SELF_ROLE_UUID,
+                        },
+                    ],
+                },
+            ],
+        ])(
+            'lets a non-admin creator with update:Project@self refresh their preview via %s',
+            async (_, args) => {
+                await expect(
+                    previewService(previewSummary()).updatePreviewExpiresAt(
+                        sessionUserWith(args),
+                        PREVIEW_UUID,
+                    ),
+                ).resolves.toMatchObject({ projectUuid: PREVIEW_UUID });
+                expect(updateExpiresAt).toHaveBeenCalledWith(
+                    PREVIEW_UUID,
+                    expect.any(Date),
+                );
+            },
+        );
+
+        test('lets an org admin refresh a preview someone else created', async () => {
+            await expect(
+                previewService(previewSummary()).updatePreviewExpiresAt(
+                    sessionUserWith({
+                        userUuid: OTHER_USER_UUID,
+                        role: OrganizationMemberRole.ADMIN,
+                    }),
+                    PREVIEW_UUID,
+                ),
+            ).resolves.toMatchObject({ projectUuid: PREVIEW_UUID });
+        });
+
+        test.each([
+            [
+                'a non-creator with update:Project@self',
+                previewSummary({ createdByUserUuid: OTHER_USER_UUID }),
+                { roleUuid: SELF_ROLE_UUID },
+            ],
+            [
+                'a creator whose preview is in another organization',
+                previewSummary({ organizationUuid: 'other-org' }),
+                { roleUuid: SELF_ROLE_UUID },
+            ],
+            [
+                'a creator whose role is on a different upstream project',
+                previewSummary(),
+                {
+                    projectProfiles: [
+                        {
+                            projectUuid: 'other-upstream',
+                            role: ProjectMemberRole.VIEWER,
+                            roleUuid: SELF_ROLE_UUID,
+                        },
+                    ],
+                },
+            ],
+            [
+                'an org viewer who created the preview',
+                previewSummary(),
+                { role: OrganizationMemberRole.VIEWER },
+            ],
+            [
+                'an org member who created the preview',
+                previewSummary(),
+                { role: OrganizationMemberRole.MEMBER },
+            ],
+        ])('denies %s', async (_, summary, args) => {
+            await expect(
+                previewService(summary).updatePreviewExpiresAt(
+                    sessionUserWith(args),
+                    PREVIEW_UUID,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(updateExpiresAt).not.toHaveBeenCalled();
+        });
+
+        describe('PATCH project on the same preview', () => {
+            const postgres: CreateWarehouseCredentials = {
+                type: WarehouseTypes.POSTGRES,
+                host: 'localhost',
+                port: 5432,
+                user: 'postgres',
+                password: 'postgres',
+                dbname: 'analytics',
+                schema: 'public',
+            };
+            const savedPreview = (createdByUserUuid = CREATOR_UUID) => ({
+                ...projectWithSensitiveFields,
+                warehouseConnection: postgres,
+                organizationUuid: ORG_UUID,
+                projectUuid: PREVIEW_UUID,
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: UPSTREAM_UUID,
+                createdByUserUuid,
+            });
+            const updateData = (): UpdateProject => ({
+                name: projectWithSensitiveFields.name,
+                dbtVersion: projectWithSensitiveFields.dbtVersion,
+                dbtConnection: projectWithSensitiveFields.dbtConnection,
+                warehouseConnection: postgres,
+            });
+
+            beforeEach(() => {
+                projectModel.update.mockClear();
+                jobModel.create.mockClear();
+            });
+
+            test('lets a non-admin creator with update:Project@self start the refresh', async () => {
+                projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                    savedPreview(),
+                );
+                await expect(
+                    getMockedProjectService(
+                        lightdashConfigWithGoogleOAuthMock,
+                    ).updateAndScheduleAsyncWork(
+                        PREVIEW_UUID,
+                        fromSession(
+                            sessionUserWith({ roleUuid: SELF_ROLE_UUID }),
+                        ),
+                        updateData(),
+                        RequestMethod.WEB_APP,
+                    ),
+                ).resolves.toMatchObject({ jobUuid: expect.any(String) });
+                expect(jobModel.create).toHaveBeenCalledOnce();
+            });
+
+            test('denies a non-admin with update:Project@self on a preview someone else created', async () => {
+                projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                    savedPreview(OTHER_USER_UUID),
+                );
+                await expect(
+                    getMockedProjectService(
+                        lightdashConfigWithGoogleOAuthMock,
+                    ).updateAndScheduleAsyncWork(
+                        PREVIEW_UUID,
+                        fromSession(
+                            sessionUserWith({ roleUuid: SELF_ROLE_UUID }),
+                        ),
+                        updateData(),
+                        RequestMethod.WEB_APP,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(projectModel.update).not.toHaveBeenCalled();
+                expect(jobModel.create).not.toHaveBeenCalled();
+            });
         });
     });
 
@@ -9259,6 +9620,56 @@ describe('ProjectService', () => {
                 expect(explore.unfilteredTables).toBeUndefined();
             },
         );
+
+        test("reads a person's unpublished model over the live one only in the development view", async () => {
+            const drafted: Explore = {
+                ...validExplore,
+                label: 'In development',
+            };
+            const findExplores = vi.fn(
+                async () => new Map([[validExplore.name, drafted]]),
+            );
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValue([
+                validExplore,
+            ]);
+
+            const live = await service.getExplore(
+                account,
+                projectUuid,
+                validExplore.name,
+            );
+            expect(live.label).toBe(validExplore.label);
+            expect(findExplores).not.toHaveBeenCalled();
+
+            const inDevelopment = await developmentView.run(
+                { findExplores, hasChanges: async () => true },
+                () =>
+                    service.getExplore(account, projectUuid, validExplore.name),
+            );
+            expect(inDevelopment.label).toBe('In development');
+            expect(findExplores).toHaveBeenCalledWith(account, projectUuid);
+        });
+
+        test('hides a model the person removed, in the development view', async () => {
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValue([
+                validExplore,
+            ]);
+            await expect(
+                developmentView.run(
+                    {
+                        findExplores: async () =>
+                            new Map([[validExplore.name, null]]),
+                        hasChanges: async () => true,
+                    },
+                    () =>
+                        service.getExplore(
+                            account,
+                            projectUuid,
+                            validExplore.name,
+                        ),
+                ),
+            ).rejects.toThrow('does not exist');
+        });
 
         test('returns split candidates when the requested explore name was qualified', async () => {
             vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
@@ -19479,6 +19890,7 @@ describe('available filter week boundaries', () => {
                 uuid: `weekly-chart-${index}`,
                 name: 'Weekly chart',
                 tableName,
+                exploreNames: [tableName],
                 projectUuid: projectSummary.projectUuid,
                 spaceUuid: 'space',
                 dashboardUuid: null,
@@ -19589,6 +20001,7 @@ describe('dashboard available filters', () => {
                 uuid: `chart-${index}`,
                 name: `Chart ${index}`,
                 tableName,
+                exploreNames: [tableName],
                 projectUuid: projectSummary.projectUuid,
                 spaceUuid: 'space',
                 dashboardUuid: null,
@@ -19650,6 +20063,106 @@ describe('dashboard available filters', () => {
             'tile-2': [0],
         });
     });
+
+    test('offers a merged tile the fields of every query it merges', async () => {
+        const filterAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'SavedChart', action: 'view' },
+                ]),
+            },
+        } as typeof account;
+        const exploreOf = (name: string) => ({
+            ...validExplore,
+            name,
+            tables: {
+                [name]: {
+                    ...validExplore.tables.a,
+                    name,
+                    dimensions: {
+                        id: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            table: name,
+                            name: 'id',
+                        },
+                    },
+                    metrics: {
+                        total: {
+                            ...validExplore.tables.a.metrics.met1,
+                            table: name,
+                            name: 'total',
+                        },
+                    },
+                },
+            },
+        });
+        const charts = [
+            { uuid: 'merged', exploreNames: ['orders', 'payments'] },
+            { uuid: 'plain', exploreNames: ['orders'] },
+        ].map(({ uuid, exploreNames }) => ({
+            uuid,
+            name: uuid,
+            tableName: exploreNames[0],
+            exploreNames,
+            projectUuid: projectSummary.projectUuid,
+            spaceUuid: 'space',
+            dashboardUuid: null,
+        }));
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce(
+            charts,
+        );
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce([
+            exploreOf('orders'),
+            exploreOf('payments'),
+        ]);
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                spacePermissionService: {
+                    resolveAccessBatch: vi.fn().mockResolvedValue(
+                        charts.map((chart) => ({
+                            target: { type: 'chart', chartUuid: chart.uuid },
+                            context: {
+                                organizationUuid:
+                                    account.organization.organizationUuid,
+                                projectUuid: projectSummary.projectUuid,
+                                inheritsFromOrgOrProject: true,
+                                access: [],
+                            },
+                        })),
+                    ),
+                } as unknown as SpacePermissionService,
+            },
+        );
+
+        const result = await service.getAvailableFiltersForSavedQueries(
+            filterAccount,
+            charts.map((chart) => ({
+                savedChartUuid: chart.uuid,
+                tileUuid: `tile-${chart.uuid}`,
+            })),
+        );
+
+        expect(result.allFilterableFields.map(getItemId)).toEqual([
+            'orders_id',
+            'payments_id',
+        ]);
+        expect(result.allFilterableMetrics.map(getItemId)).toEqual([
+            'orders_total',
+            'payments_total',
+        ]);
+        expect(result.savedQueryFilters).toEqual({
+            'tile-merged': [0, 1],
+            'tile-plain': [0],
+        });
+        expect(result.savedQueryMetricFilters).toEqual({
+            'tile-merged': [0, 1],
+            'tile-plain': [0],
+        });
+    });
 });
 
 describe('dashboard available filters hidden fields', () => {
@@ -19702,6 +20215,7 @@ describe('dashboard available filters hidden fields', () => {
             uuid,
             name: uuid,
             tableName,
+            exploreNames: [tableName],
             projectUuid: projectSummary.projectUuid,
             spaceUuid: 'space',
             dashboardUuid: null,

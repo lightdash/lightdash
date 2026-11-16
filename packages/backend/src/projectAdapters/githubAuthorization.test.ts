@@ -7,7 +7,9 @@ import {
 import { getInstallationToken } from '../clients/github/Github';
 import {
     assertGithubInstallationResolved,
+    getGithubCloneHostDomain,
     getGithubToken,
+    GITHUB_APP_HOST_MISMATCH_MESSAGE,
     GITHUB_APP_NOT_INSTALLED_MESSAGE,
 } from './githubAuthorization';
 
@@ -125,5 +127,40 @@ describe('assertGithubInstallationResolved', () => {
                 project_sub_path: '/',
             }),
         ).not.toThrow();
+    });
+});
+
+describe('getGithubCloneHostDomain', () => {
+    test('targets github.com for a GitHub App connection', () => {
+        expect(getGithubCloneHostDomain(oauthConnection)).toBe('github.com');
+        expect(
+            getGithubCloneHostDomain({
+                ...oauthConnection,
+                host_domain: 'GitHub.com.',
+            }),
+        ).toBe('github.com');
+    });
+
+    test('rejects a GitHub App connection configured with another host', () => {
+        // Installation tokens are minted by github.com and only valid there.
+        expect(() =>
+            getGithubCloneHostDomain({
+                ...oauthConnection,
+                host_domain: 'github.acme.com',
+            }),
+        ).toThrow(GITHUB_APP_HOST_MISMATCH_MESSAGE);
+    });
+
+    test('keeps the configured host for a PAT connection (GitHub Enterprise)', () => {
+        expect(
+            getGithubCloneHostDomain({
+                ...patConnection,
+                host_domain: 'github.acme.com',
+            }),
+        ).toBe('github.acme.com');
+    });
+
+    test('returns undefined when no host is configured', () => {
+        expect(getGithubCloneHostDomain(patConnection)).toBeUndefined();
     });
 });

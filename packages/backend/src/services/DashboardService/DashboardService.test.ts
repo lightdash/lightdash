@@ -33,6 +33,7 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { type ComposerChartModel } from '../../models/ComposerChartModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -261,6 +262,7 @@ describe('DashboardService', () => {
     const service = new DashboardService({
         featureFlagModel,
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
+        getComposerChartService: () => ({ getParameterReferences: vi.fn() }),
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         dashboardModel: dashboardModel as unknown as DashboardModel,
@@ -274,6 +276,9 @@ describe('DashboardService', () => {
         } as unknown as SchedulerService,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
+        composerChartModel: {
+            deleteOrphans: vi.fn(async () => {}),
+        } as unknown as ComposerChartModel,
         savedChartService: {} as SavedChartService, // Mock for test
         projectModel: projectModel as unknown as ProjectModel,
         slackClient: slackClient as unknown as SlackClient,
@@ -1254,6 +1259,12 @@ describe('DashboardService', () => {
                                 name: 'Order date',
                                 granularity: 'Week',
                             },
+                            {
+                                uuid: 'hidden-control-uuid',
+                                name: 'Ship date',
+                                granularity: 'Month',
+                                hidden: true,
+                            },
                         ],
                         tileTargets: {
                             'tile-1': {
@@ -1274,7 +1285,8 @@ describe('DashboardService', () => {
             isDateZoomDisabled: true,
             dateZoomGranularitiesCount: 3,
             defaultDateZoomGranularity: 'Week',
-            dateZoomControlsCount: 1,
+            dateZoomControlsCount: 2,
+            hiddenDateZoomControlsCount: 1,
             dateZoomTileTargetsCount: 2,
         });
     });
@@ -1289,6 +1301,7 @@ describe('DashboardService', () => {
             dateZoomGranularitiesCount: 0,
             defaultDateZoomGranularity: null,
             dateZoomControlsCount: 0,
+            hiddenDateZoomControlsCount: 0,
             dateZoomTileTargetsCount: 0,
             sectionsCount: 0,
             sectionedFiltersCount: 0,
@@ -2627,6 +2640,9 @@ describe('DashboardService', () => {
                     },
                 },
             };
+            (
+                dashboardModel.getByIdOrSlug as import('vitest').Mock
+            ).mockResolvedValue(withConfig);
             (dashboardModel.create as import('vitest').Mock).mockResolvedValue(
                 withConfig,
             );
@@ -2681,6 +2697,9 @@ describe('DashboardService', () => {
                     parameterControls: [control],
                 },
             };
+            (
+                dashboardModel.getByIdOrSlug as import('vitest').Mock
+            ).mockResolvedValue(withControls);
             (dashboardModel.create as import('vitest').Mock).mockResolvedValue(
                 withControls,
             );

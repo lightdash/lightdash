@@ -70,6 +70,7 @@ export type ExportResultsProps = {
     pivotConfig?: PivotConfig;
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
+    showSubtotals?: boolean;
     hideLimitSelection?: boolean;
     forceShowLimitSelection?: boolean;
     // Saved non-table charts can export XLSX as a rendered image of the chart
@@ -92,6 +93,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         pivotConfig,
         conditionalFormattings,
         showColumnTotals,
+        showSubtotals,
         hideLimitSelection = false,
         forceShowLimitSelection = false,
         canExportChartImage = false,
@@ -161,6 +163,11 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         xlsxContent: isChartImageExport
                             ? XlsxExportContent.CHART_IMAGE
                             : undefined,
+                        showSubtotals:
+                            fileType === DownloadFileType.XLSX &&
+                            (!pivotConfig || !exportPivotedData)
+                                ? showSubtotals
+                                : undefined,
                     };
 
                     return scheduleDownloadQuery(

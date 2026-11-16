@@ -405,7 +405,7 @@ export class MetaAdsConnector implements ApiConnector {
                 : {}),
         };
 
-        const { rows, truncated } = await readRowsWithinCap({
+        const { rows, hasMoreRows } = await readRowsWithinCap({
             label: 'Meta Ads',
             requestedRows: Math.min(limit, request.limit ?? limit),
             maxRows: META_ADS_MAX_QUERY_ROWS,
@@ -446,7 +446,7 @@ export class MetaAdsConnector implements ApiConnector {
             rows: rows.map((row) =>
                 toRow(row, columns, request.time_increment),
             ),
-            truncated,
+            hasMoreRows,
             bytesRead: null,
         };
     }

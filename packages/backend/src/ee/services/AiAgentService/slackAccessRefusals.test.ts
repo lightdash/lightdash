@@ -12,6 +12,7 @@ import Logger from '../../../logging/logger';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { getAiAccessRefusalBlocks } from '../ai/utils/getSlackBlocks';
 import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
+import type { SlackChartBlocks } from '../ai/utils/slackNativeCharts';
 import { getSlackTableBlocks } from '../ai/utils/slackTableBlocks';
 import { AiAgentService } from './AiAgentService';
 
@@ -28,6 +29,12 @@ const retryBlock = {
 };
 
 const siteUrl = 'https://lightdash.example.com';
+const withoutNativeCharts = (
+    blocks: unknown[],
+): { blocks: unknown[]; chartBlocks: SlackChartBlocks | null } => ({
+    blocks,
+    chartBlocks: null,
+});
 const signIn = new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN, {
     connectUrl: `${siteUrl}/connect?entryPoint=slack_link&token=a%2Fb`,
 }).refusal;
@@ -240,7 +247,7 @@ describe.each([false, true])(
                     service as unknown as {
                         getSlackAgentFinalBlocks: (
                             ...args: unknown[]
-                        ) => Promise<unknown[]>;
+                        ) => Promise<ReturnType<typeof withoutNativeCharts>>;
                     },
                     'getSlackAgentFinalBlocks',
                 ),
@@ -324,7 +331,7 @@ describe.each([false, true])(
                     else
                         h.finalBlocks.mockImplementation(async () => {
                             h.loadRequest.mockRejectedValueOnce(error);
-                            return [];
+                            return withoutNativeCharts([]);
                         });
                     if (agentIdentityEnabled && stage === 'error')
                         await expect(
@@ -666,7 +673,7 @@ describe.each([false, true])(
                             ).toHaveBeenCalledTimes(1),
                         );
                     h.loadRequest.mockRejectedValue(error);
-                    return [];
+                    return withoutNativeCharts([]);
                 });
                 await expect(
                     h.service.replyToSlackPrompt('prompt-1'),
@@ -783,7 +790,7 @@ describe.each([false, true])(
                                 AiAccessRefusalReason.AGENT_PROJECT_DENIED,
                             ),
                         );
-                    return [];
+                    return withoutNativeCharts([]);
                 });
                 await h.service.replyToSlackPrompt('prompt-1');
                 expect(h.generate).toHaveBeenCalledTimes(1);
@@ -862,12 +869,14 @@ describe.each([false, true])(
 
         it('posts the answer, runs the Slack post-delivery store, and propagates the image marker only when enabled', async () => {
             const h = setup({ card: false, refusals: [] });
-            h.finalBlocks.mockResolvedValue([
-                {
-                    type: 'card',
-                    block_id: getSlackArtifactCardBlockId('version'),
-                },
-            ]);
+            h.finalBlocks.mockResolvedValue(
+                withoutNativeCharts([
+                    {
+                        type: 'card',
+                        block_id: getSlackArtifactCardBlockId('version'),
+                    },
+                ]),
+            );
             vi.mocked(
                 h.service['aiAgentModel'].slackArtifactDeliveries.get,
             ).mockResolvedValue({
@@ -1311,11 +1320,9 @@ describe.each([false, true])(
                     },
                 ]);
                 const chartCard = { type: 'card', block_id: 'chart-1' };
-                h.finalBlocks.mockResolvedValue([
-                    citation,
-                    ...table,
-                    chartCard,
-                ]);
+                h.finalBlocks.mockResolvedValue(
+                    withoutNativeCharts([citation, ...table, chartCard]),
+                );
 
                 await h.service.replyToSlackPrompt('prompt-1');
 

@@ -5,6 +5,7 @@ import {
     SupportedDbtAdapter,
     type FilterRule,
     type MetricQuery,
+    type ParameterError,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { buildApiSourceExplore } from '../apiSourceExplore';
@@ -12,6 +13,7 @@ import { compileMetaAdsQuery } from './metaAdsCompiler';
 import {
     META_ADS_CAPABILITIES,
     META_ADS_MAX_QUERY_ROWS,
+    MetaAdsConnector,
 } from './MetaAdsConnector';
 import {
     META_ADS_INSIGHTS_EXPLORE,
@@ -85,13 +87,116 @@ describe('compileMetaAdsQuery', () => {
     it.each([
         ['no ad object', [], 'account'],
         ['a campaign', ['campaign_name'], 'campaign'],
-        ['an objective', ['objective'], 'campaign'],
+        ['an objective', ['campaign_id', 'objective'], 'campaign'],
         ['an ad set', ['campaign_name', 'adset_name'], 'adset'],
         ['an ad', ['adset_id', 'ad_name'], 'ad'],
     ])('reads at the level of %s', (_name, dimensions, level) => {
         expect(
             request(query({ dimensions: dimensions.map(field) })).level,
         ).toBe(level);
+    });
+
+    describe('row identity', () => {
+        it.each([
+            [
+                ['objective'],
+                'objective',
+                /one row per campaign and can't group them by Campaign objective\. Add Campaign name or Campaign ID/,
+            ],
+            [
+                ['adset_name'],
+                'adset_name',
+                /one row per ad set .* Add Ad set ID/,
+            ],
+            [
+                ['campaign_name', 'ad_name'],
+                'ad_name',
+                /one row per ad .* Add Ad ID/,
+            ],
+            [['objective', 'country'], 'objective', /one row per campaign/],
+        ])('refuses grouping by %j', (dimensions, fieldName, message) => {
+            const error = (() => {
+                try {
+                    compile(query({ dimensions: dimensions.map(field) }));
+                    return null;
+                } catch (e) {
+                    return e as ParameterError;
+                }
+            })();
+            expect(error?.message).toMatch(message);
+            expect(error?.data).toMatchObject({
+                liveSourceErrorCode: 'live_source.refused.field_combination',
+                liveSourceFieldIds: [field(fieldName)],
+            });
+        });
+
+        it.each([
+            [['objective', 'campaign_id']],
+            [['objective', 'campaign_name']],
+            [['adset_name', 'campaign_name']],
+            [['ad_name', 'adset_id']],
+            [['ad_name', 'adset_name', 'campaign_id']],
+            [['country', 'age']],
+            [['date']],
+        ])('allows grouping by %j', (dimensions) => {
+            expect(() =>
+                compile(query({ dimensions: dimensions.map(field) })),
+            ).not.toThrow();
+        });
+
+        it('returns one row per campaign when an ID is selected with the objective', async () => {
+            const metricQuery = query({
+                dimensions: [field('objective'), field('campaign_id')],
+            });
+            const { query: compiled, fieldIdsByColumn } = compile(metricQuery);
+            const connector = new MetaAdsConnector({
+                adAccountId: '123',
+                send: async () => ({
+                    status: 200,
+                    headers: {},
+                    body: {
+                        data: [
+                            {
+                                objective: 'OUTCOME_SALES',
+                                campaign_id: '1',
+                                spend: '10',
+                            },
+                            {
+                                objective: 'OUTCOME_SALES',
+                                campaign_id: '2',
+                                spend: '20',
+                            },
+                        ],
+                        paging: { cursors: { before: 'A', after: 'B' } },
+                    },
+                }),
+            });
+            const { rows } = await connector.execute({
+                payload: { kind: 'query', query: compiled },
+                limit: 10,
+            });
+            expect(
+                rows.map((row) =>
+                    Object.fromEntries(
+                        Object.entries(row).map(([column, value]) => [
+                            fieldIdsByColumn[column],
+                            value,
+                        ]),
+                    ),
+                ),
+            ).toEqual([
+                {
+                    [field('objective')]: 'OUTCOME_SALES',
+                    [field('campaign_id')]: '1',
+                    [field('spend')]: 10,
+                },
+                {
+                    [field('objective')]: 'OUTCOME_SALES',
+                    [field('campaign_id')]: '2',
+                    [field('spend')]: 20,
+                },
+            ]);
+        });
     });
 
     it('keeps breakdowns apart from ad object fields', () => {
@@ -226,7 +331,7 @@ describe('compileMetaAdsQuery', () => {
         expect(
             request(
                 query({
-                    dimensions: [field('ad_name')],
+                    dimensions: [field('adset_id'), field('ad_name')],
                     ...withFilters(
                         rule('campaign_id', FilterOperator.EQUALS, ['1']),
                     ),

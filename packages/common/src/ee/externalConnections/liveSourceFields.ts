@@ -31,6 +31,8 @@ export type LiveSourceField = {
 
 export type LiveSourceFields = {
     exploreName: string;
+    /** Saved charts on any of the source's explores, each counted once. */
+    usedByChartCount: number;
     /** ISO timestamp of the last scan, or null when the source was never scanned. */
     scannedAt: string | null;
     fields: LiveSourceField[];

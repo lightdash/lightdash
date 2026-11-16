@@ -6,8 +6,9 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useMatch } from 'react-router';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
+import { useProject } from '../../../../../hooks/useProject';
 import { CreateIssueModalHost } from '../CreateIssue/CreateIssueModalHost';
 import { AiAgentBuildWatcher } from './AiAgentBuildWatcher';
 import { AiAgentsCoreProvider } from './AiAgentsCoreProvider';
@@ -24,13 +25,25 @@ const AiAgentsLauncher = lazy(() =>
 
 const AiAgentsLauncherGate: FC = () => {
     const { activeProjectUuid } = useActiveProjectUuid();
-    const isLauncherMounted = useIsLauncherMounted(activeProjectUuid);
+    const homepage = useMatch('/projects/:projectUuid/home');
+    const { data: project } = useProject(
+        homepage ? activeProjectUuid : undefined,
+    );
+    const projectIdentifier = homepage?.params.projectUuid;
+    const isAnalyticsHomepage =
+        project?.provisioningSource === 'analytics' &&
+        (projectIdentifier === project.projectUuid ||
+            projectIdentifier === project.slug);
+    const isLauncherMounted = useIsLauncherMounted(
+        activeProjectUuid,
+        isAnalyticsHomepage,
+    );
 
     if (!isLauncherMounted) return null;
 
     return (
         <Suspense fallback={null}>
-            <AiAgentsLauncher />
+            <AiAgentsLauncher isAnalyticsHomepage={isAnalyticsHomepage} />
         </Suspense>
     );
 };

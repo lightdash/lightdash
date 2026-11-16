@@ -1,0 +1,98 @@
+.stage {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    white-space: nowrap;
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-text);
+    cursor: default;
+}
+
+.dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.dot {
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: 50%;
+    border: 1px solid var(--mantine-color-default-border);
+}
+
+.dot[data-state='done'] {
+    background: var(--mantine-color-dimmed);
+    border-color: var(--mantine-color-dimmed);
+}
+
+.dot[data-state='now'] {
+    background: var(--mantine-color-blue-6);
+    border-color: var(--mantine-color-blue-6);
+}
+
+.dot[data-state='busy'] {
+    background: var(--mantine-color-blue-6);
+    border-color: var(--mantine-color-blue-6);
+    animation: pulse 1.2s ease-in-out infinite;
+}
+
+.dot[data-state='stopped'] {
+    background: var(--mantine-color-red-6);
+    border-color: var(--mantine-color-red-6);
+}
+
+.stage[data-state='done'] .dot {
+    background: var(--mantine-color-green-6);
+    border-color: var(--mantine-color-green-6);
+}
+
+.path {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pathStep {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.6;
+}
+
+.pathStep[data-state='done'],
+.pathStep[data-state='now'],
+.pathStep[data-state='busy'],
+.pathStep[data-state='stopped'] {
+    opacity: 1;
+}
+
+.pathStep .dot {
+    border-color: currentColor;
+}
+
+.pathStep[data-state='done'] .dot,
+.pathStep[data-state='now'] .dot,
+.pathStep[data-state='busy'] .dot {
+    background: currentColor;
+}
+
+.pathStep[data-state='stopped'] .dot {
+    background: var(--mantine-color-red-6);
+    border-color: var(--mantine-color-red-6);
+}
+
+@keyframes pulse {
+    50% {
+        opacity: 0.35;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dot[data-state='busy'] {
+        animation: none;
+    }
+}

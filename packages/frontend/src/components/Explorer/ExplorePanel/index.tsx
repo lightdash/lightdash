@@ -37,7 +37,6 @@ import {
 import { LiveSourceExploreBadge } from '../../../features/externalConnections/liveSources/LiveSourceExploreBadge';
 import { ExternalSourceBadge } from '../../../features/externalSources/components/ExternalSourceBadge';
 import { ExternalSourceExploreMenu } from '../../../features/externalSources/components/ExternalSourceExploreMenu';
-import { JoinWithWarehouseHint } from '../../../features/externalSources/components/JoinWithWarehouseHint';
 import { MergeJoinBar } from '../../../features/mergeQuery/components/MergeJoinBar';
 import { MergeQuerySidebar } from '../../../features/mergeQuery/components/MergeQuerySidebar';
 import {
@@ -425,17 +424,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                 projectUuid={projectUuid}
                                 explore={explore}
                                 sourceRef={explore.externalSource}
-                                canMergeAnotherQuery={canMergeAnotherQuery}
-                                onAddMergeSource={handleAddMergeSource}
                             />
                         )}
                 </Group>
-
-                {explore.type === ExploreType.EXTERNAL_SOURCE &&
-                    canMergeAnotherQuery &&
-                    !isGuidedMerge && (
-                        <JoinWithWarehouseHint onClick={handleAddMergeSource} />
-                    )}
 
                 {isGuidedMerge ? (
                     <MergeQuerySidebar

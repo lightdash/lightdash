@@ -1,3 +1,4 @@
+import { Ability, subject } from '@casl/ability';
 import {
     AgentActorSurface,
     AgentCapability,
@@ -31,6 +32,7 @@ import {
     UnexpectedGoogleSheetsError,
     VizAggregationOptions,
     VizIndexType,
+    WarehouseConnectionError,
     type Account,
     type CapturedQuery,
     type CompileProjectPayload,
@@ -45,7 +47,9 @@ import {
     type LearnSandboxCommandPayload,
     type MetricQuery,
     type NotificationPayloadBase,
+    type ParameterInteractivityOptions,
     type ParametersValuesMap,
+    type PossibleAbilities,
     type ReadyQueryResultsPage,
     type ScheduledDeliveryPayload,
     type SchedulerAndTargets,
@@ -53,10 +57,19 @@ import {
     type SendNowScheduler,
     type UploadGsheetPayload,
 } from '@lightdash/common';
+import {
+    SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+    SnowflakePrivateKeyError,
+} from '@lightdash/warehouses';
 import ExecutionContext from 'node-execution-context';
 import type { Mock } from 'vitest';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
-import { fromSession } from '../auth/account';
+import { fromJwt, fromSession } from '../auth/account';
+import {
+    buildAccount,
+    defaultSessionUser,
+    defaultUserAttributes,
+} from '../auth/account/account.mock';
 import { managedExecutionFixture } from '../auth/agentConnectionGrants/managedExecution.mock';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
@@ -896,6 +909,7 @@ describe('uploadGsheetFromQuery', () => {
                 typeof SchedulerTask
             >[0]['asyncQueryService'],
             lightdashConfig: {
+                scheduler: lightdashConfigMock.scheduler,
                 query: {},
             } as unknown as ConstructorParameters<
                 typeof SchedulerTask
@@ -944,6 +958,7 @@ describe('uploadGsheetFromQuery', () => {
             .fn()
             .mockRejectedValue(queryError);
         const task = makeTask({
+            lightdashConfig: lightdashConfigMock,
             googleDriveClient: {
                 isEnabled: true,
             } as unknown as ConstructorParameters<
@@ -1539,6 +1554,207 @@ describe('learnSandboxCommand', () => {
     });
 });
 
+describe('embed dashboard bulk export authorization context', () => {
+    it.each([
+        { format: SchedulerFormat.CSV, permissionsMode: 'default' as const },
+        { format: SchedulerFormat.XLSX, permissionsMode: 'default' as const },
+        { format: SchedulerFormat.CSV, permissionsMode: 'roles' as const },
+        { format: SchedulerFormat.XLSX, permissionsMode: 'roles' as const },
+    ] as const)(
+        'passes the dashboard context to both tile downloads for $format in $permissionsMode mode',
+        async ({ format, permissionsMode }) => {
+            const base = buildAccount({ accountType: 'jwt' });
+            const { projectUuid } = base.embed;
+            const { organizationUuid } = base.embed.organization;
+            const dashboardUuid = 'test-dashboard-uuid';
+            const account = fromJwt({
+                decodedToken: {
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid,
+                        canExportDashboardCsv: permissionsMode === 'default',
+                        canExportCsv: false,
+                    },
+                    writeActions: {
+                        userUuid: defaultSessionUser.userUuid,
+                        writeSpaceUuids: ['space-1'],
+                        permissionsMode,
+                    },
+                },
+                embed: base.embed,
+                content: base.access.content,
+                userAttributes: defaultUserAttributes,
+                source: 'embed-jwt',
+                embedWriteUser: {
+                    ...defaultSessionUser,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            action: 'view',
+                            subject: 'EmbedDashboardCsvExport',
+                            conditions: { projectUuid, organizationUuid },
+                        },
+                    ]),
+                },
+            });
+            expect(
+                account.user.ability.can(
+                    'manage',
+                    subject('ExportCsv', {
+                        projectUuid,
+                        organizationUuid,
+                        metadata: { dashboardUuid },
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                account.user.ability.can(
+                    'export',
+                    subject('Dashboard', {
+                        projectUuid,
+                        organizationUuid,
+                        type: 'csv',
+                    }),
+                ),
+            ).toBe(false);
+
+            const downloadSyncQueryResults = vi.fn().mockResolvedValue({
+                fileUrl: 'https://files.example/tile.csv',
+            });
+            const logSchedulerJob = vi.fn();
+            const getAccountByUserUuid = vi.fn();
+            const createZipDownloadUrl = vi
+                .fn()
+                .mockResolvedValue('https://files.example/dashboard.zip');
+            const task = makeTaskWithDeps({
+                lightdashConfig: lightdashConfigMock,
+                analytics: asDep<'analytics'>({ trackAccount: vi.fn() }),
+                fileStorageClient: asDep<'fileStorageClient'>({
+                    isEnabled: () => true,
+                }),
+                featureFlagModel: asDep<'featureFlagModel'>({
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
+                }),
+                userService: asDep<'userService'>({ getAccountByUserUuid }),
+                schedulerService: asDep<'schedulerService'>({
+                    logSchedulerJob,
+                    dashboardModel: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue({
+                            uuid: dashboardUuid,
+                            projectUuid,
+                            organizationUuid,
+                            filters: {
+                                dimensions: [],
+                                metrics: [],
+                                tableCalculations: [],
+                            },
+                            tabs: [],
+                            tiles: [
+                                {
+                                    uuid: 'chart-tile',
+                                    type: DashboardTileTypes.SAVED_CHART,
+                                    x: 0,
+                                    y: 0,
+                                    w: 6,
+                                    h: 6,
+                                    properties: { savedChartUuid: 'chart-1' },
+                                },
+                                {
+                                    uuid: 'sql-tile',
+                                    type: DashboardTileTypes.SQL_CHART,
+                                    x: 6,
+                                    y: 0,
+                                    w: 6,
+                                    h: 6,
+                                    properties: { savedSqlUuid: 'sql-1' },
+                                },
+                            ],
+                        }),
+                    },
+                    savedChartModel: {
+                        get: vi.fn().mockResolvedValue({
+                            name: 'Chart',
+                            chartConfig: {
+                                type: ChartType.CARTESIAN,
+                                config: {},
+                            },
+                            tableConfig: { columnOrder: [] },
+                        }),
+                    },
+                }),
+                asyncQueryService: asDep<'asyncQueryService'>({
+                    executeAsyncDashboardChartQuery: vi
+                        .fn()
+                        .mockResolvedValue({ queryUuid: 'chart-query' }),
+                    executeAsyncDashboardSqlChartQuery: vi
+                        .fn()
+                        .mockResolvedValue({ queryUuid: 'sql-query' }),
+                    savedSqlModel: {
+                        getByUuid: vi.fn().mockResolvedValue({
+                            name: 'SQL chart',
+                            config: {},
+                        }),
+                    },
+                    downloadSyncQueryResults,
+                }),
+            });
+            Object.assign(task, {
+                createZipDownloadUrl,
+                getChartOrDashboard: vi.fn().mockResolvedValue({
+                    url: 'http://localhost/dashboard',
+                    minimalUrl: 'http://localhost/minimal/dashboard',
+                    pageType: LightdashPage.DASHBOARD,
+                    details: { name: 'Dashboard' },
+                    projectUuid,
+                    organizationUuid,
+                }),
+            });
+            await task.exportContentForTest(
+                {
+                    resourceType: SchedulerResourceType.DASHBOARD,
+                    resourceUuid: dashboardUuid,
+                    format,
+                    options: { formatted: true, limit: 'table' },
+                    userUuid: account.user.id,
+                    projectUuid,
+                    organizationUuid,
+                    schedulerUuid: undefined,
+                    encodedJwt: 'embed-jwt',
+                },
+                account,
+            );
+
+            expect(getAccountByUserUuid).not.toHaveBeenCalled();
+            expect(downloadSyncQueryResults).toHaveBeenCalledTimes(2);
+            for (const queryUuid of ['chart-query', 'sql-query']) {
+                expect(downloadSyncQueryResults).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        account,
+                        queryUuid,
+                        type:
+                            format === SchedulerFormat.XLSX
+                                ? DownloadFileType.XLSX
+                                : DownloadFileType.CSV,
+                    }),
+                    expect.any(Object),
+                    dashboardUuid,
+                );
+            }
+            expect(createZipDownloadUrl).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    files: expect.any(Array),
+                    createdByUserUuid: null,
+                }),
+            );
+            expect(logSchedulerJob).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    status: SchedulerJobStatus.COMPLETED,
+                    details: expect.objectContaining({ numFailures: 0 }),
+                }),
+            );
+        },
+    );
+});
+
 describe('uploadGsheets — pivot routing', () => {
     const validPivotDetails: NonNullable<
         ReadyQueryResultsPage['pivotDetails']
@@ -1613,6 +1829,7 @@ describe('uploadGsheets — pivot routing', () => {
         dashboardParameters,
         parameterControls,
         dashboardControlsEnabled = false,
+        queryPollingTimeout = lightdashConfigMock.scheduler.queryPollingTimeout,
     }: {
         source: 'saved-chart' | 'dashboard';
         hasPivotConfig: boolean;
@@ -1622,6 +1839,7 @@ describe('uploadGsheets — pivot routing', () => {
         dashboardParameters?: DashboardParameters;
         parameterControls?: DashboardParameterControl[];
         dashboardControlsEnabled?: boolean;
+        queryPollingTimeout?: number;
     }) => {
         const appendToSheet = vi.fn().mockResolvedValue(undefined);
         const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
@@ -1728,6 +1946,10 @@ describe('uploadGsheets — pivot routing', () => {
             }),
             analytics: asDep<'analytics'>({ track: vi.fn() }),
             lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: {
+                    ...lightdashConfigMock.scheduler,
+                    queryPollingTimeout,
+                },
                 siteUrl: 'http://localhost:8090',
             }),
         });
@@ -1876,6 +2098,32 @@ describe('uploadGsheets — pivot routing', () => {
         );
     });
 
+    it.each(['saved-chart', 'dashboard'] as const)(
+        'waits for the %s query with the configured scheduler polling timeout',
+        async (source) => {
+            const result = setup({
+                source,
+                hasPivotConfig: false,
+                pivotDetails: null,
+                queryPollingTimeout: 20 * 60 * 1000,
+            });
+
+            await result.run();
+
+            const execute =
+                source === 'saved-chart'
+                    ? result.executeSavedChartQueryAndGetResults
+                    : result.executeDashboardChartQueryAndGetResults;
+            expect(execute).toHaveBeenCalledOnce();
+            expect(execute.mock.calls[0][1]).toEqual({
+                initialBackoffMs: 2000,
+                maxBackoffMs: 5000,
+                timeoutMs: 20 * 60 * 1000,
+                source: 'scheduler',
+            });
+        },
+    );
+
     describe('saved parameter controls', () => {
         const runWithControls = async (dashboardControlsEnabled: boolean) => {
             const result = setup({
@@ -1947,6 +2195,7 @@ describe('dashboard image and PDF live tile parameters', () => {
                     isEnabled: () => false,
                 }),
                 lightdashConfig: asDep<'lightdashConfig'>({
+                    scheduler: lightdashConfigMock.scheduler,
                     siteUrl: 'http://localhost:8090',
                 }),
                 analytics: asDep<'analytics'>({ trackAccount: vi.fn() }),
@@ -2000,12 +2249,16 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
         exportParameters,
         tileParameters,
         embedParametersEnabled,
+        embedParameters = embedParametersEnabled === undefined
+            ? undefined
+            : { enabled: embedParametersEnabled },
         legacyDashboard = false,
     }: {
         dashboardControlsEnabled: boolean;
         exportParameters?: ParametersValuesMap;
         tileParameters?: ExportContentPayload['tileParameters'];
         embedParametersEnabled?: boolean;
+        embedParameters?: ParameterInteractivityOptions;
         legacyDashboard?: boolean;
     }) => {
         const executeAsyncDashboardChartQuery = vi
@@ -2072,6 +2325,7 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
             analytics: asDep<'analytics'>({ trackAccount: vi.fn() }),
             slackClient: asDep<'slackClient'>({ isEnabled: false }),
             lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
                 siteUrl: 'http://localhost:8090',
             }),
         });
@@ -2107,8 +2361,8 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
             undefined,
             {
                 user: { id: 'user-1' },
-                isJwtUser: () => embedParametersEnabled !== undefined,
-                access: { parameters: { enabled: embedParametersEnabled } },
+                isJwtUser: () => embedParameters !== undefined,
+                access: { parameters: embedParameters },
                 organization: { organizationUuid: 'org-1' },
             },
         );
@@ -2216,6 +2470,199 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
             },
         );
     });
+
+    describe('embed export parameters', () => {
+        const everyTile = (parameters: ParametersValuesMap) => ({
+            'tile-1': parameters,
+            'tile-2': parameters,
+        });
+
+        it('layers saved values, then token values, then the viewer values', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    embedParameters: {
+                        enabled: true,
+                        values: { 'orders.status': 'token', region: 'EU' },
+                    },
+                    exportParameters: { region: 'US', channel: 'web' },
+                }),
+            ).resolves.toEqual(
+                everyTile({
+                    'orders.status': 'token',
+                    region: 'US',
+                    channel: 'web',
+                }),
+            );
+        });
+
+        it('drops a viewer value the token does not allow', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    embedParameters: {
+                        enabled: true,
+                        allowedParameters: ['region'],
+                    },
+                    exportParameters: {
+                        region: 'US',
+                        'orders.status': 'injected',
+                    },
+                }),
+            ).resolves.toEqual(
+                everyTile({ 'orders.status': 'placed', region: 'US' }),
+            );
+        });
+
+        it('keeps token values but drops viewer values without interactivity', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    embedParameters: {
+                        enabled: false,
+                        values: { region: 'EU' },
+                    },
+                    exportParameters: {
+                        region: 'US',
+                        'orders.status': 'injected',
+                    },
+                }),
+            ).resolves.toEqual(
+                everyTile({ 'orders.status': 'placed', region: 'EU' }),
+            );
+        });
+
+        it('a non-embed export replaces the saved values with the exported ones', async () => {
+            await expect(
+                run({
+                    dashboardControlsEnabled: false,
+                    exportParameters: { region: 'US' },
+                }),
+            ).resolves.toEqual(everyTile({ region: 'US' }));
+        });
+    });
+});
+
+describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
+    it.each([SchedulerFormat.CSV, SchedulerFormat.XLSX])(
+        'delivers the classic tiles and skips the composer tile (%s)',
+        async (format) => {
+            const executeAsyncDashboardChartQuery = vi
+                .fn()
+                .mockRejectedValue(new Error('stop after the query request'));
+            const task = makeTaskWithDeps({
+                schedulerService: asDep<'schedulerService'>({
+                    dashboardModel: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue({
+                            uuid: 'dashboard-1',
+                            organizationUuid: 'org-1',
+                            projectUuid: 'project-1',
+                            filters: {
+                                dimensions: [],
+                                metrics: [],
+                                tableCalculations: [],
+                            },
+                            tabs: [],
+                            tiles: [
+                                {
+                                    uuid: 'classic-tile',
+                                    type: DashboardTileTypes.SAVED_CHART,
+                                    x: 0,
+                                    y: 0,
+                                    properties: {
+                                        title: 'Classic',
+                                        savedChartUuid: 'chart-1',
+                                    },
+                                },
+                                {
+                                    uuid: 'composer-tile',
+                                    type: DashboardTileTypes.COMPOSER_CHART,
+                                    x: 0,
+                                    y: 1,
+                                    properties: {
+                                        title: 'Composer',
+                                        composerChartUuid: 'composer-chart-1',
+                                    },
+                                },
+                            ],
+                            config: { isDateZoomDisabled: false },
+                        }),
+                    },
+                    savedChartModel: {
+                        get: vi.fn().mockResolvedValue({
+                            chartConfig: { type: ChartType.TABLE, config: {} },
+                        }),
+                    },
+                }),
+                asyncQueryService: asDep<'asyncQueryService'>({
+                    executeAsyncDashboardChartQuery,
+                }),
+                projectService: asDep<'projectService'>({
+                    projectParametersModel: {
+                        find: vi.fn().mockResolvedValue([]),
+                    },
+                }),
+                featureFlagModel: asDep<'featureFlagModel'>({
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
+                }),
+                fileStorageClient: asDep<'fileStorageClient'>({
+                    isEnabled: () => false,
+                }),
+                analytics: asDep<'analytics'>({ trackAccount: vi.fn() }),
+                slackClient: asDep<'slackClient'>({ isEnabled: false }),
+                lightdashConfig: asDep<'lightdashConfig'>({
+                    scheduler: lightdashConfigMock.scheduler,
+                    siteUrl: 'http://localhost:8090',
+                }),
+            });
+            Object.assign(task, {
+                getChartOrDashboard: vi.fn().mockResolvedValue({
+                    url: 'http://localhost:8090/dashboard',
+                    minimalUrl: 'http://localhost:8090/minimal',
+                    pageType: LightdashPage.DASHBOARD,
+                    details: { name: 'Dashboard', description: undefined },
+                    organizationUuid: 'org-1',
+                    projectUuid: 'project-1',
+                }),
+            });
+
+            await expect(
+                (
+                    task as unknown as {
+                        getNotificationPageData(
+                            ...args: unknown[]
+                        ): Promise<unknown>;
+                    }
+                ).getNotificationPageData(
+                    {
+                        name: 'Daily export',
+                        createdBy: 'user-1',
+                        format,
+                        savedChartUuid: null,
+                        dashboardUuid: 'dashboard-1',
+                        appUuid: null,
+                        options: {},
+                        filters: [],
+                    },
+                    'job-1',
+                    false,
+                    undefined,
+                    undefined,
+                    undefined,
+                    {
+                        user: { id: 'user-1' },
+                        isJwtUser: () => false,
+                        organization: { organizationUuid: 'org-1' },
+                    },
+                ),
+            ).resolves.toBeDefined();
+            expect(
+                executeAsyncDashboardChartQuery.mock.calls.map(
+                    ([args]) => args.tileUuid,
+                ),
+            ).toEqual(['classic-tile']);
+        },
+    );
 });
 
 describe('uploadGsheets — SQL chart values', () => {
@@ -2278,6 +2725,7 @@ describe('uploadGsheets — SQL chart values', () => {
             }),
             analytics: asDep<'analytics'>({ track: vi.fn() }),
             lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
                 siteUrl: 'http://localhost:8090',
             }),
         });
@@ -2613,6 +3061,7 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
         const trackAccount = vi.fn();
         const task = makeTaskWithDeps({
             lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
                 siteUrl: 'https://lightdash.example.com',
                 headlessBrowser: {
                     internalLightdashHost: 'http://lightdash-dev:3000',
@@ -3352,6 +3801,7 @@ describe('uploadGsheets — app branch', () => {
             }),
             analytics: asDep<'analytics'>({ track: vi.fn() }),
             lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
                 siteUrl: 'https://lightdash.example.com',
                 headlessBrowser: {
                     internalLightdashHost: 'http://lightdash-dev:3000',
@@ -3452,6 +3902,22 @@ describe('uploadGsheets — app branch', () => {
         await expect(run()).rejects.toMatchObject({
             name: 'SchedulerDeliveryError',
             isNonRetryable: false,
+        } satisfies Partial<SchedulerDeliveryError>);
+    });
+
+    it('reports an unreadable Snowflake key as a non-retryable delivery failure', async () => {
+        const { run, getRawAsyncQueryResults } = setup();
+        const error = new WarehouseConnectionError(
+            `Snowflake error: ${SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE}`,
+        );
+        error.cause = new SnowflakePrivateKeyError(
+            SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+        );
+        getRawAsyncQueryResults.mockRejectedValue(error);
+
+        await expect(run()).rejects.toMatchObject({
+            name: 'SchedulerDeliveryError',
+            isNonRetryable: true,
         } satisfies Partial<SchedulerDeliveryError>);
     });
 
@@ -4040,6 +4506,7 @@ describe('captureAppDeliveryQueries', () => {
             .mockResolvedValue(manifestOf([readyItem()]));
         const task = makeTaskWithDeps({
             lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
                 siteUrl: 'https://lightdash.example.com',
                 headlessBrowser: {
                     internalLightdashHost: 'http://lightdash-dev:3000',
@@ -4112,6 +4579,7 @@ describe('handleScheduledDelivery — app delivery capture', () => {
         const track = vi.fn();
         const task = makeTaskWithDeps({
             lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
                 siteUrl: 'https://lightdash.example.com',
                 headlessBrowser: {
                     internalLightdashHost: 'http://lightdash-dev:3000',
@@ -4355,6 +4823,7 @@ describe('handleScheduledDelivery — app delivery capture', () => {
             .mockRejectedValue(new Error('scheduler log write failed'));
         const task = makeTaskWithDeps({
             lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
                 siteUrl: 'https://lightdash.example.com',
                 headlessBrowser: {
                     internalLightdashHost: 'http://lightdash-dev:3000',
@@ -4629,6 +5098,7 @@ describe('app delivery target senders', () => {
             get: vi.fn().mockResolvedValue({}),
         }),
         lightdashConfig: asDep<'lightdashConfig'>({
+            scheduler: lightdashConfigMock.scheduler,
             siteUrl: 'https://lightdash.example.com',
             persistentDownloadUrls: { expirationSeconds: 604800 },
         }),
@@ -4700,6 +5170,7 @@ describe('app delivery target senders', () => {
                 },
             }),
             lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
                 siteUrl: 'https://example.com',
                 persistentDownloadUrls: { expirationSeconds: 604800 },
                 microsoftTeams: { enabled: true },
@@ -5256,6 +5727,7 @@ describe('app delivery target senders', () => {
         const task = makeTaskWithDeps({
             ...senderBaseDeps(),
             lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
                 siteUrl: 'https://lightdash.example.com',
                 persistentDownloadUrls: { expirationSeconds: 604800 },
                 microsoftTeams: { enabled: true },
@@ -5296,6 +5768,7 @@ describe('app delivery target senders', () => {
         const task = makeTaskWithDeps({
             ...senderBaseDeps(),
             lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
                 siteUrl: 'https://lightdash.example.com',
                 persistentDownloadUrls: { expirationSeconds: 604800 },
                 microsoftTeams: { enabled: true },
@@ -6182,6 +6655,7 @@ describe('scheduler useCachedResults', () => {
                 trackAccount: vi.fn(),
             }),
             lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
                 siteUrl: 'http://localhost:8090',
             }),
             fileStorageClient: asDep<'fileStorageClient'>({
@@ -6331,6 +6805,7 @@ describe('scheduler useCachedResults', () => {
                 }),
                 analytics: asDep<'analytics'>({ track: vi.fn() }),
                 lightdashConfig: asDep<'lightdashConfig'>({
+                    scheduler: lightdashConfigMock.scheduler,
                     siteUrl: 'http://localhost:8090',
                 }),
             });

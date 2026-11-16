@@ -9,6 +9,7 @@ import {
     DeactivatedAccountError,
     InvalidUser,
     LightdashMode,
+    NotFoundError,
     SessionUser,
 } from '@lightdash/common';
 import OAuth2Server, { type Token } from '@node-oauth/oauth2-server';
@@ -303,6 +304,14 @@ export const unauthorisedInDemo: RequestHandler = (req, res, next) => {
     } else {
         next();
     }
+};
+
+/** Debug routes that exist only on a local development server. */
+export const devModeOnly: RequestHandler = (req, res, next) => {
+    if (lightdashConfig.mode !== LightdashMode.DEV) {
+        throw new NotFoundError('Not found');
+    }
+    next();
 };
 
 const hasSessionAndBearer = (req: Request): boolean =>

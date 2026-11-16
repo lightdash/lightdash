@@ -178,7 +178,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                         openDelay={300}
                         keepMounted={false}
                         withArrow
-                        disabled={!description}
+                        disabled={!description && !node.source}
                         position="right"
                         /**
                          * Ensures the hover card does not overlap with the right-hand menu.
@@ -213,11 +213,23 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                             onClick={handleDropdownClick}
                         >
                             <ItemDetailPreview
+                                sourceLabel={node.source?.label}
                                 onViewDescription={onOpenDescriptionView}
                                 description={description}
                             />
                         </HoverCard.Dropdown>
                     </HoverCard>
+                    {node.source?.showInline && (
+                        <Text
+                            fz="xs"
+                            c="dimmed"
+                            truncate
+                            maw={110}
+                            title={node.source.label}
+                        >
+                            {node.source.label}
+                        </Text>
+                    )}
                 </Group>
             }
         >

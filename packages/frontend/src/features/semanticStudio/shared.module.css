@@ -108,12 +108,35 @@
 }
 
 .fieldRow {
+    position: relative;
     height: 36px;
     cursor: pointer;
 }
 
 .fieldRow:hover {
     background: var(--mantine-color-default-hover);
+}
+
+/* Shown on hover: the row can be dragged into the chat. */
+.dragGrip {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    display: flex;
+    translate: 0 -50%;
+    color: var(--mantine-color-dimmed);
+    opacity: 0;
+    cursor: grab;
+    transition: opacity 120ms ease;
+}
+
+.fieldRow:hover .dragGrip,
+.fieldRow:focus-visible .dragGrip {
+    opacity: 1;
+}
+
+.fieldRow:active {
+    cursor: grabbing;
 }
 
 .fieldRow:focus-visible {
@@ -482,6 +505,18 @@
     min-height: 0;
     overflow: auto;
     padding: var(--mantine-spacing-xl);
+}
+
+.firstRequest {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+    text-align: left;
+}
+
+.firstRequest:focus-within {
+    border-color: var(--mantine-color-ldGray-5);
 }
 
 .starterWindow {

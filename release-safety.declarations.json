@@ -264,6 +264,31 @@
                     "mcp": []
                 }
             }
+        },
+        "deep-research-legacy-report-api-removed": {
+            "reason": "The legacy Deep Research report is removed now that every run publishes its report as a Document and the last legacy reports passed their 30-day retention. GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{queryUuid}, POST .../charts/{chartKey}/refresh and GET .../queries/{queryUuid}/results now return 404. Run responses (create, get, list and cancel) no longer include resultMarkdown, reportExpiresAt, reportExpiredAt or isReportExpired, and @lightdash/common no longer exports AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS or ApiAiDeepResearchChartResponse. During a rolling update an old report page tab shows its not-ready state or redirects to the run's Document, and an old run card shows the Document card or the unavailable notice; both are safe because no legacy report content remains to show.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "firstPartyOnly": "The Lightdash web app's legacy Deep Research report viewer was the only client of the report chart routes and of the report fields, and it is removed in the same change; the run card and the old report URL now use the run's Document instead.",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{queryUuid}",
+                        "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{chartKey}/refresh",
+                        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/queries/{queryUuid}/results",
+                        "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research",
+                        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research",
+                        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}",
+                        "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/cancel"
+                    ],
+                    "mcp": []
+                }
+            }
+        },
+        "deep-research-legacy-report-columns-dropped": {
+            "reason": "Drops the legacy Deep Research report columns result_markdown, report_expires_at and report_expired_at on ai_deep_research_runs, with their expiry index. Ships in the same release as the legacy Deep Research report removal (lightdash/lightdash#32457), which stops reading and writing them. During a rolling upgrade from an earlier release, old pods still read these columns when loading Deep Research runs and write them when completing, cancelling or sweeping runs, so those requests fail until the rollout finishes; a run that completes in that window may end up failed. Use the Recreate strategy to avoid the window.",
+            "requiredStop": false,
+            "migration": "packages/backend/src/ee/database/migrations/20261112120000_drop_ai_deep_research_legacy_report_columns.ts"
         }
     }
 }

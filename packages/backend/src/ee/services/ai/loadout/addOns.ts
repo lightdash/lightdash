@@ -207,6 +207,13 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
         section: { id: 'requestingUser', documents: ['updateUserName'] },
         skills: [],
     },
+    askUser: {
+        description: 'Ask the user clarifying questions with clickable options',
+        when: (input) => input.enableAskUser,
+        tools: ['askUser'],
+        section: null,
+        skills: [],
+    },
 };
 
 export const ADD_ON_NAMES = Object.keys(ADD_ONS) as AddOnName[];

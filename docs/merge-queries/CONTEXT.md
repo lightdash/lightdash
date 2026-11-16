@@ -121,8 +121,9 @@ node (there are none in the saved definition)
 ## Boundaries
 
 - Merges join the **semantic layer**. Merging existing query results by uuid is
-  reachable through the AI agent path only. Merging external sources rides the
-  same engine but belongs to the external sources context.
+  reachable through the AI agent path only. A merge saved with an external source
+  leg still runs, but the Explorer no longer offers external sources when
+  building a merge.
 - The Explorer is the surface. The composed-query API is a separate developer
   surface with its own flag; a merge must not require it.
 - Merges are not flagged; the Explorer marks the entry point as beta.

@@ -4,7 +4,7 @@ import { executeEditContent } from './editContent';
 describe('editContent errors', () => {
     it('returns a rejected control order to the agent with the valid slugs', async () => {
         const message =
-            'Unknown filter slug "missing" in controlOrder. Valid slugs are filter: orders-status; parameter: none; section: none';
+            'Unknown filter slug "missing" in controlOrder. Valid slugs are filter: orders-status; parameter: none; dateZoom: none; section: none';
         const output = await executeEditContent(
             {
                 editContent: vi.fn(async () => {

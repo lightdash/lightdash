@@ -47,30 +47,10 @@ export type DeepResearchRunView = {
         label: string;
         createdAt: string;
     }>;
-    /** The report narrative with compact <chart> references. */
-    resultMarkdown: string | null;
-    /** Render data for each referenced chart, keyed by chart key. */
-    reportExpiresAt: string | null;
-    reportExpiredAt: string | null;
-    isReportExpired: boolean;
     /** The Document the report was published to, once there is one. */
     document: AiDeepResearchRunDocument | null;
     errorMessage: string | null;
 };
-
-export type DeepResearchReportView = Pick<
-    DeepResearchRunView,
-    | 'uuid'
-    | 'projectUuid'
-    | 'agentUuid'
-    | 'threadUuid'
-    | 'question'
-    | 'completedAt'
-    | 'sourceCount'
-    | 'resultMarkdown'
-    | 'isReportExpired'
-    | 'document'
->;
 
 export type DeepResearchRunRegistration = {
     runUuid: string;

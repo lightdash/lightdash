@@ -18,6 +18,7 @@ import {
     HoverCard,
     Popover,
     Tooltip,
+    Text,
     UnstyledButton,
 } from '@mantine/core';
 import { IconFilter, IconTrash } from '@tabler/icons-react';
@@ -109,6 +110,7 @@ const renderAggregatedSql = (sql: string, type: MetricType): string => {
 
 type RowProps = {
     row: RenderedRow;
+    source?: { label: string; showInline: boolean };
     onDeselect: (fieldId: string, isDimension: boolean) => void;
 };
 
@@ -126,7 +128,7 @@ const customDimensionTourProps = {
     'data-tour-resultdocs': 'explore/create-custom-fields.mdx#bin:p3:1',
 };
 
-const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
+const SelectedFieldRow: FC<RowProps> = memo(({ row, source, onDeselect }) => {
     const {
         fieldId,
         selectionKey,
@@ -230,7 +232,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
         return undefined;
     }, [item, exploreData]);
 
-    const isHoverCardDisabled = !description && !metricInfo;
+    const isHoverCardDisabled = !description && !metricInfo && !source;
 
     const label = getFieldLabel(item);
 
@@ -352,12 +354,23 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                             onClick={handleDropdownClick}
                         >
                             <ItemDetailPreview
+                                sourceLabel={source?.label}
                                 onViewDescription={onOpenDescriptionView}
                                 description={description}
                                 metricInfo={metricInfo}
                             />
                         </HoverCard.Dropdown>
                     </HoverCard>
+                    {source?.showInline && (
+                        <Text
+                            size="xs"
+                            c="dimmed"
+                            className={classes.sourceLabel}
+                            title={source.label}
+                        >
+                            {source.label}
+                        </Text>
+                    )}
                     {isDashboardMetric && (
                         <Tooltip label="Only available in this dashboard">
                             <Badge size="xs" radius="sm" px={4} flex="0 0 auto">
@@ -445,6 +458,7 @@ type Props = {
     onDeselect: (fieldId: string, isDimension: boolean) => void;
     heading?: string;
     showAllFieldsDivider?: boolean;
+    combinedSourceLabels?: ReadonlyMap<string, string>;
 };
 
 type ExitingField = { field: SelectedField; index: number };
@@ -459,6 +473,7 @@ const SelectedFieldsSectionComponent: FC<Props> = ({
     onDeselect,
     heading = 'Selected',
     showAllFieldsDivider = true,
+    combinedSourceLabels,
 }) => {
     const [exitingFields, setExitingFields] = useState<
         Map<string, ExitingField>
@@ -552,6 +567,7 @@ const SelectedFieldsSectionComponent: FC<Props> = ({
 
     // Group rows by table, groups ordered by first appearance
     const groups = useMemo(() => {
+        if (combinedSourceLabels) return [{ tableLabel: null, rows }];
         const result: { tableLabel: string | null; rows: RenderedRow[] }[] = [];
         const byLabel = new Map<string | null, RenderedRow[]>();
         rows.forEach((row) => {
@@ -568,6 +584,14 @@ const SelectedFieldsSectionComponent: FC<Props> = ({
             }
         });
         return result;
+    }, [rows, combinedSourceLabels]);
+    const labelCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        rows.forEach(({ item }) => {
+            const label = getFieldLabel(item);
+            counts.set(label, (counts.get(label) ?? 0) + 1);
+        });
+        return counts;
     }, [rows]);
 
     if (rows.length === 0) return null;
@@ -587,6 +611,22 @@ const SelectedFieldsSectionComponent: FC<Props> = ({
                             <SelectedFieldRow
                                 key={row.selectionKey ?? row.fieldId}
                                 row={row}
+                                source={
+                                    combinedSourceLabels
+                                        ? {
+                                              label:
+                                                  combinedSourceLabels.get(
+                                                      row.item.table,
+                                                  ) ??
+                                                  row.tableLabel ??
+                                                  row.item.table,
+                                              showInline:
+                                                  (labelCounts.get(
+                                                      getFieldLabel(row.item),
+                                                  ) ?? 0) > 1,
+                                          }
+                                        : undefined
+                                }
                                 onDeselect={onDeselect}
                             />
                         ))}

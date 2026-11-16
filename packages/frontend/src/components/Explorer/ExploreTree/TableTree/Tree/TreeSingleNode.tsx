@@ -50,8 +50,10 @@ import {
     useExplorerSelector,
     type ExplorerStoreState,
 } from '../../../../../features/explorer/store';
+import { useFieldChangeInDevelopment } from '../../../../../features/semanticStudio/useFieldChangesInDevelopment';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { useAddFilter } from '../../../../../hooks/useFilters';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -290,6 +292,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
             missingCustomDimensions.includes(item));
 
     const isHoverCardDisabled = useMemo(() => {
+        if (node.source) return false;
         // Show metric info if either metric info or description is present
         if (
             (isCompiledMetric(item) || isAdditionalMetric(item)) &&
@@ -301,12 +304,18 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         if (!description && !isMissing) return true;
 
         return false;
-    }, [description, isMissing, item, metricInfo]);
+    }, [description, isMissing, item, metricInfo, node.source]);
 
     // Shared with the dashboard: edits go via impact preview, actions reduced
     const isRegistryMetric =
         isAdditionalMetric(item) &&
         (dashboardMetricIds?.has(getItemId(item)) ?? false);
+    const fieldChange = useFieldChangeInDevelopment(
+        useProjectUuid(),
+        isField(item) ? item.table : '',
+        isField(item) ? item.name : '',
+    );
+
     // The '=' badge marks provenance: dashboard-local from creation. The ids
     // set is only provided when the shared-metrics layer is enabled.
     const isDashboardMetric =
@@ -566,6 +575,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                         `This field from '${item.table}' table is no longer available`
                                     ) : (
                                         <ItemDetailPreview
+                                            sourceLabel={node.source?.label}
                                             onViewDescription={
                                                 onOpenDescriptionView
                                             }
@@ -575,6 +585,44 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                     )}
                                 </HoverCard.Dropdown>
                             </HoverCard>
+                            {node.source?.showInline && (
+                                <Text
+                                    fz="xs"
+                                    c="dimmed"
+                                    truncate
+                                    maw={110}
+                                    title={node.source.label}
+                                >
+                                    {node.source.label}
+                                </Text>
+                            )}
+                            {fieldChange && fieldChange.kind !== 'removed' && (
+                                <Tooltip
+                                    multiline
+                                    maw={260}
+                                    label={
+                                        fieldChange.kind === 'new'
+                                            ? 'Added by your changes'
+                                            : `Your changes edit its ${fieldChange.attributes.join(', ')}`
+                                    }
+                                >
+                                    <Badge
+                                        size="xs"
+                                        radius="sm"
+                                        variant="light"
+                                        color={
+                                            fieldChange.kind === 'new'
+                                                ? 'green'
+                                                : 'orange'
+                                        }
+                                        flex="0 0 auto"
+                                    >
+                                        {fieldChange.kind === 'new'
+                                            ? 'New'
+                                            : 'Changed'}
+                                    </Badge>
+                                </Tooltip>
+                            )}
                             {isDashboardMetric && (
                                 <Tooltip label="Only available in this dashboard">
                                     <Badge

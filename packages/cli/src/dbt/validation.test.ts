@@ -112,4 +112,37 @@ describe('validateDbtModel', () => {
             },
         ]);
     });
+
+    test('only rejects a model with no columns when it has no additional dimensions', async () => {
+        const noDimensions = {
+            ...makeModel('no_dimensions'),
+            columns: {},
+        } as unknown as DbtRawModelNode;
+        const modelLevelDimension = {
+            ...noDimensions,
+            ...makeModel('model_level_dimension'),
+            columns: {},
+            meta: {
+                additional_dimensions: {
+                    band: { type: 'string', sql: 'band' },
+                },
+            },
+        } as unknown as DbtRawModelNode;
+
+        const result = await validateDbtModel(
+            'postgres',
+            DbtManifestVersion.V12,
+            [noDimensions, modelLevelDimension],
+        );
+
+        expect(result.valid.map(({ name }) => name)).toEqual([
+            'model_level_dimension',
+        ]);
+        expect(result.invalid).toMatchObject([
+            {
+                name: 'no_dimensions',
+                errors: [{ type: InlineErrorType.NO_DIMENSIONS_FOUND }],
+            },
+        ]);
+    });
 });

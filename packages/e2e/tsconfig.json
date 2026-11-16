@@ -13,5 +13,10 @@
         "skipLibCheck": true,
         "noEmit": true
     },
-    "include": ["tests/**/*.ts", "support/**/*.ts", "playwright.config.ts"]
+    "include": [
+        "tests/**/*.ts",
+        "support/**/*.ts",
+        "playwright.config.ts",
+        "../api-tests/helpers/composerDashboard.ts"
+    ]
 }

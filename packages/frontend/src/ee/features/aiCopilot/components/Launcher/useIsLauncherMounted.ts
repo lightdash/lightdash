@@ -5,6 +5,7 @@ import { useLauncherDock } from './useLauncherDock';
 
 export const useIsLauncherMounted = (
     projectUuid: string | undefined,
+    isAnalyticsHomepage = false,
 ): boolean => {
     const { dock } = useLauncherDock(projectUuid);
     const isAiAgentEnabled = useAiAgentButtonVisibility();
@@ -30,6 +31,7 @@ export const useIsLauncherMounted = (
     return (
         isPanelOpen ||
         dock.length > 0 ||
+        (isAnalyticsHomepage && isAiAgentEnabled) ||
         (isContentPage && (isAiAgentEnabled || hasAnalysis))
     );
 };

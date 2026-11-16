@@ -8,6 +8,7 @@ import {
     CommercialFeatureFlags,
     CreateUserArgs,
     CreateUserWithRole,
+    FeatureFlags,
     ForbiddenError,
     getAllScopesForRole,
     getTrainingProjectLockedSubjects,
@@ -1377,6 +1378,28 @@ export class UserModel {
                     { trx },
                 ),
             ]);
+        const customRolesEnabled =
+            this.lightdashConfig.customRoles.enabled || customRolesFlag.enabled;
+        // Only system-role Viewers gain anything from the flag, so the lookup
+        // is skipped for everyone else. Mirrors getUserAbilityBuilder: a
+        // custom role replaces the system role when custom roles are on.
+        const isSystemViewer = (role: string, roleUuid?: string | null) =>
+            role === ProjectMemberRole.VIEWER &&
+            !(roleUuid && customRolesEnabled);
+        const dataAppConsumerAccessFlag =
+            (lightdashUser.role !== undefined &&
+                isSystemViewer(lightdashUser.role, lightdashUser.roleUuid)) ||
+            [...projectRoles, ...groupProjectRoles].some((profile) =>
+                isSystemViewer(profile.role, profile.roleUuid),
+            )
+                ? await this.featureFlagModel.get(
+                      {
+                          user: lightdashUser,
+                          featureFlagId: FeatureFlags.DataAppConsumerAccess,
+                      },
+                      { trx },
+                  )
+                : { enabled: false };
 
         // Narrow empty-role resolution: only the flagged enterprise human's
         // primary org role uuid is checked for existence when it has no
@@ -1405,11 +1428,10 @@ export class UserModel {
                     pat: this.lightdashConfig.auth.pat,
                 },
                 customRoleScopes,
-                customRolesEnabled:
-                    this.lightdashConfig.customRoles.enabled ||
-                    customRolesFlag.enabled,
+                customRolesEnabled,
                 isEnterprise,
                 patScopeAuthoritative: patScopeAuthoritativeFlag.enabled,
+                dataAppConsumerAccess: dataAppConsumerAccessFlag.enabled,
             });
 
         if (invalidScopes.length > 0) {
@@ -2258,7 +2280,8 @@ export class UserModel {
                 async ([projectUuid, projectRole]) => {
                     const [project] = await trx('projects')
                         .select('project_id')
-                        .where('project_uuid', projectUuid);
+                        .where('project_uuid', projectUuid)
+                        .andWhere('organization_id', org.organization_id);
 
                     if (project) {
                         await trx('project_memberships').insert({
@@ -2289,8 +2312,17 @@ export class UserModel {
         const projectMemberships = Object.entries(projects).map(
             async ([projectUuid, projectRole]) => {
                 const [project] = await this.database(ProjectTableName)
-                    .select('project_id')
-                    .where('project_uuid', projectUuid);
+                    .innerJoin(
+                        OrganizationMembershipsTableName,
+                        `${OrganizationMembershipsTableName}.organization_id`,
+                        `${ProjectTableName}.organization_id`,
+                    )
+                    .select(`${ProjectTableName}.project_id`)
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .andWhere(
+                        `${OrganizationMembershipsTableName}.user_id`,
+                        user.user_id,
+                    );
 
                 if (project) {
                     await this.database(ProjectMembershipsTableName)

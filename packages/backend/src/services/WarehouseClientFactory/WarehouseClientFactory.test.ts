@@ -1162,6 +1162,7 @@ describe('WarehouseClientFactory', () => {
         expect(createAnalyticsClient).toHaveBeenCalledWith(
             'org-uuid',
             isAnalyticsProjectEnabled,
+            { activityWindow: undefined },
         );
         expect(connect).not.toHaveBeenCalled();
         expect(

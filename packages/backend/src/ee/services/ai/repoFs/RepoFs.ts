@@ -24,6 +24,13 @@ export interface RepoSource {
     /** File content as UTF-8, or null if missing/too large/binary. */
     readFile(path: string): Promise<string | null>;
     searchCode?(query: string): Promise<RepoCodeSearchMatch[]>;
+    /**
+     * Every readable text file's content in one fetch, keyed like
+     * {@link listAllPaths}; null when it would hold more than `maxBytes` or
+     * could not be fetched, and the caller reads file by file instead.
+     * Called on every read, so a repeat must be cheap and not fetch again.
+     */
+    readAll?(maxBytes: number): Promise<Map<string, string> | null>;
 }
 
 const normalizePath = (input: string): string => {
@@ -49,6 +56,37 @@ export const globToRegExp = (glob: string): RegExp => {
     const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&');
     const pattern = escaped.replace(/\*/g, '.*').replace(/\?/g, '.');
     return new RegExp(`^${pattern}$`);
+};
+
+const MAX_SEARCH_MATCHES = 100;
+const MAX_SEARCH_FRAGMENTS = 3;
+
+/** Files whose path or text holds every word of the query, whatever the case; most matching lines first. */
+export const searchFiles = (
+    files: Map<string, string>,
+    query: string,
+): RepoCodeSearchMatch[] => {
+    const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return [];
+    return [...files]
+        .flatMap(([path, content]) => {
+            const haystack = `${path}\n${content}`.toLowerCase();
+            if (!terms.every((term) => haystack.includes(term))) return [];
+            const lines = content.split('\n').filter((line) => {
+                const lowered = line.toLowerCase();
+                return terms.some((term) => lowered.includes(term));
+            });
+            return [{ path, lines }];
+        })
+        .sort(
+            (a, b) =>
+                b.lines.length - a.lines.length || a.path.localeCompare(b.path),
+        )
+        .slice(0, MAX_SEARCH_MATCHES)
+        .map(({ path, lines }) => ({
+            path,
+            fragments: lines.slice(0, MAX_SEARCH_FRAGMENTS),
+        }));
 };
 
 // Cap the lazy file-content cache by total bytes so a wide crawl (e.g. a grep
@@ -138,6 +176,19 @@ export class RepoFs {
             sortedPaths: [...fileMap.keys()].sort(),
             truncated,
         };
+    }
+
+    // Not memoised: the source holds the repo, so dropping it there frees it.
+    private loadAll(index: RepoIndex): Promise<Map<string, string> | null> {
+        // A truncated tree cannot say which paths exist, so it keeps the per-file path.
+        return this.source.readAll && !index.truncated
+            ? this.source.readAll(this.maxCacheBytes)
+            : Promise.resolve(null);
+    }
+
+    /** Whether file reads are served from memory with no further fetches; the first call does the one fetch. */
+    async readsFromMemory(): Promise<boolean> {
+        return (await this.loadAll(await this.ensureIndex())) !== null;
     }
 
     async isFile(path: string): Promise<boolean> {
@@ -290,6 +341,11 @@ export class RepoFs {
     }
 
     async search(query: string): Promise<RepoCodeSearchMatch[] | null> {
+        // Only a source that can hand the repo over is worth listing for a search.
+        const all = this.source.readAll
+            ? await this.loadAll(await this.ensureIndex())
+            : null;
+        if (all) return searchFiles(all, query);
         if (!this.source.searchCode) return null;
         return this.source.searchCode(query);
     }
@@ -319,6 +375,9 @@ export class RepoFs {
             this.cacheWrite(normalized, null);
             return null;
         }
+        // A file the whole-repo fetch left out is binary or too large, which reads as absent either way.
+        const all = await this.loadAll(index);
+        if (all) return all.get(normalized) ?? null;
         const content = await this.source.readFile(normalized);
         this.cacheWrite(normalized, content);
         return content;

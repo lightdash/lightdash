@@ -46,4 +46,7 @@ export type DownloadOptions = {
     // XLSX only. Defaults to data rows; CHART_IMAGE embeds a rendered image
     // of the saved chart the query belongs to instead.
     xlsxContent?: XlsxExportContent;
+    // Table chart "Show subtotals" — adds a subtotal row per group to
+    // unpivoted XLSX exports.
+    showSubtotals?: boolean;
 };

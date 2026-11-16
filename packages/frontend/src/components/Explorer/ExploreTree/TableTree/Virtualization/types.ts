@@ -8,6 +8,7 @@ import type {
     OrderFieldsByStrategy,
 } from '@lightdash/common';
 import type { Node, NodeItem, NodeMap } from '../Tree/types';
+import type { CombinedFieldTree } from './combinedTree';
 
 export enum TreeSection {
     Dimensions = 'dimensions',
@@ -160,6 +161,7 @@ export interface FlattenedTreeData {
 
 // Options for flattening the tree
 export interface FlattenTreeOptions {
+    combinedTree?: CombinedFieldTree | null;
     // Table data
     tables: CompiledTable[];
     showMultipleTables: boolean; // Whether to show table headers

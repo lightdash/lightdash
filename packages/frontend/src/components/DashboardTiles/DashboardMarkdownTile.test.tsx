@@ -10,6 +10,8 @@ import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProv
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import MarkdownTile from './DashboardMarkdownTile';
 
+vi.unmock('@uiw/react-markdown-preview');
+
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) =>
         selector({
@@ -48,10 +50,18 @@ const bannerTile: DashboardMarkdownTile = {
     },
 };
 
-const renderTile = (props: Partial<{ minimal: boolean }> = {}) =>
+const renderTile = (
+    props: Partial<{ minimal: boolean; content: string }> = {},
+) =>
     renderWithProviders(
         <MarkdownTile
-            tile={bannerTile}
+            tile={{
+                ...bannerTile,
+                properties: {
+                    ...bannerTile.properties,
+                    content: props.content ?? bannerTile.properties.content,
+                },
+            }}
             isEditMode={false}
             minimal={props.minimal}
             onEdit={vi.fn()}
@@ -77,5 +87,36 @@ describe('MarkdownTile in the minimal dashboard view', () => {
         renderTile({ minimal: true });
 
         expect(screen.queryByTestId('tile-icon-more')).not.toBeInTheDocument();
+    });
+});
+
+describe('MarkdownTile content', () => {
+    it('uses the tile formatting rules when rendering content', () => {
+        const { container } = renderTile({
+            content: [
+                bannerTile.properties.content,
+                '**Dashboard notes**',
+                '<span data-preview-marker="legacy">Additional notes</span>',
+                '<iframe src="https://example.com/embed" width="320" height="200"></iframe>',
+            ].join('\n\n'),
+        });
+
+        expect(screen.getByText('[ TURNOVER ]')).toHaveStyle({
+            backgroundColor: 'rgb(0, 75, 135)',
+        });
+        expect(
+            screen.getByText('Dashboard notes', { selector: 'strong' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Additional notes')).not.toHaveAttribute(
+            'data-preview-marker',
+        );
+        expect(container.querySelector('iframe')).toHaveAttribute(
+            'src',
+            'https://example.com/embed',
+        );
+        expect(container.querySelector('iframe')).toHaveAttribute(
+            'width',
+            '320',
+        );
     });
 });

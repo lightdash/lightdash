@@ -5,6 +5,7 @@ import { getLoadAgentTools } from '../tools/loadAgentTools';
 
 const REFERENCE_TOOLS = new Set([
     'loadAgentTools',
+    'askUser',
     'listKnowledgeDocuments',
     'getKnowledgeDocumentContent',
     'loadProjectContext',

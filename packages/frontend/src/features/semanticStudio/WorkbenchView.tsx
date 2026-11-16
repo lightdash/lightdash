@@ -6,10 +6,11 @@
  */
 import { assertUnreachable } from '@lightdash/common';
 import {
+    ActionIcon,
     Anchor,
     Box,
-    Button,
     Breadcrumbs,
+    Button,
     Center,
     Group,
     Loader,
@@ -18,15 +19,21 @@ import {
     TextInput,
     Title,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import {
+    IconArrowLeft,
+    IconArrowUpRight,
     IconChevronRight,
     IconCode,
-    IconEye,
     IconFileCode,
+    IconMessage,
+    IconPlus,
     IconSearch,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import {
     useCallback,
     useEffect,
@@ -36,15 +43,29 @@ import {
     type FC,
     type KeyboardEvent,
 } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
+import { StudioChanges } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioChanges';
+import {
+    StudioDevelopmentBar,
+    StudioSavingBar,
+} from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioDevelopmentBar';
 import {
     useChatOpen,
     useSemanticStudioChat,
+    useStoredStudioThread,
+    useStudioAgent,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
+import {
+    useStudioPendingChange,
+    useStudioProposal,
+    useStudioPullRequest,
+} from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
+import { useSyncStudioWorkspace } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSyncStudioWorkspace';
 import { useProject } from '../../hooks/useProject';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
+import { useDevelopmentView } from './developmentView';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import { ExternalSourceManager } from './externalSources/ExternalSourceManager';
 import {
@@ -86,7 +107,7 @@ import {
 } from './modelCode';
 import { ModelCodeView, ModelTabs } from './ModelTabs';
 import {
-    DraftBar,
+    DraftDevelopmentBar,
     DraftReview,
     DraftReviewHeading,
 } from './SemanticLayerDraft';
@@ -102,11 +123,28 @@ import {
     SemanticLayerNudge,
     SettingsLink,
 } from './shared';
-import { getSemanticStudioUrl } from './urls';
+import {
+    AddToStudioChatContext,
+    sameStudioChatRef,
+    startStudioChatRefDrag,
+    type StudioChatRef,
+} from './studioChatRefs';
+import { needsYou } from './studioRuns';
+import { StudioStageLine, type StudioStage } from './StudioStageLine';
+import { StudioWorkspacesList } from './StudioWorkspacesList';
+import {
+    getSemanticStudioUrl,
+    getSemanticStudioWorkspaceUrl,
+    parseSemanticStudioWorkspaceUuid,
+    pullRequestNumberOf,
+} from './urls';
 import { useExploreFields } from './useExploreFields';
 import {
+    useKeepsSemanticLayerDraft,
+    useDraftFreshness,
     useSemanticLayerDraft,
     useSemanticLayerModel,
+    useSemanticLayerStoredModels,
 } from './useSemanticLayerModel';
 import {
     useFieldListState,
@@ -115,12 +153,63 @@ import {
     type SemanticStudioProps,
     type ViewModel,
 } from './useSemanticStudio';
+import { useStudioRuns } from './useStudioRuns';
+import {
+    useStudioWorkspaceAction,
+    useStudioWorkspaces,
+} from './useStudioWorkspaces';
 import classes from './WorkbenchView.module.css';
+
+dayjs.extend(relativeTime);
 
 const ROW_HEIGHT = 28;
 
 /** What the workspace shows beside the rail. */
-type Pane = 'code' | 'review' | 'browse' | 'intro' | 'buildFirst' | 'empty';
+type Pane =
+    | 'code'
+    | 'changes'
+    | 'workspaces'
+    | 'review'
+    | 'browse'
+    | 'intro'
+    | 'buildFirst'
+    | 'empty';
+
+/** Says whose unpublished work a model has: this person's, someone else's, or both. */
+const DraftMarker: FC<{
+    projectUuid: string;
+    model: string;
+    isMine: boolean;
+}> = ({ projectUuid, model, isMine }) => {
+    const { data: draft } = useSemanticLayerDraft(projectUuid);
+    const others =
+        draft?.othersDrafting
+            .find((entry) => entry.model === model)
+            ?.drafters.map(({ name }) => name) ?? [];
+    if (!isMine && others.length === 0) return null;
+    const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
+    return (
+        <Tooltip label={`Draft by ${whose}. Not live yet.`}>
+            <Box
+                className={classes.draftDot}
+                data-others={!isMine || undefined}
+            />
+        </Tooltip>
+    );
+};
+
+/** A model's name as this person's draft leaves it, so the list and the review say the same thing. */
+const ModelLabel: FC<{ projectUuid: string; model: string; label: string }> = ({
+    projectUuid,
+    model,
+    label,
+}) => {
+    const { data: draft } = useSemanticLayerDraft(projectUuid);
+    return (
+        draft?.models.find((entry) => entry.model === model)?.explore?.label ??
+        label
+    );
+};
 
 const Tree: FC<{
     view: ViewModel;
@@ -194,6 +283,16 @@ const Tree: FC<{
                             data-selected={node.key === selectedTreeKey}
                             top={item.start}
                             pl={depth * 14 + 4}
+                            draggable={node.ref.type === 'explore'}
+                            onDragStart={(event) => {
+                                if (node.ref.type !== 'explore') return;
+                                startStudioChatRefDrag(event.dataTransfer, {
+                                    modelName: node.ref.exploreId,
+                                    fieldName: null,
+                                    modelLabel: node.label,
+                                    fieldLabel: null,
+                                });
+                            }}
                             onClick={() => {
                                 onSelect(node);
                                 if (isContainer) onToggle(node.key);
@@ -215,13 +314,22 @@ const Tree: FC<{
                                 />
                             </Box>
                             <Text truncate className={classes.treeLabel}>
-                                {node.label}
+                                {node.ref.type === 'explore' ? (
+                                    <ModelLabel
+                                        projectUuid={view.project.id}
+                                        model={node.ref.exploreId}
+                                        label={node.label}
+                                    />
+                                ) : (
+                                    node.label
+                                )}
                             </Text>
-                            {node.ref.type === 'explore' &&
-                            drafted.has(node.ref.exploreId) ? (
-                                <Tooltip label="In your draft">
-                                    <Box className={classes.draftDot} />
-                                </Tooltip>
+                            {node.ref.type === 'explore' ? (
+                                <DraftMarker
+                                    projectUuid={view.project.id}
+                                    model={node.ref.exploreId}
+                                    isMine={drafted.has(node.ref.exploreId)}
+                                />
                             ) : null}
                         </Box>
                     );
@@ -334,6 +442,12 @@ const ExploreBody: FC<{
     const explore = getExplore(view.project, exploreId);
     const source = getSource(view.project, explore.sourceId);
     const { data: draft } = useSemanticLayerDraft(view.project.id);
+    const modelDraft =
+        draft?.models.find(({ model }) => model === exploreId) ?? null;
+    const othersHere =
+        draft?.othersDrafting.find(({ model }) => model === exploreId)
+            ?.drafters ?? [];
+    const [isShowingLive, setIsShowingLive] = useState(false);
     const {
         fields: loaded,
         isLoading,
@@ -343,7 +457,7 @@ const ExploreBody: FC<{
         explore,
         source,
         canManageLive: view.permissions.live,
-        draft: draft?.models.find(({ model }) => model === exploreId) ?? null,
+        draft: isShowingLive ? null : modelDraft,
     });
     const allFields = useMemo(() => loaded ?? [], [loaded]);
     const groups = useMemo(() => fieldGroups(allFields), [allFields]);
@@ -393,6 +507,42 @@ const ExploreBody: FC<{
     }
     return (
         <>
+            {modelDraft || othersHere.length > 0 ? (
+                <Group gap="sm" mb="sm" wrap="nowrap">
+                    {modelDraft ? (
+                        <SegmentedControl
+                            size="xs"
+                            flex="none"
+                            value={isShowingLive ? 'live' : 'development'}
+                            onChange={(next) =>
+                                setIsShowingLive(next === 'live')
+                            }
+                            data={[
+                                {
+                                    value: 'development',
+                                    label: 'With my changes',
+                                },
+                                { value: 'live', label: 'Live' },
+                            ]}
+                        />
+                    ) : null}
+                    <Text fz="xs" c="dimmed">
+                        {[
+                            modelDraft
+                                ? isShowingLive
+                                    ? 'What everyone sees now.'
+                                    : 'Only you see this until you publish.'
+                                : null,
+                            ...othersHere.map(
+                                ({ name, paths }) =>
+                                    `${name} is changing ${paths.length > 0 ? paths.join(', ') : 'this model'}, in development.`,
+                            ),
+                        ]
+                            .filter(Boolean)
+                            .join(' ')}
+                    </Text>
+                </Group>
+            ) : null}
             <FieldList
                 view={view}
                 explore={explore}
@@ -542,6 +692,16 @@ const MainPane: FC<{
                             order={3}
                             className={classes.title}
                             title={title}
+                            draggable={ref?.type === 'explore'}
+                            onDragStart={(event) => {
+                                if (ref?.type !== 'explore') return;
+                                startStudioChatRefDrag(event.dataTransfer, {
+                                    modelName: ref.exploreId,
+                                    fieldName: null,
+                                    modelLabel: title,
+                                    fieldLabel: null,
+                                });
+                            }}
                         >
                             {title}
                         </Title>
@@ -607,6 +767,8 @@ const MainPane: FC<{
                         modelName={explore.id}
                         fields={
                             <ExploreBody
+                                // Its live or in-development switch belongs to one model.
+                                key={explore.id}
                                 view={view}
                                 exploreId={explore.id}
                                 openFieldId={openFieldId}
@@ -723,11 +885,12 @@ const Rail: FC<{
  * ponytail: not virtualised; only native YAML projects get here, so add it if one reaches thousands of models.
  */
 const CodeRail: FC<{
+    projectUuid: string;
     files: string[];
     selected: string | null;
     drafted: Set<string>;
     onOpen: (file: string) => void;
-}> = ({ files, selected, drafted, onOpen }) => (
+}> = ({ projectUuid, files, selected, drafted, onOpen }) => (
     <Box className={classes.rail}>
         <Box className={classes.treeScroll}>
             {files.map((file) => (
@@ -742,11 +905,11 @@ const CodeRail: FC<{
                     <Text truncate className={classes.treeLabel} title={file}>
                         {file}.yml
                     </Text>
-                    {drafted.has(file) ? (
-                        <Tooltip label="In your draft">
-                            <Box className={classes.draftDot} />
-                        </Tooltip>
-                    ) : null}
+                    <DraftMarker
+                        projectUuid={projectUuid}
+                        model={file}
+                        isMine={drafted.has(file)}
+                    />
                 </Box>
             ))}
         </Box>
@@ -754,27 +917,6 @@ const CodeRail: FC<{
 );
 
 const FILE_PARAM = 'file';
-
-const VIEW_OPTIONS = [
-    {
-        value: 'preview',
-        label: (
-            <Group gap={6} wrap="nowrap">
-                <MantineIcon icon={IconEye} size={14} />
-                Preview
-            </Group>
-        ),
-    },
-    {
-        value: 'code',
-        label: (
-            <Group gap={6} wrap="nowrap">
-                <MantineIcon icon={IconCode} size={14} />
-                Code
-            </Group>
-        ),
-    },
-];
 
 const BUILD_MODEL_PROMPT =
     'Look through my warehouse and suggest the first model and metrics to add.';
@@ -836,17 +978,23 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const isEmpty = view.project.explores.length === 0;
     const [searchParams, setSearchParams] = useSearchParams();
     const { data: draft } = useSemanticLayerDraft(view.project.id);
+    useDraftFreshness(view.project.id);
     const { data: project } = useProject(view.project.id);
     const chat = useSemanticStudioChat(view.project.id);
+    const { startNewThread } = useStudioAgent(view.project.id);
     const [isChatOpen, setIsChatOpen] = useChatOpen();
     const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
     const [hasStarted, setHasStarted] = useState(false);
     const hasDraft = (draft?.changes.length ?? 0) > 0;
     // With nothing live, what the draft adds is the page.
     const isBuildingFirstModel = isEmpty && hasDraft;
+    // With changes to check and nothing else asked for, the changes are the page.
+    const isDefaultView =
+        view.selected === null && searchParams.get(VIEW_PARAM) === null;
     const isReviewingDraft =
         isBuildingFirstModel ||
-        (hasDraft && searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW);
+        (hasDraft &&
+            (searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW || isDefaultView));
     const openExplore =
         view.selected?.type === 'explore' || view.selected?.type === 'field'
             ? view.selected.exploreId
@@ -866,11 +1014,184 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         () => new Set(draft?.models.map(({ model }) => model)),
         [draft],
     );
-    const files = useMemo(
-        () => [...new Set([...drafted, ...modelled])].sort(),
-        [drafted, modelled],
+    // A dbt project has no draft and no model code here: its files are in its repository.
+    const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
+    const pullRequest = useStudioPullRequest(view.project.id);
+    const development = !keepsDraft && pullRequest?.isOpen ? pullRequest : null;
+    const pendingChange = useStudioPendingChange(view.project.id);
+    const saving = keepsDraft ? null : pendingChange;
+    const [isTryingChanges, setIsTryingChanges] = useDevelopmentView();
+    // A dbt project's changes are tried through its pull request's preview, so there is nothing to try once that closes.
+    const hasClosedPullRequest =
+        !keepsDraft && !!pullRequest?.ciChecks && !pullRequest.isOpen;
+    useEffect(() => {
+        if (hasClosedPullRequest && isTryingChanges) setIsTryingChanges(false);
+    }, [hasClosedPullRequest, isTryingChanges, setIsTryingChanges]);
+    const isCode =
+        chat.isAvailable &&
+        keepsDraft &&
+        searchParams.get(VIEW_PARAM) === 'code';
+    // When a save lands, the workspace opens its diff, so the change is reviewed where it was asked for.
+    const wasSaving = useRef(false);
+    useEffect(() => {
+        if (wasSaving.current && !saving && development) {
+            setSearchParams({ [VIEW_PARAM]: 'changes' });
+        }
+        wasSaving.current = !!saving;
+    }, [saving, development, setSearchParams]);
+    const proposal = useStudioProposal(view.project.id);
+    const hasProposal = !keepsDraft && proposal.length > 0;
+    // A dbt project's changes are its conversation's: what it proposes, and what its pull request holds.
+    const isChanges =
+        !keepsDraft &&
+        (!!development || hasProposal) &&
+        (searchParams.get(VIEW_PARAM) === 'changes' || isDefaultView);
+    const hasChanges = keepsDraft
+        ? hasDraft && !isBuildingFirstModel
+        : !!development || hasProposal;
+    const { data: workspaces } = useStudioWorkspaces(view.project.id);
+    const workspaceAction = useStudioWorkspaceAction(view.project.id);
+    const activeWorkspace = useSyncStudioWorkspace(
+        view.project.id,
+        hasChanges || !!saving,
     );
-    const isCode = chat.isAvailable && searchParams.get(VIEW_PARAM) === 'code';
+    const [storedThread, setStoredThread] = useStoredStudioThread(
+        view.project.id,
+    );
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const routeWorkspaceUuid = parseSemanticStudioWorkspaceUuid(pathname);
+    const allWorkspaces = useMemo(
+        () => [
+            ...(workspaces?.mine ?? []),
+            ...(workspaces?.recent ?? []),
+            ...(workspaces?.others ?? []),
+        ],
+        [workspaces],
+    );
+    const routeWorkspace =
+        allWorkspaces.find(
+            ({ workspaceUuid }) => workspaceUuid === routeWorkspaceUuid,
+        ) ?? null;
+    // The workspace this page is about: the one in the link, else the one the open chat belongs to.
+    const shownWorkspace =
+        routeWorkspace ??
+        activeWorkspace ??
+        allWorkspaces.find(
+            ({ threadUuid, isMine }) =>
+                isMine && threadUuid === storedThread?.threadUuid,
+        ) ??
+        null;
+    const hasWorkspaces = allWorkspaces.length > 0;
+    const openWorkspace = useCallback(
+        (
+            target: (typeof allWorkspaces)[number],
+            { navigateTo }: { navigateTo: boolean },
+        ) => {
+            if (!target.isMine) return;
+            if (target.agentUuid) {
+                setStoredThread({
+                    threadUuid: target.threadUuid,
+                    agentUuid: target.agentUuid,
+                });
+            }
+            if (!target.isActive && !target.finishedAt) {
+                workspaceAction.mutate({
+                    kind: 'activate',
+                    workspaceUuid: target.workspaceUuid,
+                });
+            }
+            if (navigateTo) {
+                void navigate(
+                    getSemanticStudioWorkspaceUrl(
+                        view.project.id,
+                        target.workspaceUuid,
+                    ),
+                );
+            }
+        },
+        [navigate, setStoredThread, view.project.id, workspaceAction],
+    );
+    // A link to one of your workspaces opens it, here and in the chat.
+    const openedFromRoute = useRef<string | null>(null);
+    useEffect(() => {
+        if (!routeWorkspace || openedFromRoute.current === routeWorkspaceUuid)
+            return;
+        openedFromRoute.current = routeWorkspaceUuid;
+        openWorkspace(routeWorkspace, { navigateTo: false });
+    }, [routeWorkspace, routeWorkspaceUuid, openWorkspace]);
+    const isMerged =
+        !!pullRequest?.ciChecks?.merged ||
+        shownWorkspace?.pullRequest?.state === 'merged';
+    const stage = ((): StudioStage | null => {
+        if (saving) return { step: 'saving' };
+        if (development) {
+            return {
+                step: 'in_review',
+                pullRequestNumber: pullRequestNumberOf(development.prUrl),
+            };
+        }
+        if (isMerged) return { step: 'live' };
+        if (hasProposal || (keepsDraft && hasDraft && !isBuildingFirstModel)) {
+            return { step: 'proposed' };
+        }
+        if (hasClosedPullRequest) {
+            return {
+                step: 'closed',
+                pullRequestNumber: pullRequestNumberOf(pullRequest?.prUrl),
+            };
+        }
+        if (shownWorkspace?.pullRequest?.state === 'open') {
+            return {
+                step: 'in_review',
+                pullRequestNumber: pullRequestNumberOf(
+                    shownWorkspace.pullRequest.url,
+                ),
+            };
+        }
+        if (shownWorkspace?.finishedAt) return { step: 'live' };
+        return null;
+    })();
+    // A new proposal opens the changes, like a save does.
+    const proposalKey = hasProposal ? proposal.join('\n') : null;
+    const lastProposalKey = useRef(proposalKey);
+    useEffect(() => {
+        if (proposalKey && proposalKey !== lastProposalKey.current) {
+            setSearchParams({ [VIEW_PARAM]: 'changes' });
+        }
+        lastProposalKey.current = proposalKey;
+    }, [proposalKey, setSearchParams]);
+    // The workspace the conversation made, named for where its changes stand.
+    const pullRequestNumber = /\/(\d+)\/?$/.exec(development?.prUrl ?? '')?.[1];
+    const workspace = saving
+        ? { name: 'Saving', hint: 'The change is being saved.' }
+        : development
+          ? {
+                name: pullRequestNumber
+                    ? `Pull request #${pullRequestNumber}`
+                    : 'Pull request',
+                hint: 'Not live until it merges.',
+            }
+          : hasProposal
+            ? {
+                  name: 'Proposed change',
+                  hint: 'Not saved yet. Open the pull request from the chat to save it.',
+              }
+            : keepsDraft && hasDraft && !isBuildingFirstModel
+              ? {
+                    name: 'Draft',
+                    hint: 'Only you see these changes until you publish them.',
+                }
+              : null;
+    // Only models with YAML here have a file: a deployed model's YAML lives where it was deployed from.
+    const { data: stored } = useSemanticLayerStoredModels(
+        view.project.id,
+        isCode,
+    );
+    const files = useMemo(
+        () => [...new Set([...drafted, ...(stored?.models ?? [])])].sort(),
+        [drafted, stored],
+    );
     const requestedFile = searchParams.get(FILE_PARAM);
     const file =
         files.find((name) => name === requestedFile) ??
@@ -880,23 +1201,74 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const switchView = (next: string) => {
         if (next === 'code') {
             setSearchParams({ [VIEW_PARAM]: 'code' });
+        } else if (next === 'changes') {
+            setSearchParams(
+                keepsDraft
+                    ? { [DRAFT_PARAM]: DRAFT_REVIEW }
+                    : { [VIEW_PARAM]: 'changes' },
+            );
         } else if (requestedFile && modelled.includes(requestedFile)) {
             view.select({ type: 'explore', exploreId: requestedFile });
         } else {
-            setSearchParams({});
+            // Named, since with changes to check the bare page shows those.
+            setSearchParams(hasChanges ? { [VIEW_PARAM]: 'models' } : {});
         }
     };
 
     const hasWarehouse = !!project?.warehouseConnection;
-    const canBuildFirstModel = isEmpty && hasWarehouse && chat.isAvailable;
-    const canNudge = chat.isAvailable && hasWarehouse && modelled.length === 0;
+    const canBuildFirstModel =
+        isEmpty && hasWarehouse && chat.isAvailable && keepsDraft;
+    const canNudge =
+        chat.isAvailable && keepsDraft && hasWarehouse && modelled.length === 0;
     const pane = ((): Pane => {
+        if (searchParams.get(VIEW_PARAM) === 'workspaces') return 'workspaces';
         if (isCode) return 'code';
+        if (isChanges) return 'changes';
         if (isReviewingDraft) return 'review';
         if (!isEmpty) return 'browse';
         if (!canBuildFirstModel) return 'empty';
         return chat.hasThread || hasStarted ? 'buildFirst' : 'intro';
     })();
+    // Reviewing changes takes the full width: the tree is for browsing models.
+    const isReviewPane =
+        pane === 'changes' || pane === 'review' || pane === 'workspaces';
+    // Live is what is published; Changes is everything in flight, and an open change gets its own bar.
+    const isChangesView = isReviewPane;
+    const isChangeOpen =
+        (pane === 'changes' || pane === 'review') &&
+        !!(shownWorkspace || workspace);
+    const hasChangesTab = hasWorkspaces || hasChanges || !!saving;
+    const runs = useStudioRuns(view.project.id, workspaces?.mine ?? [], saving);
+    const waitingOnYou = runs.filter(({ run }) => needsYou(run)).length;
+    // What waits on you wins, then a save under way, then how many are in flight.
+    const changesBadge =
+        waitingOnYou > 0 ? (
+            <span
+                className={classes.tabBadge}
+                data-tone="attention"
+                aria-label={`${waitingOnYou} need you`}
+            >
+                {waitingOnYou}
+            </span>
+        ) : saving ? (
+            <span className={classes.busyDot} aria-label="Saving" />
+        ) : runs.length > 0 ? (
+            <span className={classes.tabBadge}>{runs.length}</span>
+        ) : null;
+    const showLive = () => {
+        setIsTryingChanges(false);
+        switchView('models');
+    };
+    const showChanges = () =>
+        hasWorkspaces
+            ? setSearchParams({ [VIEW_PARAM]: 'workspaces' })
+            : switchView('changes');
+    const startNewChange = () => {
+        startNewThread();
+        setIsTryingChanges(false);
+        setIsChatOpen(true);
+        void navigate(getSemanticStudioUrl(view.project.id, { ref: null }));
+    };
     // What the chat is told the person has open: in the code view that is the file, not the page behind it.
     const openModel = isCode
         ? { modelName: file, fieldName: searchParams.get(FIELD_PARAM) }
@@ -911,9 +1283,131 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         setHasStarted(true);
         setIsChatOpen(true);
     };
+    const [attached, setAttached] = useState<StudioChatRef[]>([]);
+    const attachToChat = (ref: StudioChatRef) => {
+        setAttached((current) =>
+            current.some((item) => sameStudioChatRef(item, ref))
+                ? current
+                : [...current, ref],
+        );
+        openChat();
+    };
+    const askFirst = (prompt: string) => {
+        openChat();
+        setAskedPrompt(prompt);
+    };
 
+    const changeActions = (
+        <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
+            {saving ? (
+                <StudioSavingBar
+                    projectUuid={view.project.id}
+                    change={saving}
+                    pullRequest={development}
+                />
+            ) : development ? (
+                <StudioDevelopmentBar
+                    projectUuid={view.project.id}
+                    pullRequest={development}
+                />
+            ) : null}
+            {keepsDraft && !isBuildingFirstModel ? (
+                <DraftDevelopmentBar projectUuid={view.project.id} />
+            ) : null}
+            {chat.isAvailable && !isChatOpen && !keepsDraft ? (
+                <Button
+                    size="xs"
+                    variant="default"
+                    flex="none"
+                    leftSection={<MantineIcon icon={IconMessage} size={14} />}
+                    onClick={() => setIsChatOpen(true)}
+                >
+                    Chat
+                </Button>
+            ) : null}
+        </Group>
+    );
+    const changeName = shownWorkspace?.name ?? workspace?.name;
+    const changeUrl =
+        development?.prUrl ??
+        pullRequest?.prUrl ??
+        shownWorkspace?.pullRequest?.url ??
+        null;
+    const goBack = hasWorkspaces ? showChanges : showLive;
+    // The open change heads its own column, so its name, progress and diff share one edge.
+    const changeHeader = (
+        <header className={classes.changeHeader}>
+            <UnstyledButton className={classes.back} onClick={goBack}>
+                <MantineIcon icon={IconArrowLeft} size={14} />
+                {hasWorkspaces ? 'All changes' : 'Back to live'}
+            </UnstyledButton>
+            <div className={classes.changeTitleRow}>
+                <Tooltip
+                    label={workspace?.hint ?? 'What this change does'}
+                    disabled={!workspace?.hint}
+                >
+                    <Title
+                        order={1}
+                        lineClamp={2}
+                        className={classes.changeTitle}
+                    >
+                        {changeName}
+                    </Title>
+                </Tooltip>
+                {changeActions}
+            </div>
+            <div className={classes.changeMeta}>
+                {stage ? <StudioStageLine stage={stage} /> : null}
+                {shownWorkspace ? (
+                    <Text component="span" fz="xs" c="dimmed">
+                        Updated {dayjs(shownWorkspace.updatedAt).fromNow()}
+                    </Text>
+                ) : null}
+                {changeUrl ? (
+                    <Anchor
+                        href={changeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={classes.changeLink}
+                    >
+                        {pullRequestNumberOf(changeUrl)
+                            ? `Pull request #${pullRequestNumberOf(changeUrl)}`
+                            : 'Pull request'}
+                        <MantineIcon icon={IconArrowUpRight} size={12} />
+                    </Anchor>
+                ) : null}
+            </div>
+        </header>
+    );
+
+    const renderPaneWithChat = () => (
+        <AddToStudioChatContext.Provider
+            value={chat.isAvailable ? attachToChat : null}
+        >
+            {renderPane()}
+        </AddToStudioChatContext.Provider>
+    );
     const renderPane = () => {
         switch (pane) {
+            case 'changes':
+                return (
+                    <StudioChanges
+                        header={isChangeOpen ? changeHeader : null}
+                        projectUuid={view.project.id}
+                        pullRequest={development}
+                        proposal={hasProposal ? proposal : []}
+                    />
+                );
+            case 'workspaces':
+                return (
+                    <StudioWorkspacesList
+                        projectUuid={view.project.id}
+                        saving={saving}
+                        onOpen={(target) =>
+                            openWorkspace(target, { navigateTo: true })
+                        }
+                    />
+                );
             case 'code':
                 return file ? (
                     <ModelCodeView
@@ -922,23 +1416,31 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         modelName={file}
                         fieldName={searchParams.get(FIELD_PARAM)}
                     />
-                ) : (
+                ) : !stored ? null : (
                     <Text fz="sm" c="dimmed" ta="center" py="xl">
-                        No models yet. Ask the agent to build one and its YAML
-                        shows up here.
+                        {modelled.length > 0
+                            ? 'These models were deployed from elsewhere, so their YAML is not here. Ask the agent for a new model and its YAML shows up here.'
+                            : 'No models yet. Ask the agent to build one and its YAML shows up here.'}
                     </Text>
                 );
             case 'review':
                 return draft ? (
                     <>
-                        <DraftReviewHeading
-                            projectUuid={view.project.id}
-                            draft={draft}
-                        />
+                        {/* The toolbar's bar carries this except while a first model is being built, when it is hidden. */}
+                        {isBuildingFirstModel ? (
+                            <DraftReviewHeading
+                                projectUuid={view.project.id}
+                                draft={draft}
+                            />
+                        ) : null}
                         <Box className={classes.mainBody}>
                             <DraftReview
                                 projectUuid={view.project.id}
                                 draft={draft}
+                                onAskAgent={(prompt) => {
+                                    setIsChatOpen(true);
+                                    setAskedPrompt(prompt);
+                                }}
                             />
                         </Box>
                     </>
@@ -960,12 +1462,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     />
                 );
             case 'intro':
-                return <BuildFirstModel view={view} onGetStarted={openChat} />;
+                return <BuildFirstModel view={view} onAsk={askFirst} />;
             case 'buildFirst':
                 return (
                     <BuildFirstModel
                         view={view}
-                        onGetStarted={isChatOpen ? null : openChat}
+                        onAsk={isChatOpen ? null : askFirst}
                     />
                 );
             case 'empty':
@@ -1003,52 +1505,199 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         <SemanticStudioAgent
                             projectUuid={view.project.id}
                             {...openModel}
+                            attached={attached}
+                            onAttach={attachToChat}
+                            onDetach={(ref) =>
+                                setAttached((current) =>
+                                    current.filter(
+                                        (item) => !sameStudioChatRef(item, ref),
+                                    ),
+                                )
+                            }
+                            onAttachedSent={() => setAttached([])}
                             prompt={askedPrompt}
                             onPromptTaken={() => setAskedPrompt(null)}
                             showStarters={canBuildFirstModel}
                         />
                     )}
                     <Box className={classes.workspace}>
-                        {pane === 'intro' || !chat.isAvailable ? null : (
-                            <Group
-                                className={classes.toolbar}
-                                justify="space-between"
-                                wrap="nowrap"
-                                gap="sm"
-                            >
-                                <SegmentedControl
-                                    size="xs"
-                                    flex="none"
-                                    value={isCode ? 'code' : 'preview'}
-                                    onChange={switchView}
-                                    data={VIEW_OPTIONS}
-                                />
-                                <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
-                                    {isBuildingFirstModel ? null : (
-                                        <DraftBar
-                                            projectUuid={view.project.id}
-                                        />
-                                    )}
-                                    {chat.isAvailable && !isChatOpen ? (
-                                        <Button
-                                            size="xs"
-                                            variant="light"
-                                            color="indigo"
-                                            flex="none"
-                                            onClick={() => setIsChatOpen(true)}
+                        {pane === 'intro' ||
+                        !chat.isAvailable ||
+                        // A dbt project has nothing to put here until its conversation has a pull request.
+                        (!keepsDraft &&
+                            !development &&
+                            !saving &&
+                            !hasProposal &&
+                            !hasWorkspaces &&
+                            isChatOpen) ? null : (
+                            <>
+                                <Group
+                                    className={classes.toolbar}
+                                    justify="space-between"
+                                    wrap="nowrap"
+                                    gap="sm"
+                                >
+                                    <div
+                                        className={classes.views}
+                                        role="tablist"
+                                        aria-label="Views"
+                                    >
+                                        <UnstyledButton
+                                            role="tab"
+                                            className={classes.view}
+                                            aria-selected={!isChangesView}
+                                            onClick={showLive}
                                         >
-                                            Build
-                                        </Button>
-                                    ) : null}
+                                            <span className={classes.liveDot} />
+                                            Live
+                                        </UnstyledButton>
+                                        {hasChangesTab ? (
+                                            <UnstyledButton
+                                                role="tab"
+                                                className={classes.view}
+                                                aria-selected={isChangesView}
+                                                onClick={showChanges}
+                                            >
+                                                Changes
+                                                {changesBadge}
+                                            </UnstyledButton>
+                                        ) : null}
+                                    </div>
+                                    <Group
+                                        gap="xs"
+                                        wrap="nowrap"
+                                        miw={0}
+                                        ml="auto"
+                                    >
+                                        {keepsDraft && !isChangeOpen ? (
+                                            <Tooltip
+                                                label={
+                                                    isCode
+                                                        ? 'Back to models'
+                                                        : 'Read the YAML'
+                                                }
+                                            >
+                                                <ActionIcon
+                                                    size="md"
+                                                    variant={
+                                                        isCode
+                                                            ? 'light'
+                                                            : 'default'
+                                                    }
+                                                    aria-label="Code"
+                                                    aria-pressed={isCode}
+                                                    onClick={() =>
+                                                        switchView(
+                                                            isCode
+                                                                ? 'models'
+                                                                : 'code',
+                                                        )
+                                                    }
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconCode}
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        ) : null}
+                                        {keepsDraft ? (
+                                            !isChatOpen ? (
+                                                <Button
+                                                    size="xs"
+                                                    variant="default"
+                                                    flex="none"
+                                                    onClick={() =>
+                                                        setIsChatOpen(true)
+                                                    }
+                                                >
+                                                    Build
+                                                </Button>
+                                            ) : null
+                                        ) : (
+                                            <Button
+                                                size="xs"
+                                                variant="default"
+                                                flex="none"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconPlus}
+                                                        size={14}
+                                                    />
+                                                }
+                                                onClick={startNewChange}
+                                            >
+                                                New change
+                                            </Button>
+                                        )}
+                                    </Group>
                                 </Group>
-                            </Group>
+                                {isChangeOpen && pane === 'review' ? (
+                                    <Group
+                                        className={classes.changeBar}
+                                        wrap="nowrap"
+                                        gap="sm"
+                                    >
+                                        <Tooltip
+                                            label={
+                                                hasWorkspaces
+                                                    ? 'All changes'
+                                                    : 'Back to live'
+                                            }
+                                        >
+                                            <ActionIcon
+                                                variant="subtle"
+                                                color="gray"
+                                                size="md"
+                                                aria-label={
+                                                    hasWorkspaces
+                                                        ? 'All changes'
+                                                        : 'Back to live'
+                                                }
+                                                onClick={
+                                                    hasWorkspaces
+                                                        ? showChanges
+                                                        : showLive
+                                                }
+                                            >
+                                                <MantineIcon
+                                                    icon={IconArrowLeft}
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                        <Tooltip
+                                            label={
+                                                workspace?.hint ??
+                                                'What this change does'
+                                            }
+                                        >
+                                            <Text
+                                                className={classes.changeName}
+                                            >
+                                                {shownWorkspace?.name ??
+                                                    workspace?.name}
+                                            </Text>
+                                        </Tooltip>
+                                        {stage ? (
+                                            <Box className={classes.stageLine}>
+                                                <StudioStageLine
+                                                    stage={stage}
+                                                />
+                                            </Box>
+                                        ) : null}
+                                        {changeActions}
+                                    </Group>
+                                ) : null}
+                            </>
                         )}
                         <Box
                             className={classes.workspaceBody}
-                            data-no-rail={pane !== 'code' && isEmpty}
+                            data-no-rail={
+                                isReviewPane || (pane !== 'code' && isEmpty)
+                            }
                         >
                             {pane === 'code' ? (
                                 <CodeRail
+                                    projectUuid={view.project.id}
                                     files={files}
                                     selected={file}
                                     drafted={drafted}
@@ -1059,7 +1708,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         })
                                     }
                                 />
-                            ) : isEmpty ? null : (
+                            ) : isEmpty || isReviewPane ? null : (
                                 <Rail
                                     view={view}
                                     expanded={expanded}
@@ -1069,13 +1718,15 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 />
                             )}
                             {pane === 'browse' ? (
-                                renderPane()
+                                renderPaneWithChat()
                             ) : (
                                 <Box
                                     className={classes.main}
-                                    data-full={pane === 'code'}
+                                    data-full={
+                                        pane === 'code' || pane === 'changes'
+                                    }
                                 >
-                                    {renderPane()}
+                                    {renderPaneWithChat()}
                                 </Box>
                             )}
                         </Box>

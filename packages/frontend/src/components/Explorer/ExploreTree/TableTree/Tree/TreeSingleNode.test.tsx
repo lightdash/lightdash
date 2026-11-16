@@ -8,6 +8,7 @@ import {
     type Metric,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { describe, expect, it, vi } from 'vitest';
 import { createExplorerStore } from '../../../../../features/explorer/store';
@@ -19,7 +20,7 @@ import {
 import { TreeSection } from '../Virtualization/types';
 import TreeContext from './TreeContext';
 import TreeSingleNode from './TreeSingleNode';
-import { type TableTreeContext } from './types';
+import { type Node, type TableTreeContext } from './types';
 
 vi.mock('../../../../../hooks/useExplore', () => ({
     useExplore: () => ({ data: undefined }),
@@ -98,6 +99,7 @@ const UNLABELLED_DIMENSION: Dimension = {
 const renderRow = (
     item: Dimension | Metric,
     filterTarget: FieldFilterTarget | null = null,
+    source?: Node['source'],
 ) => {
     const key = `${item.table}_${item.name}`;
     const context: TableTreeContext = {
@@ -116,12 +118,13 @@ const renderRow = (
             <FieldFilterTargetContext.Provider value={filterTarget}>
                 <TreeContext.Provider value={context}>
                     <TreeSingleNode
-                        node={{ key, label: item.label, index: 0 }}
+                        node={{ key, label: item.label, index: 0, source }}
                     />
                 </TreeContext.Provider>
             </FieldFilterTargetContext.Provider>
         </Provider>,
     );
+    return context.onItemClick;
 };
 
 /**
@@ -205,5 +208,38 @@ describe('TreeSingleNode filter action', () => {
                 .getByTestId('tree-single-node-payment_method')
                 .querySelectorAll('button:not([aria-label])'),
         ).toHaveLength(1);
+    });
+});
+
+describe('combined tree source information', () => {
+    it('shows the source beside duplicate labels and selects the original field', async () => {
+        const user = userEvent.setup();
+        const onItemClick = renderRow(METRIC, null, {
+            label: 'Payments',
+            showInline: true,
+        });
+        expect(screen.getByText('Payments')).toBeInTheDocument();
+        await user.click(screen.getByText('Average payment amount'));
+        expect(onItemClick).toHaveBeenCalledWith(
+            'payments_average_payment_amount',
+            METRIC,
+        );
+    });
+
+    it('keeps unique labels compact', () => {
+        renderRow(METRIC, null, { label: 'Payments', showInline: false });
+        expect(screen.queryByText('Payments')).not.toBeInTheDocument();
+    });
+
+    it('exposes the source on hover even for dimensions without descriptions', async () => {
+        const user = userEvent.setup();
+        renderRow(UNLABELLED_DIMENSION, null, {
+            label: 'Payments',
+            showInline: false,
+        });
+        await user.hover(screen.getByText('payment_method'));
+        expect(
+            await screen.findByText('Source table: Payments'),
+        ).toBeInTheDocument();
     });
 });

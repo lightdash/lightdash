@@ -175,6 +175,12 @@ export type PivotValuesColumn = {
         formatted?: string;
     }[];
     columnIndex?: number;
+    /**
+     * True on the column that holds several groups added together as "Other".
+     * Clients identify the bucket by this flag, not by its label. Absent
+     * means false.
+     */
+    isOtherGroup?: boolean;
 };
 
 export type PivotChartData = {

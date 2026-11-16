@@ -1,7 +1,17 @@
-import { getTotalFilterRules } from '@lightdash/common';
+import {
+    ExploreType,
+    getTotalFilterRules,
+    type SummaryExplore,
+} from '@lightdash/common';
 import { Box, Button, Stack } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
-import { useMemo, type Dispatch, type FC, type SetStateAction } from 'react';
+import {
+    useCallback,
+    useMemo,
+    type Dispatch,
+    type FC,
+    type SetStateAction,
+} from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import BasePanel from '../../../components/Explorer/ExploreSideBar/BasePanel';
 import ExploreTree from '../../../components/Explorer/ExploreTree';
@@ -58,6 +68,14 @@ export const MergeSourceTree: FC<{
         }),
         [addSourceFilter, source?.filters, sourceId],
     );
+    const currentExploreName = source?.exploreName;
+    // New merges cannot add an external source; a leg that already has one keeps it
+    const hideOtherExternalSources = useCallback(
+        (candidate: SummaryExplore) =>
+            candidate.type === ExploreType.EXTERNAL_SOURCE &&
+            candidate.name !== currentExploreName,
+        [currentExploreName],
+    );
     if (!source) return null;
 
     if (isChoosingExplore || !source.exploreName) {
@@ -89,14 +107,7 @@ export const MergeSourceTree: FC<{
                             }
                             setIsChoosingExplore(false);
                         }}
-                        onExploreCreated={(exploreName) => {
-                            merge.setSourceExplore(
-                                source.id,
-                                exploreName,
-                                nameByHandle,
-                            );
-                            setIsChoosingExplore(false);
-                        }}
+                        shouldHideExplore={hideOtherExternalSources}
                     />
                 </Box>
             </Stack>

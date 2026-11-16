@@ -24,13 +24,15 @@ export const UNAVAILABLE_COPY: Record<
     org_setting_off: 'AI analysis is turned off for this organization.',
 };
 
+export const AI_ANALYSIS_SETTINGS_PATH = '/generalSettings/ai/analysis';
+
 /** Settings page an org admin turns the blocker on at; null when nothing in-product does. */
 export const UNAVAILABLE_SETTINGS_PATH: Record<
     DataAppAnalysisUnavailableReason,
     string | null
 > = {
     copilot_off: '/generalSettings/ai/general',
-    org_setting_off: '/generalSettings/dataApps/aiAnalysis',
+    org_setting_off: AI_ANALYSIS_SETTINGS_PATH,
 };
 
 /**

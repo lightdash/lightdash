@@ -63,6 +63,7 @@ export const lightdashConfigMock: LightdashConfig = {
             iosClientId: undefined,
             androidClientId: undefined,
         },
+        trustedProvisioner: null,
         oidc: {
             authMethod: undefined,
             authSigningAlg: undefined,
@@ -219,6 +220,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         pollInterval: 1000,
         jobTimeout: 0,
+        queryPollingTimeout: 5 * 60 * 1000,
         shutdownTimeout: 60_000,
         tasks: ALL_TASK_NAMES,
         quiesce: {
@@ -471,12 +473,17 @@ export const lightdashConfigMock: LightdashConfig = {
     dashboardComments: {
         enabled: true,
     },
+    mergeQueryAuthoring: {
+        enabled: true,
+    },
     externalSources: {
         maxFileSizeBytes: 100 * 1024 * 1024,
         maxRows: 1_000_000,
         maxOrganizationBytes: 5 * 1024 * 1024 * 1024,
         maxConcurrentIngestsPerOrganization: 2,
         maxConcurrentDuckdbQueriesPerOrganization: 2,
+        duckdbQuerySlotWaitTimeoutMs: 15_000,
+        maxConcurrentDuckdbQueries: 4,
         googleSheetsBatchRows: 5_000,
         stagedUploadTtlHours: 24,
         ingestLeaseMs: 35 * 60 * 1000,

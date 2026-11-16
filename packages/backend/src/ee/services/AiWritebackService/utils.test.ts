@@ -221,9 +221,22 @@ describe('parseMergeRequestUrl', () => {
         ).toEqual({ projectPath: 'group/sub/proj', mergeRequestIid: 7 });
     });
 
+    it('matches the host case-insensitively and with a custom port', () => {
+        expect(
+            parseMergeRequestUrl(
+                'https://gitlab.acme.com:8443/acme/analytics/-/merge_requests/3',
+                'GitLab.acme.com:8443',
+            ),
+        ).toEqual({ projectPath: 'acme/analytics', mergeRequestIid: 3 });
+    });
+
     it.each([
         [
             'https://gitlab.com/acme/analytics/-/merge_requests/1',
+            'gitlab.acme.com',
+        ],
+        [
+            'https://gitlab.acme.com:8443/acme/analytics/-/merge_requests/1',
             'gitlab.acme.com',
         ],
         ['https://gitlab.com/acme/analytics/pull/1', 'gitlab.com'],

@@ -1,10 +1,10 @@
 # Automatic analytics content updates
 
-After compaction finishes, the scheduler queues analytics content reconciliation
-as a separate background job. It uses the existing managed-organization iterator,
+Nightly compaction starts at 00:30 UTC. After compaction, the scheduler queues
+analytics content reconciliation as a separate background job. It uses the existing managed-organization iterator,
 restricted to organizations with an analytics project, to enqueue one sync job per
 organization, then calls the existing analytics status and sync methods.
-The manual **Sync content** button remains available.
+Organization admins can trigger recovery with `POST /api/v1/org/analytics-project/sample-content`.
 
 The existing scheduler includes `reconcileAnalyticsContent` and `syncAnalyticsContent`
 by default; no extra worker deployment is required. Deployments with an explicit
@@ -23,7 +23,9 @@ An organization without an eligible admin cannot sync automatically. Each job
 retries independently, without rerunning compaction or blocking other organizations.
 
 One hash in the existing content-as-code snapshots records successful installation
-of models, charts and dashboards. Unchanged intact content is skipped. Failed
+of models, charts and dashboards. Sync also publishes a default homepage when
+one is absent and provisions an Analytics agent for eligible projects that lack one.
+Unchanged intact content is skipped. Failed
 installation leaves the previous marker so retries can use the existing installer.
 There is no new table, migration, user type or credential. Managed dashboard edits
 are replaced on shipped updates; custom copies and existing access are preserved.

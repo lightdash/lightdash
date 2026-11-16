@@ -246,6 +246,35 @@ export class ProjectHomepageModel {
         return row ? ProjectHomepageModel.mapDbHomepage(row) : undefined;
     }
 
+    async createPublishedDefaultIfAbsent(data: {
+        projectUuid: string;
+        name: string;
+        config: HomepageConfig;
+        userUuid: string;
+    }): Promise<void> {
+        const existing = await this.database(HomepagesTableName)
+            .where({ project_uuid: data.projectUuid })
+            .andWhere((query) =>
+                query.where({ is_default: true }).orWhere({ name: data.name }),
+            )
+            .first('homepage_uuid');
+        if (existing) return;
+
+        await this.database(HomepagesTableName)
+            .insert({
+                project_uuid: data.projectUuid,
+                name: data.name,
+                draft_config: data.config,
+                published_config: data.config,
+                is_default: true,
+                created_by_user_uuid: data.userUuid,
+            })
+            .onConflict(
+                this.database.raw('(project_uuid) WHERE is_default = true'),
+            )
+            .ignore();
+    }
+
     async getByUuid(
         homepageUuid: string,
     ): Promise<ProjectHomepage | undefined> {

@@ -1,15 +1,15 @@
-import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { useProjectAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useIsCopilotEnabled } from '../../aiCopilot/hooks/useIsCopilotEnabled';
 import { useProjectAiAgents } from '../../aiCopilot/hooks/useProjectAiAgents';
 
 /**
- * Whether the homepage should lead with Ask AI. `useAiAgentButtonVisibility`
+ * Whether the homepage should lead with Ask AI. `useProjectAiAgentButtonVisibility`
  * alone isn't enough: it stays true for admins of an agent-less project so
  * they can go create one, which would leave day-0 fronted by a composer that
  * can't answer anything.
  */
 export const useHomepageAiState = (projectUuid: string | undefined) => {
-    const isAiVisible = useAiAgentButtonVisibility();
+    const isAiVisible = useProjectAiAgentButtonVisibility(projectUuid);
     const { isCopilotEnabled, isLoading: isCopilotLoading } =
         useIsCopilotEnabled();
     const agentsQuery = useProjectAiAgents({

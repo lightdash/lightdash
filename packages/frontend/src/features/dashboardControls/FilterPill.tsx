@@ -4,9 +4,8 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { Box, Text, Tooltip } from '@mantine/core';
-import { useOs } from '@mantine/hooks';
 import { IconCheck } from '@tabler/icons-react';
-import { memo, type FC, type KeyboardEvent, type MouseEvent } from 'react';
+import { memo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -17,13 +16,12 @@ import {
     getFilterLockToggle,
 } from '../dashboardFilters/ActiveFilters/filterLock';
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
-import { MOVE_KEYS, useBarMove, useBarSelection } from './barSelection';
+import { replaceFilterRule } from './editorState';
 import { EditorPopover } from './FilterEditor';
 import classes from './FilterPills.module.css';
-import { replaceFilterRule } from './sidebarState';
-import { useControlsSidebarSelector } from './useControlsSidebar';
-import { usePillActionHover } from './usePillActionHover';
-import { getFilterHoverTileUuids, useTileHover } from './useTileHover';
+import { useBarPill } from './useBarPill';
+import { useControlsEditorSelector } from './useControlsEditor';
+import { getFilterHoverTileUuids } from './useTileHover';
 
 // An editor's pill, a viewer's on a saved filter, or a viewer's on a filter of
 // their own (dashed, with an X)
@@ -41,7 +39,7 @@ type Props = {
     /** Edit mode: added in this session, not in the saved dashboard. */
     isDraft: boolean;
     /** While a filter is edited the grip and lock are hidden and inert. */
-    isSidebarOpen: boolean;
+    isEditorOpen: boolean;
     activeTabUuid: string | undefined;
     hasTabs: boolean;
     dashboardUuid: string | undefined;
@@ -62,7 +60,7 @@ export const FilterPill: FC<Props> = memo(
         isSelected,
         isDisabled,
         isDraft,
-        isSidebarOpen,
+        isEditorOpen,
         activeTabUuid,
         hasTabs,
         dashboardUuid,
@@ -71,47 +69,56 @@ export const FilterPill: FC<Props> = memo(
     }) => {
         const { track } = useTracking();
         const getUiString = useUiStrings();
-        const open = useControlsSidebarSelector((c) => c.open);
-        const removeFilterById = useControlsSidebarSelector(
+        const open = useControlsEditorSelector((c) => c.open);
+        const removeFilterById = useControlsEditorSelector(
             (c) => c.removeFilterById,
         );
-        const moveFilter = useControlsSidebarSelector((c) => c.moveFilter);
+        const moveFilter = useControlsEditorSelector((c) => c.moveFilter);
         const setDashboardFilters = useDashboardContext(
             (c) => c.setDashboardFilters,
         );
         const setHaveFiltersChanged = useDashboardContext(
             (c) => c.setHaveFiltersChanged,
         );
-        const selection = useBarSelection();
-        const barMove = useBarMove();
-        const os = useOs();
-        // On an editor's sectioned bar a modified click picks the pill
-        const isSelectable =
-            selection !== null && kind === 'editor' && !isSidebarOpen;
-        const isPicked =
-            isSelectable && selection.selectedIds.includes(filter.id);
-        const tileHover = useTileHover(
-            filter.id,
-            kind === 'editor' && !isSidebarOpen,
-            (state) =>
+        const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
+        // As the shipped view-mode pill: a locked saved filter opens nothing
+        const isReadOnlyLocked = kind === 'viewerSaved' && isLocked;
+        const {
+            isSelectable,
+            isPicked,
+            selectHint,
+            handleClick,
+            handleKeyDown,
+            tileHover,
+            isOnAction,
+            trackAction,
+        } = useBarPill({
+            id: filter.id,
+            // The X, the lock and the required mark (`data-own-tooltip`)
+            // have tooltips of their own
+            pillSelector: '[data-controls-pill]',
+            canSelect: kind === 'editor' && !isEditorOpen,
+            open: () => {
+                if (!isReadOnlyLocked) open(filter.id);
+            },
+            // As a section's name: Alt with an arrow moves it one place
+            // (the key handler is an editor's only)
+            canMove: true,
+            moveAlong: (direction) => moveFilter(filter.id, direction),
+            isTileHoverEnabled: kind === 'editor' && !isEditorOpen,
+            getTileUuids: (state) =>
                 getFilterHoverTileUuids(filter, state, getFieldsByTile()),
-        );
-        // The X, the lock and the required mark (`data-own-tooltip`) have
-        // tooltips of their own: the pill's waits meanwhile
-        const { isOnAction, trackAction } = usePillActionHover(
-            '[data-controls-pill]',
-        );
+        });
         // Dashed pills say why first, in the tooltip the pill already has:
         // the select hint, else the tables one. The open pill has its editor
         const dashedNote =
-            isSelected && isSidebarOpen
+            isSelected && isEditorOpen
                 ? null
                 : kind === 'viewerOwn'
                   ? getUiString('controls.onlyYouSeeFilter')
                   : isDraft
                     ? 'Not saved yet'
                     : null;
-        const selectHint = `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`;
         const tooltipLabel = isOrphaned ? (
             orphanedTooltip
         ) : !isSelectable ? null : dashedNote === null ? (
@@ -126,9 +133,6 @@ export const FilterPill: FC<Props> = memo(
             dashedNote !== null && (isOrphaned || !isSelectable)
                 ? dashedNote
                 : undefined;
-        const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
-        // As the shipped view-mode pill: a locked saved filter opens nothing
-        const isReadOnlyLocked = kind === 'viewerSaved' && isLocked;
         const lockKey = getFilterLockKey({
             hasTabs,
             activeTabUuid,
@@ -150,37 +154,8 @@ export const FilterPill: FC<Props> = memo(
             setHaveFiltersChanged(true);
         };
 
-        // On an editor's sectioned bar a modified click picks the pill and a
-        // plain one ends the selection before it opens the filter
-        const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
-            if (isReadOnlyLocked) return;
-            if (isSelectable) {
-                if (event.metaKey || event.ctrlKey || event.shiftKey) {
-                    selection.pick(filter.id, event.shiftKey);
-                    return;
-                }
-                selection.clear();
-            }
-            open(filter.id);
-        };
-
-        // As a section's name: Alt with an arrow moves it one place
-        const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-            const direction = MOVE_KEYS[event.key];
-            if (!event.altKey || direction === undefined) return;
-            // On an editor's sectioned bar: along the bar or between lines
-            if (barMove !== null && kind === 'editor') {
-                event.preventDefault();
-                barMove(filter.id, direction);
-                return;
-            }
-            if (direction !== 'left' && direction !== 'right') return;
-            event.preventDefault();
-            moveFilter(filter.id, direction);
-        };
-
         return (
-            <EditorPopover isOpen={isSelected && isSidebarOpen}>
+            <EditorPopover isOpen={isSelected && isEditorOpen}>
                 <Tooltip
                     fz="xs"
                     maw={300}
@@ -212,7 +187,7 @@ export const FilterPill: FC<Props> = memo(
                                     ? getFilterLockLabel(isLocked, hasTabs)
                                     : null
                             }
-                            areActionsHidden={isSidebarOpen}
+                            areActionsHidden={isEditorOpen}
                             onLockToggle={(e) => {
                                 e.stopPropagation();
                                 toggleLock();

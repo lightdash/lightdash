@@ -10,10 +10,12 @@ import {
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import {
+    getAwaitingQuestions,
     getAwaitingSqlApprovals,
+    getQuestionNotificationContent,
     getSqlApprovalNotificationClickAction,
     getSqlApprovalNotificationContent,
-    type AwaitingSqlApproval,
+    type AwaitingUserInput,
 } from '../../utils/sqlApprovalNotification';
 import { isThreadSqlAutoApproved } from '../ChatElements/ToolCalls/useSqlAutoApprove';
 import { useIsLauncherHidden } from './useIsLauncherHidden';
@@ -25,7 +27,8 @@ const canShowNotification = () =>
 
 /**
  * Notifies, while the tab is in the background, when a live agent turn waits
- * on the user's SQL approval. Each tool call is considered once.
+ * on the user's SQL approval or asks them a question. Each tool call is
+ * considered once.
  */
 export const AiAgentSqlApprovalWatcher: FC = () => {
     const streams = useAiAgentStoreSelector(
@@ -45,7 +48,7 @@ export const AiAgentSqlApprovalWatcher: FC = () => {
     const handledToolCallIdsRef = useRef(new Set<string>());
 
     const openThread = useCallback(
-        ({ projectUuid, agentUuid, threadUuid }: AwaitingSqlApproval) => {
+        ({ projectUuid, agentUuid, threadUuid }: AwaitingUserInput) => {
             const action = getSqlApprovalNotificationClickAction({
                 threadUuid,
                 pathname,
@@ -82,10 +85,20 @@ export const AiAgentSqlApprovalWatcher: FC = () => {
     useEffect(() => {
         if (isEmbed) return;
         const handled = handledToolCallIdsRef.current;
-        getAwaitingSqlApprovals(
-            Object.values(streams),
-            isThreadSqlAutoApproved,
-        ).forEach((approval) => {
+        const awaiting = [
+            ...getAwaitingSqlApprovals(
+                Object.values(streams),
+                isThreadSqlAutoApproved,
+            ).map((approval) => ({
+                approval,
+                getContent: getSqlApprovalNotificationContent,
+            })),
+            ...getAwaitingQuestions(Object.values(streams)).map((approval) => ({
+                approval,
+                getContent: getQuestionNotificationContent,
+            })),
+        ];
+        awaiting.forEach(({ approval, getContent }) => {
             if (handled.has(approval.toolCallId)) return;
             handled.add(approval.toolCallId);
             if (!canShowNotification()) return;
@@ -98,9 +111,7 @@ export const AiAgentSqlApprovalWatcher: FC = () => {
                     approval.agentUuid,
                 ),
             );
-            const content = getSqlApprovalNotificationContent(
-                agent?.name ?? null,
-            );
+            const content = getContent(agent?.name ?? null);
             try {
                 const notification = new Notification(content.title, {
                     body: content.body,

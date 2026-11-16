@@ -10,6 +10,12 @@ import { Box, List, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { isEqual } from 'es-toolkit/compat';
 import { useMemo, type FC } from 'react';
+import {
+    getChartColumnLimit,
+    getPivotColumnLimitMessage,
+    hasOtherPivotGroup,
+    isWithinChartColumnLimit,
+} from '../../../hooks/usePivotColumnLimitMessage';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 import MantineIcon from '../../common/MantineIcon';
 
@@ -49,13 +55,60 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     );
 
     // Determine if pivot column limit has been exceeded
-    const shouldShowPivotColumnLimit = useMemo(() => {
-        return (
-            resultsData?.pivotDetails?.totalColumnCount &&
-            maxColumnLimit &&
-            resultsData.pivotDetails.totalColumnCount > maxColumnLimit
-        );
-    }, [resultsData?.pivotDetails?.totalColumnCount, maxColumnLimit]);
+    const pivotColumnLimitMessage = useMemo(
+        () =>
+            getPivotColumnLimitMessage({
+                totalColumnCount: resultsData?.pivotDetails?.totalColumnCount,
+                maxColumnLimit,
+                hasOtherGroup: hasOtherPivotGroup(
+                    resultsData?.pivotDetails?.valuesColumns,
+                ),
+            }),
+        [resultsData?.pivotDetails, maxColumnLimit],
+    );
+
+    // The chart's own Column limit shows fewer groups than the results hold.
+    // The user chose what is shown, so the groups the server left out (or
+    // added together as "Other") make no difference and need no message.
+    const isWithinChartLimit = useMemo(
+        () =>
+            isWithinChartColumnLimit({
+                chartColumnLimit: getChartColumnLimit(chartConfig),
+                maxColumnLimit,
+                valuesColumns: resultsData?.pivotDetails?.valuesColumns,
+            }),
+        [chartConfig, maxColumnLimit, resultsData?.pivotDetails?.valuesColumns],
+    );
+
+    // The results fold groups past the column limit into "Other" (stacked
+    // charts), but the chart as configured now would not: stacking was
+    // switched off after the query ran.
+    const hasStaleOtherGroup = useMemo(
+        () =>
+            dirtyPivotConfiguration !== undefined &&
+            !dirtyPivotConfiguration.foldOverflowGroups &&
+            hasOtherPivotGroup(resultsData?.pivotDetails?.valuesColumns),
+        [dirtyPivotConfiguration, resultsData?.pivotDetails?.valuesColumns],
+    );
+
+    // The reverse: the chart as configured now would fold the groups past the
+    // column limit into "Other", but the results dropped them: stacking was
+    // switched on after the query ran. Charts with table calculations are left
+    // out because pivot table calculations never fold, so a re-run would not
+    // clear the message.
+    const isMissingOtherGroup = useMemo(
+        () =>
+            !!dirtyPivotConfiguration?.foldOverflowGroups &&
+            pivotColumnLimitMessage !== null &&
+            !hasOtherPivotGroup(resultsData?.pivotDetails?.valuesColumns) &&
+            (resultsData?.metricQuery?.tableCalculations ?? []).length === 0,
+        [
+            dirtyPivotConfiguration,
+            pivotColumnLimitMessage,
+            resultsData?.pivotDetails?.valuesColumns,
+            resultsData?.metricQuery?.tableCalculations,
+        ],
+    );
 
     // Determine if configured pivot dimensions are different from the ones used to compute the results
     const shouldShowPivotMismatch = useMemo(() => {
@@ -109,10 +162,17 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
                 'Please re-run the query to fetch the latest data with correct group by settings.',
             );
         }
-        if (shouldShowPivotColumnLimit && maxColumnLimit) {
+        if (isWithinChartLimit) return _messages;
+        if (hasStaleOtherGroup) {
             _messages.push(
-                `This query exceeds the maximum number of columns (${maxColumnLimit}). Showing the first ${maxColumnLimit} columns.`,
+                'These results add the groups past the column limit together as "Other", which only applies to stacked charts. Re-run the query to update them.',
             );
+        } else if (isMissingOtherGroup) {
+            _messages.push(
+                'These results leave out the groups past the column limit, so totals are too low. Re-run the query to add them together as "Other".',
+            );
+        } else if (pivotColumnLimitMessage) {
+            _messages.push(pivotColumnLimitMessage);
         }
         return _messages;
     }, [
@@ -120,8 +180,10 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         isQueryFetching,
         shouldShowPivotMismatch,
         unusedDimensionLabels,
-        shouldShowPivotColumnLimit,
-        maxColumnLimit,
+        pivotColumnLimitMessage,
+        hasStaleOtherGroup,
+        isMissingOtherGroup,
+        isWithinChartLimit,
     ]);
 
     if (messages.length === 0) return null;

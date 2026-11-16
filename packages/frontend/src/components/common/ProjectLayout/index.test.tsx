@@ -12,6 +12,10 @@ import {
 } from 'react-router';
 import ProjectLayout from '.';
 
+vi.mock('../../../hooks/useAnalyticsProjectView', () => ({
+    useAnalyticsProjectRouteView: vi.fn(),
+}));
+
 vi.mock('../../../features/scopeTours/ScopeTourHost', () => ({
     default: () => null,
 }));

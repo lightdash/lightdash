@@ -5,6 +5,7 @@ import {
     flattenFilterGroup,
     getApiSourceQueryIssues,
     getItemId,
+    getItemMap,
     ParameterError,
     type ApiConnectorType,
     type ApiSourceExplore,
@@ -80,8 +81,10 @@ export const buildApiSourceExplore = ({
     connectionUuid,
     integration,
     baseVersion,
+    definitionHash,
     capabilities,
     warehouseSqlBuilder,
+    aiHint,
 }: {
     definition: ApiSourceExploreDefinition;
     exploreName: string;
@@ -89,8 +92,10 @@ export const buildApiSourceExplore = ({
     connectionUuid: string;
     integration: ApiConnectorType;
     baseVersion: number;
+    definitionHash?: string;
     capabilities: ApiConnectorCapabilities;
     warehouseSqlBuilder: WarehouseSqlBuilder;
+    aiHint?: string[];
 }): Explore => {
     const quote = warehouseSqlBuilder.getFieldQuoteChar();
     const base = {
@@ -182,6 +187,7 @@ export const buildApiSourceExplore = ({
         },
         targetDatabase: warehouseSqlBuilder.getAdapterType(),
         meta: {},
+        aiHint,
     });
     return {
         ...explore,
@@ -190,6 +196,7 @@ export const buildApiSourceExplore = ({
             connectionUuid,
             integration,
             baseVersion,
+            definitionHash,
             // Kept for readers of explores built before capabilities
             filterGroups: {
                 or: capabilities.filters.or,
@@ -309,7 +316,10 @@ export const assertApiSourceQuery = (
     context: ApiSourceQueryContext = {},
 ): ApiSourceExplore => {
     const apiSource = getApiSourceExplore(explore);
-    const issues = getApiSourceQueryIssues(apiSource, metricQuery, context);
+    const issues = getApiSourceQueryIssues(apiSource, metricQuery, {
+        itemsMap: getItemMap(explore),
+        ...context,
+    });
     if (issues.length > 0) {
         throw toApiSourceQueryError(issues);
     }

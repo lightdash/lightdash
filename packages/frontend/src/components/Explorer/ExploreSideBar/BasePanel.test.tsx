@@ -95,11 +95,13 @@ vi.mock('./VirtualizedExploreList', () => ({
     ),
 }));
 
-const renderPanel = () =>
+const renderPanel = (
+    shouldHideExplore?: (explore: SummaryExplore) => boolean,
+) =>
     renderWithProviders(
         <Provider store={createExplorerStore()}>
             <MemoryRouter>
-                <BasePanel />
+                <BasePanel shouldHideExplore={shouldHideExplore} />
             </MemoryRouter>
         </Provider>,
     );
@@ -116,6 +118,16 @@ const pickConnection = async (name: string) => {
     await user.click(select);
     await user.click(await screen.findByRole('option', { name }));
 };
+
+describe('BasePanel hidden tables', () => {
+    it('leaves out the tables its host asks to hide', async () => {
+        renderPanel((explore) => explore.name === 'payments');
+
+        expect(await screen.findByTestId('explore-list')).toHaveTextContent(
+            /^orders$/,
+        );
+    });
+});
 
 describe('BasePanel connection filter', () => {
     beforeEach(() => {

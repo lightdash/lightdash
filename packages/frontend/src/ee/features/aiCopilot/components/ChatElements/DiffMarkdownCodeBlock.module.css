@@ -1,0 +1,64 @@
+/* A diff in a reply: one quiet file card, with the diff's own colours left to speak. */
+.block {
+    max-height: 340px;
+    overflow: auto;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-body);
+    --diffs-font-family: var(--mantine-font-family-monospace);
+    --diffs-font-size: 12px;
+    --diffs-line-height: 20px;
+    --diffs-gap-block: 6px;
+    /* The gutter blends into the card, so only changed lines carry colour. */
+    --diffs-bg-context-override: var(--mantine-color-body);
+    --diffs-bg-context-gutter-override: var(--mantine-color-body);
+    --diffs-fg-number-override: var(--mantine-color-ldGray-5);
+}
+
+/* Pins the diff to the app's colour scheme rather than the system's. */
+.block,
+.host {
+    color-scheme: light;
+
+    @mixin dark {
+        color-scheme: dark;
+    }
+}
+
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    justify-content: space-between;
+    padding: 8px var(--mantine-spacing-sm);
+    background-color: var(--mantine-color-ldGray-0);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.path {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+}
+
+.plain {
+    margin: 0;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--diffs-font-size);
+    line-height: var(--diffs-line-height);
+    white-space: pre;
+}
+
+/* The expanded view has room, so lines wrap instead of scrolling sideways. */
+.expanded {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+    --diffs-font-family: var(--mantine-font-family-monospace);
+    --diffs-font-size: 13px;
+    --diffs-line-height: 22px;
+    --diffs-bg-context-override: var(--mantine-color-body);
+    --diffs-bg-context-gutter-override: var(--mantine-color-body);
+    --diffs-fg-number-override: var(--mantine-color-ldGray-5);
+}

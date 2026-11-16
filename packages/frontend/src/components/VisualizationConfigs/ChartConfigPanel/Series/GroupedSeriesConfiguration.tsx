@@ -113,6 +113,13 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     const chartValue = isChartTypeTheSameForAllSeries ? chartType : 'mixed';
     const fieldKey = getItemId(item);
 
+    // The chart draws a stack's total when any series in the stack asks for
+    // it (see getStackTotalSeries), so the switch must read the same way
+    // rather than looking only at the first series.
+    const isStackTotalShown = seriesGroup.some(
+        ({ stackLabel }) => stackLabel?.show,
+    );
+
     const seriesGroupIds = seriesGroup.map(getSeriesId);
 
     const onReorder = useCallback(
@@ -248,14 +255,11 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                     <Config.Label>Total</Config.Label>
                                     <Switch
                                         size="xs"
-                                        checked={
-                                            seriesGroup[0].stackLabel?.show
-                                        }
+                                        checked={isStackTotalShown}
                                         onChange={() => {
                                             updateAllGroupedSeries(fieldKey, {
                                                 stackLabel: {
-                                                    show: !seriesGroup[0]
-                                                        .stackLabel?.show,
+                                                    show: !isStackTotalShown,
                                                 },
                                             });
                                         }}

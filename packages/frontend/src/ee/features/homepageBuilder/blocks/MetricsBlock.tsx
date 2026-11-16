@@ -167,7 +167,9 @@ const MetricKpiCard: FC<{
                                 </span>
                             )}
                             <Text size="xs" c="dimmed" truncate miw={0}>
-                                vs previous period
+                                {change === undefined
+                                    ? 'Latest month with data'
+                                    : 'vs prior month with data'}
                             </Text>
                         </Group>
                     </>

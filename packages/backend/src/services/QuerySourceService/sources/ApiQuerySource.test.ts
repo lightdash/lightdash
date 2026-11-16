@@ -61,11 +61,13 @@ const submitArgs = (query: ApiSourceQuery): SubmitSourceQueryArgs => ({
     context: QueryExecutionContext.AI,
     query,
     resolvedReferences: {},
+    submission: [],
     parameters: {},
     userAttributeOverrides: {},
     invalidateCache: false,
     pivotConfiguration: null,
     plan: null,
+    authority: { kind: 'request' },
 });
 
 describe('ApiQuerySource', () => {

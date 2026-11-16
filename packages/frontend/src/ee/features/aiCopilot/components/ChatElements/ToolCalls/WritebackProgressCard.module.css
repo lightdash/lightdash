@@ -1,0 +1,221 @@
+.card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border-radius: var(--mantine-radius-lg);
+    border: 1px solid var(--mantine-color-default-border);
+    background: var(--mantine-color-body);
+    box-shadow:
+        0 1px 2px rgb(0 0 0 / 4%),
+        0 4px 12px rgb(0 0 0 / 4%);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.tile {
+    width: 32px;
+    height: 32px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-color-text);
+}
+
+.title {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    padding: 2px 8px;
+    border-radius: var(--mantine-radius-sm);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-blue-light-color);
+    background: var(--mantine-color-blue-light);
+}
+
+.status[data-state='done'] {
+    color: var(--mantine-color-green-light-color);
+    background: var(--mantine-color-green-light);
+}
+
+.status[data-state='stopped'] {
+    color: var(--mantine-color-red-light-color);
+    background: var(--mantine-color-red-light);
+}
+
+.statusDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+    background: currentColor;
+}
+
+.status[data-state='running'] .statusDot {
+    animation: pulse 1.4s ease-in-out infinite;
+}
+
+.now {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-default-hover);
+}
+
+.now[data-state='stopped'] {
+    color: var(--mantine-color-red-light-color);
+    background: var(--mantine-color-red-light);
+}
+
+.nowIcon,
+.finishedIcon {
+    width: 24px;
+    height: 24px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: var(--mantine-radius-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    background: var(--mantine-color-body);
+}
+
+.finishedIcon {
+    width: 20px;
+    height: 20px;
+    color: var(--mantine-color-dimmed);
+}
+
+.nowLabel {
+    flex: 1;
+    min-width: 0;
+}
+
+.segments {
+    display: flex;
+    gap: 4px;
+    width: 100%;
+}
+
+.segments[data-size='sm'] {
+    width: 72px;
+    gap: 2px;
+}
+
+.segment {
+    flex: 1;
+    height: 6px;
+    border-radius: 99px;
+    background: var(--mantine-color-default-border);
+    overflow: hidden;
+    position: relative;
+}
+
+.segments[data-size='sm'] .segment {
+    height: 4px;
+}
+
+.segment[data-state='done'] {
+    background: var(--mantine-color-dimmed);
+}
+
+.segments[data-finished='true'] .segment {
+    background: var(--mantine-color-green-6);
+}
+
+.segment[data-state='now'] {
+    background: var(--mantine-color-blue-light);
+}
+
+.segment[data-state='now']::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    border-radius: inherit;
+    background: var(--mantine-color-blue-6);
+    animation: sweep 1.6s ease-in-out infinite;
+}
+
+.segment[data-state='stopped'] {
+    background: var(--mantine-color-red-6);
+}
+
+.finished {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.finishedStep {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 10px;
+}
+
+.finishedStep[data-age='1'] {
+    opacity: 0.8;
+}
+
+.finishedStep[data-age='2'] {
+    opacity: 0.6;
+}
+
+.finishedStep[data-age='3'] {
+    opacity: 0.45;
+}
+
+.footer {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 8px;
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+@keyframes sweep {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(250%);
+    }
+}
+
+@keyframes pulse {
+    50% {
+        opacity: 0.35;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .segment[data-state='now']::after {
+        animation: none;
+        width: 100%;
+    }
+
+    .status[data-state='running'] .statusDot {
+        animation: none;
+    }
+}

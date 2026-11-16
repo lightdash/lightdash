@@ -478,6 +478,58 @@ export const toMergedSorts = ({
     });
 };
 
+/**
+ * The inverse of toMergedSorts: a merged field id as the chart's own query
+ * names it, so a chart saved from a merge stores what the Explorer stores.
+ */
+export const toPrimaryFieldId = ({
+    fieldId,
+    primarySourceId,
+    primaryMetricQuery,
+    joinKey,
+}: {
+    fieldId: string;
+    primarySourceId: string;
+    primaryMetricQuery: Pick<
+        MetricQuery,
+        'dimensions' | 'metrics' | 'tableCalculations'
+    >;
+    joinKey: MergeJoinKeyPart[];
+}): string => {
+    const keyPart = joinKey.find(
+        (part) =>
+            getItemId({ table: MERGE_TABLE_NAME, name: part.name }) === fieldId,
+    );
+    const keyFieldId = keyPart?.fieldIdBySourceId[primarySourceId];
+    if (keyFieldId) return keyFieldId;
+    const primaryFieldId = [
+        ...primaryMetricQuery.dimensions,
+        ...primaryMetricQuery.metrics,
+        ...primaryMetricQuery.tableCalculations.map(({ name }) => name),
+    ].find((name) => getItemId({ table: primarySourceId, name }) === fieldId);
+    return primaryFieldId ?? fieldId;
+};
+
+/** The dimension ids a merged result carries: one per join key, plus each source's unkeyed dimensions. */
+export const getMergedDimensionIds = (
+    mergeQuery: MetricSourcedMergeQuery,
+): string[] => [
+    ...mergeQuery.joinKey.map(({ name }) =>
+        getItemId({ table: MERGE_TABLE_NAME, name }),
+    ),
+    ...mergeQuery.sources.flatMap((source) =>
+        source.metricQuery.dimensions
+            .filter(
+                (dimension) =>
+                    !mergeQuery.joinKey.some(
+                        (part) =>
+                            part.fieldIdBySourceId[source.id] === dimension,
+                    ),
+            )
+            .map((name) => getItemId({ table: source.id, name })),
+    ),
+];
+
 export const validateMergeQuery = (
     mergeQuery: MergeQuery,
     /**
@@ -814,6 +866,39 @@ export const getMergeSourceTableLabel = (sourceIndex: number): string =>
  * as compiled when the warehouse is unknown, since the generic dialect can
  * break warehouse syntax such as `->>`. Null when the merge did not compile.
  */
+/** A source's header label: its explore's, told apart by slot when explores collide, or for a composer by node title. */
+export const getMergeSourceTableLabels = ({
+    sources,
+    sourceTitleById,
+}: {
+    sources: Array<{ id: string; exploreLabel: string }>;
+    sourceTitleById: Record<string, string> | null;
+}): Record<string, string> => {
+    const exploreLabels = sources.map(({ exploreLabel }) => exploreLabel);
+    const labelsCollide = new Set(exploreLabels).size < exploreLabels.length;
+    return Object.fromEntries(
+        sources.map(({ id, exploreLabel }, index) => {
+            if (sourceTitleById) {
+                const shared =
+                    exploreLabels.filter((label) => label === exploreLabel)
+                        .length > 1;
+                return [
+                    id,
+                    shared
+                        ? `${exploreLabel} (${sourceTitleById[id]})`
+                        : exploreLabel,
+                ];
+            }
+            return [
+                id,
+                labelsCollide
+                    ? `${exploreLabel} (${getMergeSourceTableLabel(index)})`
+                    : exploreLabel,
+            ];
+        }),
+    );
+};
+
 export const getMergeCompiledSqlText = (
     compiled: Pick<ApiCompiledMergeQueryResults, 'legs' | 'sql'>,
     warehouseType: WarehouseTypes | undefined,
@@ -1590,6 +1675,31 @@ export const parseStoredMergeDefinition = ({
         }
         default:
             return null;
+    }
+};
+
+/** The explore names a stored merge queries beside the chart's own; empty when it cannot be read. */
+export const getStoredMergeQueryExploreNames = ({
+    schemaVersion,
+    value,
+}: {
+    schemaVersion: number;
+    value: unknown;
+}): string[] => {
+    switch (schemaVersion) {
+        case SAVED_MERGE_QUERY_SCHEMA_VERSION: {
+            const merge = parseSavedMergeDefinition(value);
+            return merge ? getMergeDefinitionQueryExploreNames(merge) : [];
+        }
+        case SAVED_MERGE_QUERY_SCHEMA_VERSION_V2:
+            return (parseSavedMergeQuery(value)?.sources ?? []).flatMap(
+                (source) =>
+                    source.kind === 'query'
+                        ? [source.metricQuery.exploreName]
+                        : [],
+            );
+        default:
+            return [];
     }
 };
 

@@ -32,6 +32,8 @@ export const metaAdsIntegration: ApiSourceIntegration<ApiConnectorType.META_ADS>
             connector: z.literal(ApiConnectorType.META_ADS),
             adAccountId: z.string(),
         }),
+        describeTarget: ({ apiSource: { adAccountId } }) =>
+            `Meta Ads account ${adAccountId}`,
         baseLayer: {
             baseVersion: META_ADS_SEMANTIC_LAYER_VERSION,
             capabilities: META_ADS_CAPABILITIES,

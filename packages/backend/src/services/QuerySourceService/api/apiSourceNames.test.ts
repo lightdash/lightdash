@@ -1,5 +1,6 @@
 import {
     ApiConnectorType,
+    getDefaultExplorePrefix,
     getItemMap,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
@@ -7,7 +8,6 @@ import {
     buildApiSourceExplores,
     getApiSourceBaseLayer,
     getApiSourceReservedExploreNames,
-    getLiveSourceNameBase,
     toScannedLiveSourceFields,
 } from './apiSourceExplores';
 import { type ApiSourceScan } from './ApiSourceIntegration';
@@ -104,7 +104,10 @@ describe('live data source names', () => {
     test.each(SOURCES)(
         '$name explore names and field ids never change',
         ({ name, apiSource, scan }) => {
-            const sourceName = getLiveSourceNameBase(apiSource.connector, name);
+            const sourceName = getDefaultExplorePrefix(
+                apiSource.connector,
+                name,
+            );
             const scannedFields = toScannedLiveSourceFields(
                 apiSource.connector,
                 scan,

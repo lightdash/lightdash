@@ -168,7 +168,7 @@ describe('walkthrough catalogue', () => {
         const scopes = modules.filter((m) => m.kind === 'scope');
         // 48 walkthroughs, three of them copies of a lesson shown once.
         expect(scopes.filter((m) => m.available)).toHaveLength(46);
-        expect(scopes.filter((m) => !m.available)).toHaveLength(20);
+        expect(scopes.filter((m) => !m.available)).toHaveLength(21);
         expect(modules.filter((m) => m.kind === 'docs')).toHaveLength(
             SANDBOX_LESSONS.length,
         );

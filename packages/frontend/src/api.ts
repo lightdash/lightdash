@@ -17,6 +17,7 @@ import { addBreadcrumb, spanToTraceHeader, startSpan } from '@sentry/react';
 // resolves at call time instead.
 import { EMBED_KEY, type InMemoryEmbed } from './ee/providers/Embed/types';
 import { recordServerBuildHash } from './features/buildHashHandshake/buildHashHandshake';
+import { getDevelopmentViewHeaders } from './features/semanticStudio/developmentView';
 import { getFromInMemoryStorage } from './utils/inMemoryStorage';
 import {
     diagnoseTransportFailure,
@@ -52,8 +53,7 @@ const getDefaultHeaders = (): Record<string, string> => {
     if (sdkVersion) {
         headers[LightdashSdkVersionHeader] = sdkVersion;
     }
-
-    return headers;
+    return { ...headers, ...getDevelopmentViewHeaders() };
 };
 
 const isSafeToAddEmbedHeader = (
@@ -127,6 +127,13 @@ const parseErrorBody = (r: Response): Promise<ApiError> =>
         if (isApiError(d)) return d;
         throw new UnexpectedResponseError(r.status);
     });
+
+const retryAfterSecondsFromBody = (d: ApiError): string | null => {
+    const seconds: unknown = d.error?.data?.retryAfterSeconds;
+    return typeof seconds === 'number' && Number.isFinite(seconds)
+        ? String(seconds)
+        : null;
+};
 
 type FailedRequest = {
     method: string;
@@ -264,6 +271,8 @@ const requestResponse = async <T extends ApiResponse>(
         },
     );
 
+    let rateLimitRetryAfter: string | null = null;
+
     return fetch(finalizeUrl(`${apiPrefix}${url}`, embed), {
         method,
         headers: finalizeHeaders(headers, embed, sentryTrace),
@@ -273,14 +282,23 @@ const requestResponse = async <T extends ApiResponse>(
         .then((r) => {
             recordServerBuildHash(r);
             if (!r.ok) {
+                rateLimitRetryAfter =
+                    r.status === 429 ? r.headers.get('Retry-After') : null;
                 return parseErrorBody(r).then((d) => {
+                    if (r.status === 429) {
+                        rateLimitRetryAfter =
+                            retryAfterSecondsFromBody(d) ?? rateLimitRetryAfter;
+                    }
                     throw d;
                 });
             }
             return r;
         })
         .then(async (r) => {
-            const js = await parseJsonBody(r);
+            const js =
+                r.status === 204
+                    ? { status: 'ok', results: undefined }
+                    : await parseJsonBody(r);
             networkHistory.push(
                 sensitive
                     ? {
@@ -339,6 +357,9 @@ const requestResponse = async <T extends ApiResponse>(
                               0,
                               1000,
                           ),
+                          ...(rateLimitRetryAfter !== null && {
+                              retryAfter: rateLimitRetryAfter,
+                          }),
                       },
             );
             // only store last MAX_NETWORK_HISTORY requests

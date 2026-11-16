@@ -109,13 +109,23 @@ const statusQueryKey = (codeUuid: string | undefined) => [
 const useMobileSignInRequests = ({
     code,
     onMinted,
+    isWanted,
     isPolling,
 }: {
     code: MobileSignInCode | null;
     onMinted: (code: MobileSignInCode) => void;
+    isWanted: () => boolean;
     isPolling: boolean;
 }) => {
     const lightdashApi = useLightdashApi();
+    const cancel = useMutation<undefined, ApiError, string>((codeUuid) =>
+        lightdashApi<undefined>({
+            url: `/user/mobile/sign-in-codes/${codeUuid}`,
+            method: 'DELETE',
+            body: undefined,
+        }),
+    );
+
     const mint = useMutation<
         MobileSignInCode,
         ApiError,
@@ -127,15 +137,12 @@ const useMobileSignInRequests = ({
                 method: 'POST',
                 body: JSON.stringify({ reason }),
             }),
-        { onSuccess: onMinted },
-    );
-
-    const cancel = useMutation<undefined, ApiError, string>((codeUuid) =>
-        lightdashApi<undefined>({
-            url: `/user/mobile/sign-in-codes/${codeUuid}`,
-            method: 'DELETE',
-            body: undefined,
-        }),
+        {
+            onSuccess: (minted) => {
+                if (isWanted()) onMinted(minted);
+                else cancel.mutate(minted.codeUuid);
+            },
+        },
     );
 
     const status = useQuery<MobileSignInCodeState, ApiError>(
@@ -256,9 +263,35 @@ const useCodeLifecycle = ({
     );
 };
 
-export const useMobileSignInCode = () => {
+const useAutoShow = ({
+    autoShow,
+    isVisible,
+    show,
+}: {
+    autoShow: boolean;
+    isVisible: boolean;
+    show: () => void;
+}) => {
+    const hasAutoShown = useRef(false);
+    useEffect(() => {
+        if (!autoShow) {
+            hasAutoShown.current = false;
+            return;
+        }
+        const isDocumentVisible =
+            isVisible && document.visibilityState === 'visible';
+        if (!isDocumentVisible || hasAutoShown.current) return;
+        hasAutoShown.current = true;
+        show();
+    }, [autoShow, isVisible, show]);
+};
+
+export const useMobileSignInCode = ({
+    autoShow = false,
+}: { autoShow?: boolean } = {}) => {
     const isVisible = useDocumentVisibility() === 'visible';
     const [isShown, setIsShown] = useState(false);
+    const isShownRef = useRef(false);
     const [shownAt, setShownAt] = useState<number | null>(null);
     const [code, setCode] = useState<MobileSignInCode | null>(null);
     const [mintedAt, setMintedAt] = useState<number | null>(null);
@@ -275,6 +308,7 @@ export const useMobileSignInCode = () => {
             setCode(minted);
             setMintedAt(performance.now());
         },
+        isWanted: () => isShownRef.current,
         isPolling: isShown && !isStopped && code !== null && isVisible,
     });
 
@@ -302,6 +336,7 @@ export const useMobileSignInCode = () => {
 
     const hide = useCallback(() => {
         if (code && phase !== 'redeemed') cancelCode(code.codeUuid);
+        isShownRef.current = false;
         setIsShown(false);
         setShownAt(null);
         setCode(null);
@@ -310,11 +345,14 @@ export const useMobileSignInCode = () => {
 
     const show = useCallback(() => {
         resetMint();
+        isShownRef.current = true;
         setIsShown(true);
         setShownAt(performance.now());
         setCode(null);
         mintCode('show');
     }, [mintCode, resetMint]);
+
+    useAutoShow({ autoShow, isVisible, show });
 
     useCodeLifecycle({
         code,

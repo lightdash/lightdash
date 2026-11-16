@@ -1353,6 +1353,49 @@ describe('filters: embedded dashboards', () => {
         expect(result.current.originalDashboardFilters).toBe(savedFilters);
     });
 
+    it('re-merges new saved filters under the viewer overrides and added filters', () => {
+        const { result } = renderDashboard(undefined, {
+            loadLikeDashboardPage: false,
+        });
+        const all = { enabled: FilterInteractivityValues.all };
+        act(() => result.current.setEmbedDashboard(embedDashboard(all)));
+        const viewerStatus = { ...statusFilter, values: ['returned'] };
+        const viewerCity = rule('viewer-city', 'orders_city', ['Porto']);
+        act(() => {
+            result.current.updateDimensionDashboardFilter(
+                viewerStatus,
+                0,
+                false,
+                false,
+            );
+            result.current.addDimensionDashboardFilter(viewerCity, true);
+        });
+
+        const agentFilter = rule('agent-country', 'orders_country', ['PT']);
+        act(() =>
+            result.current.setEmbedDashboard({
+                ...embedDashboard(all),
+                filters: {
+                    ...savedFilters,
+                    dimensions: [
+                        statusFilter,
+                        { ...regionFilter, values: ['US'] },
+                        agentFilter,
+                    ],
+                },
+            }),
+        );
+
+        expect(result.current.dashboardFilters.dimensions).toEqual([
+            viewerStatus,
+            { ...regionFilter, values: ['US'] },
+            agentFilter,
+        ]);
+        expect(result.current.dashboardTemporaryFilters.dimensions).toEqual([
+            viewerCity,
+        ]);
+    });
+
     it('reset respects interactivity', () => {
         const { result } = renderDashboard(undefined, {
             loadLikeDashboardPage: false,

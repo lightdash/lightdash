@@ -93,7 +93,7 @@ describe('YoutubeAnalyticsConnector', () => {
             { day: '2026-10-01', views: 120, averageViewDuration: 41.5 },
             { day: '2026-10-02', views: 80, averageViewDuration: 39 },
         ]);
-        expect(result.truncated).toBe(true);
+        expect(result.hasMoreRows).toBe(true);
     });
 
     it('turns months into their first day and handles an empty report', async () => {
@@ -115,7 +115,7 @@ describe('YoutubeAnalyticsConnector', () => {
         );
         expect(await execute(empty.connector, BASE)).toMatchObject({
             rows: [],
-            truncated: false,
+            hasMoreRows: false,
         });
     });
 
@@ -150,7 +150,7 @@ describe('YoutubeAnalyticsConnector', () => {
             const result = await execute(connector, VIDEOS, 500);
             expect(send.mock.calls[0][0].query.maxResults).toBe('200');
             expect(result.rows).toHaveLength(150);
-            expect(result.truncated).toBe(false);
+            expect(result.hasMoreRows).toBe(false);
         });
 
         it('refuses rather than cutting a channel with more than 200 videos', async () => {
@@ -164,7 +164,7 @@ describe('YoutubeAnalyticsConnector', () => {
             const { connector } = createConnector(jsonResponse(videoRows(11)));
             const result = await execute(connector, VIDEOS, 10);
             expect(result.rows).toHaveLength(10);
-            expect(result.truncated).toBe(true);
+            expect(result.hasMoreRows).toBe(true);
         });
     });
 
@@ -179,7 +179,7 @@ describe('YoutubeAnalyticsConnector', () => {
         );
         await expect(
             execute(connector, { ...BASE, dimensions: 'day' }, 20_000),
-        ).rejects.toThrow('more than 9999 rows');
+        ).rejects.toThrow('more than 9,999 rows');
     });
 
     it.each([

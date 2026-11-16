@@ -61,6 +61,15 @@ export const postHogIntegration: ApiSourceIntegration<ApiConnectorType.POSTHOG> 
             timeoutMs: POSTHOG_TIMEOUT_MS,
             responseMaxBytes: API_SOURCE_RESPONSE_MAX_BYTES,
         }),
+        describeTarget: ({ apiSource: { projectId }, origin, targetLabel }) => {
+            const region = Object.entries(POSTHOG_REGION_ORIGINS).find(
+                ([, regionOrigin]) => regionOrigin === origin,
+            )?.[0];
+            const project = targetLabel
+                ? `"${targetLabel}" (ID ${projectId})`
+                : projectId;
+            return `PostHog project ${project}${region ? `, ${region.toUpperCase()} region` : ''}`;
+        },
         validateConnection: ({ apiSource, type, origin, oauthTokenUrl }) => {
             if (!POSTHOG_PROJECT_ID.test(apiSource.projectId)) {
                 throw new ParameterError(

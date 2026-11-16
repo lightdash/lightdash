@@ -160,6 +160,7 @@ export {
 export type {
     AppStateMeta,
     AppStateOptions,
+    AppStateScope,
     SharedAppStateMeta,
 } from './appState';
 export type {

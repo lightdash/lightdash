@@ -7,6 +7,7 @@ import {
     shouldSelfRegisterHttpInstrumentation,
 } from './prometheus/otelHttpMetrics';
 import { dropIgnoredErrors } from './sentry/ignoredErrors';
+import { scrubProvisioningRequest } from './sentry/scrubProvisioningRequest';
 import { otelTracingEnabled } from './tracing/tracing';
 import { VERSION } from './version';
 
@@ -176,7 +177,7 @@ Sentry.init({
                     ]
                   : []),
           ],
-    beforeSend: dropIgnoredErrors,
+    beforeSend: (event) => dropIgnoredErrors(scrubProvisioningRequest(event)),
     ...(otelTracingEnabled()
         ? {}
         : {

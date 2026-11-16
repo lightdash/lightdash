@@ -27,7 +27,7 @@ import { getLinkKey } from './linkCandidates';
 import { LinkPrompts } from './LinkPrompts';
 import classes from './TileOverlay.module.css';
 
-const mockSidebar = vi.hoisted(() => ({
+const mockEditor = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const mockDashboardContext = vi.hoisted(() => ({
@@ -53,11 +53,11 @@ vi.mock('./useParameterEditor', () => ({
     ) => selector(mockParameterEditor.current),
 }));
 
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebar: () => mockSidebar.current,
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditor: () => mockEditor.current,
+    useControlsEditorSelector: (
         selector: (value: Record<string, unknown>) => unknown,
-    ) => selector(mockSidebar.current),
+    ) => selector(mockEditor.current),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -149,9 +149,9 @@ const rule = (
 const updateFilter = vi.fn();
 const dismissLink = vi.fn();
 
-const setSidebar = (overrides: Record<string, unknown> = {}) => {
-    mockSidebar.current = {
-        isSidebarOpen: false,
+const setEditor = (overrides: Record<string, unknown> = {}) => {
+    mockEditor.current = {
+        isEditorOpen: false,
         newTileUuids: [added.uuid],
         dismissedLinks: [],
         updateFilter,
@@ -248,7 +248,7 @@ describe('LinkPrompts', () => {
         );
         mockParams.current = { mode: 'edit' };
         setDashboard([paymentsMethod, paymentsAmount]);
-        setSidebar();
+        setEditor();
     });
 
     it('starts a lone candidate that is another field as not filtered', () => {
@@ -463,7 +463,7 @@ describe('LinkPrompts', () => {
     });
 
     it('shows nothing for a dismissed pair', () => {
-        setSidebar({ dismissedLinks: [getLinkKey(added.uuid, 'rule-1')] });
+        setEditor({ dismissedLinks: [getLinkKey(added.uuid, 'rule-1')] });
         renderWithProviders(<LinkPrompts />);
 
         expect(container(added.uuid)).toBeEmptyDOMElement();
@@ -502,7 +502,7 @@ describe('LinkPrompts', () => {
     });
 
     it('renders nothing while a filter is edited', () => {
-        setSidebar({ isSidebarOpen: true });
+        setEditor({ isEditorOpen: true });
         renderWithProviders(<LinkPrompts />);
 
         expect(container(added.uuid)).toBeEmptyDOMElement();
@@ -637,8 +637,8 @@ describe('LinkPrompts', () => {
         // Skips for real, so the card leaves the page
         const Harness = () => {
             const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
-            mockSidebar.current = {
-                ...mockSidebar.current,
+            mockEditor.current = {
+                ...mockEditor.current,
                 dismissedLinks,
                 dismissLink: (tileUuid: string, ruleId: string) =>
                     setDismissedLinks((links) => [
@@ -725,7 +725,7 @@ describe('parameter link prompts', () => {
             }),
         );
         mockParams.current = { mode: 'edit' };
-        setSidebar();
+        setEditor();
     });
     it('offers explicit holders and links only the chosen parameter', async () => {
         configure(

@@ -630,7 +630,8 @@ export type AiOrganizationSettings = {
     mcpProjectAccess?: McpProjectAccess;
     mcpContentWritesEnabled: boolean;
     mcpAgentsEnabled: boolean;
-    // Customer consent for data apps to call AI at runtime (analysis, insights).
+    // Customer consent for AI analysis on data apps and dashboards; the name
+    // predates dashboard analysis.
     // Optional to keep the response schema backwards-compatible for old clients.
     dataAppRuntimeAiEnabled?: boolean;
     // Whether viewers may carry a data-app investigation on in Ask AI.

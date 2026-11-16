@@ -10,7 +10,8 @@
  * Writes the order the library sorts by. Run it when the markers or the docs
  * change; CI regenerates and fails on a diff, as it does for the tours.
  *
- * Usage: pnpm scope-tours:order   (LIGHTDASH_DOCS_DIR overrides ../mintlify-docs)
+ * Usage: pnpm scope-tours:order   (LIGHTDASH_DOCS_DIR overrides ../mintlify-docs;
+ * the checkout must be at the pinned commit, as for generate)
  */
 import { readFileSync, writeFileSync } from 'fs';
 import path from 'path';
@@ -22,7 +23,14 @@ import {
     type LearnModule,
 } from '../../packages/frontend/src/features/learn/catalogue';
 import { hasCodeLesson } from '../../packages/frontend/src/features/learn/codeLessons';
-import { docsDir, findMarkers, frontendSrc, listTsx, slugify } from './lib';
+import {
+    docsDir,
+    ensureDocsPin,
+    findMarkers,
+    frontendSrc,
+    listTsx,
+    slugify,
+} from './lib';
 
 /**
  * A docs page's headings, in page order, as anchors. Code blocks are
@@ -202,6 +210,7 @@ ${lines}
 };
 
 if (require.main === module) {
+    ensureDocsPin();
     const modules = curriculum();
     writeFileSync(curriculumPath, fileFor(modules), 'utf8');
     process.stdout.write(

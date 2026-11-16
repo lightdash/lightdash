@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { hasCustomBinDimension, type MetricQuery } from '@lightdash/common';
+import {
+    hasCustomBinDimension,
+    isOtherPivotReference,
+    type MetricQuery,
+    type PivotReference,
+} from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { IconStack } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
@@ -15,6 +20,8 @@ import MantineIcon from '../common/MantineIcon';
 type Props = {
     onViewUnderlyingData: () => void;
     metricQuery: MetricQuery;
+    /** The clicked series. "Other" has no rows of its own to show. */
+    pivotReference?: PivotReference;
 };
 
 const TrackedItem: FC<{ onClick: () => void }> = ({ onClick }) => {
@@ -53,6 +60,7 @@ const TrackedItem: FC<{ onClick: () => void }> = ({ onClick }) => {
 export const UnderlyingDataMenuItem: FC<Props> = ({
     metricQuery,
     onViewUnderlyingData,
+    pivotReference,
 }) => {
     const label = useUiString('tileMenu.viewUnderlyingData');
     const { data: account } = useAccount();
@@ -60,7 +68,10 @@ export const UnderlyingDataMenuItem: FC<Props> = ({
     const projectUuid = useProjectUuid();
     const { pathname } = useLocation();
 
-    if (hasCustomBinDimension(metricQuery)) {
+    if (
+        hasCustomBinDimension(metricQuery) ||
+        isOtherPivotReference(pivotReference)
+    ) {
         return null;
     }
 

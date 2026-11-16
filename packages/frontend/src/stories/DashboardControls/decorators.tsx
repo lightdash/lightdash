@@ -10,6 +10,9 @@ export const withStoryFrame: Decorator = (Story, { parameters }) => {
         <StoryFrame
             startOfWeek={options.startOfWeek ?? null}
             sections={options.sections ?? sections}
+            hasParameters={options.hasParameters ?? true}
+            isManyFields={options.isManyFields ?? false}
+            dateZoom={options.dateZoom ?? {}}
         >
             <Story />
         </StoryFrame>

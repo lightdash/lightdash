@@ -45,7 +45,10 @@ export const createRestrictUnverifiedSessionMiddleware =
             next();
             return;
         }
-        if (user.isEmailVerified === true) {
+        if (
+            user.isEmailVerified === true ||
+            req.account?.isServiceAccount() === true
+        ) {
             next();
             return;
         }

@@ -303,6 +303,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('create', 'DataApp', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'ComposerChart', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             inheritsFromOrgOrProject: true,
@@ -356,6 +359,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'CustomFields', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'MergeQuery', {
             organizationUuid: member.organizationUuid,
         });
         can('view', 'CompiledSql', {
@@ -493,6 +499,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'Roadmap', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'Billing', {
             organizationUuid: member.organizationUuid,
         });
 

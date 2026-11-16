@@ -38,7 +38,10 @@ import fsSync from 'fs';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { toAnalyticsQueryError } from './AnalyticsQueryError';
+import {
+    AnalyticsQueryCancelledError,
+    toAnalyticsQueryError,
+} from './AnalyticsQueryError';
 import {
     getEmbeddedDatabaseFileName,
     resolveEmbeddedBundleDatabasePath,
@@ -231,6 +234,13 @@ export type DuckdbWarehouseClientOptions = {
     projectUuid?: string;
     /** Process-local per-organization cap for isolated S3 query clients. */
     organizationConcurrencyLimit?: number;
+    /**
+     * How long a query waits in FIFO order for a free per-organization slot
+     * before it fails. Without it, a query over the cap fails at once.
+     */
+    organizationConcurrencyAcquireTimeoutMs?: number;
+    /** Process-local cap, across organizations, on the queries that take a per-organization slot. */
+    processConcurrencyLimit?: number;
     /**
      * Confine the instance to its storage bucket(s) and a private temp
      * directory. Serve sessions only read object storage, so they have no
@@ -572,6 +582,8 @@ const EMBEDDED_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION =
         4,
     );
 
+// Shorter slot waits are scheduling noise, not contention
+const SLOT_WAIT_LOG_THRESHOLD_MS = 100;
 const EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS =
     getPositiveIntegerEnvironmentVariable(
         'PLAYGROUND_CONCURRENCY_ACQUIRE_TIMEOUT_MS',
@@ -681,6 +693,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         ConcurrencyBudget
     >();
 
+    private static readonly processConcurrencyBudgets = new Map<
+        number,
+        ConcurrencyBudget
+    >();
+
     private static readonly sqlBuilder = new DuckdbSqlBuilder();
 
     private readonly databasePath: string;
@@ -714,6 +731,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private readonly projectUuid?: string;
 
     private readonly organizationConcurrencyLimit?: number;
+
+    private readonly organizationConcurrencyAcquireTimeoutMs: number;
+
+    private readonly processConcurrencyLimit?: number;
 
     private readonly objectStorageOnly: boolean;
 
@@ -866,6 +887,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.projectUuid = options?.projectUuid;
         this.organizationConcurrencyLimit =
             options?.organizationConcurrencyLimit;
+        this.organizationConcurrencyAcquireTimeoutMs =
+            options?.organizationConcurrencyAcquireTimeoutMs ?? 0;
+        this.processConcurrencyLimit = options?.processConcurrencyLimit;
         this.objectStorageOnly = options?.objectStorageOnly ?? false;
     }
 
@@ -977,23 +1001,74 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         };
     }
 
-    private static tryAcquireOrganizationConcurrency(
+    private static async acquireOrganizationConcurrency(
         organizationUuid: string,
         limit: number,
-    ): (() => void) | undefined {
+        timeoutMs: number,
+        processLimit: number | undefined,
+    ): Promise<(() => void) | undefined> {
+        const acquireDeadline = Date.now() + timeoutMs;
         const key = `${limit}:${organizationUuid}`;
         const budget =
             DuckdbWarehouseClient.organizationConcurrencyBudgets.get(key) ??
             new ConcurrencyBudget(limit);
         DuckdbWarehouseClient.organizationConcurrencyBudgets.set(key, budget);
-        if (!budget.tryAcquire()) return undefined;
-        return () => {
+        const acquired =
+            timeoutMs > 0
+                ? await budget.acquire(timeoutMs)
+                : budget.tryAcquire();
+        if (!acquired) {
+            if (budget.isIdle()) {
+                DuckdbWarehouseClient.organizationConcurrencyBudgets.delete(
+                    key,
+                );
+            }
+            return undefined;
+        }
+        const releaseOrganization = () => {
             budget.release();
             if (budget.isIdle()) {
                 DuckdbWarehouseClient.organizationConcurrencyBudgets.delete(
                     key,
                 );
             }
+        };
+        if (!processLimit) {
+            let organizationReleased = false;
+            return () => {
+                if (organizationReleased) {
+                    return;
+                }
+                organizationReleased = true;
+                releaseOrganization();
+            };
+        }
+        // Organization slot first, so one organization's queue cannot hold process slots
+        const processBudget =
+            DuckdbWarehouseClient.processConcurrencyBudgets.get(processLimit) ??
+            new ConcurrencyBudget(processLimit);
+        DuckdbWarehouseClient.processConcurrencyBudgets.set(
+            processLimit,
+            processBudget,
+        );
+        const processAcquired =
+            timeoutMs > 0
+                ? await processBudget.acquire(
+                      Math.max(0, acquireDeadline - Date.now()),
+                  )
+                : processBudget.tryAcquire();
+        if (!processAcquired) {
+            releaseOrganization();
+            return undefined;
+        }
+        let released = false;
+        return () => {
+            if (released) {
+                return;
+            }
+            released = true;
+            processBudget.release();
+            releaseOrganization();
         };
     }
 
@@ -1461,7 +1536,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 // Never mix remote and local files in one table, including on failure.
                 if (
                     buffers.every((buffer) => buffer) &&
-                    stagedBytes + size <= 32 * 1024 * 1024
+                    stagedBytes + size <= 64 * 1024 * 1024
                 ) {
                     stagedBytes += size;
                     const localPaths: string[] = [];
@@ -1744,6 +1819,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             (budget) => budget.reset(),
         );
         DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.clear();
+        DuckdbWarehouseClient.organizationConcurrencyBudgets.forEach((budget) =>
+            budget.reset(),
+        );
+        DuckdbWarehouseClient.organizationConcurrencyBudgets.clear();
+        DuckdbWarehouseClient.processConcurrencyBudgets.forEach((budget) =>
+            budget.reset(),
+        );
+        DuckdbWarehouseClient.processConcurrencyBudgets.clear();
     }
 
     async close(): Promise<void> {
@@ -2367,6 +2450,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private async withEphemeralQuerySession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
         querySql?: string,
+        isQueuedQueryCancelled?: () => Promise<boolean>,
     ): Promise<T> {
         const sessionStart = performance.now();
         const budget = this.parquetConfig
@@ -2377,13 +2461,41 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 'Analytics query capacity was reset. Try again.',
             );
         }
+        const budgetWaitMs = budget ? performance.now() - sessionStart : 0;
         let instance: DuckDBInstance | undefined;
         let connection: DuckdbConnection | undefined;
         let parquetDirectory: string | undefined;
         let queryFailed = false;
         let deadlineExceeded = false;
         let timeout: ReturnType<typeof setTimeout> | undefined;
+        let timing:
+            | {
+                  cancellationCheckMs: number;
+                  instanceCreateMs: number;
+                  connectMs: number;
+                  mkdtempMs: number;
+                  bootstrapMs: number;
+                  queryMs: number;
+              }
+            | undefined;
         try {
+            let cancellationCheckMs = 0;
+            if (budget && isQueuedQueryCancelled) {
+                const cancellationCheckStart = performance.now();
+                const cancelled = await isQueuedQueryCancelled();
+                cancellationCheckMs =
+                    performance.now() - cancellationCheckStart;
+                if (cancelled) {
+                    this.logger?.info(
+                        'DuckDB Parquet skipped cancelled query',
+                        {
+                            budgetWaitMs,
+                            cancellationCheckMs,
+                        },
+                    );
+                    throw new AnalyticsQueryCancelledError();
+                }
+            }
             const instanceCreateStart = performance.now();
             instance = await DuckDBInstance.create(':memory:');
             const instanceCreateMs = performance.now() - instanceCreateStart;
@@ -2400,6 +2512,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 timeout.unref();
             }
 
+            const mkdtempStart = performance.now();
             if (this.parquetConfig) {
                 parquetDirectory = await fs
                     .mkdtemp(
@@ -2407,6 +2520,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     )
                     .catch(() => undefined);
             }
+            const mkdtempMs = this.parquetConfig
+                ? performance.now() - mkdtempStart
+                : 0;
             const bootstrapTiming =
                 await DuckdbWarehouseClient.bootstrapQuerySession(
                     connection,
@@ -2424,17 +2540,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 throw new Error('Analytics query deadline exceeded');
             const queryMs = performance.now() - queryStart;
 
-            const totalMs = performance.now() - sessionStart;
-            this.logger?.info(
-                `DuckDB ephemeral query session complete: instance_create=${formatMilliseconds(instanceCreateMs)}ms connect=${formatMilliseconds(connectMs)}ms bootstrap=${formatMilliseconds(bootstrapTiming.bootstrapMs)}ms query=${formatMilliseconds(queryMs)}ms total=${formatMilliseconds(totalMs)}ms`,
-                {
-                    instanceCreateMs,
-                    connectMs,
-                    bootstrapMs: bootstrapTiming.bootstrapMs,
-                    queryMs,
-                    totalMs,
-                },
-            );
+            timing = {
+                cancellationCheckMs,
+                instanceCreateMs,
+                connectMs,
+                mkdtempMs,
+                bootstrapMs: bootstrapTiming.bootstrapMs,
+                queryMs,
+            };
 
             return result;
         } catch (error) {
@@ -2445,6 +2558,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             throw error;
         } finally {
             if (timeout) clearTimeout(timeout);
+            const cleanupStart = performance.now();
             const cleanupErrors: unknown[] = [];
             try {
                 for (const close of [
@@ -2474,7 +2588,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     if (!queryFailed) throw cleanupErrors[0];
                 }
             } finally {
+                const cleanupMs = performance.now() - cleanupStart;
                 budget?.release();
+                if (timing && cleanupErrors.length === 0) {
+                    const totalMs = performance.now() - sessionStart;
+                    this.logger?.info(
+                        `DuckDB ephemeral query session complete: budget_wait=${formatMilliseconds(budgetWaitMs)}ms instance_create=${formatMilliseconds(timing.instanceCreateMs)}ms connect=${formatMilliseconds(timing.connectMs)}ms bootstrap=${formatMilliseconds(timing.bootstrapMs)}ms query=${formatMilliseconds(timing.queryMs)}ms cleanup=${formatMilliseconds(cleanupMs)}ms total=${formatMilliseconds(totalMs)}ms`,
+                        { budgetWaitMs, ...timing, cleanupMs, totalMs },
+                    );
+                }
             }
         }
     }
@@ -2552,25 +2674,38 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             durationMs: number,
         ) => void,
         querySql?: string,
+        isQueuedQueryCancelled?: () => Promise<boolean>,
     ): Promise<T> {
-        const releaseOrganizationConcurrency =
-            !this.embeddedConfig &&
-            organizationUuid &&
-            this.organizationConcurrencyLimit
-                ? DuckdbWarehouseClient.tryAcquireOrganizationConcurrency(
-                      organizationUuid,
-                      this.organizationConcurrencyLimit,
-                  )
-                : undefined;
+        let releaseOrganizationConcurrency: (() => void) | undefined;
         if (
             !this.embeddedConfig &&
             organizationUuid &&
-            this.organizationConcurrencyLimit &&
-            !releaseOrganizationConcurrency
+            this.organizationConcurrencyLimit
         ) {
-            throw new WarehouseQueryError(
-                'External source query capacity is full. Try again shortly.',
-            );
+            const waitStartedAt = Date.now();
+            releaseOrganizationConcurrency =
+                await DuckdbWarehouseClient.acquireOrganizationConcurrency(
+                    organizationUuid,
+                    this.organizationConcurrencyLimit,
+                    this.organizationConcurrencyAcquireTimeoutMs,
+                    this.processConcurrencyLimit,
+                );
+            const waitMs = Date.now() - waitStartedAt;
+            if (
+                waitMs >= SLOT_WAIT_LOG_THRESHOLD_MS ||
+                !releaseOrganizationConcurrency
+            ) {
+                this.logger?.info('DuckDB query slot wait', {
+                    organizationUuid,
+                    waitMs,
+                    acquired: !!releaseOrganizationConcurrency,
+                });
+            }
+            if (!releaseOrganizationConcurrency) {
+                throw new WarehouseQueryError(
+                    'External source query capacity is full. Try again shortly.',
+                );
+            }
         }
         try {
             if (this.parquetConfig) {
@@ -2578,10 +2713,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     return await this.withEphemeralQuerySession(
                         callback,
                         querySql,
+                        isQueuedQueryCancelled,
                     );
                 } catch (error) {
                     if (
                         error instanceof ParameterError ||
+                        error instanceof AnalyticsQueryCancelledError ||
                         error instanceof ParquetQueryTimeoutError
                     )
                         throw error;
@@ -3201,6 +3338,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             queryParams?: Record<string, AnyType>;
             tags?: Record<string, string>;
             timezone?: string;
+            isQueuedQueryCancelled?: () => Promise<boolean>;
             onPhaseTiming?: (
                 phase: WarehouseQueryPhase,
                 durationMs: number,
@@ -3298,6 +3436,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             () => !hasEmittedRows,
             reportPhase,
             sql,
+            options?.isQueuedQueryCancelled,
         );
     }
 

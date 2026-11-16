@@ -110,16 +110,21 @@
  * `.claude/skills/add-scope-walkthrough/SKILL.md`.
  *
  * Usage: pnpm scope-tours:generate   (LIGHTDASH_DOCS_DIR overrides ../mintlify-docs)
+ *
+ * The docs checkout must be at the commit in docs-pin.txt: a mismatch is a
+ * warning locally and an error in CI. SCOPE_TOURS_ALLOW_UNPINNED_DOCS=1 runs
+ * against any commit (a preview of what a bump would change).
  */
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { CONTENT_AS_CODE_LESSONS } from '../../packages/frontend/src/features/learn/codeLessons';
 import { SANDBOX_LESSONS } from '../../packages/frontend/src/features/learn/sandboxLessons';
 import { buildAllTours } from './lessons';
-import { outputPath, root } from './lib';
+import { ensureDocsPin, outputPath, root } from './lib';
 import { releaseDays, releasedPath, renderReleased } from './released';
 
 const main = () => {
+    const docsCommit = ensureDocsPin();
     const { tours, markers } = buildAllTours(
         undefined,
         SANDBOX_LESSONS,
@@ -194,6 +199,9 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = ${body ? `{\n${b
     writeFileSync(outputPath, output);
     console.log(
         `Wrote ${tours.length} scope tour(s) from ${markers.length} marker(s) to ${path.relative(root, outputPath)}`,
+    );
+    console.log(
+        `Generated from docs commit ${docsCommit ?? 'unknown (not a git checkout)'}`,
     );
     // When each walkthrough was released, for the homepage's Newest modules:
     // recorded days kept, new ones read from git (released.ts).

@@ -192,5 +192,8 @@ export const getLiveSource = (
 };
 
 /** What a source reads: a PostHog project, a Search Console site, a GA4 property and so on. */
+export const formatChartCount = (count: number) =>
+    `${count.toLocaleString()} ${count === 1 ? 'chart' : 'charts'}`;
+
 export const getApiSourceTarget = (apiSource: ExternalConnectionApiSource) =>
     getLiveSource(apiSource.connector).getTarget(apiSource);

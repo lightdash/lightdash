@@ -243,6 +243,28 @@ describe('embedded agent thread spaces', () => {
                         WRITE_SPACE_UUID,
                         SECOND_WRITE_SPACE_UUID,
                     ],
+                    externalUserId: null,
+                },
+            }),
+        );
+    });
+
+    it('keeps write-space threads to the viewer who started them', async () => {
+        const { service, aiAgentModel } = buildService(buildAgent([]));
+        await service.listEmbedAgentThreads(
+            buildEmbedAccount(writeActions, EXTERNAL_USER_ID),
+            PROJECT_UUID,
+            AGENT_UUID,
+        );
+        expect(aiAgentModel.findThreads).toHaveBeenCalledWith(
+            expect.objectContaining({
+                embedThreadScope: {
+                    type: 'writeSpaces',
+                    writeSpaceUuids: [
+                        WRITE_SPACE_UUID,
+                        SECOND_WRITE_SPACE_UUID,
+                    ],
+                    externalUserId: EXTERNAL_USER_ID,
                 },
             }),
         );
@@ -262,6 +284,7 @@ describe('embedded agent thread spaces', () => {
             {
                 type: 'writeSpaces',
                 writeSpaceUuids: [WRITE_SPACE_UUID, SECOND_WRITE_SPACE_UUID],
+                externalUserId: null,
             },
         );
     });

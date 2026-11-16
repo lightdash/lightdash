@@ -76,6 +76,7 @@ describe('Get dbt version', () => {
             ['dbt 2.0.6', cliMocks.dbt2_0_6],
             ['dbt 2.0.0', cliMocks.dbt2_0_0],
             ['dbt 2.0.0-preview.178', cliMocks.dbt2Preview],
+            ['dbt-oss 2.0.11', cliMocks.dbtOss2_0_11],
             ['dbt-fusion 2.0.0-preview.65', cliMocks.dbtFusionPreview],
         ])(
             'should return latest fusion version for %s',

@@ -2,7 +2,7 @@ import { Box, Transition } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { useEffect, useMemo, useRef, type FC } from 'react';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
-import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
+import { useProjectAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import {
     resetActivePanel,
     setActiveAgent,
@@ -40,31 +40,44 @@ import { useIsLauncherHidden } from './useIsLauncherHidden';
 import { useLauncherDock } from './useLauncherDock';
 import { useLauncherPanelSize } from './useLauncherPanelSize';
 
-export const AiAgentsLauncher: FC = () => {
+export const AiAgentsLauncher: FC<{
+    isAnalyticsHomepage: boolean;
+    projectUuid?: string;
+    forceVisible?: boolean;
+}> = ({ isAnalyticsHomepage, projectUuid, forceVisible = false }) => {
     const isMobile = useMediaQuery('(max-width: 768px)');
     const isHidden = useIsLauncherHidden();
 
     return (
         <AiAgentsLauncherPortal>
             {(isModalHosted) =>
+                forceVisible ||
                 shouldRenderAiAgentsLauncher({
                     isHidden,
                     isMobile,
                     isModalHosted,
                 }) ? (
-                    <AiAgentsLauncherInner isModalHosted={isModalHosted} />
+                    <AiAgentsLauncherInner
+                        isModalHosted={isModalHosted}
+                        isAnalyticsHomepage={isAnalyticsHomepage}
+                        projectUuid={projectUuid}
+                    />
                 ) : null
             }
         </AiAgentsLauncherPortal>
     );
 };
 
-const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
-    isModalHosted,
-}) => {
-    const { activeProjectUuid } = useActiveProjectUuid();
+const AiAgentsLauncherInner: FC<{
+    isModalHosted: boolean;
+    isAnalyticsHomepage: boolean;
+    projectUuid?: string;
+}> = ({ isModalHosted, isAnalyticsHomepage, projectUuid }) => {
+    const { activeProjectUuid: currentProjectUuid } = useActiveProjectUuid();
+    const activeProjectUuid = projectUuid ?? currentProjectUuid;
 
-    const isAiAgentEnabled = useAiAgentButtonVisibility();
+    const isAiAgentEnabled =
+        useProjectAiAgentButtonVisibility(activeProjectUuid);
 
     const {
         agents: cachedAgents,
@@ -234,6 +247,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
     const transitionAnalysisAdapter =
         analysisAdapter ?? lastAnalysisAdapterRef.current;
     const isContentPage =
+        isAnalyticsHomepage ||
         currentDashboard?.projectUuid === activeProjectUuid ||
         currentDataApp?.projectUuid === activeProjectUuid ||
         currentDocument?.projectUuid === activeProjectUuid;
@@ -266,6 +280,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                 agents={agents}
                 agentsUpdatedAt={agentsUpdatedAt}
                 selectedAgent={selectedAgent}
+                showAskAiLabel={isAnalyticsHomepage}
             />
             {transitionSavedChartPreview && (
                 <Transition

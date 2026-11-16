@@ -359,6 +359,44 @@ describe('getExpectedSeriesMap', () => {
         );
     });
 
+    // The chart-wide default comes from the chart's first series. With the
+    // total on for the first metric and off for the second, a new pivot value
+    // of the second metric used to inherit "on" from the first metric, so the
+    // chart drew totals the Series tab showed as switched off.
+    test('should keep each field its own stack total setting for new pivoted series', () => {
+        const existing = (field: string, show?: boolean) => ({
+            type: CartesianSeriesType.BAR,
+            encode: {
+                xRef: { field: 'my_dimension' },
+                yRef: {
+                    field,
+                    pivotValues: [{ field: 'dimension_x', value: 'saved' }],
+                },
+            },
+            ...(show !== undefined && { stackLabel: { show } }),
+        });
+        const result = getExpectedSeriesMap({
+            ...pivotSeriesMapArgs,
+            defaultStackLabel: { show: true },
+            existingSeries: [
+                existing('my_metric', true),
+                existing('my_second_metric'),
+            ],
+        });
+        const series = Object.values(result);
+        const forField = (field: string) =>
+            series.filter((s) => s.encode.yRef.field === field);
+
+        expect(forField('my_metric').length).toBeGreaterThan(0);
+        forField('my_metric').forEach((s) =>
+            expect(s.stackLabel).toStrictEqual({ show: true }),
+        );
+        expect(forField('my_second_metric').length).toBeGreaterThan(0);
+        forField('my_second_metric').forEach((s) =>
+            expect(s).not.toHaveProperty('stackLabel'),
+        );
+    });
+
     test('should propagate defaultStackLabel to every non-pivoted series', () => {
         const defaultStackLabel = { show: true };
         const result = getExpectedSeriesMap({

@@ -4,6 +4,7 @@ import {
     type DashboardControlRef,
     type DashboardControlSection,
     type DashboardParameterControl,
+    type DateZoomControl,
 } from '../types/dashboard';
 import { FilterOperator, type DashboardFilterRule } from '../types/filter';
 import {
@@ -170,6 +171,36 @@ describe('reconcileDashboardControlOrder', () => {
             'filter:m2',
             'section:s2',
             'parameter:p2',
+        ]);
+    });
+
+    it('places date zooms only when they are passed', () => {
+        const zooms = sources({
+            controlOrder: [
+                ref(DATE_ZOOM, 'z2'),
+                ref(SECTION, 's1'),
+                ref(DATE_ZOOM, 'z1'),
+            ],
+            sections: [section('s1')],
+            dateZoomControls: [
+                { uuid: 'z1', name: 'Week', granularity: 'WEEK' },
+                {
+                    uuid: 'z2',
+                    name: 'Month',
+                    granularity: 'MONTH',
+                    sectionId: 's1',
+                },
+                { uuid: 'z3', name: 'Day', granularity: 'DAY' },
+            ],
+        });
+        expect(order(zooms)).toEqual([
+            'section:s1',
+            'dateZoom:z2',
+            'dateZoom:z1',
+            'dateZoom:z3',
+        ]);
+        expect(order({ ...zooms, dateZoomControls: undefined })).toEqual([
+            'section:s1',
         ]);
     });
 
@@ -376,6 +407,48 @@ describe('reconcileDashboardControlOrder', () => {
             hidden: false,
             group: 'dimensions',
         });
+    });
+});
+
+describe('reconcileDashboardControlOrder date zooms', () => {
+    const zoom = (
+        uuid: string,
+        extra: Partial<DateZoomControl> = {},
+    ): DateZoomControl => ({ uuid, name: uuid, granularity: 'Week', ...extra });
+
+    it('leaves date zooms off the order when the readers pass none', () => {
+        expect(order(full)).toEqual(defaultOrder);
+    });
+
+    it('places date zooms after parameters, in their section, by default', () => {
+        expect(
+            order({
+                ...full,
+                dateZoomControls: [zoom('z1'), zoom('z2', { sectionId: 's1' })],
+            }),
+        ).toEqual([
+            'filter:d1',
+            'filter:d3',
+            'filter:m1',
+            'parameter:p1',
+            `${DATE_ZOOM}:z1`,
+            'section:s1',
+            'filter:d2',
+            'filter:m2',
+            `${DATE_ZOOM}:z2`,
+            'section:s2',
+            'parameter:p2',
+        ]);
+    });
+
+    it('follows the stored order for date zooms', () => {
+        expect(
+            order({
+                ...full,
+                dateZoomControls: [zoom('z1')],
+                controlOrder: [ref(DATE_ZOOM, 'z1'), ref(FILTER, 'd1')],
+            }).slice(0, 2),
+        ).toEqual([`${DATE_ZOOM}:z1`, 'filter:d1']);
     });
 });
 

@@ -1198,6 +1198,26 @@ describe('codegen', () => {
             ).toBe('LAG("revenue") OVER (ORDER BY "order_date")');
         });
 
+        it('states null placement only when nullsFirst is set', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'duckdb',
+                    columns,
+                    defaultOrderBy: [
+                        {
+                            column: 'order_date',
+                            direction: 'DESC',
+                            nullsFirst: true,
+                        },
+                        { column: 'region', nullsFirst: false },
+                        { column: 'id', direction: 'ASC' },
+                    ],
+                }),
+            ).toBe(
+                'LAG("revenue") OVER (ORDER BY "order_date" DESC NULLS FIRST, "region" NULLS LAST, "id" ASC)',
+            );
+        });
+
         it('is a no-op when defaultOrderBy is empty', () => {
             expect(
                 compile('=LAG(revenue)', {

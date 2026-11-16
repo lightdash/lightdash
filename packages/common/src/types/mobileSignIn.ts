@@ -54,11 +54,14 @@ export type MobileSignInCodeDevice = {
     clientName: string;
 };
 
+export type MobileSignInDeclinedBy = 'web' | 'phone' | 'failed_redeems';
+
 export type MobileSignInCodeState = {
     codeUuid: string;
     status: MobileSignInCodeStatus;
     expiresAt: string;
     matchNumber: string | null;
+    declinedBy: MobileSignInDeclinedBy | null;
     device: MobileSignInCodeDevice | null;
 };
 

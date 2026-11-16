@@ -919,9 +919,13 @@ describe('built-in usage dashboards', () => {
                 expect.objectContaining({
                     data_app_events_user_name: 'Alex',
                     data_app_events_user_id: 'a',
-                    data_app_events_unique_apps: 1n,
+                    data_app_events_app_name: 'Sales',
+                    data_app_events_app_id: 'app',
                 }),
             ]);
+            expect(rows.get('app-creators')![0]).not.toHaveProperty(
+                'data_app_events_unique_apps',
+            );
             expect(rows.get('app-reader-detail')).toEqual([
                 expect.objectContaining({
                     data_app_reach_user_name: 'Alex',

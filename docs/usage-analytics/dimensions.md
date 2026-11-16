@@ -100,8 +100,8 @@ Dimension-only storage does not bypass the existing no-event-data state. The
 shared bucket contains separate files per organization; the connection never
 receives other organizations' files and does not rely on a SQL org filter.
 
-After deployment, click **Sync content** as an organization admin to compile the
-new fields in an existing project before updating managed sample dashboards.
+After deployment, background sync compiles the new fields in existing projects
+before updating managed sample dashboards.
 Re-running `POST /api/v1/org/analytics-project` also refreshes the models while
 preserving the project and saved content. New projects include them immediately.
 Existing authorization and deployment availability checks apply. No database migration or

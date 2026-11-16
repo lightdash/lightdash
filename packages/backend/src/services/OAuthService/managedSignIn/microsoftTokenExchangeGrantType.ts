@@ -77,6 +77,7 @@ export const createMicrosoftTokenExchangeGrantType = (
             };
 
             let resolution: SubjectResolution;
+            let scopeOverride: string[] | undefined;
             if (subjectTokenType === ID_TOKEN_TYPE) {
                 resolution = await this.resolveManagedSignIn(
                     subjectToken,
@@ -87,10 +88,12 @@ export const createMicrosoftTokenExchangeGrantType = (
                 subjectTokenType === MOBILE_SIGN_IN_CODE_TOKEN_TYPE &&
                 getMobileSignInService
             ) {
+                scopeOverride = this.getMobileSignInScope(request, client);
                 resolution = await this.resolveMobileSignInCode(
                     request,
                     subjectToken,
                     client,
+                    scopeOverride,
                     auditContext,
                 );
             } else {
@@ -99,7 +102,12 @@ export const createMicrosoftTokenExchangeGrantType = (
                 );
             }
 
-            const saved = await this.issue(request, client, resolution.user);
+            const saved = await this.issue(
+                request,
+                client,
+                resolution.user,
+                scopeOverride,
+            );
             resolution.onIssued();
             return saved;
         }
@@ -133,10 +141,27 @@ export const createMicrosoftTokenExchangeGrantType = (
             };
         }
 
+        private getMobileSignInScope(
+            request: OAuth2Server.Request,
+            client: OAuth2Server.Client,
+        ): string[] {
+            const requestedScope = this.getScope(request) ?? [];
+            const registeredScopes: string[] = client.scopes ?? [];
+            const scope =
+                requestedScope.length > 0 ? requestedScope : registeredScopes;
+            if (scope.length === 0) {
+                throw new InvalidScopeError(
+                    'Invalid scope: no scope requested or registered',
+                );
+            }
+            return scope;
+        }
+
         private async resolveMobileSignInCode(
             request: OAuth2Server.Request,
             subjectToken: string,
             client: OAuth2Server.Client,
+            scope: string[],
             auditContext: { ip?: string; userAgent?: string },
         ): Promise<SubjectResolution> {
             const service = getMobileSignInService!();
@@ -144,7 +169,6 @@ export const createMicrosoftTokenExchangeGrantType = (
                 ...auditContext,
                 ip: tokenRequestClientIps.get(request) ?? auditContext.ip,
             };
-            const requestedScope = this.getScope(request);
             try {
                 const redemption = await service.redeem(
                     {
@@ -154,11 +178,7 @@ export const createMicrosoftTokenExchangeGrantType = (
                         matchNumber: request.body.match_number,
                         isScopeAllowed: async (user) =>
                             Boolean(
-                                await this.validateScope(
-                                    user,
-                                    client,
-                                    requestedScope,
-                                ),
+                                await this.validateScope(user, client, scope),
                             ),
                     },
                     mobileContext,
@@ -180,8 +200,9 @@ export const createMicrosoftTokenExchangeGrantType = (
             request: OAuth2Server.Request,
             client: OAuth2Server.Client,
             user: SessionUser,
+            scopeOverride?: string[],
         ): Promise<OAuth2Server.Token> {
-            const requestedScope = this.getScope(request);
+            const requestedScope = scopeOverride ?? this.getScope(request);
             const scope = await this.validateScope(
                 user,
                 client,

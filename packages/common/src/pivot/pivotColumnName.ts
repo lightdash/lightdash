@@ -16,6 +16,32 @@
 export const NULL_PIVOT_KEY = '<null>';
 
 /**
+ * Group-by value of the "Other" pivot column: the one column that adds up
+ * every group past the pivot column limit, so stacked totals still cover the
+ * whole result. Wrapped in `<>` like `NULL_PIVOT_KEY` so it cannot be mistaken
+ * for a real group called "Other".
+ */
+export const OTHER_PIVOT_KEY = '<other>';
+
+/** Label shown for the `OTHER_PIVOT_KEY` group. */
+export const OTHER_PIVOT_LABEL = 'Other';
+
+export const isOtherPivotValue = (value: unknown): boolean =>
+    value === OTHER_PIVOT_KEY;
+
+/**
+ * True for a series that stands for the "Other" group. It has no single value
+ * of the group-by field, so actions that filter by that value (underlying
+ * data, drill, dashboard filters) must not be offered on it.
+ */
+export const isOtherPivotReference = (
+    pivotReference: { pivotValues?: { value: unknown }[] } | undefined,
+): boolean =>
+    (pivotReference?.pivotValues ?? []).some((pivotValue) =>
+        isOtherPivotValue(pivotValue.value),
+    );
+
+/**
  * Name of a value column before the group-by suffix — also the alias the pivot
  * query gives the aggregated column, so the transform can read it back.
  */

@@ -759,7 +759,11 @@ export class SqlGenerator {
                         const dir = entry.direction
                             ? ` ${entry.direction}`
                             : '';
-                        return `${this.quoteIdentifier(entry.column)}${dir}`;
+                        const nulls =
+                            entry.nullsFirst === undefined
+                                ? ''
+                                : ` NULLS ${entry.nullsFirst ? 'FIRST' : 'LAST'}`;
+                        return `${this.quoteIdentifier(entry.column)}${dir}${nulls}`;
                     })
                     .join(', ');
                 overParts.push(`ORDER BY ${cols}`);

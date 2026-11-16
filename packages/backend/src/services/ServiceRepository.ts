@@ -45,6 +45,7 @@ import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
+import { ComposerChartService } from './ComposerChartService/ComposerChartService';
 import { ContentAsCodeWritebackService } from './ContentAsCodeWritebackService/ContentAsCodeWritebackService';
 import { ContentService } from './ContentService/ContentService';
 import { ContentVerificationService } from './ContentVerificationService';
@@ -98,6 +99,8 @@ import { ProjectService } from './ProjectService/ProjectService';
 import { provisionTrainingProject } from './ProjectService/provisionTrainingProject';
 import { PromoteService } from './PromoteService/PromoteService';
 import { PromptService } from './PromptService/PromptService';
+import { OidcTokenVerifier } from './ProvisioningService/oidcTokenVerifier';
+import { ProvisioningService } from './ProvisioningService/ProvisioningService';
 import { PullRequestsService } from './PullRequestsService/PullRequestsService';
 import { QuerySourceRegistry } from './QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService/QuerySourceService';
@@ -158,6 +161,7 @@ interface ServiceManifest {
     licenseService: LicenseService;
     notificationService: NotificationsService;
     managedSignInService: ManagedSignInService;
+    provisioningService: ProvisioningService;
     oauthService: OAuthService;
 
     organizationDesignService: OrganizationDesignService;
@@ -202,6 +206,7 @@ interface ServiceManifest {
     metricsExplorerService: MetricsExplorerService;
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
+    composerChartService: ComposerChartService;
     contentService: ContentService;
     recentContentService: RecentContentService;
     contentVerificationService: ContentVerificationService;
@@ -253,6 +258,7 @@ interface ServiceManifest {
     appStateService: unknown;
     projectContextService: unknown;
     roadmapService: unknown;
+    billingService: unknown;
     scimService: unknown;
     releaseHighlightsService: unknown;
     supportService: unknown;
@@ -533,6 +539,7 @@ export class ServiceRepository
                     schedulerService: this.getSchedulerService(),
                     savedChartModel: this.models.getSavedChartModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
+                    composerChartModel: this.models.getComposerChartModel(),
                     savedChartService: this.getSavedChartService(),
                     projectModel: this.models.getProjectModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
@@ -547,6 +554,8 @@ export class ServiceRepository
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    getComposerChartService: () =>
+                        this.getComposerChartService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                 }),
@@ -669,6 +678,7 @@ export class ServiceRepository
                 new LinearAppService({
                     linearAppInstallationsModel:
                         this.models.getLinearAppInstallationsModel(),
+                    encryptionUtil: this.utils.getEncryptionUtil(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics, // pragma: allowlist secret
                 }),
@@ -775,6 +785,23 @@ export class ServiceRepository
                     organizationSsoModel: this.models.getOrganizationSsoModel(),
                     managedSignInModel: this.models.getManagedSignInModel(),
                     getUserService: () => this.getUserService(),
+                }),
+        );
+    }
+
+    public getProvisioningService(): ProvisioningService {
+        return this.getService(
+            'provisioningService',
+            () =>
+                new ProvisioningService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    userModel: this.models.getUserModel(),
+                    emailModel: this.models.getEmailModel(),
+                    managedSignInModel: this.models.getManagedSignInModel(),
+                    organizationAllowedEmailDomainsModel:
+                        this.models.getOrganizationAllowedEmailDomainsModel(),
+                    getOrganizationService: () => this.getOrganizationService(),
+                    verifier: new OidcTokenVerifier(),
                 }),
         );
     }
@@ -1373,6 +1400,8 @@ export class ServiceRepository
                     aiAccessService: this.getAiAccessService(),
                     getDocumentService: () => this.getDocumentService(),
                     getUnfurlService: () => this.getUnfurlService(),
+                    getComposerChartService: () =>
+                        this.getComposerChartService(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     contentDraftModel: this.models.getContentDraftModel(),
@@ -1886,6 +1915,8 @@ export class ServiceRepository
                     directAccessService: this.getDirectAccessService(),
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
+                    composerChartModel: this.models.getComposerChartModel(),
+                    composerChartService: this.getComposerChartService(),
                     // Lazy accessor: AppGenerateService depends on
                     // CoderService, so resolving it eagerly here would cycle.
                     // Core builds resolve undefined and data-app slug renames
@@ -1973,6 +2004,23 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     schedulerModel: this.models.getSchedulerModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                }),
+        );
+    }
+
+    public getComposerChartService(): ComposerChartService {
+        return this.getService(
+            'composerChartService',
+            () =>
+                new ComposerChartService({
+                    composerChartModel: this.models.getComposerChartModel(),
+                    appModel: this.models.getAppModel(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
+                    queryHistoryModel: this.models.getQueryHistoryModel(),
+                    getQuerySourceService: () => this.getQuerySourceService(),
+                    getAsyncQueryService: () => this.getAsyncQueryService(),
                 }),
         );
     }
@@ -2154,6 +2202,10 @@ export class ServiceRepository
 
     public getRoadmapService<RoadmapServiceImplT>(): RoadmapServiceImplT {
         return this.getService('roadmapService');
+    }
+
+    public getBillingService<BillingServiceImplT>(): BillingServiceImplT {
+        return this.getService('billingService');
     }
 
     public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {

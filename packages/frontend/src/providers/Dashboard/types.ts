@@ -101,6 +101,7 @@ export type DashboardContextType = {
         tileUuid: string,
         fields: ChartZoomableField[],
     ) => void;
+    setTileDateZoomRefused: (tileUuid: string, isRefused: boolean) => void;
     hasTilesThatSupportFilters: boolean;
     /** Replaces the tile's viewer sort; an empty list clears it */
     setTileChartSorts: (tileUuid: string, sorts: SortField[]) => void;
@@ -125,6 +126,10 @@ export type DashboardContextType = {
     setSavedParameters: Dispatch<SetStateAction<DashboardParameters>>;
     clearAllParameters: () => void;
     setParameter: (key: string, value: ParameterValue | null) => void;
+    /** Runtime picks for every control that sets each key */
+    setParameterPicks: Dispatch<
+        SetStateAction<Record<string, ParameterValue | null>>
+    >;
     addParameterReferences: (
         tileUuid: string,
         references: string[] | null,
@@ -136,6 +141,7 @@ export type DashboardContextType = {
     setTileVirtualViewSavedParameters: (
         tileUuid: string,
         values: ParametersValuesMap,
+        isPartial: boolean,
     ) => void;
     addParameterDefinitions: (parameters: ParameterDefinitions) => void;
     setPinnedParameters: (parameters: string[]) => void;

@@ -140,12 +140,18 @@ describe('Document suggestion chip', () => {
                 : [],
         }) as unknown as AiAgentMessage;
 
-    it('suggests a Document once the thread has two or more artifacts', () => {
+    it('suggests a Document once the thread has three or more artifacts', () => {
         expect(shouldSuggestDocument([reply({ artifacts: 1 })])).toBe(false);
         expect(
             shouldSuggestDocument([
                 reply({ artifacts: 1 }),
                 reply({ artifacts: 1 }),
+            ]),
+        ).toBe(false);
+        expect(
+            shouldSuggestDocument([
+                reply({ artifacts: 1 }),
+                reply({ artifacts: 2 }),
             ]),
         ).toBe(true);
     });
@@ -153,7 +159,7 @@ describe('Document suggestion chip', () => {
     it('stops suggesting once the thread saved a Document', () => {
         expect(
             shouldSuggestDocument([
-                reply({ artifacts: 2 }),
+                reply({ artifacts: 3 }),
                 reply({ savedDocument: true }),
             ]),
         ).toBe(false);
@@ -197,6 +203,11 @@ describe('Document suggestion chip', () => {
 
 describe('withoutDocumentOffer', () => {
     it('drops the Document offer so the reply is not read as a question', () => {
+        expect(
+            withoutDocumentOffer(
+                'Credit card leads.\nWant me to turn this analysis into a Document, a shareable report with these charts and a written summary?',
+            ),
+        ).toBe('Credit card leads.');
         expect(
             withoutDocumentOffer(
                 'Credit card leads.\nWant me to save this as a Document you can share?',

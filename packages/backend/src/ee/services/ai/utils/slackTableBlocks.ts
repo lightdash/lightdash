@@ -232,20 +232,29 @@ export const getSlackTableBlocks = (
     });
 };
 
-/** Slack rejects native tables sharing a message with markdown or rich_text blocks. */
-export const splitSlackTableMessage = (
+const isAnswerTextBlock = (block: Block | KnownBlock) =>
+    block.type === 'markdown' || block.type === 'rich_text';
+
+/** Native tables and charts, with the blocks after them except answer text, post as
+ * their own message: Slack refuses tables beside markdown and counts chart data in its size. */
+export const splitSlackDataMessage = (
     trailingBlocks: (Block | KnownBlock)[],
 ): {
     withAnswer: (Block | KnownBlock)[];
-    tableMessage: (Block | KnownBlock)[] | null;
+    dataMessage: (Block | KnownBlock)[] | null;
 } => {
-    const tableStart = trailingBlocks.findIndex(
-        (block) => block.type === 'data_table',
+    const dataStart = trailingBlocks.findIndex(
+        (block) =>
+            block.type === 'data_table' || block.type === 'data_visualization',
     );
-    return tableStart === -1
-        ? { withAnswer: trailingBlocks, tableMessage: null }
-        : {
-              withAnswer: trailingBlocks.slice(0, tableStart),
-              tableMessage: trailingBlocks.slice(tableStart),
-          };
+    if (dataStart === -1)
+        return { withAnswer: trailingBlocks, dataMessage: null };
+    const rest = trailingBlocks.slice(dataStart);
+    return {
+        withAnswer: [
+            ...trailingBlocks.slice(0, dataStart),
+            ...rest.filter(isAnswerTextBlock),
+        ],
+        dataMessage: rest.filter((block) => !isAnswerTextBlock(block)),
+    };
 };

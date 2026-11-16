@@ -343,14 +343,6 @@ export class ExternalSourceService extends BaseService {
             await this.projectModel.getSummary(projectUuid);
         const userUuid = account.user.id;
 
-        const { enabled } = await this.featureFlagModel.get({
-            user: { userUuid, organizationUuid },
-            featureFlagId: FeatureFlags.ExternalSources,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('External sources are not enabled');
-        }
-
         const ability = this.createAuditedAbility(account);
         if (
             ability.cannot(

@@ -174,13 +174,15 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   the value as a link when it returns entries, styled visibly as a link
   (underline and/or link color). Full rules in the data-app skill's
   "Field links — `urls`" section.
-- `url-state`: `useUrlState(...)` syncs a piece of app state into the page URL
-  so views can be shared and restored.
+- `url-state`: `useAppState(key, default, { scope: 'url' })` syncs a piece of
+  app state into the page URL so views can be shared and restored
+  (`useUrlState(...)` is the legacy alias).
 - `app-state`: `useAppState(key, default)` remembers a value per person;
-  `useSharedAppState(key, default)` keeps a value every viewer shares, with a
-  version, author and history (`client.appState.history(key)`). Offer it only
-  when the build prompt says saved app state is available; the hooks fall back
-  to memory otherwise. Full contract in `/app/references/app-state.md`.
+  `useAppState(key, default, { scope: 'shared' })` keeps a value every viewer
+  shares, with a version, author and history (`client.appState.history(key)`);
+  `useSharedAppState` is the legacy alias. Offer these scopes only when the
+  build prompt says saved app state is available; the hooks fall back to
+  memory otherwise. Full contract in `/app/references/app-state.md`.
 - `gsheet-export`: `exportToSheets(...)` sends tabular results to a new
   Google Sheet — offer it wherever the app renders a table.
 - `external-fetch`: `client.externalFetch(alias, opts)` calls an external

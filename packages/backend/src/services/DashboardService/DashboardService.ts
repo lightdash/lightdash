@@ -25,6 +25,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     generateSlug,
+    getContentParameters,
     getDashboardDeleteAccess,
     getErrorMessage,
     getExploreParameterDefinitions,
@@ -35,7 +36,9 @@ import {
     getReferencedParameterDefinitions,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
+    isComposerChartTileRequest,
     isDashboardChartTileType,
+    isDashboardComposerChartTile,
     isDashboardControlOrder,
     isDashboardScheduler,
     isDashboardSqlChartTile,
@@ -44,6 +47,7 @@ import {
     isExploreError,
     isJwtUser,
     isMergeMetricSource,
+    isTodayParameterDefault,
     isUserWithOrg,
     isValidDashboardTilePositions,
     isValidFrequency,
@@ -51,6 +55,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
+    omitDisallowedParameterValues,
     ParameterError,
     PossibleAbilities,
     ProjectType,
@@ -69,11 +74,14 @@ import {
     type Account,
     type AnonymousAccount,
     type ChartFieldUpdates,
+    type ChartParameterReferencesResult,
     type ChartVersionDifference,
     type ChartVersionSummary,
     type ContentDraftStaleness,
+    type ContentParameter,
     type ContentVerificationInfo,
     type DashboardBasicDetailsWithTileTypes,
+    type DashboardContentParameter,
     type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
     type DashboardTileParameterReferences,
@@ -85,6 +93,7 @@ import {
     type ExploreError,
     type MetricQuery,
     type ParameterDefinitions,
+    type ParametersValuesMap,
     type SavedChartDAO,
     type UpdateDashboardCustomMetric,
     type UUID,
@@ -113,6 +122,7 @@ import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
+import { type ComposerChartModel } from '../../models/ComposerChartModel';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
 import {
@@ -142,6 +152,9 @@ import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
+import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
+import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
+import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
@@ -159,6 +172,10 @@ import {
     getVerificationAfterUpdate,
 } from '../verifiedContentGuards';
 import { withVersionAgentIdentity } from '../VersionAgentIdentity';
+import {
+    duplicateComposerChartTiles,
+    rollbackComposerCharts,
+} from './composerChartTiles';
 
 type DashboardServiceArguments = {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
@@ -174,6 +191,7 @@ type DashboardServiceArguments = {
     schedulerService: SchedulerService;
     savedChartModel: SavedChartModel;
     savedSqlModel: SavedSqlModel;
+    composerChartModel: ComposerChartModel;
     savedChartService: SavedChartService;
     schedulerClient: SchedulerClient;
     contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
@@ -188,7 +206,11 @@ type DashboardServiceArguments = {
     contentVerificationModel: ContentVerificationModel;
     projectService: Pick<
         ProjectService,
-        'findExplores' | 'projectParametersModel'
+        'findExplores' | 'projectParametersModel' | 'getQueryTimezoneForProject'
+    >;
+    getComposerChartService: () => Pick<
+        ComposerChartService,
+        'getParameterReferences'
     >;
 };
 
@@ -212,13 +234,7 @@ type DashboardDraftOverlay = Partial<
 const TILE_LOAD_CONCURRENCY = 5;
 const MAX_PARAMETER_REFERENCE_TILES = 200;
 
-type ParameterReferencesResult =
-    | {
-          parameterReferences: string[];
-          parameterDefinitions: ParameterDefinitions;
-          error: null;
-      }
-    | { parameterReferences: null; error: string };
+type ParameterReferencesResult = ChartParameterReferencesResult;
 
 const parameterReferencesFailure = (e: unknown): ParameterReferencesResult => ({
     parameterReferences: null,
@@ -332,6 +348,8 @@ export class DashboardService
 
     savedSqlModel: SavedSqlModel;
 
+    composerChartModel: ComposerChartModel;
+
     savedChartService: SavedChartService;
 
     catalogModel: CatalogModel;
@@ -357,6 +375,8 @@ export class DashboardService
     contentVerificationModel: ContentVerificationModel;
 
     private readonly projectService: DashboardServiceArguments['projectService'];
+
+    private readonly getComposerChartService: DashboardServiceArguments['getComposerChartService'];
 
     async scheduleExportContent(
         account: Account,
@@ -503,6 +523,7 @@ export class DashboardService
         schedulerService,
         savedChartModel,
         savedSqlModel,
+        composerChartModel,
         savedChartService,
         schedulerClient,
         contentAsCodeProjectSettingsModel,
@@ -516,6 +537,7 @@ export class DashboardService
         spacePermissionService,
         contentVerificationModel,
         projectService,
+        getComposerChartService,
     }: DashboardServiceArguments) {
         super();
         this.featureFlagModel = featureFlagModel;
@@ -531,6 +553,7 @@ export class DashboardService
         this.schedulerService = schedulerService;
         this.savedChartModel = savedChartModel;
         this.savedSqlModel = savedSqlModel;
+        this.composerChartModel = composerChartModel;
         this.savedChartService = savedChartService;
         this.projectModel = projectModel;
         this.catalogModel = catalogModel;
@@ -545,6 +568,7 @@ export class DashboardService
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
         this.projectService = projectService;
+        this.getComposerChartService = getComposerChartService;
     }
 
     async verifyDashboard(
@@ -686,6 +710,10 @@ export class DashboardService
                 dashboard.config?.defaultDateZoomGranularity ?? null,
             dateZoomControlsCount:
                 dashboard.config?.dateZoomConfig?.controls.length ?? 0,
+            hiddenDateZoomControlsCount:
+                dashboard.config?.dateZoomConfig?.controls.filter(
+                    ({ hidden }) => hidden === true,
+                ).length ?? 0,
             dateZoomTileTargetsCount: Object.keys(
                 dashboard.config?.dateZoomConfig?.tileTargets ?? {},
             ).length,
@@ -739,9 +767,7 @@ export class DashboardService
     }
 
     // Draft payloads are untrusted JSON, so narrow instead of casting.
-    private static collectDraftSavedChartUuids(
-        drafts: ContentDraft[],
-    ): Set<string> {
+    private static collectDraftChartUuids(drafts: ContentDraft[]): Set<string> {
         const chartUuids = new Set<string>();
         drafts.forEach(({ draft }) => {
             const { tiles } = draft as { tiles?: unknown };
@@ -751,11 +777,15 @@ export class DashboardService
                 const { properties } = tile as { properties?: unknown };
                 if (typeof properties !== 'object' || properties === null)
                     return;
-                const { savedChartUuid } = properties as {
+                const { savedChartUuid, composerChartUuid } = properties as {
                     savedChartUuid?: unknown;
+                    composerChartUuid?: unknown;
                 };
                 if (typeof savedChartUuid === 'string') {
                     chartUuids.add(savedChartUuid);
+                }
+                if (typeof composerChartUuid === 'string') {
+                    chartUuids.add(composerChartUuid);
                 }
             });
         });
@@ -774,7 +804,7 @@ export class DashboardService
         // that references it. When the author's save was held back as a draft,
         // no version references the chart, so the next published save would
         // permanently delete a chart the draft still points at.
-        const draftChartUuids = DashboardService.collectDraftSavedChartUuids(
+        const draftChartUuids = DashboardService.collectDraftChartUuids(
             await this.contentDraftModel.listOpenForContent(
                 projectUuid,
                 'dashboard',
@@ -813,6 +843,10 @@ export class DashboardService
                     throw error;
                 }
             }),
+        );
+        await this.composerChartModel.deleteOrphans(
+            dashboardUuid,
+            draftChartUuids,
         );
     }
 
@@ -1089,7 +1123,199 @@ export class DashboardService
                   tiles,
               )
             : tiles;
-        const projectDefinitions: ParameterDefinitions = Object.fromEntries(
+        const projectDefinitions =
+            await this.getProjectParameterDefinitions(projectUuid);
+        return this.listTileParameterReferences(
+            account,
+            projectUuid,
+            tiles,
+            sources,
+            projectDefinitions,
+        );
+    }
+
+    /**
+     * The parameters a saved chart uses, their definitions, and the values
+     * saved on it, for integrations building their own parameter inputs.
+     */
+    async getChartParameters(
+        account: Account,
+        projectUuid: string,
+        chartUuidOrSlug: UuidOrSlug,
+    ): Promise<ContentParameter[]> {
+        const chart = await this.savedChartModel.get(
+            chartUuidOrSlug,
+            undefined,
+            { projectUuid },
+        );
+        const viewable = await this.getViewableChartUuids(account, [chart]);
+        if (!viewable.has(chart.uuid)) {
+            throw new ForbiddenError(
+                "You don't have access to view this chart",
+            );
+        }
+        const projectDefinitions =
+            await this.getProjectParameterDefinitions(projectUuid);
+        const result = (
+            await this.getSavedChartParameterReferences(
+                account,
+                projectUuid,
+                [chart.uuid],
+                projectDefinitions,
+            )
+        ).get(chart.uuid);
+        if (!result || result.error !== null) {
+            throw new ParameterError(
+                result?.error ??
+                    `Could not read the parameters of ${chart.uuid}`,
+            );
+        }
+        return getContentParameters({
+            parameterReferences: result.parameterReferences,
+            definitions: result.parameterDefinitions,
+            projectDefinitions,
+            // Chart values over virtual-view values; one outside the fixed options falls through
+            savedValues: {
+                ...omitDisallowedParameterValues(
+                    result.virtualViewSavedValues,
+                    result.parameterDefinitions,
+                ),
+                ...omitDisallowedParameterValues(
+                    result.chartSavedValues,
+                    result.parameterDefinitions,
+                ),
+            },
+            timezone: await this.getTodayDefaultTimezone(
+                projectUuid,
+                result.parameterDefinitions,
+            ),
+        });
+    }
+
+    /**
+     * The parameters a dashboard's tiles use, their definitions, the values
+     * saved on the dashboard, and which tiles use each. Tiles the user can't
+     * view, or whose queries can't be read, are left out.
+     */
+    async getDashboardParameters(
+        account: RegisteredAccount,
+        projectUuid: string,
+        dashboardUuidOrSlug: UuidOrSlug,
+    ): Promise<DashboardContentParameter[]> {
+        // The model, not this.getByIdOrSlug: that records a dashboard view
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            { projectUuid },
+        );
+        const user = toSessionUser(account);
+        const spaceContext = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            },
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('Dashboard', {
+                    ...dashboard,
+                    inheritsFromOrgOrProject:
+                        spaceContext.inheritsFromOrgOrProject,
+                    access: spaceContext.access,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+        const tiles =
+            dashboard.tiles.flatMap<DashboardTileParameterReferencesTile>(
+                (tile) => {
+                    if (
+                        isDashboardChartTileType(tile) &&
+                        tile.properties.savedChartUuid
+                    ) {
+                        return [
+                            {
+                                tileUuid: tile.uuid,
+                                savedChartUuid: tile.properties.savedChartUuid,
+                                savedSqlUuid: null,
+                            },
+                        ];
+                    }
+                    if (isDashboardSqlChartTile(tile)) {
+                        return [
+                            {
+                                tileUuid: tile.uuid,
+                                savedChartUuid: null,
+                                savedSqlUuid: tile.properties.savedSqlUuid,
+                            },
+                        ];
+                    }
+                    return [];
+                },
+            );
+        const projectDefinitions =
+            await this.getProjectParameterDefinitions(projectUuid);
+        const tileResults = await this.listTileParameterReferences(
+            account,
+            projectUuid,
+            tiles,
+            tiles,
+            projectDefinitions,
+        );
+        const tileUuidsByName = new Map<string, string[]>();
+        const definitions = tileResults.reduce<ParameterDefinitions>(
+            (acc, result) => {
+                if (result.error !== null) return acc;
+                result.parameterReferences.forEach((name) => {
+                    tileUuidsByName.set(name, [
+                        ...(tileUuidsByName.get(name) ?? []),
+                        result.tileUuid,
+                    ]);
+                });
+                return { ...acc, ...result.parameterDefinitions };
+            },
+            {},
+        );
+        return getContentParameters({
+            parameterReferences: [...tileUuidsByName.keys()],
+            definitions,
+            projectDefinitions,
+            savedValues:
+                convertDashboardParametersToValuesMap(dashboard.parameters) ??
+                {},
+            timezone: await this.getTodayDefaultTimezone(
+                projectUuid,
+                definitions,
+            ),
+        }).map((parameter) => ({
+            ...parameter,
+            tileUuids: uniq(tileUuidsByName.get(parameter.name) ?? []),
+        }));
+    }
+
+    // A `today` default resolves in the project's query timezone; only looked up when needed
+    private async getTodayDefaultTimezone(
+        projectUuid: string,
+        definitions: ParameterDefinitions,
+    ): Promise<string | undefined> {
+        return Object.values(definitions).some(isTodayParameterDefault)
+            ? this.projectService.getQueryTimezoneForProject(projectUuid)
+            : undefined;
+    }
+
+    private async getProjectParameterDefinitions(
+        projectUuid: string,
+    ): Promise<ParameterDefinitions> {
+        return Object.fromEntries(
             (
                 await this.projectService.projectParametersModel.find(
                     projectUuid,
@@ -1099,12 +1325,32 @@ export class DashboardService
                 { ...config, type: config.type || 'string' },
             ]),
         );
-        // One kind failing outright keeps the other kind's results
-        const [chartResults, sqlResults] = await Promise.all([
+    }
+
+    /** Each tile's parameters; `sources` says where each tile's query lives, null when it can't be listed */
+    private async listTileParameterReferences(
+        account: Account,
+        projectUuid: string,
+        tiles: DashboardTileParameterReferencesTile[],
+        sources: (DashboardTileParameterReferencesTile | null)[],
+        projectDefinitions: ParameterDefinitions,
+    ): Promise<DashboardTileParameterReferences[]> {
+        const savedSources = sources.flatMap((tile) =>
+            tile && !isComposerChartTileRequest(tile) ? [tile] : [],
+        );
+        const composerUuids = uniq(
+            sources.flatMap((tile) =>
+                tile && isComposerChartTileRequest(tile)
+                    ? [tile.composerChartUuid]
+                    : [],
+            ),
+        );
+        // One kind failing outright keeps the other kinds' results
+        const [chartResults, sqlResults, composerResults] = await Promise.all([
             this.getSavedChartParameterReferences(
                 account,
                 projectUuid,
-                uniq(sources.flatMap((tile) => tile?.savedChartUuid ?? [])),
+                uniq(savedSources.flatMap((tile) => tile.savedChartUuid ?? [])),
                 projectDefinitions,
             )
                 .then(toLookup)
@@ -1112,8 +1358,19 @@ export class DashboardService
             this.getSavedSqlParameterReferences(
                 account,
                 projectUuid,
-                uniq(sources.flatMap((tile) => tile?.savedSqlUuid ?? [])),
+                uniq(savedSources.flatMap((tile) => tile.savedSqlUuid ?? [])),
                 projectDefinitions,
+            )
+                .then(toLookup)
+                .catch(getFailedResults),
+            (composerUuids.length === 0
+                ? Promise.resolve(new Map<string, ParameterReferencesResult>())
+                : this.getComposerChartService().getParameterReferences(
+                      account,
+                      projectUuid,
+                      composerUuids,
+                      projectDefinitions,
+                  )
             )
                 .then(toLookup)
                 .catch(getFailedResults),
@@ -1128,12 +1385,16 @@ export class DashboardService
                     ),
                 };
             }
-            const result =
-                (source.savedChartUuid &&
-                    chartResults(source.savedChartUuid)) ||
-                (source.savedSqlUuid && sqlResults(source.savedSqlUuid)) ||
-                parameterReferencesFailure('Tile has no saved chart');
-            return { tileUuid, ...result };
+            const result = isComposerChartTileRequest(source)
+                ? composerResults(source.composerChartUuid)
+                : (source.savedChartUuid &&
+                      chartResults(source.savedChartUuid)) ||
+                  (source.savedSqlUuid && sqlResults(source.savedSqlUuid));
+            return {
+                tileUuid,
+                ...(result ||
+                    parameterReferencesFailure('Tile has no saved chart')),
+            };
         });
     }
 
@@ -1265,26 +1526,40 @@ export class DashboardService
                     queries,
                     explores,
                 );
-                const definitions = queries.reduce<ParameterDefinitions>(
-                    (acc, { exploreName }) => {
-                        const explore = explores.get(exploreName);
-                        return explore &&
-                            !(explore instanceof Error) &&
-                            !isExploreError(explore)
-                            ? {
-                                  ...acc,
-                                  ...getExploreParameterDefinitions(explore),
-                              }
-                            : acc;
-                    },
-                    projectDefinitions,
-                );
+                const queryExplores = queries.flatMap(({ exploreName }) => {
+                    const explore = explores.get(exploreName);
+                    return explore &&
+                        !(explore instanceof Error) &&
+                        !isExploreError(explore)
+                        ? [explore]
+                        : [];
+                });
+                // A project parameter wins over a model's unprefixed copy of its name, as in queries
+                const definitions = {
+                    ...queryExplores.reduce<ParameterDefinitions>(
+                        (acc, explore) => ({
+                            ...acc,
+                            ...getExploreParameterDefinitions(explore),
+                        }),
+                        {},
+                    ),
+                    ...projectDefinitions,
+                };
                 results.set(chart.uuid, {
                     parameterReferences,
                     parameterDefinitions: getReferencedParameterDefinitions(
                         definitions,
                         parameterReferences,
                     ),
+                    chartSavedValues: chart.parameters ?? {},
+                    virtualViewSavedValues:
+                        queryExplores.reduce<ParametersValuesMap>(
+                            (acc, explore) => ({
+                                ...acc,
+                                ...explore.savedParameterValues,
+                            }),
+                            {},
+                        ),
                     error: null,
                 });
             } catch (e) {
@@ -1420,6 +1695,8 @@ export class DashboardService
                                   projectDefinitions,
                                   getParameterReferences(sqlChart.sql),
                               ),
+                          chartSavedValues: {},
+                          virtualViewSavedValues: {},
                           error: null,
                       }
                     : parameterReferencesFailure(
@@ -2057,6 +2334,7 @@ export class DashboardService
         projectUuid: UUID,
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
+        await assertCanSaveInDevelopmentView(projectUuid);
         const resolvedSpaceUuid =
             dashboard.spaceUuid ??
             (await this.spacePermissionService.getFirstViewableSpaceUuid(
@@ -2296,6 +2574,7 @@ export class DashboardService
         data: DuplicateDashboardParams,
         options?: { embedWriteSpaceUuids?: string[] },
     ): Promise<Dashboard> {
+        await assertCanSaveInDevelopmentView(projectUuid);
         const dashboardDao = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
             { projectUuid },
@@ -2399,17 +2678,35 @@ export class DashboardService
             ownerUserUuid: DashboardService.getDefaultOwnerUserUuid(user),
         };
 
+        // Composer tiles join in the second version, once their charts are copied
+        const hasComposerTiles = duplicatedDashboard.tiles.some(
+            isDashboardComposerChartTile,
+        );
         const newDashboard = await this.dashboardModel.create(
             targetSpaceUuid,
-            duplicatedDashboard,
+            {
+                ...duplicatedDashboard,
+                tiles: duplicatedDashboard.tiles.filter(
+                    (tile) => !isDashboardComposerChartTile(tile),
+                ),
+            },
             user,
             projectUuid,
         );
 
-        if (hasChartsInDashboard(newDashboard)) {
+        if (hasChartsInDashboard(newDashboard) || hasComposerTiles) {
             const tileUuidMap = new Map<string, string>();
 
-            const updatedTiles = await Promise.all(
+            const copiedComposerTiles = await duplicateComposerChartTiles(
+                this.composerChartModel,
+                duplicatedDashboard.tiles,
+                { dashboardUuid: newDashboard.uuid, userUuid: user.userUuid },
+            );
+            copiedComposerTiles.forEach(({ from, tile }) =>
+                tileUuidMap.set(from, tile.uuid),
+            );
+
+            const classicTiles = await Promise.all(
                 newDashboard.tiles.map(async (tile) => {
                     if (
                         isDashboardChartTileType(tile) &&
@@ -2439,6 +2736,10 @@ export class DashboardService
                     return tile;
                 }),
             );
+            const updatedTiles = [
+                ...classicTiles,
+                ...copiedComposerTiles.map(({ tile }) => tile),
+            ];
 
             const remapTileUuidKeys = <T>(
                 byTileUuid: Record<string, T>,
@@ -2454,21 +2755,25 @@ export class DashboardService
             ): Record<string, DashboardTileTarget> | undefined =>
                 tileTargets && remapTileUuidKeys(tileTargets);
 
-            const remappedFilters: typeof newDashboard.filters = {
-                dimensions: newDashboard.filters.dimensions.map((filter) => ({
-                    ...filter,
-                    tileTargets: remapTileTargets(filter.tileTargets),
-                })),
-                metrics: newDashboard.filters.metrics.map((filter) => ({
-                    ...filter,
-                    tileTargets: remapTileTargets(filter.tileTargets),
-                })),
-                tableCalculations: newDashboard.filters.tableCalculations.map(
+            // From the source: the first version dropped the composer tiles' targets
+            const remappedFilters: typeof duplicatedDashboard.filters = {
+                dimensions: duplicatedDashboard.filters.dimensions.map(
                     (filter) => ({
                         ...filter,
                         tileTargets: remapTileTargets(filter.tileTargets),
                     }),
                 ),
+                metrics: duplicatedDashboard.filters.metrics.map((filter) => ({
+                    ...filter,
+                    tileTargets: remapTileTargets(filter.tileTargets),
+                })),
+                tableCalculations:
+                    duplicatedDashboard.filters.tableCalculations.map(
+                        (filter) => ({
+                            ...filter,
+                            tileTargets: remapTileTargets(filter.tileTargets),
+                        }),
+                    ),
             };
 
             await this.dashboardModel.addVersion(
@@ -2478,20 +2783,20 @@ export class DashboardService
                     filters: remappedFilters,
                     tabs: newTabs,
                     parameters: newDashboard.parameters,
-                    config: newDashboard.config && {
-                        ...newDashboard.config,
-                        ...(newDashboard.config.dateZoomConfig && {
+                    config: duplicatedDashboard.config && {
+                        ...duplicatedDashboard.config,
+                        ...(duplicatedDashboard.config.dateZoomConfig && {
                             dateZoomConfig: {
-                                ...newDashboard.config.dateZoomConfig,
+                                ...duplicatedDashboard.config.dateZoomConfig,
                                 tileTargets: remapTileUuidKeys(
-                                    newDashboard.config.dateZoomConfig
+                                    duplicatedDashboard.config.dateZoomConfig
                                         .tileTargets,
                                 ),
                             },
                         }),
-                        ...(newDashboard.config.parameterControls && {
+                        ...(duplicatedDashboard.config.parameterControls && {
                             parameterControls:
-                                newDashboard.config.parameterControls.map(
+                                duplicatedDashboard.config.parameterControls.map(
                                     (control) => ({
                                         ...control,
                                         parameters: Object.fromEntries(
@@ -2907,6 +3212,7 @@ export class DashboardService
                 projectUuid: options?.projectUuid,
             },
         );
+        await assertCanSaveInDevelopmentView(existingDashboardDao.projectUuid);
         const { preserveVerification, ...incomingFields } = dashboard;
         let dashboardFields = incomingFields;
 
@@ -4733,6 +5039,13 @@ export class DashboardService
             } else {
                 this.logger.info('No dashboard-owned charts to rollback');
             }
+            await rollbackComposerCharts(
+                this.composerChartModel,
+                targetVersion.tiles,
+                targetVersion.versionUuid,
+                user.userUuid,
+                tx,
+            );
         });
 
         this.analytics.track({

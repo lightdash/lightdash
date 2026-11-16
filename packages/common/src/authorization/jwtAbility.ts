@@ -241,6 +241,25 @@ const metricsCatalogAbilities: EmbeddedAbilityBuilder = ({
             organizationUuid: organization.organizationUuid,
             projectUuid: embed.projectUuid,
         });
+
+        // Unsaved explore results export like a chart in edit mode.
+        if (canViewEmbedScope('EmbedImageExport', builder, embed)) {
+            can('export', 'SavedChart', {
+                organizationUuid: organization.organizationUuid,
+                type: 'images',
+            });
+        }
+        if (canViewEmbedScope('EmbedCsvExport', builder, embed)) {
+            can('export', 'SavedChart', {
+                organizationUuid: organization.organizationUuid,
+                type: 'csv',
+            });
+            can('view', 'JobStatus', {
+                organizationUuid: organization.organizationUuid,
+                projectUuid: embed.projectUuid,
+                createdByUserUuid: externalId,
+            });
+        }
     }
 
     return { embedUser, content, embed, builder, externalId };

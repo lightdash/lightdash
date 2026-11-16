@@ -5,6 +5,8 @@ const HIDDEN_TOOL_NAMES: ReadonlySet<string> = new Set([
     'generateHashes',
     'generateUuids',
     'loadMcpTools',
+    // The pending question renders above the composer instead.
+    'askUser',
 ] satisfies AiAgentToolName[]);
 
 export const isHiddenToolName = (toolName: string): boolean =>

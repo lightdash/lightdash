@@ -21,6 +21,7 @@ import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import {
     getDuckdbQuerySubject,
+    getExternalSourceQuerySubject,
     STREAM_CONFIGS,
     type AsyncQueryJobPayload,
     type AsyncQueryNatsEnvelope,
@@ -49,6 +50,7 @@ export class NatsNoRespondersError extends Error {
 export interface INatsClient {
     enqueueWarehouseQuery(payload: AsyncQueryJobPayload): EnqueueResult;
     enqueueDuckdbQuery(payload: AsyncQueryJobPayload): EnqueueResult;
+    enqueueExternalSourceQuery(payload: AsyncQueryJobPayload): EnqueueResult;
     enqueuePreAggregateQuery(payload: AsyncQueryJobPayload): EnqueueResult;
     enqueueMaterializationQuery(payload: AsyncQueryJobPayload): EnqueueResult;
 }
@@ -230,6 +232,12 @@ export class NatsClient implements INatsClient {
         payload: AsyncQueryJobPayload,
     ): Promise<{ jobId: string }> {
         return this.enqueue(getDuckdbQuerySubject(), payload);
+    }
+
+    async enqueueExternalSourceQuery(
+        payload: AsyncQueryJobPayload,
+    ): Promise<{ jobId: string }> {
+        return this.enqueue(getExternalSourceQuerySubject(), payload);
     }
 
     async enqueuePreAggregateQuery(

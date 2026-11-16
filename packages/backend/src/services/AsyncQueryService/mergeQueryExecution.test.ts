@@ -1,6 +1,7 @@
 import {
     DimensionType,
     FieldType,
+    getItemLabel,
     isMergeMetricSource,
     MergeJoinType,
     MetricType,
@@ -20,6 +21,7 @@ import {
     getMergeRowCapError,
     getMergeSourceLabels,
     planMergeSourceTotalLegs,
+    withBareCalculationItems,
 } from './mergeQueryExecution';
 
 const sourceQuery = (metrics: string[], calculations: string[] = []) =>
@@ -265,8 +267,8 @@ describe('getMergeRowCapError', () => {
         expect(
             getMergeRowCapError({
                 legs: [
-                    { label: 'Orders', rowCount: 500 },
-                    { label: 'Payments', rowCount: 12 },
+                    { label: 'Orders', rowCount: 500, limit: null },
+                    { label: 'Payments', rowCount: 12, limit: null },
                 ],
                 sourceRowCap: 500,
             }),
@@ -279,8 +281,8 @@ describe('getMergeRowCapError', () => {
         expect(
             getMergeRowCapError({
                 legs: [
-                    { label: 'Orders', rowCount: 500 },
-                    { label: 'Payments', rowCount: 501 },
+                    { label: 'Orders', rowCount: 500, limit: null },
+                    { label: 'Payments', rowCount: 501, limit: null },
                 ],
                 sourceRowCap: 500,
             }),
@@ -293,18 +295,55 @@ describe('getMergeRowCapError', () => {
         expect(
             getMergeRowCapError({
                 legs: [
-                    { label: 'Orders', rowCount: 499 },
-                    { label: 'Payments', rowCount: 0 },
+                    { label: 'Orders', rowCount: 499, limit: null },
+                    { label: 'Payments', rowCount: 0, limit: null },
                 ],
                 sourceRowCap: 500,
             }),
         ).toBeNull();
     });
 
+    test('refuses a leg that reached its own lower limit', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [
+                    { label: 'Orders', rowCount: 500, limit: 500 },
+                    { label: 'Payments', rowCount: 900, limit: 1000 },
+                ],
+                sourceRowCap: 5000,
+            }),
+        ).toBe(
+            'Orders returned its limit of 500 rows, so the merged results would be missing data. Raise the limit of Orders or narrow it, then merge again.',
+        );
+    });
+
+    test('allows complete legs that ran with a limit above the cap', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [
+                    { label: 'Orders', rowCount: 5587, limit: 10000 },
+                    { label: 'Payments', rowCount: 5587, limit: 10000 },
+                ],
+                sourceRowCap: 5000,
+            }),
+        ).toBeNull();
+    });
+
+    test('refuses a leg that filled a limit above the cap', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [{ label: 'Orders', rowCount: 10000, limit: 10000 }],
+                sourceRowCap: 5000,
+            }),
+        ).toBe(
+            'Orders returned its limit of 10000 rows, so the merged results would be missing data. Raise the limit of Orders or narrow it, then merge again.',
+        );
+    });
+
     test('allows a source whose row count is unknown', () => {
         expect(
             getMergeRowCapError({
-                legs: [{ label: 'Orders', rowCount: null }],
+                legs: [{ label: 'Orders', rowCount: null, limit: null }],
                 sourceRowCap: 500,
             }),
         ).toBeNull();
@@ -392,6 +431,18 @@ describe('buildMergeRowCapGuard', () => {
             ),
         ).toBeNull();
     });
+
+    test('checks a leg that ran at its own limit against that limit', () => {
+        const composerGuard = buildMergeRowCapGuard({
+            legLabelByReferenceTable: { merge_source_0: 'Orders' },
+            sourceRowCap: 500,
+            legLimitByReferenceTable: { merge_source_0: 1000 },
+        });
+        expect(composerGuard(completed({ merge_source_0: 600 }))).toBeNull();
+        expect(composerGuard(completed({ merge_source_0: 1000 }))).toBe(
+            'Orders returned its limit of 1000 rows, so the merged results would be missing data. Raise the limit of Orders or narrow it, then merge again.',
+        );
+    });
 });
 
 describe('planMergeSourceTotalLegs', () => {
@@ -463,5 +514,28 @@ describe('planMergeSourceTotalLegs', () => {
                 },
             }),
         ).toEqual([]);
+    });
+});
+
+describe('withBareCalculationItems', () => {
+    test('drops the merged table label from calculations only', () => {
+        const item = (name: string) =>
+            ({
+                table: 'merge',
+                tableLabel: 'Merged',
+                name,
+                label: name,
+                fieldType: FieldType.METRIC,
+            }) as unknown as ItemsMap[string];
+        const items = withBareCalculationItems(
+            { merge_month: item('month'), merge_rate: item('rate') },
+            {
+                tableCalculations: [
+                    { name: 'rate', displayName: 'Rate', sql: '' },
+                ],
+            },
+        );
+        expect(getItemLabel(items.merge_rate)).toBe('rate');
+        expect(getItemLabel(items.merge_month)).toBe('Merged month');
     });
 });

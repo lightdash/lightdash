@@ -3,6 +3,7 @@ import {
     getAppDisplayName,
     type AppVersionStatus,
     type ContentVerificationInfo,
+    type DataAppConsumerAccess,
 } from '@lightdash/common';
 import { ActionIcon, Group, Popover, Title, Tooltip } from '@mantine/core';
 import { IconCircleCheckFilled, IconInfoCircle } from '@tabler/icons-react';
@@ -12,6 +13,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import PageHeader from '../../../components/common/Page/PageHeader';
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
+import AppConsumerAccessIndicator from './AppConsumerAccessIndicator';
 import classes from './AppHeader.module.css';
 import AppInfoOverlay from './AppInfoOverlay';
 import { FavoritePersonalDataAppModal } from './FavoritePersonalDataAppModal';
@@ -30,6 +32,8 @@ type AppHeaderApp = {
     views: number | null;
     slug: string | null;
     verification: ContentVerificationInfo | null;
+    /** Sent only to people who can manage the app; absent elsewhere. */
+    consumerAccess?: DataAppConsumerAccess | null;
 };
 
 type Props = {
@@ -149,6 +153,10 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                         });
                     }}
                 />
+
+                {app.consumerAccess && (
+                    <AppConsumerAccessIndicator access={app.consumerAccess} />
+                )}
             </Group>
 
             <Group gap="sm" wrap="wrap">

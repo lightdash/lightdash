@@ -1,6 +1,8 @@
 import {
     type ApiError,
     type LinearInstallation,
+    type LinearInstallUrl,
+    type LinearOAuthCredentials,
     type LinearProject,
     type LinearTeam,
 } from '@lightdash/common'; // pragma: allowlist secret
@@ -40,6 +42,27 @@ export const useLinearInstallation = (options?: { enabled?: boolean }) => {
                 apiError: error,
             });
         },
+    });
+};
+
+export const useInstallLinear = () => {
+    const lightdashApi = useLightdashApi();
+    const { showToastApiError } = useToaster();
+    return useMutation<LinearInstallUrl, ApiError, LinearOAuthCredentials>({
+        mutationFn: (credentials) =>
+            lightdashApi<LinearInstallUrl>({
+                url: '/linear/install',
+                method: 'POST',
+                body: JSON.stringify(credentials),
+            }),
+        onSuccess: ({ installUrl }) => {
+            window.location.assign(installUrl);
+        },
+        onError: ({ error }) =>
+            showToastApiError({
+                title: 'Failed to connect Linear',
+                apiError: error,
+            }),
     });
 };
 

@@ -78,7 +78,7 @@ describe('GoogleAdsConnector', () => {
                 query: CAMPAIGN_QUERY.replace('LIMIT 2', 'LIMIT 3'),
             },
         });
-        expect(result.truncated).toBe(true);
+        expect(result.hasMoreRows).toBe(true);
         expect(result.rows).toHaveLength(2);
     });
 
@@ -155,7 +155,7 @@ describe('GoogleAdsConnector', () => {
             'SELECT metrics.clicks FROM customer',
         );
 
-        expect(result).toMatchObject({ rows: [], truncated: false });
+        expect(result).toMatchObject({ rows: [], hasMoreRows: false });
     });
 
     it('lets a smaller LIMIT in the query win and replaces it', async () => {
@@ -171,7 +171,7 @@ describe('GoogleAdsConnector', () => {
             query: 'SELECT metrics.clicks FROM customer LIMIT 2',
         });
         expect(result.rows).toHaveLength(1);
-        expect(result.truncated).toBe(true);
+        expect(result.hasMoreRows).toBe(true);
     });
 
     it('adds a LIMIT when the query has none', async () => {
@@ -196,7 +196,7 @@ describe('GoogleAdsConnector', () => {
 
         await expect(
             run(connector, 'SELECT metrics.clicks FROM campaign', 50_000),
-        ).rejects.toThrow(/more rows than the 9,999/);
+        ).rejects.toThrow(/more than 9,999 rows/);
         expect(send.mock.calls[0][0].body).toEqual({
             query: 'SELECT metrics.clicks FROM campaign LIMIT 10000',
         });
@@ -211,7 +211,7 @@ describe('GoogleAdsConnector', () => {
             50_000,
         );
 
-        expect(result).toMatchObject({ truncated: false });
+        expect(result).toMatchObject({ hasMoreRows: false });
         expect(result.rows).toHaveLength(3);
     });
 

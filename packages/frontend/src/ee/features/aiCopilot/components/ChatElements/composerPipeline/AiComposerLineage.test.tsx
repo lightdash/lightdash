@@ -1,6 +1,7 @@
 import {
     ApiConnectorType,
     FilterOperator,
+    MergeJoinType,
     QuerySourceType,
     VizIndexType,
     type SourceQuery,
@@ -8,6 +9,7 @@ import {
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { useLiveSourceExplore } from '../../../../../../features/externalConnections/liveSources/apiSourceExplore';
+import { compileMergeQuery } from '../../../../../../features/mergeQuery/hooks/useMergeQuery';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import mockIntersectingObserver from '../../../../../../testing/intersectingObserver';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
@@ -30,6 +32,16 @@ vi.mock(
     }),
 );
 const liveSourceExplore = vi.mocked(useLiveSourceExplore);
+vi.mock('../../../../../../features/mergeQuery/hooks/useMergeQuery', () => ({
+    compileMergeQuery: vi.fn(async () => ({
+        sql: 'select * from merge_source_0 left join merge_source_1 using (partner)',
+        legs: [
+            { sourceId: 'orders', sql: 'select partner from orders' },
+            { sourceId: 'tickets', sql: 'select partner from tickets' },
+        ],
+    })),
+}));
+const compiledMergeSql = vi.mocked(compileMergeQuery);
 
 beforeAll(mockIntersectingObserver);
 // jsdom has no Element.scrollTo; the notebook scrolls itself to a focused cell.
@@ -634,5 +646,61 @@ describe('AiComposerLineage python nodes', () => {
         expect(
             within(nodeButton('Simulated amounts')).getByText('Python'),
         ).toBeInTheDocument();
+    });
+});
+
+describe('AiComposerLineage merge nodes', () => {
+    const semantic = (nodeId: string): SourceQuery => ({
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId,
+        exploreName: nodeId,
+        dimensions: [`${nodeId}_partner`],
+        metrics: [`${nodeId}_count`],
+    });
+    const mergeQueries: SourceQuery[] = [
+        semantic('orders'),
+        semantic('tickets'),
+        {
+            sourceType: QuerySourceType.MERGE,
+            nodeId: 'activity',
+            sources: [{ nodeId: 'orders' }, { nodeId: 'tickets' }],
+            joinKey: [
+                {
+                    name: 'partner',
+                    fieldIdBySourceId: {
+                        orders: 'orders_partner',
+                        tickets: 'tickets_partner',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.LEFT,
+        },
+    ];
+
+    it("compiles a merge step's SQL only once SQL query is opened, showing each step's SQL and the join", async () => {
+        renderPanel({ queries: mergeQueries });
+        expect(compiledMergeSql).not.toHaveBeenCalled();
+        fireEvent.click(
+            await cell('activity').findByRole('button', { name: 'SQL query' }),
+        );
+        expect(compiledMergeSql).toHaveBeenCalledWith(
+            expect.anything(),
+            'project',
+            expect.objectContaining({
+                sources: [
+                    expect.objectContaining({ id: 'orders' }),
+                    expect.objectContaining({ id: 'tickets' }),
+                ],
+                joinType: MergeJoinType.LEFT,
+            }),
+            {},
+        );
+        await waitFor(() =>
+            expect(
+                document
+                    .querySelector('[data-node-id="activity"]')!
+                    .querySelector('code'),
+            ).toHaveTextContent(/from\s+tickets.*merge_source_0/is),
+        );
     });
 });

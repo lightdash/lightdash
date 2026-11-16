@@ -5,12 +5,16 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { formatPickedCount } from './barSelection';
+import editorClasses from './FilterEditor.module.css';
+import { MENU_TRANSITION } from './menuTransition';
 
 export type SelectionActionsProps = {
     /** Picked filter pills */
     filterCount: number;
     /** Picked parameter pills */
     parameterCount: number;
+    /** Picked date zoom pills */
+    dateZoomCount: number;
     /** Each section with how many pills it holds. */
     sections: (DashboardControlSection & { count: number })[];
     /** The section every selected pill is in, else null: "Move to" leaves it out. */
@@ -29,6 +33,7 @@ export type SelectionActionsProps = {
 export const SelectionActions: FC<SelectionActionsProps> = ({
     filterCount,
     parameterCount,
+    dateZoomCount,
     sections,
     sharedSectionId,
     isAnyInSection,
@@ -37,7 +42,7 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
     onRemove,
 }) => {
     const getUiString = useUiStrings();
-    const count = filterCount + parameterCount;
+    const count = filterCount + parameterCount + dateZoomCount;
     // The first click arms "Remove", the second removes; Escape or leaving disarms
     const [isRemoveArmed, setIsRemoveArmed] = useState(false);
     const targets = sections.filter(
@@ -56,7 +61,13 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                 Move to new section
             </Button>
             {/* Focus must stay on the name input New section opens */}
-            <Menu position="top" returnFocus={false}>
+            <Menu
+                position="top"
+                withArrow
+                offset={1}
+                returnFocus={false}
+                transitionProps={MENU_TRANSITION}
+            >
                 <Menu.Target>
                     <Button
                         variant="subtle"
@@ -68,7 +79,7 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                         Move to
                     </Button>
                 </Menu.Target>
-                <Menu.Dropdown>
+                <Menu.Dropdown className={editorClasses.menu}>
                     <Menu.Item
                         leftSection={
                             <MantineIcon icon={IconFolderPlus} size={14} />
@@ -119,7 +130,7 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                 }}
             >
                 {isRemoveArmed
-                    ? `Remove ${formatPickedCount(filterCount, parameterCount)}`
+                    ? `Remove ${formatPickedCount(filterCount, parameterCount, dateZoomCount)}`
                     : 'Remove'}
             </Button>
         </>

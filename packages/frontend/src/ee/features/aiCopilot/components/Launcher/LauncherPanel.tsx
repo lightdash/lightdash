@@ -62,6 +62,7 @@ import { getDashboardNavigationUrlFromContentToolResult } from '../../utils/cont
 import { AiAgentNewThreadMcpConnections } from '../AiAgentNewThreadMcpConnections';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
+import { getPendingAskUser } from '../ChatElements/askUserQuestions';
 import { contextItemsToContentMentionSuggestions } from '../ChatElements/contentMentions';
 import { getPromptContextItemKey } from '../ChatElements/contentReferenceUtils';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
@@ -690,6 +691,15 @@ const ExistingThreadPanel: FC<{
                     agentUuid={agent.uuid}
                     renderArtifactsInline
                     onDashboardLinkClick={handleDashboardLinkClick}
+                    onChoiceSelect={
+                        isInputDisabled || isBusy
+                            ? undefined
+                            : (choice) =>
+                                  handleSubmit({
+                                      message: choice,
+                                      toolHints: [],
+                                  })
+                    }
                     canRetryDeepResearch={
                         canStartDeepResearch && !isInputDisabled && !isBusy
                     }
@@ -721,6 +731,10 @@ const ExistingThreadPanel: FC<{
                             threadModel?.deprecationWarning ?? null
                         }
                         contentMentionPriorityItems={contentMentionItems}
+                        // The question card's options would repeat as chips.
+                        showSuggestions={
+                            getPendingAskUser(thread.messages?.at(-1)) === null
+                        }
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]
                                 .reverse()

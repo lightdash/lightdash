@@ -4,10 +4,16 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import {
+    SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_REQUIRED_MESSAGE,
+    SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+    SnowflakePrivateKeyError,
+} from '@lightdash/warehouses';
+import {
     getAthenaServiceAccountTestErrorMessage,
     getClickhouseServiceAccountTestErrorMessage,
     getPostgresServiceAccountTestErrorMessage,
     getRedshiftServiceAccountTestErrorMessage,
+    getSnowflakeServiceAccountTestError,
     getTrinoServiceAccountTestErrorMessage,
     getUserPasswordServiceAccountTestErrorMessage,
     isAthenaServiceAccountAuthError,
@@ -168,6 +174,79 @@ describe('Snowflake key authentication errors', () => {
         const error = new Error('cycle');
         error.cause = error;
         expect(isSnowflakeServiceAccountAuthError(error)).toBe(false);
+    });
+});
+
+describe('Snowflake AI service account test errors', () => {
+    const wrapped = (message: string, code?: string) => {
+        const error = new WarehouseConnectionError(
+            `Snowflake error: ${message}`,
+        );
+        error.cause = Object.assign(new Error(message), { code });
+        return error;
+    };
+    it.each([
+        [
+            'an unreadable key before connecting',
+            new SnowflakePrivateKeyError(
+                SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_REQUIRED_MESSAGE,
+            ),
+            'private_key_unreadable',
+            SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_REQUIRED_MESSAGE,
+        ],
+        [
+            'an unreadable key wrapped as a connection error',
+            Object.assign(
+                new WarehouseConnectionError(
+                    `Snowflake error: ${SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE}`,
+                ),
+                {
+                    cause: new SnowflakePrivateKeyError(
+                        SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+                    ),
+                },
+            ),
+            'private_key_unreadable',
+            SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+        ],
+        [
+            'an SDK key parse error',
+            wrapped('Invalid private key.', '404026'),
+            'private_key_unreadable',
+            SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+        ],
+        [
+            'a JWT rejected by Snowflake',
+            wrapped('JWT token is invalid.', '390144'),
+            'private_key',
+            "Snowflake rejected the private key for this user. Check the user name and account identifier, and that the key's public key is set on that user.",
+        ],
+        [
+            'an unknown account host',
+            wrapped('getaddrinfo ENOTFOUND', 'ENOTFOUND'),
+            'account_identifier',
+            'Snowflake could not find this account. Check the account identifier on the connection.',
+        ],
+        [
+            'a network policy',
+            wrapped(
+                'IP 192.0.2.1 is not allowed to access Snowflake.',
+                '390422',
+            ),
+            'network_policy',
+            "A Snowflake network policy blocked this connection. Allow Lightdash's IP addresses in the policy.",
+        ],
+        [
+            'anything else',
+            wrapped('Something else went wrong.', '000000'),
+            'unknown',
+            'Could not verify the shared agent account. Check the credentials and connection settings.',
+        ],
+    ])('maps %s', (_name, error, category, message) => {
+        expect(getSnowflakeServiceAccountTestError(error)).toEqual({
+            category,
+            message,
+        });
     });
 });
 

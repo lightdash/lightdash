@@ -362,7 +362,6 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_RATE_COUNTERS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES]: () => ({}),
-    [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY]: () => ({}),
@@ -435,6 +434,7 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
     [SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: () => ({}),
+    [SCHEDULER_TASKS.REBUILD_OUTDATED_API_SOURCE_EXPLORES]: () => ({}),
     [SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

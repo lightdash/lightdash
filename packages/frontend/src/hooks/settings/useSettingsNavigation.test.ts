@@ -24,6 +24,8 @@ const settingsContext = (
     canAccessAnalyticsSettings: false,
     isAnalyticsProjectLoading: false,
     isOrganizationRoadmapEnabled: false,
+    isBillingPortalEnabled: false,
+    isBillingPortalFlagLoading: false,
     canAccessAiCredits: false,
     isAiCreditsLoading: false,
     isSsoOrganizationSettingsEnabled: false,
@@ -39,7 +41,6 @@ const settingsContext = (
     isDataAppsFlagLoading: false,
     isApiQuerySourcesEnabled: false,
     isChartStudioAvailable: false,
-    externalSourcesFlag: undefined,
     isMobileSettingsEnabled: false,
     isMobileSettingsFlagLoading: false,
     isResultsCacheAvailable: false,
@@ -220,10 +221,6 @@ describe('Data apps settings navigation', () => {
             { label: 'General', to: '/generalSettings/dataApps/general' },
             { label: 'Themes', to: '/generalSettings/dataApps/themes' },
             { label: 'Activity', to: '/generalSettings/dataApps/activity' },
-            {
-                label: 'AI analysis',
-                to: '/generalSettings/dataApps/aiAnalysis',
-            },
         ]);
     });
 
@@ -296,7 +293,7 @@ describe('Themes settings navigation with Chart Studio', () => {
             items
                 ?.find((item) => item.label === 'Data apps')
                 ?.children.map(({ label }) => label),
-        ).toEqual(['General', 'Themes', 'Activity', 'AI analysis']);
+        ).toEqual(['General', 'Themes', 'Activity']);
     });
 
     it('shows no Themes entry without Chart Studio or data apps', () => {
@@ -400,6 +397,7 @@ describe('managed analytics project settings navigation', () => {
                         health: {
                             softDelete: { enabled: true },
                             preAggregates: { enabled: false },
+                            externalSources: { engineAvailable: false },
                         } as SettingsContext['health'],
                         user: {
                             ability: new Ability([
@@ -544,7 +542,6 @@ describe('Project connections settings navigation', () => {
 
     it('links External sources to the Semantic Layer page, marked as moved', () => {
         const item = projectItems({
-            externalSourcesFlag: { id: 'external-sources', enabled: true },
             health: {
                 softDelete: { enabled: false },
                 preAggregates: { enabled: false },
@@ -624,26 +621,52 @@ describe('My agent connections navigation', () => {
     );
 });
 
-describe('AI analysis settings navigation without data apps', () => {
-    const aiAnalysisItem = (overrides: Partial<SettingsContext> = {}) =>
+describe('AI analysis settings navigation', () => {
+    const navigation = (
+        rules: { action: string; subject: string }[],
+        overrides: Partial<SettingsContext> = {},
+    ) =>
         organizationNavigation({
             user: {
-                ability: new Ability([
-                    { action: 'manage', subject: 'Organization' },
-                ]),
+                ability: new Ability(rules),
             } as unknown as SettingsContext['user'],
             ...overrides,
-        })?.find((item) => item.label === 'AI analysis');
+        });
+    const askAiChild = (items: ReturnType<typeof navigation>) =>
+        items
+            ?.find((item) => item.label === 'Ask AI')
+            ?.children.find((item) => item.label === 'AI analysis');
+    const manageOrganization = [{ action: 'manage', subject: 'Organization' }];
 
-    it('shows AI analysis wherever AI is available', () => {
-        expect(aiAnalysisItem()?.to).toBe(
-            '/generalSettings/dataApps/aiAnalysis',
-        );
+    it.each([false, true])(
+        'lives under Ask AI only (data apps on: %s)',
+        (dataAppsEnabled) => {
+            const items = navigation(manageOrganization, {
+                dataAppsFlag: {
+                    id: 'data-apps',
+                    enabled: dataAppsEnabled,
+                } as SettingsContext['dataAppsFlag'],
+            });
+            expect(askAiChild(items)?.to).toBe('/generalSettings/ai/analysis');
+            const elsewhere = items
+                ?.filter((item) => item.label !== 'Ask AI')
+                .flatMap((item) => [item, ...item.children])
+                .filter((item) => item.label === 'AI analysis');
+            expect(elsewhere).toEqual([]);
+        },
+    );
+
+    it('hides AI analysis from users who cannot manage the organization', () => {
+        expect(askAiChild(navigation([]))).toBeUndefined();
     });
 
     it('hides AI analysis without AI', () => {
         expect(
-            aiAnalysisItem({ isAiCopilotEnabledOrTrial: false }),
+            askAiChild(
+                navigation(manageOrganization, {
+                    isAiCopilotEnabledOrTrial: false,
+                }),
+            ),
         ).toBeUndefined();
     });
 });

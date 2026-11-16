@@ -49,6 +49,11 @@ import {
 } from '../src/ee/features/embed/EmbedDashboard/types';
 import {
     LightdashEventType,
+    type ChartContentState,
+    type ChartExportRequest,
+    type ContentStateChangedPayload,
+    type DashboardContentState,
+    type ExploreContentState,
     type LightdashEvent,
     type LightdashEventHandler,
 } from '../src/ee/features/embed/events/types';
@@ -145,9 +150,12 @@ type DashboardProps = BaseProps & {
     // Where "New chart" and "Save as new chart" save. Defaults to
     // ['dashboard']; list both to let the user choose.
     chartSaveDestinations?: ChartSaveDestination[];
+    // Change it to reload the saved dashboard in place, e.g. after an AI agent
+    // edit. Keeps the viewer's filters and active tab, unlike a remount.
+    refreshKey?: number;
 };
 
-type DashboardBuilderProps = DashboardProps & {
+type DashboardBuilderProps = Omit<DashboardProps, 'refreshKey'> & {
     onDashboardReady?: (dashboard: EmbedDashboardType) => void;
 };
 
@@ -665,6 +673,7 @@ const Dashboard: FC<DashboardProps> = ({
     isEditMode,
     onEditModeChange,
     chartSaveDestinations,
+    refreshKey,
 }) => {
     const tokenContext = useEmbedTokenContext(
         instanceUrl,
@@ -715,6 +724,7 @@ const Dashboard: FC<DashboardProps> = ({
                         isEditMode={isEditMode}
                         onEditModeChange={onEditModeChange}
                         chartSaveDestinations={chartSaveDestinations}
+                        refreshKey={refreshKey}
                     />
                 )}
             </EmbedProvider>
@@ -1561,6 +1571,11 @@ export type {
     MetricsCatalogFilter,
     LightdashEvent,
     LightdashEventHandler,
+    ContentStateChangedPayload,
+    DashboardContentState,
+    ChartContentState,
+    ChartExportRequest,
+    ExploreContentState,
     SdkError,
     SdkErrorKind,
     SdkUiOverrides,

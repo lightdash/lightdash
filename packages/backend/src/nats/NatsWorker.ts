@@ -17,6 +17,7 @@ import {
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { continueTrace, traceSpan } from '../tracing/tracing';
 import { isConnectionProducedQuery } from '../utils/queryResultProducer';
+import { startEventLoopStallDetector } from './eventLoopStallDetector';
 import {
     STREAM_CONFIGS,
     type AsyncQueryJobPayload,
@@ -81,6 +82,8 @@ export class NatsWorker {
 
     private readonly resolveOrganizationName: OrganizationNameResolver;
 
+    private readonly runningQueries = new Map<symbol, string>();
+
     public isRunning = false;
 
     public async isHealthy(): Promise<boolean> {
@@ -130,9 +133,13 @@ export class NatsWorker {
             `NATS worker started. streams=${streamNames.join(',')}, concurrency=${this.workerConcurrency}`,
         );
 
+        const stopStallDetector = startEventLoopStallDetector(() => [
+            ...new Set(this.runningQueries.values()),
+        ]);
         this.consumePromise = Promise.allSettled(workerLoops)
             .then(() => undefined)
             .finally(() => {
+                stopStallDetector();
                 this.isRunning = false;
             });
     }
@@ -147,17 +154,66 @@ export class NatsWorker {
         workerId?: string,
     ): Promise<void> {
         const workerLabel = workerId ?? 'unknown';
+        const parsed = this.parseMessage(message);
+        const queryUuid = parsed?.payload.queryUuid ?? null;
+        if (message.info.deliveryCount > 1) {
+            Logger.warn('NATS query message redelivered', {
+                queryUuid,
+                deliveryCount: message.info.deliveryCount,
+                reason: 'unknown',
+            });
+        }
 
         const runQuery = this.getQueryRunner(message.subject);
         if (!runQuery) {
             Logger.error(
                 `Worker ${workerLabel} received async query job on unexpected subject "${message.subject}"`,
             );
+            // The job is delivered once, so fail the row rather than leave it queued
+            if (queryUuid) {
+                await this.asyncQueryService
+                    .markClaimedQueryAsErrored(
+                        queryUuid,
+                        'The worker that received this query cannot run it yet. Try again shortly.',
+                    )
+                    .catch(() => undefined);
+            }
+            NatsWorker.logMessageAction(
+                message,
+                queryUuid,
+                'term',
+                'unexpected subject',
+            );
             message.term();
             return;
         }
 
-        await this.handleQueryMessage(message, workerLabel, runQuery);
+        const runId = Symbol('query run');
+        if (queryUuid) this.runningQueries.set(runId, queryUuid);
+        try {
+            await this.handleQueryMessage(
+                message,
+                workerLabel,
+                runQuery,
+                parsed,
+            );
+        } finally {
+            this.runningQueries.delete(runId);
+        }
+    }
+
+    private static logMessageAction(
+        message: JsMsg,
+        queryUuid: string | null,
+        action: 'nak' | 'term',
+        reason: string,
+    ): void {
+        Logger.warn('NATS query message disposition', {
+            queryUuid,
+            action,
+            deliveryCount: message.info.deliveryCount,
+            reason,
+        });
     }
 
     private getQueryRunner(
@@ -187,6 +243,19 @@ export class NatsWorker {
         ) {
             return (queryUuid, worker, queryTags, onConnectionClaimed) =>
                 this.asyncQueryService.runAsyncDuckdbQueryFromHistory(
+                    queryUuid,
+                    worker,
+                    queryTags,
+                    onConnectionClaimed,
+                );
+        }
+
+        if (
+            subject === STREAM_CONFIGS.duckdb.subjects.externalSource ||
+            (preAgg && subject === preAgg.subjects.externalSource)
+        ) {
+            return (queryUuid, worker, queryTags, onConnectionClaimed) =>
+                this.asyncQueryService.runAsyncExternalSourceQueryFromHistory(
                     queryUuid,
                     worker,
                     queryTags,
@@ -226,9 +295,15 @@ export class NatsWorker {
             queryTags?: AsyncQueryJobPayload['queryTags'],
             onConnectionClaimed?: () => void,
         ) => Promise<boolean>,
+        parsed: ParsedMessage | null,
     ): Promise<void> {
-        const parsed = this.parseMessage(message);
         if (!parsed) {
+            NatsWorker.logMessageAction(
+                message,
+                null,
+                'term',
+                'invalid message',
+            );
             message.term();
             return;
         }
@@ -290,6 +365,12 @@ export class NatsWorker {
             );
 
             if (!didRun) {
+                NatsWorker.logMessageAction(
+                    message,
+                    parsed.payload.queryUuid,
+                    'term',
+                    'not claimed',
+                );
                 message.term();
                 return;
             }
@@ -312,9 +393,23 @@ export class NatsWorker {
             if (
                 query?.status === QueryHistoryStatus.ERROR ||
                 query?.status === QueryHistoryStatus.CANCELLED
-            )
+            ) {
+                NatsWorker.logMessageAction(
+                    message,
+                    parsed.payload.queryUuid,
+                    'term',
+                    error instanceof Error ? error.name : 'unknown error',
+                );
                 message.term();
-            else message.nak();
+            } else {
+                NatsWorker.logMessageAction(
+                    message,
+                    parsed.payload.queryUuid,
+                    'nak',
+                    error instanceof Error ? error.name : 'unknown error',
+                );
+                message.nak();
+            }
         }
     }
 

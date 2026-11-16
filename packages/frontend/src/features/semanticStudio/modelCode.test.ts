@@ -35,15 +35,31 @@ describe('findFieldLine', () => {
 
 describe('change copy', () => {
     it('names the question, or the source when there is none', () => {
+        const contents = {
+            contentBefore: 'name: a\nlabel: A\nmetrics:\n  m:\n    sql: x\n',
+            contentAfter: 'name: a\nlabel: B\nmetrics:\n  m:\n    sql: y\n',
+        };
         expect(
-            changeTitle({ source: 'draft', question: 'Approval rate?' }),
+            changeTitle({
+                source: 'draft',
+                question: 'Approval rate?',
+                ...contents,
+            }),
         ).toBe('Approval rate?');
-        expect(changeTitle({ source: 'draft', question: null })).toBe(
-            'Applied a draft',
-        );
-        expect(changeTitle({ source: 'undo', question: null })).toBe(
-            'Undid an earlier change',
-        );
+        expect(
+            changeTitle({ source: 'draft', question: null, ...contents }),
+        ).toBe('Changed label and sql of m');
+        expect(
+            changeTitle({
+                source: 'draft',
+                question: null,
+                contentBefore: null,
+                contentAfter: contents.contentAfter,
+            }),
+        ).toBe('Published a new model');
+        expect(
+            changeTitle({ source: 'undo', question: null, ...contents }),
+        ).toBe('Undid an earlier change');
     });
 
     it('tells a creation and a removal from an edit', () => {

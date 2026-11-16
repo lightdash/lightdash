@@ -646,7 +646,7 @@ const ChartActionsMenu: FC<Props> = ({
             )}
             {isSyncWithGoogleSheetsModalOpen && (
                 <GoogleSheetsSyncModal
-                    chartUuid={savedChart.uuid}
+                    chart={savedChart}
                     opened={isSyncWithGoogleSheetsModalOpen}
                     onClose={syncWithGoogleSheetsModalHandlers.close}
                 />

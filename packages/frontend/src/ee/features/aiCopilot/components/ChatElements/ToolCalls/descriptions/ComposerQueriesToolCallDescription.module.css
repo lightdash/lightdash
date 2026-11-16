@@ -50,3 +50,7 @@
 .body {
     padding: 2px 0 6px 21px;
 }
+
+.mergeValue {
+    color: var(--mantine-color-text);
+}

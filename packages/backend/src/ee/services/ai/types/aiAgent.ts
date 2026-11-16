@@ -127,6 +127,12 @@ export type AgentLiveSource = {
     connectionUuid: string;
     name: string;
     connector: ApiConnectorType;
+    /** The explores this source answers with, as the agent queries them. */
+    exploreNames: string[];
+    /** What the source reads, such as its site or property. */
+    target: string;
+    /** What an admin says this source is for. */
+    hint: string | null;
 };
 
 export type AiAgentMcpServer = AiMcpServer & {
@@ -239,6 +245,15 @@ export type AiAgentDeepResearchRunContext = {
     hasReport: boolean;
 };
 
+export type CustomSqlPermissions = {
+    // manage:CustomSql, and SQL mode on so the SQL chart gate allows saves.
+    canSaveSqlCharts: boolean;
+    // manage:CustomFields: custom SQL dimensions and hand-written custom metrics.
+    canAuthorCustomSqlFields: boolean;
+    // manage:CustomSqlTableCalculations.
+    canAuthorSqlTableCalculations: boolean;
+};
+
 export type AiAgentArgs = AnyAiModel & {
     decisions?: AiDecisionClient;
     decisionUsage?: AiDecisionUsage;
@@ -299,6 +314,8 @@ export type AiAgentArgs = AnyAiModel & {
     enableEditProjectContext: boolean;
     // A thread started in Semantic Studio: it drafts model changes and builds no content.
     isSemanticStudioThread: boolean;
+    // Whether that thread proposes into a draft; false on a dbt project, where it edits the repository.
+    semanticStudioDrafts: boolean;
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
@@ -306,9 +323,11 @@ export type AiAgentArgs = AnyAiModel & {
     // The thread owns at least one attached document, so readAttachments is
     // registered.
     enableReadAttachments: boolean;
+    // A web app thread whose UI renders askUser questions, so the tool is offered.
+    enableAskUser: boolean;
     enableFilterExpressions: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
-    // null when repo discovery is off or the project is not git-backed.
+    // null when repo discovery is off or there is no /dbt mount.
     repoFsRoot: string | null;
     // Whether the repo host has server-side code search (GitHub yes, GitLab no).
     // Drives whether the prompt tells the agent to use `search`.
@@ -327,6 +346,8 @@ export type AiAgentArgs = AnyAiModel & {
     // Gates createScheduledDelivery the same way, so a role without
     // create:ScheduledDeliveries keeps content tools but loses scheduling.
     canCreateScheduledDeliveries: boolean;
+    // Prompt wording only: the content tools prompt warns about each one that is false.
+    customSqlPermissions: CustomSqlPermissions;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
     // When the modern Slack streaming card is driving progress, tools render

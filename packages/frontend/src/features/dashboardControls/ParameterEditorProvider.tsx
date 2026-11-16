@@ -5,9 +5,7 @@ import {
 import { VisuallyHidden } from '@mantine/core';
 import { isEqual } from 'es-toolkit/compat';
 import {
-    useEffect,
     useMemo,
-    useRef,
     useState,
     type FC,
     type ReactNode,
@@ -24,13 +22,12 @@ import {
     useDashboardSelector,
     useDashboardStore,
 } from '../dashboard/store';
+import { EditorFocusReturn, type FocusTarget } from './EditorFocusReturn';
 import { ParameterBarProvider } from './ParameterBarProvider';
 import {
     addNeedsValueControl,
     moveParameterControl,
-    PARAMETER_PILL_ACTION_SELECTOR,
     PARAMETER_PILL_ATTRIBUTE,
-    PARAMETER_PILL_SELECTOR,
     withControlSection,
     type ParameterControlDropTarget,
 } from './parameterControlsBar';
@@ -41,8 +38,7 @@ import {
     type ParameterTileChange,
 } from './parameterPeers';
 import { useOrderSectionChanges } from './useControlOrder';
-import { type FieldApply } from './useControlsSidebar';
-import { useEditorDismiss } from './useEditorDismiss';
+import { useEditorSession, type EditSession } from './useEditorSession';
 import { type ParameterBarEntry } from './useParameterBarControls';
 import {
     ParameterEditorContext,
@@ -52,45 +48,26 @@ import {
 } from './useParameterEditor';
 import { useParameterMappingModel } from './useParameterMapping';
 
-// What switches away from an open control: another control's pill, a
-// filter's pill or "Add filter"
-const FILTER_TARGET_SELECTOR =
-    '[data-controls-pill], [data-filter-actions] > button[data-dashboard-filter-control]';
-const APPLY_SELECTOR = '[data-controls-editor] [data-controls-apply]';
-const focusApply = () =>
-    document.querySelector<HTMLElement>(APPLY_SELECTOR)?.focus();
-
-const ADD_SELECTOR =
-    '[data-filter-actions] > button[data-dashboard-filter-control]';
-
 type OpenedEntry = Pick<
     ParameterBarEntry,
     'control' | 'isNeedsValue' | 'parameterKeys' | 'tileUuids'
 >;
 
-type EditState = {
-    id: string;
+type EditState = EditSession<DashboardParameterControl[]> & {
     isNeedsValue: boolean;
-    // Started from "Add": not on the bar until Apply
-    isNew: boolean;
     /** Its keys and tiles as opened: a "needs a value" or new control's are the ones Apply sets. */
     parameterKeys: string[];
     tileUuids: string[];
-    // The mode it started in: a mode change ends it, as Cancel
-    isViewer: boolean;
     snapshot: DashboardParameterControl;
     draft: DashboardParameterControl;
     draftControls: DashboardParameterControl[] | null;
     snapshotControls: DashboardParameterControl[] | null;
-    mapping: {
-        start: DashboardParameterControl[];
-        selectedKey: string | null;
-        hoveredKey: string | null;
-        undo: {
-            controls: DashboardParameterControl[];
-            change: FieldApply;
-        } | null;
-    } | null;
+    mapping:
+        | (NonNullable<EditSession<DashboardParameterControl[]>['mapping']> & {
+              selectedKey: string | null;
+              hoveredKey: string | null;
+          })
+        | null;
 };
 
 // The section is no edit: it moves on the dashboard at once, as a filter's
@@ -113,31 +90,18 @@ const findPill = (id: string) =>
         `[${PARAMETER_PILL_ATTRIBUTE}="${id}"]`,
     );
 
-type FocusTarget = { pillId: string; sectionId?: string };
-
-// The pill and this reader update together after the editor closes.
-const ParameterFocusReturn: FC<{
-    target: RefObject<FocusTarget | null>;
-}> = ({ target }) => {
-    const isOpen = useParameterEditorSelector(
-        (editor) => editor.editingId !== null,
+// A reader of the context, so it runs once the pills have updated
+const ParameterFocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
+    target,
+}) => {
+    const isOpen = useParameterEditorSelector((c) => c.editingId !== null);
+    return (
+        <EditorFocusReturn
+            isOpen={isOpen}
+            target={target}
+            findPill={findPill}
+        />
     );
-    useEffect(() => {
-        const current = target.current;
-        if (isOpen || current === null) return;
-        target.current = null;
-        const sectionAdd = current.sectionId
-            ? document.querySelector<HTMLElement>(
-                  `[data-section-add="${current.sectionId}"]`,
-              )
-            : null;
-        (
-            findPill(current.pillId) ??
-            sectionAdd ??
-            document.querySelector<HTMLElement>(ADD_SELECTOR)
-        )?.focus();
-    }, [isOpen, target]);
-    return null;
 };
 
 // One parameter control edited at a time, beside the filter editor: the
@@ -162,17 +126,6 @@ export const ParameterEditorProvider: FC<{
             (controls ?? []).some(({ id }) => id === state.id))
             ? state
             : null;
-    // What follows once "Apply changes first?" is answered
-    const [pending, setPending] = useState<{ proceed: () => void } | null>(
-        null,
-    );
-    const isAsking = edit !== null && pending !== null;
-    const latest = useRef(edit);
-    latest.current = edit;
-    const latestPending = useRef(pending);
-    latestPending.current = isAsking ? pending : null;
-    // The pill that takes focus once the popover has gone, else "Add"
-    const focusReturn = useRef<FocusTarget | null>(null);
     const [announcement, setAnnouncement] = useState({ text: '', count: 0 });
 
     const writeControls = (
@@ -186,28 +139,11 @@ export const ParameterEditorProvider: FC<{
         if (next !== current)
             dispatch(dashboardParametersActions.setParameterControls(next));
     };
-    const end = (focusId: string | null) => {
-        const current = latest.current;
-        focusReturn.current =
-            focusId === null
-                ? null
-                : {
-                      pillId: focusId,
-                      sectionId: current?.isNew
-                          ? current.snapshot.sectionId
-                          : undefined,
-                  };
-        latest.current = null;
-        latestPending.current = null;
-        setState(null);
-        setPending(null);
-    };
     const start = (
         { control, isNeedsValue, parameterKeys, tileUuids }: OpenedEntry,
         isNew = false,
     ) => {
-        setPending(null);
-        setState({
+        session.begin({
             id: control.id,
             isNeedsValue,
             isNew,
@@ -240,24 +176,13 @@ export const ParameterEditorProvider: FC<{
         };
     };
 
-    const cancel = useStableCallback(() => {
-        const current = latest.current;
-        if (current === null) return;
-        end(current.id);
-    });
-
-    const apply = useStableCallback(() => {
-        const current = latest.current;
-        if (current === null) return;
+    const applyEdit = (current: EditState): string | null => {
         const { draft } = current;
         const saved = store.getState().parameters.parameterControls;
-        if (!current.isViewer && saved === null) return;
+        if (!current.isViewer && saved === null) return null;
         const [needsValueKey] = current.parameterKeys;
         if (current.isViewer) {
-            if (!isDirty(current)) {
-                end(current.id);
-                return;
-            }
+            if (!isDirty(current)) return current.id;
             if (
                 current.isNeedsValue &&
                 getControlledKeys(saved ?? []).has(needsValueKey)
@@ -282,8 +207,7 @@ export const ParameterEditorProvider: FC<{
                     }),
                 );
             }
-            end(current.id);
-            return;
+            return current.id;
         }
         if (
             current.draftControls !== null &&
@@ -293,7 +217,7 @@ export const ParameterEditorProvider: FC<{
             const mapped = current.draftControls.find(
                 (item) => item.id === draft.id,
             );
-            if (!mapped) return;
+            if (!mapped) return null;
             writeControls((list) => {
                 const merged = list.map((item) => {
                     const before = current.snapshotControls!.find(
@@ -333,21 +257,18 @@ export const ParameterEditorProvider: FC<{
                       ]
                     : merged;
             });
-            end(id);
-            return;
+            return id;
         }
         if (current.isNeedsValue) {
             const added = { ...draft, id: uuidv4() };
             writeControls((list) =>
                 addNeedsValueControl(list, added, current.tileUuids),
             );
-            end(added.id);
-            return;
+            return added.id;
         }
         if (current.isNew) {
             writeControls((list) => [...list, draft]);
-            end(draft.id);
-            return;
+            return draft.id;
         }
         if (isDirty(current))
             writeControls((list) =>
@@ -358,93 +279,45 @@ export const ParameterEditorProvider: FC<{
                         : control,
                 ),
             );
-        end(current.id);
-    });
+        return current.id;
+    };
 
-    const open = useStableCallback((entry: OpenedEntry) => {
+    const selectKey = useStableCallback((key: string | null) => {
         const current = latest.current;
-        if (current?.id === entry.control.id) {
-            if (isDirty(current)) {
-                focusApply();
-                return;
-            }
-            cancel();
-            return;
-        }
-        // Another control: a clean edit switches, else the popover asks
-        if (current !== null && isDirty(current)) {
-            setPending({ proceed: () => start(entry) });
-            focusApply();
-            return;
-        }
-        start(entry);
+        if (current?.mapping)
+            setState({
+                ...current,
+                mapping: { ...current.mapping, selectedKey: key },
+            });
     });
+    const clearKey = useStableCallback(() => selectKey(null));
+
+    const session = useEditorSession<EditState, DashboardParameterControl[]>({
+        kind: 'parameter',
+        isViewer,
+        state,
+        edit,
+        setState,
+        isDirty,
+        applyEdit,
+        getMappingDraft: (current) => current.draftControls,
+        withMappingDraft: (current, draftControls) => ({
+            ...current,
+            draftControls,
+        }),
+        isFieldClicked: (edit?.mapping?.selectedKey ?? null) !== null,
+        clearField: clearKey,
+    });
+    const { latest, isAsking, apply, cancel, resolvePending } = session;
+    const { endMapping, cancelMapping, undoMapping } = session;
+
+    const open = useStableCallback((entry: OpenedEntry) =>
+        session.open(entry.control.id, () => start(entry)),
+    );
 
     const add = useStableCallback((entry: NewParameterControl) =>
         start({ ...entry, isNeedsValue: false }, true),
     );
-
-    // The prompt's answer: Apply or Discard, then what was clicked. The
-    // next editor takes focus, not this control's pill
-    const resolvePending = useStableCallback((isApply: boolean) => {
-        const next = latestPending.current;
-        if (next === null) return;
-        if (isApply) apply();
-        else cancel();
-        focusReturn.current = null;
-        next.proceed();
-    });
-
-    // Escape: a question is withdrawn, else the edit is cancelled
-    const dismiss = useStableCallback(() => {
-        if (latest.current?.mapping) {
-            if (
-                isEqual(
-                    latest.current.mapping.start,
-                    latest.current.draftControls,
-                )
-            )
-                endMapping();
-            return;
-        }
-        if (latestPending.current === null) {
-            cancel();
-            return;
-        }
-        setPending(null);
-        setTimeout(() =>
-            document
-                .querySelector<HTMLElement>('[data-controls-editor] input')
-                ?.focus(),
-        );
-    });
-
-    // A filter's pill or "Add filter" while a control is edited: a clean edit
-    // closes and the click goes on; with unapplied changes the popover asks,
-    // and the click is replayed once it is answered
-    const isOpenForCapture = edit !== null;
-    useEffect(() => {
-        if (!isOpenForCapture) return undefined;
-        const handleClick = (event: MouseEvent) => {
-            const current = latest.current;
-            const target =
-                event.target instanceof Element
-                    ? event.target.closest<HTMLElement>(FILTER_TARGET_SELECTOR)
-                    : null;
-            if (current === null || target === null) return;
-            if (!isDirty(current)) {
-                cancel();
-                focusReturn.current = null;
-                return;
-            }
-            event.preventDefault();
-            event.stopPropagation();
-            setPending({ proceed: () => target.click() });
-            focusApply();
-        };
-        document.addEventListener('click', handleClick, true);
-        return () => document.removeEventListener('click', handleClick, true);
-    }, [isOpenForCapture, cancel]);
 
     const update = useStableCallback((next: DashboardParameterControl) => {
         const current = latest.current;
@@ -490,50 +363,19 @@ export const ParameterEditorProvider: FC<{
             },
         });
     });
-    const endMapping = useStableCallback(() => {
-        const current = latest.current;
-        if (current?.mapping) setState({ ...current, mapping: null });
-    });
-    const cancelMapping = useStableCallback(() => {
-        const current = latest.current;
-        if (current?.mapping)
-            setState({
-                ...current,
-                draftControls: current.mapping.start,
-                mapping: null,
-            });
-    });
     const changeMapping = (
         next: DashboardParameterControl[],
         fieldId: string,
         kind: 'clear' | 'apply',
         tileCount: number,
-    ) => {
-        const current = latest.current;
-        if (
-            !current?.mapping ||
-            !current.draftControls ||
-            next === current.draftControls
-        )
-            return;
-        setState({
-            ...current,
-            draftControls: next,
-            mapping: {
-                ...current.mapping,
-                undo: {
-                    controls: current.draftControls,
-                    change: {
-                        kind,
-                        fieldId,
-                        tileCount,
-                        replaced: 0,
-                        acrossTabs: true,
-                    },
-                },
-            },
+    ) =>
+        session.changeMapping(next, {
+            kind,
+            fieldId,
+            tileCount,
+            replaced: 0,
+            acrossTabs: true,
         });
-    };
     const setTiles = useStableCallback((changes: ParameterTileChange[]) => {
         const current = latest.current;
         if (!current?.mapping || !current.draftControls) return;
@@ -593,23 +435,6 @@ export const ParameterEditorProvider: FC<{
             tileUuids.length,
         );
     });
-    const undoMapping = useStableCallback(() => {
-        const current = latest.current;
-        if (current?.mapping?.undo)
-            setState({
-                ...current,
-                draftControls: current.mapping.undo.controls,
-                mapping: { ...current.mapping, undo: null },
-            });
-    });
-    const selectKey = useStableCallback((key: string | null) => {
-        const current = latest.current;
-        if (current?.mapping)
-            setState({
-                ...current,
-                mapping: { ...current.mapping, selectedKey: key },
-            });
-    });
     const hoverKey = useStableCallback((key: string | null) => {
         const current = latest.current;
         if (current?.mapping && current.mapping.hoveredKey !== key)
@@ -662,49 +487,11 @@ export const ParameterEditorProvider: FC<{
         },
     );
 
-    const remove = useStableCallback((id: string) => {
-        if (latest.current?.id === id) setState(null);
-        focusReturn.current = null;
-        dispatch(dashboardParametersActions.removeParameterControl(id));
-        setTimeout(() =>
-            document.querySelector<HTMLElement>(ADD_SELECTOR)?.focus(),
-        );
-    });
-
-    // A mode change ends the edit it started in, as the filter editor's:
-    // an editor's is applied, a viewer's (only picks) dropped.
-    // The one effect that writes the store
-    const unsettled = useRef(state);
-    unsettled.current = state;
-    const lastIsViewer = useRef(isViewer);
-    useEffect(() => {
-        if (lastIsViewer.current === isViewer) return;
-        lastIsViewer.current = isViewer;
-        const previous = unsettled.current;
-        if (previous === null) return;
-        if (!previous.isViewer) {
-            latest.current = previous;
-            latestPending.current = null;
-            apply();
-        }
-        end(null);
-    }, [isViewer, apply]);
-
-    const dismissOutside = useStableCallback(() => {
-        if (!latest.current?.mapping) cancel();
-    });
-    const clearKey = useStableCallback(() => selectKey(null));
-
-    useEditorDismiss({
-        isOpen: edit !== null,
-        isFieldClicked: (edit?.mapping?.selectedKey ?? null) !== null,
-        isAsking,
-        isPristineNew: false,
-        clearField: clearKey,
-        dismiss,
-        dismissOutside,
-        pillSelector: `${PARAMETER_PILL_SELECTOR}, ${PARAMETER_PILL_ACTION_SELECTOR}, ${FILTER_TARGET_SELECTOR}`,
-    });
+    const remove = useStableCallback((id: string) =>
+        session.remove(id, () =>
+            dispatch(dashboardParametersActions.removeParameterControl(id)),
+        ),
+    );
 
     const mapping = useParameterMappingModel({
         isMapping: edit?.mapping != null,
@@ -779,7 +566,7 @@ export const ParameterEditorProvider: FC<{
     return (
         <ParameterEditorContext.Provider value={value}>
             <ParameterBarProvider>{children}</ParameterBarProvider>
-            <ParameterFocusReturn target={focusReturn} />
+            <ParameterFocusReturn target={session.focusReturn} />
             {/* Moves happen with controls on (the flag), in edit mode */}
             {!isViewer && controls !== null && (
                 // Not a second `status` role: the filter moves own that one

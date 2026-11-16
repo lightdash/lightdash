@@ -9,7 +9,7 @@ import { z } from 'zod';
 import {
     getSlackTableBlocks,
     SLACK_TABLE_MAX_ROWS,
-    splitSlackTableMessage,
+    splitSlackDataMessage,
     type SlackTablePreview,
 } from './slackTableBlocks';
 
@@ -273,7 +273,12 @@ describe('getSlackTableBlocks', () => {
     });
 });
 
-describe('splitSlackTableMessage', () => {
+describe('splitSlackDataMessage', () => {
+    const chart = { type: 'data_visualization' };
+    const buttons = { type: 'actions', elements: [] };
+    const card = { type: 'card' };
+    const feedback = { type: 'context_actions', elements: [] };
+
     it('moves native tables and everything after them into their own message', () => {
         const citation = { type: 'rich_text', elements: [] };
         const unavailable = getSlackTableBlocks([
@@ -282,21 +287,41 @@ describe('splitSlackTableMessage', () => {
         const tables = getSlackTableBlocks([
             preview([{ month: 'September', revenue: 1200 }]),
         ]);
-        const card = { type: 'carousel', elements: [] };
+        const carousel = { type: 'carousel', elements: [] };
 
         expect(
-            splitSlackTableMessage([citation, ...unavailable, ...tables, card]),
+            splitSlackDataMessage([
+                citation,
+                ...unavailable,
+                ...tables,
+                carousel,
+            ]),
         ).toEqual({
             withAnswer: [citation, ...unavailable],
-            tableMessage: [...tables, card],
+            dataMessage: [...tables, carousel],
         });
     });
 
-    it('keeps every block with the answer when there is no native table', () => {
-        const blocks = [{ type: 'carousel', elements: [] }];
-        expect(splitSlackTableMessage(blocks)).toEqual({
-            withAnswer: blocks,
-            tableMessage: null,
+    it('posts native charts apart from the answer', () => {
+        const blocks = [chart, buttons, chart, buttons, card, feedback];
+        expect(splitSlackDataMessage(blocks)).toEqual({
+            withAnswer: [],
+            dataMessage: blocks,
         });
+    });
+
+    it('keeps answer text out of the data message', () => {
+        const text = { type: 'markdown', text: 'note' };
+        expect(splitSlackDataMessage([chart, text, feedback])).toEqual({
+            withAnswer: [text],
+            dataMessage: [chart, feedback],
+        });
+    });
+
+    it('keeps every block with the answer without native tables or charts', () => {
+        const blocks = [{ type: 'carousel', elements: [] }, feedback];
+        const split = splitSlackDataMessage(blocks);
+        expect(split.withAnswer).toBe(blocks);
+        expect(split.dataMessage).toBeNull();
     });
 });

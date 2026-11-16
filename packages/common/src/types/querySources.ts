@@ -1,12 +1,19 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type QueryExecutionContext } from './analytics';
 import { type UUID } from './api/uuid';
+import { ParameterError } from './errors';
 import {
     type CustomDimension,
     type DimensionType,
     type FieldId,
     type TableCalculation,
 } from './field';
+import {
+    type MergeJoinKeyPart,
+    type MergeJoinType,
+    type MergeTableCalculation,
+    type MetricSourcedMergeQuery,
+} from './mergeQuery';
 import {
     type AdditionalMetric,
     type DimensionOverrides,
@@ -50,6 +57,8 @@ export enum QuerySourceType {
     PYTHON = 'python',
     /** A query sent live to an external API, such as HogQL to PostHog. */
     API = 'api',
+    /** A declared join of semanticLayer nodes, run through the merge compiler. */
+    MERGE = 'merge',
 }
 
 /** The external APIs an api query source can call live. */
@@ -291,6 +300,39 @@ export type ApiSourceQuery = {
     pivotConfiguration?: PivotConfiguration;
 };
 
+/** One input of a merge node: a semanticLayer node of the same submission. */
+export type MergeSourceQueryInput = {
+    nodeId: QueryNodeId;
+    /** See MergeQueryMetricSource.repeatValues. */
+    repeatValues?: boolean;
+};
+
+/**
+ * semanticLayer nodes joined on shared keys; the nodes are the legs, read as they ran.
+ * Columns are `<nodeId>_<fieldId>`, and `merge_<name>` for keys and calculations.
+ */
+export type MergeSourceQuery = {
+    sourceType: QuerySourceType.MERGE;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
+    /** At least two semanticLayer nodes, in order; a left join keeps the first one's rows. */
+    sources: MergeSourceQueryInput[];
+    /** Join key parts, each naming one field per source by node id. */
+    joinKey: MergeJoinKeyPart[];
+    joinType: MergeJoinType;
+    /** Calculations over the merged row. Defaults to none. */
+    tableCalculations?: MergeTableCalculation[];
+    /** Sort of the merged result, by merged column id. Defaults to join-key order. */
+    sorts?: SortField[];
+    limit?: number;
+    /** Merge queries refuse a pivot; pivot in a referencing duckdb query. */
+    pivotConfiguration?: PivotConfiguration;
+};
+
 /**
  * The tagged union every submit endpoint takes: one shape per source,
  * discriminated by sourceType. New sources add a member here — this union is
@@ -302,7 +344,8 @@ export type SourceQuery =
     | DuckdbSourceQuery
     | ExternalSourceQuery
     | PythonSourceQuery
-    | ApiSourceQuery;
+    | ApiSourceQuery
+    | MergeSourceQuery;
 
 /** A column in a source schema, aligned with ResultColumns' {reference, type}. */
 export type QuerySourceSchemaColumn = {
@@ -437,6 +480,10 @@ export const getSourceQueryResultReferences = (
                       query.references.map((nodeId) => [nodeId, nodeId]),
                   )
                 : query.references;
+        case QuerySourceType.MERGE:
+            return Object.fromEntries(
+                query.sources.map(({ nodeId }) => [nodeId, nodeId]),
+            );
         case QuerySourceType.SEMANTIC_LAYER:
         case QuerySourceType.SQL:
         case QuerySourceType.EXTERNAL:
@@ -446,3 +493,52 @@ export const getSourceQueryResultReferences = (
             return assertUnreachable(query, 'Unknown source type');
     }
 };
+
+/** The merge a merge node runs, sources under their node ids; null when one is not a semanticLayer node. */
+export const getMergeNodeMergeQuery = (
+    node: MergeSourceQuery,
+    nodes: SourceQuery[],
+): MetricSourcedMergeQuery | null => {
+    const sources = node.sources.map(({ nodeId, repeatValues }) => {
+        const source = nodes.find((candidate) => candidate.nodeId === nodeId);
+        return source?.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? {
+                  id: nodeId,
+                  metricQuery: metricQueryOfSemanticNode(source),
+                  ...(repeatValues ? { repeatValues: true } : {}),
+              }
+            : null;
+    });
+    if (sources.some((source) => source === null)) return null;
+    return {
+        sources: sources.filter((source) => source !== null),
+        joinKey: node.joinKey,
+        joinType: node.joinType,
+        tableCalculations: node.tableCalculations ?? [],
+        sorts: node.sorts ?? [],
+        limit: getSourceQueryLimit(node),
+    };
+};
+
+/** The parameters a merge node compiles with: its sources' own, which must agree. */
+export const getMergeNodeParameters = (
+    node: MergeSourceQuery,
+    nodes: SourceQuery[],
+): ParametersValuesMap =>
+    node.sources.reduce<ParametersValuesMap>((merged, { nodeId }) => {
+        const source = nodes.find((candidate) => candidate.nodeId === nodeId);
+        if (source?.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
+            return merged;
+        }
+        Object.entries(source.parameters ?? {}).forEach(([name, value]) => {
+            if (
+                name in merged &&
+                JSON.stringify(merged[name]) !== JSON.stringify(value)
+            ) {
+                throw new ParameterError(
+                    `Merge node "${node.nodeId}" reads nodes that set parameter "${name}" differently. Give every source of the merge the same value for it.`,
+                );
+            }
+        });
+        return { ...merged, ...source.parameters };
+    }, {});

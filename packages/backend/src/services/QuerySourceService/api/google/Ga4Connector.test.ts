@@ -97,7 +97,7 @@ describe('Ga4Connector', () => {
                 bounceRate: null,
             },
         ]);
-        expect(result.truncated).toBe(true);
+        expect(result.hasMoreRows).toBe(true);
     });
 
     it('reports truncation from rowCount when the page is full', async () => {
@@ -111,7 +111,7 @@ describe('Ga4Connector', () => {
 
         const result = await connector.execute(query(request));
 
-        expect(result.truncated).toBe(false);
+        expect(result.hasMoreRows).toBe(false);
         expect(
             (
                 await createConnector(
@@ -121,7 +121,7 @@ describe('Ga4Connector', () => {
                         rowCount: 500,
                     }),
                 ).connector.execute(query(request))
-            ).truncated,
+            ).hasMoreRows,
         ).toBe(true);
     });
 
@@ -136,7 +136,7 @@ describe('Ga4Connector', () => {
             offset: 0,
         });
         expect(result.rows).toHaveLength(1);
-        expect(result.truncated).toBe(true);
+        expect(result.hasMoreRows).toBe(true);
     });
 
     it('returns no rows for an empty report', async () => {
@@ -152,7 +152,7 @@ describe('Ga4Connector', () => {
         );
 
         expect(result.rows).toEqual([]);
-        expect(result.truncated).toBe(false);
+        expect(result.hasMoreRows).toBe(false);
     });
 
     it.each([

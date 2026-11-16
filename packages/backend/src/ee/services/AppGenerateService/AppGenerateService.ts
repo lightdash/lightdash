@@ -26,6 +26,7 @@ import {
     ContentType,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_CODEX_MODELS,
+    DATA_APP_NEWER_VERSION_CODE,
     DATA_APP_VIZ_TEMPLATE,
     DATA_REFERENCE_EXTRACTOR_VERSION,
     dataAppManifestRegistryProvenanceSchema,
@@ -44,6 +45,7 @@ import {
     formatPromptWithClarifications,
     getContentAsCodePathFromLtreePath,
     getCustomSqlFieldKey,
+    getDataAppConsumerAccess,
     getDataAppVizPreviewSchema,
     getDocumentRuntimeChartConfig,
     getEffectiveFieldAiHints,
@@ -55,6 +57,7 @@ import {
     isDashboardChartTileType,
     isExploreError,
     isExploreIncludedInTableSelection,
+    isExternalFetchComposerChartContext,
     isExternalFetchDocumentContext,
     isSemverVersion,
     isValidDataAppSlug,
@@ -117,6 +120,7 @@ import {
     type DataAppCodingAgent,
     type DataAppCodingAgentModel,
     type DataAppCompactionResult,
+    type DataAppConsumerAccess,
     type DataAppContext,
     type DataAppCreationExperience,
     type DataAppDependencies,
@@ -236,6 +240,7 @@ import {
 import { logAgentContentWrite } from '../../../services/AiAccessService/logAgentContentWrite';
 import { BaseService } from '../../../services/BaseService';
 import type { CoderService } from '../../../services/CoderService/CoderService';
+import type { ComposerChartService } from '../../../services/ComposerChartService/ComposerChartService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
 import type { DocumentService } from '../../../services/DocumentService/DocumentService';
 import { omittedThemeFontGuidance } from '../../../services/OrganizationDesignService/restrictedAppleFonts';
@@ -301,6 +306,10 @@ import {
     promptHistoryToMarkdown,
     SEMANTIC_LAYER_POINTER_FILE,
 } from './appContext';
+import {
+    assertDataAppQueryAllowed,
+    type DataAppQueryInputs,
+} from './appQueryAuthorization';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
@@ -491,6 +500,13 @@ type AppGenerateServiceDeps = {
     spacePermissionService: SpacePermissionService;
     coderService: CoderService;
     documentService: DocumentService;
+    composerChartService: Pick<
+        ComposerChartService,
+        | 'get'
+        | 'countUsingDataAppViz'
+        | 'repinUsingDataAppViz'
+        | 'remapPreviewDataAppVizs'
+    >;
     dashboardService: DashboardService;
     projectService: ProjectService;
     promoteService: PromoteService;
@@ -777,8 +793,12 @@ const CANCELLED_PROMPT_NOTICE =
 
 /** Prepended to the build prompt when the builder's org has saved app state. */
 export const APP_STATE_PROMPT_BLOCK =
-    '[Saved app state is available — this app can remember what each person enters with useAppState and keep values every viewer shares, with a change history, with useSharedAppState. ' +
-    'Read /app/references/app-state.md before building anything that should survive a reload. ' +
+    // No hook names here: this block also reaches sandboxes resumed with an
+    // older bundled SDK, where a newer call form would silently misbehave
+    // (e.g. a pre-scopes SDK saves a { scope: 'shared' } value per person).
+    // /app/references/app-state.md is baked next to the SDK it documents.
+    '[Saved app state is available — this app can remember what each person enters and keep values every viewer shares, with a change history. ' +
+    'Read /app/references/app-state.md before building anything that should survive a reload, and use exactly the hook forms it shows. ' +
     'Remember a person\'s inputs by default without being asked; use shared state only when the prompt asks for comments, targets, annotations, or anything "everyone" or "the team" sees.]\n\n';
 
 // Maximum number of in-progress app builds allowed per project at one time.
@@ -848,6 +868,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly documentService: DocumentService;
 
+    private readonly composerChartService: AppGenerateServiceDeps['composerChartService'];
+
     private readonly dashboardService: DashboardService;
 
     private readonly projectService: ProjectService;
@@ -903,6 +925,7 @@ export class AppGenerateService extends BaseService {
         spacePermissionService,
         coderService,
         documentService,
+        composerChartService,
         dashboardService,
         projectService,
         promoteService,
@@ -937,6 +960,7 @@ export class AppGenerateService extends BaseService {
         this.spacePermissionService = spacePermissionService;
         this.coderService = coderService;
         this.documentService = documentService;
+        this.composerChartService = composerChartService;
         this.dashboardService = dashboardService;
         this.projectService = projectService;
         this.promoteService = promoteService;
@@ -8750,6 +8774,11 @@ export class AppGenerateService extends BaseService {
             newVersion,
             source.data_references,
         );
+        await this.freezeConsumerDataReferences(
+            appUuid,
+            newVersion,
+            source.consumer_data_references,
+        );
         await this.appModel.updateStatusMessage(
             appUuid,
             newVersion,
@@ -9395,6 +9424,11 @@ export class AppGenerateService extends BaseService {
                 targetVersion,
                 sourceVersion.data_references,
             );
+            await this.freezeConsumerDataReferences(
+                targetAppUuid,
+                targetVersion,
+                sourceVersion.consumer_data_references,
+            );
             await this.appModel.updateStatusMessage(
                 targetAppUuid,
                 targetVersion,
@@ -9725,6 +9759,11 @@ export class AppGenerateService extends BaseService {
                 newVersion,
                 sourceVersion.data_references,
             );
+            await this.freezeConsumerDataReferences(
+                newAppUuid,
+                newVersion,
+                sourceVersion.consumer_data_references,
+            );
             await this.linkResolvedExternalConnections(
                 newAppUuid,
                 externalConnectionResources,
@@ -9866,6 +9905,10 @@ export class AppGenerateService extends BaseService {
             previewProjectUuid,
             mappings,
         );
+        await this.composerChartService.remapPreviewDataAppVizs(
+            previewProjectUuid,
+            mappings,
+        );
 
         this.logger.info(
             `Preview duplication: copied ${mappings.length}/${sourceApps.length} data app(s) from project ${sourceProjectUuid} into preview ${previewProjectUuid}`,
@@ -9992,6 +10035,11 @@ export class AppGenerateService extends BaseService {
                 newAppUuid,
                 newVersion,
                 sourceVersion.data_references,
+            );
+            await this.freezeConsumerDataReferences(
+                newAppUuid,
+                newVersion,
+                sourceVersion.consumer_data_references,
             );
             // Link back to the upstream app so a later promote updates it
             // instead of creating a duplicate.
@@ -10211,6 +10259,7 @@ export class AppGenerateService extends BaseService {
         latestReadyVersion: number | null;
         latestReadyVersionUsesAiAnalysis: boolean | null;
         latestReadyVersionHasAnalyzableData: boolean | null;
+        latestReadyVersionConsumerAccess: DataAppConsumerAccess | null;
         addAnalysisDismissed: boolean;
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
@@ -10276,6 +10325,21 @@ export class AppGenerateService extends BaseService {
                   return null;
               })
             : null;
+        // Only for people who can act on it, and only while the organization
+        // has consumer access on. Reads the frozen snapshot, which is what
+        // consumer queries are checked against.
+        const showConsumerAccess =
+            latestReady !== null &&
+            this.createAuditedAbility(user).can(
+                'manage',
+                subject('DataApp', appAuthorization),
+            ) &&
+            (
+                await this.featureFlagModel.get({
+                    featureFlagId: FeatureFlags.DataAppConsumerAccess,
+                    user: { organizationUuid, userUuid: user.userUuid },
+                })
+            ).enabled;
         const verification = await this.contentVerificationModel.getByContent(
             ContentType.DATA_APP,
             appUuid,
@@ -10376,6 +10440,12 @@ export class AppGenerateService extends BaseService {
                           ref.kind === 'query' || ref.kind === 'savedChart',
                   )
                 : null,
+            latestReadyVersionConsumerAccess:
+                showConsumerAccess && latestReady
+                    ? getDataAppConsumerAccess(
+                          latestReady.consumer_data_references ?? null,
+                      )
+                    : null,
             addAnalysisDismissed: addAnalysisDismissedAt !== null,
             registrySlug,
             // An icon retired from the curated set reads back as no icon.
@@ -10850,6 +10920,29 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    /** Moves saved charts in place and appends a version to composer charts; older composer versions keep their pin. */
+    private async repinConsumersOfDataAppViz(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        version: number,
+    ): Promise<number> {
+        const savedChartCount =
+            await this.savedChartModel.repinChartsUsingDataAppViz(
+                projectUuid,
+                appUuid,
+                version,
+            );
+        const composerChartCount =
+            await this.composerChartService.repinUsingDataAppViz(
+                projectUuid,
+                appUuid,
+                version,
+                user.userUuid,
+            );
+        return savedChartCount + composerChartCount;
+    }
+
     /**
      * Installs (or appends) one resolved registry version into a project.
      * Shared by the library install (latest index entry) and content-as-code
@@ -10925,7 +11018,8 @@ export class AppGenerateService extends BaseService {
             // With nothing new to install the sweep still applies: a
             // concurrent admin may have upgraded without moving charts.
             const upgradedChartCount = options.upgradeConsumingCharts
-                ? await this.savedChartModel.repinChartsUsingDataAppViz(
+                ? await this.repinConsumersOfDataAppViz(
+                      user,
                       projectUuid,
                       existing.app_id,
                       latest!.version,
@@ -11083,7 +11177,8 @@ export class AppGenerateService extends BaseService {
         const action = existing && !revived ? 'upgraded' : 'installed';
         // Fresh installs have no consumers, so the sweep is a no-op there.
         const upgradedChartCount = options.upgradeConsumingCharts
-            ? await this.savedChartModel.repinChartsUsingDataAppViz(
+            ? await this.repinConsumersOfDataAppViz(
+                  user,
                   projectUuid,
                   appUuid,
                   version,
@@ -11147,12 +11242,17 @@ export class AppGenerateService extends BaseService {
             'Insufficient permissions to delete this chart type',
         );
 
-        return {
-            chartCount: await this.savedChartModel.countChartsUsingDataAppViz(
+        const [savedChartCount, composerChartCount] = await Promise.all([
+            this.savedChartModel.countChartsUsingDataAppViz(
                 projectUuid,
                 dataAppViz.app_id,
             ),
-        };
+            this.composerChartService.countUsingDataAppViz(
+                projectUuid,
+                dataAppViz.app_id,
+            ),
+        ]);
+        return { chartCount: savedChartCount + composerChartCount };
     }
 
     /**
@@ -11180,10 +11280,21 @@ export class AppGenerateService extends BaseService {
                 `Data app visualization not found: ${dataAppVizUuid}`,
             );
         }
-        return this.savedChartModel.getDataAppVizUsageCounts(
-            projectUuid,
-            dataAppViz.app_id,
-        );
+        const [savedCharts, composerChartCount] = await Promise.all([
+            this.savedChartModel.getDataAppVizUsageCounts(
+                projectUuid,
+                dataAppViz.app_id,
+            ),
+            this.composerChartService.countUsingDataAppViz(
+                projectUuid,
+                dataAppViz.app_id,
+            ),
+        ]);
+        // Composer charts always pin a version.
+        return {
+            chartCount: savedCharts.chartCount + composerChartCount,
+            pinnedChartCount: savedCharts.pinnedChartCount + composerChartCount,
+        };
     }
 
     /**
@@ -11298,6 +11409,15 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         chartContext: ExternalFetchRequest['chartContext'],
     ): Promise<void> {
+        if (isExternalFetchComposerChartContext(chartContext)) {
+            await this.getAuthorizedDataAppVizForComposerChart(
+                account,
+                projectUuid,
+                chartContext.composerChartUuid,
+                dataAppVizUuid,
+            );
+            return;
+        }
         if (isExternalFetchDocumentContext(chartContext)) {
             await this.getAuthorizedDataAppVizForDocument(
                 account,
@@ -11371,6 +11491,37 @@ export class AppGenerateService extends BaseService {
             dataAppViz,
             chartConfig: getDocumentRuntimeChartConfig(chart.chartConfig),
         };
+    }
+
+    /**
+     * Viewing a composer chart that renders this viz. Authorization follows the
+     * chart's owner, and the chart's current version must use the viz.
+     */
+    private async getAuthorizedDataAppVizForComposerChart(
+        account: RegisteredAccount,
+        projectUuid: string,
+        composerChartUuid: string,
+        dataAppVizUuid: string,
+    ) {
+        const { chart } = await this.composerChartService.get(
+            account,
+            projectUuid,
+            composerChartUuid,
+        );
+        if (
+            chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
+            chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
+        ) {
+            throw new ForbiddenError(
+                'Not authorized to access this visualization',
+            );
+        }
+        const dataAppViz = await resolveDataAppVisualizationForRender(
+            this.appModel,
+            projectUuid,
+            dataAppVizUuid,
+        );
+        return { dataAppViz, chartConfig: chart.chartConfig };
     }
 
     private resolveVizRenderMetadata(
@@ -11530,6 +11681,59 @@ export class AppGenerateService extends BaseService {
             getDataAppVizVersionPin(chartConfig),
         );
 
+        return mintPreviewToken(
+            this.lightdashConfig.lightdashSecrets,
+            dataAppViz.app_id,
+            version,
+            account.user.userUuid,
+            dataAppViz.organization_uuid,
+            projectUuid,
+            await this.externalConnectionModel.getBrowserImageOrigins(
+                dataAppViz.app_id,
+            ),
+            'chart',
+        );
+    }
+
+    async getComposerChartDataAppVizRenderMetadata(
+        account: RegisteredAccount,
+        projectUuid: string,
+        composerChartUuid: string,
+        dataAppVizUuid: string,
+    ): Promise<DataAppVizRenderMetadata> {
+        const { dataAppViz, chartConfig } =
+            await this.getAuthorizedDataAppVizForComposerChart(
+                account,
+                projectUuid,
+                composerChartUuid,
+                dataAppVizUuid,
+            );
+        return this.resolveVizRenderMetadata(
+            dataAppViz.app_id,
+            getDataAppVizVersionPin(chartConfig),
+        );
+    }
+
+    async getComposerChartDataAppVizPreviewToken(
+        account: RegisteredAccount,
+        projectUuid: string,
+        composerChartUuid: string,
+        dataAppVizUuid: string,
+        version: number,
+    ): Promise<string> {
+        const { dataAppViz, chartConfig } =
+            await this.getAuthorizedDataAppVizForComposerChart(
+                account,
+                projectUuid,
+                composerChartUuid,
+                dataAppVizUuid,
+            );
+        await assertDataAppVizPreviewVersionAllowed(
+            this.appModel,
+            dataAppViz.app_id,
+            version,
+            getDataAppVizVersionPin(chartConfig),
+        );
         return mintPreviewToken(
             this.lightdashConfig.lightdashSecrets,
             dataAppViz.app_id,
@@ -12443,6 +12647,28 @@ export class AppGenerateService extends BaseService {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertAppsEnabled(user, app.template);
         await this.assertCanViewApp(user, app);
+        // With consumer access on, users without Explore only get the
+        // latest ready version.
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('Explore', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            ) &&
+            (
+                await this.featureFlagModel.get({
+                    user: {
+                        organizationUuid: user.organizationUuid,
+                        userUuid: user.userUuid,
+                    },
+                    featureFlagId: FeatureFlags.DataAppConsumerAccess,
+                })
+            ).enabled
+        ) {
+            await this.assertLatestReadyVersion(appUuid, version);
+        }
 
         return mintPreviewToken(
             this.lightdashConfig.lightdashSecrets,
@@ -13311,6 +13537,136 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /**
+     * Rechecks app access for stored results and reruns of consumer queries.
+     * With `version`, it must still be the latest ready version.
+     */
+    async assertCanViewQuerySource({
+        account,
+        projectUuid,
+        appUuid,
+        version,
+    }: {
+        account: Account;
+        projectUuid: string;
+        appUuid: string;
+        version?: number;
+    }): Promise<void> {
+        if (!account.isRegisteredUser()) throw new ForbiddenError();
+        const app = await this.appModel.findApp(appUuid, projectUuid);
+        if (!app || app.project_uuid !== projectUuid)
+            throw new ForbiddenError();
+        // Abilities can be cached for a short time; the flag is read fresh so
+        // turning it off also stops stored results and reruns.
+        await this.assertConsumerAccessEnabled(
+            account.user.id,
+            app.organization_uuid,
+        );
+        const [accessContext, projectContext] = await Promise.all([
+            this.spacePermissionService.resolveAccess(account.user.id, {
+                type: 'app',
+                appUuid: app.app_id,
+                organizationUuid: app.organization_uuid,
+                projectUuid: app.project_uuid,
+                spaceUuid: app.space_uuid,
+            }),
+            this.getDataAppProjectContext(projectUuid),
+        ]);
+        if (
+            app.organization_uuid !== projectContext.organizationUuid ||
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('DataApp', {
+                    ...projectContext,
+                    ...accessContext,
+                    createdByUserUuid: app.created_by_user_uuid,
+                }),
+            )
+        )
+            throw new ForbiddenError('You do not have access to this data app');
+        if (version !== undefined)
+            await this.assertLatestReadyVersion(appUuid, version);
+    }
+
+    private async assertConsumerAccessEnabled(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid, userUuid },
+            featureFlagId: FeatureFlags.DataAppConsumerAccess,
+        });
+        if (!enabled) throw new ForbiddenError();
+    }
+
+    private async assertLatestReadyVersion(appUuid: string, version: number) {
+        const latest = await this.appModel.getLatestReadyVersion(appUuid);
+        if (!latest || latest.version !== version)
+            throw new ForbiddenError(
+                'This data app has a newer version. Reload the app to continue.',
+                { code: DATA_APP_NEWER_VERSION_CODE },
+            );
+        return latest;
+    }
+
+    /**
+     * Authorizes a metric query for a user without Explore access. The signed
+     * token proves the app version; its saved data references bound the fields.
+     */
+    async authorizeConsumerQuery({
+        account,
+        projectUuid,
+        organizationUuid,
+        previewToken,
+        ...queryInputs
+    }: DataAppQueryInputs & {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        previewToken: string;
+    }): Promise<{ appUuid: string; version: number }> {
+        if (!account.isRegisteredUser()) throw new ForbiddenError();
+        await this.assertConsumerAccessEnabled(
+            account.user.id,
+            organizationUuid,
+        );
+        const verified = verifyPreviewTokenClaims(
+            previewToken,
+            this.lightdashConfig.lightdashSecrets,
+        );
+        if (
+            !verified.ok ||
+            verified.payload.userUuid !== account.user.id ||
+            verified.payload.projectUuid !== projectUuid ||
+            verified.payload.organizationUuid !== organizationUuid
+        )
+            throw new ForbiddenError('Invalid data app query token');
+        const { appUuid, version } = verified.payload;
+        await this.assertCanViewQuerySource({ account, projectUuid, appUuid });
+        // Only the latest ready version: removing a field from an app must
+        // also stop consumers querying it through an older version.
+        const latest = await this.assertLatestReadyVersion(appUuid, version);
+        if (!latest.consumer_data_references)
+            throw new ForbiddenError(
+                'This data app version has no saved data references',
+            );
+        const explore = await this.projectModel
+            .getExploreFromCache(
+                projectUuid,
+                queryInputs.metricQuery.exploreName,
+            )
+            .catch(() => undefined);
+        const baseTable =
+            explore && !isExploreError(explore) ? explore.baseTable : null;
+        assertDataAppQueryAllowed(
+            latest.consumer_data_references,
+            queryInputs,
+            baseTable,
+        );
+        setQueryAppVersion(appUuid, version);
+        return { appUuid, version };
+    }
+
     async getCustomSqlProvenance({
         account,
         projectUuid,
@@ -13409,6 +13765,27 @@ export class AppGenerateService extends BaseService {
         return provenance;
     }
 
+    // Never called from the refresh path: extractor changes must not widen
+    // what an existing version authorizes.
+    private async freezeConsumerDataReferences(
+        appUuid: string,
+        version: number,
+        dataReferences: PersistedDataAppDataReferences | null | undefined,
+    ): Promise<void> {
+        if (dataReferences == null) return;
+        try {
+            await this.appModel.freezeVersionConsumerDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to freeze consumer data references for version ${version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
     private async persistVersionDataReferences(
         appUuid: string,
         version: number,
@@ -13437,6 +13814,11 @@ export class AppGenerateService extends BaseService {
             const dataReferences =
                 AppGenerateService.extractPersistedDataReferences(files);
             await this.persistVersionDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+            await this.freezeConsumerDataReferences(
                 appUuid,
                 version,
                 dataReferences,

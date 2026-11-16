@@ -10,6 +10,8 @@ describeContentAsCodeSchemaContract({
         'apiSource',
         'baseTable',
         'caseSensitive',
+        // Virtual views have no joined tables; this is model/explore YAML metadata.
+        'combineJoinedFields',
         'customMeta',
         'databricksCompute',
         'externalSource',

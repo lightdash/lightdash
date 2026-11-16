@@ -158,9 +158,6 @@ export const AiGeneralSettingsPage = () => {
                     >
                         <AiSurfacesCard
                             aiAgentsVisible={settings.aiAgentsVisible}
-                            showDataAppRuntimeAi={
-                                dataAppsFlag.data?.enabled === true
-                            }
                             slackInstallation={slackInstallation}
                             slackAgentsEnabled={slackAgentsEnabled}
                             disabled={isUpdatingSettings}

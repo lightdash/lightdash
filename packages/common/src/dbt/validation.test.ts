@@ -262,3 +262,51 @@ describe('ManifestValidator model error formatting', () => {
         );
     });
 });
+
+describe('ManifestValidator model additional dimensions', () => {
+    const withModelDimension = (dimension: Record<string, string>) =>
+        ({
+            ...model,
+            meta: { additional_dimensions: { band: dimension } },
+        }) as unknown as DbtRawModelNode;
+
+    test.each(Object.values(DbtManifestVersion))(
+        'accepts model-level dimensions and leaves missing keys to the compiler for %s',
+        (manifestVersion) => {
+            const validator = new ManifestValidator(manifestVersion);
+            const withRootPath = (node: DbtRawModelNode) =>
+                ({
+                    ...node,
+                    ...(manifestVersion === DbtManifestVersion.V7
+                        ? { root_path: 'root' }
+                        : {}),
+                }) as DbtRawModelNode;
+
+            expect(
+                validator.isModelValid(
+                    withRootPath(
+                        withModelDimension({
+                            type: 'string',
+                            sql: '${TABLE}.band',
+                        }),
+                    ),
+                ),
+            ).toEqual([true, undefined]);
+            expect(
+                validator.isModelValid(
+                    withRootPath(withModelDimension({ type: 'string' })),
+                ),
+            ).toEqual([true, undefined]);
+            expect(
+                validator.isModelValid(
+                    withRootPath(
+                        withModelDimension({
+                            type: 'varchar',
+                            sql: '${TABLE}.band',
+                        }),
+                    ),
+                )[0],
+            ).toBe(false);
+        },
+    );
+});

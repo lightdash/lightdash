@@ -55,6 +55,11 @@ export type AppStateHistoryEntry = {
 export type AppStateSnapshot = {
     user: Record<string, AppStateUserEntry>;
     shared: Record<string, AppStateSharedEntry>;
+    /**
+     * `none` when this viewer can neither read nor write shared values.
+     * Absent means full access.
+     */
+    sharedAccess?: 'none';
 };
 
 export type SetAppUserStateRequest = {

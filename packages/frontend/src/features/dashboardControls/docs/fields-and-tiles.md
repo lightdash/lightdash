@@ -50,7 +50,7 @@ mapping writes their temporary filters only, on Apply. `MappingSwap`
 faded, `inert` and out of the layout, and fades the mapping row in over it,
 so the bar shrinks to the mapping row's one line (the grid moves up once as
 mapping starts, back once it ends). In view mode there is no band; nothing else changes. The row
-carries the embed's `rail` class, as the popover it stands in for. The row reads as one sentence after a back arrow ("Back to filter",
+carries the embed's `editor` class, as the popover it stands in for. The row reads as one sentence after a back arrow ("Back to filter",
 `endMapping`: the popover again, tile choices kept in the draft): the open
 pill (inert, no grip or X)
 "filters {n} of {m} tiles using" (the count 600, its widest form reserved,
@@ -117,10 +117,15 @@ is the filter's only field"; a disabled button gets no hover). Filter is
 an icon after a divider, only while `fieldUndo` is live (no disabled
 state). One of them is filled at most: Undo right after "Add a field"
 (`kind: 'add'`), Filter right after a tile card's pick (`kind: 'pick'`) while
-it can act. Portalled into an element inserted after the
-active tab's `.react-grid-layout` (`usePortalTargets`), keyed on the grid so
-a remounted grid gets a new one; it is not in `ControlsBar`, which is
-sticky. When a pressed button leaves, focus goes to the region.
+it can act. Drawn by `FloatingBar`: Mantine's `ActionBar`, the dashboard
+edit toolbar's bar, fixed in the same spot (`EDIT_BAR_POSITION`); the edit
+toolbar hides while one shows (`data-dashboard-floating-bar`). An element
+inserted after the active tab's `.react-grid-layout` (`useBarHost`), keyed on
+the grid so a remounted grid gets a new one, keeps room under the last tile
+row. An SDK embed is a box in the host's page, where a fixed bar would pin to
+the host's window: there the bar is portalled into that element, sticky, with
+`ActionBar`'s own classes. When a pressed button leaves, focus goes to the
+region.
 
 ## Tile overlays (`TileOverlay`, `TileOverlays`)
 
@@ -171,7 +176,8 @@ filter has a field.
 
 ## Pill hover (`useTileHover`)
 
-With no filter open, hovering an editor's pill sets `data-controls-hovered`
+With no control open, hovering an editor's filter, parameter or date zoom
+pill sets `data-controls-hovered`
 on its tiles' grid items directly (the mapping ring's 2px ink, no tint): no
 re-render, veil or scroll. Only the pill that marked last clears
 (`tileHoverOwner`), after `LEAVE_GRACE_MS`.
@@ -181,3 +187,16 @@ re-render, veil or scroll. Only the pill that marked last clears
 Editors choose tiles on a draft of every control. Each parameter key has its own `all`, `only`, or `except` rule. A confirmed move updates both owners in the same draft; Apply writes the changes, Cancel restores the mapping, and Undo restores the previous step. A tile picker can narrow one key without excluding another from the whole control.
 
 A newly linked key follows all tiles when no control holds it; otherwise it starts with explicit tile assignments. Bulk Set and Clear act on the selected key without taking a tile from another control. Clear all excludes every current layout tile from each key, including tiles on unopened tabs; future tiles still follow default rules. A control with no assigned tiles remains on the bar so an editor can assign or remove it.
+
+## Date zooms
+
+`DateZoomMappingRow` stands in for the bar while a zoom's tiles are chosen
+(`MappingSwap`). Each tile gets a card (`DateZoomTileOverlay`, memoised on
+primitives): a clearable "Date field" select on a tile with zoomable date
+fields (`chartZoomableFieldsByTileUuid`), a switch on a tile that only reads
+`${ld.parameters.date_zoom}` (stored with `fieldId: null`), a veil on the
+rest. A pick on a tile another zoom has asks "Move from X?", and says when
+that zoom would be left with no tile. `DateZoomTilesBar` is the field bar
+for the zoom: add every tile in no zoom (first field, or none for a
+parameter-only tile), Clear, Undo. `TabCounts` counts the zoom's tiles over
+the tiles a zoom can take.

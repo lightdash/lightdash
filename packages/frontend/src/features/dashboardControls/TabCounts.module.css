@@ -20,6 +20,11 @@
     }
 }
 
+/* No filter open: nothing to count, so the tab keeps its own width */
+.count:not([data-reserve]) {
+    display: none;
+}
+
 /* In an editor's slot the tab section's own gap spaces it from the name */
 [data-position='right'] > .count {
     margin-inline-start: 0;

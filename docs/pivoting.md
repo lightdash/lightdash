@@ -153,6 +153,12 @@ Cross-cutting terms only — fuller definitions live in the linked package docs.
   `indexValues`, `dataValues`, totals) and the flattened TanStack column metadata.
 - **`NULL_PIVOT_KEY`** — collision-safe placeholder used in a value column's
   suffix when a group-by value is `null`, so it doesn't collide with the base column.
+- **`foldOverflowGroups` / `OTHER_PIVOT_KEY`** — set on the `PivotConfiguration`
+  of stacked cartesian charts with numeric values. Groups past the pivot column
+  limit are then not dropped: the SQL keeps one extra row per `row_index` holding
+  their sum (flagged `is_other_group`), and the transform spreads it into one
+  more value column whose group-by value is `OTHER_PIVOT_KEY`, labelled "Other".
+  This keeps stacked bar heights and totals equal to the whole result.
 - **`getPivotValueColumnName`** (`packages/common/src/pivot/pivotColumnName.ts`) —
   the single rule for naming a spread value column. The pivot SQL alias, the
   result transform, and the chart-type previews all compose names through it, so

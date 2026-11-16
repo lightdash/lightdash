@@ -1,11 +1,11 @@
-import { type TablerIconsProps } from '@tabler/icons-react';
+import { type IconProps } from '@tabler/icons-react';
 import clsx from 'clsx';
 import { forwardRef } from 'react';
 import GsheetsFilledSvg from '../../../svgs/google-sheets-filled.svg?react';
 import GsheetsSvg from '../../../svgs/google-sheets.svg?react';
 import classes from './GSheetsIcon.module.css';
 
-export const GSheetsIcon = forwardRef<SVGSVGElement, TablerIconsProps>(
+export const GSheetsIcon = forwardRef<SVGSVGElement, IconProps>(
     (props, ref) => {
         // Convert numeric stroke values to strings
         const svgProps = {
@@ -24,7 +24,7 @@ export const GSheetsIcon = forwardRef<SVGSVGElement, TablerIconsProps>(
     },
 );
 
-export const GSheetsIconFilled = forwardRef<SVGSVGElement, TablerIconsProps>(
+export const GSheetsIconFilled = forwardRef<SVGSVGElement, IconProps>(
     (props, ref) => {
         // Convert numeric stroke values to strings
         const svgProps = {

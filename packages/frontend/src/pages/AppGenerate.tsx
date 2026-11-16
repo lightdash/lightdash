@@ -3389,6 +3389,10 @@ const AppGenerate: FC = () => {
                                         views: appViews,
                                         slug: appSlug,
                                         verification: appVerification,
+                                        consumerAccess:
+                                            appData?.pages[0]
+                                                ?.latestReadyVersionConsumerAccess ??
+                                            null,
                                     }}
                                     rightSection={
                                         <AppHeaderActions

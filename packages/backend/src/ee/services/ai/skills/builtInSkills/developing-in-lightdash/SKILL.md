@@ -82,6 +82,8 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
 
 When `config.controlOrder` is present, add a `{ "kind": "filter", "slug": ... }` entry with the new filter's `slug` where it should sit on the filter bar, and remove a deleted filter's entry. Control slugs only link entries within the edit and are never saved. See `Control order` in `dashboard-reference`.
 
+To put a filter in an existing section, set its `sectionSlug` to a `slug` from `config.controlSections`. Group controls into sections only when the user asks or the dashboard already uses them, and read `Control sections` in `dashboard-reference` before creating, renaming or removing one. A patch that changes something else leaves `controlSections`, every `sectionSlug`, `dateZoomConfig` and `controlOrder` as read.
+
 ### Edit Charts and Dashboard Tiles
 
 1. Call `readContent` for the chart slug.

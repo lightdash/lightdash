@@ -35,6 +35,7 @@ import {
     IconPlugConnected,
     IconRefresh,
     IconReportAnalytics,
+    IconCreditCard,
     IconRoad,
     IconRobotFace,
     IconSend,
@@ -54,6 +55,7 @@ import {
     IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { AI_ANALYSIS_SETTINGS_PATH } from '../../features/apps/analysis/useDataAppAnalysisAvailability';
 import { MOBILE_STRINGS } from '../../features/mobile/mobileStrings';
 import {
     getSemanticStudioExternalSourcesUrl,
@@ -88,6 +90,7 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
+        isBillingPortalEnabled,
         canAccessAiCredits,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
@@ -104,7 +107,6 @@ export const useSettingsNavigation = (
         dataAppsFlag,
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
-        externalSourcesFlag,
         isMobileSettingsEnabled,
         isResultsCacheAvailable,
         isGitProject,
@@ -115,12 +117,8 @@ export const useSettingsNavigation = (
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
-    // AI analysis (data apps and dashboards) is available wherever AI is; its
-    // settings page hosts the shared consent toggle.
-    const isAiAnalysisAvailable = isAiCopilotEnabledOrTrial;
     const isExternalSourcesEnabled =
-        (externalSourcesFlag?.enabled ?? false) &&
-        (health?.externalSources.engineAvailable ?? false);
+        health?.externalSources.engineAvailable ?? false;
 
     return useMemo<SettingsNavigationSection[]>(() => {
         const ability = user?.ability;
@@ -393,27 +391,6 @@ export const useSettingsNavigation = (
                 });
             }
 
-            if (
-                isAiAnalysisAvailable &&
-                ability?.can('manage', 'Organization')
-            ) {
-                dataAppChildren.push({
-                    label: 'AI analysis',
-                    to: '/generalSettings/dataApps/aiAnalysis',
-                    icon: IconSparkles,
-                    keywords: [
-                        'ai',
-                        'analysis',
-                        'insights',
-                        'anomalies',
-                        'investigate',
-                        'auto',
-                    ],
-                    children: [],
-                    exact: true,
-                });
-            }
-
             if (dataAppChildren.length > 0) {
                 organizationItems.push({
                     label: 'Data apps',
@@ -433,28 +410,6 @@ export const useSettingsNavigation = (
                     to: '/generalSettings/dataApps/themes',
                     icon: IconBrush,
                     keywords: ['design', 'colors', 'charts', 'chart types'],
-                    children: [],
-                    exact: true,
-                });
-            }
-            // Dashboard analysis shares the consent toggle that lives on the
-            // data-apps AI-analysis page; surface it even without data apps.
-            if (
-                isAiAnalysisAvailable &&
-                ability?.can('manage', 'Organization')
-            ) {
-                organizationItems.push({
-                    label: 'AI analysis',
-                    to: '/generalSettings/dataApps/aiAnalysis',
-                    icon: IconSparkles,
-                    keywords: [
-                        'ai',
-                        'analysis',
-                        'insights',
-                        'anomalies',
-                        'investigate',
-                        'dashboards',
-                    ],
                     children: [],
                     exact: true,
                 });
@@ -680,6 +635,24 @@ export const useSettingsNavigation = (
                 });
             }
 
+            if (ability?.can('manage', 'Organization')) {
+                aiChildren.push({
+                    label: 'AI analysis',
+                    to: AI_ANALYSIS_SETTINGS_PATH,
+                    icon: IconSparkles,
+                    keywords: [
+                        'analysis',
+                        'insights',
+                        'anomalies',
+                        'investigate',
+                        'data apps',
+                        'dashboards',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
             organizationItems.push({
                 label: 'Ask AI',
                 to: '/generalSettings/ai',
@@ -832,6 +805,30 @@ export const useSettingsNavigation = (
                     'planned',
                     'building',
                     'shipped',
+                ],
+                children: [],
+                exact: true,
+            });
+        }
+
+        if (
+            isBillingPortalEnabled &&
+            ability?.can(
+                'manage',
+                subject('Billing', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            organizationItems.push({
+                label: 'Billing',
+                to: '/generalSettings/billing',
+                icon: IconCreditCard,
+                keywords: [
+                    'invoices',
+                    'payment method',
+                    'billing address',
+                    'subscription',
                 ],
                 children: [],
                 exact: true,
@@ -1409,6 +1406,7 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
+        isBillingPortalEnabled,
         canAccessAiCredits,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
@@ -1423,7 +1421,6 @@ export const useSettingsNavigation = (
         hasAnyAiAgentAccess,
         isEmbeddingEnabled,
         isDataAppsEnabled,
-        isAiAnalysisAvailable,
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
         isExternalSourcesEnabled,

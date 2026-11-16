@@ -565,7 +565,7 @@ const parseGithubPrUrl = (prUrl: string) => {
 export const escapeMrkdwn = (text: string) =>
     text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-const buildSlackCardBlock = ({
+export const buildSlackCardBlock = ({
     blockId,
     title,
     subtitle,

@@ -209,5 +209,13 @@
             "requestingUser"
         ],
         "addsSkills": []
+    },
+    "askUser": {
+        "description": "Ask the user clarifying questions with clickable options",
+        "addsTools": [
+            "askUser"
+        ],
+        "addsSections": [],
+        "addsSkills": []
     }
 }

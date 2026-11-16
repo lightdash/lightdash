@@ -5,8 +5,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-overview',
         name: 'Agents & AI',
-        description:
-            'AI consumption and agent request adoption, outcomes and feedback.',
+        description: 'Agent adoption, outcomes and AI consumption.',
         tabs: [
             {
                 key: 'adoption',
@@ -67,8 +66,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-query-activity',
         name: 'Queries',
-        description:
-            'Query performance, failures, origins, caching and the metrics and dimensions people use.',
+        description: 'Query volume, performance and cache usage.',
         tabs: [
             {
                 key: 'monthly-comparison',
@@ -151,8 +149,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-people',
         name: 'People',
-        description:
-            'Observed activity, returning users and activity channels.',
+        description: 'User activity, returning users and channels.',
         tabs: [
             {
                 key: 'activity',
@@ -208,7 +205,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-content',
         name: 'Content',
-        description: 'Audience, trust, adoption and current content inventory.',
+        description: 'Content audiences, ownership and inventory.',
         tabs: [
             {
                 key: 'audience',
@@ -285,8 +282,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-apps',
         name: 'Apps',
-        description:
-            'App loads, audiences, builders and generation consumption.',
+        description: 'App usage, audiences and generation activity.',
         tabs: [
             {
                 key: 'usage',
@@ -371,8 +367,7 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
         key: 'lightdash-analytics-tools',
         name: 'Tools & operations',
-        description:
-            'MCP tool activity, exports and operational capture boundaries.',
+        description: 'MCP tool usage, exports and outcomes.',
         tabs: [
             {
                 key: 'mcp',

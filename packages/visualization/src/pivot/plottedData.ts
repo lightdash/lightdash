@@ -1,5 +1,7 @@
 import {
     formatItemValue,
+    isOtherPivotValue,
+    OTHER_PIVOT_LABEL,
     type ApiQueryResults,
     type FieldId,
     type ItemsMap,
@@ -46,7 +48,9 @@ export const getPivotedDataFromPivotDetails = (
                 acc[value.referenceField] ??= {};
                 acc[value.referenceField][String(value.value)] = {
                     raw: value.value,
-                    formatted: formatItemValue(field, value.value),
+                    formatted: isOtherPivotValue(value.value)
+                        ? OTHER_PIVOT_LABEL
+                        : formatItemValue(field, value.value),
                 };
             });
             return acc;

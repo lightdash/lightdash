@@ -222,6 +222,44 @@ describe('MicrosoftTokenExchangeGrantType', () => {
         });
     });
 
+    it('managed ID-token grant, omitted scope: keeps the unchanged scope call and saved scope', async () => {
+        const registeredClient = {
+            ...client,
+            scopes: ['read', 'write'],
+        } as unknown as OAuth2Server.Client;
+        const validateScope = vi.fn(
+            async (
+                _user: OAuth2Server.User,
+                _client: OAuth2Server.Client,
+                scope: string[] = [],
+            ) => scope,
+        );
+        const { grant, saveToken } = createGrant({
+            validateScope:
+                validateScope as unknown as OAuth2Server.AuthorizationCodeModel['validateScope'],
+        });
+        const { scope: omitted, ...bodyWithoutScope } = validBody;
+
+        const token = await grant.handle(
+            createRequest(bodyWithoutScope),
+            registeredClient,
+        );
+
+        expect(omitted).toBe('read');
+        expect(validateScope).toHaveBeenCalledTimes(1);
+        expect(validateScope).toHaveBeenCalledWith(
+            sessionUser,
+            registeredClient,
+            undefined,
+        );
+        expect(token.scope).toEqual([]);
+        expect(vi.mocked(saveToken)).toHaveBeenCalledWith(
+            expect.objectContaining({ scope: [] }),
+            registeredClient,
+            sessionUser,
+        );
+    });
+
     it('rejects a scope the model refuses', async () => {
         const { grant } = createGrant({
             validateScope: vi.fn(

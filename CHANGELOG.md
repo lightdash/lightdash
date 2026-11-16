@@ -1,3 +1,959 @@
+## [3.267.2](https://github.com/lightdash/lightdash/compare/3.267.1...3.267.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** name /dbt only when the project has a /dbt mount ([#32643](https://github.com/lightdash/lightdash/issues/32643)) ([d8f1330](https://github.com/lightdash/lightdash/commit/d8f1330212f70dcb4d3843c8815bad38c9128963))
+* **ai:** offer repo and writeback tools only to users who can use them ([#32644](https://github.com/lightdash/lightdash/issues/32644)) ([77f322f](https://github.com/lightdash/lightdash/commit/77f322f11229874570ee789799e83583d0aa9bb8))
+* **ai:** tell agent which custom SQL content the user cannot save ([#32642](https://github.com/lightdash/lightdash/issues/32642)) ([3efe69a](https://github.com/lightdash/lightdash/commit/3efe69a16b6ed10fdaf18eec52a0e45f6d443221))
+* **composer:** name minimum CLI version in old-CLI upload refusal ([#32638](https://github.com/lightdash/lightdash/issues/32638)) ([033b034](https://github.com/lightdash/lightdash/commit/033b034ecaa17ddf1766780cf3d45941af83e9a3))
+
+## [3.267.1](https://github.com/lightdash/lightdash/compare/3.267.0...3.267.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** serialize parallel artifact writes per thread ([#32645](https://github.com/lightdash/lightdash/issues/32645)) ([e8dfe84](https://github.com/lightdash/lightdash/commit/e8dfe84653b2ce25f5c4de5e9d1f76f76ab3e3c6))
+
+# [3.267.0](https://github.com/lightdash/lightdash/compare/3.266.3...3.267.0) (2026-11-16)
+
+
+### Features
+
+* **live-sources:** hide filters a live data source can't run ([#32583](https://github.com/lightdash/lightdash/issues/32583)) ([a64d628](https://github.com/lightdash/lightdash/commit/a64d628d77ec2f93baf9d12a2213d5ef4a6d82e1))
+* **live-sources:** name fields and operators as the UI does in filter refusals ([#32582](https://github.com/lightdash/lightdash/issues/32582)) ([d134bcb](https://github.com/lightdash/lightdash/commit/d134bcb74e82d7a90a7e7072ddb5876d0d566fa5))
+* **live-sources:** support is after and is before date filters on Search Console ([#32581](https://github.com/lightdash/lightdash/issues/32581)) ([aea9ce3](https://github.com/lightdash/lightdash/commit/aea9ce3558552e51b1c0dec4cf19650e35e995ea))
+
+## [3.266.3](https://github.com/lightdash/lightdash/compare/3.266.2...3.266.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **external-connections:** delete secret and call log when a connection is deleted ([#32576](https://github.com/lightdash/lightdash/issues/32576)) ([505c093](https://github.com/lightdash/lightdash/commit/505c09394cd35a09da9f4beb1d3fd49e315e9152))
+
+## [3.266.2](https://github.com/lightdash/lightdash/compare/3.266.1...3.266.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** name Tables configuration when an agent has no explores ([#32631](https://github.com/lightdash/lightdash/issues/32631)) ([c4232a4](https://github.com/lightdash/lightdash/commit/c4232a48fab707e94062322b40c10a1bd9fbc3eb))
+
+## [3.266.1](https://github.com/lightdash/lightdash/compare/3.266.0...3.266.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* honour user overrides throughout mobile QR sign-in ([#32633](https://github.com/lightdash/lightdash/issues/32633)) ([6eea4ce](https://github.com/lightdash/lightdash/commit/6eea4ce15660a53aea85345919fe09d3951b3958))
+
+# [3.266.0](https://github.com/lightdash/lightdash/compare/3.265.3...3.266.0) (2026-11-16)
+
+
+### Features
+
+* **cli:** composer charts as code in download, upload and lint ([#32610](https://github.com/lightdash/lightdash/issues/32610)) ([94f82bf](https://github.com/lightdash/lightdash/commit/94f82bf73be4037fc71095f59e647d0bbe8f9ab4))
+
+## [3.265.3](https://github.com/lightdash/lightdash/compare/3.265.2...3.265.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **organizations:** scope allowed email domain default projects to the organization ([#32629](https://github.com/lightdash/lightdash/issues/32629)) ([0021b55](https://github.com/lightdash/lightdash/commit/0021b552931d3038c3f6f53f5f5d0f071d6590dd))
+
+## [3.265.2](https://github.com/lightdash/lightdash/compare/3.265.1...3.265.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **embedding:** align exports and actor configuration ([#32507](https://github.com/lightdash/lightdash/issues/32507)) ([a588597](https://github.com/lightdash/lightdash/commit/a5885976c06f564cc34581428232d1b94bd13ee3))
+* prefer production projects in MCP context guidance ([#32545](https://github.com/lightdash/lightdash/issues/32545)) ([f18e1d2](https://github.com/lightdash/lightdash/commit/f18e1d2d2feacf9e8d7dc5fe53d9eb251af3b0db))
+
+## [3.265.1](https://github.com/lightdash/lightdash/compare/3.265.0...3.265.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **composer:** keep x in the series split when it is also a y ([#32627](https://github.com/lightdash/lightdash/issues/32627)) ([93ef6f9](https://github.com/lightdash/lightdash/commit/93ef6f93aa806a6a9ccb7d99d95455f1d67fc0a9))
+
+# [3.265.0](https://github.com/lightdash/lightdash/compare/3.264.0...3.265.0) (2026-11-16)
+
+
+### Features
+
+* **composer:** composer charts as code over the API ([#32603](https://github.com/lightdash/lightdash/issues/32603)) ([78f76d2](https://github.com/lightdash/lightdash/commit/78f76d28dd4e235c0bbb81887a48f6e4148a4d26))
+
+# [3.264.0](https://github.com/lightdash/lightdash/compare/3.263.1...3.264.0) (2026-11-16)
+
+
+### Bug Fixes
+
+* **previews:** carry the parent SSH key when a CLI preview is created ([#32620](https://github.com/lightdash/lightdash/issues/32620)) ([16d4d13](https://github.com/lightdash/lightdash/commit/16d4d138e26765ce62d8f84bb95f991d52b2f8a2))
+
+
+### Features
+
+* **billing:** add billing portal page to organization settings ([#32595](https://github.com/lightdash/lightdash/issues/32595)) ([f6c0f1d](https://github.com/lightdash/lightdash/commit/f6c0f1dc28a30417bda8c2dc6788bdefc27e211f))
+
+## [3.263.1](https://github.com/lightdash/lightdash/compare/3.263.0...3.263.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* let preview creators extend their preview expiration ([#32619](https://github.com/lightdash/lightdash/issues/32619)) ([f9a8097](https://github.com/lightdash/lightdash/commit/f9a80975a55c136344927023b8341d13dbe6ff9a))
+
+# [3.263.0](https://github.com/lightdash/lightdash/compare/3.262.0...3.263.0) (2026-11-16)
+
+
+### Features
+
+* **composer:** custom chart types on composer charts ([#32600](https://github.com/lightdash/lightdash/issues/32600)) ([a958993](https://github.com/lightdash/lightdash/commit/a958993347d94812fb40ef626c7e23661a1eb7df))
+
+# [3.262.0](https://github.com/lightdash/lightdash/compare/3.261.2...3.262.0) (2026-11-16)
+
+
+### Features
+
+* **composer:** dashboard filters and parameters reach the composer tile ([#32599](https://github.com/lightdash/lightdash/issues/32599)) ([14ba080](https://github.com/lightdash/lightdash/commit/14ba080d40a4188c036977c18ae954c00cea6598))
+
+## [3.261.2](https://github.com/lightdash/lightdash/compare/3.261.1...3.261.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **rainbow:** regenerate API routes when generated files change ([#32604](https://github.com/lightdash/lightdash/issues/32604)) ([66acdba](https://github.com/lightdash/lightdash/commit/66acdbaacd36a1c3d5f51076ee0503ddfa6b2cea))
+
+## [3.261.1](https://github.com/lightdash/lightdash/compare/3.261.0...3.261.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* remove the phone QR panel after sign-in ([7b16298](https://github.com/lightdash/lightdash/commit/7b162981b0375c735c250a40746967eb156eaca9))
+
+# [3.261.0](https://github.com/lightdash/lightdash/compare/3.260.0...3.261.0) (2026-11-15)
+
+
+### Features
+
+* **mobile:** log a structured record when QR sign-in code minting is rate limited [d-1d137406] ([#32615](https://github.com/lightdash/lightdash/issues/32615)) ([ca1fb02](https://github.com/lightdash/lightdash/commit/ca1fb02982a103565545a4bbea742dfa9e85e4f1))
+
+# [3.260.0](https://github.com/lightdash/lightdash/compare/3.259.1...3.260.0) (2026-11-14)
+
+
+### Features
+
+* show the mobile app pitch in the phone menu ([#32522](https://github.com/lightdash/lightdash/issues/32522)) ([304f05f](https://github.com/lightdash/lightdash/commit/304f05f5e0cb4e34df468cd2139777aba556dbd2))
+
+## [3.259.1](https://github.com/lightdash/lightdash/compare/3.259.0...3.259.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **oauth:** allow the claude: redirect scheme in strict OAuth mode ([#32606](https://github.com/lightdash/lightdash/issues/32606)) ([500379e](https://github.com/lightdash/lightdash/commit/500379ec196fa9b3b40cb14e13493f30ce996f5e)), closes [#32605](https://github.com/lightdash/lightdash/issues/32605)
+
+# [3.259.0](https://github.com/lightdash/lightdash/compare/3.258.2...3.259.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** the tile draws the chart, group-by through a server-built pivot stage ([#32588](https://github.com/lightdash/lightdash/issues/32588)) ([556ad09](https://github.com/lightdash/lightdash/commit/556ad09b06d88e945f2ba28507f2d32ec2a70847))
+
+## [3.258.2](https://github.com/lightdash/lightdash/compare/3.258.1...3.258.2) (2026-11-13)
+
+
+### Bug Fixes
+
+* **frontend:** keep Chart Studio inside the viewport on phones ([#32547](https://github.com/lightdash/lightdash/issues/32547)) ([30bdd45](https://github.com/lightdash/lightdash/commit/30bdd453b7bbae8870ab1704a0dab3de3a38d4a5))
+
+## [3.258.1](https://github.com/lightdash/lightdash/compare/3.258.0...3.258.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **cli:** skip uuid fetch in track.sh on CI/dev ([#32300](https://github.com/lightdash/lightdash/issues/32300)) ([9124c26](https://github.com/lightdash/lightdash/commit/9124c26749c1ca30e0c080c09d740af8fcafee69))
+
+# [3.258.0](https://github.com/lightdash/lightdash/compare/3.257.0...3.258.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** a viewer runs a composer chart (bound run) ([#32573](https://github.com/lightdash/lightdash/issues/32573)) ([71c2b97](https://github.com/lightdash/lightdash/commit/71c2b97f964baedc2663b9e8cbc1e98714dfdbbd))
+* **composer:** a viewer runs a composer chart (bound run) ([#32573](https://github.com/lightdash/lightdash/issues/32573)) ([eaa7f9e](https://github.com/lightdash/lightdash/commit/eaa7f9e7017702580bc6ddf71907004a70302338))
+
+# [3.257.0](https://github.com/lightdash/lightdash/compare/3.256.0...3.257.0) (2026-11-13)
+
+
+### Features
+
+* **exports:** include subtotal rows in XLSX exports of table charts ([#32491](https://github.com/lightdash/lightdash/issues/32491)) ([c090ca3](https://github.com/lightdash/lightdash/commit/c090ca39fd8995b6c1ef7f7f77dd5820552db012))
+* **exports:** include subtotal rows in XLSX exports of table charts ([#32491](https://github.com/lightdash/lightdash/issues/32491)) ([92ebb87](https://github.com/lightdash/lightdash/commit/92ebb8765ff63e9dfcfdc7a2eb179d25a647f134))
+
+# [3.256.0](https://github.com/lightdash/lightdash/compare/3.255.2...3.256.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **embed:** apply token parameter rules on the remaining query routes ([#32574](https://github.com/lightdash/lightdash/issues/32574)) ([645da28](https://github.com/lightdash/lightdash/commit/645da28f1a097fdbf9614ba9f03be07e3a29344d))
+
+
+### Features
+
+* **parameters:** list chart and dashboard parameters, and set them from embed tokens ([#32100](https://github.com/lightdash/lightdash/issues/32100)) ([5349fd0](https://github.com/lightdash/lightdash/commit/5349fd0d4103a871a58081e428535f862041217e))
+
+## [3.255.2](https://github.com/lightdash/lightdash/compare/3.255.1...3.255.2) (2026-11-13)
+
+
+### Bug Fixes
+
+* **dashboards:** keep merged chart parameter controls stable ([#32578](https://github.com/lightdash/lightdash/issues/32578)) ([63f5c41](https://github.com/lightdash/lightdash/commit/63f5c41456c08cf0472f68fc781b343a65fbf010))
+
+## [3.255.1](https://github.com/lightdash/lightdash/compare/3.255.0...3.255.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **project-access:** stay on the current page after changing a user's role ([#32577](https://github.com/lightdash/lightdash/issues/32577)) ([0b64daa](https://github.com/lightdash/lightdash/commit/0b64daaec9fac2d57925275839358a612a3d848f))
+
+# [3.255.0](https://github.com/lightdash/lightdash/compare/3.254.1...3.255.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* polish analytics settings layout and chart consistency ([#32550](https://github.com/lightdash/lightdash/issues/32550)) ([a14c74a](https://github.com/lightdash/lightdash/commit/a14c74af3707597babd8b6b475ea7b273c5b098e))
+
+
+### Features
+
+* **embed:** emit contentStateChanged with current filters, parameters and query ([#32421](https://github.com/lightdash/lightdash/issues/32421)) ([aba3e68](https://github.com/lightdash/lightdash/commit/aba3e68a2cb06b0dea681b86ba3700d37e115cc1))
+
+## [3.254.1](https://github.com/lightdash/lightdash/compare/3.254.0...3.254.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* preserve scheduler shutdown in Rainbow previews ([#32535](https://github.com/lightdash/lightdash/issues/32535)) ([d6e0776](https://github.com/lightdash/lightdash/commit/d6e0776a386de4c4629f50f4da65d8d52fa35d3c))
+
+
+### Performance Improvements
+
+* **results:** yield to the event loop while streaming warehouse rows [d-f5d48aa4] ([#32443](https://github.com/lightdash/lightdash/issues/32443)) ([19b0530](https://github.com/lightdash/lightdash/commit/19b053012b15e61d0f360a199e38a18d520e05f9))
+
+# [3.254.0](https://github.com/lightdash/lightdash/compare/3.253.1...3.254.0) (2026-11-13)
+
+
+### Features
+
+* **dashboards:** add keyboard shortcuts to the edit toolbar with hints on hold ([#32565](https://github.com/lightdash/lightdash/issues/32565)) ([245074c](https://github.com/lightdash/lightdash/commit/245074c4f83bfdf607c1765a6f0da6f5a214bcdc))
+
+## [3.253.1](https://github.com/lightdash/lightdash/compare/3.253.0...3.253.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* keep larger Analytics Parquet files on the bounded cache path ([#32536](https://github.com/lightdash/lightdash/issues/32536)) ([288d526](https://github.com/lightdash/lightdash/commit/288d5264f0312256880a7ba450a99fdc90954b42))
+
+
+### Performance Improvements
+
+* reduce memory and disk spill in analytics field usage ([#32099](https://github.com/lightdash/lightdash/issues/32099)) ([0ce6298](https://github.com/lightdash/lightdash/commit/0ce629852528d0c861e93ed018734801f0cd6533))
+
+# [3.253.0](https://github.com/lightdash/lightdash/compare/3.252.0...3.253.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **ai:** tidy the Studio change card and drop the Changes stat cards ([#32570](https://github.com/lightdash/lightdash/issues/32570)) ([57d69dc](https://github.com/lightdash/lightdash/commit/57d69dc788179347d574b201d812c218289fb7a3))
+
+
+### Features
+
+* **ai:** drag fields and models into the Studio chat ([#32568](https://github.com/lightdash/lightdash/issues/32568)) ([d9c31d0](https://github.com/lightdash/lightdash/commit/d9c31d0bddc99f7dd0a83e9d9f60a03ea702ba1f))
+* **composer:** save an AI answer to a dashboard ([#32571](https://github.com/lightdash/lightdash/issues/32571)) ([e599182](https://github.com/lightdash/lightdash/commit/e5991821e8a55bfc5a7d66dfba61c35b345de7ba))
+* **data-apps:** simpler app state modal with history on demand ([#32554](https://github.com/lightdash/lightdash/issues/32554)) ([7c9c2d6](https://github.com/lightdash/lightdash/commit/7c9c2d66480e895ec2ef388f8d48f9c9c3313bd6))
+
+# [3.252.0](https://github.com/lightdash/lightdash/compare/3.251.2...3.252.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** dashboard copy, delete, restore and rollback carry composer charts ([#32569](https://github.com/lightdash/lightdash/issues/32569)) ([e50467c](https://github.com/lightdash/lightdash/commit/e50467cf4755854df759ef995e1e8594587fa485))
+
+## [3.251.2](https://github.com/lightdash/lightdash/compare/3.251.1...3.251.2) (2026-11-13)
+
+
+### Bug Fixes
+
+* reduce Analytics settings query latency ([#32558](https://github.com/lightdash/lightdash/issues/32558)) ([8c2121f](https://github.com/lightdash/lightdash/commit/8c2121fffec1ca85ea73a5f6c7b6bddac7a4197e))
+
+## [3.251.1](https://github.com/lightdash/lightdash/compare/3.251.0...3.251.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **ai:** stop the Changes tab badge style leaking onto Studio table counts ([#32567](https://github.com/lightdash/lightdash/issues/32567)) ([66dad33](https://github.com/lightdash/lightdash/commit/66dad334af67fd20c9a4d3562bcc6db5f3d59d8d))
+
+# [3.251.0](https://github.com/lightdash/lightdash/compare/3.250.0...3.251.0) (2026-11-13)
+
+
+### Features
+
+* **mobile:** one-code mobile sign-in on Cloud ([#32502](https://github.com/lightdash/lightdash/issues/32502)) ([4a4e0b2](https://github.com/lightdash/lightdash/commit/4a4e0b2e9eb5c78b57368abd5cd0b57e5a1830b8))
+
+# [3.250.0](https://github.com/lightdash/lightdash/compare/3.249.0...3.250.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** create a composer chart by API ([#32563](https://github.com/lightdash/lightdash/issues/32563)) ([c3a9ce9](https://github.com/lightdash/lightdash/commit/c3a9ce929e9cfb3cdb14aa8a540a99a1c930d139))
+
+# [3.249.0](https://github.com/lightdash/lightdash/compare/3.248.0...3.249.0) (2026-11-13)
+
+
+### Features
+
+* **ai:** give Studio changes a proper look, with a needs-you badge on the tab ([#32559](https://github.com/lightdash/lightdash/issues/32559)) ([ae6b902](https://github.com/lightdash/lightdash/commit/ae6b9021564503fed8b8c3554577ec924d2688ce))
+
+# [3.248.0](https://github.com/lightdash/lightdash/compare/3.247.0...3.248.0) (2026-11-13)
+
+
+### Features
+
+* **ai:** show a dbt save's progress live, step by step ([#32553](https://github.com/lightdash/lightdash/issues/32553)) ([31757d1](https://github.com/lightdash/lightdash/commit/31757d18ee2c90e2a40f4b67ebbc6c7c333921ac))
+* **ai:** split Studio into Live and Changes, with a bar for the open change ([#32557](https://github.com/lightdash/lightdash/issues/32557)) ([b235530](https://github.com/lightdash/lightdash/commit/b235530796c21039f2c8c64dbb2047ab6bb3fcfc))
+* **explorer:** redesign the explorer layout, field tree and loading states ([#32518](https://github.com/lightdash/lightdash/issues/32518)) ([4c76bbd](https://github.com/lightdash/lightdash/commit/4c76bbd284dfb7e4643ae8182a0c5840cce44eb9))
+
+
+### Reverts
+
+* Revert "feat(explorer): redesign the explorer layout, field tree and loading states (#32518)" (#32564) ([89d5eb7](https://github.com/lightdash/lightdash/commit/89d5eb7f1f63fec8b4504e01f60bc22be17d78a4)), closes [#32518](https://github.com/lightdash/lightdash/issues/32518) [#32564](https://github.com/lightdash/lightdash/issues/32564)
+
+# [3.247.0](https://github.com/lightdash/lightdash/compare/3.246.0...3.247.0) (2026-11-13)
+
+
+### Features
+
+* **ai:** call Studio workspaces changes ([#32556](https://github.com/lightdash/lightdash/issues/32556)) ([688352e](https://github.com/lightdash/lightdash/commit/688352e6368607d7edb60c5f26c41b373ef6a662))
+
+# [3.246.0](https://github.com/lightdash/lightdash/compare/3.245.0...3.246.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **ai:** start a new Studio chat after discarding changes ([#32551](https://github.com/lightdash/lightdash/issues/32551)) ([51eb919](https://github.com/lightdash/lightdash/commit/51eb9190eb39ba7ee3ad35627f4dd04fe832ec18))
+
+
+### Features
+
+* **ai:** show a Studio workspace's stage as one compact label ([#32552](https://github.com/lightdash/lightdash/issues/32552)) ([f5a3b69](https://github.com/lightdash/lightdash/commit/f5a3b6926d88b4b19a6273b624597000b8761452))
+
+# [3.245.0](https://github.com/lightdash/lightdash/compare/3.244.1...3.245.0) (2026-11-13)
+
+
+### Features
+
+* **composer:** dashboards tolerate a composer chart tile ([#32548](https://github.com/lightdash/lightdash/issues/32548)) ([7072954](https://github.com/lightdash/lightdash/commit/70729541586200c15794079f8be30c82fbb12c6a))
+
+## [3.244.1](https://github.com/lightdash/lightdash/compare/3.244.0...3.244.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **embed:** keep hidden filters in their section and place ([#32549](https://github.com/lightdash/lightdash/issues/32549)) ([ce9d4df](https://github.com/lightdash/lightdash/commit/ce9d4df5c00d9976a1f6063de13218e503ea5cba))
+* **export:** let headless PDF exports run as a service account ([#32446](https://github.com/lightdash/lightdash/issues/32446)) ([324736e](https://github.com/lightdash/lightdash/commit/324736e43c82008e8569542c08d462514a8d9e44))
+
+# [3.244.0](https://github.com/lightdash/lightdash/compare/3.243.0...3.244.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **embed:** keep the filters an embed token hides on save ([#32541](https://github.com/lightdash/lightdash/issues/32541)) ([7561b71](https://github.com/lightdash/lightdash/commit/7561b71a8d94f21e2eef4a1356718418fc86dbbc))
+
+
+### Features
+
+* **dashboards:** add column guides to the editing canvas backgrounds ([#32544](https://github.com/lightdash/lightdash/issues/32544)) ([50b9b11](https://github.com/lightdash/lightdash/commit/50b9b116025afcb60a20b865bb880c26e96e79d0))
+
+# [3.243.0](https://github.com/lightdash/lightdash/compare/3.242.0...3.243.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** match bar menu arrows and say Ungroup ([#32538](https://github.com/lightdash/lightdash/issues/32538)) ([377f1c7](https://github.com/lightdash/lightdash/commit/377f1c7335865d5ad3d70884307bc980a0d9b59b))
+* **previews:** add flag to inherit parent settings across Snowflake warehouses ([#32471](https://github.com/lightdash/lightdash/issues/32471)) ([217eee9](https://github.com/lightdash/lightdash/commit/217eee95a6cb4089da3ecb31eab5ac2a46c4f76d))
+* **storybook:** repair the colour scheme toggle ([#32539](https://github.com/lightdash/lightdash/issues/32539)) ([4c21e05](https://github.com/lightdash/lightdash/commit/4c21e052e5a9870f75e226bc5ee9c2f5c49bf001))
+
+
+### Features
+
+* add an Analytics overview and scoped AI chat to settings ([#32529](https://github.com/lightdash/lightdash/issues/32529)) ([5929858](https://github.com/lightdash/lightdash/commit/5929858a1645e7c17f2adc053d38934d30fc0ac1))
+* **ai:** keep Semantic Studio work as server-side workspaces ([#32533](https://github.com/lightdash/lightdash/issues/32533)) ([4329310](https://github.com/lightdash/lightdash/commit/4329310f234a95d3279445fe20b3c09a0fa4ea3a))
+
+# [3.242.0](https://github.com/lightdash/lightdash/compare/3.241.0...3.242.0) (2026-11-13)
+
+
+### Bug Fixes
+
+* **dashboards:** keep stacked tiles beside their taller neighbours when tidying ([#32537](https://github.com/lightdash/lightdash/issues/32537)) ([497d87e](https://github.com/lightdash/lightdash/commit/497d87e9ad3e2a2d6e04a5ada3bd7105537a2314))
+* **homepage:** keep Choose metrics button in place while pressed ([#32534](https://github.com/lightdash/lightdash/issues/32534)) ([497bb01](https://github.com/lightdash/lightdash/commit/497bb018afceecb428765b9b8bff322f8913d2d9))
+
+
+### Features
+
+* **ai:** review Studio changes in one place and show what a dbt save is doing ([#32521](https://github.com/lightdash/lightdash/issues/32521)) ([7575f1e](https://github.com/lightdash/lightdash/commit/7575f1ee8b2f0edb8f63706e39369bd78854f694))
+
+# [3.241.0](https://github.com/lightdash/lightdash/compare/3.240.5...3.241.0) (2026-11-13)
+
+
+### Features
+
+* **embed:** give embed editors the dashboard controls editor ([#32500](https://github.com/lightdash/lightdash/issues/32500)) ([06337f7](https://github.com/lightdash/lightdash/commit/06337f789b93cc99bccefe66dac643df43453993))
+* **embed:** translate dashboard control names in embeds ([#32504](https://github.com/lightdash/lightdash/issues/32504)) ([7b2f8be](https://github.com/lightdash/lightdash/commit/7b2f8be7add849a6957dfc13e00442e92772e4bd))
+
+## [3.240.5](https://github.com/lightdash/lightdash/compare/3.240.4...3.240.5) (2026-11-13)
+
+
+### Bug Fixes
+
+* retry initial analytics processing when recreating a project ([#32532](https://github.com/lightdash/lightdash/issues/32532)) ([5430f6e](https://github.com/lightdash/lightdash/commit/5430f6eb82c1469b7bd537868776a18db641af4a))
+
+## [3.240.4](https://github.com/lightdash/lightdash/compare/3.240.3...3.240.4) (2026-11-13)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep embedded write-space threads private to their viewer ([#32405](https://github.com/lightdash/lightdash/issues/32405)) ([83c073b](https://github.com/lightdash/lightdash/commit/83c073b764568a0e1a86cad664c317515e17d95f))
+
+## [3.240.3](https://github.com/lightdash/lightdash/compare/3.240.2...3.240.3) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** have Studio check real values before suggesting on a dbt project ([#32519](https://github.com/lightdash/lightdash/issues/32519)) ([55e43cd](https://github.com/lightdash/lightdash/commit/55e43cdfc840340d22c221400b8fb1c95c2c8bf5))
+* **ai:** read results of a query run on your own unpublished model changes ([#32520](https://github.com/lightdash/lightdash/issues/32520)) ([cf625a0](https://github.com/lightdash/lightdash/commit/cf625a0baf8e4f2da435f51c1034f21d1da570ae))
+
+## [3.240.2](https://github.com/lightdash/lightdash/compare/3.240.1...3.240.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboards:** draw the editing canvas background on every tab and down to the window bottom ([#32517](https://github.com/lightdash/lightdash/issues/32517)) ([2d11f90](https://github.com/lightdash/lightdash/commit/2d11f90fcf787a0be203b52dc9d70dbcbc8fb586))
+
+## [3.240.1](https://github.com/lightdash/lightdash/compare/3.240.0...3.240.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** list only models with YAML in the Studio code view ([#32506](https://github.com/lightdash/lightdash/issues/32506)) ([346d366](https://github.com/lightdash/lightdash/commit/346d366f879079af67740629fdd6984adc822965))
+
+# [3.240.0](https://github.com/lightdash/lightdash/compare/3.239.0...3.240.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** name where a Studio change stands and what your queries read ([#32510](https://github.com/lightdash/lightdash/issues/32510)) ([cdaef6d](https://github.com/lightdash/lightdash/commit/cdaef6d891892198dc8683fbf779cf1dfe35f3ac))
+
+# [3.239.0](https://github.com/lightdash/lightdash/compare/3.238.0...3.239.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** give the Studio dbt pull request bar its context, models, publish and discard ([#32483](https://github.com/lightdash/lightdash/issues/32483)) ([1bc22eb](https://github.com/lightdash/lightdash/commit/1bc22eb7e1a3a94981da23b1fd3dd5345e55cbd6))
+
+# [3.238.0](https://github.com/lightdash/lightdash/compare/3.237.0...3.238.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** seed the Learn Deep Research sample report as a Document ([#32509](https://github.com/lightdash/lightdash/issues/32509)) ([cc5576a](https://github.com/lightdash/lightdash/commit/cc5576af33571c5d78e9c65faf4d8d5616fdb119))
+* **dashboard:** place new tiles below the bottom edge of the lowest tile ([#32410](https://github.com/lightdash/lightdash/issues/32410)) ([4a0943f](https://github.com/lightdash/lightdash/commit/4a0943f0e665f01f2f4e97ec35eba80972ce9528))
+* **dashboards:** stop edits pushing untouched tiles down ([#32361](https://github.com/lightdash/lightdash/issues/32361)) ([99c4937](https://github.com/lightdash/lightdash/commit/99c49371027acc1e5311894dafac7d7e7d0464e9)), closes [#32160](https://github.com/lightdash/lightdash/issues/32160)
+
+
+### Features
+
+* **ai:** teach agents dashboard controls and apply date zoom ([#32492](https://github.com/lightdash/lightdash/issues/32492)) ([906cdc1](https://github.com/lightdash/lightdash/commit/906cdc166c3135baff474188bcb0ea12af696c63))
+
+# [3.237.0](https://github.com/lightdash/lightdash/compare/3.236.1...3.237.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **data-apps:** tell apps up front when a viewer has no shared app state ([#32499](https://github.com/lightdash/lightdash/issues/32499)) ([3653827](https://github.com/lightdash/lightdash/commit/3653827c15a45129487c6067771a80bdd6228f55))
+
+
+### Features
+
+* **live-sources:** rename Source ID to explore prefix and explain it ([#32503](https://github.com/lightdash/lightdash/issues/32503)) ([d93e320](https://github.com/lightdash/lightdash/commit/d93e3200c238841e564f3984ea1e295dac80084e))
+* **merge:** let an instance turn off merge authoring with DISABLE_MERGE_QUERY_AUTHORING ([#32508](https://github.com/lightdash/lightdash/issues/32508)) ([be88656](https://github.com/lightdash/lightdash/commit/be8865683c8531ab03bef5ab5052bf3529d74c3a))
+
+## [3.236.1](https://github.com/lightdash/lightdash/compare/3.236.0...3.236.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** draw floating bars with the edit toolbar bar ([#32487](https://github.com/lightdash/lightdash/issues/32487)) ([484d5c9](https://github.com/lightdash/lightdash/commit/484d5c93e047911accb14be2f3a781b2d3c236cd))
+* **data-apps:** move an open app to the latest version when a newer one is ready ([#32486](https://github.com/lightdash/lightdash/issues/32486)) ([129dca8](https://github.com/lightdash/lightdash/commit/129dca89bbdba88375917ac4b51498fff0c227ff))
+
+# [3.236.0](https://github.com/lightdash/lightdash/compare/3.235.0...3.236.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** drop legacy Deep Research report columns ([#32458](https://github.com/lightdash/lightdash/issues/32458)) ([1bac45d](https://github.com/lightdash/lightdash/commit/1bac45dd3f0810e5b9d105c95c2e0f061c44198e))
+* **ai:** remove legacy Deep Research markdown reports ([#32457](https://github.com/lightdash/lightdash/issues/32457)) ([a1757d4](https://github.com/lightdash/lightdash/commit/a1757d4cb27ec147198b0ecabebf5a96f0cd5148))
+* **ai:** try a Studio dbt change before its preview project is built ([#32482](https://github.com/lightdash/lightdash/issues/32482)) ([429425d](https://github.com/lightdash/lightdash/commit/429425d3776fdcdcbb733f257d12858cf3e57793))
+
+# [3.235.0](https://github.com/lightdash/lightdash/compare/3.234.6...3.235.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **scheduler:** make the scheduler polling timeout configurable and mark timed-out queries cancelled ([#32439](https://github.com/lightdash/lightdash/issues/32439)) ([32bb52c](https://github.com/lightdash/lightdash/commit/32bb52c9813b155dbc60bf59d60eba5f53e44416)), closes [#27245](https://github.com/lightdash/lightdash/issues/27245) [#27245](https://github.com/lightdash/lightdash/issues/27245)
+
+
+### Features
+
+* **mobile:** phone sign-in in the header and settings behind the QR flag ([#32464](https://github.com/lightdash/lightdash/issues/32464)) ([820c82b](https://github.com/lightdash/lightdash/commit/820c82b5664977b9f61035cbdfd9d36a3c420c6a))
+
+## [3.234.6](https://github.com/lightdash/lightdash/compare/3.234.5...3.234.6) (2026-11-12)
+
+
+### Bug Fixes
+
+* **live-sources:** refuse a live data source result the source cut ([#32467](https://github.com/lightdash/lightdash/issues/32467)) ([89ccd24](https://github.com/lightdash/lightdash/commit/89ccd24c0789cb953a702f05ea8bddc8ecf9216c))
+
+## [3.234.5](https://github.com/lightdash/lightdash/compare/3.234.4...3.234.5) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboards:** keep live data source tiles working under date zoom ([#32466](https://github.com/lightdash/lightdash/issues/32466)) ([3afc2de](https://github.com/lightdash/lightdash/commit/3afc2de760b8084aff82452958ec5f32da99910f))
+* **live-sources:** refuse ads queries grouped by an attribute alone ([#32463](https://github.com/lightdash/lightdash/issues/32463)) ([f4d7a30](https://github.com/lightdash/lightdash/commit/f4d7a300c9d08c8eba2e00a960bea2beca78d889))
+
+## [3.234.4](https://github.com/lightdash/lightdash/compare/3.234.3...3.234.4) (2026-11-12)
+
+
+### Bug Fixes
+
+* **visualization:** draw no stack totals on charts that are not stacked ([#32438](https://github.com/lightdash/lightdash/issues/32438)) ([8392996](https://github.com/lightdash/lightdash/commit/8392996f15b70609ae58868bd8a3fe3d3b7e83ec))
+
+## [3.234.3](https://github.com/lightdash/lightdash/compare/3.234.2...3.234.3) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboards:** align Markdown tile formatting ([#32485](https://github.com/lightdash/lightdash/issues/32485)) ([10d6820](https://github.com/lightdash/lightdash/commit/10d6820fcb65b90599e67cd5435a762137bf254b))
+* **pivot:** fold groups past the column limit into "Other" on stacked charts ([#32373](https://github.com/lightdash/lightdash/issues/32373)) ([a422260](https://github.com/lightdash/lightdash/commit/a4222607aa30b483f5ee21077a3ecbcca7d709ae))
+
+## [3.234.2](https://github.com/lightdash/lightdash/compare/3.234.1...3.234.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** Studio pull request card, previous conversation, and how to try a change ([#32481](https://github.com/lightdash/lightdash/issues/32481)) ([7ddabb7](https://github.com/lightdash/lightdash/commit/7ddabb79deebeb11e48bfa8419c9f1beb0435059))
+
+## [3.234.1](https://github.com/lightdash/lightdash/compare/3.234.0...3.234.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **scheduler:** align service account job visibility ([#32478](https://github.com/lightdash/lightdash/issues/32478)) ([3976309](https://github.com/lightdash/lightdash/commit/397630962808fc180dfe72a258843b663705f2c2))
+
+# [3.234.0](https://github.com/lightdash/lightdash/compare/3.233.0...3.234.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **data-apps:** keep shared app state from users without Explore ([#32416](https://github.com/lightdash/lightdash/issues/32416)) ([ab4af3e](https://github.com/lightdash/lightdash/commit/ab4af3e0c29b70fbfed6b867f9e6a8ba84acf143))
+
+
+### Features
+
+* **data-apps:** let Viewers run data app queries behind a flag ([#32358](https://github.com/lightdash/lightdash/issues/32358)) ([63f2fb0](https://github.com/lightdash/lightdash/commit/63f2fb01bfcb95f75b0c0870fad60c53f8abb586))
+* **data-apps:** warn app managers when Viewers can't load an app's data ([#32418](https://github.com/lightdash/lightdash/issues/32418)) ([6232048](https://github.com/lightdash/lightdash/commit/62320489756a9db7ccc1ebb3db1f564e4d0f2c0a))
+
+# [3.233.0](https://github.com/lightdash/lightdash/compare/3.232.0...3.233.0) (2026-11-12)
+
+
+### Features
+
+* **dashboard-controls:** one quiet Default zoom button in both modes ([#32473](https://github.com/lightdash/lightdash/issues/32473)) ([1f7e940](https://github.com/lightdash/lightdash/commit/1f7e9408a78f8f224ec6fe2bb0e7bc849eb5e728))
+
+# [3.232.0](https://github.com/lightdash/lightdash/compare/3.231.0...3.232.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** close gaps found reviewing the Semantic Studio stack ([#32476](https://github.com/lightdash/lightdash/issues/32476)) ([73dc3eb](https://github.com/lightdash/lightdash/commit/73dc3eba6fadbaaf7af6cb06ed8c993c017bdc6b))
+* **homepage:** keep the ask input send button inside the card when the starter prompt is long ([#32472](https://github.com/lightdash/lightdash/issues/32472)) ([245b128](https://github.com/lightdash/lightdash/commit/245b128260a5ab74c633da9ec021d3de4e119fc9))
+
+
+### Features
+
+* **ai:** apply a semantic layer draft as a pull request for models kept in GitHub ([#32422](https://github.com/lightdash/lightdash/issues/32422)) ([a67cb3b](https://github.com/lightdash/lightdash/commit/a67cb3bdaa1d423222449e46674dc3dba9b01000))
+* **ai:** let Semantic Studio chat change a dbt project through a pull request ([#32430](https://github.com/lightdash/lightdash/issues/32430)) ([b0571db](https://github.com/lightdash/lightdash/commit/b0571dbb245688b8530e70d8a32381293ea8c9c5))
+* **ai:** make draft versus live and other people's work plain in Semantic Studio ([#32441](https://github.com/lightdash/lightdash/issues/32441)) ([d1a6e64](https://github.com/lightdash/lightdash/commit/d1a6e6400ab0a7ba48217ab5cdf3d75afd097195))
+* **ai:** reconcile a semantic layer draft with what was published under it ([#32435](https://github.com/lightdash/lightdash/issues/32435)) ([d53fb81](https://github.com/lightdash/lightdash/commit/d53fb811fa6e7897851dc23e394d92ed588caa7c))
+* **ai:** show what surrounds a semantic layer draft before publishing ([#32433](https://github.com/lightdash/lightdash/issues/32433)) ([c0f2375](https://github.com/lightdash/lightdash/commit/c0f2375f0bb79bb66e6c39c0c3a69967c3d42d5a))
+* **ai:** try your own semantic layer draft on the live project ([#32432](https://github.com/lightdash/lightdash/issues/32432)) ([0b3e779](https://github.com/lightdash/lightdash/commit/0b3e779fd43e694ac5c6a6ef103a55b5285e16f7))
+* **dashboards-as-code:** date zoom slugs and order in dashboard files ([#32390](https://github.com/lightdash/lightdash/issues/32390)) ([f64838c](https://github.com/lightdash/lightdash/commit/f64838c28c6c0763edac23a449e0e79a1015903a))
+* **dashboards:** resize tiles from every side while editing ([#32462](https://github.com/lightdash/lightdash/issues/32462)) ([b53eb73](https://github.com/lightdash/lightdash/commit/b53eb73bd25da7376ec3dcf67da908d7f984edae))
+
+
+### Performance Improvements
+
+* **ai:** read a small repository in one request for the agent's repo shell ([#32425](https://github.com/lightdash/lightdash/issues/32425)) ([02b1c99](https://github.com/lightdash/lightdash/commit/02b1c99fa105b91dc90049c07ff7514cf400e4b9))
+
+# [3.231.0](https://github.com/lightdash/lightdash/compare/3.230.0...3.231.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** align tool description formatting ([#32465](https://github.com/lightdash/lightdash/issues/32465)) ([0c251f8](https://github.com/lightdash/lightdash/commit/0c251f823fc616bbfc5d8ee8c35d7a9079221244))
+
+
+### Features
+
+* **permissions:** add manage:MergeQuery scope for merge authoring ([#32475](https://github.com/lightdash/lightdash/issues/32475)) ([0db28dd](https://github.com/lightdash/lightdash/commit/0db28ddaf49ff0f6ba78602a04330343417ae09b))
+
+# [3.230.0](https://github.com/lightdash/lightdash/compare/3.229.0...3.230.0) (2026-11-12)
+
+
+### Features
+
+* **auth:** let a trusted workload identity provision organizations ([#32406](https://github.com/lightdash/lightdash/issues/32406)) ([6830925](https://github.com/lightdash/lightdash/commit/683092529bada7115aa8b8a68dc43bd0f786714f))
+
+# [3.229.0](https://github.com/lightdash/lightdash/compare/3.228.0...3.229.0) (2026-11-12)
+
+
+### Features
+
+* **dashboard-controls:** edit date zoom in the controls bar ([#32419](https://github.com/lightdash/lightdash/issues/32419)) ([5d4b535](https://github.com/lightdash/lightdash/commit/5d4b53566afd8f0c7c955f7f789beb99e9aa3484))
+
+# [3.228.0](https://github.com/lightdash/lightdash/compare/3.227.0...3.228.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** explore and view SQL of a composer merge step ([#32468](https://github.com/lightdash/lightdash/issues/32468)) ([fab6321](https://github.com/lightdash/lightdash/commit/fab6321bd35979e623c5b4b33072a0d1a21e0c15))
+
+# [3.227.0](https://github.com/lightdash/lightdash/compare/3.226.0...3.227.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **mobile:** give QR sign-in tokens the registered scope when none is sent ([#32454](https://github.com/lightdash/lightdash/issues/32454)) ([d2ba243](https://github.com/lightdash/lightdash/commit/d2ba24352750e03ba57186e738f885da0723355b))
+
+
+### Features
+
+* **nats:** log event-loop stalls, redeliveries and nak/term in the query worker ([#32442](https://github.com/lightdash/lightdash/issues/32442)) ([e9b0ba9](https://github.com/lightdash/lightdash/commit/e9b0ba95349beae0a0bcc231f45a3985117b4354))
+
+# [3.226.0](https://github.com/lightdash/lightdash/compare/3.225.0...3.226.0) (2026-11-12)
+
+
+### Features
+
+* **analytics:** add a managed project homepage and Ask AI shortcut ([#32452](https://github.com/lightdash/lightdash/issues/32452)) ([617d100](https://github.com/lightdash/lightdash/commit/617d100485e17465894456fdfd0efff9596157cb))
+
+# [3.225.0](https://github.com/lightdash/lightdash/compare/3.224.0...3.225.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** agent asks clarifying questions with clickable options ([#32451](https://github.com/lightdash/lightdash/issues/32451)) ([89828af](https://github.com/lightdash/lightdash/commit/89828afc4a82cca9426265c2bca682eb1a147c91))
+
+# [3.224.0](https://github.com/lightdash/lightdash/compare/3.223.0...3.224.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** send bar and line charts as native Slack charts ([#32453](https://github.com/lightdash/lightdash/issues/32453)) ([b34aa94](https://github.com/lightdash/lightdash/commit/b34aa948b4825ad21e8de81ee112d5249e33f579))
+
+# [3.223.0](https://github.com/lightdash/lightdash/compare/3.222.0...3.223.0) (2026-11-12)
+
+
+### Features
+
+* **embed:** share embedded dashboard view state with the AI agent beside it ([#32412](https://github.com/lightdash/lightdash/issues/32412)) ([cf8bb81](https://github.com/lightdash/lightdash/commit/cf8bb81bd397efddb046c2d53481d6be22be8ca9))
+
+# [3.222.0](https://github.com/lightdash/lightdash/compare/3.221.0...3.222.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** merge step reads as one sentence of lettered steps ([#32450](https://github.com/lightdash/lightdash/issues/32450)) ([e15b89f](https://github.com/lightdash/lightdash/commit/e15b89f040350e92411181eb9b5f9b29592c2963))
+
+# [3.221.0](https://github.com/lightdash/lightdash/compare/3.220.0...3.221.0) (2026-11-12)
+
+
+### Features
+
+* **mcp:** return every terminal row from query ([#32448](https://github.com/lightdash/lightdash/issues/32448)) ([21b4772](https://github.com/lightdash/lightdash/commit/21b4772494884287749afe4fce1aa2c3e54f7349))
+
+# [3.220.0](https://github.com/lightdash/lightdash/compare/3.219.0...3.220.0) (2026-11-11)
+
+
+### Features
+
+* **dashboards:** keep tiles in place while dragging or resizing in edit mode ([#32426](https://github.com/lightdash/lightdash/issues/32426)) ([dad1230](https://github.com/lightdash/lightdash/commit/dad1230cf41dedcc1f270bedb4a6cf9ff3ed9c60))
+* **dashboards:** snap dragged tiles into rows and empty spaces ([#32428](https://github.com/lightdash/lightdash/issues/32428)) ([224ead6](https://github.com/lightdash/lightdash/commit/224ead6b10c5bdc4bacdfd8e8297344832484a9a))
+
+# [3.219.0](https://github.com/lightdash/lightdash/compare/3.218.0...3.219.0) (2026-11-11)
+
+
+### Features
+
+* **mobile:** show the sign-in number only after the web confirms ([#32407](https://github.com/lightdash/lightdash/issues/32407)) ([ac21566](https://github.com/lightdash/lightdash/commit/ac215666a5fe8fa7281318b37d1b166f03765e1e))
+
+# [3.218.0](https://github.com/lightdash/lightdash/compare/3.217.1...3.218.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **live-sources:** rebuild existing sources when integration code changes ([#32271](https://github.com/lightdash/lightdash/issues/32271)) ([2a686bc](https://github.com/lightdash/lightdash/commit/2a686bc442c78b2175aec33841d48f2dcf5045e0))
+
+
+### Features
+
+* **live-sources:** add Source ID and reattach for deleted sources ([#32275](https://github.com/lightdash/lightdash/issues/32275)) ([81e937e](https://github.com/lightdash/lightdash/commit/81e937eb5ea92288783a685f9a7bbe9a904a2f5d))
+* **live-sources:** tell agents which target each source reads ([#32274](https://github.com/lightdash/lightdash/issues/32274)) ([a4190f2](https://github.com/lightdash/lightdash/commit/a4190f25f0d1c3d5483b6e77c4215fe54f83a410))
+
+## [3.217.1](https://github.com/lightdash/lightdash/compare/3.217.0...3.217.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **agent-identity:** let a person's own bearer token read their in-app agent answers ([#32414](https://github.com/lightdash/lightdash/issues/32414)) ([b6b0742](https://github.com/lightdash/lightdash/commit/b6b0742e91e1600619dbd26f9f25a38affe40874))
+* **merge:** offer dashboard filters on fields from every query a merged tile merges ([#32427](https://github.com/lightdash/lightdash/issues/32427)) ([2d4c38e](https://github.com/lightdash/lightdash/commit/2d4c38e7a41b50ad3af9799bc67e98a27c860ef4))
+
+# [3.217.0](https://github.com/lightdash/lightdash/compare/3.216.0...3.217.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **frontend:** refresh the explore list after saving a live data source ([#32356](https://github.com/lightdash/lightdash/issues/32356)) ([2bbe995](https://github.com/lightdash/lightdash/commit/2bbe995e627af7ccd3ca4ae7767d476b88b49cf6))
+
+
+### Features
+
+* **external-sources:** make external sources available without a feature flag ([#32423](https://github.com/lightdash/lightdash/issues/32423)) ([4740b7d](https://github.com/lightdash/lightdash/commit/4740b7d121e3b58aa57aa11e82a2d5eb3371a9f6))
+
+# [3.216.0](https://github.com/lightdash/lightdash/compare/3.215.0...3.216.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** create new sections inline ([#32415](https://github.com/lightdash/lightdash/issues/32415)) ([e243e36](https://github.com/lightdash/lightdash/commit/e243e36c7d44d7799d7987ccb36b75ecde061a1b))
+
+
+### Features
+
+* **mobile:** show the sign-in code without a button ([#32400](https://github.com/lightdash/lightdash/issues/32400)) ([0a2c020](https://github.com/lightdash/lightdash/commit/0a2c020555a1bebab4d778a63c0d149a4be9dfdc))
+
+# [3.215.0](https://github.com/lightdash/lightdash/compare/3.214.1...3.215.0) (2026-11-11)
+
+
+### Features
+
+* **ai:** composer merge node ([#32388](https://github.com/lightdash/lightdash/issues/32388)) ([39cd132](https://github.com/lightdash/lightdash/commit/39cd132ef3bfacebfd1ae4a4930b02967c8a6746))
+
+## [3.214.1](https://github.com/lightdash/lightdash/compare/3.214.0...3.214.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ai-agent:** fold duckdb reshapes into one node in query description ([#32411](https://github.com/lightdash/lightdash/issues/32411)) ([4c82c50](https://github.com/lightdash/lightdash/commit/4c82c5006bc0515d233f3f945c83347e8dbbece0))
+* **ai-agent:** offer Documents only after a substantial analysis ([#32413](https://github.com/lightdash/lightdash/issues/32413)) ([98ee268](https://github.com/lightdash/lightdash/commit/98ee2683a4def75e780291089d96c26f5e78a913))
+* **visualization:** stop stack total labels sliding between stacks ([#32379](https://github.com/lightdash/lightdash/issues/32379)) ([a80e190](https://github.com/lightdash/lightdash/commit/a80e19095bb92fe9871445161e9b17b132852d02))
+
+# [3.214.0](https://github.com/lightdash/lightdash/compare/3.213.3...3.214.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ai-agent:** refuse visualize charts without a category axis, point to the breakdown step ([#32408](https://github.com/lightdash/lightdash/issues/32408)) ([1fcba4d](https://github.com/lightdash/lightdash/commit/1fcba4d573d7821dc20b33aa4dfd142e56fa6c4b))
+
+
+### Features
+
+* **embed:** allow results and chart exports in embedded Explore ([#32404](https://github.com/lightdash/lightdash/issues/32404)) ([a64958b](https://github.com/lightdash/lightdash/commit/a64958b20459eadffd62f28ed59da0916c1b2544))
+
+## [3.213.3](https://github.com/lightdash/lightdash/compare/3.213.2...3.213.3) (2026-11-11)
+
+
+### Bug Fixes
+
+* **external-sources:** cap concurrent external source queries per process ([#32391](https://github.com/lightdash/lightdash/issues/32391)) ([8f6c80f](https://github.com/lightdash/lightdash/commit/8f6c80fac63e052ef74885d90d6abf3e7b79b95f))
+
+## [3.213.2](https://github.com/lightdash/lightdash/compare/3.213.1...3.213.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **external-sources:** keep the connection id and run tracking for queued external source queries ([#32403](https://github.com/lightdash/lightdash/issues/32403)) ([06ace59](https://github.com/lightdash/lightdash/commit/06ace590c9218774e89516f9f8b32f5adf596212))
+
+## [3.213.1](https://github.com/lightdash/lightdash/compare/3.213.0...3.213.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **merge:** order unordered window formulas by the merged result's order ([#32401](https://github.com/lightdash/lightdash/issues/32401)) ([9e914a0](https://github.com/lightdash/lightdash/commit/9e914a01717a8b93065553d17ed474dca5cc861c))
+
+# [3.213.0](https://github.com/lightdash/lightdash/compare/3.212.0...3.213.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* drop the empty space beside the tab menu while editing a dashboard ([#32398](https://github.com/lightdash/lightdash/issues/32398)) ([fa5c31d](https://github.com/lightdash/lightdash/commit/fa5c31dbe9578a5150674ac4e0427985d06243dd))
+
+
+### Features
+
+* **dashboards:** tidy up tiles from the edit toolbar ([#32396](https://github.com/lightdash/lightdash/issues/32396)) ([33a0a28](https://github.com/lightdash/lightdash/commit/33a0a285f04372f7ef91c5942a2cfc999f825e83))
+* **external-sources:** run external source explore queries on the NATS worker ([#32395](https://github.com/lightdash/lightdash/issues/32395)) ([6584dcc](https://github.com/lightdash/lightdash/commit/6584dccb59cc14186592adf1be3270af78cee3d5))
+
+# [3.212.0](https://github.com/lightdash/lightdash/compare/3.211.5...3.212.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ai-writeback:** normalize git host matching for integration tokens ([#32399](https://github.com/lightdash/lightdash/issues/32399)) ([5ed463b](https://github.com/lightdash/lightdash/commit/5ed463b246504fc3c8b5799f7b28e0c578cb2717))
+
+
+### Features
+
+* **embed:** reload an embedded dashboard in place with refreshKey ([#32397](https://github.com/lightdash/lightdash/issues/32397)) ([0a33a19](https://github.com/lightdash/lightdash/commit/0a33a196227b744af148aa943b79d4665bb967fc))
+
+## [3.211.5](https://github.com/lightdash/lightdash/compare/3.211.4...3.211.5) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ai-writeback:** validate dbt connection host on org git token paths ([#32389](https://github.com/lightdash/lightdash/issues/32389)) ([e207ceb](https://github.com/lightdash/lightdash/commit/e207ceb480e394c7ce50f676057bf4a2807588e6))
+
+## [3.211.4](https://github.com/lightdash/lightdash/compare/3.211.3...3.211.4) (2026-11-11)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** show only the new parameter pills with controls on ([#32394](https://github.com/lightdash/lightdash/issues/32394)) ([ce08bd3](https://github.com/lightdash/lightdash/commit/ce08bd37549403008f513149b4c3be338daa46c7))
+
+## [3.211.3](https://github.com/lightdash/lightdash/compare/3.211.2...3.211.3) (2026-11-11)
+
+
+### Bug Fixes
+
+* remove redundant apps created column from analytics ([#32247](https://github.com/lightdash/lightdash/issues/32247)) ([6d1fd31](https://github.com/lightdash/lightdash/commit/6d1fd31880bbd263b22735276447c84d69894094))
+
+## [3.211.2](https://github.com/lightdash/lightdash/compare/3.211.1...3.211.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* retry unclaimed Snowflake scheduled chart queries ([#32393](https://github.com/lightdash/lightdash/issues/32393)) ([97058c8](https://github.com/lightdash/lightdash/commit/97058c8c80d93a087105fa82268f3cd7d3ee6622))
+
+## [3.211.1](https://github.com/lightdash/lightdash/compare/3.211.0...3.211.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **dashboards:** keep parameter control state stable across tabs ([#32359](https://github.com/lightdash/lightdash/issues/32359)) ([dc9ed2e](https://github.com/lightdash/lightdash/commit/dc9ed2e4009f8a1df657e52ae121d03c94829803))
+
+# [3.211.0](https://github.com/lightdash/lightdash/compare/3.210.2...3.211.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ai-reviews:** send the client secret when connecting Linear ([#32387](https://github.com/lightdash/lightdash/issues/32387)) ([79185ee](https://github.com/lightdash/lightdash/commit/79185eea59bf041cd5a703a0611ee8a1ae566ccf))
+* **external-sources:** wait for a free per-organization query slot ([#32357](https://github.com/lightdash/lightdash/issues/32357)) ([7104ab7](https://github.com/lightdash/lightdash/commit/7104ab73c6c7f608c4471c023c92ae3597c785d5))
+
+
+### Features
+
+* **dashboards:** undo tile moves and list unsaved changes while editing ([#32353](https://github.com/lightdash/lightdash/issues/32353)) ([6729aae](https://github.com/lightdash/lightdash/commit/6729aae0aac2255d1e06d08e42a5d03ef5959b15))
+* **dashboards:** zoom the dashboard canvas in and out while editing ([#32362](https://github.com/lightdash/lightdash/issues/32362)) ([5ce649d](https://github.com/lightdash/lightdash/commit/5ce649d73825a2354cc94f3275b4ddcecb54c553))
+
+
+### Performance Improvements
+
+* **results-cache:** serve cache usage stats from a covering index ([#32380](https://github.com/lightdash/lightdash/issues/32380)) ([f7c3997](https://github.com/lightdash/lightdash/commit/f7c3997b6cd615ac9b8aa6bdcfd8d272e4c3487a))
+
+## [3.210.2](https://github.com/lightdash/lightdash/compare/3.210.1...3.210.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** drag sections from anywhere on the capsule ([#32385](https://github.com/lightdash/lightdash/issues/32385)) ([42804ff](https://github.com/lightdash/lightdash/commit/42804ff7046408f98c76c2189ff19fe83bf619d9))
+
+## [3.210.1](https://github.com/lightdash/lightdash/compare/3.210.0...3.210.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **snowflake:** accept mis-pasted shared agent account keys and say why Test failed ([#32377](https://github.com/lightdash/lightdash/issues/32377)) ([584947c](https://github.com/lightdash/lightdash/commit/584947cab7373f4310ff1bee6f10b3b26e381a8a)), closes [PKCS#8](https://github.com/PKCS/issues/8)
+
+# [3.210.0](https://github.com/lightdash/lightdash/compare/3.209.1...3.210.0) (2026-11-11)
+
+
+### Features
+
+* **data-apps:** one useAppState hook over url, user and shared scopes ([#32376](https://github.com/lightdash/lightdash/issues/32376)) ([23e79bb](https://github.com/lightdash/lightdash/commit/23e79bb021a50f2aa1c58ed508dd78b09065c0f5))
+
+## [3.209.1](https://github.com/lightdash/lightdash/compare/3.209.0...3.209.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **cli:** detect dbt when the version banner reads dbt-oss 2.x ([#32374](https://github.com/lightdash/lightdash/issues/32374)) ([aa2ecf7](https://github.com/lightdash/lightdash/commit/aa2ecf735a62a088d1d3870a8366bcd33a184ed0))
+
+# [3.209.0](https://github.com/lightdash/lightdash/compare/3.208.0...3.209.0) (2026-11-11)
+
+
+### Features
+
+* **sync:** customize chart filters per Google Sheets sync ([#32325](https://github.com/lightdash/lightdash/issues/32325)) ([4b8596f](https://github.com/lightdash/lightdash/commit/4b8596f8d04bea07221549cf4d084f90286938d9))
+
+# [3.208.0](https://github.com/lightdash/lightdash/compare/3.207.0...3.208.0) (2026-11-10)
+
+
+### Features
+
+* support additional_dimensions at the model level ([#32352](https://github.com/lightdash/lightdash/issues/32352)) ([807de1b](https://github.com/lightdash/lightdash/commit/807de1b1584cebf74a3c8a3c8b67841380c8a898))
+
+# [3.207.0](https://github.com/lightdash/lightdash/compare/3.206.0...3.207.0) (2026-11-10)
+
+
+### Features
+
+* combine joined fields at the explore level ([#32334](https://github.com/lightdash/lightdash/issues/32334)) ([c69be06](https://github.com/lightdash/lightdash/commit/c69be063eb019041ce58ffd5f9c4937c0a758db7))
+
+# [3.206.0](https://github.com/lightdash/lightdash/compare/3.205.2...3.206.0) (2026-11-10)
+
+
+### Features
+
+* **mobile:** publish the Play App Signing fingerprint in assetlinks.json by default ([#32360](https://github.com/lightdash/lightdash/issues/32360)) ([b6ccdd6](https://github.com/lightdash/lightdash/commit/b6ccdd61e7f776f8b8e8b206f58268f17354363c))
+
+## [3.205.2](https://github.com/lightdash/lightdash/compare/3.205.1...3.205.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **dashboards-as-code:** metric and table calculation filters keep ids and tile targets ([#32354](https://github.com/lightdash/lightdash/issues/32354)) ([fa5fbd1](https://github.com/lightdash/lightdash/commit/fa5fbd18ae39018a6fea7c67630a132b77a500d4))
+
+## [3.205.1](https://github.com/lightdash/lightdash/compare/3.205.0...3.205.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** match parameter pill cues to filter pills ([#32355](https://github.com/lightdash/lightdash/issues/32355)) ([53c625e](https://github.com/lightdash/lightdash/commit/53c625eb860a491387d48c61932d9c680f4a08ec))
+
+# [3.205.0](https://github.com/lightdash/lightdash/compare/3.204.1...3.205.0) (2026-11-10)
+
+
+### Features
+
+* **ai:** move AI analysis settings under Ask AI ([#32342](https://github.com/lightdash/lightdash/issues/32342)) ([32f4f15](https://github.com/lightdash/lightdash/commit/32f4f15f2408365b37c9c7cfe9c1d433a878cba2))
+
 ## [3.204.1](https://github.com/lightdash/lightdash/compare/3.204.0...3.204.1) (2026-11-10)
 
 

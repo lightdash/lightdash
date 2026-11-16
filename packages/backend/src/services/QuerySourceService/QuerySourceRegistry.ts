@@ -6,6 +6,7 @@ import {
 import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { DuckdbQuerySource } from './sources/DuckdbQuerySource';
+import { MergeQuerySource } from './sources/MergeQuerySource';
 import { PythonQuerySource } from './sources/PythonQuerySource';
 import { SemanticLayerQuerySource } from './sources/SemanticLayerQuerySource';
 import { SqlQuerySource } from './sources/SqlQuerySource';
@@ -43,6 +44,7 @@ export class QuerySourceRegistry {
         );
         registry.register(new DuckdbQuerySource({ asyncQueryService }));
         registry.register(new PythonQuerySource({ asyncQueryService }));
+        registry.register(new MergeQuerySource({ asyncQueryService }));
         return registry;
     }
 

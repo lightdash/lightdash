@@ -8,6 +8,9 @@ import { MergeProvider } from './MergeContext';
 import { MERGE_URL_PARAM } from './mergeUrlState';
 import { useMerge } from './useMerge';
 
+vi.mock('../hooks/useCanAuthorMerge', () => ({
+    useCanAuthorMerge: () => true,
+}));
 vi.mock('../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project',
 }));

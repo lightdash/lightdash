@@ -108,7 +108,7 @@ describe('SearchConsoleConnector', () => {
                 position: 1.9,
             },
         ]);
-        expect(result.truncated).toBe(true);
+        expect(result.hasMoreRows).toBe(true);
     });
 
     it('uses a smaller row limit from the request', async () => {
@@ -127,7 +127,7 @@ describe('SearchConsoleConnector', () => {
             expect.objectContaining({ rowLimit: 2, startRow: 0 }),
         );
         expect(result.rows).toHaveLength(1);
-        expect(result.truncated).toBe(true);
+        expect(result.hasMoreRows).toBe(true);
     });
 
     it('returns site totals when there are no dimensions', async () => {
@@ -146,7 +146,7 @@ describe('SearchConsoleConnector', () => {
         expect(result.rows).toEqual([
             { clicks: 25, impressions: 590, ctr: 0.042, position: 3 },
         ]);
-        expect(result.truncated).toBe(false);
+        expect(result.hasMoreRows).toBe(false);
     });
 
     it('returns no rows when the site has no data for the range', async () => {

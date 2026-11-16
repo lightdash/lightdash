@@ -46,6 +46,39 @@ describe('getFinalStepFailure', () => {
         expect(failure?.stepLabel).toBeTruthy();
     });
 
+    it('leaves a failed dbt edit to its own card, unless it has none', () => {
+        const edit: LiveActivityToolGroup = {
+            toolName: 'editDbtProject',
+            keyId: 'a',
+            calls: [
+                { toolCallId: 'a', toolName: 'editDbtProject', toolArgs: {} },
+            ],
+        };
+        const editResult = (metadata: object): AiAgentToolResult =>
+            ({
+                ...result('a', 'error', 'call editDbtProject again'),
+                toolName: 'editDbtProject',
+                metadata,
+            }) as AiAgentToolResult;
+        expect(
+            getFinalStepFailure(
+                [edit],
+                [
+                    editResult({
+                        status: 'error',
+                        errorCode: 'pull_request_not_open',
+                    }),
+                ],
+            ),
+        ).toBeNull();
+        expect(
+            getFinalStepFailure(
+                [edit],
+                [editResult({ status: 'error', errorCode: 'not_a_code' })],
+            ),
+        ).not.toBeNull();
+    });
+
     it('ignores failures the agent moved past', () => {
         expect(
             getFinalStepFailure(

@@ -97,6 +97,7 @@ import { McpGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admi
 import { AiCreditsSettingsPage } from '../ee/features/aiCredits/AiCreditsSettingsPage';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
+import Billing from '../ee/pages/Billing';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
@@ -105,6 +106,7 @@ import Roadmap from '../ee/pages/Roadmap';
 import { AgentIdentitySettingsPage } from '../features/aiAccess/AgentIdentitySettingsPage';
 import { getAgentSettingsAccess } from '../features/aiAccess/agentSettingsAccess';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
+import { AI_ANALYSIS_SETTINGS_PATH } from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import { DataAppGeneralSettingsPage } from '../features/apps/settings/DataAppGeneralSettingsPage';
 import { getDataAppsSettingsLanding } from '../features/apps/settings/dataAppsSettingsLanding';
 import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
@@ -198,6 +200,8 @@ const Settings: FC = () => {
         canAccessAnalyticsSettings,
         isAnalyticsProjectLoading,
         isOrganizationRoadmapEnabled,
+        isBillingPortalEnabled,
+        isBillingPortalFlagLoading,
         canAccessAiCredits,
         isAiCreditsLoading,
         isSsoOrganizationSettingsEnabled,
@@ -539,17 +543,23 @@ const Settings: FC = () => {
 
         // The AI-analysis page hosts the consent toggle that data-app and
         // dashboard analysis share, so it opens wherever AI is available.
-        {
-            const canManageOrganization =
-                user?.ability.can('manage', 'Organization') ?? false;
-            const canManageAiAnalysis =
-                canManageOrganization && isAiCopilotEnabledOrTrial;
-            if (canManageAiAnalysis) {
-                allowedRoutes.push({
-                    path: '/dataApps/aiAnalysis',
+        if (
+            isAiCopilotEnabledOrTrial &&
+            user?.ability.can('manage', 'Organization')
+        ) {
+            allowedRoutes.push(
+                {
+                    path: '/ai/analysis',
                     element: <DataAppAiAnalysisSettingsPage />,
-                });
-            }
+                },
+                // Old location, still linked from docs.
+                {
+                    path: '/dataApps/aiAnalysis',
+                    element: (
+                        <Navigate to={AI_ANALYSIS_SETTINGS_PATH} replace />
+                    ),
+                },
+            );
         }
 
         if (dataAppsFlag?.enabled) {
@@ -689,6 +699,25 @@ const Settings: FC = () => {
                 element: (
                     <TrackPage name={PageName.ROADMAP}>
                         <Roadmap />
+                    </TrackPage>
+                ),
+            });
+        }
+
+        if (
+            isBillingPortalEnabled &&
+            user?.ability.can(
+                'manage',
+                subject('Billing', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            allowedRoutes.push({
+                path: '/billing',
+                element: (
+                    <TrackPage name={PageName.BILLING}>
+                        <Billing />
                     </TrackPage>
                 ),
             });
@@ -899,6 +928,7 @@ const Settings: FC = () => {
         isChartStudioAvailable,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
+        isBillingPortalEnabled,
         canAccessAiCredits,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
@@ -913,6 +943,10 @@ const Settings: FC = () => {
 
     const isFixedContent = useMemo(() => {
         return (
+            !matchPath(
+                { path: '/generalSettings/lightdashAnalytics' },
+                location.pathname,
+            ) &&
             !matchPath(
                 {
                     path: '/generalSettings/projectManagement',
@@ -1058,6 +1092,10 @@ const Settings: FC = () => {
         isMobileSettingsFlagLoading &&
         Boolean(matchPath('/generalSettings/mobile', location.pathname));
 
+    const isAwaitingBillingRoute =
+        isBillingPortalFlagLoading &&
+        Boolean(matchPath('/generalSettings/billing', location.pathname));
+
     const isAwaitingAiCreditsRoute =
         isAiCreditsLoading &&
         Boolean(matchPath('/generalSettings/aiCredits', location.pathname));
@@ -1094,6 +1132,7 @@ const Settings: FC = () => {
         isAwaitingDataAppsRoute ||
         isAwaitingAnalyticsRoute ||
         isAwaitingMobileRoute ||
+        isAwaitingBillingRoute ||
         isAwaitingAiCreditsRoute
     ) {
         return <PageSpinner />;

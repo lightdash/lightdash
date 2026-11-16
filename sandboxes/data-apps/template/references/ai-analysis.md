@@ -289,7 +289,7 @@ function DriverPill({ recommendation }: { recommendation: string }) {
 
 ## Saved commentary shared between viewers (`useSharedAiCommentary`)
 
-> Use this when the user wants generated commentary to be **saved** — "save the summary for the team", "everyone should see the same commentary", "let people edit the AI text", "keep the narrative with this view". It needs BOTH AI analysis and saved app state available (see the prompt's availability lines); without either, fall back to `useAiPrompt` (no saving) or plain `useSharedAppState` (no generation).
+> Use this when the user wants generated commentary to be **saved** — "save the summary for the team", "everyone should see the same commentary", "let people edit the AI text", "keep the narrative with this view". It needs BOTH AI analysis and saved app state available (see the prompt's availability lines); without either, fall back to `useAiPrompt` (no saving) or plain `useAppState(key, default, { scope: 'shared' })` (no generation).
 
 `useAiPrompt` answers one viewer once; `useSharedAiCommentary` keys the answer to the current selection and stores it in shared app state, so the first viewer generates it, later viewers of the same selection read the saved text, and anyone may edit it. The edited text is what later viewers see.
 
@@ -355,7 +355,7 @@ Rules:
 - Generation replaces any saved text (the Regenerate case) — trigger it from a click, never on load. Reading saved commentary is free and works even when `canGenerate` is false, so always render saved text regardless.
 - Label the text "AI-generated" until `commentary.edited` is true; then show who edited it from `meta.updatedBy`.
 - The saved text is visible to **every** viewer of the app, including viewers whose data permissions would show them different rows. That is the point of the feature — it behaves like a comment — but do not build it over data some viewers must not see described in words.
-- Storage errors surface on `meta.error`; generation errors on `error`. Handle both like any other state.
+- Storage errors surface on `meta.error`; generation errors on `error`. Handle both like any other state. When `meta.error.code` is `forbidden` the viewer cannot save commentary: `canGenerate` is false, and the Edit and Remove controls must be hidden too.
 
 ## What the app must not do
 

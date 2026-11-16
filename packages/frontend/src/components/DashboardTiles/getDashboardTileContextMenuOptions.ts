@@ -4,6 +4,7 @@ import {
     getFields,
     getItemId,
     getItemMap,
+    isOtherPivotValue,
     type ApiExploreResults,
     type EChartsSeries,
     type SavedChart,
@@ -96,8 +97,10 @@ export const getDashboardTileContextMenuOptions = ({
         }
     }
 
+    // "Other" is not a value of the pivot field, so it cannot be used as a
+    // dashboard filter
     const pivotOptions =
-        pivot && pivotField && pivotValue
+        pivot && pivotField && pivotValue && !isOtherPivotValue(pivotValue)
             ? [
                   createDashboardFilterRuleFromField({
                       field: pivotField,

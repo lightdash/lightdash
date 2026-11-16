@@ -195,7 +195,8 @@ export function setUrlStateKey(key: string, value: unknown): void {
  *   const [period, setPeriod] = useUrlState('period', 'last_month');
  *
  * Values must be JSON-serializable. All call sites share one map keyed by
- * `key`, so no provider is needed.
+ * `key`, so no provider is needed. Equivalent to
+ * `useAppState(key, defaultValue, { scope: 'url' })`.
  */
 export function useUrlState<T>(
     key: string,

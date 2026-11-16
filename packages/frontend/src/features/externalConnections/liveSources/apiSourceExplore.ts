@@ -1,14 +1,21 @@
 import {
     ExploreType,
     getApiSourceCapabilities,
+    getApiSourceFilterOperators,
+    getItemId,
     getItemLabelWithoutTableName,
     getItemMap,
     isApiSourcePushdownSupported,
+    isMetric,
+    isTableCalculation,
     type ApiConnectorType,
     type ApiSourceCapabilities,
     type ApiSourceExplore,
     type Explore,
+    type FilterableField,
+    type FilterOperator,
 } from '@lightdash/common';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplores } from '../../../hooks/useExplores';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -47,6 +54,61 @@ export const useIsRefusedOnLiveSource = (
     );
 };
 
+/**
+ * The operators a live data source runs on `field`, or null when any
+ * operator goes: no live data source, no field yet, or a table calculation,
+ * which the table calculation pushdown rules cover instead.
+ */
+const getLiveSourceOperators = (
+    apiSource: ApiSourceExplore | null | undefined,
+    field: FilterableField | undefined,
+): FilterOperator[] | null =>
+    apiSource && field && !isTableCalculation(field)
+        ? getApiSourceFilterOperators(
+              apiSource,
+              getItemId(field),
+              isMetric(field),
+          )
+        : null;
+
+/** The operator options a live data source runs on `field`; all of them elsewhere. */
+export const getLiveSourceOperatorOptions = <
+    T extends { value: FilterOperator },
+>(
+    options: T[],
+    apiSource: ApiSourceExplore | null | undefined,
+    field: FilterableField | undefined,
+): T[] => {
+    const operators = getLiveSourceOperators(apiSource, field);
+    return operators
+        ? options.filter(({ value }) => operators.includes(value))
+        : options;
+};
+
+/** The operators a live data source runs on `field`; undefined when any goes. */
+export const getLiveSourceSupportedOperators = (
+    apiSource: ApiSourceExplore | null | undefined,
+    field: FilterableField,
+): FilterOperator[] | undefined =>
+    getLiveSourceOperators(apiSource, field) ?? undefined;
+
+/** Whether a live data source can filter on `field` at all; true elsewhere. */
+export const isFilterableOnLiveSource = (
+    apiSource: ApiSourceExplore | null | undefined,
+    field: FilterableField,
+): boolean => (getLiveSourceOperators(apiSource, field) ?? [null]).length > 0;
+
+/** Which filter group shapes a live data source runs; every shape elsewhere. */
+export const getLiveSourceFilterGroups = (
+    apiSource: ApiSourceExplore | null | undefined,
+): { or: boolean; nestedGroups: boolean } => {
+    if (!apiSource) {
+        return { or: true, nestedGroups: true };
+    }
+    const { filters } = getApiSourceCapabilities(apiSource);
+    return { or: filters.or, nestedGroups: filters.nestedGroups };
+};
+
 export type LiveSourceExploreSummary = {
     connectionUuid: string;
     connector: ApiConnectorType;
@@ -59,12 +121,13 @@ export type LiveSourceExploreSummary = {
  * any other explore. Fetches the explore only when the explore list says it
  * is a live one.
  */
-export const useLiveSourceExplore = (
+const useLiveSourceExploreData = (
     exploreName: string | null,
-): LiveSourceExploreSummary | null => {
+    enabled = true,
+) => {
     const projectUuid = useProjectUuid();
     const { data: explores } = useExplores(projectUuid, true, false, {
-        enabled: exploreName !== null && projectUuid !== undefined,
+        enabled: enabled && exploreName !== null && projectUuid !== undefined,
         onError: () => undefined,
     });
     const summary =
@@ -77,6 +140,29 @@ export const useLiveSourceExplore = (
     const { data: explore } = useExplore(summary?.name, {
         onError: () => undefined,
     });
+    return { summary, explore };
+};
+
+/**
+ * The integration rules of the live data source behind a table, e.g. a
+ * dashboard filter's field; null for any other table. A live data source
+ * explore has one table, named like the explore. Embedded dashboards skip
+ * it: their token can't list explores, and the backend still refuses.
+ */
+export const useLiveSourceApiSource = (
+    tableName: string | null | undefined,
+): ApiSourceExplore | null => {
+    const { embedToken } = useEmbed();
+    return (
+        useLiveSourceExploreData(tableName ?? null, !embedToken).explore
+            ?.apiSource ?? null
+    );
+};
+
+export const useLiveSourceExplore = (
+    exploreName: string | null,
+): LiveSourceExploreSummary | null => {
+    const { summary, explore } = useLiveSourceExploreData(exploreName);
     if (!summary || !explore?.apiSource) {
         return null;
     }

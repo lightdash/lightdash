@@ -8,8 +8,10 @@ import {
     MERGE_TABLE_NAME,
     MergeJoinType,
     MetricType,
+    OTHER_PIVOT_KEY,
     QueryHistoryStatus,
     SupportedDbtAdapter,
+    VizAggregationOptions,
     WarehouseTypes,
     type ApiExploreResults,
     type CompiledDimension,
@@ -18,6 +20,7 @@ import {
     type DashboardFilterRule,
     type ItemsMap,
     type MetricQuery,
+    type PivotValuesColumn,
     type SavedChart,
 } from '@lightdash/common';
 import {
@@ -462,6 +465,80 @@ describe('DashboardChartTile with a merged chart', () => {
 
         // Unmount here and drain queued query notifications while the window
         // still exists, so none fire after the environment is torn down.
+        unmount();
+        await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    });
+});
+
+describe('DashboardChartTile pivot column limit', () => {
+    const withTotalColumnCount = (
+        totalColumnCount: number,
+        valuesColumns: PivotValuesColumn[] = [],
+    ) => ({
+        resultsData: {
+            ...resultsData,
+            pivotDetails: {
+                totalColumnCount,
+                indexColumn: undefined,
+                valuesColumns,
+                groupByColumns: undefined,
+                sortBy: undefined,
+                originalColumns: {},
+            },
+        },
+    });
+
+    it('warns on the tile when groups were left out of the results', async () => {
+        const { unmount } = renderTile(
+            dashboardChartReadyQuery,
+            withTotalColumnCount(412),
+        );
+
+        expect(
+            await screen.findByRole('img', {
+                name: 'Some groups are not shown',
+            }),
+        ).toBeInTheDocument();
+
+        unmount();
+        await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
+    });
+
+    it.each([
+        ['every group fits', withTotalColumnCount(3)],
+        [
+            'the rest were folded into "Other"',
+            withTotalColumnCount(412, [
+                {
+                    referenceField: SOURCE_A_METRIC,
+                    pivotColumnName: `${SOURCE_A_METRIC}_any_${OTHER_PIVOT_KEY}`,
+                    aggregation: VizAggregationOptions.ANY,
+                    pivotValues: [
+                        {
+                            referenceField: JOIN_KEY,
+                            value: OTHER_PIVOT_KEY,
+                            formatted: 'Other',
+                        },
+                    ],
+                    isOtherGroup: true,
+                },
+            ]),
+        ],
+    ])('does not warn when %s', async (_, tileProps) => {
+        const { container, unmount } = renderTile(
+            dashboardChartReadyQuery,
+            tileProps,
+        );
+
+        await waitFor(() => {
+            expect(
+                container.querySelectorAll('thead th').length,
+            ).toBeGreaterThan(0);
+        });
+        expect(
+            screen.queryByRole('img', { name: 'Some groups are not shown' }),
+        ).not.toBeInTheDocument();
+
         unmount();
         await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
     });

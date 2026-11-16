@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import { App } from '@octokit/app';
 import { Octokit as OctokitRest } from '@octokit/rest';
+import { Readable } from 'node:stream';
 import Logger from '../../logging/logger';
 
 const { createAppAuth } = require('@octokit/auth-app');
@@ -404,6 +405,35 @@ export const getFileContent = async ({
  * `truncated` is true when the repo exceeds the API's tree-entry limit, in which
  * case the returned list is incomplete.
  */
+/** A repository's files at a ref as one gzipped tar stream: a single request, however many files it holds. */
+export const getRepoArchiveStream = async ({
+    owner,
+    repo,
+    ref,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    ref: string;
+    token: string;
+}): Promise<Readable> => {
+    const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/tarball/${encodeURI(ref)}`,
+        {
+            headers: {
+                authorization: `Bearer ${token}`,
+                accept: 'application/vnd.github+json',
+            },
+        },
+    );
+    if (!response.ok || !response.body) {
+        throw new Error(
+            `Could not download ${owner}/${repo}: ${response.status}`,
+        );
+    }
+    return Readable.from(response.body);
+};
+
 export const getRepoTree = async ({
     owner,
     repo,
@@ -419,6 +449,8 @@ export const getRepoTree = async ({
 }): Promise<{
     files: { path: string; size: number }[];
     truncated: boolean;
+    /** The tree's own hash: two listings with the same one hold the same files. */
+    sha: string;
 }> => {
     const { octokit, headers } = getOctokit(installationId, token);
     try {
@@ -445,7 +477,11 @@ export const getRepoTree = async ({
                 path: entry.path as string,
                 size: entry.size ?? 0,
             }));
-        return { files, truncated: response.data.truncated ?? false };
+        return {
+            files,
+            truncated: response.data.truncated ?? false,
+            sha: response.data.sha,
+        };
     } catch (error) {
         if (
             error instanceof Error &&
@@ -824,19 +860,26 @@ export const listReposAccessibleToUser = async ({
     }
 };
 
-export const getInstallationToken = async (
+export const getInstallationAccessToken = async (
     installationId: string,
-): Promise<string> => {
+): Promise<{ token: string; expiresAt: string }> => {
     try {
         const octokit = getOctokitRestForApp(installationId);
         const response = await octokit.rest.apps.createInstallationAccessToken({
             installation_id: parseInt(installationId, 10),
         });
-        return response.data.token;
+        return {
+            token: response.data.token,
+            expiresAt: response.data.expires_at,
+        };
     } catch (error) {
         throw new UnexpectedGitError(getErrorMessage(error));
     }
 };
+
+export const getInstallationToken = async (
+    installationId: string,
+): Promise<string> => (await getInstallationAccessToken(installationId)).token;
 
 export const updateFile = async ({
     owner,

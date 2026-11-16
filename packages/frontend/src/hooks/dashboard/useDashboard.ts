@@ -15,6 +15,8 @@ import {
     type ExportContentFormat,
     type ExportContentRequest,
     type ParametersValuesMap,
+    isComposerChartTileRequest,
+    type DashboardAvailableFiltersTile,
     type SavedChartsInfoForDashboardAvailableFilters,
     type SchedulerCsvOptions,
     type SchedulerImageOptions,
@@ -116,7 +118,7 @@ const deleteDashboard = async (
 
 const postDashboardsAvailableFilters = async (
     lightdashApi: LightdashApi,
-    savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+    savedChartUuidsAndTileUuids: DashboardAvailableFiltersTile[],
 ) =>
     lightdashApi<DashboardAvailableFilters>({
         url: `/dashboards/availableFilters`,
@@ -136,7 +138,7 @@ const postEmbedDashboardsAvailableFilters = async (
     });
 
 export const useDashboardsAvailableFilters = (
-    savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+    savedChartUuidsAndTileUuids: DashboardAvailableFiltersTile[],
     projectUuid?: string,
     embedToken?: string,
 ) => {
@@ -148,7 +150,10 @@ export const useDashboardsAvailableFilters = (
                 ? postEmbedDashboardsAvailableFilters(
                       lightdashApi,
                       projectUuid,
-                      savedChartUuidsAndTileUuids,
+                      // Embeds draw no composer tile
+                      savedChartUuidsAndTileUuids.flatMap((tile) =>
+                          isComposerChartTileRequest(tile) ? [] : [tile],
+                      ),
                   )
                 : postDashboardsAvailableFilters(
                       lightdashApi,
@@ -936,21 +941,26 @@ export const useDashboardVersionRollbackMutation = (
     );
 };
 
-export const appendNewTilesToBottom = <T extends Pick<DashboardTile, 'y'>>(
+// Each tab is its own canvas, so a new tile goes below the tiles of its own tab
+export const appendNewTilesToBottom = <
+    T extends Pick<DashboardTile, 'y' | 'h'> &
+        Partial<Pick<DashboardTile, 'tabUuid'>>,
+>(
     existingTiles: T[] | undefined,
     newTiles: T[],
 ): T[] => {
-    const tilesY =
-        existingTiles &&
-        existingTiles.map(function (tile) {
-            return tile.y;
-        });
-    const maxY =
-        tilesY && tilesY.length > 0 ? Math.max.apply(Math, tilesY) : -1;
     const reorderedTiles = newTiles.map((tile) => ({
         ...tile,
-        y: maxY + 1,
-    })); //add to the bottom
+        y: (existingTiles ?? [])
+            .filter(
+                (existing) =>
+                    (existing.tabUuid ?? null) === (tile.tabUuid ?? null),
+            )
+            .reduce(
+                (bottom, existing) => Math.max(bottom, existing.y + existing.h),
+                0,
+            ),
+    }));
 
     return [...(existingTiles ?? []), ...reorderedTiles];
 };

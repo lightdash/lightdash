@@ -34,6 +34,7 @@ import {
     emptyMergeSource,
     PRIMARY_SOURCE_ID,
 } from '../constants';
+import { useCanAuthorMerge } from '../hooks/useCanAuthorMerge';
 import { executeMergeQuery } from '../hooks/useMergeQuery';
 import {
     MergeContext,
@@ -87,7 +88,9 @@ export const MergeProvider: FC<
         /** View mode: show the merge, allow nothing, keep the URL clean. */
         readOnly?: boolean;
     }>
-> = ({ children, savedMerge, readOnly = false }) => {
+> = ({ children, savedMerge, readOnly: isViewMode = false }) => {
+    const canAuthorMerge = useCanAuthorMerge();
+    const readOnly = isViewMode || !canAuthorMerge;
     const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -96,8 +99,9 @@ export const MergeProvider: FC<
     // saved.
     const [restored] = useState(
         () =>
-            parseMergeState(searchParams.get(MERGE_URL_PARAM)) ??
-            (savedMerge ? restoreSavedMerge(savedMerge) : null),
+            (canAuthorMerge
+                ? parseMergeState(searchParams.get(MERGE_URL_PARAM))
+                : null) ?? (savedMerge ? restoreSavedMerge(savedMerge) : null),
     );
     // A restored merge the rules refuse never runs, so nothing may wait on it.
     const [restoredRunRefused, setRestoredRunRefused] = useState(false);

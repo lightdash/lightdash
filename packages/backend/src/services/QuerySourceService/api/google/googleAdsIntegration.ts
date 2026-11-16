@@ -31,6 +31,10 @@ export const googleAdsIntegration: ApiSourceIntegration<ApiConnectorType.GOOGLE_
             customerId: z.string(),
             loginCustomerId: z.string().nullable(),
         }),
+        describeTarget: ({ apiSource: { customerId }, targetLabel }) =>
+            targetLabel
+                ? `Google Ads account "${targetLabel}" (ID ${customerId})`
+                : `Google Ads account ${customerId}`,
         baseLayer: {
             baseVersion: GOOGLE_ADS_SEMANTIC_LAYER_VERSION,
             capabilities: GOOGLE_ADS_CAPABILITIES,

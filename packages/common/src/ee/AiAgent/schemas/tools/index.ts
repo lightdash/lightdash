@@ -46,6 +46,7 @@ export * from './sqlApprovalToolCalls';
 export * from './mcpDocumentContent';
 export * from './toolCreateScheduledDeliveryArgs';
 export * from './toolUpdateUserNameArgs';
+export * from './toolAskUserArgs';
 export * from './toolListContentArgs';
 export * from './toolFindContentArgs';
 export * from './toolFindDashboardsArgs';

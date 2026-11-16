@@ -89,6 +89,15 @@ export type ApiSourceIntegration<
     getAccessRules(apiSource: ApiSourceOf<C>): ApiSourceAccessRules;
     /** Throws a ParameterError naming what the admin has to change. */
     validateConnection(settings: ApiSourceConnectionSettings<C>): void;
+    /**
+     * Says what this source reads, for the AI agent. `targetLabel` is the name
+     * the connection picker showed, absent on sources connected without one.
+     */
+    describeTarget(args: {
+        apiSource: ApiSourceOf<C>;
+        origin: string;
+        targetLabel: string | null;
+    }): string;
     createConnector(
         apiSource: ApiSourceOf<C>,
         send: ApiConnectorTransport,

@@ -1,16 +1,19 @@
-import { type SavedChart } from '@lightdash/common';
+import {
+    type CreateSavedChartVersion,
+    type SavedChart,
+} from '@lightdash/common';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { MERGE_URL_PARAM, serializeMergeState } from '../context/mergeUrlState';
 import { restoreSavedMerge } from '../context/restoreSavedMerge';
 
 /**
- * The Explorer URL that reopens a saved chart with its merge restored the way
+ * The Explorer URL that reopens a saved chart (or an unsaved version) with its merge restored the way
  * the merge editor restores it: the primary query as the chart, the other
  * source and the join in the merge search param. An ordinary chart gets the
  * same URL it always did.
  */
 export const getExploreFromHereUrl = (
-    chart: SavedChart,
+    chart: CreateSavedChartVersion & Pick<SavedChart, 'projectUuid'>,
 ): { pathname: string; search: string } => {
     const url = getExplorerUrlFromCreateSavedChartVersion(
         chart.projectUuid,

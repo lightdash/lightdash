@@ -10,6 +10,7 @@ import {
     NotFoundError,
     ParameterError,
     type Account,
+    type ChartParameterReferencesResult,
     type Explore,
     type SavedChartDAO,
     type SavedMergeDefinition,
@@ -179,6 +180,27 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
     const dashboardModel = {
         getByIdOrSlug: vi.fn(async () => embeddedDashboard),
     };
+    const composerChartService = {
+        getParameterReferences: vi.fn(
+            async (
+                _account: Account,
+                _projectUuid: string,
+                uuids: string[],
+            ): Promise<Map<string, ChartParameterReferencesResult>> =>
+                new Map(
+                    uuids.map((uuid) => [
+                        uuid,
+                        {
+                            parameterReferences: ['currency'],
+                            parameterDefinitions: {},
+                            chartSavedValues: { currency: 'usd' },
+                            virtualViewSavedValues: {},
+                            error: null,
+                        },
+                    ]),
+                ),
+        ),
+    };
     const service = new DashboardService({
         lightdashConfig: lightdashConfigMock,
         savedChartModel,
@@ -187,6 +209,7 @@ const setup = ({ dashboardControlsEnabled = true } = {}) => {
         projectService,
         dashboardModel,
         featureFlagModel,
+        getComposerChartService: () => composerChartService,
     } as unknown as ConstructorParameters<typeof DashboardService>[0]);
     return {
         service,
@@ -228,7 +251,39 @@ const chartTile = (tileUuid: string, savedChartUuid: string) => ({
     savedSqlUuid: null,
 });
 
+const noSavedValues = { chartSavedValues: {}, virtualViewSavedValues: {} };
+
 describe('DashboardService.getTileParameterReferences', () => {
+    it('lists a composer tile through the composer chart service, beside a saved chart', async () => {
+        const { service } = setup();
+
+        const result = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            [
+                chartTile('tile-1', 'plain'),
+                {
+                    tileType: DashboardTileTypes.COMPOSER_CHART,
+                    tileUuid: 'composer-tile',
+                    composerChartUuid: 'composer-chart',
+                },
+            ],
+        );
+
+        expect(result[0]).toMatchObject({
+            tileUuid: 'tile-1',
+            parameterReferences: ['orders.region'],
+        });
+        expect(result[1]).toEqual({
+            tileUuid: 'composer-tile',
+            parameterReferences: ['currency'],
+            parameterDefinitions: {},
+            chartSavedValues: { currency: 'usd' },
+            virtualViewSavedValues: {},
+            error: null,
+        });
+    });
+
     it('reads the explore and the chart query, without compiling', async () => {
         const { service, projectService } = setup();
 
@@ -241,12 +296,14 @@ describe('DashboardService.getTileParameterReferences', () => {
             {
                 tileUuid: 'tile-1',
                 parameterReferences: ['orders.region'],
+                ...noSavedValues,
                 error: null,
                 parameterDefinitions: {},
             },
             {
                 tileUuid: 'tile-2',
                 parameterReferences: ['orders.min_amount', 'orders.region'],
+                ...noSavedValues,
                 error: null,
                 parameterDefinitions: {},
             },
@@ -313,6 +370,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                     multiple: true,
                 },
             },
+            ...noSavedValues,
             error: null,
         });
         expect(result[1]).toEqual({
@@ -326,8 +384,97 @@ describe('DashboardService.getTileParameterReferences', () => {
             parameterDefinitions: {
                 region: { label: 'Region', type: 'string', multiple: true },
             },
+            ...noSavedValues,
             error: null,
         });
+    });
+
+    it("defines a short name by the project parameter, not the model's unprefixed copy", async () => {
+        const { service, projectService } = setup();
+        const projectRegion = { label: 'Project region', type: 'string' };
+        projectService.projectParametersModel.find.mockResolvedValue([
+            { name: 'region', config: projectRegion },
+        ]);
+        projectService.findExplores.mockImplementation(
+            async ({ exploreNames }) =>
+                Object.fromEntries(
+                    exploreNames.map((name) => [
+                        name,
+                        {
+                            ...exploreWithParameters(name, ['region', 'tier']),
+                            parameters: {
+                                region: {
+                                    label: 'Model region',
+                                    default: 'EU',
+                                },
+                                tier: { label: 'Model tier' },
+                            },
+                        },
+                    ]),
+                ),
+        );
+
+        const [result] = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            [chartTile('tile-1', 'plain')],
+        );
+
+        // Queries resolve a short name against the project first; a model-only name keeps its copy
+        expect(result).toMatchObject({
+            parameterReferences: ['region', 'tier'],
+            parameterDefinitions: {
+                region: projectRegion,
+                tier: { label: 'Model tier' },
+            },
+        });
+    });
+
+    it('returns chart and virtual view saved values, empty for SQL charts', async () => {
+        const { service, projectService } = setup();
+        charts.withValues = savedChart({
+            uuid: 'withValues',
+            merge,
+            parameters: { 'orders.region': 'EU' },
+        });
+        projectService.findExplores.mockImplementation(
+            async ({ exploreNames }) =>
+                Object.fromEntries(
+                    exploreNames.map((name) => [
+                        name,
+                        {
+                            ...explores[name],
+                            savedParameterValues: { [`${name}.region`]: name },
+                        },
+                    ]),
+                ),
+        );
+
+        await expect(
+            service.getTileParameterReferences(account, projectUuid, [
+                chartTile('tile-1', 'withValues'),
+                { tileUuid: 'sql', savedChartUuid: null, savedSqlUuid: 'sql' },
+            ]),
+        ).resolves.toEqual([
+            {
+                tileUuid: 'tile-1',
+                parameterReferences: ['orders.region', 'payments.region'],
+                chartSavedValues: { 'orders.region': 'EU' },
+                virtualViewSavedValues: {
+                    [`${chart.tableName}.region`]: chart.tableName,
+                    'payments.region': 'payments',
+                },
+                error: null,
+                parameterDefinitions: {},
+            },
+            {
+                tileUuid: 'sql',
+                parameterReferences: ['region'],
+                ...noSavedValues,
+                error: null,
+                parameterDefinitions: {},
+            },
+        ]);
     });
 
     it('loads each explore and chart once across tiles', async () => {
@@ -458,6 +605,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             {
                 tileUuid: 'tile-1',
                 parameterReferences: ['orders.region'],
+                ...noSavedValues,
                 error: null,
                 parameterDefinitions: {},
             },
@@ -469,6 +617,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             {
                 tileUuid: 'tile-3',
                 parameterReferences: ['region'],
+                ...noSavedValues,
                 error: null,
                 parameterDefinitions: {},
             },
@@ -486,6 +635,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             {
                 tileUuid: 'tile-1',
                 parameterReferences: ['orders.region', 'payments.region'],
+                ...noSavedValues,
                 error: null,
                 parameterDefinitions: {},
             },
@@ -525,6 +675,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             {
                 tileUuid: 'tile-1',
                 parameterReferences: ['orders.region', 'required.region'],
+                ...noSavedValues,
                 error: null,
                 parameterDefinitions: {},
             },
@@ -552,6 +703,7 @@ describe('DashboardService.getTileParameterReferences', () => {
         expect(results[1]).toEqual({
             tileUuid: 'tile-2',
             parameterReferences: ['orders.region'],
+            ...noSavedValues,
             error: null,
             parameterDefinitions: {},
         });
@@ -578,6 +730,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             {
                 tileUuid: 'tile-1',
                 parameterReferences: ['orders.min_amount', 'orders.region'],
+                ...noSavedValues,
                 error: null,
                 parameterDefinitions: {},
             },
@@ -601,6 +754,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 tileUuid: 'tile-1',
                 parameterReferences: [],
                 parameterDefinitions: {},
+                ...noSavedValues,
                 error: null,
             },
         ]);
@@ -646,6 +800,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             {
                 tileUuid: 'tile-1',
                 parameterReferences: ['region'],
+                ...noSavedValues,
                 error: null,
                 parameterDefinitions: {},
             },
@@ -670,6 +825,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             {
                 tileUuid: 'good',
                 parameterReferences: ['orders.region'],
+                ...noSavedValues,
                 error: null,
                 parameterDefinitions: {},
             },
@@ -723,6 +879,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             {
                 tileUuid: 'good',
                 parameterReferences: ['region'],
+                ...noSavedValues,
                 error: null,
                 parameterDefinitions: {},
             },
@@ -747,6 +904,7 @@ describe('DashboardService.getTileParameterReferences', () => {
             {
                 tileUuid: 'tile-2',
                 parameterReferences: ['orders.region'],
+                ...noSavedValues,
                 error: null,
                 parameterDefinitions: {},
             },
@@ -776,18 +934,21 @@ describe('DashboardService.getTileParameterReferences', () => {
                 {
                     tileUuid: 'embed-chart-tile',
                     parameterReferences: ['orders.region'],
+                    ...noSavedValues,
                     error: null,
                     parameterDefinitions: {},
                 },
                 {
                     tileUuid: 'embed-sql-tile',
                     parameterReferences: ['region'],
+                    ...noSavedValues,
                     error: null,
                     parameterDefinitions: {},
                 },
                 {
                     tileUuid: 'embed-hidden-tile',
                     parameterReferences: ['orders.region'],
+                    ...noSavedValues,
                     error: null,
                     parameterDefinitions: {},
                 },
@@ -848,6 +1009,7 @@ describe('DashboardService.getTileParameterReferences', () => {
                 {
                     tileUuid: 'embed-chart-tile',
                     parameterReferences: ['orders.region'],
+                    ...noSavedValues,
                     error: null,
                     parameterDefinitions: {},
                 },

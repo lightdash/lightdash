@@ -71,7 +71,7 @@ export const getProposeSemanticLayerChange = ({
                             );
                         }),
                         draftChangeUuid
-                            ? "This joined the person's draft and they see its diff. Nothing is live until they apply the draft."
+                            ? "This joined the person's draft and they see its diff. Nothing is live until they publish the draft."
                             : 'Nothing joined the draft.',
                     ].join('\n'),
                     metadata: {
@@ -107,7 +107,7 @@ export const getReadSemanticModel = ({
                         return `${read.inDraft ? 'This is the draft of this model; it is not live yet.\n' : ''}${read.content}`;
                     }
                     return read.inDraft
-                        ? `The draft removes ${name}; it is still live until the draft is applied.`
+                        ? `The draft removes ${name}; it is still live until the draft is published.`
                         : `No model is named ${name}. Models: ${read.modelNames.join(', ') || 'none yet'}.`;
                 };
                 return {

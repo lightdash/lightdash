@@ -61,6 +61,7 @@ import type {
     ApiAiRouterRouteResponse,
     ApiAiSuggestChartTypeExploreResponse,
     ApiAiSuggestChartTypeFieldsResponse,
+    ApiAiWritebackRunStatusResponse,
     ApiAnnouncementResponse,
     ApiAnnouncementsResponse,
     ApiAppendInstructionResponse,
@@ -78,6 +79,7 @@ import type {
     ApiDataAppVizPreviewTokenResponse,
     ApiDataAppVizRenderMetadataResponse,
     ApiDataAppVizUpgradeImpactResponse,
+    ApiExplorePrefixCheckResponse,
     ApiExternalConnectionAsCodeListResponse,
     ApiExternalConnectionAsCodeUpsertResponse,
     ApiGenerateAppResponse,
@@ -109,6 +111,7 @@ import type {
     ApiPromoteAiAgentMemoryResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
+    ApiReattachableLiveSourcesResponse,
     ApiReplaceProjectContextResults,
     ApiResolvedHomepageResponse,
     ApiSkillsAsCodeListResponse,
@@ -188,6 +191,7 @@ import {
     type ApiAwsWebIdentityResponse,
 } from './awsWebIdentity';
 import { type BigqueryProjectRecommendation } from './bigQuerySSO';
+import { type ApiBillingPortalLinkResponse } from './billing';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -208,6 +212,8 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiComposerChartAsCodeListResponse,
+    type ApiComposerChartAsCodeUpsertResponse,
     type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodePullResponse,
     type ApiContentAsCodeSettingsResponse,
@@ -317,7 +323,12 @@ import {
     type ApiLearnWorkspaceFileResponse,
     type ApiLearnWorkspaceFilesResponse,
 } from './learnSandbox';
-import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
+import type {
+    LinearInstallation,
+    LinearInstallUrl,
+    LinearProject,
+    LinearTeam,
+} from './linear';
 import {
     type ApiCompiledMergeQueryResults,
     type MergeFieldOrigins,
@@ -469,8 +480,13 @@ import { type SchedulerWithLogs } from './schedulerLog';
 import { type SearchResults } from './search';
 import {
     type ApiSemanticLayerDraftApplyResponse,
+    type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
     type ApiSemanticLayerDraftResponse,
+    type ApiSemanticLayerDraftStateResponse,
+    type ApiSemanticLayerDraftUsageResponse,
+    type ApiSemanticStudioWorkspaceResponse,
+    type ApiSemanticStudioWorkspacesResponse,
 } from './semanticStudio';
 import { type ShareUrl } from './share';
 import { type SharedSignInStatus } from './sharedSignIn';
@@ -912,6 +928,9 @@ export type HealthState = {
         enabled: boolean;
     };
     dashboardComments: {
+        enabled: boolean;
+    };
+    mergeQueryAuthoring: {
         enabled: boolean;
     };
     preAggregates: {
@@ -1570,6 +1589,7 @@ type ApiResults =
     | ApiRoadmapResponse['results']
     | ApiRoadmapProjectResponse['results']
     | ApiRoadmapFollowProjectResponse['results']
+    | ApiBillingPortalLinkResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory
@@ -1590,9 +1610,11 @@ type ApiResults =
     | Array<JiraProject>
     | Array<JiraIssueType>
     | LinearInstallation
+    | LinearInstallUrl
     | Array<LinearTeam>
     | Array<LinearProject>
     | CiChecks
+    | ApiAiWritebackRunStatusResponse['results']
     | MergePullRequestResult
     | ClosePullRequestResult
     | { diff: string }
@@ -1681,6 +1703,8 @@ type ApiResults =
     | ApiAlertAsCodeUpsertResponse['results']
     | ApiChartAsCodeListResponse['results']
     | ApiSqlChartAsCodeListResponse['results']
+    | ApiComposerChartAsCodeListResponse['results']
+    | ApiComposerChartAsCodeUpsertResponse['results']
     | ApiDashboardAsCodeListResponse['results']
     | ApiGoogleSheetsSyncAsCodeListResponse['results']
     | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
@@ -1692,6 +1716,8 @@ type ApiResults =
     | ApiExternalConnectionAsCodeListResponse['results']
     | ApiExternalConnectionAsCodeUpsertResponse['results']
     | ApiLiveSourceFieldsResponse['results']
+    | ApiExplorePrefixCheckResponse['results']
+    | ApiReattachableLiveSourcesResponse['results']
     | ApiSpaceAsCodeListResponse['results']
     | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
@@ -1880,8 +1906,13 @@ type ApiResults =
     | ApiAiProviderCredentialCreatedResponse['results']
     | ApiProjectAiCredentialResponse['results']
     | ApiSemanticLayerDraftResponse['results']
+    | ApiSemanticLayerDraftedModelsResponse['results']
+    | ApiSemanticLayerDraftStateResponse['results']
+    | ApiSemanticStudioWorkspacesResponse['results']
+    | ApiSemanticStudioWorkspaceResponse['results']
     | ApiSemanticLayerDraftApplyResponse['results']
-    | ApiSemanticLayerDraftImpactResponse['results'];
+    | ApiSemanticLayerDraftImpactResponse['results']
+    | ApiSemanticLayerDraftUsageResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

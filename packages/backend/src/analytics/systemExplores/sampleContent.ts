@@ -334,12 +334,12 @@ const legacyContentAsCode: {
                     index >= 4
                 ) {
                     const positions = [
-                        { x: 0, y: 15, w: 18, h: 8 },
-                        { x: 18, y: 15, w: 18, h: 8 },
-                        { x: 0, y: 23, w: 18, h: 8 },
-                        { x: 18, y: 23, w: 18, h: 8 },
-                        { x: 0, y: 31, w: 36, h: 8 },
-                        { x: 0, y: 3, w: 36, h: 12 },
+                        { x: 0, y: 9, w: 18, h: 8 },
+                        { x: 18, y: 9, w: 18, h: 8 },
+                        { x: 0, y: 17, w: 18, h: 8 },
+                        { x: 18, y: 17, w: 18, h: 8 },
+                        { x: 0, y: 25, w: 36, h: 8 },
+                        { x: 0, y: 3, w: 36, h: 6 },
                     ];
                     return {
                         uuid: undefined,

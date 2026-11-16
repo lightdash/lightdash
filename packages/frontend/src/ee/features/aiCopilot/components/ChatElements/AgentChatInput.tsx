@@ -316,6 +316,8 @@ interface AgentChatInputProps {
     toolbarStart?: ReactNode;
     // Rendered directly under the card composer, before suggestions.
     composerTray?: ReactNode;
+    // Off where files make no sense: hides the attach menu and ignores dropped files.
+    allowAttachments?: boolean;
     // Thread model shown in the status row under the inline composer.
     threadModelName?: string | null;
     threadModelWarning?: string | null;
@@ -338,7 +340,7 @@ const extractToolHints = (editor: Editor | null): string[] => {
 /**
  * Walkthrough action for create:AiDeepResearch: switching the composer to
  * deep research, the control that starts a run. Nothing is submitted; the
- * tour then opens the seeded thread and its finished report.
+ * tour then opens the seeded thread and its run card.
  */
 const deepResearchTourAction = {
     'data-tour-scope': 'create:AiDeepResearch',
@@ -350,7 +352,7 @@ const deepResearchTourAction = {
     'data-tour-via':
         '[data-tour-nav="ask-ai"] >> [data-tour-anchor="composer-options"]',
     'data-tour-then':
-        '[data-tour-anchor="agent-thread"][data-tour-value="Why returns rose in the spring"] >> [data-tour-anchor="research-report-open"]',
+        '[data-tour-anchor="agent-thread"][data-tour-value="Why returns rose in the spring"]',
     'data-tour-docs': 'agents/deep-research.mdx#how-it-works:p2:1',
 };
 
@@ -389,6 +391,7 @@ export const AgentChatInput = ({
     footerNotice,
     toolbarStart,
     composerTray,
+    allowAttachments = true,
     threadModelName,
     threadModelWarning = null,
 }: AgentChatInputProps) => {
@@ -432,9 +435,6 @@ export const AgentChatInput = ({
         }
     }, [storeDispatch, threadUuid]);
     const resetCsvFileInputRef = useRef<() => void>(null);
-    const { data: externalSourcesFlag } = useServerFeatureFlag(
-        FeatureFlags.ExternalSources,
-    );
     const { data: composeSqlRunnerFlag } = useServerFeatureFlag(
         FeatureFlags.ComposeSqlRunner,
     );
@@ -919,7 +919,6 @@ export const AgentChatInput = ({
     const canSteer = canInterrupt && !disabled && !hasRequestedInterrupt;
     const canAttachExternalSource = Boolean(
         projectUuid &&
-        externalSourcesFlag?.enabled &&
         app.health.data?.externalSources.engineAvailable &&
         composeSqlRunnerFlag?.enabled &&
         // Hidden only when the agent is known to have composer queries off.
@@ -942,6 +941,7 @@ export const AgentChatInput = ({
     );
     const canAttachThreadFile = Boolean(projectUuid && !isEmbedded);
     const showAttachControl = Boolean(
+        allowAttachments &&
         (canAttachExternalSource || canAttachThreadFile) &&
         !disabled &&
         !canSteer,
@@ -1769,7 +1769,12 @@ export const AgentChatInput = ({
                         onMouseDown={handleInputCardMouseDown}
                         attachments={renderedAttachments}
                         toolbarLeft={
-                            <Group gap="xs" align="center" wrap="nowrap">
+                            <Group
+                                gap="xs"
+                                align="center"
+                                wrap="nowrap"
+                                miw={0}
+                            >
                                 {renderComposerActionsMenu()}
                                 {renderThemeButton()}
                                 {toolbarStart}

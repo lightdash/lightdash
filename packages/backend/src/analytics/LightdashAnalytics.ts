@@ -64,6 +64,7 @@ import {
     type AiRouterRouteNextAction,
     type AiWritebackFailureStage,
     type AiWritebackWorkstream,
+    type AnalyticsProjectView,
     type AppVersionDependencyEntry,
     type DataAppClaudeEffort,
     type DataAppClaudeModel,
@@ -387,7 +388,7 @@ type MobileSignInCodeEvent = BaseTrack & {
         codeUuid: string;
         reason: 'show' | 'auto_refresh' | null;
         platform: string | null;
-        declinedBy: 'web' | 'failed_redeems' | null;
+        declinedBy: 'web' | 'phone' | 'failed_redeems' | null;
     };
 };
 
@@ -804,6 +805,7 @@ export type QueryCompletedEvent = BaseTrack & {
         responseTimingBasis?: 'request' | 'query_submission' | null;
         workloadOrigin?: string;
         dashboardTileId?: string | null;
+        chartKind?: 'classic_chart' | 'composer_chart' | null;
         appId?: string | null;
         appVersion?: number | null;
         requestId?: string | null;
@@ -862,6 +864,7 @@ export type QuerySourcesSubmittedEvent = BaseTrack & {
         externalNodeCount: number;
         pythonNodeCount: number;
         apiNodeCount: number;
+        mergeNodeCount: number;
     };
 };
 
@@ -1730,6 +1733,7 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         dateZoomGranularitiesCount: number;
         defaultDateZoomGranularity: string | null;
         dateZoomControlsCount: number;
+        hiddenDateZoomControlsCount: number;
         dateZoomTileTargetsCount: number;
         sectionsCount: number;
         sectionedFiltersCount: number;
@@ -2131,6 +2135,16 @@ type PromoteContent = BaseTrack & {
         hasExistingContent?: boolean;
         chartsCount?: number;
         error?: string;
+    };
+};
+
+type AnalyticsProjectViewedEvent = BaseTrack & {
+    event: 'analytics_project.viewed';
+    userId: string;
+    properties: {
+        projectId: string | null;
+        organizationId: string;
+        source: AnalyticsProjectView['source'];
     };
 };
 
@@ -3262,6 +3276,14 @@ export type RoadmapProjectFollowRequestedEvent = BaseTrack & {
         organizationId: string;
         roadmapProjectId: string;
         noteLength: number;
+    };
+};
+
+export type BillingPortalLinkCreatedEvent = BaseTrack & {
+    event: 'billing_portal.link_created';
+    userId: string;
+    properties: {
+        organizationId: string;
     };
 };
 
@@ -5072,6 +5094,7 @@ type TypedEvent =
     | DashboardView
     | PromoteContent
     | AnalyticsDashboardView
+    | AnalyticsProjectViewedEvent
     | SchedulerUpsertEvent
     | SchedulerDeleteEvent
     | SchedulerRestoredEvent
@@ -5089,6 +5112,7 @@ type TypedEvent =
     | UserAttributesPageEvent
     | RoadmapViewedEvent
     | RoadmapProjectFollowRequestedEvent
+    | BillingPortalLinkCreatedEvent
     | UserAttributeCreateAndUpdateEvent
     | UserAttributeDeleteEvent
     | MetricFlowQueryEvent

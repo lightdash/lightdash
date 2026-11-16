@@ -1316,6 +1316,76 @@ describe('Embedded metrics catalog abilities', () => {
         ).toBe(true);
     });
 
+    describe('explore exports', () => {
+        const exploreEmbedUser: CreateEmbedJwt = {
+            ...metricsCatalogEmbedUser,
+            content: { type: 'metricsCatalog', canExplore: true },
+        };
+        const abilityWithActorScopes = (
+            embedUser: CreateEmbedJwt,
+            resources: CaslSubjectNames[],
+        ) => {
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            resources.forEach((resource) =>
+                builder.can('view', resource, {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            );
+            applyEmbeddedAbility(
+                embedUser,
+                { type: 'metricsCatalog', chartUuids: [], explores: [] },
+                embed,
+                'external-id-1',
+                builder,
+            );
+            return builder.build();
+        };
+        const exportChart = (type: 'csv' | 'images') =>
+            subject('SavedChart', {
+                organizationUuid: organization.organizationUuid,
+                type,
+            });
+        const ownJob = subject('JobStatus', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid,
+            createdByUserUuid: 'external-id-1',
+        });
+
+        it('grants csv export and job polling with the csv export scope', () => {
+            const ability = abilityWithActorScopes(exploreEmbedUser, [
+                'EmbedCsvExport',
+            ]);
+            expect(ability.can('export', exportChart('csv'))).toBe(true);
+            expect(ability.can('export', exportChart('images'))).toBe(false);
+            expect(ability.can('view', ownJob)).toBe(true);
+        });
+
+        it('grants image export with the image export scope', () => {
+            const ability = abilityWithActorScopes(exploreEmbedUser, [
+                'EmbedImageExport',
+            ]);
+            expect(ability.can('export', exportChart('images'))).toBe(true);
+            expect(ability.can('export', exportChart('csv'))).toBe(false);
+            expect(ability.can('view', ownJob)).toBe(false);
+        });
+
+        it('does not grant exports without the scopes', () => {
+            const ability = abilityWithActorScopes(exploreEmbedUser, []);
+            expect(ability.can('export', exportChart('csv'))).toBe(false);
+            expect(ability.can('export', exportChart('images'))).toBe(false);
+        });
+
+        it('does not grant exports when explore is not allowed', () => {
+            const ability = abilityWithActorScopes(metricsCatalogEmbedUser, [
+                'EmbedCsvExport',
+                'EmbedImageExport',
+            ]);
+            expect(ability.can('export', exportChart('csv'))).toBe(false);
+            expect(ability.can('export', exportChart('images'))).toBe(false);
+        });
+    });
+
     it('does not grant access to a different project', () => {
         const ability = defineAbilityForMetricsCatalogEmbedUser(
             metricsCatalogEmbedUser,

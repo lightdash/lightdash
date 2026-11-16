@@ -33,7 +33,7 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
         can('view', 'JobStatus', {
-            // createdByUserUuid: userUuid,
+            organizationUuid,
         });
         can('view', 'PinnedItems', {
             organizationUuid,
@@ -211,6 +211,7 @@ const applyServiceAccountStaticAbilities: Record<
             builder: { can },
         });
         can('manage', 'Document', { organizationUuid });
+        can('manage', 'ComposerChart', { organizationUuid });
         can('manage', 'Space', {
             organizationUuid,
             inheritsFromOrgOrProject: true,
@@ -275,6 +276,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
         can('manage', 'CustomFields', {
+            organizationUuid,
+        });
+        can('manage', 'MergeQuery', {
             organizationUuid,
         });
         can('view', 'CompiledSql', {

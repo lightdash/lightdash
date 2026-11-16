@@ -55,6 +55,7 @@ const OSS_STREAM_CONFIGS: Record<'warehouse' | 'duckdb', StreamConfig> = {
         streamName: 'DUCKDB_QUERY_JOBS',
         subjects: {
             query: 'duckdb.query.jobs',
+            externalSource: 'duckdb.external_source.jobs',
         },
         durableName: 'worker-duckdb',
     },
@@ -67,6 +68,7 @@ const PRE_AGGREGATE_STREAM_CONFIG: StreamConfig = {
         query: 'pre_aggregate.query.jobs',
         materialization: 'pre_aggregate.materialization.jobs',
         duckdb: 'pre_aggregate.duckdb.jobs',
+        externalSource: 'pre_aggregate.external_source.jobs',
     },
     durableName: 'worker-pre-aggregate',
 };
@@ -94,6 +96,11 @@ export const getRegisteredStreams = (): NatsWorkerStream[] =>
 export const getDuckdbQuerySubject = (): string =>
     STREAM_CONFIGS['pre-aggregate']?.subjects.duckdb ??
     STREAM_CONFIGS.duckdb.subjects.query;
+
+/** The subject an external source explore query is published on; same worker as DuckDB source queries. */
+export const getExternalSourceQuerySubject = (): string =>
+    STREAM_CONFIGS['pre-aggregate']?.subjects.externalSource ??
+    STREAM_CONFIGS.duckdb.subjects.externalSource;
 
 /**
  * Register an additional NATS stream configuration (used by EE).

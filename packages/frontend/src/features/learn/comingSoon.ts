@@ -22,4 +22,5 @@ export const COMING_SOON_SCOPES = [
     'view:Analytics',
     'view:AiAgentSkill',
     'manage:AiAgentSkill',
+    'manage:MergeQuery',
 ] as const;

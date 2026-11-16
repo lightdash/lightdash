@@ -253,6 +253,9 @@ export const projectMemberAbilities: Record<
         can('create', 'DataApp', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'ComposerChart', {
+            projectUuid: member.projectUuid,
+        });
         can('create', 'Space', {
             projectUuid: member.projectUuid,
         });
@@ -306,6 +309,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'CustomFields', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'MergeQuery', {
             projectUuid: member.projectUuid,
         });
         can('view', 'CompiledSql', {

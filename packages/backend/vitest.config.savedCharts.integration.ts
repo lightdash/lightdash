@@ -8,6 +8,7 @@ export default defineConfig({
         name: 'saved-chart-integration-tests',
         include: [
             'src/models/SavedChartModel.find.integration.test.ts',
+            'src/models/SavedChartModel.availableFilters.integration.test.ts',
             'src/models/SavedChartModel.chartTypeImpact.integration.test.ts',
         ],
         exclude: ['**/node_modules/**'],

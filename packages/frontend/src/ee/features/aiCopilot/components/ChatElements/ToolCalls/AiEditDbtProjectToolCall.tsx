@@ -3,6 +3,8 @@ import {
     type ToolEditDbtProjectOutput,
 } from '@lightdash/common';
 import {
+    ActionIcon,
+    Anchor,
     Box,
     Button,
     getDefaultZIndex,
@@ -15,8 +17,10 @@ import {
 } from '@mantine/core';
 import {
     IconAlertTriangle,
+    IconBrandGithub,
     IconCheck,
     IconChevronDown,
+    IconDots,
     IconEye,
     IconFileDiff,
     IconGitMerge,
@@ -25,8 +29,16 @@ import {
     IconSettings,
 } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
-import { useEffect, useRef, useState, type FC } from 'react';
-import { Link } from 'react-router';
+import {
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
+import { Link, useSearchParams } from 'react-router';
+import { useGithubUserCredential } from '../../../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
@@ -44,7 +56,9 @@ import {
     isBitbucketPullRequest,
 } from './pullRequestCardUtils';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
+import { QuietCardsContext } from './quietCards';
 import { WritebackDiffModal } from './WritebackDiffModal';
+import { WritebackProgressCard } from './WritebackProgressCard';
 
 type Props = {
     metadata: ToolEditDbtProjectOutput['metadata'];
@@ -57,6 +71,8 @@ type Props = {
      */
     agentUuid?: string;
     threadUuid?: string;
+    /** When the change was asked for, so a running one can say how long it has been. */
+    startedAt?: string;
 };
 
 // ts-unused-exports:disable-next-line
@@ -90,23 +106,34 @@ export const PullRequestViewMenu: FC<{
     prUrl: string;
     previewUrl: string | null;
     commitSha: string | null;
-}> = ({ projectUuid, prUrl, previewUrl, commitSha }) => {
+    /** Further menu items, shown under a divider. */
+    children?: ReactNode;
+}> = ({ projectUuid, prUrl, previewUrl, commitSha, children }) => {
     const [diffOpened, setDiffOpened] = useState(false);
+    const quiet = useContext(QuietCardsContext);
 
     return (
         <>
-            <Menu position="bottom-start">
+            <Menu position={quiet ? 'bottom-end' : 'bottom-start'}>
                 <Menu.Target>
-                    <Button
-                        variant="default"
-                        size="compact-xs"
-                        leftSection={<MantineIcon icon={IconEye} size={14} />}
-                        rightSection={
-                            <MantineIcon icon={IconChevronDown} size={14} />
-                        }
-                    >
-                        View
-                    </Button>
+                    {quiet ? (
+                        <ActionIcon size="sm" aria-label="More">
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    ) : (
+                        <Button
+                            variant="default"
+                            size="compact-xs"
+                            leftSection={
+                                <MantineIcon icon={IconEye} size={14} />
+                            }
+                            rightSection={
+                                <MantineIcon icon={IconChevronDown} size={14} />
+                            }
+                        >
+                            View
+                        </Button>
+                    )}
                 </Menu.Target>
                 <Menu.Dropdown>
                     {previewUrl && (
@@ -143,6 +170,12 @@ export const PullRequestViewMenu: FC<{
                             Diff
                         </Menu.Item>
                     )}
+                    {children ? (
+                        <>
+                            <Menu.Divider />
+                            {children}
+                        </>
+                    ) : null}
                 </Menu.Dropdown>
             </Menu>
             <WritebackDiffModal
@@ -164,6 +197,7 @@ export const PullRequestActionButtons: FC<{
     onMerge: () => void;
     onClose: () => void;
 }> = ({ ciChecks, isMerging, isClosing, onMerge, onClose }) => {
+    const quiet = useContext(QuietCardsContext);
     const [armed, setArmed] = useState<'merge' | 'close' | null>(null);
     const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mergeButtonRef = useRef<HTMLButtonElement>(null);
@@ -266,27 +300,35 @@ export const PullRequestActionButtons: FC<{
         onClose();
     };
 
+    const mergeLabel = quiet ? 'Merge' : 'Merge PR';
     return (
         <Button.Group>
-            <Button
-                variant="default"
-                size="compact-xs"
-                loading={isClosing}
-                onBlur={disarm}
-                leftSection={
-                    <MantineIcon
-                        icon={closeArmed ? IconCheck : IconGitPullRequestClosed}
-                        size={14}
-                    />
-                }
-                onClick={handleCloseClick}
-            >
-                {closeArmed ? 'Confirm' : 'Close PR'}
-            </Button>
+            {quiet ? null : (
+                <Button
+                    variant="default"
+                    size="compact-xs"
+                    loading={isClosing}
+                    onBlur={disarm}
+                    leftSection={
+                        <MantineIcon
+                            icon={
+                                closeArmed
+                                    ? IconCheck
+                                    : IconGitPullRequestClosed
+                            }
+                            size={14}
+                        />
+                    }
+                    onClick={handleCloseClick}
+                >
+                    {closeArmed ? 'Confirm' : 'Close PR'}
+                </Button>
+            )}
             <Button
                 ref={mergeButtonRef}
                 color="green"
                 size="compact-xs"
+                className={styles.merge}
                 loading={isMerging}
                 disabled={!isMergeable(ciChecks)}
                 onBlur={disarm}
@@ -298,9 +340,47 @@ export const PullRequestActionButtons: FC<{
                 }
                 onClick={handleMergeClick}
             >
-                {mergeArmed ? 'Confirm' : 'Merge PR'}
+                {mergeArmed ? 'Confirm' : mergeLabel}
             </Button>
         </Button.Group>
+    );
+};
+
+const resolvedHostIsGithub = (prUrl: string): boolean =>
+    prUrl.startsWith('https://github.com/');
+
+/** What the quiet card keeps in its menu for an open pull request: closing it, and authoring as the person. */
+const OpenPullRequestMenuItems: FC<{
+    isGithub: boolean;
+    onClose: () => void;
+}> = ({ isGithub, onClose }) => {
+    const [armed, setArmed] = useState(false);
+    const { data: credential } = useGithubUserCredential();
+    return (
+        <>
+            <Menu.Item
+                closeMenuOnClick={armed}
+                leftSection={
+                    <MantineIcon icon={IconGitPullRequestClosed} size={14} />
+                }
+                onClick={() => (armed ? onClose() : setArmed(true))}
+            >
+                {armed
+                    ? 'Click again to close the pull request'
+                    : 'Discard changes'}
+            </Menu.Item>
+            {isGithub && credential === null ? (
+                <Menu.Item
+                    component={Link}
+                    to="/generalSettings/profile"
+                    leftSection={
+                        <MantineIcon icon={IconBrandGithub} size={14} />
+                    }
+                >
+                    Open pull requests as you
+                </Menu.Item>
+            ) : null}
+        </>
     );
 };
 
@@ -316,7 +396,10 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     projectUuid,
     agentUuid,
     threadUuid,
+    startedAt,
 }) => {
+    const quiet = useContext(QuietCardsContext);
+    const [, setSearchParams] = useSearchParams();
     // Hooks must run before the early returns below; the query is disabled until
     // there's a PR URL, so the error/no-PR branches don't fetch anything.
     const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
@@ -514,21 +597,11 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
 
     if (metadata.status === 'pending') {
         return (
-            <Paper p="sm" radius="md">
-                <Group gap="xs" align="center" wrap="nowrap">
-                    <ThemeIcon
-                        variant="light"
-                        color="ldGray"
-                        radius="md"
-                        size="sm"
-                    >
-                        <MantineIcon icon={IconGitPullRequest} size={14} />
-                    </ThemeIcon>
-                    <Text size="xs" c="dimmed">
-                        Working on the change — this can take a few minutes.
-                    </Text>
-                </Group>
-            </Paper>
+            <WritebackProgressCard
+                projectUuid={projectUuid}
+                aiWritebackRunUuid={metadata.aiWritebackRunUuid}
+                startedAt={startedAt ?? null}
+            />
         );
     }
 
@@ -570,6 +643,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     const deletions = metadata.deletions ?? null;
     const hasDiffStat = additions !== null || deletions !== null;
     const title = 'Edited semantic layer';
+    const isOpen = !ciChecks?.merged && ciChecks?.state !== 'closed';
     const resolvedPrUrl = metadata.prUrl;
 
     return (
@@ -597,24 +671,36 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             size={16}
                             color="ldGray.7"
                         />
-                        <Stack gap={0}>
-                            <Text size="xs" fw={500}>
+                        <Stack gap={0} miw={0}>
+                            <Text size="xs" fw={500} className={styles.wordy}>
                                 {title}
                             </Text>
                             {summary && (
-                                <Group gap={6} wrap="nowrap">
-                                    <Text size="xs" c="dimmed">
+                                <Group gap={6} wrap="nowrap" miw={0}>
+                                    <Anchor
+                                        href={resolvedPrUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        fz="xs"
+                                        c="dimmed"
+                                        truncate
+                                    >
                                         {summary}
-                                    </Text>
+                                    </Anchor>
                                     {shortCommitSha && (
                                         <>
-                                            <Text size="xs" c="dimmed">
+                                            <Text
+                                                size="xs"
+                                                c="dimmed"
+                                                className={styles.commit}
+                                            >
                                                 ·
                                             </Text>
                                             <Text
                                                 size="xs"
                                                 c="dimmed"
                                                 ff="monospace"
+                                                className={styles.commit}
                                                 title={
                                                     metadata.commitSha ??
                                                     undefined
@@ -625,7 +711,11 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                         </>
                                     )}
                                     {hasDiffStat && (
-                                        <Group gap={4} wrap="nowrap">
+                                        <Group
+                                            gap={4}
+                                            wrap="nowrap"
+                                            flex="none"
+                                        >
                                             {additions !== null && (
                                                 <Text
                                                     size="xs"
@@ -667,8 +757,31 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     : (metadata.previewUrl ?? null)
                             }
                             commitSha={metadata.commitSha ?? null}
-                        />
-                        {!isBitbucket && (
+                        >
+                            {quiet && isOpen && !isBitbucket ? (
+                                <OpenPullRequestMenuItems
+                                    isGithub={resolvedHostIsGithub(
+                                        resolvedPrUrl,
+                                    )}
+                                    onClose={() =>
+                                        close({ prUrl: resolvedPrUrl })
+                                    }
+                                />
+                            ) : null}
+                        </PullRequestViewMenu>
+                        {/* In Studio the workspace holds the changes and the bar merges them; the card points there. */}
+                        {quiet && isOpen ? (
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                onClick={() =>
+                                    setSearchParams({ view: 'changes' })
+                                }
+                            >
+                                View changes
+                            </Button>
+                        ) : null}
+                        {!isBitbucket && !(quiet && isOpen) && (
                             <PullRequestActionButtons
                                 ciChecks={ciChecks ?? null}
                                 isMerging={isMerging}

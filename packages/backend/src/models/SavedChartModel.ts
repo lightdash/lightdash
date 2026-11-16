@@ -28,6 +28,7 @@ import {
     getChartKind,
     getChartType,
     getItemId,
+    getStoredMergeQueryExploreNames,
     isCustomBinDimension,
     isCustomSqlDimension,
     isFormulaTableCalculation,
@@ -1732,7 +1733,56 @@ export class SavedChartModel {
         );
     }
 
+    /** Non-deleted saved charts on any of these explores, each counted once. */
+    async getChartCountForExplores(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<number> {
+        if (exploreNames.length === 0) {
+            return 0;
+        }
+        const [{ count }] = await this.database
+            .countDistinct<{ count: string }[]>({
+                count: 'latest_versions.saved_query_id',
+            })
+            .from(this.getLatestChartVersions(projectUuid))
+            .innerJoin(
+                SavedChartVersionsTableName,
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                'latest_versions.max',
+            )
+            .whereIn(
+                `${SavedChartVersionsTableName}.explore_name`,
+                exploreNames,
+            );
+        return Number(count);
+    }
+
     async getChartCountPerField(projectUuid: string, fieldIds: string[]) {
+        const results = await this.database
+            .select({
+                fieldId: `${SavedChartVersionFieldsTableName}.name`,
+            })
+            .count<{ fieldId: string; count: BigInt }[]>(
+                `latest_versions.saved_query_id`,
+            )
+            .from(SavedChartVersionFieldsTableName)
+            .innerJoin(
+                this.getLatestChartVersions(projectUuid),
+                `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
+                'latest_versions.max',
+            )
+            .whereIn(`${SavedChartVersionFieldsTableName}.name`, fieldIds)
+            .groupBy(`${SavedChartVersionFieldsTableName}.name`);
+
+        return results.map(({ fieldId, count }) => ({
+            fieldId,
+            count: Number(count), // Count returns by default as BigInt, so we need to cast to number
+        }));
+    }
+
+    /** The latest version of each non-deleted chart in the project. */
+    private getLatestChartVersions(projectUuid: string) {
         const relevantCharts = this.database
             .select(`${SavedChartsTableName}.saved_query_id`)
             .distinct()
@@ -1750,35 +1800,13 @@ export class SavedChartModel {
             .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
             .whereNull(`${SavedChartsTableName}.deleted_at`);
 
-        // Get latest versions for these charts
-        const latestVersions = this.database
+        return this.database
             .select('saved_query_id')
             .max('saved_queries_version_id')
             .from(SavedChartVersionsTableName)
             .whereIn('saved_query_id', relevantCharts)
             .groupBy('saved_query_id')
             .as('latest_versions');
-
-        const results = await this.database
-            .select({
-                fieldId: `${SavedChartVersionFieldsTableName}.name`,
-            })
-            .count<{ fieldId: string; count: BigInt }[]>(
-                `latest_versions.saved_query_id`,
-            )
-            .from(SavedChartVersionFieldsTableName)
-            .innerJoin(
-                latestVersions,
-                `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
-                'latest_versions.max',
-            )
-            .whereIn(`${SavedChartVersionFieldsTableName}.name`, fieldIds)
-            .groupBy(`${SavedChartVersionFieldsTableName}.name`);
-
-        return results.map(({ fieldId, count }) => ({
-            fieldId,
-            count: Number(count), // Count returns by default as BigInt, so we need to cast to number
-        }));
     }
 
     /**
@@ -3376,9 +3404,21 @@ export class SavedChartModel {
             'uuid' | 'name' | 'tableName' | 'dashboardUuid'
         > &
             Pick<Project, 'projectUuid'> &
-            Pick<Organization, 'organizationUuid'>)[]
+            Pick<Organization, 'organizationUuid'> & {
+                /** Every explore the chart queries: its own, then a merge's other queries'. */
+                exploreNames: string[];
+            })[]
     > {
-        const charts = await this.database(SavedChartsTableName)
+        const charts: (Pick<
+            SavedChartDAO,
+            'uuid' | 'name' | 'tableName' | 'dashboardUuid'
+        > & {
+            spaceUuid: Space['uuid'];
+            projectUuid: Project['projectUuid'];
+            organizationUuid: Organization['organizationUuid'];
+            mergeSchemaVersion: number | null;
+            merge: unknown;
+        })[] = await this.database(SavedChartsTableName)
             .whereIn(
                 `${SavedChartsTableName}.saved_query_uuid`,
                 savedChartUuids,
@@ -3391,6 +3431,9 @@ export class SavedChartModel {
                 tableName: `${SavedChartVersionsTableName}.explore_name`,
                 projectUuid: `${SavedChartsTableName}.project_uuid`,
                 organizationUuid: 'organizations.organization_uuid',
+                mergeSchemaVersion:
+                    'saved_queries_version_merges.schema_version',
+                merge: 'saved_queries_version_merges.merge',
             })
             .leftJoin(
                 DashboardsTableName,
@@ -3410,7 +3453,7 @@ export class SavedChartModel {
             })
             .joinRaw(
                 `inner join lateral (
-                    select sqv.explore_name
+                    select sqv.explore_name, sqv.saved_queries_version_id
                     from ?? as sqv
                     where sqv.saved_query_id = ??.saved_query_id
                     order by sqv.saved_queries_version_id desc
@@ -3421,6 +3464,11 @@ export class SavedChartModel {
                     SavedChartsTableName,
                     SavedChartVersionsTableName,
                 ],
+            )
+            .leftJoin(
+                'saved_queries_version_merges',
+                'saved_queries_version_merges.saved_queries_version_id',
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
             )
             .leftJoin(
                 'projects',
@@ -3438,7 +3486,20 @@ export class SavedChartModel {
         if (charts.length === 0) {
             throw new NotFoundError('Saved queries not found');
         }
-        return charts;
+        return charts.map(({ mergeSchemaVersion, merge, ...chart }) => ({
+            ...chart,
+            exploreNames: [
+                ...new Set([
+                    chart.tableName,
+                    ...(mergeSchemaVersion === null
+                        ? []
+                        : getStoredMergeQueryExploreNames({
+                              schemaVersion: mergeSchemaVersion,
+                              value: merge,
+                          })),
+                ]),
+            ],
+        }));
     }
 
     async findInfoForDbtExposures(

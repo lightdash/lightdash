@@ -1040,6 +1040,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:Billing',
+        description: 'Open the organization billing portal',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [],
+        level: 'organization',
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:OrganizationColorPalette',
         description:
             'Create, edit, delete, and activate organization color palettes',
@@ -1267,6 +1276,22 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:MergeQuery',
+        description: 'Merge queries and save merged charts',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }, { name: 'manage:Explore' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:ComposerChart',
+        description: 'Save composer charts onto dashboards',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:Explore@self',
         description:
             'Explore and query data in preview projects created by the user',
@@ -1445,7 +1470,7 @@ const scopes: Scope[] = [
     {
         name: 'view:EmbedCsvExport',
         description:
-            'Export results from embedded chart tiles and AI agent answers',
+            'Export results from embedded chart tiles, Explore and AI agent answers',
         isEnterprise: true,
         group: ScopeGroup.EMBED,
         dependencies: [],
@@ -1461,7 +1486,7 @@ const scopes: Scope[] = [
     },
     {
         name: 'view:EmbedImageExport',
-        description: 'Export embedded chart tiles as images',
+        description: 'Export embedded chart tiles and Explore charts as images',
         isEnterprise: true,
         group: ScopeGroup.EMBED,
         dependencies: [],

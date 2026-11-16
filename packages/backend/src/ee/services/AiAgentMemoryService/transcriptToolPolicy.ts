@@ -129,6 +129,7 @@ export const DISTILL_TOOL_POLICIES = {
     proposeSemanticLayerChange: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     readSemanticModel: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     updateUserName: { result: keep },
+    askUser: { result: keep },
     submitResearchReport: { result: truncate(RESEARCH_REPORT_RESULT_LIMIT) },
     delegateResearchTask: {
         result: truncate(RESEARCH_REPORT_RESULT_LIMIT),

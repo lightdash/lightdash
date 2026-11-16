@@ -4,7 +4,7 @@ import {
 } from '@lightdash/common';
 import { SegmentedControl } from '@mantine/core';
 import {
-    Icon123,
+    IconNumber123,
     IconChartBar,
     IconChartLine,
     IconChartPie,
@@ -33,7 +33,7 @@ const CHART_TYPE_ICONS: Record<SwitcherKind, typeof IconTable> = {
     scatter: IconChartScatter,
     pie: IconChartPie,
     funnel: IconFilter,
-    big_number: Icon123,
+    big_number: IconNumber123,
 };
 
 export const AgentVisualizationChartTypeSwitcher = <T extends SwitcherKind>({

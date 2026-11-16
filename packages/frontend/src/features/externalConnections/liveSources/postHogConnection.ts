@@ -17,6 +17,7 @@ export type PostHogConnectionValues = {
     authMethod: PostHogAuthMethod;
     projectId: string;
     apiKey: string;
+    aiHint: string;
 };
 
 const PROJECT_ID = /^\d{1,12}$/;
@@ -46,6 +47,7 @@ export const toPostHogFormValues = (
                       ? connection.apiSource.projectId
                       : '',
               apiKey: '',
+              aiHint: connection.aiHint ?? '',
           }
         : {
               name: 'PostHog',
@@ -53,6 +55,7 @@ export const toPostHogFormValues = (
               authMethod: canSignIn ? 'signIn' : 'apiKey',
               projectId: '',
               apiKey: '',
+              aiHint: '',
           };
 
 /** Signing in picks the project on PostHog; a saved key stays when the field is blank. */
@@ -94,12 +97,14 @@ export const getPostHogSignInUrl = (
     values: Pick<PostHogConnectionValues, 'name' | 'region'>,
     connectionUuid: string | null,
     returnTo: LiveSourceReturnTo,
+    explorePrefix?: string,
 ) => {
     const params = new URLSearchParams({
         region: values.region,
         name: values.name.trim(),
     });
     if (connectionUuid) params.set('connectionUuid', connectionUuid);
+    if (explorePrefix) params.set('explorePrefix', explorePrefix);
     setLiveSourceReturnTo(params, returnTo);
     return `/api/v1/ee/projects/${projectUuid}/live-sources/posthog/oauth/start?${params.toString()}`;
 };
@@ -107,8 +112,10 @@ export const getPostHogSignInUrl = (
 /** The server pins the access rules for API source connections; these match them. */
 export const toPostHogCreatePayload = (
     values: PostHogConnectionValues,
+    explorePrefix?: string,
 ): CreateExternalConnection => ({
     name: values.name.trim(),
+    ...(explorePrefix ? { explorePrefix } : {}),
     type: 'bearer_token',
     origin: POSTHOG_REGION_ORIGINS[values.region],
     secret: values.apiKey.trim(),
@@ -129,7 +136,9 @@ export const toPostHogUpdatePayload = (
     values: PostHogConnectionValues,
 ): UpdateExternalConnection => {
     // Region and project of a signed-in source change only by reconnecting.
-    if (values.authMethod === 'signIn') return { name: values.name.trim() };
+    if (values.authMethod === 'signIn') {
+        return { name: values.name.trim(), aiHint: values.aiHint };
+    }
     const apiKey = values.apiKey.trim();
     return {
         name: values.name.trim(),
@@ -138,6 +147,7 @@ export const toPostHogUpdatePayload = (
             connector: ApiConnectorType.POSTHOG,
             projectId: values.projectId.trim(),
         },
+        aiHint: values.aiHint,
         ...(apiKey ? { secret: apiKey } : {}),
     };
 };

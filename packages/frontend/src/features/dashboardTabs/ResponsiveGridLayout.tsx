@@ -5,6 +5,7 @@ import {
     type ResponsiveProps,
     type WidthProviderProps,
 } from 'react-grid-layout';
+import { CanvasZoom } from './CanvasZoom';
 import { getBreakpointForWidth } from './gridUtils';
 
 type Props = Omit<ResponsiveProps, 'width' | 'innerRef'> & WidthProviderProps;
@@ -51,5 +52,11 @@ export const ResponsiveGridLayout: FC<Props> = ({
         );
     }
 
-    return <Responsive {...props} innerRef={ref} width={width ?? 1280} />;
+    const grid = <Responsive {...props} innerRef={ref} width={width ?? 1280} />;
+    // Grids that never zoom keep their DOM as it was
+    return props.transformScale === undefined ? (
+        grid
+    ) : (
+        <CanvasZoom zoom={props.transformScale}>{grid}</CanvasZoom>
+    );
 };

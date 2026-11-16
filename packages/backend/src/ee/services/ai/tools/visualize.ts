@@ -1,7 +1,10 @@
 import {
     assertUnreachable,
     buildComposerArtifactPipeline,
+    COMPOSER_VIZ_MISSING_X_ERROR,
+    DimensionType,
     getComposerVizConfigReferenceErrors,
+    getSourceQueryResultReferences,
     isComposerSlackImageVizConfig,
     isSlackPrompt,
     ParameterError,
@@ -83,27 +86,74 @@ const unknownNodeMessage = (
               .map((node) => `${node.nodeId} ("${node.title ?? node.nodeId}")`)
               .join(', ')}.`;
 
-const assertVizConfigReferences = ({
-    nodeId,
+const describeColumns = (columns: ComposerNodeColumn[]): string =>
+    columns.map(({ reference, type }) => `${reference} (${type})`).join(', ');
+
+// Points a chart without an x column to the nodes it reads that have one, from stored columns only.
+const getBreakdownPointers = async ({
+    threadUuid,
+    node,
+    getThreadComposerNodeColumns,
+}: {
+    threadUuid: string;
+    node: ThreadComposerQueryNode;
+    getThreadComposerNodeColumns: GetThreadComposerNodeColumnsFn;
+}): Promise<string[]> => {
+    const upstreamNodeIds = [
+        ...new Set(Object.values(getSourceQueryResultReferences(node))),
+    ];
+    const pointers = await Promise.all(
+        upstreamNodeIds.map(async (upstreamNodeId) => {
+            // A failed lookup drops only the pointer, never the x error.
+            const columns = await getThreadComposerNodeColumns({
+                threadUuid,
+                nodeId: upstreamNodeId,
+            }).catch(() => null);
+            const categories = (columns ?? []).filter(
+                ({ type }) => type !== DimensionType.NUMBER,
+            );
+            return categories.length === 0
+                ? null
+                : `Node "${upstreamNodeId}" has ${describeColumns(categories)}: visualize it directly, no new query needed.`;
+        }),
+    );
+    return pointers.filter((pointer): pointer is string => pointer !== null);
+};
+
+const assertVizConfigReferences = async ({
+    threadUuid,
+    node,
     columns,
     vizConfig,
     customChartTypeSlots,
+    getThreadComposerNodeColumns,
 }: {
-    nodeId: string;
+    threadUuid: string;
+    node: ThreadComposerQueryNode;
     columns: ComposerNodeColumn[];
     vizConfig: ComposerChartVizConfig;
     customChartTypeSlots: ComposerCustomChartTypeSlotSpec[];
-}): void => {
+    getThreadComposerNodeColumns: GetThreadComposerNodeColumnsFn;
+}): Promise<void> => {
     const errors = getComposerVizConfigReferenceErrors({
         columns,
         vizConfig,
         customChartTypeSlots,
     });
     if (errors.length === 0) return;
+    const { nodeId } = node;
+    const pointers = errors.includes(COMPOSER_VIZ_MISSING_X_ERROR)
+        ? await getBreakdownPointers({
+              threadUuid,
+              node,
+              getThreadComposerNodeColumns,
+          })
+        : [];
     throw new ParameterError(
-        `vizConfig does not match node "${nodeId}": ${errors.join('; ')}. Columns of node "${nodeId}": ${columns
-            .map(({ reference, type }) => `${reference} (${type})`)
-            .join(', ')}.`,
+        [
+            `vizConfig does not match node "${nodeId}": ${errors.join('; ')}. Columns of node "${nodeId}": ${describeColumns(columns)}.`,
+            ...pointers,
+        ].join('\n'),
     );
 };
 
@@ -285,11 +335,13 @@ export const getVisualize = ({
                           nodeId,
                       });
                 if (columns) {
-                    assertVizConfigReferences({
-                        nodeId,
+                    await assertVizConfigReferences({
+                        threadUuid,
+                        node,
                         columns,
                         vizConfig,
                         customChartTypeSlots,
+                        getThreadComposerNodeColumns,
                     });
                 }
                 const hints =

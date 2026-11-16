@@ -79,6 +79,7 @@ import {
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
+import { isEqual } from 'es-toolkit/compat';
 import { Knex } from 'knex';
 import { validate as isValidUuid } from 'uuid';
 import {
@@ -120,6 +121,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -1053,6 +1055,7 @@ export class SavedChartService
         const { user, embedWriteActions } = getAccountWriteContext(account);
         const { preserveVerification, ...chartVersion } = data;
         const existingChart = await this.savedChartModel.get(savedChartUuid);
+        await assertCanSaveInDevelopmentView(existingChart.projectUuid);
         const {
             organizationUuid,
             projectUuid,
@@ -1184,6 +1187,24 @@ export class SavedChartService
             : chartVersion.merge;
         if (chartVersion.merge && !merge) {
             throw new ParameterError('Invalid saved merge definition.');
+        }
+
+        if (
+            merge &&
+            !isEqual(merge, existingChart.merge) &&
+            (!this.lightdashConfig.mergeQueryAuthoring.enabled ||
+                auditedAbility.cannot(
+                    'manage',
+                    subject('MergeQuery', {
+                        organizationUuid,
+                        projectUuid,
+                        metadata: { savedChartUuid },
+                    }),
+                ))
+        ) {
+            throw new ForbiddenError(
+                'User cannot save charts with a new or modified merge',
+            );
         }
 
         await this.validateMetricReferences(
@@ -2304,6 +2325,7 @@ export class SavedChartService
         projectUuid: string,
         savedChart: CreateSavedChart,
     ): Promise<SavedChart> {
+        await assertCanSaveInDevelopmentView(projectUuid);
         const requestedDashboard = savedChart.dashboardUuid
             ? await this.dashboardModel.getByIdOrSlug(
                   savedChart.dashboardUuid,
@@ -2422,6 +2444,20 @@ export class SavedChartService
             throw new ForbiddenError(
                 'User cannot save queries with SQL table calculations',
             );
+        }
+
+        if (
+            chartToSave.merge &&
+            (!this.lightdashConfig.mergeQueryAuthoring.enabled ||
+                auditedAbility.cannot(
+                    'manage',
+                    subject('MergeQuery', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                ))
+        ) {
+            throw new ForbiddenError('User cannot save merged charts');
         }
 
         const chartBase = {
@@ -2569,6 +2605,7 @@ export class SavedChartService
         chartUuid: string,
         data: { chartName: string; chartDesc: string },
     ): Promise<SavedChart> {
+        await assertCanSaveInDevelopmentView(projectUuid);
         const chart = await this.savedChartModel.get(chartUuid);
         // Duplicating a dashboard-owned chart re-creates it inside the same
         // owning dashboard, so its grants count; space charts resolve through

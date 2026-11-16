@@ -166,6 +166,23 @@ describe('MountingRepoFileSystem', () => {
     });
 
     describe('per-command file budget', () => {
+        it('does not count reads of a repo held in memory', async () => {
+            const fs = await MountingRepoFileSystem.create({
+                listRepos: async () => REPO_LIST,
+                hasDbtMount: true,
+                buildDbtRepoFs: async () =>
+                    new RepoFs({
+                        ...fakeSource(DBT_FILES),
+                        readAll: async () => new Map(Object.entries(DBT_FILES)),
+                    }),
+                buildRepoFs: async () => new RepoFs(fakeSource({})),
+                maxFilesPerCommand: 1,
+            });
+            const out = await run(fs, 'grep -rl "" /dbt');
+            expect(out.split('\n').length).toBeGreaterThan(1);
+            expect(out).not.toMatch(/search/i);
+        });
+
         it('stops a crawl past the file limit and steers to search', async () => {
             // A crawl past the budget surfaces the steer either as an appended
             // note (grep keeps its partial output) or as a thrown ShellError

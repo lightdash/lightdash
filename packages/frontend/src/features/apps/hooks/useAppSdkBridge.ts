@@ -22,6 +22,7 @@ import {
     extractAppSdkRouteProjectUuid,
     extractAppSdkSpaceCharts,
     extractExploreBaseTable,
+    DATA_APP_NEWER_VERSION_CODE,
     FEATURE_NOT_ENABLED_CODE,
     isAllowedAppSdkRoute,
     parseAppSdkSpaceChartsRequest,
@@ -564,6 +565,8 @@ export type UseAppSdkBridgeParams = {
      * event when it settles.
      */
     onAppStateEvent?: (event: AppStateEvent) => void;
+    /** A request was refused because a newer app version is now the ready one. */
+    onNewerVersion?: () => void;
     // When set, the host pushes this render context into the iframe over the
     // existing bridge — on load and on every change. Only set for data app vizs.
     dataAppVizContext?: DataAppVizContext;
@@ -667,6 +670,7 @@ export function useAppSdkBridge({
     onLineageSelected,
     onExternalRequestEvent,
     onAppStateEvent,
+    onNewerVersion,
     dataAppVizContext,
     dataAppVizMode = false,
     chartContext,
@@ -1791,6 +1795,8 @@ export function useAppSdkBridge({
                 } else {
                     const errorMessage =
                         json.error?.message ?? `API error (${res.status})`;
+                    if (json.error?.data?.code === DATA_APP_NEWER_VERSION_CODE)
+                        onNewerVersion?.();
                     emitPostFailure(errorMessage);
                     respond({ error: errorMessage });
                 }
@@ -1821,6 +1827,7 @@ export function useAppSdkBridge({
             onLineageSelected,
             onExternalRequestEvent,
             onAppStateEvent,
+            onNewerVersion,
             pushDataAppVizContext,
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,

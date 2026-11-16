@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ComponentProps } from 'react';
 import { Provider } from 'react-redux';
@@ -8,13 +8,30 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { type AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { PendingPromptProvider } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { store } from '../../features/aiCopilot/store';
+import { setCurrentDashboard } from '../../features/aiCopilot/store/aiAgentLauncherSlice';
+import { type EmbedAiAgentThreadSetup } from '../../providers/Embed/embedAiAgentThreadSetup';
+import type useEmbed from '../../providers/Embed/useEmbed';
 import AiAgentNewThreadPage from './AiAgentNewThreadPage';
 
-const { composerProps, access, embed } = vi.hoisted(() => ({
+const { composerProps, access, embed, createThread } = vi.hoisted(() => ({
     composerProps: vi.fn(),
     access: { isLoading: false, isError: false, disabled: false },
-    embed: { isEmbedded: false },
+    embed: {
+        isEmbedded: false,
+        threadSetup: null as EmbedAiAgentThreadSetup | null,
+    },
+    createThread: vi.fn(),
 }));
+
+vi.mock('../../providers/Embed/useEmbed', async (importOriginal) => {
+    const actual = await importOriginal<{ default: typeof useEmbed }>();
+    return {
+        default: () => ({
+            ...actual.default(),
+            aiAgentThreadSetup: embed.threadSetup,
+        }),
+    };
+});
 
 vi.mock('../../providers/Embed/useIsEmbedded', () => ({
     default: () => embed.isEmbedded,
@@ -49,7 +66,7 @@ vi.mock(
 
 vi.mock('../../features/aiCopilot/hooks/useProjectAiAgents', () => ({
     useCreateAgentThreadMutation: () => ({
-        mutateAsync: vi.fn(),
+        mutateAsync: createThread,
         isLoading: false,
     }),
     useVerifiedQuestions: () => ({ data: undefined }),
@@ -252,5 +269,92 @@ describe('AiAgentNewThreadPage embed controls', () => {
         expect(
             screen.getByRole('button', { name: 'Set as default agent' }),
         ).toBeInTheDocument();
+    });
+});
+
+describe('AiAgentNewThreadPage dashboard view state', () => {
+    const runtimeOverrides = {
+        dashboardFilters: {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        },
+        activeTab: { uuid: 'tab-1', name: 'Stores' },
+    };
+
+    afterEach(() => {
+        embed.isEmbedded = false;
+        embed.threadSetup = null;
+        store.dispatch(setCurrentDashboard(null));
+        vi.clearAllMocks();
+    });
+
+    const submit = () =>
+        act(() => {
+            composerProps.mock.lastCall?.[0].onSubmit({
+                message: 'Sales last week?',
+                toolHints: [],
+            });
+        });
+
+    const publishDashboard = (uuid: string) =>
+        store.dispatch(
+            setCurrentDashboard({
+                projectUuid: 'project-1',
+                uuid,
+                name: 'Orders',
+                activeTabUuid: 'tab-1',
+                runtimeOverrides,
+            }),
+        );
+
+    it('attaches the view state of the bound dashboard on the page', () => {
+        embed.threadSetup = {
+            binding: { type: 'dashboard', dashboardUuid: 'dashboard-1' },
+            threadContext: null,
+        };
+        publishDashboard('dashboard-1');
+        renderPage(true, 1);
+
+        submit();
+
+        expect(createThread).toHaveBeenCalledWith(
+            expect.objectContaining({
+                binding: { type: 'dashboard', dashboardUuid: 'dashboard-1' },
+                context: [
+                    {
+                        type: 'dashboard',
+                        dashboardUuid: 'dashboard-1',
+                        runtimeOverrides,
+                    },
+                ],
+            }),
+        );
+    });
+
+    it('ignores a dashboard the thread is not bound to', () => {
+        embed.threadSetup = {
+            binding: { type: 'dashboard', dashboardUuid: 'dashboard-1' },
+            threadContext: null,
+        };
+        publishDashboard('dashboard-2');
+        renderPage(true, 1);
+
+        submit();
+
+        expect(createThread).toHaveBeenCalledWith(
+            expect.objectContaining({ context: undefined }),
+        );
+    });
+
+    it('ignores the page dashboard for unbound threads', () => {
+        publishDashboard('dashboard-1');
+        renderPage(true, 1);
+
+        submit();
+
+        expect(createThread).toHaveBeenCalledWith(
+            expect.objectContaining({ context: undefined }),
+        );
     });
 });

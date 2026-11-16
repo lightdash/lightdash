@@ -1,5 +1,9 @@
-import { SchedulerFormat } from '@lightdash/common';
-import { renderHook } from '@testing-library/react';
+import {
+    FilterOperator,
+    SchedulerFormat,
+    type Filters,
+} from '@lightdash/common';
+import { act, renderHook } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAppSchedulerCreateMutation } from '../../scheduler/hooks/useAppSchedulers';
@@ -8,6 +12,7 @@ import { useScheduler } from '../../scheduler/hooks/useScheduler';
 import { useSchedulersUpdateMutation } from '../../scheduler/hooks/useSchedulersUpdateMutation';
 import { type SyncModalFormValues } from '../components/syncModalFormContext';
 import { SyncModalProvider } from '../providers/SyncModalProvider';
+import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
 import { type SyncResource } from '../types';
 import { useSqlChartSchedulerCreateMutation } from './useSqlChartSchedulers';
@@ -57,6 +62,40 @@ const renderSyncModalForm = (resource: SyncResource) =>
         },
     );
 
+const chartResource: SyncResource = {
+    type: 'chart',
+    chart: {
+        uuid: 'chart-1',
+        organizationUuid: 'org-1',
+        projectUuid: 'project-1',
+        tableName: 'orders',
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+        },
+    },
+};
+
+const chartFilters: Filters = {
+    dimensions: {
+        id: 'overrides',
+        and: [
+            {
+                id: 'order-status',
+                target: { fieldId: 'orders_status' },
+                operator: FilterOperator.EQUALS,
+                values: ['completed'],
+            },
+        ],
+    },
+};
+
 const formValues: SyncModalFormValues = {
     name: 'My sync',
     cron: '0 9 * * *',
@@ -69,6 +108,8 @@ const formValues: SyncModalFormValues = {
         tabName: '',
     },
     saveInNewTab: false,
+    customizeFilters: false,
+    chartFilters: undefined,
     useCachedResults: false,
 };
 
@@ -135,10 +176,7 @@ describe('useSyncModalForm', () => {
     });
 
     it('creates a chart sync against the chart scheduler endpoint', () => {
-        const { result } = renderSyncModalForm({
-            type: 'chart',
-            chartUuid: 'chart-1',
-        });
+        const { result } = renderSyncModalForm(chartResource);
 
         result.current.syncForm.handleSubmit(formValues);
 
@@ -146,8 +184,64 @@ describe('useSyncModalForm', () => {
         const [{ resourceUuid, data }] = createChart.mock.calls[0];
         expect(resourceUuid).toBe('chart-1');
         expect(data.format).toBe(SchedulerFormat.GSHEETS);
+        expect(data).not.toHaveProperty('filters');
         expect(createApp).not.toHaveBeenCalled();
         expect(createSqlChart).not.toHaveBeenCalled();
+    });
+
+    it('sends chart overrides only when the sync opts in and has changes', () => {
+        const { result } = renderSyncModalForm(chartResource);
+
+        result.current.syncForm.handleSubmit({
+            ...formValues,
+            customizeFilters: true,
+            chartFilters: {},
+        });
+        expect(createChart.mock.lastCall?.[0].data).not.toHaveProperty(
+            'filters',
+        );
+
+        result.current.syncForm.handleSubmit({
+            ...formValues,
+            customizeFilters: true,
+            chartFilters,
+        });
+        expect(createChart.mock.lastCall?.[0].data.filters).toEqual(
+            chartFilters,
+        );
+        expect(createChart.mock.lastCall?.[0].data.options).not.toHaveProperty(
+            'showFilters',
+        );
+    });
+
+    it('restores saved overrides on edit and clears them when opting out', () => {
+        const update = vi.fn();
+        mockedUpdateMutation.mockReturnValue(
+            makeMutationResult(update) as unknown as ReturnType<
+                typeof useSchedulersUpdateMutation
+            >,
+        );
+        mockedUseScheduler.mockReturnValue({
+            data: {
+                ...formValues,
+                savedChartUuid: 'chart-1',
+                format: SchedulerFormat.GSHEETS,
+                filters: chartFilters,
+            },
+        } as unknown as ReturnType<typeof useScheduler>);
+        const { result } = renderSyncModalForm(chartResource);
+
+        act(() => result.current.modal.setAction(SyncModalAction.EDIT));
+
+        const { form, handleSubmit } = result.current.syncForm;
+        expect(form.values.customizeFilters).toBe(true);
+        expect(form.values.chartFilters).toEqual(chartFilters);
+
+        handleSubmit(form.values);
+        expect(update.mock.lastCall?.[0].filters).toEqual(chartFilters);
+
+        handleSubmit({ ...form.values, customizeFilters: false });
+        expect(update.mock.lastCall?.[0]).not.toHaveProperty('filters');
     });
 
     it('creates a SQL chart sync against the SQL chart scheduler endpoint', () => {
@@ -163,6 +257,7 @@ describe('useSyncModalForm', () => {
         const [{ resourceUuid, data }] = createSqlChart.mock.calls[0];
         expect(resourceUuid).toBe('sql-chart-1');
         expect(data.format).toBe(SchedulerFormat.GSHEETS);
+        expect(data).not.toHaveProperty('filters');
         expect(createApp).not.toHaveBeenCalled();
         expect(createChart).not.toHaveBeenCalled();
     });

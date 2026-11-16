@@ -69,6 +69,7 @@ import type {
     SpaceAccessContextForCasl,
     SpacePermissionService,
 } from '../SpaceService/SpacePermissionService';
+import { assertDashboardIsPromotable } from './composerChartTiles';
 
 export type PromotedChart = {
     projectUuid: string;
@@ -2909,6 +2910,10 @@ export class PromoteService extends BaseService {
             space: upstreamSpace,
             spaceAccessContext: upstreamCtx,
         };
+        // Content-as-code upload reuses this path within one project
+        if (dashboard.projectUuid !== upstreamProjectUuid) {
+            assertDashboardIsPromotable(dashboard);
+        }
 
         return { promotedDashboard, upstreamDashboard };
     }

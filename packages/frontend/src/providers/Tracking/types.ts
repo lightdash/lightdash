@@ -724,6 +724,20 @@ type AiAgentSuggestionClickEvent = {
     };
 };
 
+/** Counts only: answer text stays out of analytics. */
+type AiAgentQuestionAnsweredEvent = {
+    name: EventName.AI_AGENT_QUESTION_ANSWERED;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        threadId: string;
+        messageId: string;
+        questionCount: number;
+        typedAnswerCount: number;
+    };
+};
+
 type DataAppRecentSuggestionClickEvent = {
     name: EventName.DATA_APP_RECENT_SUGGESTION_CLICK;
     properties: {
@@ -1435,6 +1449,7 @@ export type EventData =
     | AiAgentSuggestionsDisplayedEvent
     | AiAgentSuggestionImpressionEvent
     | AiAgentSuggestionClickEvent
+    | AiAgentQuestionAnsweredEvent
     | DataAppRecentSuggestionClickEvent
     | DataAppClarifyRoundResolvedEvent
     | ChartTypeLibraryViewedEvent

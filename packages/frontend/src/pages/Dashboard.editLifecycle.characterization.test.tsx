@@ -500,12 +500,12 @@ describe('edit lifecycle: layout edits and save', () => {
         await waitFor(() => expect(changed()).toBe('false'));
     });
 
-    it('a drop back in place still marks the dashboard dirty', async () => {
+    it('a drop back in place leaves nothing to save', async () => {
         renderDashboard(`${DASHBOARD_PATH}/edit`);
         await waitForLoaded();
 
         await click('Drop in place');
-        expect(changed()).toBe('true');
+        expect(changed()).toBe('false');
         expect(tiles()).toEqual(makeDashboard().tiles);
     });
 
@@ -586,8 +586,8 @@ describe('edit lifecycle: tiles', () => {
             'tile-new',
         ]);
         expect(payload.tiles[0].properties.title).toBe('Renamed');
-        // New tiles go one row below the lowest tile origin
-        expect(payload.tiles[1].y).toBe(1);
+        // New tiles go below the bottom edge of the lowest tile
+        expect(payload.tiles[1].y).toBe(3);
         // Deleting the only targeted tile drops its date zoom target and the
         // now-empty control
         expect(payload.config.dateZoomConfig).toBeUndefined();

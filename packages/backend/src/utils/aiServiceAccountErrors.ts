@@ -4,6 +4,12 @@ import {
     WarehouseQueryError,
     WarehouseTypes,
 } from '@lightdash/common';
+import {
+    mapSnowflakeDiagnosticError,
+    SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+    SnowflakePrivateKeyError,
+    type SnowflakeDiagnosticErrorCategory,
+} from '@lightdash/warehouses';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;
@@ -108,6 +114,75 @@ export const isSnowflakeServiceAccountAuthError = (
         snowflakeKeyAuthCodes.has(String(error.code)) ||
         isSnowflakeServiceAccountAuthError(error.cause, ancestors)
     );
+};
+
+const snowflakeLocalKeyCodes = new Set(['404026', '404027', '404028']);
+
+const errorChain = (error: unknown): Record<string, unknown>[] => {
+    const chain: Record<string, unknown>[] = [];
+    let current = error;
+    while (isRecord(current) && !chain.includes(current)) {
+        chain.push(current);
+        current = current.cause;
+    }
+    return chain;
+};
+
+export const getSnowflakeServiceAccountTestError = (
+    error: unknown,
+): {
+    category: SnowflakeDiagnosticErrorCategory | 'private_key_unreadable';
+    message: string;
+} => {
+    const chain = errorChain(error);
+    const keyError = chain.find(
+        (entry) => entry instanceof SnowflakePrivateKeyError,
+    );
+    if (keyError instanceof SnowflakePrivateKeyError)
+        return {
+            category: 'private_key_unreadable',
+            message: keyError.message,
+        };
+    const source =
+        [...chain]
+            .reverse()
+            .find(
+                (entry) =>
+                    typeof entry.code === 'string' ||
+                    typeof entry.code === 'number',
+            ) ?? error;
+    const { category, code } = mapSnowflakeDiagnosticError(source);
+    switch (category) {
+        case 'private_key':
+            return code !== null && snowflakeLocalKeyCodes.has(code)
+                ? {
+                      category: 'private_key_unreadable',
+                      message: SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+                  }
+                : {
+                      category,
+                      message:
+                          "Snowflake rejected the private key for this user. Check the user name and account identifier, and that the key's public key is set on that user.",
+                  };
+        case 'account_identifier':
+            return {
+                category,
+                message:
+                    'Snowflake could not find this account. Check the account identifier on the connection.',
+            };
+        case 'network_policy':
+            return {
+                category,
+                message:
+                    "A Snowflake network policy blocked this connection. Allow Lightdash's IP addresses in the policy.",
+            };
+        default:
+            return {
+                category,
+                message:
+                    'Could not verify the shared agent account. Check the credentials and connection settings.',
+            };
+    }
 };
 
 const athenaAuthCodes = new Set([

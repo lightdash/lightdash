@@ -31,7 +31,7 @@ import {
 } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import {
-    Icon123,
+    IconNumber123,
     IconAbc,
     IconArrowRight,
     IconCalendar,
@@ -74,7 +74,7 @@ type DatePill = CustomFormatType.DEFAULT | CustomFormatType.CUSTOM;
 const NUMERIC_SAMPLE = 1234.5678;
 
 const dataTypeMeta = {
-    [TableCalculationType.NUMBER]: { label: 'Number', icon: Icon123 },
+    [TableCalculationType.NUMBER]: { label: 'Number', icon: IconNumber123 },
     [TableCalculationType.STRING]: { label: 'String', icon: IconAbc },
     [TableCalculationType.DATE]: { label: 'Date', icon: IconCalendar },
     [TableCalculationType.TIMESTAMP]: {
@@ -87,7 +87,7 @@ const dataTypeMeta = {
     },
 } as const satisfies Record<
     TableCalculationType,
-    { label: string; icon: typeof Icon123 }
+    { label: string; icon: typeof IconNumber123 }
 >;
 
 const numericPills: { value: NumericPill; label: string }[] = [

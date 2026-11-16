@@ -19,11 +19,13 @@ const submitArgs = {
     projectUuid: 'project-1',
     context: QueryExecutionContext.API,
     resolvedReferences: {},
+    submission: [],
     parameters: {},
     userAttributeOverrides: {},
     invalidateCache: false,
     pivotConfiguration: null,
     plan: null,
+    authority: { kind: 'request' as const },
 };
 
 describe('ExternalQuerySource', () => {

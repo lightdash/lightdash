@@ -30,14 +30,18 @@ export const MOBILE_STRINGS = {
 
 export const MOBILE_SIGN_IN_STRINGS = {
     showCode: 'Show sign-in code',
-    hideCode: 'Hide code',
     newCode: 'Show a new code',
     anotherPhone: 'Sign in another phone',
     qrLabel: 'Sign-in QR code',
+    installHint:
+        'If you do not have the app, scan to open the store. Install the app, then scan again.',
     refreshed: 'New code',
-    typeOnPhone: 'Type on your phone',
+    typeOnPhone: 'Type this number on your phone',
+    cancel: 'Cancel',
     expired: 'Code expired',
     declined: 'Sign-in declined',
+    cancelledOnPhone: 'Sign-in cancelled on the phone',
+    tooManyWrongNumbers: 'Too many wrong numbers',
     signedIn: 'Signed in on a phone',
     signedInAs: (platform: string, account: string) =>
         `${platform} · ${account}`,
@@ -83,6 +87,8 @@ export const MOBILE_SIGN_IN_STRINGS = {
 
 export const MOBILE_SIGN_IN_LANDING_STRINGS = {
     body: 'Open the Lightdash app on this phone, then scan the code again with your phone camera.',
+    cloudBody:
+        'Install the app on this phone, then scan the code again with your phone camera.',
 } as const;
 
 export const MOBILE_APP_SIGN_IN_STRINGS = {
@@ -105,6 +111,7 @@ export const MOBILE_APP_SIGN_IN_STRINGS = {
     scanNewCode: 'Scan the new code.',
     ok: 'OK',
     declinedTitle: 'Sign-in declined',
+    cancelledTitle: 'Sign-in cancelled',
     managedTitle: 'Use Microsoft sign-in',
     managedBody: 'Required by your organization.',
     notAllowedTitle: 'Sign-in not allowed',

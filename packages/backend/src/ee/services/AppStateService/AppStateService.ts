@@ -182,6 +182,43 @@ export class AppStateService extends BaseService {
         return { kind: 'user', user, app, context };
     }
 
+    // Shared values can hold data from queries a consumer cannot run
+    // (commentary, comments). With consumer access on, they stay with users
+    // who have Explore; with it off, nothing changes.
+    private async canUseSharedState(
+        viewer: Extract<AuthorizedViewer, { kind: 'user' }>,
+    ): Promise<boolean> {
+        if (
+            this.createAuditedAbility(viewer.user).can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: viewer.app.organization_uuid,
+                    projectUuid: viewer.app.project_uuid,
+                }),
+            )
+        ) {
+            return true;
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                organizationUuid: viewer.app.organization_uuid,
+                userUuid: viewer.user.userUuid,
+            },
+            featureFlagId: FeatureFlags.DataAppConsumerAccess,
+        });
+        return !enabled;
+    }
+
+    private async assertCanUseSharedState(
+        viewer: Extract<AuthorizedViewer, { kind: 'user' }>,
+    ): Promise<void> {
+        if (!(await this.canUseSharedState(viewer))) {
+            throw new ForbiddenError(
+                'Shared app state is not available with your access',
+            );
+        }
+    }
+
     private async authorizeWriter(
         account: Account,
         projectUuid: string,
@@ -310,10 +347,14 @@ export class AppStateService extends BaseService {
             projectUuid,
             appUuid,
         );
-        return this.appStateModel.getSnapshot(
+        const snapshot = await this.appStateModel.getSnapshot(
             appUuid,
             viewer.kind === 'user' ? viewer.user.userUuid : null,
         );
+        if (viewer.kind === 'user' && !(await this.canUseSharedState(viewer))) {
+            return { ...snapshot, shared: {}, sharedAccess: 'none' };
+        }
+        return snapshot;
     }
 
     async setUserState(
@@ -385,6 +426,7 @@ export class AppStateService extends BaseService {
             projectUuid,
             appUuid,
         );
+        await this.assertCanUseSharedState(viewer);
         const result = await this.appStateModel.upsertSharedState({
             appUuid,
             key,
@@ -437,7 +479,12 @@ export class AppStateService extends BaseService {
             Math.max(1, options.limit ?? APP_STATE_HISTORY_DEFAULT_LIMIT),
             APP_STATE_HISTORY_MAX_LIMIT,
         );
-        await this.authorizeViewer(account, projectUuid, appUuid);
+        const viewer = await this.authorizeViewer(
+            account,
+            projectUuid,
+            appUuid,
+        );
+        if (viewer.kind === 'user') await this.assertCanUseSharedState(viewer);
         const versions = await this.appStateModel.getSharedHistory(
             appUuid,
             key,

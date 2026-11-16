@@ -1051,6 +1051,7 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
     xlsxContent?: XlsxExportContent;
+    showSubtotals?: boolean;
     encodedJwt?: string;
     /**
      * Access mode for the persistent URL of the exported file. Set to SIGNED

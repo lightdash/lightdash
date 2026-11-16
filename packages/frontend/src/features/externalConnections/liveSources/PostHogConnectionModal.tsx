@@ -1,8 +1,15 @@
-import { type ExternalConnection } from '@lightdash/common';
+import { ApiConnectorType, type ExternalConnection } from '@lightdash/common';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
-import { useCreateExternalConnection } from '../hooks/useCreateExternalConnection';
-import { useUpdateExternalConnection } from '../hooks/useUpdateExternalConnection';
+import {
+    LIVE_SOURCE_CREATE_MESSAGES,
+    useCreateExternalConnection,
+} from '../hooks/useCreateExternalConnection';
+import { useNewSourceId } from '../hooks/useNewSourceId';
+import {
+    LIVE_SOURCE_UPDATE_MESSAGES,
+    useUpdateExternalConnection,
+} from '../hooks/useUpdateExternalConnection';
 import {
     getPostHogSignInUrl,
     toPostHogCreatePayload,
@@ -10,6 +17,7 @@ import {
     usePostHogConnectionForm,
 } from './postHogConnection';
 import { PostHogConnectionStep } from './PostHogConnectionStep';
+import { SourceIdField } from './SourceIdField';
 
 type Props = {
     opened: boolean;
@@ -29,8 +37,18 @@ export const PostHogConnectionModal: FC<Props> = ({
     onCreated,
 }) => {
     const form = usePostHogConnectionForm(connection, canSignIn);
-    const createMutation = useCreateExternalConnection();
-    const updateMutation = useUpdateExternalConnection();
+    const createMutation = useCreateExternalConnection(
+        LIVE_SOURCE_CREATE_MESSAGES,
+    );
+    const updateMutation = useUpdateExternalConnection(
+        LIVE_SOURCE_UPDATE_MESSAGES,
+    );
+    const sourceId = useNewSourceId({
+        projectUuid,
+        connector: ApiConnectorType.POSTHOG,
+        name: form.values.name,
+        enabled: opened && !connection,
+    });
     const isSaving = createMutation.isLoading || updateMutation.isLoading;
 
     const signIn = (connectionUuid: string | null) => {
@@ -41,11 +59,13 @@ export const PostHogConnectionModal: FC<Props> = ({
                 form.values,
                 connectionUuid,
                 'settings',
+                connectionUuid ? undefined : sourceId.value,
             ),
         );
     };
 
     const handleSave = form.onSubmit(async (values) => {
+        if (sourceId.isBlocked) return;
         if (!connection && values.authMethod === 'signIn') {
             signIn(null);
             return;
@@ -61,7 +81,7 @@ export const PostHogConnectionModal: FC<Props> = ({
         }
         const created = await createMutation.mutateAsync({
             projectUuid,
-            data: toPostHogCreatePayload(values),
+            data: toPostHogCreatePayload(values, sourceId.value),
         });
         onCreated(created.externalConnectionUuid);
     });
@@ -80,6 +100,7 @@ export const PostHogConnectionModal: FC<Props> = ({
             }
             onConfirm={() => handleSave()}
             confirmLoading={isSaving}
+            confirmDisabled={sourceId.isBlocked}
             cancelDisabled={isSaving}
         >
             <PostHogConnectionStep
@@ -92,6 +113,12 @@ export const PostHogConnectionModal: FC<Props> = ({
                     connection && canSignIn
                         ? () => signIn(connection.externalConnectionUuid)
                         : null
+                }
+                sourceIdField={
+                    <SourceIdField
+                        connection={connection}
+                        sourceId={sourceId}
+                    />
                 }
             />
         </MantineModal>

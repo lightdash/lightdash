@@ -311,7 +311,7 @@ describe('getSystemPromptV2 custom chart types', () => {
             enableDataAccess: true,
         };
         const offer =
-            'end the reply with this line on its own: "Want me to save this as a Document you can share?"';
+            'end the reply with this line on its own: "Want me to turn this analysis into a Document, a shareable report with these charts and a written summary?"';
 
         const nudged = promptText({
             ...documentArgs,
@@ -319,6 +319,10 @@ describe('getSystemPromptV2 custom chart types', () => {
         });
         expect(nudged).toContain(offer);
         expect(nudged).toContain('Offer only once per conversation');
+        expect(nudged).toContain('at least 3 charts across several turns');
+        expect(nudged).not.toContain(
+            'an earlier reply in this conversation also created one',
+        );
         expect(nudged).toContain(
             'When looking for existing content, include Documents',
         );
@@ -362,7 +366,7 @@ describe('getSystemPromptV2 custom chart types', () => {
 
         expect(content).not.toContain('## Documents');
         expect(content).toContain(
-            'Want me to save this as a Document you can share?',
+            'Want me to turn this analysis into a Document, a shareable report with these charts and a written summary?',
         );
     });
 });
@@ -431,7 +435,7 @@ describe('getSystemPromptV2 composer queries', () => {
     const composerSections = (...sections: PromptSection[]) =>
         new Set<PromptSection>(['queryingComposer', ...sections]);
 
-    test('directs cross-explore questions to a duckdb node over semanticLayer nodes', () => {
+    test('directs joins on shared dimensions to a merge node, and other combinations to duckdb', () => {
         const content = promptText({
             availableExplores: [],
             promptSections: composerSections('runSql'),
@@ -439,7 +443,10 @@ describe('getSystemPromptV2 composer queries', () => {
         });
 
         expect(content).toContain(
-            'combine explores that are not joined in the semantic layer with a duckdb node',
+            'Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node.',
+        );
+        expect(content).toContain(
+            '- Combine results any other way with a duckdb node',
         );
     });
 
@@ -1126,6 +1133,12 @@ describe('getSystemPromptV2 repository context', () => {
         expect(promptText(repoFsArgs)).toContain(
             "The `/dbt` mount is this project's governed dbt repository.",
         );
+    });
+
+    test('omits the /dbt hint without a /dbt mount', () => {
+        const content = promptText({ ...repoFsArgs, repoFsRoot: null });
+        expect(content).toContain('## Repository context');
+        expect(content).not.toContain('`/dbt`');
     });
 
     test('appends the no-search caveat when code search is unsupported (GitLab)', () => {

@@ -182,8 +182,9 @@ describe('retained query history for Analytics backfill', () => {
         expect(selected).not.toContain('"q"."created_by_account"');
         expect(selected).not.toMatch(/select\s+(?:"q"\.)?\*/i);
         expect(selected).toContain(
-            "COALESCE(q.request_parameters->>'chartUuid', q.request_parameters->>'savedSqlUuid') as chart_id",
+            "COALESCE(COALESCE(q.request_chart_uuid, CASE WHEN q.metric_query_explore_name IS NULL THEN q.request_parameters->>'chartUuid' END)",
         );
+        expect(selected).toContain('as dashboard_id');
     });
 
     it('preserves timestamp ties and microsecond precision across bounded keyset pages', async () => {

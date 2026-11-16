@@ -33,6 +33,8 @@ import {
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
 import FilterFieldSelect from '../dashboardFilters/FilterConfiguration/FilterFieldSelect';
+import { useControlContractClasses } from './controlContractClasses';
+import { MappingRowFrame } from './ControlMappingRow';
 import { DropdownClass } from './DropdownClass';
 import { getFieldCandidates } from './fieldCandidates';
 import { formatTilesOf } from './fieldLabels';
@@ -43,9 +45,7 @@ import {
     findChip,
     findFieldBarStart,
     findMappingFallback,
-    focusOnMount,
     isFocusLost,
-    mappingRowMarker,
 } from './mappingFocus';
 import classes from './MappingRow.module.css';
 import { MENU_TRANSITION } from './menuTransition';
@@ -57,9 +57,8 @@ import {
     getTileField,
     isTileInRow,
 } from './peers';
-import { useRailContractClasses } from './railContractClasses';
 import { useApplyBlockedReason } from './useApplyBlockedReason';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
 import { useFieldTileActions } from './useFieldTileActions';
 import { useFilterFieldsMap } from './useFilterFieldsMap';
 import { useFilterRuleField } from './useFilterRuleField';
@@ -125,10 +124,10 @@ const AddFieldMenu: FC<{
     onPicked: (fieldId: string) => void;
 }> = ({ rule, onPicked }) => {
     const getUiString = useUiStrings();
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     const [isOpen, setIsOpen] = useState(false);
-    const applyWithUndo = useControlsSidebarSelector((c) => c.applyWithUndo);
-    const setHighlightedFieldId = useControlsSidebarSelector(
+    const applyWithUndo = useControlsEditorSelector((c) => c.applyWithUndo);
+    const setHighlightedFieldId = useControlsEditorSelector(
         (c) => c.setHighlightedFieldId,
     );
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
@@ -326,22 +325,22 @@ const useBarPill = (
 
 const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
     const getUiString = useUiStrings();
-    const highlightedFieldId = useControlsSidebarSelector(
+    const highlightedFieldId = useControlsEditorSelector(
         (c) => c.highlightedFieldId,
     );
-    const hoveredFieldId = useControlsSidebarSelector((c) => c.hoveredFieldId);
-    const setHighlightedFieldId = useControlsSidebarSelector(
+    const hoveredFieldId = useControlsEditorSelector((c) => c.hoveredFieldId);
+    const setHighlightedFieldId = useControlsEditorSelector(
         (c) => c.setHighlightedFieldId,
     );
-    const clearHighlightedField = useControlsSidebarSelector(
+    const clearHighlightedField = useControlsEditorSelector(
         (c) => c.clearHighlightedField,
     );
-    const setHoveredFieldId = useControlsSidebarSelector(
+    const setHoveredFieldId = useControlsEditorSelector(
         (c) => c.setHoveredFieldId,
     );
-    const cancelMapping = useControlsSidebarSelector((c) => c.cancelMapping);
-    const endMapping = useControlsSidebarSelector((c) => c.endMapping);
-    const close = useControlsSidebarSelector((c) => c.close);
+    const cancelMapping = useControlsEditorSelector((c) => c.cancelMapping);
+    const endMapping = useControlsEditorSelector((c) => c.endMapping);
+    const close = useControlsEditorSelector((c) => c.close);
     const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
     const pill = useBarPill(rule);
     const sqlColumnsByTile = useSqlColumnsByTile(rule);
@@ -528,28 +527,13 @@ const MappingRowContent: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
 // In the filter row's place while tiles are chosen: the back arrow, the open
 // pill, the title with its counts, a chip per field, "Add a field", Cancel and Apply
 export const MappingRow: FC = () => {
-    const rule = useControlsSidebarSelector((c) =>
+    const rule = useControlsEditorSelector((c) =>
         c.isMapping ? c.editingRule : null,
     );
-    const contractClasses = useRailContractClasses();
     if (rule === null) return null;
     return (
-        <Group
-            // In the popover's place, so an embed's rail class goes with it
-            className={
-                contractClasses === null
-                    ? classes.row
-                    : `${classes.row} ${contractClasses.rail}`
-            }
-            gap="xs"
-            tabIndex={-1}
-            // The popover that held focus is gone: the row takes it, so Tab
-            // reaches the chips and Escape cancels from here
-            ref={focusOnMount}
-            data-controls-editor
-            {...mappingRowMarker}
-        >
+        <MappingRowFrame>
             <MappingRowContent rule={rule} />
-        </Group>
+        </MappingRowFrame>
     );
 };

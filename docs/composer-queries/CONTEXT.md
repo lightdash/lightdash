@@ -5,8 +5,9 @@ with DuckDB joining or transforming the results of the other queries. The
 result is shown in the thread as a chart artifact with the pipeline beside it.
 
 Sibling of merge queries: both run on the compose engine, but a composer query
-is an agent-authored pipeline of any shape, while a merge is a two-query join
-in the Explorer.
+is an agent-authored pipeline of any shape, while a merge is a join of
+explore queries in the Explorer. A merge node brings that join into a
+pipeline through the same compiler.
 
 ## Language
 
@@ -69,6 +70,17 @@ SQL on the compose engine, or Python in a sandbox. Grouped under
 "Transformations".
 _Avoid_: duckdb node, python node (in user-facing copy), join node,
 post-processing step
+
+**Merge node**:
+A transformation that joins two or more semanticLayer nodes on dimensions
+they share at the same grain, declared in the merge vocabulary (sources,
+join key, join type, calculations, repeat values, sort, limit) with no SQL.
+It runs through the merge compiler, so its columns keep each governed
+field's label, format, description and provenance, and the merge refusals
+(fan-out, key type or grain mismatch, a source cut off at its limit) reach
+the agent as correctable errors. Its sources are its legs, read as they
+ran: each must select its join keys and return fewer rows than its limit.
+_Avoid_: join node, merge step, merged query (the Explorer's)
 
 **Thread composer query nodes**:
 The nodes that succeeded in a thread's composer queries, each under its node
@@ -207,7 +219,25 @@ The chart artifact created when the agent presents a node: the presented
 node's result plus the snapshot that produces it. One per thread, one version
 per presented node. A version is declarative: its snapshot, presented node
 and viz config. It holds no results, and a run never changes it.
-_Avoid_: composer chart, result artifact
+_Avoid_: composer chart (the saved chart made from a version), result
+artifact
+
+**Composer chart**:
+A saved chart whose definition is a pipeline and a chart config. It is saved
+from a composer artifact version and keeps no link to the thread or the
+agent. It belongs to a dashboard. Running it never changes it.
+_Avoid_: pipeline chart, saved composer query, composer tile (the dashboard
+tile that shows one)
+
+**Bound run**:
+A run of a stored chart's pipeline for someone viewing it. Only the stored
+nodes run, and the viewer's own write permissions are not checked.
+_Avoid_: viewer run, document run
+
+**Run binding**:
+The server-only proof a bound run carries: who is viewing, which stored chart,
+and the nodes resolved from it. No API can create one.
+_Avoid_: query context, token
 
 **Lineage**:
 The composer artifact view beside the chart that shows the pipeline: a graph

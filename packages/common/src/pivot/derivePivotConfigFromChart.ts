@@ -24,10 +24,12 @@ import {
     type SavedChartDAO,
 } from '../types/savedCharts';
 import assertUnreachable from '../utils/assertUnreachable';
+import { isNumericItem } from '../utils/item';
 import {
     getColumnAxisType,
     getTableCalculationAxisType,
     SortByDirection,
+    StackType,
     VizAggregationOptions,
     VizIndexType,
 } from '../visualizations/types';
@@ -388,6 +390,31 @@ function getCartesianPivotConfiguration(
             xField,
         );
 
+        // A stacked chart's bar height and total are the sum of its groups, so
+        // groups past the pivot column limit must still count: fold them into
+        // one "Other" group instead of dropping them. Summing only makes sense
+        // for numeric values.
+        // Unstacking in the UI sets the layout to StackType.NONE ('none'),
+        // which is truthy, so compare against the stacked values.
+        const layoutStack = chartConfig.config.layout.stack;
+        const isStacked =
+            layoutStack === true ||
+            layoutStack === StackType.NORMAL ||
+            layoutStack === StackType.PERCENT ||
+            (chartConfig.config.eChartsConfig.series ?? []).some(
+                (series) => series.stack !== undefined || !!series.areaStyle,
+            );
+        // A chart with its own Column limit shows only the first N groups on
+        // purpose, and "Other" would be one of the groups it hides, so there
+        // is nothing to fold.
+        const hasChartColumnLimit = (chartConfig.config.columnLimit ?? 0) > 0;
+        const foldOverflowGroups =
+            isStacked &&
+            !hasChartColumnLimit &&
+            groupByColumns.length > 0 &&
+            valuesColumns.length > 0 &&
+            valuesColumns.every((col) => isNumericItem(fields[col.reference]));
+
         const partialPivotConfiguration: Omit<PivotConfiguration, 'sortBy'> = {
             indexColumn,
             valuesColumns,
@@ -395,6 +422,7 @@ function getCartesianPivotConfiguration(
             ...(sortOnlyMetrics.length > 0 && {
                 sortOnlyColumns: sortOnlyMetrics,
             }),
+            ...(foldOverflowGroups && { foldOverflowGroups }),
         };
 
         const pivotConfiguration: PivotConfiguration = {

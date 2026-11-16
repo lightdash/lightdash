@@ -53,9 +53,11 @@ export interface CompileOptions {
     // BigQuery/Snowflake don't reject `OVER ()` where they require an
     // analytic ORDER BY. Columns are raw SQL identifiers and the compiler
     // quotes them with the dialect's quoting rules.
+    // `nullsFirst` emits NULLS FIRST/LAST when set; unset leaves the dialect default.
     defaultOrderBy?: ReadonlyArray<{
         column: string;
         direction?: 'ASC' | 'DESC';
+        nullsFirst?: boolean;
     }>;
     // Day the week starts on when `DATE_TRUNC("week", d)` is evaluated. When
     // omitted, defaults to Monday (ISO 8601) — matching the native week

@@ -22,6 +22,7 @@ const TOOLS_WITHOUT_DESCRIPTION = [
     'readSemanticModel',
     'editRepo',
     'updateUserName',
+    'askUser',
     'syncDbtProject',
     'runSavedChart',
     'readPinnedThread',

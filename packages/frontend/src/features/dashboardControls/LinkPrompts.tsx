@@ -39,7 +39,8 @@ import { setTileField, type FieldsByTile } from './peers';
 import classes from './TileOverlay.module.css';
 import { getTileTitle } from './tileProps';
 import { getTileSelector, LOCKED_TILE_CLASS } from './tileSelector';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useControlsEditorSelector } from './useControlsEditor';
+import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import {
     getParameterEntryName,
     useParameterBarControls,
@@ -116,8 +117,8 @@ const LinkCard: FC<CardProps> = ({
     fieldsMap,
     getLabel,
 }) => {
-    const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
-    const dismissLink = useControlsSidebarSelector((c) => c.dismissLink);
+    const updateFilter = useControlsEditorSelector((c) => c.updateFilter);
+    const dismissLink = useControlsEditorSelector((c) => c.dismissLink);
     const [picks, setPicks] = useState<Picks>({});
     const getUiString = useUiStrings();
     const tileTitle = getTileTitle(
@@ -247,7 +248,7 @@ const ParameterLinkCard: FC<ParameterCardProps> = ({
     tileParameterReferences,
     controlNameOf,
 }) => {
-    const dismissLink = useControlsSidebarSelector((c) => c.dismissLink);
+    const dismissLink = useControlsEditorSelector((c) => c.dismissLink);
     const add = useParameterEditorSelector((c) => c.add);
     const store = useDashboardStore();
     const parameterValues = useDashboardSelector(selectParameterValues);
@@ -374,9 +375,9 @@ const ParameterLinkCard: FC<ParameterCardProps> = ({
 };
 
 export const LinkPrompts: FC = () => {
-    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
-    const newTileUuids = useControlsSidebarSelector((c) => c.newTileUuids);
-    const dismissedLinks = useControlsSidebarSelector((c) => c.dismissedLinks);
+    const isEditorOpen = useControlsEditorSelector((c) => c.isEditorOpen);
+    const newTileUuids = useControlsEditorSelector((c) => c.newTileUuids);
+    const dismissedLinks = useControlsEditorSelector((c) => c.dismissedLinks);
     const { mode } = useParams<{ mode?: string }>();
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
@@ -398,16 +399,21 @@ export const LinkPrompts: FC = () => {
     );
     const { entries } = useParameterBarControls();
     const isParameterMapping = useParameterEditorSelector((c) => c.isMapping);
-    // Never on a tile card: a filter's or a parameter control's
+    const isDateZoomEdited = useDateZoomEditorSelector(
+        (c) => c.editingId !== null,
+    );
+    // Never on a tile card: a filter's, a parameter control's or a date zoom's
     const isEnabled =
         mode === 'edit' &&
-        !isSidebarOpen &&
+        !isEditorOpen &&
         parameterEditingId === null &&
-        !isParameterMapping;
-    // Parameter rows never stack on a parameter control's tile overlays
+        !isParameterMapping &&
+        !isDateZoomEdited;
+    // Parameter rows never stack on a control's tile overlays
     const isParameterEnabled =
         mode === 'edit' &&
         parameterEditingId === null &&
+        !isDateZoomEdited &&
         controls !== null &&
         isControlListExplicit;
 

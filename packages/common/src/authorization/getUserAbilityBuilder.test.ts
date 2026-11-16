@@ -966,3 +966,142 @@ describe('getUserAbilityBuilder — personal access tokens', () => {
         expect(builder.rules.some((r) => r.inverted)).toBe(false);
     });
 });
+
+describe('getUserAbilityBuilder — data app consumer access', () => {
+    const PROJECT_UUID = 'test-project-uuid';
+    const sharedApp = {
+        organizationUuid: ORG_UUID,
+        projectUuid: PROJECT_UUID,
+        inheritsFromOrgOrProject: true,
+        access: [],
+    };
+    const spaceApp = {
+        organizationUuid: ORG_UUID,
+        projectUuid: PROJECT_UUID,
+        inheritsFromOrgOrProject: false,
+        access: [{ userUuid: USER_UUID }],
+    };
+    const personalApp = {
+        organizationUuid: ORG_UUID,
+        projectUuid: PROJECT_UUID,
+        inheritsFromOrgOrProject: false,
+        access: [],
+        createdByUserUuid: 'someone-else',
+    };
+
+    const build = ({
+        orgRole,
+        projectRole,
+        flag,
+    }: {
+        orgRole: OrganizationMemberRole;
+        projectRole?: ProjectMemberRole;
+        flag: boolean;
+    }) =>
+        getUserAbilityBuilder({
+            user: {
+                role: orgRole,
+                organizationUuid: ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: undefined,
+            },
+            projectProfiles: projectRole
+                ? [
+                      {
+                          projectUuid: PROJECT_UUID,
+                          role: projectRole,
+                          userUuid: USER_UUID,
+                          roleUuid: undefined,
+                      },
+                  ]
+                : [],
+            permissionsConfig: PERMISSIONS_CONFIG,
+            dataAppConsumerAccess: flag,
+        }).builder.build();
+
+    it.each([
+        ['org viewer', OrganizationMemberRole.VIEWER, undefined],
+        [
+            'project viewer',
+            OrganizationMemberRole.MEMBER,
+            ProjectMemberRole.VIEWER,
+        ],
+    ])(
+        '%s cannot view data apps when the flag is off',
+        (_, orgRole, projectRole) => {
+            const ability = build({ orgRole, projectRole, flag: false });
+            expect(ability.can('view', subject('DataApp', sharedApp))).toBe(
+                false,
+            );
+            expect(ability.can('view', subject('DataApp', spaceApp))).toBe(
+                false,
+            );
+        },
+    );
+
+    it.each([
+        ['org viewer', OrganizationMemberRole.VIEWER, undefined],
+        [
+            'project viewer',
+            OrganizationMemberRole.MEMBER,
+            ProjectMemberRole.VIEWER,
+        ],
+    ])(
+        '%s can view shared data apps when the flag is on',
+        (_, orgRole, projectRole) => {
+            const ability = build({ orgRole, projectRole, flag: true });
+            expect(ability.can('view', subject('DataApp', sharedApp))).toBe(
+                true,
+            );
+            expect(ability.can('view', subject('DataApp', spaceApp))).toBe(
+                true,
+            );
+            expect(ability.can('view', subject('DataApp', personalApp))).toBe(
+                false,
+            );
+        },
+    );
+
+    it('grants no Explore, create or manage access', () => {
+        const ability = build({
+            orgRole: OrganizationMemberRole.VIEWER,
+            flag: true,
+        });
+        expect(
+            ability.can(
+                'manage',
+                subject('Explore', {
+                    organizationUuid: ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                }),
+            ),
+        ).toBe(false);
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                }),
+            ),
+        ).toBe(false);
+        expect(ability.can('create', subject('DataApp', sharedApp))).toBe(
+            false,
+        );
+        expect(ability.can('manage', subject('DataApp', sharedApp))).toBe(
+            false,
+        );
+    });
+
+    it('does not change roles above Viewer', () => {
+        const withFlag = build({
+            orgRole: OrganizationMemberRole.INTERACTIVE_VIEWER,
+            flag: true,
+        }).rules;
+        const withoutFlag = build({
+            orgRole: OrganizationMemberRole.INTERACTIVE_VIEWER,
+            flag: false,
+        }).rules;
+        ruleSetEqual(withFlag, withoutFlag);
+    });
+});

@@ -70,6 +70,7 @@ describe('ciphertext registry', () => {
             'linear_app_installations.encrypted_installation_id',
             'linear_app_installations.encrypted_access_token',
             'linear_app_installations.encrypted_refresh_token',
+            'linear_app_installations.encrypted_linear_client_secret',
             'git_user_credentials.encrypted_auth_token',
             'git_user_credentials.encrypted_refresh_token',
             'user_oauth_grants.encrypted_refresh_token',

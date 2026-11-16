@@ -14,6 +14,7 @@ import {
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
     dataAppVizSchema,
+    DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
     DimensionType,
     DOCUMENT_CONVERSATION_TAGS,
     documentAsCodeSchema,
@@ -28,11 +29,13 @@ import {
     getAppDisplayName,
     getConnectionDefaults,
     getContentAsCodePathFromLtreePath,
+    getDateZoomXAxisFieldId,
     getDocumentSummaryMarkdown,
     getDocumentUrl,
     getErrorMessage,
     getItemMap,
     getLtreePathFromContentAsCodePath,
+    getTileControl,
     getValidAiQueryLimit,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
@@ -43,6 +46,7 @@ import {
     isGitProjectType,
     JobStatusType,
     mcpDocumentEditSchema,
+    normalizeDateZoomConfig,
     NotFoundError,
     ParameterError,
     parseDocumentBlocks,
@@ -51,6 +55,7 @@ import {
     QueryHistoryStatus,
     QuerySurface,
     RequestMethod,
+    resolveTileDateZoom,
     SessionUser,
     shouldUseStaticFilterAutocomplete,
     SourceQuerySubmission,
@@ -69,15 +74,18 @@ import {
     type AppExternalConnectionLink,
     type ChartAsCode,
     type CustomChartType,
+    type Dashboard,
     type DashboardAsCode,
     type DataAppCreationExperience,
     type DataAppVizSchema,
+    type DateZoom,
     type Document,
     type FieldValueSearchResult,
     type McpCustomChartType,
     type McpListCustomChartTypesOutput,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
+    type SavedChartDAO,
     type SchedulerAiAugmentation,
     type SqlChart,
     type SqlChartAsCode,
@@ -531,7 +539,10 @@ type AiAgentToolsServiceDependencies = {
     projectContextModel: ProjectContextModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
     aiDeepResearchRunModel: AiDeepResearchRunModel;
-    aiAgentModel: Pick<AiAgentModel, 'findToolResultsByToolCallIds'>;
+    aiAgentModel: Pick<
+        AiAgentModel,
+        'findToolResultsByToolCallIds' | 'findThreadDashboardRuntimeOverrides'
+    >;
     featureFlagService: FeatureFlagService;
     shareService: ShareService;
     userService: UserService;
@@ -4450,6 +4461,14 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
+                const { dateZoom, savedChart } =
+                    await this.resolveDashboardTileDateZoom(
+                        context,
+                        dashboard,
+                        tile.uuid,
+                        args.chartUuid,
+                    );
+
                 await context.onWarehouseQuery?.();
                 return this.asyncQueryService.executeDashboardChartQueryAndGetResults(
                     {
@@ -4460,6 +4479,10 @@ export class AiAgentToolsService extends BaseService {
                         tileUuid: tile.uuid,
                         dashboardFilters: dashboard.filters,
                         dashboardSorts: [],
+                        ...(dateZoom ? { dateZoom } : {}),
+                        ...(savedChart
+                            ? { preloadedSavedChart: savedChart }
+                            : {}),
                         limit,
                         context: context.defaultQueryExecutionContext,
                         querySurface: context.querySurface,
@@ -4472,6 +4495,68 @@ export class AiAgentToolsService extends BaseService {
                 );
             },
         );
+    }
+
+    /** The date zoom the dashboard applies to the tile: the viewer's picks attached to the thread, else the saved grains. */
+    private async resolveDashboardTileDateZoom(
+        context: AiAgentToolsRuntimeContext,
+        dashboard: Pick<Dashboard, 'uuid' | 'config'>,
+        tileUuid: string,
+        chartUuid: string,
+    ): Promise<{
+        dateZoom: DateZoom | undefined;
+        /** Loaded for the x-axis field, so the query need not load it again */
+        savedChart: SavedChartDAO | null;
+    }> {
+        // A viewer can pick a zoom on a dashboard that saves none, so a thread is always read
+        const overrides = context.threadUuid
+            ? await this.aiAgentModel.findThreadDashboardRuntimeOverrides(
+                  context.threadUuid,
+                  dashboard.uuid,
+              )
+            : null;
+        const config = normalizeDateZoomConfig(dashboard.config);
+        const savedGranularity = dashboard.config?.isDateZoomDisabled
+            ? undefined
+            : dashboard.config?.defaultDateZoomGranularity;
+        // Absent: as saved. Null: the viewer cleared it.
+        const globalGranularity =
+            overrides?.dateZoom === undefined
+                ? savedGranularity
+                : overrides.dateZoom?.granularity;
+
+        let savedChart: SavedChartDAO | null = null;
+        let defaultXAxisFieldId: string | undefined;
+        if (
+            globalGranularity !== undefined &&
+            getTileControl(config, tileUuid) === undefined
+        ) {
+            savedChart = await this.savedChartModel.get(chartUuid, undefined, {
+                projectUuid: context.projectUuid,
+            });
+            defaultXAxisFieldId = getDateZoomXAxisFieldId(
+                savedChart.chartConfig,
+                await this.projectService.getExplore(
+                    context.account,
+                    context.projectUuid,
+                    savedChart.metricQuery.exploreName,
+                ),
+            );
+        }
+
+        const dateZoom = resolveTileDateZoom({
+            config,
+            tileUuid,
+            // A grain stored as saved gives way to the config, which may have changed since
+            runtimeGranularities: Object.fromEntries(
+                (overrides?.dateZoomControls ?? [])
+                    .filter((control) => control.isViewerPick === true)
+                    .map((control) => [control.uuid, control.granularity]),
+            ),
+            globalGranularity,
+            defaultXAxisFieldId,
+        });
+        return { dateZoom, savedChart };
     }
 
     private runSqlJob(
@@ -4767,10 +4852,12 @@ export class AiAgentToolsService extends BaseService {
             onNodeStatus,
             deadlineMs,
             timeoutMessage,
+            readAllTerminalRows = false,
         }: Parameters<RunComposerQueriesFn>[0] & {
             deadlineMs: number;
             /** Fails the run at the deadline instead of returning running. */
             timeoutMessage?: string;
+            readAllTerminalRows?: boolean;
         },
     ): ReturnType<RunComposerQueriesUntilDeadlineFn> {
         return wrapSentryTransaction(
@@ -4919,12 +5006,13 @@ export class AiAgentToolsService extends BaseService {
                 const terminalQuery = queries.find(
                     (query) => query.nodeId === terminalNodeId,
                 );
-                // Callers read only a preview; rowCount comes from the stored total.
-                const pageSize = Math.min(
+                const terminalLimit =
                     terminalQuery?.limit ??
-                        this.lightdashConfig.ai.copilot.maxQueryLimit,
-                    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
-                );
+                    this.lightdashConfig.ai.copilot.maxQueryLimit;
+                // Previews leave rowCount to the stored total.
+                const pageSize = readAllTerminalRows
+                    ? terminalLimit
+                    : Math.min(terminalLimit, COMPOSER_QUERY_PREVIEW_ROW_LIMIT);
 
                 const otherUnreadSubmissions = submissions.filter(
                     (submission) =>
@@ -5033,6 +5121,7 @@ export class AiAgentToolsService extends BaseService {
             page: 1,
             aiAccessOnly: true,
             pageSize,
+            maxPageSize: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
         });
     }
 
@@ -5614,26 +5703,14 @@ export class AiAgentToolsService extends BaseService {
                 if (!context.agentUuid) {
                     return [];
                 }
-                const [documents, deepResearchRuns, researchDocuments] =
-                    await Promise.all([
-                        this.aiAgentDocumentModel.findAllForAgent({
-                            organizationUuid: context.organizationUuid,
-                            agentUuid: context.agentUuid,
-                            projectUuid: context.projectUuid,
-                        }),
-                        context.threadUuid
-                            ? this.aiDeepResearchRunModel.findReportSummariesByThreadScoped(
-                                  {
-                                      aiThreadUuid: context.threadUuid,
-                                      organizationUuid:
-                                          context.organizationUuid,
-                                      projectUuid: context.projectUuid,
-                                      createdByUserUuid: context.user.userUuid,
-                                  },
-                              )
-                            : [],
-                        this.findThreadResearchDocuments(context),
-                    ]);
+                const [documents, researchDocuments] = await Promise.all([
+                    this.aiAgentDocumentModel.findAllForAgent({
+                        organizationUuid: context.organizationUuid,
+                        agentUuid: context.agentUuid,
+                        projectUuid: context.projectUuid,
+                    }),
+                    this.findThreadResearchDocuments(context),
+                ]);
                 const publishedResearchDocuments: AiAgentDocumentSummary[] =
                     researchDocuments.map(({ run, document }) => ({
                         uuid: run.ai_deep_research_run_uuid,
@@ -5662,38 +5739,7 @@ export class AiAgentToolsService extends BaseService {
                         createdAt: run.created_at,
                         updatedAt: document.updatedAt,
                     }));
-                const deepResearchDocuments: AiAgentDocumentSummary[] =
-                    deepResearchRuns.map((run) => ({
-                        uuid: run.ai_deep_research_run_uuid,
-                        organizationUuid: run.organization_uuid,
-                        projectUuid: run.project_uuid,
-                        name: run.prompt,
-                        originalFilename: `${run.ai_deep_research_run_uuid}.md`,
-                        mimeType: 'text/markdown',
-                        contentSizeBytes: run.content_size_bytes,
-                        alwaysIncludeInContext: false,
-                        summary: {
-                            description:
-                                'Deep Research report from this conversation.',
-                            definedTerms: [],
-                            relatedExploreNames: [],
-                            useWhen: `Answering follow-up questions about: ${run.prompt}`,
-                            relevance: 'high',
-                            warning:
-                                'Read-only and available only in this conversation.',
-                        },
-                        agentAccess: [],
-                        createdByUserUuid: run.created_by_user_uuid,
-                        updatedByUserUuid: null,
-                        createdAt: run.created_at,
-                        updatedAt: run.updated_at,
-                    }));
-
-                return [
-                    ...documents,
-                    ...deepResearchDocuments,
-                    ...publishedResearchDocuments,
-                ];
+                return [...documents, ...publishedResearchDocuments];
             },
         );
     }
@@ -5724,24 +5770,6 @@ export class AiAgentToolsService extends BaseService {
                     return content;
                 }
                 if (context.threadUuid) {
-                    const run =
-                        await this.aiDeepResearchRunModel.findReportByUuidThreadScoped(
-                            {
-                                aiDeepResearchRunUuid: args.documentUuid,
-                                aiThreadUuid: context.threadUuid,
-                                organizationUuid: context.organizationUuid,
-                                projectUuid: context.projectUuid,
-                                createdByUserUuid: context.user.userUuid,
-                            },
-                        );
-                    if (run?.result_markdown) {
-                        return {
-                            uuid: run.ai_deep_research_run_uuid,
-                            name: run.prompt,
-                            mimeType: 'text/markdown',
-                            content: run.result_markdown,
-                        };
-                    }
                     const published = (
                         await this.findThreadResearchDocuments(context)
                     ).find(

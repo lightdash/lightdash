@@ -24,6 +24,10 @@ import assertUnreachable from '../../utils/assertUnreachable';
 import { type AllVizChartConfig } from '../../visualizations/types';
 import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
+import {
+    type SlackNativeChartImageReason,
+    type SlackNativeChartRoute,
+} from './chartConfig/slack';
 import { type AiComposerChartArtifactConfig } from './composerArtifact';
 import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
@@ -55,7 +59,9 @@ export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
 export * from './nodeCitations';
+export * from './composerChartSave';
 export * from './composerChartVizConfig';
+export * from './composerMergeChart';
 export * from './composerSemanticArtifact';
 export * from './composerViz';
 export * from './composerVizPanel';
@@ -1258,6 +1264,9 @@ export type AiArtifact = {
     savedQueryUuid: string | null;
     savedSqlUuid: string | null;
     savedDashboardUuid: string | null;
+    /** Null when unsaved or the composer chart was deleted. */
+    savedComposerChartUuid: string | null;
+    savedComposerChartDashboardUuid: string | null;
     createdAt: Date;
     versionNumber: number;
     versionUuid: string;
@@ -1318,6 +1327,28 @@ export type ApiAiAgentVisualizeSlackPreviewRequest = {
     columns: ResultColumn[];
     rows: Record<string, unknown>[];
     vizConfig: Record<string, unknown>;
+};
+
+/** Dev-only harness: posts a visualize chart to Slack, native or as an image. */
+export type ApiAiAgentVisualizeSlackSendRequest =
+    ApiAiAgentVisualizeSlackPreviewRequest & {
+        channel: string;
+        threadTs: string | null;
+        /** auto applies the native chart rules; native and image force a route. */
+        route: 'auto' | SlackNativeChartRoute['route'];
+    };
+
+export type ApiAiAgentVisualizeSlackSendResponse = {
+    status: 'ok';
+    results: {
+        route: SlackNativeChartRoute['route'];
+        /** Why the chart is not native; null when it is. */
+        reason: SlackNativeChartImageReason | null;
+        /** Empty when nothing was posted. */
+        blocks: Record<string, unknown>[];
+        ts: string | null;
+        permalink: string | null;
+    };
 };
 
 export type AiAgentVerifiedArtifact = {

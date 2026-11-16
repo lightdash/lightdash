@@ -18,14 +18,29 @@ import {
     Menu,
     SegmentedControl,
     Stack,
+    Text,
 } from '@mantine/core';
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
-import { IconDots, IconTableExport } from '@tabler/icons-react';
+import {
+    IconChartBar,
+    IconDeviceFloppy,
+    IconDots,
+    IconExternalLink,
+    IconLayoutDashboard,
+    IconTableExport,
+} from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC, type RefObject } from 'react';
+import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import MantineModal from '../../../../../components/common/MantineModal';
+import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
+import {
+    SaveComposerChartModal,
+    type SavedComposerChartLink,
+} from '../../../../../features/composerCharts/components/SaveComposerChartModal';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -47,6 +62,8 @@ import {
     type AiComposerVizConfigPanelMode,
 } from './composerVizConfig/AiComposerVizConfigPanel';
 import { useArtifactResultRows } from './useArtifactResultRows';
+import { useComposerChartSaveAction } from './useComposerChartSaveAction';
+import { useComposerMergeChartActions } from './useComposerMergeChartActions';
 import {
     useComposerNodeResults,
     type ComposerPanelSource,
@@ -78,6 +95,8 @@ type Props = {
     /** Null when this pipeline can't be pinned to the chat. */
     onAddToChat: ((node: { nodeId: string; title: string }) => void) | null;
     initialView: ArtifactView;
+    /** The composer chart this version was saved as; null when unsaved. */
+    savedComposerChart: SavedComposerChartLink | null;
 };
 
 type ArtifactView = 'chart' | 'lineage';
@@ -100,6 +119,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     chatNodeIds,
     onAddToChat,
     initialView,
+    savedComposerChart,
 }) => {
     const getUiString = useUiStrings();
     const { user } = useApp();
@@ -115,6 +135,12 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     const [
         downloadModalOpened,
         { open: openDownloadModal, close: closeDownloadModal },
+    ] = useDisclosure(false);
+    const [saveModalOpened, { open: openSaveModal, close: closeSaveModal }] =
+        useDisclosure(false);
+    const [
+        composerSaveModalOpened,
+        { open: openComposerSaveModal, close: closeComposerSaveModal },
     ] = useDisclosure(false);
     const canExportData = user.data?.ability?.can(
         'manage',
@@ -152,6 +178,23 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         () => columns.map((column) => column.reference),
         [columns],
     );
+    const mergeChartActions = useComposerMergeChartActions({
+        projectUuid,
+        config,
+        columns,
+        title,
+        description,
+    });
+    const composerSave = useComposerChartSaveAction({
+        projectUuid,
+        agentUuid,
+        source,
+        config,
+        columns,
+        title,
+        description,
+        savedComposerChart,
+    });
     const storedVizConfig =
         config.schemaVersion === 1 ? (config.vizConfig ?? null) : null;
     // v2 draws the presented node through the runQuery chart builders; nothing to edit.
@@ -266,7 +309,10 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                         },
                     ]}
                 />
-                {(canExportImage || canDownloadResults) && (
+                {(canExportImage ||
+                    canDownloadResults ||
+                    !!mergeChartActions ||
+                    !!composerSave) && (
                     <Menu withArrow position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
@@ -300,6 +346,77 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                                     {getUiString(
                                         'aiAgent.composer.actions.downloadResults',
                                     )}
+                                </Menu.Item>
+                            )}
+                            {mergeChartActions?.quickSaveDashboard && (
+                                <Menu.Item
+                                    disabled={
+                                        mergeChartActions.isSavingToDashboard
+                                    }
+                                    onClick={() =>
+                                        void mergeChartActions.saveToCurrentDashboard()
+                                    }
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconLayoutDashboard}
+                                        />
+                                    }
+                                >
+                                    Save to current dashboard
+                                </Menu.Item>
+                            )}
+                            {mergeChartActions?.canSave && (
+                                <Menu.Item
+                                    onClick={openSaveModal}
+                                    leftSection={
+                                        <MantineIcon icon={IconDeviceFloppy} />
+                                    }
+                                >
+                                    {mergeChartActions.quickSaveDashboard
+                                        ? 'Save to…'
+                                        : 'Save'}
+                                </Menu.Item>
+                            )}
+                            {composerSave?.kind === 'saved' && (
+                                <Menu.Item
+                                    component={Link}
+                                    to={`/projects/${projectUuid}/dashboards/${composerSave.dashboardUuid}`}
+                                    target="_blank"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconLayoutDashboard}
+                                        />
+                                    }
+                                >
+                                    View on dashboard
+                                </Menu.Item>
+                            )}
+                            {composerSave?.kind === 'save' && (
+                                <Menu.Item
+                                    disabled={!!composerSave.disabledReason}
+                                    onClick={openComposerSaveModal}
+                                    leftSection={
+                                        <MantineIcon icon={IconDeviceFloppy} />
+                                    }
+                                >
+                                    Save
+                                    {composerSave.disabledReason && (
+                                        <Text fz="xs" c="dimmed">
+                                            {composerSave.disabledReason}
+                                        </Text>
+                                    )}
+                                </Menu.Item>
+                            )}
+                            {mergeChartActions && (
+                                <Menu.Item
+                                    onClick={() =>
+                                        void mergeChartActions.exploreFromHere()
+                                    }
+                                    leftSection={
+                                        <MantineIcon icon={IconExternalLink} />
+                                    }
+                                >
+                                    Explore from here
                                 </Menu.Item>
                             )}
                         </Menu.Dropdown>
@@ -397,6 +514,42 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 opened={exportImageModalOpened}
                 onClose={closeExportImageModal}
             />
+            {mergeChartActions && (
+                <MantineModal
+                    opened={saveModalOpened}
+                    onClose={closeSaveModal}
+                    title="Save chart"
+                    icon={IconChartBar}
+                    size="lg"
+                    modalBodyProps={{ px: 0, py: 0 }}
+                    modalRootProps={{ closeOnClickOutside: false }}
+                >
+                    <SaveToSpaceOrDashboard
+                        projectUuid={projectUuid}
+                        savedData={mergeChartActions.savedData}
+                        onConfirm={closeSaveModal}
+                        onClose={closeSaveModal}
+                        chartMetadata={{
+                            name: title,
+                            description: description ?? '',
+                        }}
+                        redirectOnSuccess={false}
+                    />
+                </MantineModal>
+            )}
+            {composerSaveModalOpened &&
+                composerSave?.kind === 'save' &&
+                composerSave.draft && (
+                    <SaveComposerChartModal
+                        projectUuid={projectUuid}
+                        onClose={closeComposerSaveModal}
+                        name={title}
+                        description={description ?? ''}
+                        pipeline={composerSave.draft.pipeline}
+                        chart={composerSave.draft.chart}
+                        onSaved={composerSave.link}
+                    />
+                )}
             {downloadQueryUuid && (
                 <ExportDataModal
                     isOpen={downloadModalOpened}

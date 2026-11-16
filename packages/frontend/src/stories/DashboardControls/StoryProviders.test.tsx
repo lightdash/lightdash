@@ -27,7 +27,13 @@ const StoreProbe: FC = () => {
 describe('StoryFrame', () => {
     it('seeds the dashboard tiles into the store', () => {
         renderWithProviders(
-            <StoryFrame startOfWeek={null} sections={sections}>
+            <StoryFrame
+                startOfWeek={null}
+                sections={sections}
+                hasParameters
+                isManyFields={false}
+                dateZoom={{}}
+            >
                 <StoreProbe />
             </StoryFrame>,
         );
@@ -38,7 +44,13 @@ describe('StoryFrame', () => {
 
     it('rebuilds the store when the sections change', () => {
         const { rerender } = renderWithProviders(
-            <StoryFrame startOfWeek={null} sections={sections}>
+            <StoryFrame
+                startOfWeek={null}
+                sections={sections}
+                hasParameters
+                isManyFields={false}
+                dateZoom={{}}
+            >
                 <StoreProbe />
             </StoryFrame>,
         );
@@ -46,7 +58,13 @@ describe('StoryFrame', () => {
             'Customers,Orders',
         );
         rerender(
-            <StoryFrame startOfWeek={null} sections={[]}>
+            <StoryFrame
+                startOfWeek={null}
+                sections={[]}
+                hasParameters
+                isManyFields={false}
+                dateZoom={{}}
+            >
                 <StoreProbe />
             </StoryFrame>,
         );

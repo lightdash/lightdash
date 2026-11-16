@@ -44,11 +44,16 @@ const countOf = (count: number, one: string, many: string) =>
 export const formatPickedCount = (
     filterCount: number,
     parameterCount: number,
-): string =>
-    [
+    dateZoomCount: number,
+): string => {
+    const parts = [
         filterCount > 0 && countOf(filterCount, 'filter', 'filters'),
         parameterCount > 0 &&
             countOf(parameterCount, 'parameter', 'parameters'),
-    ]
-        .filter(Boolean)
-        .join(' and ');
+        dateZoomCount > 0 && countOf(dateZoomCount, 'date zoom', 'date zooms'),
+    ].filter((part) => part !== false);
+    // "2 filters, 1 parameter and 1 date zoom"
+    return parts.length > 2
+        ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`
+        : parts.join(' and ');
+};

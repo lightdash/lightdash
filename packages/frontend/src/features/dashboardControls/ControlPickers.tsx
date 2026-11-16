@@ -18,6 +18,7 @@ import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAdjustmentsHorizontal,
     IconArrowLeft,
+    IconCalendarSearch,
     IconFilter,
     IconSearch,
     type Icon,
@@ -70,11 +71,12 @@ const KindItem: FC<{
     </Menu.Item>
 );
 
-/** "Add"'s first step, inside its `Menu.Dropdown`: a filter or a parameter. */
+/** "Add"'s first step, inside its `Menu.Dropdown`: a filter, a parameter or a date zoom; null leaves a kind out. */
 export const AddKindItems: FC<{
     onFilter: () => void;
-    onParameter: () => void;
-}> = ({ onFilter, onParameter }) => (
+    onParameter: (() => void) | null;
+    onDateZoom: (() => void) | null;
+}> = ({ onFilter, onParameter, onDateZoom }) => (
     <>
         <KindItem
             icon={IconFilter}
@@ -82,12 +84,22 @@ export const AddKindItems: FC<{
             helper="Narrow the data in tiles by a field"
             onClick={onFilter}
         />
-        <KindItem
-            icon={IconAdjustmentsHorizontal}
-            label="Parameter"
-            helper="Set a value that tiles use"
-            onClick={onParameter}
-        />
+        {onParameter !== null && (
+            <KindItem
+                icon={IconAdjustmentsHorizontal}
+                label="Parameter"
+                helper="Set a value that tiles use"
+                onClick={onParameter}
+            />
+        )}
+        {onDateZoom !== null && (
+            <KindItem
+                icon={IconCalendarSearch}
+                label="Date zoom"
+                helper="Change the date grain of some tiles"
+                onClick={onDateZoom}
+            />
+        )}
     </>
 );
 

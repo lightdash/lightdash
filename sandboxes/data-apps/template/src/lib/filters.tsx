@@ -5,7 +5,7 @@ import {
     useMemo,
     type ReactNode,
 } from 'react';
-import { useUrlState, type Filter } from '@lightdash/query-sdk';
+import { useAppState, type Filter } from '@lightdash/query-sdk';
 
 export type ScopedFilter = Filter & { explore: string };
 
@@ -51,9 +51,10 @@ const sameTarget = (a: ScopedFilter, b: ScopedFilter) =>
     JSON.stringify(a.value) === JSON.stringify(b.value);
 
 export function FilterProvider({ children }: { children: ReactNode }) {
-    const [rawFilters, setFilters] = useUrlState<ScopedFilter[]>(
+    const [rawFilters, setFilters] = useAppState<ScopedFilter[]>(
         'globalFilters',
         [],
+        { scope: 'url' },
     );
     const filters = useMemo(() => sanitizeFilters(rawFilters), [rawFilters]);
 

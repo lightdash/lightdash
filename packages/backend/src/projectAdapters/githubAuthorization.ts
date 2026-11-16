@@ -5,6 +5,10 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { getInstallationToken } from '../clients/github/Github';
+import {
+    DEFAULT_GITHUB_HOST_DOMAIN,
+    normalizeCredentialHost,
+} from '../utils/credentialDestination';
 
 // Worded for "this connection" because the same errors surface for a project's
 // own connection and for its additional dbt sources.
@@ -59,4 +63,29 @@ export const getGithubToken = async (
         }
         throw error;
     }
+};
+
+export const GITHUB_APP_HOST_MISMATCH_MESSAGE =
+    'This connection is set to authenticate with the GitHub App, which only works with github.com. Remove the custom host domain, or switch the connection to a personal access token.';
+
+/**
+ * Host a GitHub dbt clone targets. GitHub App installation tokens are minted
+ * by (and only valid against) github.com, so a GitHub App connection with any
+ * other host is a misconfiguration; a PAT may legitimately target GitHub
+ * Enterprise.
+ */
+export const getGithubCloneHostDomain = (
+    config: DbtGithubProjectConfig,
+): string | undefined => {
+    if (config.authorization_method !== 'installation_id') {
+        return config.host_domain;
+    }
+    if (
+        normalizeCredentialHost(
+            config.host_domain || DEFAULT_GITHUB_HOST_DOMAIN,
+        ) !== DEFAULT_GITHUB_HOST_DOMAIN
+    ) {
+        throw new ParameterError(GITHUB_APP_HOST_MISMATCH_MESSAGE);
+    }
+    return DEFAULT_GITHUB_HOST_DOMAIN;
 };

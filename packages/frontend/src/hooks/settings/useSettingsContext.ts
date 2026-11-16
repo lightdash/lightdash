@@ -3,6 +3,7 @@ import {
     CommercialFeatureFlags,
     FeatureFlags,
     isAiAdminScopedProjectType,
+    LightdashMode,
 } from '@lightdash/common';
 import { matchPath, useLocation } from 'react-router';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
@@ -79,15 +80,21 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: apiQuerySourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ApiQuerySources,
     );
-    const { data: externalSourcesFlag } = useServerFeatureFlag(
-        FeatureFlags.ExternalSources,
-    );
     const {
         data: mobileSettingsFlag,
         isInitialLoading: isMobileSettingsFlagLoading,
     } = useServerFeatureFlag(FeatureFlags.MobileSettings);
     // The roadmap proxy is only registered behind a validated enterprise license.
     const isOrganizationRoadmapEnabled = health?.license?.valid === true;
+    const {
+        data: billingPortalFlag,
+        isInitialLoading: isBillingPortalFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.BillingPortal);
+    const isBillingPortalEnabled =
+        (health?.mode === LightdashMode.CLOUD_BETA ||
+            health?.mode === LightdashMode.DEV) &&
+        health.license?.valid === true &&
+        (billingPortalFlag?.enabled ?? false);
     const isResultsCacheAvailable = health?.license?.valid === true;
     const isServiceAccountsEnabled = health?.license?.valid === true;
 
@@ -208,6 +215,8 @@ export const useSettingsContext = (): SettingsContext => {
         canAccessAnalyticsSettings,
         isAnalyticsProjectLoading,
         isOrganizationRoadmapEnabled,
+        isBillingPortalEnabled,
+        isBillingPortalFlagLoading,
         canAccessAiCredits,
         isAiCreditsLoading: isAiCreditUsageLoading,
         isSsoOrganizationSettingsEnabled,
@@ -224,7 +233,6 @@ export const useSettingsContext = (): SettingsContext => {
         isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
         isChartStudioAvailable,
         isApiQuerySourcesEnabled: apiQuerySourcesFlag?.enabled ?? false,
-        externalSourcesFlag,
         isMobileSettingsEnabled: mobileSettingsFlag?.enabled ?? false,
         isMobileSettingsFlagLoading,
         isResultsCacheAvailable,

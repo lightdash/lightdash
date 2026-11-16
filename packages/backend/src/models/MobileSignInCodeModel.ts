@@ -65,6 +65,26 @@ export type RedeemResult =
     | { outcome: 'wrong_number'; declined: MobileSignInDeclinedCode | null }
     | { outcome: 'code_mismatch'; declined: MobileSignInDeclinedCode | null };
 
+export type ProbeResult =
+    | { outcome: 'authorization_pending' }
+    | { outcome: 'match_number_required' }
+    | { outcome: 'slow_down' }
+    | { outcome: 'declined' }
+    | { outcome: 'expired' }
+    | { outcome: 'code_mismatch' };
+
+export type PhoneCancelResult =
+    | { outcome: 'cancelled'; row: DbMobileSignInCode; isRepeat: boolean }
+    | { outcome: 'expired' }
+    | { outcome: 'code_mismatch' }
+    | { outcome: 'declined' }
+    | { outcome: 'redeemed' };
+
+type UntouchedRedeemOutcome =
+    | { outcome: 'slow_down' }
+    | { outcome: 'declined' }
+    | { outcome: 'expired' };
+
 export type MobileSignInDeclinedCode = Pick<
     DbMobileSignInCode,
     | 'mobile_sign_in_code_uuid'
@@ -152,6 +172,7 @@ export class MobileSignInCodeModel {
                 claimed_at: null,
                 decided_at: null,
                 redeemed_at: null,
+                declined_by: null,
             })
             .returning(['mobile_sign_in_code_uuid', 'expires_at']);
         return {
@@ -246,11 +267,17 @@ export class MobileSignInCodeModel {
             .where('user_uuid', args.userUuid)
             .where('session_id_hash', sha256(args.sessionId))
             .where('approval_nonce_hash', sha256(args.nonce))
-            .where('status', 'claimed')
+            .whereIn(
+                'status',
+                args.decision === 'declined'
+                    ? ['claimed', 'approved']
+                    : ['claimed'],
+            )
             .where('expires_at', '>', this.database.fn.now())
             .update({
                 status: args.decision,
                 decided_at: this.database.fn.now(),
+                ...(args.decision === 'declined' ? { declined_by: 'web' } : {}),
             })
             .returning('*');
         if (decided) return { outcome: 'decided', row: decided };
@@ -275,16 +302,12 @@ export class MobileSignInCodeModel {
         };
     }
 
-    async redeem(args: {
-        code: string;
-        clientId: string;
-        codeVerifier: string;
-        matchNumber: number;
-    }): Promise<RedeemResult> {
-        if (!isMobileSignInCode(args.code)) return { outcome: 'expired' };
-        const codeHash = sha256(args.code);
-        const codeChallenge = mobileSignInCodeChallenge(args.codeVerifier);
-
+    private async touchForRedeem(
+        codeHash: string,
+    ): Promise<
+        | Pick<DbMobileSignInCode, 'status' | 'client_id' | 'code_challenge'>
+        | undefined
+    > {
         const [touched] = await this.database(MobileSignInCodesTableName)
             .where('code_hash', codeHash)
             .whereIn('status', ['claimed', 'approved'])
@@ -302,27 +325,108 @@ export class MobileSignInCodeModel {
             )
             .update({ last_redeem_attempt_at: this.database.fn.now() })
             .returning(['status', 'client_id', 'code_challenge']);
+        return touched;
+    }
 
-        if (!touched) {
-            const [row, now] = await Promise.all([
-                this.database(MobileSignInCodesTableName)
-                    .where('code_hash', codeHash)
-                    .first(),
-                this.now(),
-            ]);
-            if (!row) return { outcome: 'expired' };
-            const status = MobileSignInCodeModel.effectiveStatus(row, now);
-            if (status === MobileSignInCodeStatus.DECLINED) {
-                return { outcome: 'declined' };
-            }
-            if (
-                status === MobileSignInCodeStatus.CLAIMED ||
-                status === MobileSignInCodeStatus.APPROVED
-            ) {
-                return { outcome: 'slow_down' };
-            }
-            return { outcome: 'expired' };
+    private async untouchedRedeemOutcome(
+        codeHash: string,
+    ): Promise<UntouchedRedeemOutcome> {
+        const [row, now] = await Promise.all([
+            this.database(MobileSignInCodesTableName)
+                .where('code_hash', codeHash)
+                .first(),
+            this.now(),
+        ]);
+        if (!row) return { outcome: 'expired' };
+        const status = MobileSignInCodeModel.effectiveStatus(row, now);
+        if (status === MobileSignInCodeStatus.DECLINED) {
+            return { outcome: 'declined' };
         }
+        if (
+            status === MobileSignInCodeStatus.CLAIMED ||
+            status === MobileSignInCodeStatus.APPROVED
+        ) {
+            return { outcome: 'slow_down' };
+        }
+        return { outcome: 'expired' };
+    }
+
+    async probe(args: {
+        code: string;
+        clientId: string;
+        codeVerifier: string;
+    }): Promise<ProbeResult> {
+        if (!isMobileSignInCode(args.code)) return { outcome: 'expired' };
+        const codeHash = sha256(args.code);
+        const touched = await this.touchForRedeem(codeHash);
+        if (!touched) return this.untouchedRedeemOutcome(codeHash);
+        if (
+            touched.client_id !== args.clientId ||
+            touched.code_challenge !==
+                mobileSignInCodeChallenge(args.codeVerifier)
+        ) {
+            return { outcome: 'code_mismatch' };
+        }
+        return touched.status === 'approved'
+            ? { outcome: 'match_number_required' }
+            : { outcome: 'authorization_pending' };
+    }
+
+    async cancelFromPhone(args: {
+        code: string;
+        clientId: string;
+        codeVerifier: string;
+    }): Promise<PhoneCancelResult> {
+        if (!isMobileSignInCode(args.code)) return { outcome: 'expired' };
+        const codeHash = sha256(args.code);
+        const codeChallenge = mobileSignInCodeChallenge(args.codeVerifier);
+        const [cancelled] = await this.database(MobileSignInCodesTableName)
+            .where('code_hash', codeHash)
+            .whereIn('status', ['claimed', 'approved'])
+            .where('expires_at', '>', this.database.fn.now())
+            .where('client_id', args.clientId)
+            .where('code_challenge', codeChallenge)
+            .update({
+                status: 'declined',
+                declined_by: 'phone',
+                decided_at: this.database.fn.now(),
+            })
+            .returning('*');
+        if (cancelled) {
+            return { outcome: 'cancelled', row: cancelled, isRepeat: false };
+        }
+
+        const row = await this.database(MobileSignInCodesTableName)
+            .where('code_hash', codeHash)
+            .first();
+        if (!row) return { outcome: 'expired' };
+        if (
+            row.client_id !== args.clientId ||
+            row.code_challenge !== codeChallenge
+        ) {
+            return { outcome: 'code_mismatch' };
+        }
+        if (row.status === 'declined') {
+            return row.declined_by === 'phone'
+                ? { outcome: 'cancelled', row, isRepeat: true }
+                : { outcome: 'declined' };
+        }
+        if (row.status === 'redeemed') return { outcome: 'redeemed' };
+        return { outcome: 'expired' };
+    }
+
+    async redeem(args: {
+        code: string;
+        clientId: string;
+        codeVerifier: string;
+        matchNumber: number;
+    }): Promise<RedeemResult> {
+        if (!isMobileSignInCode(args.code)) return { outcome: 'expired' };
+        const codeHash = sha256(args.code);
+        const codeChallenge = mobileSignInCodeChallenge(args.codeVerifier);
+
+        const touched = await this.touchForRedeem(codeHash);
+        if (!touched) return this.untouchedRedeemOutcome(codeHash);
 
         const holdsClaim =
             touched.client_id === args.clientId &&
@@ -361,6 +465,10 @@ export class MobileSignInCodeModel {
                 ),
                 decided_at: this.database.raw(
                     `CASE WHEN failed_redeems + 1 >= ? THEN NOW() ELSE decided_at END`,
+                    [MOBILE_SIGN_IN_MAX_FAILED_REDEEMS],
+                ),
+                declined_by: this.database.raw(
+                    `CASE WHEN failed_redeems + 1 >= ? THEN 'failed_redeems' ELSE declined_by END`,
                     [MOBILE_SIGN_IN_MAX_FAILED_REDEEMS],
                 ),
             })

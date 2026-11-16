@@ -10,10 +10,7 @@ import { useProjectAiAgents } from './useProjectAiAgents';
  * This hook is used to determine if the ai agent button should be visible
  * @returns true if the ai agent button should be visible
  */
-export const useAiAgentButtonVisibility = () => {
-    const activeProjectQuery = useActiveProject();
-    const projectUuid = activeProjectQuery.data ?? undefined;
-
+export const useProjectAiAgentButtonVisibility = (projectUuid?: string) => {
     const appQuery = useApp();
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const agentsQuery = useProjectAiAgents({
@@ -71,4 +68,11 @@ export const useAiAgentButtonVisibility = () => {
     }
 
     return true;
+};
+
+export const useAiAgentButtonVisibility = () => {
+    const activeProjectQuery = useActiveProject();
+    return useProjectAiAgentButtonVisibility(
+        activeProjectQuery.data ?? undefined,
+    );
 };

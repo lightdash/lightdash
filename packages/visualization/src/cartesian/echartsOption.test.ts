@@ -6,9 +6,11 @@ import {
     FieldType,
     FilterOperator,
     getLegendStyle,
+    OTHER_PIVOT_KEY,
     REFERENCE_LINE_Z,
     TimeFrames,
     transformToPercentageStacking,
+    VizAggregationOptions,
     type CartesianChart,
     type Dimension,
     type EChartsSeries,
@@ -2075,6 +2077,27 @@ describe('getStackTotalSeries', () => {
         isStack100: false,
     };
 
+    // Unstacking a chart leaves `stackLabel.show` on its series. With no
+    // stack they were all grouped under the key "undefined" and the chart
+    // drew one "total" of every series, across metrics.
+    test('emits no stack-total series for series that are not stacked', () => {
+        const unstacked = (field: string): EChartsSeries => ({
+            type: CartesianSeriesType.BAR,
+            stackLabel: { show: true },
+            yAxisIndex: 0,
+            encode: { x: 'orders_date', y: field } as EChartsSeries['encode'],
+        });
+        const result = getStackTotalSeries(
+            [{ orders_date: '2024', orders_total: 100, orders_count: 5 }],
+            [unstacked('orders_total'), unstacked('orders_count')],
+            baseArgs.itemsMap,
+            baseArgs.flipAxis,
+            baseArgs.selectedLegendNames,
+            baseArgs.isStack100,
+        );
+        expect(result).toEqual([]);
+    });
+
     test('emits a synthetic stack-total series when every series in the stack opts in', () => {
         const seriesWithStack: EChartsSeries[] = [
             {
@@ -2101,6 +2124,33 @@ describe('getStackTotalSeries', () => {
         expect(result).toHaveLength(1);
         expect(result[0].stack).toBe('my_stack');
         expect(result[0].label?.show).toBe(true);
+    });
+
+    // ECharts matches series between updates by id, then by position. With no
+    // id, hiding the first stack's total moved the second stack's total into
+    // its slot and the labels animated from one stack to the other.
+    test('gives each stack total a stable id that does not depend on the other stacks', () => {
+        const stackOf = (stack: string): EChartsSeries => ({
+            type: CartesianSeriesType.BAR,
+            stack,
+            stackLabel: { show: true },
+            yAxisIndex: 0,
+        });
+        const totalsFor = (seriesWithStack: EChartsSeries[]) =>
+            getStackTotalSeries(
+                baseArgs.rows,
+                seriesWithStack,
+                baseArgs.itemsMap,
+                baseArgs.flipAxis,
+                baseArgs.selectedLegendNames,
+                baseArgs.isStack100,
+            ).map((series) => series.id);
+
+        expect(totalsFor([stackOf('amount'), stackOf('count')])).toEqual([
+            'stack-total-amount',
+            'stack-total-count',
+        ]);
+        expect(totalsFor([stackOf('count')])).toEqual(['stack-total-count']);
     });
 
     // The index-0 short-circuit broke total labels whenever the pivot-merge
@@ -3182,5 +3232,65 @@ describe('reference lines without a value', () => {
                 (d) => d.uuid,
             ),
         ).toEqual(['a', 'c']);
+    });
+});
+
+describe('"Other" pivot group', () => {
+    test('is labelled Other instead of being formatted as a value of the group field', () => {
+        const yRef = {
+            field: 'revenue',
+            pivotValues: [{ field: 'created', value: OTHER_PIVOT_KEY }],
+        };
+        const columnName = `revenue_any_${OTHER_PIVOT_KEY}`;
+        const chart: CartesianChart = {
+            layout: { xField: 'date', yField: ['revenue'] },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: CartesianSeriesType.BAR,
+                        stack: 'revenue',
+                        encode: { xRef: { field: 'date' }, yRef },
+                    },
+                ],
+            },
+        };
+
+        const [series] = getEchartsSeriesFromPivotedData(
+            {
+                // A date group field would turn the placeholder into
+                // "Invalid date" if it went through the formatter.
+                created: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    name: 'created',
+                    label: 'Created',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.created',
+                    hidden: false,
+                },
+            },
+            chart,
+            { [columnName]: yRef },
+            {
+                [columnName]: {
+                    referenceField: 'revenue',
+                    pivotColumnName: columnName,
+                    aggregation: VizAggregationOptions.ANY,
+                    pivotValues: [
+                        {
+                            referenceField: 'created',
+                            value: OTHER_PIVOT_KEY,
+                            formatted: 'Other',
+                        },
+                    ],
+                    columnIndex: 201,
+                },
+            },
+        );
+
+        expect(series.dimensions?.[1]?.displayName).toBe('Other');
+        expect(series.stack).toBe('revenue');
+        expect(series.encode?.y).toBe(columnName);
     });
 });

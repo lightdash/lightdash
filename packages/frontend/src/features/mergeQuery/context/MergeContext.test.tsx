@@ -30,6 +30,9 @@ vi.mock('react-router', () => ({
     useSearchParams: () => [searchParams, setSearchParams],
 }));
 
+vi.mock('../hooks/useCanAuthorMerge', () => ({
+    useCanAuthorMerge: () => true,
+}));
 vi.mock('../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
 }));

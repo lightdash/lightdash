@@ -540,6 +540,7 @@ export const isTileFilterable = (tile: DashboardTile) =>
         DashboardTileTypes.MARKDOWN,
         DashboardTileTypes.LOOM,
         DashboardTileTypes.DATA_APP,
+        DashboardTileTypes.COMPOSER_CHART,
     ].includes(tile.type);
 
 const isChartTile = (tile: Pick<DashboardTile, 'type'>): boolean =>
@@ -773,6 +774,25 @@ export const createDashboardFilterRuleFromSqlColumn = ({
         !isNil(value) ? [value] : null, // When `null`, don't set default value if no value is provided
     );
 
+/**
+ * `rule` on the first of `supportedOperators` when it uses another one, with
+ * that operator's default values; `rule` itself when any operator goes.
+ */
+export const getSupportedFilterRule = (
+    field: FilterableField,
+    rule: FilterRule,
+    supportedOperators: FilterOperator[] | undefined,
+    timezone?: string,
+): FilterRule =>
+    !supportedOperators?.length || supportedOperators.includes(rule.operator)
+        ? rule
+        : getFilterRuleFromFieldWithDefaultValue(
+              field,
+              { ...rule, operator: supportedOperators[0] },
+              [],
+              timezone,
+          );
+
 type AddFilterRuleArgs = {
     filters: Filters;
     field: FilterableField;
@@ -781,6 +801,8 @@ type AddFilterRuleArgs = {
     value?: AnyType;
     timezone?: string;
     operator?: QuickFilterOperator;
+    /** The operators the explore runs on `field`; the first one replaces any other. */
+    supportedOperators?: FilterOperator[];
 };
 
 export const addFilterRule = ({
@@ -790,6 +812,7 @@ export const addFilterRule = ({
     value,
     timezone,
     operator,
+    supportedOperators,
 }: AddFilterRuleArgs): Filters => {
     const groupKey = ((f: AnyType) => {
         if (isDimension(f) || isCustomSqlDimension(f)) {
@@ -801,11 +824,11 @@ export const addFilterRule = ({
         return 'metrics';
     })(field);
     const group = filters[groupKey];
-    const createdRule = createFilterRuleFromField(
+    const createdRule = getSupportedFilterRule(
         field,
-        value,
+        createFilterRuleFromField(field, value, timezone, operator),
+        supportedOperators,
         timezone,
-        operator,
     );
     const rule = targetFieldId
         ? {
@@ -1305,7 +1328,7 @@ export const addFiltersToMetricQuery = (
  * unmatched override on the same field (an override authored against a rule
  * the chart has since recreated). Mirrors getDashboardDimensionOverrideMatches.
  */
-const getChartFilterRuleOverrideMatches = (
+export const getChartFilterRuleOverrideMatches = (
     savedRules: FilterRule[],
     overrides: FilterRule[],
 ): {

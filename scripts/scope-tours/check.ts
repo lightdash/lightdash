@@ -20,7 +20,8 @@
  * Duplicate titles within a tour are reported as warnings: a walkthrough may
  * legitimately pass the same control on the way back.
  *
- * Usage: pnpm scope-tours:check [--json]   (LIGHTDASH_DOCS_DIR as for generate)
+ * Usage: pnpm scope-tours:check [--json]   (LIGHTDASH_DOCS_DIR and the docs
+ * pin as for generate)
  */
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -35,6 +36,7 @@ import {
 import { buildAllTours, CODE_LESSON_SOURCE } from './lessons';
 import {
     docsDir,
+    ensureDocsPin,
     findBlockEnd,
     findMarkers,
     frontendSrc,
@@ -559,6 +561,7 @@ export const checkTours = (
 
 const main = () => {
     const json = process.argv.includes('--json');
+    ensureDocsPin();
     const findings = checkTours(
         undefined,
         SANDBOX_LESSONS,

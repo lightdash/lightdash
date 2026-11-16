@@ -397,10 +397,73 @@
             "required": ["w", "h", "y", "x", "type", "properties"],
             "type": "object"
         },
+        "DashboardComposerChartTileAsCode": {
+            "additionalProperties": false,
+            "properties": {
+                "h": {
+                    "format": "double",
+                    "minimum": 1,
+                    "type": "number"
+                },
+                "properties": {
+                    "additionalProperties": false,
+                    "description": "From T, pick a set of properties whose keys are in the union K",
+                    "properties": {
+                        "chartSlug": {
+                            "type": "string"
+                        },
+                        "hideTitle": {
+                            "type": "boolean"
+                        },
+                        "title": {
+                            "type": "string"
+                        }
+                    },
+                    "required": ["chartSlug"],
+                    "type": "object"
+                },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
+                "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
+                    "type": ["string", "null"]
+                },
+                "tileSlug": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/DashboardTileTypes.COMPOSER_CHART"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "w": {
+                    "format": "double",
+                    "maximum": 36,
+                    "minimum": 1,
+                    "type": "number"
+                },
+                "x": {
+                    "format": "double",
+                    "maximum": 35,
+                    "minimum": 0,
+                    "type": "number"
+                },
+                "y": {
+                    "format": "double",
+                    "minimum": 0,
+                    "type": "number"
+                }
+            },
+            "required": ["w", "h", "y", "x", "type", "properties"],
+            "type": "object"
+        },
         "DashboardConfigAsCode": {
             "properties": {
                 "controlOrder": {
-                    "description": "The order of filters, parameter controls and sections on the bar. Absent: the default order.",
+                    "description": "The order of filters, parameter controls, date zoom controls and sections on the bar. Absent: the default order.",
                     "items": {
                         "$ref": "#/$defs/DashboardControlRefAsCode"
                     },
@@ -427,7 +490,7 @@
                             "type": "array"
                         },
                         "tileTargets": {
-                            "$ref": "#/$defs/Record_string.DateZoomTileTarget_"
+                            "$ref": "#/$defs/Record_string.DateZoomTileTargetAsCode_"
                         }
                     },
                     "required": ["tileTargets", "controls"],
@@ -1043,6 +1106,9 @@
                     "$ref": "#/$defs/DashboardSqlChartTileAsCode"
                 },
                 {
+                    "$ref": "#/$defs/DashboardComposerChartTileAsCode"
+                },
+                {
                     "$ref": "#/$defs/DashboardMarkdownTileAsCode"
                 },
                 {
@@ -1143,8 +1209,13 @@
                 "markdown",
                 "loom",
                 "heading",
-                "data_app"
+                "data_app",
+                "composer_chart"
             ],
+            "type": "string"
+        },
+        "DashboardTileTypes.COMPOSER_CHART": {
+            "enum": ["composer_chart"],
             "type": "string"
         },
         "DashboardTileTypes.DATA_APP": {
@@ -1205,6 +1276,10 @@
                 "sectionSlug": {
                     "type": "string"
                 },
+                "slug": {
+                    "description": "Resolves `controlOrder` refs in this file; derived on download, never stored",
+                    "type": "string"
+                },
                 "uuid": {
                     "type": "string"
                 }
@@ -1212,8 +1287,12 @@
             "required": ["granularity", "name", "uuid"],
             "type": "object"
         },
-        "DateZoomTileTarget": {
+        "DateZoomTileTargetAsCode": {
             "properties": {
+                "controlSlug": {
+                    "description": "Slug of the control at `controlUuid`; written on download, ignored on upload",
+                    "type": "string"
+                },
                 "controlUuid": {
                     "type": "string"
                 },
@@ -1451,6 +1530,18 @@
             },
             "type": "object"
         },
+        "Pick_DashboardComposerChartTileProperties-at-properties.title-or-hideTitle_": {
+            "description": "From T, pick a set of properties whose keys are in the union K",
+            "properties": {
+                "hideTitle": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
         "Pick_DashboardDataAppTileProperties-at-properties.title-or-hideTitle_": {
             "description": "From T, pick a set of properties whose keys are in the union K",
             "properties": {
@@ -1566,9 +1657,9 @@
             "properties": {},
             "type": "object"
         },
-        "Record_string.DateZoomTileTarget_": {
+        "Record_string.DateZoomTileTargetAsCode_": {
             "additionalProperties": {
-                "$ref": "#/$defs/DateZoomTileTarget"
+                "$ref": "#/$defs/DateZoomTileTargetAsCode"
             },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},

@@ -10,9 +10,8 @@ import {
 import { type DeepResearchRunRegistration } from '../deepResearch/types';
 import {
     useHasActiveDeepResearchRun,
-    useDeepResearchChartLiveQuery,
-    useDeepResearchReport,
     useDeepResearchRun,
+    useDeepResearchRunQuery,
     useDeepResearchThreadRunRegistrations,
     useStartDeepResearchMutation,
     useTrackDeepResearchFollowUp,
@@ -117,52 +116,6 @@ const getWrapper = () => {
         </QueryClientProvider>
     );
 };
-
-describe('useDeepResearchChartLiveQuery', () => {
-    afterEach(() => {
-        lightdashApiMock.mockReset();
-    });
-
-    it('executes the chart query again when the report chart remounts', async () => {
-        const queryClient = new QueryClient({
-            defaultOptions: {
-                queries: {
-                    retry: false,
-                    cacheTime: Infinity,
-                    staleTime: Infinity,
-                },
-            },
-        });
-        const wrapper = ({ children }: PropsWithChildren) => (
-            <QueryClientProvider client={queryClient}>
-                {children}
-            </QueryClientProvider>
-        );
-        lightdashApiMock.mockResolvedValue({
-            query: { queryUuid: 'live-query-uuid' },
-        });
-        const renderLiveQuery = () =>
-            renderHook(
-                () =>
-                    useDeepResearchChartLiveQuery({
-                        projectUuid: 'project-1',
-                        runUuid: 'run-1',
-                        chartKey: 'chart-1',
-                    }),
-                { wrapper },
-            );
-
-        const firstView = renderLiveQuery();
-        await waitFor(() =>
-            expect(firstView.result.current.isSuccess).toBe(true),
-        );
-        firstView.unmount();
-
-        const secondView = renderLiveQuery();
-        await waitFor(() => expect(lightdashApiMock).toHaveBeenCalledTimes(2));
-        secondView.unmount();
-    });
-});
 
 describe('useStartDeepResearchMutation', () => {
     afterEach(() => {
@@ -780,23 +733,16 @@ describe('useDeepResearchRun', () => {
     });
 });
 
-describe('useDeepResearchReport', () => {
+describe('useDeepResearchRunQuery', () => {
     afterEach(() => {
         lightdashApiMock.mockReset();
     });
 
-    it('loads a durable report directly by project and run UUID', async () => {
-        lightdashApiMock.mockResolvedValue({
-            ...getRun('completed'),
-            terminalReason: null,
-            resultMarkdown: '# Durable report',
-            reportExpiresAt: '2026-08-14T09:05:00.000Z',
-            reportExpiredAt: null,
-            isReportExpired: false,
-        });
+    it('loads a run directly by project and run UUID', async () => {
+        lightdashApiMock.mockResolvedValue(getRun('completed'));
 
         const { result } = renderHook(
-            () => useDeepResearchReport('project-1', 'run-1'),
+            () => useDeepResearchRunQuery('project-1', 'run-1'),
             { wrapper: getWrapper() },
         );
 
@@ -810,11 +756,8 @@ describe('useDeepResearchReport', () => {
         });
         expect(result.current.data).toEqual(
             expect.objectContaining({
-                uuid: 'run-1',
-                projectUuid: 'project-1',
-                agentUuid: 'agent-1',
-                threadUuid: 'thread-1',
-                resultMarkdown: '# Durable report',
+                aiDeepResearchRunUuid: 'run-1',
+                aiThreadUuid: 'thread-1',
             }),
         );
     });

@@ -196,6 +196,7 @@ export const StatefulParameterPopover: FC<StatefulParameterPopoverProps> = ({
                 }}
                 // Distinct tiles: a tile that uses two of its parameters counts once
                 tileCount={new Set(control.tileUuids).size}
+                hasChosenTiles={false}
                 projectUuid={PROJECT_UUID}
                 projectTimezone={PROJECT_TIMEZONE}
                 parameterValues={parameterValues}

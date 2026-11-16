@@ -158,6 +158,9 @@ export default function mockHealthResponse(
         dashboardComments: {
             enabled: true,
         },
+        mergeQueryAuthoring: {
+            enabled: true,
+        },
         preAggregates: {
             enabled: false,
         },

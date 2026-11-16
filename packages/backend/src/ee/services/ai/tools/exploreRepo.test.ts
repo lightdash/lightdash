@@ -27,7 +27,7 @@ const options: ToolExecutionOptions<Record<string, unknown>> = {
 };
 
 const execute = async (exploreRepo: Mock) => {
-    const exploreRepoTool = getExploreRepo({ exploreRepo });
+    const exploreRepoTool = getExploreRepo({ exploreRepo, question: '' });
     if (!exploreRepoTool.execute) {
         throw new Error('Missing executor');
     }
@@ -56,6 +56,7 @@ describe('exploreRepo tool', () => {
         expect(exploreRepo).toHaveBeenCalledWith({
             command: 'ls models',
             target: null,
+            rankMatches: null,
         });
         expect(captureException).not.toHaveBeenCalled();
     });
@@ -81,5 +82,70 @@ describe('exploreRepo tool', () => {
         expect(output.structuredContent).toEqual({ error: output.result });
         expect(captureException).toHaveBeenCalledWith(error);
         expect(loggerError).toHaveBeenCalled();
+    });
+
+    it('has search results ranked for the question when decisions are available', async () => {
+        const exploreRepo = vi.fn(async ({ rankMatches }) => {
+            const ranked = await rankMatches?.([
+                { path: 'a.sql', fragments: [] },
+                { path: 'b.sql', fragments: [] },
+            ]);
+            return (ranked ?? [])
+                .map(({ path }: { path: string }) => path)
+                .join(',');
+        });
+        const evaluate = vi.fn(async () => ({
+            fit_0: { type: 'noul' as const, noul: 0.1 },
+            fit_1: { type: 'noul' as const, noul: 0.6 },
+        }));
+        const exploreRepoTool = getExploreRepo({
+            exploreRepo,
+            decisions: { evaluate },
+            question: 'where is revenue defined',
+        });
+        const output = await exploreRepoTool.execute?.(
+            { command: 'search revenue', target: null },
+            options,
+        );
+        expect(toolExploreRepoOutputSchema.parse(output).result).toBe(
+            'b.sql,a.sql',
+        );
+    });
+
+    it('keeps the order found when no result stands out', async () => {
+        const exploreRepo = vi.fn(async ({ rankMatches }) =>
+            (
+                await rankMatches([
+                    { path: 'a.sql', fragments: [] },
+                    { path: 'b.sql', fragments: [] },
+                ])
+            )
+                .map(({ path }: { path: string }) => path)
+                .join(','),
+        );
+        const output = await getExploreRepo({
+            exploreRepo,
+            decisions: {
+                evaluate: async () => ({
+                    fit_0: { type: 'noul' as const, noul: 0.1 },
+                    fit_1: { type: 'noul' as const, noul: 0.15 },
+                }),
+            },
+            question: 'q',
+        }).execute?.({ command: 'search x', target: null }, options);
+        expect(toolExploreRepoOutputSchema.parse(output).result).toBe(
+            'a.sql,b.sql',
+        );
+    });
+
+    it('leaves search results as found without decisions', async () => {
+        const exploreRepo = vi.fn(async () => 'ok');
+        await getExploreRepo({ exploreRepo, question: 'q' }).execute?.(
+            { command: 'ls', target: null },
+            options,
+        );
+        expect(exploreRepo).toHaveBeenCalledWith(
+            expect.objectContaining({ rankMatches: null }),
+        );
     });
 });

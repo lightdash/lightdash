@@ -4,6 +4,7 @@ import {
     SupportedDbtAdapter,
     type FilterRule,
     type MetricQuery,
+    type ParameterError,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { buildApiSourceExplore } from '../apiSourceExplore';
@@ -154,6 +155,121 @@ describe('compileLinkedInAdsQuery', () => {
                 }),
             ),
         ).toThrow("isn't a LinkedIn numeric ID");
+    });
+
+    describe('row identity', () => {
+        it.each([
+            [
+                ['campaign_type'],
+                'campaign_type',
+                /one row per campaign and can't group them by Campaign type\. Add Campaign name or Campaign ID/,
+            ],
+            [
+                ['campaign_status'],
+                'campaign_status',
+                /one row per campaign .* Campaign status/,
+            ],
+            [
+                ['campaign_objective', 'date'],
+                'campaign_objective',
+                /one row per campaign/,
+            ],
+            [
+                ['campaign_group_name', 'campaign_status'],
+                'campaign_status',
+                /one row per campaign/,
+            ],
+        ])('refuses grouping by %j', (dimensions, fieldName, message) => {
+            const error = (() => {
+                try {
+                    compile(query({ dimensions: dimensions.map(field) }));
+                    return null;
+                } catch (e) {
+                    return e as ParameterError;
+                }
+            })();
+            expect(error?.message).toMatch(message);
+            expect(error?.data).toMatchObject({
+                liveSourceErrorCode: 'live_source.refused.field_combination',
+                liveSourceFieldIds: [field(fieldName)],
+            });
+        });
+
+        it.each([
+            [['campaign_type', 'campaign_id']],
+            [['campaign_status', 'campaign_name']],
+            [['campaign_group_name']],
+            [['campaign_group_id', 'campaign_group_name']],
+            [['date']],
+        ])('allows grouping by %j', (dimensions) => {
+            expect(() =>
+                compile(query({ dimensions: dimensions.map(field) })),
+            ).not.toThrow();
+        });
+
+        it('returns one row per campaign when an ID is selected with the type', async () => {
+            const { query: request, fieldIdsByColumn } = compile(
+                query({
+                    dimensions: [field('campaign_type'), field('campaign_id')],
+                    metrics: [field('clicks')],
+                }),
+            );
+            const connector = new LinkedInAdsConnector({
+                adAccountId: '1',
+                send: async ({ path }) => ({
+                    status: 200,
+                    headers: {},
+                    body: path.endsWith('/adCampaigns')
+                        ? {
+                              elements: [
+                                  { id: 11, type: 'SPONSORED_UPDATES' },
+                                  { id: 12, type: 'SPONSORED_UPDATES' },
+                              ],
+                          }
+                        : {
+                              elements: [
+                                  {
+                                      pivotValues: [
+                                          'urn:li:sponsoredCampaign:11',
+                                      ],
+                                      clicks: 3,
+                                  },
+                                  {
+                                      pivotValues: [
+                                          'urn:li:sponsoredCampaign:12',
+                                      ],
+                                      clicks: 4,
+                                  },
+                              ],
+                          },
+                }),
+            });
+            const { rows } = await connector.execute({
+                payload: { kind: 'query', query: request },
+                limit: 10,
+            });
+            expect(
+                rows.map((row) =>
+                    Object.fromEntries(
+                        Object.entries(row).map(([column, value]) => [
+                            fieldIdsByColumn[column],
+                            value,
+                        ]),
+                    ),
+                ),
+            ).toEqual([
+                {
+                    [field('campaign_type')]: 'SPONSORED_UPDATES',
+                    [field('campaign_id')]: '11',
+                    [field('clicks')]: 3,
+                },
+                {
+                    [field('campaign_type')]: 'SPONSORED_UPDATES',
+                    [field('campaign_id')]: '12',
+                    [field('clicks')]: 4,
+                },
+            ]);
+        });
     });
 
     it('refuses reach over 92 days and accepts exactly 92', () => {

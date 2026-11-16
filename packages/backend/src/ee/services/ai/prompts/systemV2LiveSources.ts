@@ -14,16 +14,22 @@ export const getLiveSourcesSection = (
         "- A live data source's explore reads its integration live, one request per query. Query it like any other explore: by its fields, with a date filter for the period asked about.",
         '- It answers metrics broken down by dimensions. Funnels, retention and user paths are not available on live data sources yet: say so plainly, and never approximate them from event counts.',
         "- Its explore has only the fields in use, and those are the only fields you can see or query. When a question needs a field the explore lacks, say so and that an admin can add fields from the source's Fields page in project settings. Never guess at fields beyond the explore.",
+        "- When several sources could answer, choose by each source's `target` and `hint`. If nothing tells them apart, ask which one the user means.",
         '',
         xmlBuilder(
             'live_data_sources',
             null,
-            ...liveSources.map(({ name, connector }) =>
-                xmlBuilder('live_data_source', {
-                    name,
-                    integration:
-                        LIVE_SOURCE_INTEGRATION_PROFILES[connector].agentLabel,
-                }),
+            ...liveSources.map(
+                ({ name, connector, exploreNames, target, hint }) =>
+                    xmlBuilder('live_data_source', {
+                        name,
+                        integration:
+                            LIVE_SOURCE_INTEGRATION_PROFILES[connector]
+                                .agentLabel,
+                        explores: exploreNames.join(','),
+                        target,
+                        ...(hint ? { hint } : {}),
+                    }),
             ),
         ).toString(),
     ].join('\n');

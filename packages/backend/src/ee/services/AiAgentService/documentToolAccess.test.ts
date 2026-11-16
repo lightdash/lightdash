@@ -193,6 +193,9 @@ describe('Document runtime access', () => {
                 featureFlagService: {
                     get: vi.fn().mockResolvedValue({ enabled: false }),
                 },
+                aiWritebackService: {
+                    canReadSourceCode: vi.fn().mockResolvedValue(false),
+                },
                 aiAgentToolsService: {
                     canGenerateDataApp: vi.fn().mockResolvedValue(false),
                     canAuthorContent,

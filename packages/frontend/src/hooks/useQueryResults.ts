@@ -158,6 +158,7 @@ export const scheduleDownloadQuery = async (
             conditionalFormattings: options.conditionalFormattings,
             showColumnTotals: options.showColumnTotals,
             xlsxContent: options.xlsxContent,
+            showSubtotals: options.showSubtotals,
         }),
         version: 'v2',
     });

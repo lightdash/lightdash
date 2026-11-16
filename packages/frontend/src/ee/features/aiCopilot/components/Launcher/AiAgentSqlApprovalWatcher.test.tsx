@@ -130,6 +130,46 @@ describe('AiAgentSqlApprovalWatcher', () => {
         expect(JSON.stringify(shown.options)).not.toContain('secret');
     });
 
+    it('notifies when the agent asks the user a question', () => {
+        const router = renderWatcher();
+        vi.spyOn(window, 'focus').mockImplementation(() => {});
+        streamParts([
+            {
+                type: 'toolCall',
+                toolCallId: 'ask-1',
+                toolName: 'askUser',
+                toolArgs: {
+                    questions: [
+                        {
+                            header: 'Period',
+                            question: 'Which month?',
+                            options: [
+                                { label: 'November', description: '' },
+                                { label: 'October', description: '' },
+                            ],
+                            multiSelect: false,
+                        },
+                    ],
+                },
+                toolResult: null,
+            } as StreamPart,
+        ]);
+
+        expect(NotificationStub.shown).toHaveLength(1);
+        const [shown] = NotificationStub.shown;
+        expect(shown.title).toBe('Question for you');
+        expect(shown.options).toMatchObject({
+            body: 'Sales agent',
+            tag: 'ask-1',
+        });
+        act(() => {
+            shown.onclick?.();
+        });
+        expect(router.state.location.pathname).toBe(
+            '/projects/project-1/ai-agents/agent-1/threads/thread-1',
+        );
+    });
+
     it('opens the thread when the notification is clicked', () => {
         const focus = vi.spyOn(window, 'focus').mockImplementation(() => {});
         const router = renderWatcher();

@@ -43,7 +43,7 @@ const AnalyticsProjectPointer: FC<{ project: AnalyticsProject | null }> = ({
     if (project.hasContentUpdates) {
         return (
             <ArrowLink to={ANALYTICS_SETTINGS_PATH}>
-                Sync your analytics project to get the AI usage dashboard
+                View analytics project status
             </ArrowLink>
         );
     }

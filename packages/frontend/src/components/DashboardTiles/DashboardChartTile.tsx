@@ -12,6 +12,7 @@ import {
     DashboardTileTypes,
     type EChartsSeries,
     type Field,
+    isOtherPivotValue,
     type FilterDashboardToRule,
     getChartKind,
     getConditionalFormattingsFromChartConfig,
@@ -25,6 +26,7 @@ import {
     getPivotConfig,
     getMergeDefinitionQueryExploreNames,
     getShowColumnTotalsFromChartConfig,
+    getShowSubtotalsFromChartConfig,
     getVisibleFields,
     isDashboardChartTileType,
     isFilterableField,
@@ -134,7 +136,10 @@ import {
 } from '../../features/dashboard/store';
 import { useTileQueryQueueVisibility } from '../../features/dashboard/tileQueryQueue/useTileQueryQueue';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
-import { DateZoomInfoOnTile } from '../../features/dateZoom';
+import {
+    DateZoomInfoOnTile,
+    DateZoomNotAppliedOnTile,
+} from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
 import { getExploreFromHereUrl } from '../../features/mergeQuery/utils/getExploreFromHereUrl';
 import { computeChartSeries } from '../../hooks/cartesianChartConfig/computeChartSeries';
@@ -151,6 +156,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { useExploreConnectionName } from '../../hooks/useConnectionBadges';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useExplore } from '../../hooks/useExplore';
+import { usePivotColumnLimitMessage } from '../../hooks/usePivotColumnLimitMessage';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { useRefreshPreAggregateByDefinitionName } from '../../hooks/usePreAggregateRefresh';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
@@ -180,6 +186,7 @@ import {
 import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
+import PivotColumnLimitWarning from '../common/PivotColumnLimitWarning';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import LightdashVisualization from '../LightdashVisualization';
 import { type EmbeddedDashboardInteractivity } from '../LightdashVisualization/context';
@@ -639,6 +646,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             explore,
         } = dashboardChartReadyQuery;
         const savedMerge = chart.merge ?? null;
+        const pivotColumnLimitMessage = usePivotColumnLimitMessage(
+            resultsData.pivotDetails,
+            chart.chartConfig,
+        );
         // A merged tile's filters echo per source; the other source's explore
         // is needed to label them.
         const additionalExploreName = (
@@ -1019,8 +1030,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     }
                 }
 
+                // "Other" is not a value of the pivot field, so it cannot be
+                // used as a dashboard filter
                 const pivotOptions =
-                    pivot && pivotField && pivotValue
+                    pivot &&
+                    pivotField &&
+                    pivotValue &&
+                    !isOtherPivotValue(pivotValue)
                         ? [
                               createDashboardFilterRuleFromField({
                                   field: pivotField,
@@ -1173,8 +1189,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     lockHeaderVisibility={isCommentsMenuOpen}
                     chartKind={chartKind}
                     visibleHeaderElement={
-                        // Dashboard comments button is always visible if they exist
-                        tileHasComments ? dashboardComments : undefined
+                        // Dashboard comments button is always visible if they exist,
+                        // and so is the warning that some groups are not shown
+                        tileHasComments || pivotColumnLimitMessage ? (
+                            <>
+                                <PivotColumnLimitWarning
+                                    message={pivotColumnLimitMessage}
+                                />
+                                {tileHasComments ? dashboardComments : null}
+                            </>
+                        ) : undefined
                     }
                     extraHeaderElement={
                         <>
@@ -1649,6 +1673,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                     }
                                 />
                             ) : null}
+                            {metricQuery?.metadata?.hasADateDimension &&
+                            dashboardChartReadyQuery.refusedDateZoom
+                                ?.granularity ? (
+                                <DateZoomNotAppliedOnTile />
+                            ) : null}
                         </>
                     }
                     title={title || chart.name || ''}
@@ -1913,6 +1942,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         onViewUnderlyingData={
                                             handleViewUnderlyingData
                                         }
+                                        pivotReference={
+                                            viewUnderlyingDataOptions?.pivotReference
+                                        }
                                     />
                                 )}
 
@@ -2030,6 +2062,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     canExportChartImage={
                         chart.chartConfig.type !== ChartType.TABLE
                     }
+                    showSubtotals={getShowSubtotalsFromChartConfig(
+                        chart.chartConfig.config,
+                    )}
                 />
                 <ExportImageModal
                     echartRef={echartRef}
@@ -2089,6 +2124,10 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
         explore,
         executeQueryResponse: { metricQuery, usedParametersValues },
     } = dashboardChartReadyQuery;
+    const pivotColumnLimitMessage = usePivotColumnLimitMessage(
+        resultsData.pivotDetails,
+        chart.chartConfig,
+    );
     const showEditChart =
         onEditChart !== undefined &&
         props.isEditMode &&
@@ -2247,6 +2286,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                 isLoading={false}
                 chartKind={chartKind}
                 minimal={true}
+                visibleHeaderElement={
+                    pivotColumnLimitMessage ? (
+                        <PivotColumnLimitWarning
+                            message={pivotColumnLimitMessage}
+                        />
+                    ) : undefined
+                }
                 extraMenuItems={
                     canExportCsv ||
                     (canExportImages &&
@@ -2348,6 +2394,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                                     onViewUnderlyingData={
                                         handleViewUnderlyingData
                                     }
+                                    pivotReference={
+                                        viewUnderlyingDataOptions?.pivotReference
+                                    }
                                 />
                             </Menu.Dropdown>
                         </Can>
@@ -2412,6 +2461,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                         !isEmbedded &&
                         chart.chartConfig.type !== ChartType.TABLE
                     }
+                    showSubtotals={getShowSubtotalsFromChartConfig(
+                        chart.chartConfig.config,
+                    )}
                 />
             )}
             {canExportImages && (
@@ -2673,13 +2725,16 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     // with chart edits without requiring a full page refresh.
     const readyQueryDataWithFreshChart = useMemo(() => {
         if (!readyQuery.data) return undefined;
-        const freshChart = readyQuery.chartQuery?.data;
-        if (!freshChart) return readyQuery.data;
         return {
             ...readyQuery.data,
-            chart: freshChart,
+            chart: readyQuery.chartQuery?.data ?? readyQuery.data.chart,
+            refusedDateZoom: readyQuery.refusedDateZoom,
         };
-    }, [readyQuery.data, readyQuery.chartQuery?.data]);
+    }, [
+        readyQuery.data,
+        readyQuery.chartQuery?.data,
+        readyQuery.refusedDateZoom,
+    ]);
 
     const resultsData = useInfiniteQueryResults(
         readyQuery.data?.chart.projectUuid,

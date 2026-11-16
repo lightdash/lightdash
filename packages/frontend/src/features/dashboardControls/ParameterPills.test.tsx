@@ -19,9 +19,9 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../testing/testUtils';
 import { dashboardParametersActions } from '../dashboard/store';
+import { ControlContractClasses } from './controlContractClasses';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import { ParameterPills } from './ParameterPills';
-import { RailContractClasses } from './railContractClasses';
 import {
     useParameterEditorSelector,
     type NewParameterControl,
@@ -40,8 +40,8 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
         selector: (c: { setParameter: typeof setParameter }) => unknown,
     ) => selector({ setParameter }),
 }));
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
+vi.mock('./useControlsEditor', () => ({
+    useControlsEditorSelector: (
         selector: (c: {
             isMapping: boolean;
             requestSwitch: (proceed: () => void) => void;
@@ -158,17 +158,20 @@ const setup = ({
     const user = userEvent.setup();
     const ui = (mode: boolean) => (
         <DashboardStoreTestProvider store={store}>
-            <RailContractClasses.Provider
+            <ControlContractClasses.Provider
                 value={
                     isEmbed
                         ? {
-                              rail: 'ld-dashboard-filter-rail',
+                              editor: 'ld-dashboard-control-editor',
                               addFilterDropdown:
                                   'ld-dashboard-add-filter-dropdown',
                               filterDropdown: 'ld-dashboard-filter-dropdown',
                               parameter: 'ld-dashboard-parameter',
                               parameterDropdown:
                                   'ld-dashboard-parameter-dropdown',
+                              dateZoom: 'ld-dashboard-date-zoom',
+                              dateZoomDropdown:
+                                  'ld-dashboard-date-zoom-dropdown',
                           }
                         : null
                 }
@@ -186,7 +189,7 @@ const setup = ({
                     ))}
                     {added && <AddButton entry={added} />}
                 </ParameterEditorProvider>
-            </RailContractClasses.Provider>
+            </ControlContractClasses.Provider>
         </DashboardStoreTestProvider>
     );
     const { rerender } = renderWithProviders(ui(isViewer));
@@ -356,6 +359,9 @@ describe('ParameterPills', () => {
                 'Currency needs a value',
             );
             expect(pill('currency')).toHaveAttribute('data-missing');
+            expect(pill('currency')).toHaveAccessibleDescription(
+                'Required: set a value to run its tiles',
+            );
             expect(pill('currency')).not.toHaveTextContent('any value');
         });
 
@@ -645,7 +651,7 @@ describe('ParameterPills', () => {
     });
 
     describe('the safety net', () => {
-        it('raises a pill for a tile a control leaves out, and the control is not amber', async () => {
+        it('raises a pill for a tile a control leaves out, and the control is not marked missing', async () => {
             const { store, user } = setup({
                 controls: [
                     control('currency', {
@@ -1157,8 +1163,50 @@ describe('ParameterPills', () => {
         });
     });
 
+    describe('not saved yet', () => {
+        it("dashes an editor's control that is not in the saved dashboard", () => {
+            const { store } = setup({ controls: [control('region')] });
+            act(() => {
+                store.dispatch(
+                    dashboardParametersActions.setParameterControls([
+                        control('region'),
+                        control('currency'),
+                    ]),
+                );
+            });
+            expect(pill('currency')).toHaveAttribute('data-temporary');
+            expect(pill('region')).not.toHaveAttribute('data-temporary');
+        });
+
+        it('keeps "Not saved yet" above the orphaned tooltip', async () => {
+            const { store, user } = setup({ controls: [control('region')] });
+            act(() => {
+                store.dispatch(
+                    dashboardParametersActions.setParameterControls([
+                        control('region'),
+                        control('orphan', {
+                            label: 'Orphan',
+                            parameters: { region: { only: [] } },
+                        }),
+                    ]),
+                );
+            });
+            await user.hover(pill('orphan'));
+            expect(
+                await screen.findByText('Not saved yet'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    DEFAULT_UI_STRINGS[
+                        'controls.parameter.notAppliedToAnyTiles'
+                    ],
+                ),
+            ).toBeInTheDocument();
+        });
+    });
+
     describe('hidden from viewers', () => {
-        it("leaves a hidden control off a viewer's bar, and muted on an editor's", () => {
+        it("leaves a hidden control off a viewer's bar, and marked on an editor's", () => {
             const controls = [
                 control('region', { value: 'EMEA', hidden: true }),
                 control('currency'),

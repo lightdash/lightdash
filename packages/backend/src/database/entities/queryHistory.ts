@@ -17,6 +17,7 @@ import type {
     WarehouseExecutionStats,
     WarehouseQueryMetadata,
 } from '@lightdash/common';
+import { assertUnreachable } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export type DbQueryHistory = {
@@ -63,6 +64,12 @@ export type DbQueryHistory = {
     pre_aggregate_fallback_reason: PreAggregateFallbackReason | null; // non-null ⇒ matched but served from source warehouse
     processing_started_at: Date | null; // when the NATS worker picked up the job
     duckdb_execution: DuckdbExecutionSpec | null; // how a DuckDB source query runs, for the worker to rebuild it
+    // Copied out of the JSON columns so queries can filter and join on them without detoasting.
+    request_chart_uuid: string | null;
+    request_saved_sql_uuid: string | null;
+    request_dashboard_uuid: string | null;
+    metric_query_explore_name: string | null;
+    warehouse_bytes_billed: number | null;
 };
 
 export type DbQueryHistoryIn = Omit<
@@ -73,6 +80,7 @@ export type DbQueryHistoryIn = Omit<
     | 'agent_identity'
     | 'cache_miss_reason'
     | 'cache_refresh_requested'
+    | 'warehouse_bytes_billed'
 > & {
     created_by_actor_type: AuthType;
     agent_identity?: AgentIdentityClaim;
@@ -129,3 +137,31 @@ export type QueryHistoryTable = Knex.CompositeTableType<
 >;
 
 export const QueryHistoryTableName = 'query_history';
+
+export type QueryHistoryRequestColumn =
+    | 'request_chart_uuid'
+    | 'request_saved_sql_uuid'
+    | 'request_dashboard_uuid';
+
+const requestColumnJsonFallback = (
+    table: string,
+    column: QueryHistoryRequestColumn,
+): string => {
+    switch (column) {
+        case 'request_chart_uuid':
+            return `${table}.request_parameters->>'chartUuid'`;
+        case 'request_saved_sql_uuid':
+            return `COALESCE(${table}.request_parameters->>'savedSqlUuid', ${table}.request_parameters->'resultSource'->>'savedSqlUuid')`;
+        case 'request_dashboard_uuid':
+            return `COALESCE(${table}.request_parameters->>'dashboardUuid', ${table}.request_parameters->'resultSource'->>'dashboardUuid')`;
+        default:
+            return assertUnreachable(column, `Unknown column ${column}`);
+    }
+};
+
+// Rows the backfill didn't reach have no copied explore name, so read their JSON instead.
+export const queryHistoryRequestColumnSql = (
+    table: string,
+    column: QueryHistoryRequestColumn,
+): string =>
+    `COALESCE(${table}.${column}, CASE WHEN ${table}.metric_query_explore_name IS NULL THEN ${requestColumnJsonFallback(table, column)} END)`;

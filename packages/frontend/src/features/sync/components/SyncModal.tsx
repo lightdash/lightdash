@@ -7,23 +7,23 @@ import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils
 import { SyncModalProvider } from '../providers/SyncModalProvider';
 import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
+import { type SyncResource } from '../types';
 import { SyncModalCreateOrEdit } from './SyncModalCreateOrEdit';
 import { SyncModalDelete } from './SyncModalDelete';
 import { SyncModalView } from './SyncModalView';
 
-type Props = { chartUuid: string } & Pick<
-    MantineModalProps,
-    'opened' | 'onClose'
->;
+type Props = {
+    chart: Extract<SyncResource, { type: 'chart' }>['chart'];
+} & Pick<MantineModalProps, 'opened' | 'onClose'>;
 
-const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
+const SyncModalBaseAndManager: FC<Props> = ({ chart, opened, onClose }) => {
     const { search, pathname } = useLocation();
     const navigate = useNavigate();
     const { action, setAction, setCurrentSchedulerUuid } = useSyncModal();
 
     const { data, hasNextPage, fetchNextPage, isFetchingNextPage } =
         useChartSchedulers({
-            chartUuid,
+            chartUuid: chart.uuid,
             formats: [SchedulerFormat.GSHEETS],
         });
 
@@ -66,7 +66,7 @@ const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
     if (action === SyncModalAction.CREATE || action === SyncModalAction.EDIT) {
         return (
             <SyncModalCreateOrEdit
-                resource={{ type: 'chart', chartUuid }}
+                resource={{ type: 'chart', chart }}
                 opened={opened}
                 onClose={onClose}
             />
@@ -74,10 +74,10 @@ const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
     }
 };
 
-export const SyncModal: FC<Props> = ({ chartUuid, opened, onClose }) => (
+export const SyncModal: FC<Props> = ({ chart, opened, onClose }) => (
     <SyncModalProvider>
         <SyncModalBaseAndManager
-            chartUuid={chartUuid}
+            chart={chart}
             opened={opened}
             onClose={onClose}
         />

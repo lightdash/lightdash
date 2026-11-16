@@ -5,6 +5,7 @@ import {
     type AiServiceAccountCredentialInput,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
+import { SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_REQUIRED_MESSAGE } from '@lightdash/warehouses';
 import {
     athenaSecrets,
     clickhouseConnection,
@@ -276,7 +277,7 @@ describe('Snowflake replacement semantics', () => {
                 { ...partial, privateKeyPass: null },
                 saved,
             ),
-        ).toThrow('valid RSA');
+        ).toThrow(SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_REQUIRED_MESSAGE);
     });
     it('validates a new encrypted key with its supplied passphrase', () => {
         expect(

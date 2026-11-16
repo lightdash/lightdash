@@ -34,7 +34,7 @@ describe('readRowsWithinCap', () => {
             fetchPage,
         });
         expect(result.rows).toHaveLength(150);
-        expect(result.truncated).toBe(false);
+        expect(result.hasMoreRows).toBe(false);
         expect(fetchPage).toHaveBeenCalledTimes(2);
     });
 
@@ -46,7 +46,7 @@ describe('readRowsWithinCap', () => {
             fetchPage,
         });
         expect(result.rows).toHaveLength(150);
-        expect(result.truncated).toBe(true);
+        expect(result.hasMoreRows).toBe(true);
         expect(fetchPage).toHaveBeenLastCalledWith({
             limit: 51,
             cursor: '100',
@@ -62,7 +62,7 @@ describe('readRowsWithinCap', () => {
             }),
         ).rejects.toThrow(
             new ParameterError(
-                'Source has more rows than the 300 one query can read, so this result would be incomplete. Narrow the date range, add a filter or remove a dimension.',
+                'This Source query has more than 300 rows, the most one query can read, so its result would be incomplete. Narrow the date range, add a filter or remove a dimension.',
             ),
         );
     });
@@ -90,6 +90,6 @@ describe('readRowsWithinCap', () => {
             fetchPage: pagedApi(300),
         });
         expect(result.rows).toHaveLength(300);
-        expect(result.truncated).toBe(false);
+        expect(result.hasMoreRows).toBe(false);
     });
 });

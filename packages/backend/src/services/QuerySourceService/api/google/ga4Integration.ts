@@ -48,6 +48,10 @@ export const ga4Integration: ApiSourceIntegration<ApiConnectorType.GA4> = {
         timeoutMs: GA4_TIMEOUT_MS,
         responseMaxBytes: API_SOURCE_RESPONSE_MAX_BYTES,
     }),
+    describeTarget: ({ apiSource: { propertyId }, targetLabel }) =>
+        targetLabel
+            ? `Google Analytics property "${targetLabel}" (ID ${propertyId})`
+            : `Google Analytics property ${propertyId}`,
     validateConnection: ({ apiSource, type, origin, oauthTokenUrl }) => {
         if (!GA4_PROPERTY_ID.test(apiSource.propertyId)) {
             throw new ParameterError('The GA4 property ID must be a number');

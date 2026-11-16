@@ -122,48 +122,7 @@ describe('AiDeepResearchRunModel', () => {
         ]);
     });
 
-    it('loads conversation runs by prompt within the organization and project', async () => {
-        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
-
-        await model.findByPromptUuidsScoped({
-            promptUuids: ['prompt-1', 'prompt-2'],
-            organizationUuid: 'organization-1',
-            projectUuid: 'project-1',
-        });
-
-        expect(tracker.history.select[0].bindings).toEqual([
-            'prompt-1',
-            'prompt-2',
-            'organization-1',
-            'project-1',
-        ]);
-        expect(tracker.history.select[0].sql).toContain(
-            'select "prompt_uuid", "result_markdown"',
-        );
-        expect(tracker.history.select[0].sql).not.toContain(
-            'result_chart_data',
-        );
-        expect(tracker.history.select[0].sql).toContain(
-            'coalesce(report_expires_at, completed_at + interval',
-        );
-        expect(tracker.history.select[0].sql).toContain(
-            '"report_expired_at" is null',
-        );
-    });
-
-    it('does not query for an empty conversation', async () => {
-        await expect(
-            model.findByPromptUuidsScoped({
-                promptUuids: [],
-                organizationUuid: 'organization-1',
-                projectUuid: 'project-1',
-            }),
-        ).resolves.toEqual([]);
-
-        expect(tracker.history.select).toHaveLength(0);
-    });
-
-    it('loads thread status without selecting report content', async () => {
+    it('loads thread status without report columns', async () => {
         tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
 
         await model.findAgentContextByThreadScoped({
@@ -174,76 +133,12 @@ describe('AiDeepResearchRunModel', () => {
         });
 
         const [query] = tracker.history.select;
-        expect(query.sql).toContain(
-            'coalesce(octet_length(result_markdown), 0) > 0',
-        );
-        expect(query.sql).toContain(
-            'coalesce(\n                            report_expires_at',
-        );
-        expect(query.sql).not.toContain('select "result_markdown"');
+        expect(query.sql).not.toContain('result_markdown');
         expect(query.bindings).toEqual([
             'thread-1',
             'organization-1',
             'project-1',
             'user-1',
-        ]);
-    });
-
-    it('lists report metadata without selecting report content', async () => {
-        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
-
-        await model.findReportSummariesByThreadScoped({
-            aiThreadUuid: 'thread-1',
-            organizationUuid: 'organization-1',
-            projectUuid: 'project-1',
-            createdByUserUuid: 'user-1',
-        });
-
-        const [query] = tracker.history.select;
-        expect(query.sql).toContain(
-            'octet_length(result_markdown) as content_size_bytes',
-        );
-        expect(query.sql).not.toContain('select "result_markdown"');
-        expect(query.sql).toContain('octet_length(result_markdown) > 0');
-        expect(query.sql).toContain(
-            'coalesce(report_expires_at, completed_at + interval',
-        );
-        expect(query.sql).toContain('"report_expired_at" is null');
-        expect(query.bindings).toEqual([
-            'thread-1',
-            'organization-1',
-            'project-1',
-            'user-1',
-        ]);
-    });
-
-    it('loads report content only for one scoped run', async () => {
-        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
-
-        await model.findReportByUuidThreadScoped({
-            aiDeepResearchRunUuid: RUN_UUID,
-            aiThreadUuid: 'thread-1',
-            organizationUuid: 'organization-1',
-            projectUuid: 'project-1',
-            createdByUserUuid: 'user-1',
-        });
-
-        const [query] = tracker.history.select;
-        expect(query.sql).toContain(
-            'select "ai_deep_research_run_uuid", "prompt", "result_markdown"',
-        );
-        expect(query.sql).toContain('octet_length(result_markdown) > 0');
-        expect(query.sql).toContain(
-            'coalesce(report_expires_at, completed_at + interval',
-        );
-        expect(query.sql).toContain('"report_expired_at" is null');
-        expect(query.bindings).toEqual([
-            RUN_UUID,
-            'thread-1',
-            'organization-1',
-            'project-1',
-            'user-1',
-            1,
         ]);
     });
 
@@ -511,51 +406,11 @@ describe('AiDeepResearchRunModel', () => {
             expect.arrayContaining(['running', 75, 'stale']),
         );
         expect(update.sql).toContain(
-            "when result_markdown is not null then 'partially_completed' else 'failed' end",
+            "case when cancellation_requested_at is not null then 'cancelled' else 'failed' end",
         );
+        expect(update.sql).not.toContain('result_markdown');
         expect(tracker.history.insert).toHaveLength(4);
         expect(tracker.history.insert[2].bindings).toContain('internal_error');
         expect(tracker.history.insert[3].bindings).toContain('internal_error');
-    });
-
-    it('scrubs an expired report and its run-scoped provenance', async () => {
-        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([
-            {
-                ai_deep_research_run_uuid: RUN_UUID,
-                prompt_uuid: 'prompt-1',
-            },
-        ]);
-        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([
-            {
-                ai_deep_research_run_uuid: RUN_UUID,
-            },
-        ]);
-        tracker.on.select(AiAgentToolCallTableName).responseOnce([
-            {
-                ai_agent_tool_call_uuid: '00000000-0000-0000-0000-000000000003',
-                tool_call_id: 'tool-1',
-            },
-        ]);
-        tracker.on.delete(AiAgentToolResultTableName).responseOnce(1);
-        tracker.on.delete(AiAgentToolCallErrorTableName).responseOnce(0);
-        tracker.on.delete(AiAgentToolCallTableName).responseOnce(1);
-        tracker.on.update(AiDeepResearchRunsTableName).responseOnce(1);
-
-        const result = await model.cleanExpiredReports(100);
-
-        expect(result).toEqual({ scanned: 1, expired: 1, failed: 0 });
-        expect(tracker.history.delete).toHaveLength(3);
-        expect(tracker.history.update.at(-1)?.sql).toContain(
-            '"result_markdown" = $1',
-        );
-        expect(tracker.history.update.at(-1)?.sql).not.toContain(
-            'result_chart_data',
-        );
-        expect(tracker.history.select[0]?.sql).not.toContain(
-            '"result_markdown" is not null',
-        );
-        expect(tracker.history.select[0]?.sql).toContain(
-            '"status" in ($1, $2, $3, $4)',
-        );
     });
 });

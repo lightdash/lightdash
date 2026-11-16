@@ -1,4 +1,4 @@
-import { Box, Group, Title } from '@mantine/core';
+import { Group, Title } from '@mantine/core';
 import type { ReactNode } from 'react';
 import styles from './ReportPresentation.module.css';
 
@@ -35,37 +35,3 @@ export const ReportSectionHeading = ({
         {actions}
     </Group>
 );
-
-const ReportSection = ({
-    title,
-    id,
-    actions,
-    children,
-    variant = 'finding',
-}: {
-    title?: ReactNode;
-    id?: string;
-    actions?: ReactNode;
-    children: ReactNode;
-    variant?: 'introduction' | 'finding' | 'conclusion';
-}) => (
-    <Box
-        component="section"
-        className={
-            variant === 'introduction'
-                ? styles.reportIntroduction
-                : variant === 'conclusion'
-                  ? styles.reportConclusion
-                  : styles.reportFinding
-        }
-    >
-        {title && (
-            <ReportSectionHeading id={id} actions={actions}>
-                {title}
-            </ReportSectionHeading>
-        )}
-        {children}
-    </Box>
-);
-
-export default ReportSection;

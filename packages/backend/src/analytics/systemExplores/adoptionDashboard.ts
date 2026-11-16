@@ -165,7 +165,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
             'data_app_events_app_id',
             'data_app_events_project_id',
         ],
-        metrics: ['data_app_events_unique_apps'],
+        metrics: [],
         filters: [
             {
                 field: 'data_app_events_event_name',
@@ -175,7 +175,6 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         limit: 100,
         sorts: [{ fieldId: 'data_app_events_event_ts_week', descending: true }],
         fieldLabels: {
-            data_app_events_unique_apps: 'Apps created',
             data_app_events_event_ts_week: 'Creation week',
             data_app_events_user_name: 'Creator',
             data_app_events_app_name: 'App',
@@ -415,8 +414,7 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
 export const adoptionDashboardSpec: UsageDashboardSpec = {
     key: dashboardKey,
     name: 'Adoption',
-    description:
-        'See who is active, which apps and dashboards people use, and how Ask AI use develops. Updated nightly; charts use available captured history.',
+    description: 'Active people, content reach and Ask AI use.',
     filters: {
         dimensions: [
             {

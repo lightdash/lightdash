@@ -245,9 +245,42 @@ describe('signed analytics file manifests', () => {
         );
     });
 
+    it('buffers a whole 36 MiB table with 4 MiB files and reuses downloads', async () => {
+        const body = Buffer.alloc(4 * 1024 * 1024);
+        const contents = Array.from({ length: 9 }, (_, i) => ({
+            Key: key().replace('part-1', `larger-${i}`),
+            ETag: 'larger-v1',
+            Size: body.length,
+        }));
+        send.mockImplementation(async (command) =>
+            command instanceof ListObjectsV2Command
+                ? { Contents: contents }
+                : {
+                      Body: Readable.from([body]),
+                      ETag: 'larger-v1',
+                      ContentLength: body.length,
+                  },
+        );
+        const resolve = createS3AnalyticsSourceResolver(config);
+        const first = await resolve(['query_events']);
+        expect(first.fileBuffers?.size).toBe(9);
+        const warm = await resolve(['query_events']);
+        expect(warm.fileBuffers?.size).toBe(9);
+        for (const [url, buffer] of first.fileBuffers!) {
+            expect(warm.fileBuffers?.get(url)).toBe(buffer);
+            expect(buffer.byteLength).toBe(body.length);
+        }
+        expect(
+            send.mock.calls.filter(
+                ([command]) => command instanceof GetObjectCommand,
+            ),
+        ).toHaveLength(9);
+        expect(getSignedUrl).not.toHaveBeenCalled();
+    });
+
     it('avoids downloading a table that cannot fit the per-query budget', async () => {
         const body = Buffer.alloc(1024 * 1024);
-        const contents = Array.from({ length: 33 }, (_, i) => ({
+        const contents = Array.from({ length: 65 }, (_, i) => ({
             Key: key().replace('part-1', `budget-${i}`),
             ETag: 'budget-v1',
             Size: body.length,
@@ -268,7 +301,7 @@ describe('signed analytics file manifests', () => {
         const resolve = createS3AnalyticsSourceResolver(config);
         const first = await resolve(['query_events']);
         expect(first.fileBuffers).toBeUndefined();
-        expect(first.tables[0].urls).toHaveLength(33);
+        expect(first.tables[0].urls).toHaveLength(65);
         const downloads = () =>
             send.mock.calls.filter(
                 ([command]) => command instanceof GetObjectCommand,
@@ -321,7 +354,9 @@ describe('signed analytics file manifests', () => {
         let etag = 'remote-v1';
         const objectKey = key().replace('part-1', 'remote');
         send.mockImplementation(async () => ({
-            Contents: [{ Key: objectKey, ETag: etag, Size: 2 * 1024 * 1024 }],
+            Contents: [
+                { Key: objectKey, ETag: etag, Size: 4 * 1024 * 1024 + 1 },
+            ],
         }));
         const resolve = createS3AnalyticsSourceResolver(config);
         const sources = await Promise.all(
@@ -348,7 +383,7 @@ describe('signed analytics file manifests', () => {
     it('keeps signature reuse separate across storage configurations and rejects revoked listing access', async () => {
         send.mockResolvedValue({
             Contents: [
-                { Key: key(), ETag: 'config-v1', Size: 2 * 1024 * 1024 },
+                { Key: key(), ETag: 'config-v1', Size: 4 * 1024 * 1024 + 1 },
             ],
         });
         const resolve = createS3AnalyticsSourceResolver(config);
@@ -414,7 +449,11 @@ describe('signed analytics file manifests', () => {
         } as unknown as ReturnType<typeof createS3ClientFromConfig>);
         send.mockResolvedValue({
             Contents: [
-                { Key: key(), ETag: 'credential-v1', Size: 2 * 1024 * 1024 },
+                {
+                    Key: key(),
+                    ETag: 'credential-v1',
+                    Size: 4 * 1024 * 1024 + 1,
+                },
             ],
         });
         const resolve = createS3AnalyticsSourceResolver(config);
@@ -573,7 +612,31 @@ describe('signed analytics file manifests', () => {
         },
     );
 
-    it('drains in-flight signing before cleanup and never starts another batch after failure', async () => {
+    it('starts the next object when a slot opens, even if an earlier object is slow', async () => {
+        const keys = Array.from({ length: 9 }, (_, i) =>
+            key().replace('part-1', `part-${i}`),
+        );
+        send.mockResolvedValue({ Contents: keys.map((Key) => ({ Key })) });
+        const first = Promise.withResolvers<string>();
+        vi.mocked(getSignedUrl).mockImplementation(async (_client, command) => {
+            const objectKey = (command as GetObjectCommand).input.Key!;
+            if (objectKey === keys[0]) return first.promise;
+            return `signed:${objectKey}`;
+        });
+
+        const resolution = createS3AnalyticsSourceResolver(config)();
+        try {
+            await vi.waitFor(() =>
+                expect(getSignedUrl).toHaveBeenCalledTimes(keys.length),
+            );
+            expect(destroy).not.toHaveBeenCalled();
+        } finally {
+            first.resolve(`signed:${keys[0]}`);
+            await resolution;
+        }
+    });
+
+    it('drains in-flight signing before cleanup and starts no more objects after failure', async () => {
         send.mockResolvedValue({
             Contents: Array.from({ length: 20 }, (_, i) => ({
                 Key: key().replace('part-1', `part-${i}`),
@@ -797,6 +860,55 @@ describe('signed analytics file manifests', () => {
         await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
             noDataMessage,
         );
+    });
+
+    it('prepares only in-range activity files and keeps other sources available', async () => {
+        const activity = (day: string) =>
+            `${prefix}model=user_activity/stream=query_events/dt=${day}/activity.parquet`;
+        const selected = activity('2026-11-06');
+        const other = key('agent_steps', '2026-11-01');
+        send.mockResolvedValue({
+            Contents: [
+                { Key: activity('2026-11-05') },
+                { Key: selected },
+                { Key: activity('2026-11-13') },
+                { Key: other },
+            ],
+        });
+        const result = await createS3AnalyticsSourceResolver({
+            ...config,
+            activityWindow: { start: '2026-11-06', end: '2026-11-13' },
+        })(['user_activity', 'agent_steps']);
+        expect(result.tables.map(({ name }) => name)).toEqual([
+            'user_activity',
+            'agent_steps',
+        ]);
+        expect(
+            vi
+                .mocked(getSignedUrl)
+                .mock.calls.map(
+                    ([, command]) => (command as GetObjectCommand).input.Key,
+                ),
+        ).toEqual([selected, other]);
+    });
+
+    it('exposes a typed empty activity table for a date range without files', async () => {
+        send.mockResolvedValue({
+            Contents: [
+                {
+                    Key: `${prefix}model=user_activity/stream=query_events/dt=2026-11-05/activity.parquet`,
+                },
+            ],
+        });
+        const result = await createS3AnalyticsSourceResolver({
+            ...config,
+            activityWindow: { start: '2026-11-06', end: '2026-11-13' },
+        })(['user_activity']);
+        expect(result.tables).toEqual([]);
+        expect(result.emptyTables?.map(({ name }) => name)).toContain(
+            'user_activity',
+        );
+        expect(getSignedUrl).not.toHaveBeenCalled();
     });
 
     it('refreshes the manifest and does not reuse unversioned signatures', async () => {

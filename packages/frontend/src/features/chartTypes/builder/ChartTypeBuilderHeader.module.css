@@ -39,6 +39,7 @@
 }
 
 .name {
+    min-width: 0;
     max-width: 280px;
 }
 
@@ -46,6 +47,44 @@
 .namePlaceholder {
     width: 160px;
     height: 16px;
+}
+
+@media (max-width: $mantine-breakpoint-md) {
+    .studioLabel,
+    .divider {
+        display: none;
+    }
+}
+
+@media (max-width: $mantine-breakpoint-sm) {
+    .header {
+        flex-wrap: wrap;
+        row-gap: var(--mantine-spacing-xs);
+        height: auto;
+        min-height: 52px;
+        padding-block: var(--mantine-spacing-xs);
+    }
+
+    .side {
+        flex: 1 1 100%;
+    }
+
+    .backButton {
+        flex-shrink: 0;
+    }
+
+    .actions {
+        flex: 1 1 100%;
+        min-width: 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding: 4px;
+        margin: -4px;
+    }
+
+    .actions > * {
+        flex-shrink: 0;
+    }
 }
 
 @keyframes ldEnter {

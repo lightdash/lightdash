@@ -1,20 +1,24 @@
+import { Ability } from '@casl/ability';
 import {
     ConflictError,
     ContentType,
     ForbiddenError,
     NotFoundError,
+    PossibleAbilities,
 } from '@lightdash/common';
 import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
 } from '../../../analytics/systemExplores/sampleContent';
+import { fromSession } from '../../../auth/account';
 import * as analyticsExplores from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import {
     user as baseUser,
     defaultProject,
 } from '../../../services/ProjectService/ProjectService.mock';
 import { getAnalyticsContentHash } from './analyticsContentHash';
+import { analyticsHomepage } from './analyticsHomepage';
 import { AnalyticsProjectService } from './AnalyticsProjectService';
 
 describe('AnalyticsProjectService', () => {
@@ -30,7 +34,10 @@ describe('AnalyticsProjectService', () => {
         slug: 'lightdash-analytics-1',
         provisioningSource: 'analytics',
         createdAt: new Date('2026-09-10T00:00:00Z'),
+        organizationUuid: user.organizationUuid,
     };
+    const track = vi.fn();
+    const getProjectSummary = vi.fn();
     const getAllByOrganizationUuid = vi.fn();
     const saveExploresToCache = vi.fn();
     const getAnalyticsModelCounts = vi.fn();
@@ -49,12 +56,17 @@ describe('AnalyticsProjectService', () => {
                 .length,
         }));
     const assertAnalyticsProjectAdministration = vi.fn();
+    const assertAnalyticsProjectAccess = vi.fn();
     const ensureAnalyticsProject = vi.fn();
     const deleteProject = vi.fn();
     const invalidateSessionUserCache = vi.fn();
     const lock = vi.fn();
     const upsertChart = vi.fn();
     const upsertDashboard = vi.fn();
+    const findAllAgents = vi.fn();
+    const getIsCopilotEnabled = vi.fn();
+    const createAgent = vi.fn();
+    const createPublishedDefaultIfAbsent = vi.fn();
     const findDashboard = vi.fn();
     const getDashboard = vi.fn();
     const findCharts = vi.fn();
@@ -77,6 +89,9 @@ describe('AnalyticsProjectService', () => {
     );
     const findProcessingStatus = vi.fn();
     const service = new AnalyticsProjectService({
+        analytics: { track },
+        aiAgentModel: { findAllAgents },
+        getAiAgentService: () => ({ getIsCopilotEnabled, createAgent }),
         lightdashConfig: {
             usageEvents: {
                 enabled: false,
@@ -97,9 +112,11 @@ describe('AnalyticsProjectService', () => {
         coderService: { upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
         dashboardModel: { find: findDashboard, getByIdOrSlug: getDashboard },
+        projectHomepageModel: { createPublishedDefaultIfAbsent },
         savedChartModel: { get: getChart, find: findCharts },
         spaceModel: { get: getSpace, find: findSpaces },
         projectModel: {
+            getSummary: getProjectSummary,
             getAllByOrganizationUuid,
             saveExploresToCache,
             getAnalyticsModelCounts,
@@ -114,6 +131,7 @@ describe('AnalyticsProjectService', () => {
         projectService: {
             isAnalyticsProjectEnabled,
             assertAnalyticsProjectAdministration,
+            assertAnalyticsProjectAccess,
             ensureAnalyticsProject,
             delete: deleteProject,
         },
@@ -124,6 +142,9 @@ describe('AnalyticsProjectService', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         vi.resetAllMocks();
+        getProjectSummary.mockResolvedValue(analyticsProject);
+        getIsCopilotEnabled.mockResolvedValue(false);
+        findAllAgents.mockResolvedValue([]);
         getSnapshot.mockResolvedValue({ snapshotHash: hash });
         isAnalyticsProjectEnabled.mockReturnValue(true);
         getOrganizationAdmins.mockResolvedValue([
@@ -160,6 +181,152 @@ describe('AnalyticsProjectService', () => {
             defaultProject,
             analyticsProject,
         ]);
+    });
+
+    describe('visit tracking', () => {
+        it('tracks settings visits with server-derived identity', async () => {
+            await service.trackView(fromSession(user), {
+                source: 'settings',
+                projectUuid: analyticsProject.projectUuid,
+            });
+            expect(assertAnalyticsProjectAdministration).toHaveBeenCalled();
+            expect(track).toHaveBeenCalledWith({
+                event: 'analytics_project.viewed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: user.organizationUuid,
+                    projectId: analyticsProject.projectUuid,
+                    source: 'settings',
+                },
+            });
+        });
+
+        it('tracks settings before the analytics project exists', async () => {
+            await service.trackView(fromSession(user), {
+                source: 'settings',
+                projectUuid: null,
+            });
+            expect(getProjectSummary).not.toHaveBeenCalled();
+            expect(track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    properties: {
+                        organizationId: user.organizationUuid,
+                        projectId: null,
+                        source: 'settings',
+                    },
+                }),
+            );
+        });
+
+        it.each(['homepage', 'project'] as const)(
+            'tracks %s visits with project view access',
+            async (source) => {
+                const account = fromSession(user);
+                await service.trackView(account, {
+                    source,
+                    projectUuid: analyticsProject.projectUuid,
+                });
+                expect(assertAnalyticsProjectAccess).toHaveBeenCalledWith(
+                    account,
+                    analyticsProject,
+                );
+                expect(
+                    assertAnalyticsProjectAdministration,
+                ).not.toHaveBeenCalled();
+                expect(track).toHaveBeenCalledWith({
+                    event: 'analytics_project.viewed',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: user.organizationUuid,
+                        projectId: analyticsProject.projectUuid,
+                        source,
+                    },
+                });
+            },
+        );
+
+        it('rejects settings visits without administration access', async () => {
+            assertAnalyticsProjectAdministration.mockRejectedValue(
+                new ForbiddenError(),
+            );
+            await expect(
+                service.trackView(fromSession(user), {
+                    source: 'settings',
+                    projectUuid: null,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(track).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            { ...analyticsProject, organizationUuid: 'another-org' },
+            { ...analyticsProject, provisioningSource: null },
+        ])('rejects a project outside managed analytics', async (project) => {
+            getProjectSummary.mockResolvedValue(project);
+            await expect(
+                service.trackView(fromSession(user), {
+                    source: 'homepage',
+                    projectUuid: project.projectUuid,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(track).not.toHaveBeenCalled();
+        });
+
+        it('rejects visits without project view access', async () => {
+            await expect(
+                service.trackView(
+                    fromSession({
+                        ...user,
+                        ability: new Ability<PossibleAbilities>([]),
+                    }),
+                    {
+                        source: 'project',
+                        projectUuid: analyticsProject.projectUuid,
+                    },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(track).not.toHaveBeenCalled();
+        });
+
+        it('rejects visits without managed analytics access', async () => {
+            assertAnalyticsProjectAccess.mockRejectedValue(
+                new ForbiddenError(),
+            );
+            await expect(
+                service.trackView(fromSession(user), {
+                    source: 'homepage',
+                    projectUuid: analyticsProject.projectUuid,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(track).not.toHaveBeenCalled();
+        });
+
+        it('rejects visits without an organization', async () => {
+            await expect(
+                service.trackView(fromSession(baseUser), {
+                    source: 'settings',
+                    projectUuid: null,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(track).not.toHaveBeenCalled();
+        });
+
+        it('does not fail a visit when tracking throws', async () => {
+            track.mockImplementation(() => {
+                throw new Error('Tracking unavailable');
+            });
+            await expect(
+                service.trackView(fromSession(user), {
+                    source: 'settings',
+                    projectUuid: null,
+                }),
+            ).resolves.toBeUndefined();
+        });
+
+        it('does not track status polling as a visit', async () => {
+            await service.getStatus(user);
+            expect(track).not.toHaveBeenCalled();
+        });
     });
 
     describe('automatic synchronization', () => {
@@ -220,6 +387,7 @@ describe('AnalyticsProjectService', () => {
                 expect.objectContaining({ userUuid: user.userUuid }),
             );
             expect(assertAnalyticsProjectAdministration).toHaveBeenCalled();
+            expect(track).not.toHaveBeenCalled();
         });
 
         it('skips unchanged content and still detects definition-only changes', async () => {
@@ -251,6 +419,34 @@ describe('AnalyticsProjectService', () => {
             expect(saveSnapshot).not.toHaveBeenCalled();
             await configured().syncContent({ organizationUuid: 'org' });
             expect(saveSnapshot).toHaveBeenCalledOnce();
+        });
+
+        it('provisions an Analytics agent when AI becomes available after the content was synced', async () => {
+            findDashboard.mockResolvedValue(
+                analyticsContentAsCode.map(({ dashboard }) => ({
+                    uuid: dashboard.slug,
+                })),
+            );
+            getIsCopilotEnabled.mockResolvedValue(true);
+            createAgent.mockImplementation(async () => {
+                findAllAgents.mockResolvedValue([{ name: 'Analytics agent' }]);
+            });
+
+            await configured().syncContent({ organizationUuid: 'org' });
+            await configured().syncContent({ organizationUuid: 'org' });
+
+            expect(createAgent).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({ userUuid: user.userUuid }),
+                expect.objectContaining({
+                    name: 'Analytics agent',
+                    projectUuid: analyticsProject.projectUuid,
+                    enableDataAccess: true,
+                    enableContentTools: false,
+                    enableSqlMode: false,
+                    enableComposerQueries: false,
+                }),
+                { autoProvisioned: true },
+            );
         });
 
         it.each([
@@ -721,6 +917,15 @@ describe('AnalyticsProjectService', () => {
     it('installs sample content only in the current organization analytics project', async () => {
         await service.installSampleContent(user);
         expect(lock).toHaveBeenCalledWith(user.organizationUuid);
+        expect(createAgent).not.toHaveBeenCalled();
+        expect(createPublishedDefaultIfAbsent).toHaveBeenCalledExactlyOnceWith({
+            projectUuid: analyticsProject.projectUuid,
+            ...analyticsHomepage,
+            userUuid: user.userUuid,
+        });
+        expect(
+            createPublishedDefaultIfAbsent.mock.invocationCallOrder[0],
+        ).toBeLessThan(saveSnapshot.mock.invocationCallOrder[0]);
         for (const { dashboard, charts } of analyticsContentAsCode) {
             const options = {
                 spaceNames: {

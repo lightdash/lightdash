@@ -234,7 +234,7 @@ const AppInspectorPanel: FC<Props> = ({
                 data-tour-scope="view:DataApp"
                 data-tour-result="1"
                 data-tour-label="Read the network activity"
-                data-tour-docs="data-apps.mdx#network-inspector:p2:1"
+                data-tour-docs="data-apps.mdx#network-inspector:p3:1"
                 className={clsx(classes.container, classes.containerDocked)}
             >
                 <UnstyledButton
@@ -275,7 +275,7 @@ const AppInspectorPanel: FC<Props> = ({
             data-tour-scope="view:DataApp"
             data-tour-result="1"
             data-tour-label="Read the network activity"
-            data-tour-docs="data-apps.mdx#network-inspector:p2:1"
+            data-tour-docs="data-apps.mdx#network-inspector:p3:1"
             className={clsx(
                 classes.container,
                 placement === 'docked' && classes.containerDocked,

@@ -501,6 +501,22 @@ oauthRouter.post('/token', async (req, res, next) => {
     }
 });
 
+const sendMobileSignInError = (
+    res: express.Response,
+    error: unknown,
+    operation: 'claim' | 'cancel',
+) => {
+    if (error instanceof MobileSignInOAuthError) {
+        if (error.retryAfterSeconds !== undefined) {
+            res.set('Retry-After', String(error.retryAfterSeconds));
+        }
+        res.status(error.statusCode).json(error.toJSON());
+        return;
+    }
+    Logger.error(`Mobile sign-in ${operation} error: ${error}`);
+    res.status(500).json({ error: 'server_error' });
+};
+
 oauthRouter.post('/mobile-sign-in/claim', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     try {
@@ -511,15 +527,21 @@ oauthRouter.post('/mobile-sign-in/claim', async (req, res) => {
         });
         res.json(claim);
     } catch (error) {
-        if (error instanceof MobileSignInOAuthError) {
-            if (error.retryAfterSeconds !== undefined) {
-                res.set('Retry-After', String(error.retryAfterSeconds));
-            }
-            res.status(error.statusCode).json(error.toJSON());
-            return;
-        }
-        Logger.error(`Mobile sign-in claim error: ${error}`);
-        res.status(500).json({ error: 'server_error' });
+        sendMobileSignInError(res, error, 'claim');
+    }
+});
+
+oauthRouter.post('/mobile-sign-in/cancel', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+        const mobileSignInService = req.services.getMobileSignInService();
+        await mobileSignInService.cancelFromPhone(req.body ?? {}, {
+            ip: mobileSignInService.getClientAddress(req),
+            userAgent: req.get('user-agent') ?? undefined,
+        });
+        res.json({});
+    } catch (error) {
+        sendMobileSignInError(res, error, 'cancel');
     }
 });
 

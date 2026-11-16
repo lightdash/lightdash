@@ -13,7 +13,7 @@ the applying administrator for manual and automatic installation; it identifies 
 or completeness of that organization's captured data. Normal sync preserves an
 existing verification; restoration re-verifies after the layout is installed.
 Custom dashboards and copies are not automatically verified.
-Existing projects show **Sync content** when a built-in dashboard is unverified.
+Automatic sync verifies built-in dashboards in existing projects.
 
 Sync keeps existing dashboards in their current spaces, including any restricted
 spaces, so adopting this layout does not change inherited access. Their charts
@@ -70,21 +70,17 @@ place, retaining their UUIDs, slugs, field IDs and existing filter targets. Exis
 charts remain available. Sync does not refresh inventory data or alter capture,
 history or compaction.
 
-Project creation, automatic content updates and **Sync content** in organization
-analytics settings all install the current definitions: system explores first,
-then managed charts and dashboards.
+Project creation and background sync install the current definitions: system
+explores first, then managed charts and dashboards.
 This makes newly shipped explores, dimensions and metrics available in existing
-analytics projects without recreating the project. After creation, settings stays open and shows dashboard
-shortcuts and the **Explore** button; it does not redirect automatically. Sync calls
+analytics projects without recreating the project. After creation, settings stays open and shows the homepage and dashboard
+shortcuts, plus **Ask AI** where available. Admins can trigger recovery through
 `POST /api/v1/org/analytics-project/sample-content`. Both paths require the existing
 deployment availability and org-admin guard. The server
 resolves the organization and its marked analytics project; no target IDs or
 content definitions are accepted from the caller.
 
-The dashboard list loads when the page opens and reloads after a successful sync.
-There is no separate list refresh button. **Sync content** is a secondary
-action beside **Explore**, with a tooltip explaining its overwrite behavior. Sync
-never deletes or recreates the project. Custom dashboards and copies with other
+The dashboard list loads when the page opens. Custom dashboards and copies with other
 slugs are preserved; built-in slugs are reserved for managed content.
 Every sync iterates the built-in dashboard list, creating missing dashboards and
 updating existing ones through the content-as-code service. Add future dashboards with a new

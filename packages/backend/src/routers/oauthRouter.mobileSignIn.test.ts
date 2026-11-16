@@ -197,6 +197,102 @@ describe('POST /api/v1/oauth/mobile-sign-in/claim', () => {
     });
 });
 
+describe('POST /api/v1/oauth/mobile-sign-in/cancel', () => {
+    const postCancel = (base: string, body: string) =>
+        fetch(`${base}/mobile-sign-in/cancel`, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                'x-forwarded-for': '198.51.100.9, 203.0.113.7',
+            },
+            body,
+        });
+
+    it('answers 200 with an empty object and never caches it', async () => {
+        const cancelFromPhone = vi.fn(async () => undefined);
+        const { base, close } = await startApp({
+            getMobileSignInService: () => ({
+                getClientAddress: (req: Request) => getClientAddress(req, true),
+                cancelFromPhone,
+            }),
+        });
+        try {
+            const body = { code: 'c', client_id: 'id', code_verifier: 'v' };
+            const response = await postCancel(base, JSON.stringify(body));
+            expect(response.status).toBe(200);
+            expect(response.headers.get('cache-control')).toBe('no-store');
+            expect(await response.json()).toEqual({});
+            expect(cancelFromPhone).toHaveBeenCalledWith(
+                body,
+                expect.objectContaining({ ip: '203.0.113.7' }),
+            );
+        } finally {
+            close();
+        }
+    });
+
+    it.each([
+        [
+            new MobileSignInOAuthError('invalid_grant', {
+                description: 'code_mismatch',
+            }),
+            400,
+            { error: 'invalid_grant', error_description: 'code_mismatch' },
+            null,
+        ],
+        [
+            new MobileSignInOAuthError('expired_token'),
+            400,
+            { error: 'expired_token' },
+            null,
+        ],
+        [
+            new MobileSignInOAuthError('rate_limited', {
+                statusCode: 429,
+                retryAfterSeconds: 11,
+            }),
+            429,
+            { error: 'rate_limited' },
+            '11',
+        ],
+    ])('maps %s', async (error, status, json, retryAfter) => {
+        const { base, close } = await startApp({
+            getMobileSignInService: () => ({
+                getClientAddress: (req: Request) => getClientAddress(req, true),
+                cancelFromPhone: async () => {
+                    throw error;
+                },
+            }),
+        });
+        try {
+            const response = await postCancel(base, '{}');
+            expect(response.status).toBe(status);
+            expect(response.headers.get('retry-after')).toBe(retryAfter);
+            expect(await response.json()).toEqual(json);
+        } finally {
+            close();
+        }
+    });
+
+    it('answers 500 server_error for an unexpected failure', async () => {
+        const { base, close } = await startApp({
+            getMobileSignInService: () => ({
+                getClientAddress: (req: Request) => getClientAddress(req, true),
+                cancelFromPhone: async () => {
+                    throw new Error('database down');
+                },
+            }),
+        });
+        try {
+            const response = await postCancel(base, '{}');
+            expect(response.status).toBe(500);
+            expect(await response.json()).toEqual({ error: 'server_error' });
+        } finally {
+            close();
+        }
+    });
+});
+
 describe('POST /api/v1/oauth/token with a mobile sign-in code', () => {
     it.each([
         [
@@ -222,6 +318,17 @@ describe('POST /api/v1/oauth/token with a mobile sign-in code', () => {
             new MobileSignInOAuthError('authorization_pending'),
             400,
             { error: 'authorization_pending' },
+            null,
+        ],
+        [
+            new MobileSignInOAuthError('match_number_required', {
+                description: 'approved',
+            }),
+            400,
+            {
+                error: 'match_number_required',
+                error_description: 'approved',
+            },
             null,
         ],
         [

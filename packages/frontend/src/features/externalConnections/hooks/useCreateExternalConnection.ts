@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
+import { invalidateSavedConnection } from './invalidateSavedConnection';
 
 type CreateParams = {
     projectUuid: string;
@@ -23,22 +24,38 @@ const createExternalConnection = async (
         body: JSON.stringify(data),
     });
 
-export const useCreateExternalConnection = () => {
+type CreateMessages = { created: string; failed: string };
+
+const CONNECTION_MESSAGES: CreateMessages = {
+    created: 'Connection created',
+    failed: 'Failed to create connection',
+};
+
+export const LIVE_SOURCE_CREATE_MESSAGES: CreateMessages = {
+    created: 'Live data source added',
+    failed: 'Failed to add live data source',
+};
+
+export const useCreateExternalConnection = (
+    messages: CreateMessages = CONNECTION_MESSAGES,
+) => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<ExternalConnection, ApiError, CreateParams>({
         mutationFn: (args: CreateParams) =>
             createExternalConnection(lightdashApi, args),
-        onSuccess: async (_data, variables) => {
-            await queryClient.invalidateQueries({
-                queryKey: ['external-connections', variables.projectUuid],
-            });
-            showToastSuccess({ title: 'Connection created' });
+        onSuccess: async (connection, variables) => {
+            await invalidateSavedConnection(
+                queryClient,
+                variables.projectUuid,
+                connection,
+            );
+            showToastSuccess({ title: messages.created });
         },
         onError: ({ error }) => {
             showToastApiError({
-                title: 'Failed to create connection',
+                title: messages.failed,
                 apiError: error,
             });
         },

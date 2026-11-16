@@ -75,6 +75,7 @@ import type { DbAiPromptTurnDecision } from '../../../database/entities/ai';
 import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGenerateService';
 import type { SemanticLayerDraftProposal } from '../../SemanticStudioService/SemanticStudioService';
+import type { RepoCodeSearchMatch } from '../repoFs/RepoFs';
 import { AiAgentSkill } from '../skills/types';
 import type {
     ApproveSqlFn,
@@ -781,7 +782,7 @@ export type ComposerRunOutcome =
           terminal: {
               queryUuid: string;
               columns: ResultColumns;
-              /** First COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows; rowCount is the full count. */
+              /** First COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows unless readAllTerminalRows; rowCount is the full count. */
               rows: Record<string, AnyType>[];
               rowCount: number;
           };
@@ -831,6 +832,8 @@ export type RunComposerQueriesUntilDeadlineFn = (args: {
     /** Ready nodes to read a node sample of, also when the terminal is still running. */
     sampleNodeIds: string[];
     deadlineMs: number;
+    /** Reads every terminal row instead of a preview. */
+    readAllTerminalRows?: boolean;
 }) => Promise<ComposerRunOutcome | ComposerRunningOutcome>;
 
 export type ListWarehouseTablesFn = (
@@ -1003,7 +1006,13 @@ export type ReadSemanticModelFn = (name: string) => Promise<{
 export type ExploreRepoFn = (args: {
     command: string;
     target?: string | null;
+    /** Reorders what the shell's `search` found, most useful first; null leaves the order as found. */
+    rankMatches: RankRepoMatchesFn | null;
 }) => Promise<string>;
+
+export type RankRepoMatchesFn = (
+    matches: RepoCodeSearchMatch[],
+) => Promise<RepoCodeSearchMatch[]>;
 
 /**
  * List every repository the org's GitHub App installation can read, so the agent

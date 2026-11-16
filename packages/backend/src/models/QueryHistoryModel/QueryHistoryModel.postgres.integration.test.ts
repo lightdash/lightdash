@@ -95,7 +95,7 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
     beforeEach(async () => {
         tx = await database.transaction();
         await tx.raw(
-            `CREATE TEMP TABLE query_history (query_uuid uuid, project_uuid uuid, status text, created_by_user_uuid text, created_by_account text, context text, created_at timestamptz DEFAULT clock_timestamp(), duckdb_execution jsonb, request_parameters jsonb, metric_query jsonb, cache_key text, agent_identity jsonb, results_file_name text, results_created_at timestamptz, results_updated_at timestamptz, results_expires_at timestamptz, total_row_count bigint, columns jsonb, cache_generation integer NOT NULL DEFAULT 0, cache_invalidated_at timestamptz) ON COMMIT DROP`,
+            `CREATE TEMP TABLE query_history (query_uuid uuid, project_uuid uuid, status text, created_by_user_uuid text, created_by_account text, context text, created_at timestamptz DEFAULT clock_timestamp(), duckdb_execution jsonb, request_parameters jsonb, metric_query jsonb, cache_key text, agent_identity jsonb, results_file_name text, results_created_at timestamptz, results_updated_at timestamptz, results_expires_at timestamptz, total_row_count bigint, columns jsonb, cache_generation integer NOT NULL DEFAULT 0, cache_invalidated_at timestamptz, request_chart_uuid text, request_saved_sql_uuid text, request_dashboard_uuid text, metric_query_explore_name text) ON COMMIT DROP`,
         );
         await tx.raw(
             `CREATE TEMP TABLE projects (project_uuid uuid, results_cache_generation integer NOT NULL DEFAULT 0) ON COMMIT DROP`,
@@ -451,6 +451,54 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
                     queryUuid: otherChart,
                 });
             });
+            it('matches runs by their copied columns once filled in', async () => {
+                const tile = await insertCachedResult(
+                    null,
+                    new Date(Date.now()),
+                );
+                await tx<Record<string, unknown>>('query_history')
+                    .where('query_uuid', tile)
+                    .update({
+                        cache_key: 'cache-key',
+                        request_parameters: { resultProducer: producer },
+                        request_dashboard_uuid: 'dashboard-a',
+                        metric_query_explore_name: 'orders',
+                    });
+
+                await expect(
+                    invalidate('dashboard', 'dashboard-a'),
+                ).resolves.toBe(1);
+                await expect(findLatest()).resolves.toBeUndefined();
+            });
+
+            it('expires SQL chart tiles that only record their dashboard as the result source', async () => {
+                const sqlTile = await insertCachedResult(
+                    null,
+                    new Date(Date.now()),
+                );
+                await tagRun(sqlTile, {});
+                await tx<Record<string, unknown>>('query_history')
+                    .where('query_uuid', sqlTile)
+                    .update({
+                        request_parameters: tx.raw(
+                            `request_parameters || ?::jsonb`,
+                            [
+                                JSON.stringify({
+                                    resultSource: {
+                                        savedSqlUuid: 'sql-a',
+                                        dashboardUuid: 'dashboard-a',
+                                        tileUuid: 'tile-a',
+                                    },
+                                }),
+                            ],
+                        ),
+                    });
+
+                await expect(
+                    invalidate('dashboard', 'dashboard-a'),
+                ).resolves.toBe(1);
+                await expect(findLatest()).resolves.toBeUndefined();
+            });
         });
 
         describe('after an explore cache is invalidated', () => {
@@ -639,7 +687,7 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
                     new Date(Date.now()),
                 );
                 await invalidate();
-                await tx('query_history')
+                await tx<Record<string, unknown>>('query_history')
                     .where('query_uuid', inFlight)
                     .update({ results_updated_at: new Date(Date.now() + 1) });
 
@@ -664,7 +712,7 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
                     status: QueryHistoryStatus.READY,
                     project: otherProject,
                 });
-                await tx('query_history')
+                await tx<Record<string, unknown>>('query_history')
                     .where('query_uuid', other)
                     .update({ cache_key: 'cache-key' });
                 await invalidate();

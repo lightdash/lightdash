@@ -235,7 +235,7 @@ export const useParameterMappingModel = ({
             takeableTileUuids: tileUuids.filter(
                 (tileUuid) => cardByTile[tileUuid].kind !== 'none',
             ),
-            setTileUuids: tileUuids.filter(
+            appliedTileUuids: tileUuids.filter(
                 (tileUuid) => cardByTile[tileUuid].kind === 'set',
             ),
         };

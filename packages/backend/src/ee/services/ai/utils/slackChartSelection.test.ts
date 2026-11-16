@@ -48,6 +48,8 @@ const artifact = (
     savedQueryUuid: null,
     savedSqlUuid: null,
     savedDashboardUuid: null,
+    savedComposerChartUuid: null,
+    savedComposerChartDashboardUuid: null,
     createdAt: new Date('2026-09-28T10:00:00Z'),
     versionNumber: 1,
     versionUuid,

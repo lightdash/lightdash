@@ -1,6 +1,9 @@
 import {
+    DashboardControlRefKind,
+    DashboardTileTypes,
     FilterOperator,
     type DashboardFilterRule,
+    type DashboardTile,
     type DashboardFilters,
     type DashboardParameterControl,
 } from '@lightdash/common';
@@ -25,7 +28,10 @@ import {
     selectDashboardParameterDefinitions,
     selectDashboardParameterReferences,
     selectDashboardWideParameterValues,
+    selectIsDateZoomRefusedOnAllChartTiles,
+    selectMissingParametersByTile,
     selectMissingRequiredParameters,
+    selectOrderedControls,
     selectParameterValues,
 } from './selectors';
 
@@ -166,6 +172,58 @@ describe('parameter selectors', () => {
                     }),
                 ),
             ).toEqual([]);
+        });
+
+        describe('a tile listed but not run', () => {
+            const listed = {
+                ...base,
+                tileQueryParameterReferences: {},
+                tileListedParameterReferences: { 'tile-1': ['status'] },
+                tileVirtualViewSavedParameters: { 'tile-1': {} },
+            };
+
+            it('counts as missing without a value', () => {
+                const state = stateWith({
+                    ...listed,
+                    tileChartSavedParameters: { 'tile-1': {} },
+                });
+                expect(selectMissingRequiredParameters(state)).toEqual([
+                    'status',
+                ]);
+                expect(selectMissingParametersByTile(state)).toEqual({
+                    'tile-1': ['status'],
+                });
+            });
+
+            it('is not known while its latest listing failed, until it runs', () => {
+                const failed = stateWith({
+                    ...listed,
+                    tileChartSavedParameters: { 'tile-1': {} },
+                    tileFailedParameterSources: { 'tile-1': 'chart-2' },
+                });
+                expect(selectMissingRequiredParameters(failed)).toEqual([]);
+                expect(selectMissingParametersByTile(failed)).toEqual({});
+                const ran = stateWith({
+                    ...failed.parameters,
+                    tileQueryParameterReferences: { 'tile-1': ['status'] },
+                });
+                expect(selectMissingRequiredParameters(ran)).toEqual([
+                    'status',
+                ]);
+            });
+
+            it('is satisfied by its listed chart value', () => {
+                const state = stateWith({
+                    ...listed,
+                    tileChartSavedParameters: {
+                        'tile-1': { status: 'Shipped' },
+                    },
+                });
+                expect(selectMissingRequiredParameters(state)).toEqual([]);
+                expect(selectMissingParametersByTile(state)).toEqual({
+                    'tile-1': [],
+                });
+            });
         });
 
         it('is satisfied by a chart-saved value', () => {
@@ -476,5 +534,116 @@ describe('parameter picks reaching shared-key controls', () => {
                 }),
             ),
         ).toEqual([{ week_start: 'monday' }, { week_start: 'sunday' }]);
+    });
+});
+
+describe('selectIsDateZoomRefusedOnAllChartTiles', () => {
+    const tile = (uuid: string, type: DashboardTileTypes) =>
+        ({ uuid, type, properties: {} }) as DashboardTile;
+    const stateWithTiles = (
+        tiles: DashboardTile[],
+        dateZoomRefusedByTileUuid: Record<string, boolean>,
+    ): DashboardStoreState => {
+        const state = stateWith({});
+        return {
+            ...state,
+            edit: { ...state.edit, tiles },
+            dateZoom: { ...state.dateZoom, dateZoomRefusedByTileUuid },
+        };
+    };
+
+    it('is true when every chart tile keeps its saved grain', () => {
+        expect(
+            selectIsDateZoomRefusedOnAllChartTiles(
+                stateWithTiles(
+                    [
+                        tile('live', DashboardTileTypes.SAVED_CHART),
+                        tile('note', DashboardTileTypes.MARKDOWN),
+                    ],
+                    { live: true },
+                ),
+            ),
+        ).toBe(true);
+    });
+
+    it('is false while a chart tile zooms or has not reported', () => {
+        const tiles = [
+            tile('live', DashboardTileTypes.SAVED_CHART),
+            tile('warehouse', DashboardTileTypes.SAVED_CHART),
+        ];
+        expect(
+            selectIsDateZoomRefusedOnAllChartTiles(
+                stateWithTiles(tiles, { live: true, warehouse: false }),
+            ),
+        ).toBe(false);
+        expect(
+            selectIsDateZoomRefusedOnAllChartTiles(
+                stateWithTiles(tiles, { live: true }),
+            ),
+        ).toBe(false);
+    });
+
+    it('is false with a SQL chart tile or no chart tiles', () => {
+        expect(
+            selectIsDateZoomRefusedOnAllChartTiles(
+                stateWithTiles(
+                    [
+                        tile('live', DashboardTileTypes.SAVED_CHART),
+                        tile('sql', DashboardTileTypes.SQL_CHART),
+                    ],
+                    { live: true },
+                ),
+            ),
+        ).toBe(false);
+        expect(
+            selectIsDateZoomRefusedOnAllChartTiles(stateWithTiles([], {})),
+        ).toBe(false);
+    });
+});
+
+describe('selectOrderedControls', () => {
+    const zoom = { uuid: 'z1', name: 'Revenue zoom', granularity: 'Week' };
+    const withDashboardZoom = (sectionId?: string): DashboardStoreState => {
+        const state = stateWith({});
+        return {
+            ...state,
+            source: {
+                ...state.source,
+                embedDashboard: {
+                    config: {
+                        isDateZoomDisabled: false,
+                        dateZoomConfig: {
+                            controls: [{ ...zoom, sectionId }],
+                            tileTargets: {},
+                        },
+                    },
+                } as unknown as DashboardStoreState['source']['embedDashboard'],
+            },
+        };
+    };
+
+    it("places the loaded dashboard's date zooms on the bar", () => {
+        expect(
+            selectOrderedControls(withDashboardZoom()).map(
+                ({ kind, id }) => `${kind}:${id}`,
+            ),
+        ).toEqual([`${DashboardControlRefKind.DATE_ZOOM}:z1`]);
+    });
+
+    it("follows the editor's draft of the date zoom config", () => {
+        const loaded = withDashboardZoom();
+        const saved = loaded.source.embedDashboard!.config!.dateZoomConfig!;
+        const state: DashboardStoreState = {
+            ...loaded,
+            edit: {
+                ...loaded.edit,
+                dateZoomConfig: {
+                    value: { controls: [], tileTargets: {} },
+                    changed: true,
+                    basedOn: saved,
+                },
+            },
+        };
+        expect(selectOrderedControls(state)).toEqual([]);
     });
 });

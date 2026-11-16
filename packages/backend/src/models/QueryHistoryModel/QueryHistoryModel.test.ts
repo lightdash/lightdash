@@ -10,7 +10,11 @@ import knex, { type Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
 import { buildAccount } from '../../auth/account/account.mock';
-import { QueryHistoryModel } from './QueryHistoryModel';
+import {
+    getQueryHistoryRequestColumns,
+    QueryHistoryModel,
+    QueryPollingTimeoutError,
+} from './QueryHistoryModel';
 
 describe('QueryHistoryModel connection attribution', () => {
     test.each(['connection', null])(
@@ -543,6 +547,38 @@ describe('QueryHistoryModel polling cancellation', () => {
     });
 });
 
+describe('QueryHistoryModel polling timeout', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('throws a typed timeout error with the existing message', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        const model = new QueryHistoryModel({ database: {} as Knex });
+        const get = vi
+            .spyOn(model, 'getByQueryUuid')
+            .mockImplementation(async () => {
+                vi.setSystemTime(Date.now() + 60_000);
+                return { status: QueryHistoryStatus.EXECUTING } as QueryHistory;
+            });
+        const error = await model
+            .pollForQueryCompletion({
+                queryUuid: 'query',
+                projectUuid: 'project',
+                account: null,
+                initialBackoffMs: 1,
+                maxBackoffMs: 1,
+            })
+            .catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(QueryPollingTimeoutError);
+        expect((error as Error).message).toBe(
+            'Query polling timed out after 300000ms',
+        );
+        expect(get).toHaveBeenCalledTimes(6);
+    });
+});
+
 describe('QueryHistoryModel agent identity', () => {
     const claim = {
         sub: 'user:person',
@@ -1029,6 +1065,102 @@ describe('cancelRunningQueriesReadOnlyBy', () => {
                 ),
             ).toEqual([]);
             expect(tracker.history.all).toHaveLength(0);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+});
+
+describe('QueryHistoryModel request columns', () => {
+    const metricQuery = {
+        exploreName: 'orders',
+    } as QueryHistory['metricQuery'];
+    test.each([
+        [
+            'a chart run',
+            { chartUuid: 'chart', dashboardUuid: 'dashboard' },
+            { chart: 'chart', savedSql: null, dashboard: 'dashboard' },
+        ],
+        [
+            'a saved SQL chart run',
+            { savedSqlUuid: 'sql' },
+            { chart: null, savedSql: 'sql', dashboard: null },
+        ],
+        [
+            'a run that read a saved SQL chart result',
+            {
+                sql: 'select 1',
+                resultSource: {
+                    savedSqlUuid: 'source',
+                    dashboardUuid: 'source-dashboard',
+                    tileUuid: null,
+                },
+            },
+            { chart: null, savedSql: 'source', dashboard: 'source-dashboard' },
+        ],
+        [
+            'an explore run',
+            {},
+            { chart: null, savedSql: null, dashboard: null },
+        ],
+    ])('copies the targets of %s', (_name, requestParameters, expected) => {
+        expect(
+            getQueryHistoryRequestColumns(
+                requestParameters as QueryHistory['requestParameters'],
+                metricQuery,
+            ),
+        ).toEqual({
+            request_chart_uuid: expected.chart,
+            request_saved_sql_uuid: expected.savedSql,
+            request_dashboard_uuid: expected.dashboard,
+            metric_query_explore_name: 'orders',
+        });
+    });
+
+    test.each([
+        [
+            'copies bytes billed from new execution stats',
+            {
+                warehouse_execution_stats: {
+                    jobId: null,
+                    bytesProcessed: 10,
+                    bytesBilled: 20,
+                    executionTimeMs: null,
+                    cacheHit: null,
+                },
+            },
+            20,
+        ],
+        [
+            'clears bytes billed when execution stats are cleared',
+            { warehouse_execution_stats: null },
+            null,
+        ],
+        [
+            'leaves bytes billed alone when execution stats are not updated',
+            { status: QueryHistoryStatus.EXECUTING },
+            undefined,
+        ],
+    ])('%s', async (_name, update, expectedBytesBilled) => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.update('query_history').response(1);
+        try {
+            await new QueryHistoryModel({ database }).update(
+                'query',
+                'project',
+                update,
+                buildAccount(),
+            );
+            const [{ sql, bindings }] = tracker.history.update;
+            if (expectedBytesBilled === undefined) {
+                expect(sql).not.toContain('"warehouse_bytes_billed"');
+            } else {
+                expect(sql).toContain('"warehouse_bytes_billed"');
+                expect(bindings).toContain(expectedBytesBilled);
+            }
         } finally {
             tracker.reset();
             await database.destroy();

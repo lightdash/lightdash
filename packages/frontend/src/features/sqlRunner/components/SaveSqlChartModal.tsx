@@ -80,7 +80,7 @@ const saveTourAction = {
     'data-tour-via':
         '[data-tour-nav="new"] >> [data-tour-nav="new-sql-runner"] >> [data-tour-anchor="sql-runner-editor"] >> [data-tour-anchor="sql-runner-run"] >> [data-tour-anchor="sql-save-chart"] >> [data-tour-anchor="sql-chart-name"] >> [data-tour-anchor="sql-chart-save-next"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"]',
     'data-tour-docs':
-        'explore/sql-runner.mdx#saved-charts-in-the-sql-runner:p3:1',
+        'explore/sql-runner.mdx#saved-charts-in-the-sql-runner:p4:1',
 };
 
 export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({

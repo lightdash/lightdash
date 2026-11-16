@@ -252,7 +252,7 @@ export class GoogleAdsConnector implements ApiConnector {
             .replace(GAQL_TRAILING_LIMIT, '')
             .trimEnd();
 
-        const { rows: results, truncated } = await readRowsWithinCap({
+        const { rows: results, hasMoreRows } = await readRowsWithinCap({
             label: 'Google Ads',
             requestedRows,
             maxRows: GOOGLE_ADS_MAX_QUERY_ROWS,
@@ -303,7 +303,7 @@ export class GoogleAdsConnector implements ApiConnector {
         return {
             columns,
             rows,
-            truncated,
+            hasMoreRows,
             bytesRead: null,
         };
     }

@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../../config/parseConfig';
+import { normalizeCredentialHost } from '../../../utils/credentialDestination';
 import type { ClaudeCodeAnthropicConfig } from '../AppGenerateService/claudeCodeEnv';
 import {
     COMPILE_WRAPPER_PATH,
@@ -218,9 +219,12 @@ export const parseMergeRequestUrl = (
     } catch {
         throw new ParameterError(`"${raw}" is not a valid merge request URL.`);
     }
-    if (url.hostname !== hostDomain) {
+    if (
+        normalizeCredentialHost(url.host) !==
+        normalizeCredentialHost(hostDomain)
+    ) {
         throw new ParameterError(
-            `Only ${hostDomain} merge request links are supported (got "${url.hostname}").`,
+            `Only ${hostDomain} merge request links are supported (got "${url.host}").`,
         );
     }
     const match = url.pathname.match(/^\/(.+?)\/-\/merge_requests\/(\d+)/);

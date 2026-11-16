@@ -1,5 +1,7 @@
 import {
     assertUnreachable,
+    getTotalFilterRules,
+    isChartScheduler,
     isSchedulerGsheetsOptions,
     SchedulerFormat,
 } from '@lightdash/common';
@@ -9,6 +11,7 @@ import { useChartSchedulerCreateMutation } from '../../../features/scheduler/hoo
 import { useScheduler } from '../../../features/scheduler/hooks/useScheduler';
 import { useSchedulersUpdateMutation } from '../../../features/scheduler/hooks/useSchedulersUpdateMutation';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
+import { getChartSchedulerRequiredFiltersWithoutValues } from '../../scheduler/utils/filterRequirements';
 import {
     DEFAULT_VALUES,
     useSyncModalForm as useSyncModalFormInstance,
@@ -70,11 +73,30 @@ export const useSyncModalForm = (resource: SyncResource) => {
     const isLoading = isCreateChartSyncLoading || isUpdateChartSyncLoading;
     const isSuccess = isCreateChartSyncSuccess || isUpdateChartSyncSuccess;
 
+    const savedFilters =
+        resource.type === 'chart' &&
+        schedulerData &&
+        isChartScheduler(schedulerData)
+            ? schedulerData.filters
+            : undefined;
+    const chartFilters =
+        resource.type === 'chart'
+            ? resource.chart.metricQuery.filters
+            : undefined;
+
     const form = useSyncModalFormInstance({
         initialValues: DEFAULT_VALUES,
         validate: {
             name: (value) => (value.length > 0 ? null : 'Name is required'),
             cron: (value) => isInvalidCronExpression('Cron expression')(value),
+            chartFilters: (value, values) =>
+                values.customizeFilters &&
+                getChartSchedulerRequiredFiltersWithoutValues(
+                    chartFilters,
+                    value,
+                ).length > 0
+                    ? 'Required filters must have values'
+                    : null,
             options: {
                 tabName: (value, values) => {
                     if (values.saveInNewTab) {
@@ -121,11 +143,15 @@ export const useSyncModalForm = (resource: SyncResource) => {
                     isSchedulerGsheetsOptions(schedulerData.options) &&
                     schedulerData.options.showFilters === true,
                 useCachedResults: schedulerData.useCachedResults === true,
+                chartFilters: savedFilters,
+                customizeFilters:
+                    !!savedFilters &&
+                    getTotalFilterRules(savedFilters).length > 0,
             });
             form.resetDirty();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isEditing, schedulerData]);
+    }, [isEditing, schedulerData, savedFilters]);
 
     const handleSubmit = useCallback(
         (values: SyncModalFormValues) => {
@@ -146,6 +172,12 @@ export const useSyncModalForm = (resource: SyncResource) => {
                 timezone: values.timezone || undefined,
                 ...defaultNewSchedulerValues,
                 useCachedResults: values.useCachedResults,
+                ...(resource.type === 'chart' &&
+                values.customizeFilters &&
+                values.chartFilters &&
+                getTotalFilterRules(values.chartFilters).length > 0
+                    ? { filters: values.chartFilters }
+                    : {}),
                 options: {
                     ...values.options,
                     tabName: values.saveInNewTab
@@ -163,7 +195,7 @@ export const useSyncModalForm = (resource: SyncResource) => {
             const resourceUuid = (() => {
                 switch (resource.type) {
                     case 'chart':
-                        return resource.chartUuid;
+                        return resource.chart.uuid;
                     case 'sqlChart':
                         return resource.savedSqlUuid;
                     case 'app':
@@ -195,6 +227,13 @@ export const useSyncModalForm = (resource: SyncResource) => {
         isLoading,
         isEditing,
         isLoadingSchedulerData,
+        savedFilters,
+        filtersWithUnmetRequirements: form.values.customizeFilters
+            ? getChartSchedulerRequiredFiltersWithoutValues(
+                  chartFilters,
+                  form.values.chartFilters,
+              )
+            : [],
         isSchedulerError,
         schedulerError,
     };
