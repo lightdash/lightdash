@@ -1,12 +1,13 @@
 import { Center, Group, Loader, Stack, Text } from '@mantine/core';
 import { IconFile, IconFileCode, IconTable } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     ModelFieldChanges,
     PullRequestUsage,
 } from '../../../../../features/semanticStudio/ModelFieldChanges';
-import { usePullRequestDiff } from '../../hooks/usePullRequestDiff';
+import { useWholePullRequestDiff } from '../../hooks/usePullRequestDiff';
 import {
     splitPatchIntoFiles,
     type DiffFile,
@@ -49,12 +50,21 @@ export const PullRequestChanges: FC<{
     pullRequest: StudioPullRequest;
 }> = ({ projectUuid, pullRequest }) => {
     const { prUrl, commitSha, changedModels, previewProjectUuid } = pullRequest;
-    const { data, isInitialLoading, isError } = usePullRequestDiff(
+    const { data, isInitialLoading, isError } = useWholePullRequestDiff(
         projectUuid,
         prUrl,
         commitSha,
-        true,
     );
+    // A save moves the head: what each model now is gets read again, in place.
+    const queryClient = useQueryClient();
+    const seenSha = useRef(commitSha);
+    useEffect(() => {
+        if (seenSha.current === commitSha) return;
+        seenSha.current = commitSha;
+        void queryClient.invalidateQueries({
+            queryKey: ['semantic-studio-model-version', projectUuid],
+        });
+    }, [commitSha, projectUuid, queryClient]);
     const files = useMemo(
         () => (data?.diff ? splitPatchIntoFiles(data.diff) : []),
         [data],

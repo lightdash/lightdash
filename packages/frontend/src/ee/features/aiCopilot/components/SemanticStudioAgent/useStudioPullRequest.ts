@@ -1,7 +1,13 @@
-import { isToolEditDbtProjectResult, type CiChecks } from '@lightdash/common';
+import {
+    isToolEditDbtProjectResult,
+    type ApiError,
+    type CiChecks,
+} from '@lightdash/common';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { findPreviewProjectUuid } from '../../../../../features/semanticStudio/useTryInExplore';
-import { usePullRequestCiChecks } from '../../hooks/usePullRequestCiChecks';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
+import { pullRequestCiChecksQuery } from '../../hooks/usePullRequestCiChecks';
 import { getOpenProposal } from './studioProposal';
 import { useStudioAgent, useStudioThread } from './useSemanticStudioChat';
 
@@ -42,11 +48,17 @@ export const useStudioPullRequest = (
                 : [],
         );
     const metadata = results.at(-1);
-    const { data: ciChecks } = usePullRequestCiChecks(
-        projectUuid,
-        metadata?.prUrl ?? null,
-        metadata?.commitSha ?? null,
-    );
+    const lightdashApi = useLightdashApi();
+    // A save adds a commit, and the page should not leave the pull request while that commit's checks load.
+    const { data: ciChecks } = useQuery<CiChecks | null, ApiError>({
+        ...pullRequestCiChecksQuery(
+            lightdashApi,
+            projectUuid,
+            metadata?.prUrl ?? null,
+            metadata?.commitSha ?? null,
+        ),
+        keepPreviousData: true,
+    });
     if (!metadata) return null;
     return {
         prUrl: metadata.prUrl,

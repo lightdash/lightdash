@@ -60,6 +60,8 @@ export const useTotals = (
             );
         },
         enabled,
+        // A save changes the key; the last totals stay until the new ones are read.
+        keepPreviousData: true,
         retry: false,
         staleTime: 60_000,
     });
