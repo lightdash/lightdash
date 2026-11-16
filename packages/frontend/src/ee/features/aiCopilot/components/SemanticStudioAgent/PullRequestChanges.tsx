@@ -89,76 +89,87 @@ export const PullRequestChanges: FC<{
     return (
         <DiffWorkers>
             <>
-                {changedModels.map((model) => {
-                    const modelFiles = files.filter(
-                        (file) => getModelOfFile(file) === model,
-                    );
-                    return (
+                <div className={classes.modelStack}>
+                    {changedModels.map((model) => {
+                        const modelFiles = files.filter(
+                            (file) => getModelOfFile(file) === model,
+                        );
+                        return (
+                            <section
+                                key={model}
+                                className={`${classes.modelCard} ${classes.arrives}`}
+                            >
+                                <Group
+                                    gap={6}
+                                    wrap="nowrap"
+                                    className={classes.modelHead}
+                                >
+                                    <span className={classes.modelTile}>
+                                        <MantineIcon
+                                            icon={IconTable}
+                                            size={16}
+                                        />
+                                    </span>
+                                    <Text
+                                        component="h3"
+                                        className={classes.modelName}
+                                    >
+                                        {model}
+                                    </Text>
+                                    <LineCounts files={modelFiles} />
+                                </Group>
+                                <Stack gap="sm" className={classes.modelBody}>
+                                    <ModelFieldChanges
+                                        projectUuid={projectUuid}
+                                        model={model}
+                                        previewProjectUuid={previewProjectUuid}
+                                        cacheKey={commitSha ?? prUrl}
+                                    />
+                                    {modelFiles.map((file) => (
+                                        <FileBlock key={file.key} file={file} />
+                                    ))}
+                                </Stack>
+                            </section>
+                        );
+                    })}
+                    {others.length > 0 ? (
                         <section
-                            key={model}
                             className={`${classes.modelCard} ${classes.arrives}`}
                         >
                             <Group
-                                gap="sm"
+                                gap={6}
                                 wrap="nowrap"
                                 className={classes.modelHead}
                             >
                                 <span className={classes.modelTile}>
-                                    <MantineIcon icon={IconTable} size={16} />
+                                    <MantineIcon
+                                        icon={IconFileCode}
+                                        size={16}
+                                    />
                                 </span>
                                 <Text
                                     component="h3"
                                     className={classes.modelName}
                                 >
-                                    {model}
+                                    {changedModels.length > 0
+                                        ? 'Other files'
+                                        : 'Files'}
                                 </Text>
-                                <LineCounts files={modelFiles} />
+                                <LineCounts files={others} />
                             </Group>
                             <Stack gap="sm" className={classes.modelBody}>
-                                <ModelFieldChanges
-                                    projectUuid={projectUuid}
-                                    model={model}
-                                    previewProjectUuid={previewProjectUuid}
-                                    cacheKey={commitSha ?? prUrl}
-                                />
-                                {modelFiles.map((file) => (
+                                {others.map((file) => (
                                     <FileBlock key={file.key} file={file} />
                                 ))}
                             </Stack>
                         </section>
-                    );
-                })}
+                    ) : null}
+                </div>
                 <PullRequestUsage
                     projectUuid={projectUuid}
                     models={changedModels}
                     previewProjectUuid={previewProjectUuid}
                 />
-                {others.length > 0 ? (
-                    <section
-                        className={`${classes.modelCard} ${classes.arrives}`}
-                    >
-                        <Group
-                            gap="sm"
-                            wrap="nowrap"
-                            className={classes.modelHead}
-                        >
-                            <span className={classes.modelTile}>
-                                <MantineIcon icon={IconFileCode} size={16} />
-                            </span>
-                            <Text component="h3" className={classes.modelName}>
-                                {changedModels.length > 0
-                                    ? 'Other files'
-                                    : 'Files'}
-                            </Text>
-                            <LineCounts files={others} />
-                        </Group>
-                        <Stack gap="sm" className={classes.modelBody}>
-                            {others.map((file) => (
-                                <FileBlock key={file.key} file={file} />
-                            ))}
-                        </Stack>
-                    </section>
-                ) : null}
             </>
         </DiffWorkers>
     );

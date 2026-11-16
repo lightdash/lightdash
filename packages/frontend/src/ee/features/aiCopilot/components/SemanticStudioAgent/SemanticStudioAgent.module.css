@@ -133,35 +133,39 @@
 }
 
 .modelHead {
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--mantine-color-default-border);
-    background: color-mix(
-        in srgb,
-        var(--mantine-color-text) 2.5%,
-        var(--mantine-color-body)
-    );
+    padding: 12px 14px 0;
 }
 
 .modelTile {
-    width: 28px;
-    height: 28px;
     flex: none;
     display: grid;
     place-items: center;
-    border-radius: 8px;
-    border: 1px solid var(--mantine-color-default-border);
-    background: var(--mantine-color-body);
     color: var(--mantine-color-dimmed);
 }
 
 .modelName {
-    font-size: var(--mantine-font-size-md);
+    font-size: var(--mantine-font-size-sm);
     font-weight: 600;
-    letter-spacing: -0.01em;
 }
 
 .modelBody {
-    padding: 14px;
+    padding: 8px 14px 14px;
+}
+
+/* A pull request's models read as one card, one model after another. */
+.modelStack {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-lg);
+    overflow: hidden;
+}
+
+.modelStack > .modelCard {
+    border: 0;
+    border-radius: 0;
+}
+
+.modelStack > .modelCard + .modelCard {
+    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 /* The code runs to the card's edges so its gutter lines up with the rows above. */
