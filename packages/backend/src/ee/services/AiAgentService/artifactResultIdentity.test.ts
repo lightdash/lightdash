@@ -835,8 +835,6 @@ describe('artifact result identity boundaries', () => {
                     cacheMetadata: { cacheHit: false },
                 } as never;
             });
-        // Charts from a metadata-only agent still show real results to the
-        // person who owns the conversation (the docs promise this).
         await expect(
             service.getArtifactVizQuery(user, options),
         ).resolves.toMatchObject({ query: { queryUuid: 'execution' } });
@@ -850,6 +848,19 @@ describe('artifact result identity boundaries', () => {
         expect((readError as Error | null)?.message).not.toBe(
             'Artifact results are unavailable',
         );
+    });
+
+    it('still refuses a metadata-only agent owner when the prompt belongs to another agent', async () => {
+        const { service, asyncService, user, options, artifact, agent, prompt } =
+            setup();
+        agent.enableDataAccess = false;
+        artifact.chartConfig = { source: 'sql', sql: 'select 1', limit: 2 };
+        prompt.agentUuid = 'another-agent';
+        const execute = vi.spyOn(asyncService, 'executeAsyncSqlQuery');
+        await expect(
+            service.getArtifactVizQuery(user, options),
+        ).rejects.toThrow('Artifact results are unavailable');
+        expect(execute).not.toHaveBeenCalled();
     });
 
     it('rejects a person read of an owner semantic rerun and permits its artifact-scoped read', async () => {
