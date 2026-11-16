@@ -1492,7 +1492,9 @@ describe('Composer charts', () => {
                 { failOnStatusCode: false },
             );
             expect(refused.status).toBe(400);
-            expect(refused.body.error.message).toContain('Upgrade your CLI');
+            expect(refused.body.error.message).toContain(
+                'Upgrade your CLI to 3.266.0 or later',
+            );
         });
 
         it('with the flag off, downloads and keeps what exists but refuses new or changed composer content', async () => {

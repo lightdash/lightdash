@@ -94,6 +94,9 @@ export const isComposerChartAsCodeUnchanged = (
         plain(current.chart),
     );
 
+/** First published CLI that uploads composer chart files. */
+const COMPOSER_CHART_MIN_CLI_VERSION = '3.266.0';
+
 /** A CLI predating composer charts sends their files to the classic chart route. */
 export const assertNotComposerChartFile = (slug: string, body: unknown) => {
     if (
@@ -103,7 +106,7 @@ export const assertNotComposerChartFile = (slug: string, body: unknown) => {
         body.contentType === ContentAsCodeType.COMPOSER_CHART
     ) {
         throw new ParameterError(
-            `Chart "${slug}" is a composer chart file. Upgrade your CLI to upload composer charts.`,
+            `Chart "${slug}" is a composer chart file. Upgrade your CLI to ${COMPOSER_CHART_MIN_CLI_VERSION} or later to upload composer charts.`,
         );
     }
 };
