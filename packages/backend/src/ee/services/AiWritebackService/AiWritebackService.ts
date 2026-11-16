@@ -945,10 +945,7 @@ export class AiWritebackService extends BaseService {
         );
     }
 
-    /**
-     * Whether the repo read tools would pass their access checks: view:SourceCode
-     * and the org's app installed for the project's provider. Mints no token.
-     */
+    /** Whether the repo read tools would pass their access checks. */
     async canReadSourceCode({
         user,
         projectUuid,
@@ -967,10 +964,19 @@ export class AiWritebackService extends BaseService {
             project.dbtConnection.type === DbtProjectType.GITLAB
                 ? this.gitlabAppInstallationsModel
                 : this.githubAppInstallationsModel;
-        const installationId = await installationsModel.findInstallationId(
-            user.organizationUuid,
-        );
-        return installationId !== undefined;
+        try {
+            const installationId = await installationsModel.findInstallationId(
+                user.organizationUuid,
+            );
+            return installationId !== undefined;
+        } catch (error) {
+            this.logger.warn(
+                `Failed to look up git installation for project ${projectUuid}: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return false;
+        }
     }
 
     private async resolveSourceCodeInstallation({

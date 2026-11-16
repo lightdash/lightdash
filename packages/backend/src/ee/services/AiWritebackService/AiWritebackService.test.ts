@@ -6226,12 +6226,12 @@ describe('AiWritebackService.canReadSourceCode', () => {
     };
 
     it.each([
-        [DbtProjectType.GITHUB, true, 'github-install', null, true],
+        [DbtProjectType.GITHUB, true, 'github-install', undefined, true],
         [DbtProjectType.GITHUB, true, undefined, 'gitlab-install', false],
         [DbtProjectType.GITLAB, true, 'github-install', 'gitlab-install', true],
         [DbtProjectType.GITLAB, true, 'github-install', undefined, false],
-        [DbtProjectType.DBT_CLOUD_IDE, true, 'github-install', null, true],
-        [DbtProjectType.GITHUB, false, 'github-install', null, false],
+        [DbtProjectType.DBT_CLOUD_IDE, true, 'github-install', undefined, true],
+        [DbtProjectType.GITHUB, false, 'github-install', undefined, false],
     ])(
         '%s project, view:SourceCode %s, github %s, gitlab %s -> %s',
         async (type, canView, githubInstall, gitlabInstall, expected) => {
@@ -6250,7 +6250,7 @@ describe('AiWritebackService.canReadSourceCode', () => {
                 gitlabAppInstallationsModel: {
                     findInstallationId: vi
                         .fn()
-                        .mockResolvedValue(gitlabInstall ?? undefined),
+                        .mockResolvedValue(gitlabInstall),
                 },
             });
 
