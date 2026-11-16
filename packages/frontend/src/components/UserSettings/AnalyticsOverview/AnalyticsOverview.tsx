@@ -411,11 +411,8 @@ const AnalyticsOverview = ({
                     // other tabs, so nothing in it is measured or drawn again on the way back
                     <Box
                         pt={isAdoption ? 'sm' : 0}
-                        h={isAdoption ? undefined : 0}
-                        style={
-                            isAdoption
-                                ? undefined
-                                : { overflow: 'hidden', visibility: 'hidden' }
+                        className={
+                            isAdoption ? undefined : classes.adoptionHidden
                         }
                         aria-hidden={!isAdoption || undefined}
                     >

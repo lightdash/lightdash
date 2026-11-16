@@ -130,6 +130,13 @@
     }
 }
 
+/* Clipped to nothing, not removed from the layout: what is inside keeps its size */
+.adoptionHidden {
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+}
+
 .chart {
     height: 240px !important;
 }
