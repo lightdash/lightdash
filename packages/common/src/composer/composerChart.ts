@@ -609,6 +609,8 @@ export type ComposerChartRunResults = {
     parameterReferences: string[];
     /** The SQL nodes' columns, one per name, that a filter can target on this tile. */
     sqlColumns: ResultColumn[];
+    /** The parameter values each node query ran with, keyed by node; nodes can run different values. */
+    usedParameterValuesByNodeId: Record<string, ParametersValuesMap>;
 };
 
 export type ApiComposerChartRunResponse = {

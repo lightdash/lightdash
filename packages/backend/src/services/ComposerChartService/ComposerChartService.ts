@@ -739,27 +739,28 @@ export class ComposerChartService extends BaseService {
         );
         const queryUuidOf = (nodeId: string | null) =>
             queries.find((query) => query.nodeId === nodeId)?.queryUuid ?? null;
+        const histories = await Promise.all(
+            queries.map(({ queryUuid }) =>
+                this.queryHistoryModel.getByQueryUuid(queryUuid),
+            ),
+        );
         const terminalQueryUuid = queryUuidOf(chart.pipeline.terminalNodeId);
-        const terminalQuery = terminalQueryUuid
-            ? await this.queryHistoryModel.getByQueryUuid(terminalQueryUuid)
-            : undefined;
+        const terminalQuery = histories.find(
+            (history) => history?.queryUuid === terminalQueryUuid,
+        );
         // A SQL node's columns are discovered before its query is queued
         const sqlColumnsByNodeId = Object.fromEntries(
-            await Promise.all(
-                queries
-                    .filter(
-                        ({ sourceType }) => sourceType === QuerySourceType.SQL,
-                    )
-                    .map(async ({ nodeId, queryUuid }) => {
-                        const history =
-                            await this.queryHistoryModel.getByQueryUuid(
-                                queryUuid,
-                            );
-                        return [
-                            nodeId,
-                            Object.values(history?.originalColumns ?? {}),
-                        ] as const;
-                    }),
+            queries.flatMap(({ nodeId, sourceType }, index) =>
+                sourceType === QuerySourceType.SQL
+                    ? [
+                          [
+                              nodeId,
+                              Object.values(
+                                  histories[index]?.originalColumns ?? {},
+                              ),
+                          ] as const,
+                      ]
+                    : [],
             ),
         );
         const applied = withSqlColumnFilters(filtered, {
@@ -793,6 +794,12 @@ export class ComposerChartService extends BaseService {
             parameterReferences: getComposerParameterReferences(
                 resolved.nodes,
                 exploreByNodeId,
+            ),
+            usedParameterValuesByNodeId: Object.fromEntries(
+                queries.map(({ nodeId }, index) => [
+                    nodeId,
+                    histories[index]?.usedParameters ?? {},
+                ]),
             ),
         };
     }
