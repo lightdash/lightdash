@@ -32,7 +32,7 @@ const setup = () => {
         uuid: 'agent',
         projectUuid: 'project',
         organizationUuid: 'org',
-        enableDataAccess: false,
+        enableDataAccess: true,
         adminOnly: false,
         userAccess: [],
         groupAccess: [],
@@ -59,7 +59,7 @@ const setup = () => {
 
 describe('agent result read access', () => {
     test.each([AgentActorSurface.IN_APP_AGENT, AgentActorSurface.SLACK_AGENT])(
-        'allows the subject with access on %s without data access enabled',
+        'allows the subject with access on %s while data access is enabled',
         async (surface) => {
             const f = setup();
             const claim = buildAgentIdentityClaim({
@@ -100,10 +100,16 @@ describe('agent result read access', () => {
         expect(f.aiAgentModel.getAgent).not.toHaveBeenCalled();
     });
 
-    test.each(['deleted', 'another-project', 'no-access'] as const)(
+    test.each([
+        'deleted',
+        'another-project',
+        'no-access',
+        'data-access-off',
+    ] as const)(
         'refuses an unavailable agent: %s',
         async (reason) => {
             const f = setup();
+            if (reason === 'data-access-off') f.agent.enableDataAccess = false;
             if (reason === 'deleted')
                 f.aiAgentModel.getAgent.mockResolvedValue(null);
             if (reason === 'another-project')
