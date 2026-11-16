@@ -20,7 +20,7 @@ import {
 import MantineIcon from '../../components/common/MantineIcon';
 import { useNavBarMenuProps } from '../../components/NavBar/NavBarPortalContext';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import { isSignInIdle } from './isSignInIdle';
+import { isSignInIdle, isWaitingForScan } from './isSignInIdle';
 import classes from './MobileSettingsPage.module.css';
 import { useMobileSignInSeen } from './mobileSignInSeen';
 import {
@@ -175,6 +175,7 @@ const MobileSignInPopover: FC<{
                 <MobileUpsellFrame
                     variation={upsell}
                     isIdle={isSignInIdle(signIn)}
+                    isWaitingForScan={isWaitingForScan(signIn)}
                     isSignedIn={signIn.phase === 'redeemed'}
                     title={
                         <Title order={6}>{MOBILE_STRINGS.signInTitle}</Title>
