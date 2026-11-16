@@ -293,6 +293,13 @@ test('images are kept at any age while their thread exists, and cleaned up once 
             expect.objectContaining({ storage_key: storageKey }),
         ]),
     );
+    await model.removeImageObject(storageKey);
+    expect(
+        await migrated
+            .database(AiThreadImageObjectTableName)
+            .where('storage_key', storageKey)
+            .first(),
+    ).toBeUndefined();
 });
 
 test('organization cascades leave a retryable object cleanup record', async () => {
