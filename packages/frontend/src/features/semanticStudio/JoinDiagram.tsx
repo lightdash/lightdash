@@ -209,6 +209,50 @@ const Fact: FC<{ label: string; children: ReactNode }> = ({
     </Box>
 );
 
+/** The dbt models the table is built from and the ones built from it. */
+const ModelLineage: FC<{ table: JoinTableNode }> = ({ table }) => (
+    <>
+        {table.upstream.length > 0 ? (
+            <Fact label="Built from">
+                <Stack gap={2}>
+                    {table.upstream.map(({ name, depth }) => (
+                        <Text
+                            key={name}
+                            fz="xs"
+                            ff="monospace"
+                            pl={(depth - 1) * 14}
+                            className={classes.wrap}
+                        >
+                            {depth > 1 ? (
+                                <Text component="span" inherit c="dimmed">
+                                    {'└ '}
+                                </Text>
+                            ) : null}
+                            {name}
+                        </Text>
+                    ))}
+                </Stack>
+            </Fact>
+        ) : null}
+        {table.downstream.length > 0 ? (
+            <Fact label="Used by">
+                <Stack gap={2}>
+                    {table.downstream.map((name) => (
+                        <Text
+                            key={name}
+                            fz="xs"
+                            ff="monospace"
+                            className={classes.wrap}
+                        >
+                            {name}
+                        </Text>
+                    ))}
+                </Stack>
+            </Fact>
+        ) : null}
+    </>
+);
+
 /** Everything a node truncates: the table, what it joins to and its full condition. */
 const JoinDetails: FC<{
     table: JoinTableNode;
@@ -298,6 +342,7 @@ const JoinDetails: FC<{
                     </Box>
                 </Stack>
             )}
+            <ModelLineage table={table} />
         </Box>
     </Paper>
 );

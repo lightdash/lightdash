@@ -4,7 +4,11 @@ import {
     type CompiledExploreJoin,
     type Explore,
     type JoinRelationship,
+    type LineageGraph,
 } from '@lightdash/common';
+
+/** A dbt model upstream of a table, with how many steps away it is (1 = direct). */
+export type UpstreamModel = { name: string; depth: number };
 
 export type JoinTableNode = {
     /** The table's name in the explore: its alias when joined under one. */
@@ -23,6 +27,10 @@ export type JoinTableNode = {
     /** The joined table's own columns in the condition, for a short label. */
     keyColumns: string[];
     joinType: string | null;
+    /** dbt models the table's model is built from, depth-first. */
+    upstream: UpstreamModel[];
+    /** dbt models built directly from the table's model. */
+    downstream: string[];
 };
 
 export type JoinLink = { id: string; source: string; target: string };
@@ -57,6 +65,35 @@ const parentOf = (
         (table) => table !== join.table && known.has(table),
     ) ?? baseTable;
 
+/** Every model `model` is built from, depth-first, each listed once at its first visit. */
+export const upstreamModels = (
+    lineage: LineageGraph,
+    model: string,
+): UpstreamModel[] => {
+    const seen = new Set([model]);
+    const visit = (name: string, depth: number): UpstreamModel[] =>
+        (lineage[name] ?? []).flatMap((dependency) => {
+            if (seen.has(dependency.name)) return [];
+            seen.add(dependency.name);
+            return [
+                { name: dependency.name, depth },
+                ...visit(dependency.name, depth + 1),
+            ];
+        });
+    return visit(model, 1);
+};
+
+/** The models whose direct dependencies include `model`. */
+export const downstreamModels = (
+    lineage: LineageGraph,
+    model: string,
+): string[] =>
+    Object.entries(lineage)
+        .filter(([, dependencies]) =>
+            dependencies.some(({ name }) => name === model),
+        )
+        .map(([name]) => name);
+
 export const toJoinGraph = (
     explore: Pick<Explore, 'baseTable' | 'joinedTables' | 'tables'>,
 ): JoinGraph => {
@@ -72,6 +109,14 @@ export const toJoinGraph = (
         )
             ? null
             : description;
+    };
+    const lineageOf = (name: string) => {
+        const lineage = tables[name]?.lineageGraph ?? {};
+        const model = tables[name]?.originalName ?? name;
+        return {
+            upstream: upstreamModels(lineage, model),
+            downstream: downstreamModels(lineage, model),
+        };
     };
     const modelOf = (name: string) => {
         const original = tables[name]?.originalName;
@@ -89,6 +134,7 @@ export const toJoinGraph = (
         keys: null,
         keyColumns: [],
         joinType: null,
+        ...lineageOf(baseTable),
     };
     const known = new Set([baseTable, ...joinedTables.map((j) => j.table)]);
     const joined = joinedTables.map<JoinTableNode>((join) => ({
@@ -103,6 +149,7 @@ export const toJoinGraph = (
         keys: formatJoinKeys(join.sqlOn),
         keyColumns: ownColumns(join),
         joinType: join.type ?? null,
+        ...lineageOf(join.table),
     }));
     const links = joined.map<JoinLink>(({ id, parent }) => ({
         id: `${parent}->${id}`,

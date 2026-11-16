@@ -6,10 +6,12 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    downstreamModels,
     formatJoinKeys,
     layoutJoinGraph,
     pathToBase,
     toJoinGraph,
+    upstreamModels,
 } from './joinGraph';
 
 const table = (name: string, extra: Partial<CompiledTable> = {}) =>
@@ -57,6 +59,8 @@ describe('toJoinGraph', () => {
                 keys: null,
                 keyColumns: [],
                 joinType: null,
+                upstream: [],
+                downstream: [],
             },
         ]);
     });
@@ -96,6 +100,8 @@ describe('toJoinGraph', () => {
                 keys: 'orders.customer_id = customers.customer_id',
                 keyColumns: ['customer_id'],
                 joinType: 'left',
+                upstream: [],
+                downstream: [],
             },
             {
                 id: 'payments',
@@ -109,6 +115,8 @@ describe('toJoinGraph', () => {
                 keys: 'payments.order_id = orders.id',
                 keyColumns: ['order_id'],
                 joinType: null,
+                upstream: [],
+                downstream: [],
             },
         ]);
         expect(graph.links).toEqual([
@@ -200,6 +208,54 @@ describe('table descriptions', () => {
         expect(graph.tables.map(({ description }) => description)).toEqual([
             null,
             'One row per customer',
+        ]);
+    });
+});
+
+describe('dbt lineage', () => {
+    const model = (name: string) => ({ name, type: 'model' as const });
+    // raw -> stg_orders -> orders -> orders_summary, and stg_payments -> orders
+    const lineage = {
+        orders: [model('stg_orders'), model('stg_payments')],
+        stg_orders: [model('raw')],
+        stg_payments: [model('raw')],
+        raw: [],
+        orders_summary: [model('orders')],
+    };
+
+    it('lists upstream models depth-first, each once', () => {
+        expect(upstreamModels(lineage, 'orders')).toEqual([
+            { name: 'stg_orders', depth: 1 },
+            { name: 'raw', depth: 2 },
+            { name: 'stg_payments', depth: 1 },
+        ]);
+    });
+
+    it('lists the models built directly from a model', () => {
+        expect(downstreamModels(lineage, 'orders')).toEqual(['orders_summary']);
+    });
+
+    it('reads lineage under the model name for an aliased table', () => {
+        const graph = toJoinGraph(
+            explore(
+                'orders',
+                [join('buyers', '${orders.customer_id} = ${buyers.id}')],
+                [
+                    table('orders', { lineageGraph: lineage }),
+                    table('buyers', {
+                        originalName: 'customers',
+                        lineageGraph: { customers: [model('stg_customers')] },
+                    }),
+                ],
+            ),
+        );
+        expect(graph.tables.map((t) => t.upstream)).toEqual([
+            [
+                { name: 'stg_orders', depth: 1 },
+                { name: 'raw', depth: 2 },
+                { name: 'stg_payments', depth: 1 },
+            ],
+            [{ name: 'stg_customers', depth: 1 }],
         ]);
     });
 });
