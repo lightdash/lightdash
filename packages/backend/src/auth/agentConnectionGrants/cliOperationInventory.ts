@@ -171,17 +171,17 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             '`${slot.instanceUrl}/api/v1/oauth/token`',
             'OAuth protocol refresh only: this token endpoint call sends grant_type=refresh_token for an existing connection, never an initial grant. It is outside the REST capability inventory.',
         ),
-        allowed('analytics/analytics.ts:37', 'GET', "'/api/v1/user'", [
+        allowed('analytics/analytics.ts:39', 'GET', "'/api/v1/user'", [
             'UserController.getAuthenticatedUser',
         ]),
         external(
-            'analytics/analytics.ts:629',
+            'analytics/analytics.ts:633',
             'POST',
             "'https://analytics.lightdash.com/v1/track'",
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
         ),
         external(
-            'analytics/analytics.ts:655',
+            'analytics/analytics.ts:662',
             'POST',
             "'https://analytics.lightdash.com/v1/identify'",
             'External fetch or API transport delegates authorization to the inventoried Lightdash caller.',
