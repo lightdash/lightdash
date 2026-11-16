@@ -116,12 +116,14 @@ export const ModelFieldChanges: FC<{
                 </Text>
             )}
             {changes.map(({ key, label, kind, attributes }) => (
-                <Group key={key} gap={8} wrap="nowrap">
+                // The sign sits in the column of the model's icon, so names line up with the model's.
+                <Group key={key} gap={6} wrap="nowrap">
                     <Text
                         fz="xs"
                         ff="monospace"
                         fw={600}
-                        w={8}
+                        w={16}
+                        ta="center"
                         flex="none"
                         c={`${KINDS[kind].color}.7`}
                         aria-label={KINDS[kind].label}
