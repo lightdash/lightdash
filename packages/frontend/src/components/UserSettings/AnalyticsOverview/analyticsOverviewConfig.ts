@@ -457,25 +457,9 @@ export const analyticsTabs: {
         id: 'adoption',
         summary: null,
         label: 'Adoption',
-        description:
-            'See who is active, which apps and dashboards people use, and how Ask AI use develops.',
-        dashboardSlug: 'lightdash-analytics-adoption',
-        charts: [
-            activeUsers,
-            ranking(
-                'Dashboard audiences',
-                'content',
-                ['content_name', 'content_id'],
-                'distinct_viewers',
-                { content_type: ['dashboard'] },
-            ),
-            time('Ask AI users per day', 'requests', 'distinct_requesters', {
-                surface: ['web_app'],
-            }),
-            time('Apps in use per day', 'apps', 'unique_apps', {
-                event_name: ['data_app.view'],
-            }),
-        ],
+        description: 'Explore usage and feature adoption by team.',
+        dashboardSlug: null,
+        charts: [],
     },
     {
         id: 'tokens',

@@ -27,10 +27,14 @@ import {
     IconHome,
 } from '@tabler/icons-react';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useProjects } from '../../../hooks/useProjects';
 import MantineIcon from '../../common/MantineIcon';
 import { PolymorphicPaperButton } from '../../common/PolymorphicPaperButton';
+import {
+    AnalyticsAdoptionLink,
+    AnalyticsAdoptionPreview,
+} from './AnalyticsAdoptionPreview';
 import classes from './AnalyticsOverview.module.css';
 import AnalyticsOverviewChart from './AnalyticsOverviewChart';
 import {
@@ -166,7 +170,10 @@ const AnalyticsOverview = ({
 }) => {
     const [days, setDays] = useState('7');
     const [selectedProject, setSelectedProject] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState('overview');
+    const [searchParams] = useSearchParams();
+    const [activeTab, setActiveTab] = useState(() =>
+        searchParams.get('tab') === 'adoption' ? 'adoption' : 'overview',
+    );
     const tabsViewport = useRef<HTMLDivElement>(null);
     const projects = useProjects();
     const projectNames = useMemo(
@@ -382,73 +389,86 @@ const AnalyticsOverview = ({
                         className={classes.tabActions}
                     >
                         {actions}
-                        <Tooltip
-                            label={
-                                dashboard
-                                    ? 'Open full dashboard'
-                                    : 'No full dashboard for this tab'
-                            }
-                        >
-                            <Box component="span" display="inline-flex">
-                                {dashboard ? (
-                                    <ActionIcon
-                                        component={Link}
-                                        to={`/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/view`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        variant="default"
-                                        size="sm"
-                                        aria-label="Open full dashboard"
-                                    >
-                                        <MantineIcon icon={IconExternalLink} />
-                                    </ActionIcon>
-                                ) : (
-                                    <ActionIcon
-                                        variant="default"
-                                        size="sm"
-                                        aria-label="Open full dashboard"
-                                        disabled
-                                    >
-                                        <MantineIcon icon={IconExternalLink} />
-                                    </ActionIcon>
-                                )}
-                            </Box>
-                        </Tooltip>
+                        {tab.id === 'adoption' ? (
+                            <AnalyticsAdoptionLink projectUuid={projectUuid} />
+                        ) : (
+                            <Tooltip
+                                label={
+                                    dashboard
+                                        ? 'Open full dashboard'
+                                        : 'No full dashboard for this tab'
+                                }
+                            >
+                                <Box component="span" display="inline-flex">
+                                    {dashboard ? (
+                                        <ActionIcon
+                                            component={Link}
+                                            to={`/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/view`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            variant="default"
+                                            size="sm"
+                                            aria-label="Open full dashboard"
+                                        >
+                                            <MantineIcon
+                                                icon={IconExternalLink}
+                                            />
+                                        </ActionIcon>
+                                    ) : (
+                                        <ActionIcon
+                                            variant="default"
+                                            size="sm"
+                                            aria-label="Open full dashboard"
+                                            disabled
+                                        >
+                                            <MantineIcon
+                                                icon={IconExternalLink}
+                                            />
+                                        </ActionIcon>
+                                    )}
+                                </Box>
+                            </Tooltip>
+                        )}
                     </Group>
                 </Group>
                 <Tabs.Panel value={activeTab} pt="lg">
-                    <Stack gap="md">
-                        {tab.summary && (
-                            <AnalyticsTabSummary
-                                key={tab.id}
-                                summary={tab.summary}
-                                result={
-                                    currentQueries[
-                                        headlineSpecs.length + tab.charts.length
-                                    ]
-                                }
-                            />
-                        )}
-                        <SimpleGrid
-                            cols={{ base: 1, md: 2 }}
-                            spacing="md"
-                            className={classes.charts}
-                            data-overview={activeTab === 'overview'}
-                        >
-                            {tab.charts.map((chart, index) => (
-                                <AnalyticsOverviewChart
-                                    key={`${tab.id}-${chart.title}`}
-                                    chart={chart}
+                    {tab.id === 'adoption' ? (
+                        <AnalyticsAdoptionPreview projectUuid={projectUuid} />
+                    ) : (
+                        <Stack gap="md">
+                            {tab.summary && (
+                                <AnalyticsTabSummary
+                                    key={tab.id}
+                                    summary={tab.summary}
                                     result={
                                         currentQueries[
-                                            headlineSpecs.length + index
+                                            headlineSpecs.length +
+                                                tab.charts.length
                                         ]
                                     }
-                                    projectNames={projectNames}
                                 />
-                            ))}
-                        </SimpleGrid>
-                    </Stack>
+                            )}
+                            <SimpleGrid
+                                cols={{ base: 1, md: 2 }}
+                                spacing="md"
+                                className={classes.charts}
+                                data-overview={activeTab === 'overview'}
+                            >
+                                {tab.charts.map((chart, index) => (
+                                    <AnalyticsOverviewChart
+                                        key={`${tab.id}-${chart.title}`}
+                                        chart={chart}
+                                        result={
+                                            currentQueries[
+                                                headlineSpecs.length + index
+                                            ]
+                                        }
+                                        projectNames={projectNames}
+                                    />
+                                ))}
+                            </SimpleGrid>
+                        </Stack>
+                    )}
                 </Tabs.Panel>
             </Tabs>
         </Stack>
