@@ -1,5 +1,5 @@
 import { Tour, type FloatingPosition } from '@mantine/core';
-import { type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useGuidedTour } from '../../../hooks/useGuidedTour';
 import classes from './ExplorerHint.module.css';
@@ -29,15 +29,27 @@ type Props = {
  */
 const ExplorerHint: FC<Props> = ({ name, target, title, body, position }) => {
     const isEmbedded = useIsEmbedded();
+    const storageKey = `ld.explorer.hint.${name}.v1`;
     const { isOpen, closeTour } = useGuidedTour({
-        storageKey: `ld.explorer.hint.${name}.v1`,
+        storageKey,
         autoStartOnFirstVisit: !isEmbedded && !navigator.webdriver,
     });
 
     const isTourOpen = useIsExplorerTourOpen();
+    const isShown = isOpen && !isTourOpen && hasSeenTour();
+
+    // Showing it once is enough: it never comes back, dismissed or not
+    useEffect(() => {
+        if (!isShown) return;
+        try {
+            localStorage.setItem(storageKey, '1');
+        } catch {
+            // a hint that shows again is better than a crash
+        }
+    }, [isShown, storageKey]);
 
     // Mount nothing until the hint is due, so it costs its host no renders
-    if (!isOpen || isTourOpen || !hasSeenTour()) return null;
+    if (!isShown) return null;
 
     return (
         <Tour
