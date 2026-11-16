@@ -202,20 +202,16 @@ const analyticsAiSummary = {
         ],
     ),
     metrics: [
-        { title: 'AI calls', metric: 'total_ai_calls', compact: false },
-        { title: 'Tokens used', metric: 'total_tokens_used', compact: true },
-        { title: 'Users using AI', metric: 'unique_users', compact: false },
-        {
-            title: 'Output tokens',
-            metric: 'total_output_tokens',
-            compact: true,
-        },
+        { title: 'AI calls', metric: 'total_ai_calls' },
+        { title: 'Tokens used', metric: 'total_tokens_used' },
+        { title: 'Users using AI', metric: 'unique_users' },
+        { title: 'Output tokens', metric: 'total_output_tokens' },
     ],
 };
 
 export type AnalyticsSummarySpec = {
     query: AnalyticsQuerySpec;
-    metrics: { title: string; metric: string; compact: boolean }[];
+    metrics: { title: string; metric: string }[];
 };
 
 const querySummary: AnalyticsSummarySpec = {
@@ -230,21 +226,15 @@ const querySummary: AnalyticsSummarySpec = {
         ],
     ),
     metrics: [
-        { title: 'Queries executed', metric: 'total_queries', compact: false },
-        {
-            title: 'Users running queries',
-            metric: 'unique_users',
-            compact: false,
-        },
+        { title: 'Queries executed', metric: 'total_queries' },
+        { title: 'Users running queries', metric: 'unique_users' },
         {
             title: 'Avg. warehouse time (ms)',
             metric: 'avg_warehouse_execution_time_ms',
-            compact: false,
         },
         {
             title: 'P90 warehouse time (ms)',
             metric: 'p90_warehouse_execution_time_ms',
-            compact: false,
         },
     ],
 };
@@ -253,17 +243,9 @@ const appSummary: AnalyticsSummarySpec = {
         event_name: ['data_app.view'],
     }),
     metrics: [
-        { title: 'Recorded app loads', metric: 'total_views', compact: false },
-        {
-            title: 'Distinct app viewers',
-            metric: 'unique_viewers',
-            compact: false,
-        },
-        {
-            title: 'Apps with recorded loads',
-            metric: 'unique_apps',
-            compact: false,
-        },
+        { title: 'Recorded app loads', metric: 'total_views' },
+        { title: 'Distinct app viewers', metric: 'unique_viewers' },
+        { title: 'Apps with recorded loads', metric: 'unique_apps' },
     ],
 };
 const embedSummary: AnalyticsSummarySpec = {
@@ -273,21 +255,9 @@ const embedSummary: AnalyticsSummarySpec = {
         ['total_loads', 'unique_viewers', 'unique_dashboards'],
     ),
     metrics: [
-        {
-            title: 'Observed dashboard loads',
-            metric: 'total_loads',
-            compact: false,
-        },
-        {
-            title: 'Identified external viewers',
-            metric: 'unique_viewers',
-            compact: false,
-        },
-        {
-            title: 'Dashboards loaded',
-            metric: 'unique_dashboards',
-            compact: false,
-        },
+        { title: 'Observed dashboard loads', metric: 'total_loads' },
+        { title: 'Identified external viewers', metric: 'unique_viewers' },
+        { title: 'Dashboards loaded', metric: 'unique_dashboards' },
     ],
 };
 export const analyticsDateRangeDays = [7, 30, 90];
@@ -605,10 +575,19 @@ export const analyticsDateRange = (days: number, now: Date) => {
     };
 };
 
+export const formatFullAnalyticsNumber = new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 0,
+}).format;
+
+const compactAnalyticsNumberFormatter = new Intl.NumberFormat('en', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+});
+
 export const formatAnalyticsNumber = (value: number) =>
-    new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(
-        value,
-    );
+    Math.round(Math.abs(value)) >= 10_000
+        ? compactAnalyticsNumberFormatter.format(value)
+        : formatFullAnalyticsNumber(value);
 
 export const analyticsCategoryLabels: Record<string, Record<string, string>> = {
     stream: {

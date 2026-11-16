@@ -7,6 +7,7 @@ import classes from './AnalyticsOverview.module.css';
 import {
     analyticsCategoryLabels,
     analyticsFieldId,
+    formatAnalyticsNumber,
     type AnalyticsChartSpec,
 } from './analyticsOverviewConfig';
 import { type AnalyticsOverviewQueryResult } from './useAnalyticsOverviewQuery';
@@ -121,7 +122,11 @@ const AnalyticsOverviewChart = ({
             type: 'value' as const,
             minInterval: 1,
             splitNumber: 3,
-            axisLabel: { color: ink, hideOverlap: true },
+            axisLabel: {
+                color: ink,
+                hideOverlap: true,
+                formatter: formatAnalyticsNumber,
+            },
             splitLine: {
                 show: true,
                 lineStyle: {

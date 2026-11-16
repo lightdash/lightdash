@@ -126,6 +126,36 @@ describe('Analytics settings overview', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('formats large counts consistently in headline and summary cards', async () => {
+        mockQueries(({ exploreName, dimensions }) => {
+            if (dimensions.length > 0) return ready();
+            if (exploreName === 'user_activity') {
+                return ready([
+                    {
+                        user_activity_unique_users: 9_999,
+                        user_activity_total_queries: 19_731,
+                    },
+                ]);
+            }
+            return exploreName === 'query_events'
+                ? ready([{ query_events_total_queries: 19_731 }])
+                : ready();
+        });
+        renderOverview();
+
+        const headline = screen.getByRole('button', {
+            name: 'View queries run',
+        });
+        expect(await within(headline).findByText('19.7K')).toBeVisible();
+        expect(screen.getByText((9_999).toLocaleString())).toBeVisible();
+
+        await userEvent.click(headline);
+        const summary = screen.getByRole('region', {
+            name: 'Queries executed',
+        });
+        expect(await within(summary).findByText('19.7K')).toBeVisible();
+    });
+
     it('keeps execution on Analytics when the reported project or date changes', async () => {
         const launched = mockQueries();
         renderOverview();
@@ -264,8 +294,13 @@ describe('Analytics settings overview', () => {
         await waitFor(() => expect(monthlyQueries()).toHaveLength(9));
         expect(
             within(screen.getByRole('region', { name: 'AI calls' })).getByText(
-                '13,575',
+                '13.6K',
             ),
+        ).toBeVisible();
+        expect(
+            within(
+                screen.getByRole('region', { name: 'Tokens used' }),
+            ).getByText('121.4M'),
         ).toBeVisible();
     });
 

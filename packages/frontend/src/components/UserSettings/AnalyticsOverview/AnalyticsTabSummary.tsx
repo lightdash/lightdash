@@ -11,6 +11,7 @@ import classes from './AnalyticsOverview.module.css';
 import {
     analyticsFieldId,
     formatAnalyticsNumber,
+    formatFullAnalyticsNumber,
     type AnalyticsSummarySpec,
 } from './analyticsOverviewConfig';
 import { type AnalyticsOverviewQueryResult } from './useAnalyticsOverviewQuery';
@@ -35,7 +36,7 @@ const AnalyticsTabSummary = ({
             cols={{ base: 1, xs: 2, lg: summary.metrics.length }}
             spacing="md"
         >
-            {summary.metrics.map(({ title, metric, compact }) => {
+            {summary.metrics.map(({ title, metric }) => {
                 const raw =
                     result.data?.[0]?.[analyticsFieldId(summary.query, metric)];
                 const value =
@@ -58,21 +59,13 @@ const AnalyticsTabSummary = ({
                                     label={
                                         value === null
                                             ? 'No recorded activity'
-                                            : formatAnalyticsNumber(value)
+                                            : formatFullAnalyticsNumber(value)
                                     }
                                 >
                                     <Text className={classes.summaryValue}>
                                         {value === null
                                             ? '—'
-                                            : compact
-                                              ? new Intl.NumberFormat(
-                                                    undefined,
-                                                    {
-                                                        notation: 'compact',
-                                                        maximumFractionDigits: 2,
-                                                    },
-                                                ).format(value)
-                                              : formatAnalyticsNumber(value)}
+                                            : formatAnalyticsNumber(value)}
                                     </Text>
                                 </Tooltip>
                             )}

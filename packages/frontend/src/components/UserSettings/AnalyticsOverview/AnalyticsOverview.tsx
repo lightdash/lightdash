@@ -40,6 +40,7 @@ import {
     analyticsHeadlineMetrics,
     analyticsTabs,
     formatAnalyticsNumber,
+    formatFullAnalyticsNumber,
     type AnalyticsFilters,
 } from './analyticsOverviewConfig';
 import AnalyticsTabSummary from './AnalyticsTabSummary';
@@ -76,6 +77,11 @@ const HeadlineMetric = ({
     selected: boolean;
 }) => {
     const value = getHeadlineValue(metric, query.data);
+    const numericValue = value == null || query.isError ? null : Number(value);
+    const displayValue =
+        numericValue === null ? '—' : formatAnalyticsNumber(numericValue);
+    const fullValue =
+        numericValue === null ? '—' : formatFullAnalyticsNumber(numericValue);
     const previousValue = getHeadlineValue(metric, previousQuery.data);
     const canCompare =
         !query.isError &&
@@ -116,11 +122,14 @@ const HeadlineMetric = ({
                 <Skeleton h={38} my="xs" />
             ) : (
                 <Group gap="xs" wrap="nowrap">
-                    <Text className={classes.metricValue}>
-                        {value === undefined || value === null || query.isError
-                            ? '—'
-                            : formatAnalyticsNumber(Number(value))}
-                    </Text>
+                    <Tooltip
+                        label={fullValue}
+                        disabled={displayValue === fullValue}
+                    >
+                        <Text className={classes.metricValue}>
+                            {displayValue}
+                        </Text>
+                    </Tooltip>
                     {canCompare && (
                         <Tooltip
                             label={`Compared with ${previousFilters.start} – ${previousLastDay} (UTC), based on recorded activity.`}
