@@ -216,6 +216,7 @@ import {
     assertAgentKeepsDocumentMerges,
 } from '../ai/utils/agentMergeGuard';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
+import { readWithContentTypeFallback } from '../ai/utils/contentTypeFallback';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
@@ -3656,14 +3657,26 @@ export class AiAgentToolsService extends BaseService {
                     });
                 }
 
-                const currentContent = await this.readContentAsCode(
-                    context,
-                    {
+                // Never edit another type in place; name it so the agent retries.
+                const { value: currentContent, type: foundType } =
+                    await readWithContentTypeFallback({
                         slug,
                         type,
-                    },
-                    'update',
-                );
+                        types: Object.keys(
+                            CONTENT_AS_CODE_TYPE_LABELS,
+                        ) as ContentAsCodeType[],
+                        read: (readType) =>
+                            this.readContentAsCode(
+                                context,
+                                { slug, type: readType },
+                                readType === type ? 'update' : 'read',
+                            ),
+                    });
+                if (foundType !== type) {
+                    throw new NotFoundError(
+                        `No ${type} "${slug}" was found; "${slug}" is a ${foundType}. Edit it with type ${foundType}.`,
+                    );
+                }
                 // Charts can be persisted with a null `chartConfig.config` (e.g.
                 // table charts with no viz settings). The chart-as-code schema
                 // accepts an object or an absent config but rejects null, so

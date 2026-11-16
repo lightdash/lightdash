@@ -2929,6 +2929,48 @@ describe('AiAgentToolsService', () => {
         ).resolves.toBeDefined();
     });
 
+    it('names the actual type instead of editing a SQL chart as a chart', async () => {
+        const upsertChart = vi.fn();
+        const upsertSqlChart = vi.fn();
+        const service = makeService({
+            coderService: {
+                getChartsForRead: vi.fn().mockResolvedValue({ charts: [] }),
+                getDashboardsForRead: vi
+                    .fn()
+                    .mockResolvedValue({ dashboards: [] }),
+                getSqlChartsForRead: vi.fn().mockResolvedValue({
+                    sqlCharts: [
+                        {
+                            slug: 'orders-by-status',
+                            spaceSlug: 'allowed-space',
+                        },
+                    ],
+                }),
+                upsertChart,
+                upsertSqlChart,
+            },
+            savedSqlService: {
+                assertCanViewSqlChartBySlug: vi
+                    .fn()
+                    .mockResolvedValue(undefined),
+            },
+            aiAgentContentValidation: { validatePatch: vi.fn() },
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        await expect(
+            runtime.editContent({
+                slug: 'orders-by-status',
+                type: 'chart',
+                patch: [{ op: 'replace', path: '/name', value: 'Orders' }],
+            }),
+        ).rejects.toThrow(
+            'No chart "orders-by-status" was found; "orders-by-status" is a sql_chart. Edit it with type sql_chart.',
+        );
+        expect(upsertChart).not.toHaveBeenCalled();
+        expect(upsertSqlChart).not.toHaveBeenCalled();
+    });
+
     describe('agent merge authoring', () => {
         const merge: SavedMergeDefinition = {
             queries: {
