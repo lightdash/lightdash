@@ -91,7 +91,8 @@ const AddCustomMetricButton: FC<{ tableName: string }> = ({ tableName }) => {
                             <Button
                                 key={type}
                                 variant="subtle"
-                                color="dark"
+                                color="gray"
+                                c="var(--mantine-color-text)"
                                 size="compact-sm"
                                 justify="flex-start"
                                 fw={400}

@@ -106,13 +106,19 @@
     justify-content: flex-end;
 }
 
-/* The menu overlays the column's right edge so it never pushes the label */
+/* The menu sits over the table name, the one part of the label that can be
+   covered, and fades into the header instead of sitting on a patch */
 .results table thead th [class*='thActionsContainer'] {
     position: absolute;
     right: 0;
+    bottom: -2px;
     margin: 0;
-    background-color: var(--mantine-color-body);
-    border-radius: var(--mantine-radius-sm);
+    padding-left: 14px;
+    background: linear-gradient(
+        to right,
+        transparent,
+        var(--mantine-color-ldGray-0) 12px
+    );
 }
 
 /* Pagination shares the totals row's tint, with small quiet controls */
