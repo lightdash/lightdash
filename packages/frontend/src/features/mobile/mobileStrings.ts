@@ -37,9 +37,8 @@ export const MOBILE_SIGN_IN_STRINGS = {
         'If you do not have the app, scan to open the store. Install the app, then scan again.',
     rescanSteps: {
         title: 'How to sign in',
-        scan: 'Scan the code with your phone camera.',
-        install: 'No app? Install it from the store.',
-        scanAgain: 'Come back and scan the code again.',
+        install: 'Scan to install the app.',
+        signIn: 'Scan again to sign in.',
     },
     refreshed: 'New code',
     typeOnPhone: 'Type this number on your phone',

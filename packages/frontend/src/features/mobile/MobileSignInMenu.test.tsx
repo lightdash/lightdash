@@ -243,7 +243,7 @@ describe('MobileSignInMenu', () => {
     });
 
     it.each([LightdashMode.DEFAULT, LightdashMode.CLOUD_BETA])(
-        'shows the scan, install, scan again steps under the code in %s mode',
+        'shows the scan to install, scan again to sign in steps under the code in %s mode',
         async (mode) => {
             health.mode = mode;
             const user = userEvent.setup();
@@ -254,20 +254,23 @@ describe('MobileSignInMenu', () => {
             const steps = screen.getByRole('list', {
                 name: MOBILE_SIGN_IN_STRINGS.rescanSteps.title,
             });
-            expect(
-                within(steps)
-                    .getAllByRole('listitem')
-                    .map((item) => item.textContent),
-            ).toEqual([
-                MOBILE_SIGN_IN_STRINGS.rescanSteps.scan,
+            const items = within(steps).getAllByRole('listitem');
+            expect(items.map((item) => item.textContent)).toEqual([
                 MOBILE_SIGN_IN_STRINGS.rescanSteps.install,
-                MOBILE_SIGN_IN_STRINGS.rescanSteps.scanAgain,
+                MOBILE_SIGN_IN_STRINGS.rescanSteps.signIn,
             ]);
-            const icons = steps.querySelectorAll('svg');
-            expect(icons).toHaveLength(3);
-            icons.forEach((icon) => {
+            const illustrations = items.flatMap((item) => [
+                ...item.querySelectorAll('svg'),
+            ]);
+            expect(illustrations).toHaveLength(2);
+            illustrations.forEach((icon) => {
                 expect(icon.closest('[aria-hidden="true"]')).not.toBeNull();
             });
+            const arrows = steps.querySelectorAll(
+                ':scope > li[aria-hidden="true"]',
+            );
+            expect(arrows).toHaveLength(1);
+            expect(arrows[0].querySelectorAll('svg')).toHaveLength(1);
 
             await user.click(openButton());
             await waitFor(() =>

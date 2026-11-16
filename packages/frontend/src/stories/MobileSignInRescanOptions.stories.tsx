@@ -23,10 +23,10 @@ const PROTOTYPE_STRINGS = {
     camera: 'Camera',
     store: 'Lightdash',
     get: 'Get',
-    hint: 'No app? Scan, install it, then scan this code again.',
+    hint: 'Scan to install the app, then scan again to sign in.',
 } as const;
 
-type Props = { width: number; step?: 0 | 1 | 2 };
+type Props = { width: number; step?: 0 | 1 };
 
 const PopoverShell = ({
     width,
@@ -112,19 +112,6 @@ const MiniQr = () => (
 
 const PHONE_SCREENS = [
     {
-        caption: STEPS.scan,
-        screen: (
-            <>
-                <div className={classes.screenTitle}>
-                    {PROTOTYPE_STRINGS.camera}
-                </div>
-                <div className={classes.tile}>
-                    <MiniQr />
-                </div>
-            </>
-        ),
-    },
-    {
         caption: STEPS.install,
         screen: (
             <>
@@ -141,7 +128,7 @@ const PHONE_SCREENS = [
         ),
     },
     {
-        caption: STEPS.scanAgain,
+        caption: STEPS.signIn,
         screen: (
             <>
                 <div className={classes.screenTitle}>
@@ -268,8 +255,8 @@ export const APhoneWalksTheStepsPrototype: Story = {
     render: PhoneWalksTheSteps,
 };
 
-export const APhoneWalksTheStepsStorePrototype: Story = {
-    name: 'Design A: Phone walks the steps, store screen (prototype)',
+export const APhoneWalksTheStepsSignInPrototype: Story = {
+    name: 'Design A: Phone walks the steps, sign-in screen (prototype)',
     args: { step: 1 },
     render: PhoneWalksTheSteps,
 };

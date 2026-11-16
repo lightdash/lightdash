@@ -120,8 +120,9 @@
 
 .rescanSteps {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     gap: var(--mantine-spacing-xs);
+    align-items: center;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -134,7 +135,13 @@
     min-width: 0;
     padding: var(--mantine-spacing-xs);
     border-radius: var(--mantine-radius-md);
-    animation: rescanTint 6s infinite;
+    animation: rescanTint 4s infinite;
+}
+
+.rescanArrow {
+    display: grid;
+    place-items: center;
+    color: var(--mantine-color-dimmed);
 }
 
 .rescanScreen {
@@ -147,17 +154,12 @@
     border-radius: 6px;
     background: var(--mantine-color-body);
     color: var(--mantine-color-dimmed);
-    animation: rescanRing 6s infinite;
-}
-
-.rescanStep:nth-child(2),
-.rescanStep:nth-child(2) .rescanScreen {
-    animation-delay: 2s;
+    animation: rescanRing 4s infinite;
 }
 
 .rescanStep:nth-child(3),
 .rescanStep:nth-child(3) .rescanScreen {
-    animation-delay: 4s;
+    animation-delay: 2s;
 }
 
 @container sign-in (width < 440px) {
@@ -172,6 +174,10 @@
 
     .rescanSteps {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .rescanArrow {
+        rotate: 90deg;
     }
 
     .panel[data-step-active='true'] .qrColumn,
@@ -962,10 +968,10 @@
 
 @keyframes rescanTint {
     0%,
-    30% {
+    46% {
         background-color: var(--mantine-color-default-hover);
     }
-    34%,
+    50%,
     100% {
         background-color: transparent;
     }
@@ -973,12 +979,12 @@
 
 @keyframes rescanRing {
     0%,
-    30% {
+    46% {
         border-color: var(--ld-violet-soft);
         box-shadow: var(--ld-ring);
         color: var(--ld-violet-soft);
     }
-    34%,
+    50%,
     100% {
         border-color: var(--mantine-color-default-border);
         box-shadow: none;

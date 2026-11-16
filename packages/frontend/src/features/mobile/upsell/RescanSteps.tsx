@@ -1,19 +1,11 @@
 import { Text } from '@mantine/core';
-import { IconDownload, IconQrcode, IconRefresh } from '@tabler/icons-react';
+import { IconArrowRight, IconDownload, IconLogin } from '@tabler/icons-react';
 import { useId } from 'react';
-import MantineIcon, {
-    type MantineIconProps,
-} from '../../../components/common/MantineIcon';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { MOBILE_SIGN_IN_STRINGS } from '../mobileStrings';
 import classes from './MobileUpsell.module.css';
 
 const S = MOBILE_SIGN_IN_STRINGS.rescanSteps;
-
-const STEPS: { key: string; icon: MantineIconProps['icon']; text: string }[] = [
-    { key: 'scan', icon: IconQrcode, text: S.scan },
-    { key: 'install', icon: IconDownload, text: S.install },
-    { key: 'scanAgain', icon: IconRefresh, text: S.scanAgain },
-];
 
 export const RescanSteps = () => {
     const titleId = useId();
@@ -23,19 +15,25 @@ export const RescanSteps = () => {
                 {S.title}
             </Text>
             <ol className={classes.rescanSteps} aria-labelledby={titleId}>
-                {STEPS.map(({ key, icon, text }) => (
-                    <li key={key} className={classes.rescanStep}>
-                        <span
-                            className={classes.rescanScreen}
-                            aria-hidden="true"
-                        >
-                            <MantineIcon icon={icon} size={14} />
-                        </span>
-                        <Text fz="xs" lh="sm">
-                            {text}
-                        </Text>
-                    </li>
-                ))}
+                <li className={classes.rescanStep}>
+                    <span className={classes.rescanScreen} aria-hidden="true">
+                        <MantineIcon icon={IconDownload} size={14} />
+                    </span>
+                    <Text fz="xs" lh="sm">
+                        {S.install}
+                    </Text>
+                </li>
+                <li className={classes.rescanArrow} aria-hidden="true">
+                    <MantineIcon icon={IconArrowRight} size={14} />
+                </li>
+                <li className={classes.rescanStep}>
+                    <span className={classes.rescanScreen} aria-hidden="true">
+                        <MantineIcon icon={IconLogin} size={14} />
+                    </span>
+                    <Text fz="xs" lh="sm">
+                        {S.signIn}
+                    </Text>
+                </li>
             </ol>
         </div>
     );
