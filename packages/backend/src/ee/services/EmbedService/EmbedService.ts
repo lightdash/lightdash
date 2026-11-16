@@ -3398,6 +3398,15 @@ export class EmbedService extends BaseService {
         }
 
         const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
+        if (writeSpaceUuids.length === 0) {
+            return {
+                canUpdateDashboard: false,
+                canUpdateSavedChart: false,
+                canCreateSavedChart: false,
+                writableSpaces: [],
+                canUseAiAgent: false,
+            };
+        }
 
         try {
             const spaceAccessResults =
@@ -3638,7 +3647,7 @@ export class EmbedService extends BaseService {
         }
 
         if (
-            (!isApiAccess &&
+            (decodedToken.content.type === 'aiAgent' &&
                 writeActions &&
                 getEmbedWriteSpaceUuids(writeActions).length === 0 &&
                 !isEmbedReadOnlyAiAgentToken(decodedToken)) ||
