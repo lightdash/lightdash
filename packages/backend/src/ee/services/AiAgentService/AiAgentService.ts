@@ -17503,6 +17503,22 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         }),
                     );
 
+                // The scopes the content services check before saving or running custom SQL.
+                const canManageCustomSql = (
+                    subjectName:
+                        | 'CustomSql'
+                        | 'CustomFields'
+                        | 'CustomSqlTableCalculations',
+                ) =>
+                    hasTrustedPromptUserIdentity &&
+                    this.createAuditedAbility(user).can(
+                        'manage',
+                        subject(subjectName, {
+                            organizationUuid: promptProject.organizationUuid,
+                            projectUuid: promptProject.projectUuid,
+                        }),
+                    );
+
                 // A project with only live sources has no warehouse to run SQL on
                 const warehouseCredentials = canRunSql
                     ? await this.projectModel
@@ -18154,6 +18170,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     liveSources,
                     canCreateDashboards,
                     canCreateScheduledDeliveries,
+                    customSqlPermissions: {
+                        canSaveSqlCharts:
+                            canRunSql && canManageCustomSql('CustomSql'),
+                        canAuthorCustomSqlFields:
+                            canManageCustomSql('CustomFields'),
+                        canAuthorSqlTableCalculations: canManageCustomSql(
+                            'CustomSqlTableCalculations',
+                        ),
+                    },
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||
                         agentSettings.enableSqlAutoApproval,

@@ -245,6 +245,15 @@ export type AiAgentDeepResearchRunContext = {
     hasReport: boolean;
 };
 
+export type CustomSqlPermissions = {
+    // manage:CustomSql, and SQL mode on so the SQL chart gate allows saves.
+    canSaveSqlCharts: boolean;
+    // manage:CustomFields: custom SQL dimensions and hand-written custom metrics.
+    canAuthorCustomSqlFields: boolean;
+    // manage:CustomSqlTableCalculations.
+    canAuthorSqlTableCalculations: boolean;
+};
+
 export type AiAgentArgs = AnyAiModel & {
     decisions?: AiDecisionClient;
     decisionUsage?: AiDecisionUsage;
@@ -337,6 +346,8 @@ export type AiAgentArgs = AnyAiModel & {
     // Gates createScheduledDelivery the same way, so a role without
     // create:ScheduledDeliveries keeps content tools but loses scheduling.
     canCreateScheduledDeliveries: boolean;
+    // Prompt wording only: the content tools prompt warns about each one that is false.
+    customSqlPermissions: CustomSqlPermissions;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
     // When the modern Slack streaming card is driving progress, tools render
