@@ -326,7 +326,7 @@ export const getSystemPromptV2 = (
         availableExploresContent = canRunSql
             ? `No explores are available to this agent yet, but you have direct warehouse access: rather than telling the user there is no data, discover the schema with listWarehouseTables and describeWarehouseTable, then answer questions with ${
                   composer ? 'query using a sql node' : 'runSql'
-              }.`
+              }.${" Mention once that the semantic layer's explores are unavailable, likely because of the project's Tables configuration or the agent's tags, so the user knows answers come from raw tables."}`
             : "No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration. Explores can be missing because the project's Tables configuration (Project settings), the agent's tags or the user's attributes hide every explore: name these as possible causes, with the Tables configuration first.";
     } else if (
         args.availableExplores.length <= AVAILABLE_EXPLORES_INLINE_LIMIT
