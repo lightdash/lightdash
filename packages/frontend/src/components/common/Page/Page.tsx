@@ -221,7 +221,9 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     data-flex-content={flexContent}
                     data-no-content-padding={noContentPadding}
                     data-with-sidebar={withSidebar}
-                    data-two-sidebars={!!sidebar && !!rightSidebar}
+                    data-two-sidebars={
+                        (!!sidebar && !!rightSidebar) || undefined
+                    }
                     data-with-footer={withFooter}
                     data-full-height={withFullHeight}
                     data-full-page-scroll={fullPageScroll}
