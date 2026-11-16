@@ -42,6 +42,53 @@ describe('getParameterDisplayValue', () => {
         ).toBe(shownDate('2026-01-02'));
     });
 
+    it('shows option labels for the value and the default, single and multi', () => {
+        const options = [
+            { label: 'Last 12 months', value: 'last_12m' },
+            { label: 'Last 30 days', value: 'last_30d' },
+        ];
+        expect(
+            getParameterDisplayValue({ label: 'P', options }, 'last_12m'),
+        ).toBe('Last 12 months');
+        expect(
+            getParameterDisplayValue({ label: 'P', options }, [
+                'last_12m',
+                'last_30d',
+            ]),
+        ).toBe('Last 12 months, Last 30 days');
+        expect(
+            getParameterDisplayValue(
+                { label: 'P', options, default: 'last_30d' },
+                null,
+            ),
+        ).toBe('Last 30 days');
+        expect(
+            getParameterDisplayValue(
+                { label: 'P', options, default: ['last_30d', 'last_12m'] },
+                null,
+            ),
+        ).toBe('Last 30 days, Last 12 months');
+    });
+
+    it('matches a numeric option and falls back to the raw value without a match', () => {
+        expect(
+            getParameterDisplayValue(
+                {
+                    label: 'P',
+                    type: 'number',
+                    options: [{ label: 'Ten', value: 10 }],
+                },
+                10,
+            ),
+        ).toBe('Ten');
+        expect(
+            getParameterDisplayValue(
+                { label: 'P', options: [{ label: 'A', value: 'a' }] },
+                ['a', 'custom'],
+            ),
+        ).toBe('A, custom');
+    });
+
     it('reads "any value" with neither a value nor a default', () => {
         expect(getParameterDisplayValue({ label: 'P' }, null)).toBe(
             'any value',
