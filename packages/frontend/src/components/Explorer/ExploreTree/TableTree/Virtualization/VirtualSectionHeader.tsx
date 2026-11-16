@@ -21,6 +21,7 @@ import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
 import DocumentationHelpButton from '../../../../DocumentationHelpButton';
 import { getCustomDimensionsForWriteBack } from '../../../WriteBackModal/writeBackSupport';
+import AddCustomMetricButton from './AddCustomMetricButton';
 import { TreeSection, type SectionHeaderItem } from './types';
 
 interface VirtualSectionHeaderProps {
@@ -193,6 +194,10 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                             <MantineIcon icon={IconPlus} />
                         </ActionIcon>
                     </Tooltip>
+                )}
+
+                {treeSection === TreeSection.Metrics && (
+                    <AddCustomMetricButton tableName={tableName} />
                 )}
 
                 {showWriteBackCustomMetrics && (
