@@ -160,14 +160,9 @@ const TableNode: FC<NodeProps<TableFlowNode>> = ({ data }) => (
             className={classes.nodeFooter}
         >
             {data.isBase ? (
-                <>
-                    <Text component="span" fz="xs" c="dimmed">
-                        Base table
-                    </Text>
-                    <Badge size="xs" variant="default">
-                        Base
-                    </Badge>
-                </>
+                <Text component="span" fz="xs" c="dimmed">
+                    Base table
+                </Text>
             ) : (
                 <>
                     <Text
