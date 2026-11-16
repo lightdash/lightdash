@@ -674,6 +674,26 @@ export class OrganizationService extends BaseService {
             throw new ParameterError(error);
         }
 
+        if (data.projects.length > 0) {
+            const organizationProjects =
+                await this.projectModel.getAllByOrganizationUuid(
+                    organizationUuid,
+                );
+            const organizationProjectUuids = new Set(
+                organizationProjects.map((project) => project.projectUuid),
+            );
+            if (
+                data.projects.some(
+                    (project) =>
+                        !organizationProjectUuids.has(project.projectUuid),
+                )
+            ) {
+                throw new ParameterError(
+                    'Projects must belong to the organization',
+                );
+            }
+        }
+
         const allowedEmailDomains =
             await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
                 { ...data, organizationUuid },

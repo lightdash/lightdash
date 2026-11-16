@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     LightdashInstallType,
     OrganizationMemberRole,
+    ProjectMemberRole,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
@@ -39,6 +40,9 @@ const projectModel = {
     hasProjects: vi.fn(async () => true),
     getProjectGroupAccesses: vi.fn(),
     getAllByOrganizationUuid: vi.fn(),
+};
+const organizationAllowedEmailDomainsModel = {
+    upsertAllowedEmailDomains: vi.fn(async (data) => data),
 };
 const organizationModel = {
     get: vi.fn(async () => organization),
@@ -95,7 +99,7 @@ describe('organization service', () => {
                 organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
             userModel: userModel as unknown as UserModel,
             organizationAllowedEmailDomainsModel:
-                {} as OrganizationAllowedEmailDomainsModel,
+                organizationAllowedEmailDomainsModel as unknown as OrganizationAllowedEmailDomainsModel,
             groupsModel: {} as GroupsModel,
             featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
             isAnalyticsProjectEnabled,
@@ -486,6 +490,57 @@ describe('organization service', () => {
             expect(result.data).toHaveLength(1);
             expect(result.data[0].role).toBe(OrganizationMemberRole.MEMBER);
             expect(result.data[0].roleUuid).toBeUndefined();
+        });
+    });
+
+    describe('updateAllowedEmailDomains', () => {
+        const adminUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                {
+                    action: 'update',
+                    subject: 'Organization',
+                    conditions: {
+                        organizationUuid: organization.organizationUuid,
+                    },
+                },
+            ]),
+        };
+        const data = {
+            emailDomains: ['acme-analytics.io'],
+            role: OrganizationMemberRole.MEMBER as const,
+            projects: [
+                {
+                    projectUuid: projectSummary.projectUuid,
+                    role: ProjectMemberRole.VIEWER as const,
+                },
+            ],
+        };
+
+        it('saves projects that belong to the organization', async () => {
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                projectSummary,
+            ]);
+
+            await organizationService.updateAllowedEmailDomains(
+                adminUser,
+                data,
+            );
+
+            expect(
+                organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains,
+            ).toHaveBeenCalledOnce();
+        });
+
+        it('rejects projects that do not belong to the organization', async () => {
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
+
+            await expect(
+                organizationService.updateAllowedEmailDomains(adminUser, data),
+            ).rejects.toThrow('Projects must belong to the organization');
+            expect(
+                organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains,
+            ).not.toHaveBeenCalled();
         });
     });
 
