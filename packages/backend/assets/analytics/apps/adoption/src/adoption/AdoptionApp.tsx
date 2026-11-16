@@ -1,5 +1,6 @@
 import { useAppState } from '@lightdash/query-sdk';
-import { ChevronDown, ChevronRight, Loader2, Settings2, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, ChevronRight, Info, Loader2, Settings2, SlidersHorizontal } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
@@ -657,7 +658,22 @@ export default function AdoptionApp() {
             <div data-ad-page className="px-6 pb-4 pt-3">
                 <header className="mb-2 flex flex-wrap items-center justify-between gap-3">
                     <div className="space-y-1">
-                        <h1 className="m-0 text-xl font-semibold tracking-tight">Adoption</h1>
+                        <div className="flex items-center gap-1.5">
+                            <h1 className="m-0 text-xl font-semibold tracking-tight">Adoption</h1>
+                            <TooltipProvider delayDuration={150}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button type="button" className="rounded-full text-muted-foreground hover:text-foreground" aria-label="About adoption">
+                                            <Info className="h-4 w-4" />
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" align="start" className="max-w-80 whitespace-normal">
+                                        Who in each team uses Lightdash, how recently, and for what. Each mark is a person. Use it to find teams that have
+                                        not taken it up, people who have stopped, and features a team is missing, then open a team to see who to talk to.
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
                         {source.fixture && <p className="m-0 text-xs text-muted-foreground">Invented sample data ({source.fixture}).</p>}
                     </div>
                     {/* The team controls are drawn here by the page below once it has loaded */}

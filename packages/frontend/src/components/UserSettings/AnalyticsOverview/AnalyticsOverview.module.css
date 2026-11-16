@@ -43,7 +43,6 @@
 
 .heading {
     min-width: 0;
-    grid-row: 1 / 3;
 }
 
 .filters {
