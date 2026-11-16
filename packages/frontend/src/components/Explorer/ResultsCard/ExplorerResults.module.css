@@ -236,7 +236,6 @@
 .edgeAction:hover,
 .edgeAction:focus-within,
 .edgeAction:has([aria-expanded='true']) {
-    width: 36px;
     opacity: 1;
 }
 

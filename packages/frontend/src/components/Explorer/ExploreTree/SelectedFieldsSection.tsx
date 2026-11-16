@@ -403,6 +403,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, source, onDeselect }) => {
                             >
                                 <ActionIcon
                                     className={classes.filterAction}
+                                    variant="transparent"
                                     aria-label={
                                         isFiltered
                                             ? 'Field is filtered'
@@ -410,7 +411,11 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, source, onDeselect }) => {
                                     }
                                     onClick={handleFilterClick}
                                 >
-                                    <MantineIcon icon={IconFilter} />
+                                    <MantineIcon
+                                        icon={IconFilter}
+                                        size={12}
+                                        stroke={2}
+                                    />
                                 </ActionIcon>
                             </Tooltip>
                         )}

@@ -1,32 +1,32 @@
-/* One more header cell at the table's right edge: a + that opens the add menu */
+/* One more header cell at the table's right edge, holding a filled + that
+   opens the add menu */
 .edgeColumn {
     --edge: light-dark(#2b8a3e, #38af4d);
     display: flex;
     flex: 1;
     align-items: center;
     justify-content: center;
-    color: var(--edge);
     background: var(--mantine-color-ldGray-0);
-    box-shadow: inset 1px 0 0 var(--mantine-color-ldGray-2);
-    transition: background-color 140ms ease;
-}
-
-.edgeColumn:hover,
-.edgeColumn:focus-visible,
-.edgeColumn[aria-expanded='true'] {
-    background: color-mix(in srgb, var(--edge) 14%, var(--mantine-color-body));
-    box-shadow: inset 1px 0 0 color-mix(in srgb, var(--edge) 40%, transparent);
 }
 
 .edgeColumn svg {
-    width: 14px;
-    height: 14px;
-    transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    padding: 4px;
+    color: light-dark(#1b6b2c, #8ce99a);
+    background: color-mix(in srgb, var(--edge) 32%, var(--mantine-color-body));
+    border-radius: 6px;
+    transition:
+        transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+        background-color 160ms ease;
 }
 
 .edgeColumn:hover svg,
+.edgeColumn:focus-visible svg,
 .edgeColumn[aria-expanded='true'] svg {
-    transform: rotate(90deg) scale(1.15);
+    background: color-mix(in srgb, var(--edge) 48%, var(--mantine-color-body));
+    transform: rotate(90deg) scale(1.1);
 }
 
 /* Hovering the card spells the icon out as an add action */

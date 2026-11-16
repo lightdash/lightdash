@@ -146,12 +146,13 @@
 /* Overlaid on the chip's right edge, so hovering never reflows the wrap */
 .actions {
     position: absolute;
-    inset: 0 0 0 auto;
+    inset: 1px 1px 1px auto;
     display: none;
     align-items: center;
-    padding: 0 2px 0 10px;
+    padding: 0 5px 0 16px;
+    border-radius: 0 5px 5px 0;
     --chip: color-mix(in srgb, var(--kind) 16%, var(--mantine-color-body));
-    background: linear-gradient(to right, transparent, var(--chip) 10px);
+    background: linear-gradient(to right, transparent, var(--chip) 14px);
 }
 
 .row:hover .actions {
@@ -163,11 +164,17 @@
     display: none;
 }
 
-.actions button {
-    width: 18px;
-    min-width: 18px;
-    height: 18px;
-    min-height: 18px;
+/* Same size, weight and colour as the chip's own icons */
+.filterAction {
+    width: 14px;
+    min-width: 14px;
+    height: 14px;
+    min-height: 14px;
+    color: var(--kind);
+}
+
+.filterAction:hover {
+    transform: scale(1.15);
 }
 
 .row svg {
