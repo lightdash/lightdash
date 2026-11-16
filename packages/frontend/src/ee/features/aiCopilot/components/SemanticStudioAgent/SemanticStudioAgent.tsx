@@ -37,7 +37,6 @@ import useSidebarResize from '../../../../../hooks/useSidebarResize';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
-    useAiAgentThread,
     useCreateAgentThreadMessageMutation,
     useCreateAgentThreadMutation,
 } from '../../hooks/useProjectAiAgents';
@@ -53,6 +52,7 @@ import { getOpenProposal } from './studioProposal';
 import {
     useChatOpen,
     useStudioAgent,
+    useStudioThread,
     type StoredThread,
 } from './useSemanticStudioChat';
 import { useStudioPullRequest } from './useStudioPullRequest';
@@ -263,7 +263,7 @@ const ExistingThread: FC<
         data: thread,
         isLoading,
         refetch,
-    } = useAiAgentThread(projectUuid, agent.uuid, threadUuid);
+    } = useStudioThread(projectUuid, agent.uuid, threadUuid);
     const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadUuid,
