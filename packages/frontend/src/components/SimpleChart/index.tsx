@@ -50,7 +50,7 @@ import {
     createChartTooltipController,
 } from './chartTooltipController';
 import classes from './SimpleChart.module.css';
-import { withSortableAxes, type AxisFields } from './sortableAxes';
+import { getAxisFields, withSortableAxes } from './sortableAxes';
 
 type EchartsBaseClickEvent = {
     // The component name clicked,
@@ -275,25 +275,10 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         const layout = cartesianChartConfig?.validConfig?.layout;
         const configuredSeries =
             cartesianChartConfig?.validConfig?.eChartsConfig?.series;
-        const axisFields = useMemo<AxisFields>(() => {
-            // One value axis per side: the first series drawn against it
-            const valueFields = [0, 1].map(
-                (axisIndex) =>
-                    configuredSeries?.find(
-                        (series) => (series.yAxisIndex ?? 0) === axisIndex,
-                    )?.encode.yRef.field,
-            );
-            valueFields[0] ??= layout?.yField?.[0];
-            const categoryFields = [layout?.xField];
-            return layout?.flipAxes
-                ? { xAxis: valueFields, yAxis: categoryFields }
-                : { xAxis: categoryFields, yAxis: valueFields };
-        }, [
-            configuredSeries,
-            layout?.xField,
-            layout?.yField,
-            layout?.flipAxes,
-        ]);
+        const axisFields = useMemo(
+            () => getAxisFields(layout, configuredSeries),
+            [layout, configuredSeries],
+        );
         const primarySort = resultsData?.metricQuery?.sorts?.[0];
         const eChartsOptions = useMemo(
             () =>

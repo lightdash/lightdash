@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { withSortableAxes } from './sortableAxes';
+import { getAxisFields, withSortableAxes } from './sortableAxes';
 
 describe('withSortableAxes', () => {
     it('makes each axis with a field clickable and marks the sorted title', () => {
@@ -26,5 +26,42 @@ describe('withSortableAxes', () => {
         );
         expect(result.xAxis).toEqual([{ name: undefined, triggerEvent: true }]);
         expect(result.yAxis).toEqual([{ name: 'Revenue' }]);
+    });
+});
+
+describe('getAxisFields', () => {
+    const layout = { xField: 'status', yField: ['revenue', 'orders'] };
+    const series = (field: string, yAxisIndex?: number) => ({
+        yAxisIndex,
+        encode: { yRef: { field } },
+    });
+
+    it('puts the dimension on the bottom and the metric on the left', () => {
+        expect(getAxisFields(layout, [series('revenue')])).toEqual({
+            xAxis: ['status'],
+            yAxis: ['revenue', undefined],
+        });
+    });
+
+    it('gives the right-hand axis the first series drawn against it', () => {
+        expect(
+            getAxisFields(layout, [series('revenue'), series('orders', 1)]),
+        ).toEqual({ xAxis: ['status'], yAxis: ['revenue', 'orders'] });
+    });
+
+    it('swaps the axes for a horizontal chart', () => {
+        expect(
+            getAxisFields({ ...layout, flipAxes: true }, [
+                series('revenue'),
+                series('orders', 1),
+            ]),
+        ).toEqual({ xAxis: ['revenue', 'orders'], yAxis: ['status'] });
+    });
+
+    it('falls back to the first y field before series are configured', () => {
+        expect(getAxisFields(layout, undefined)).toEqual({
+            xAxis: ['status'],
+            yAxis: ['revenue', undefined],
+        });
     });
 });

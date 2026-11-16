@@ -231,6 +231,9 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const hasSelectedFields = useExplorerSelector(selectHasSelectedFields);
     // Without the heading there is no way to expand the card, so force it open
     const isOpen = minimal || isVisualizationExpanded || isFullscreen;
+    // The nudge to visualize is for a first query: gone once the chart was opened
+    const [hasOpenedChart, setHasOpenedChart] = useState(isOpen);
+    if (isOpen && !hasOpenedChart) setHasOpenedChart(true);
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const isVisualizationConfigOpen = useExplorerSelector(
         selectIsVisualizationConfigOpen,
@@ -533,6 +536,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
                         !isOpen ? (
                             // Results alone are not a chart yet: point at the next step
                             isEditMode &&
+                            !hasSavedChart &&
+                            !hasOpenedChart &&
                             (resultsData?.rows.length ?? 0) > 0 && (
                                 <>
                                     <ChartTypeSummary

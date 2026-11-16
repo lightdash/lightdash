@@ -8,6 +8,27 @@ export type AxisFields = {
     yAxis: Array<string | undefined>;
 };
 
+type ChartLayout = { xField?: string; yField?: string[]; flipAxes?: boolean };
+type ChartSeries = { yAxisIndex?: number; encode: { yRef: { field: string } } };
+
+/** Which field each drawn axis stands for, for any cartesian chart. */
+export const getAxisFields = (
+    layout: ChartLayout | undefined,
+    series: ChartSeries[] | undefined,
+): AxisFields => {
+    // One value axis per side: the first series drawn against it
+    const valueFields = [0, 1].map(
+        (axisIndex) =>
+            series?.find((item) => (item.yAxisIndex ?? 0) === axisIndex)?.encode
+                .yRef.field,
+    );
+    valueFields[0] ??= layout?.yField?.[0];
+    const categoryFields = [layout?.xField];
+    return layout?.flipAxes
+        ? { xAxis: valueFields, yAxis: categoryFields }
+        : { xAxis: categoryFields, yAxis: valueFields };
+};
+
 const decorate = <A extends Axis>(
     axes: A[] | undefined,
     fieldIds: Array<string | undefined>,
