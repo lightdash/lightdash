@@ -9,6 +9,7 @@ const executeEditDbtProject = async (
         prompt: string;
         prUrl: string | null;
         startNewPullRequest: boolean | null;
+        script: string | null;
     }> = {},
 ) => {
     if (!tool.execute) throw new Error('tool has no execute');
@@ -33,13 +34,18 @@ const executeEditDbtProject = async (
 
 describe('getEditDbtProject', () => {
     it('forwards startNewPullRequest: true to the editDbtProject dependency', async () => {
-        const editDbtProject = vi
-            .fn()
-            .mockResolvedValue({ aiWritebackRunUuid: 'run-1' });
-
-        await executeEditDbtProject(getEditDbtProject({ editDbtProject }), {
-            startNewPullRequest: true,
+        const editDbtProject = vi.fn().mockResolvedValue({
+            status: 'started',
+            inSandbox: true,
+            aiWritebackRunUuid: 'run-1',
         });
+
+        await executeEditDbtProject(
+            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            {
+                startNewPullRequest: true,
+            },
+        );
 
         expect(editDbtProject).toHaveBeenCalledWith(
             expect.objectContaining({ startNewPullRequest: true }),
@@ -47,13 +53,18 @@ describe('getEditDbtProject', () => {
     });
 
     it('forwards a null startNewPullRequest unchanged (default follow-up)', async () => {
-        const editDbtProject = vi
-            .fn()
-            .mockResolvedValue({ aiWritebackRunUuid: 'run-1' });
-
-        await executeEditDbtProject(getEditDbtProject({ editDbtProject }), {
-            startNewPullRequest: null,
+        const editDbtProject = vi.fn().mockResolvedValue({
+            status: 'started',
+            inSandbox: true,
+            aiWritebackRunUuid: 'run-1',
         });
+
+        await executeEditDbtProject(
+            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            {
+                startNewPullRequest: null,
+            },
+        );
 
         expect(editDbtProject).toHaveBeenCalledWith(
             expect.objectContaining({ startNewPullRequest: null }),
@@ -61,11 +72,15 @@ describe('getEditDbtProject', () => {
     });
 
     it('forwards the AI SDK tool call id as progressId', async () => {
-        const editDbtProject = vi
-            .fn()
-            .mockResolvedValue({ aiWritebackRunUuid: 'run-1' });
+        const editDbtProject = vi.fn().mockResolvedValue({
+            status: 'started',
+            inSandbox: true,
+            aiWritebackRunUuid: 'run-1',
+        });
 
-        await executeEditDbtProject(getEditDbtProject({ editDbtProject }));
+        await executeEditDbtProject(
+            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+        );
 
         expect(editDbtProject).toHaveBeenCalledWith(
             expect.objectContaining({ progressId: 'tool-call-1' }),
@@ -73,12 +88,14 @@ describe('getEditDbtProject', () => {
     });
 
     it('returns a pending status with the run uuid, without waiting for the run', async () => {
-        const editDbtProject = vi
-            .fn()
-            .mockResolvedValue({ aiWritebackRunUuid: 'run-1' });
+        const editDbtProject = vi.fn().mockResolvedValue({
+            status: 'started',
+            inSandbox: true,
+            aiWritebackRunUuid: 'run-1',
+        });
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject }),
+            getEditDbtProject({ editDbtProject, acceptsScript: false }),
         );
 
         expect(output.metadata).toEqual({
@@ -92,12 +109,14 @@ describe('getEditDbtProject', () => {
     });
 
     it('mirrors the started run as structured content that matches the output schema', async () => {
-        const editDbtProject = vi
-            .fn()
-            .mockResolvedValue({ aiWritebackRunUuid: 'run-1' });
+        const editDbtProject = vi.fn().mockResolvedValue({
+            status: 'started',
+            inSandbox: true,
+            aiWritebackRunUuid: 'run-1',
+        });
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject }),
+            getEditDbtProject({ editDbtProject, acceptsScript: false }),
         );
 
         expect(toolEditDbtProjectOutputSchema.safeParse(output).success).toBe(
@@ -113,7 +132,7 @@ describe('getEditDbtProject', () => {
             .mockRejectedValue(new Error('Unable to enqueue writeback'));
 
         const output = await executeEditDbtProject(
-            getEditDbtProject({ editDbtProject }),
+            getEditDbtProject({ editDbtProject, acceptsScript: false }),
         );
 
         expect(output.metadata).toEqual({
@@ -130,5 +149,68 @@ describe('getEditDbtProject', () => {
         expect(toolEditDbtProjectOutputSchema.safeParse(output).success).toBe(
             true,
         );
+    });
+
+    it('saves with a script only when code mode is on', async () => {
+        const editDbtProject = vi.fn().mockResolvedValue({
+            status: 'started',
+            inSandbox: true,
+            aiWritebackRunUuid: 'run-1',
+        });
+
+        await executeEditDbtProject(
+            getEditDbtProject({ editDbtProject, acceptsScript: true }),
+            { script: 'yaml.set()' },
+        );
+        await executeEditDbtProject(
+            getEditDbtProject({ editDbtProject, acceptsScript: false }),
+            { script: 'yaml.set()' },
+        );
+
+        expect(editDbtProject.mock.calls.map(([args]) => args.script)).toEqual([
+            'yaml.set()',
+            null,
+        ]);
+    });
+
+    it('hands a failed script back to the model with its logs', async () => {
+        const editDbtProject = vi.fn().mockResolvedValue({
+            status: 'script_failed',
+            error: 'models.[name=nope] does not exist',
+            logs: ['orders'],
+        });
+
+        const output = await executeEditDbtProject(
+            getEditDbtProject({ editDbtProject, acceptsScript: true }),
+            { script: 'yaml.remove()' },
+        );
+
+        expect(output.metadata).toEqual({
+            status: 'error',
+            errorCode: 'unknown',
+        });
+        expect(output.result).toContain('models.[name=nope] does not exist');
+        expect(output.result).toContain('console.log:\norders');
+        expect(toolEditDbtProjectOutputSchema.safeParse(output).success).toBe(
+            true,
+        );
+    });
+
+    it('says a save that falls back to the sandbox takes minutes', async () => {
+        const started = (inSandbox: boolean) =>
+            executeEditDbtProject(
+                getEditDbtProject({
+                    editDbtProject: vi.fn().mockResolvedValue({
+                        status: 'started',
+                        inSandbox,
+                        aiWritebackRunUuid: 'run-1',
+                    }),
+                    acceptsScript: true,
+                }),
+                { script: 'yaml.set()' },
+            );
+
+        expect((await started(true)).result).toContain('a few minutes');
+        expect((await started(false)).result).not.toContain('a few minutes');
     });
 });

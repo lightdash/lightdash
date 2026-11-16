@@ -379,7 +379,7 @@ const DraftActions: FC<{
 };
 
 /** Switches what the person's own queries read: the live models, or those with their changes on top. */
-export const ChangesSwitch: FC<{
+const ChangesSwitch: FC<{
     isOnMyChanges: boolean;
     onChange: (next: boolean) => void;
     /** Why it cannot be switched right now; shown disabled with this as its tooltip. */
@@ -407,7 +407,7 @@ export const ChangesSwitch: FC<{
                 if (unavailableReason === undefined) onChange(!isOnMyChanges);
             }}
         >
-            {isOnMyChanges ? 'Viewing my changes' : 'View my changes'}
+            {isOnMyChanges ? 'Viewing my changes' : 'Try my changes'}
         </Button>
     </Tooltip>
 );

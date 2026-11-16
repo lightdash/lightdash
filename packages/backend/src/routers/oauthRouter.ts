@@ -9,6 +9,7 @@ import {
     OAuthIntrospectResponse,
     ParameterError,
     parseScopeString,
+    TOKEN_EXCHANGE_GRANT_TYPE,
     type OAuthUserInfoResponse,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
@@ -30,6 +31,7 @@ import { MobileSignInOAuthError } from '../services/MobileSignInService/MobileSi
 import { isClientIdMetadataDocumentUrl } from '../services/OAuthService/clientIdMetadataDocument';
 import { InvalidRedirectUriError } from '../services/OAuthService/InvalidRedirectUriError';
 import {
+    getTokenRequestSourceProject,
     MobileSignInGrantError,
     setTokenRequestClientIp,
 } from '../services/OAuthService/managedSignIn/microsoftTokenExchangeGrantType';
@@ -444,6 +446,7 @@ oauthRouter.post('/token', async (req, res, next) => {
 
     try {
         const token = await oauthService.token(oauthReq, oauthRes);
+        const sourceProjectUuid = getTokenRequestSourceProject(oauthReq);
         res.json({
             access_token: token.accessToken,
             token_type: 'Bearer',
@@ -465,6 +468,13 @@ oauthRouter.post('/token', async (req, res, next) => {
             scope: Array.isArray(token.scope)
                 ? token.scope.join(' ')
                 : token.scope,
+            ...(req.body?.grant_type === TOKEN_EXCHANGE_GRANT_TYPE &&
+            req.body?.subject_token_type === MOBILE_SIGN_IN_CODE_TOKEN_TYPE &&
+            (req.body?.include_source_project === true ||
+                req.body?.include_source_project === 'true') &&
+            sourceProjectUuid
+                ? { source_project_uuid: sourceProjectUuid }
+                : {}),
         });
     } catch (error) {
         Logger.error(`Token endpoint error: ${error}`);

@@ -2,6 +2,7 @@ import {
     addDashboardFiltersToMetricQuery,
     assertUnreachable,
     getAvailableParametersFromTables,
+    getDashboardFilterRulesForTileAndReferences,
     getDashboardFiltersForTile,
     getDashboardTileParameterOverrides,
     getEffectiveParameterDefinitions,
@@ -54,6 +55,17 @@ const hasRules = (filters: DashboardFilters) =>
     filters.metrics.length > 0 ||
     filters.tableCalculations.length > 0;
 
+// A SQL column target reaches SQL nodes only
+const withoutSqlColumnTargets = (
+    filters: DashboardFilters,
+): DashboardFilters => ({
+    dimensions: filters.dimensions.filter((r) => !r.target.isSqlColumn),
+    metrics: filters.metrics.filter((r) => !r.target.isSqlColumn),
+    tableCalculations: filters.tableCalculations.filter(
+        (r) => !r.target.isSqlColumn,
+    ),
+});
+
 /** A tile's dashboard filters pushed into every semantic-layer node whose explore has the field, as on a merged tile; other nodes are left alone. */
 export const applyDashboardFiltersToComposerNodes = ({
     tileUuid,
@@ -70,7 +82,9 @@ export const applyDashboardFiltersToComposerNodes = ({
     appliedDashboardFilters: DashboardFilters;
     appliedDashboardFiltersByNodeId: Record<string, DashboardFilters>;
 } => {
-    const tileFilters = getDashboardFiltersForTile(tileUuid, dashboardFilters);
+    const tileFilters = withoutSqlColumnTargets(
+        getDashboardFiltersForTile(tileUuid, dashboardFilters),
+    );
     const appliedDashboardFiltersByNodeId: Record<string, DashboardFilters> =
         {};
     const filtered = nodes.map((node): ComposerChartPipelineNode => {
@@ -90,6 +104,49 @@ export const applyDashboardFiltersToComposerNodes = ({
     });
     return {
         nodes: filtered,
+        appliedDashboardFilters: unionDashboardFilters(
+            appliedDashboardFiltersByNodeId,
+        ),
+        appliedDashboardFiltersByNodeId,
+    };
+};
+
+/** Adds the rules the SQL nodes applied: an explicit tile target naming a column the node returns, as on a SQL chart tile. */
+export const withSqlColumnFilters = (
+    applied: {
+        appliedDashboardFiltersByNodeId: Record<string, DashboardFilters>;
+    },
+    {
+        tileUuid,
+        dashboardFilters,
+        sqlColumnsByNodeId,
+    }: {
+        tileUuid: string;
+        dashboardFilters: DashboardFilters;
+        sqlColumnsByNodeId: Record<string, string[]>;
+    },
+): {
+    appliedDashboardFilters: DashboardFilters;
+    appliedDashboardFiltersByNodeId: Record<string, DashboardFilters>;
+} => {
+    const appliedDashboardFiltersByNodeId = {
+        ...applied.appliedDashboardFiltersByNodeId,
+    };
+    Object.entries(sqlColumnsByNodeId).forEach(([nodeId, columns]) => {
+        const dimensions = getDashboardFilterRulesForTileAndReferences(
+            tileUuid,
+            columns,
+            dashboardFilters.dimensions,
+        );
+        if (dimensions.length > 0) {
+            appliedDashboardFiltersByNodeId[nodeId] = {
+                dimensions,
+                metrics: [],
+                tableCalculations: [],
+            };
+        }
+    });
+    return {
         appliedDashboardFilters: unionDashboardFilters(
             appliedDashboardFiltersByNodeId,
         ),

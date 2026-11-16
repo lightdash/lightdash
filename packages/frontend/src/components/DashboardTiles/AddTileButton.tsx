@@ -1,6 +1,7 @@
 import {
     DashboardTileTypes,
     FeatureFlags,
+    getDashboardTileCountsByTab,
     type Dashboard,
 } from '@lightdash/common';
 import {
@@ -114,9 +115,13 @@ const AddTileButton: FC<Props> = ({
     const currentTabTilesCount = useMemo(() => {
         if (!dashboardTiles) return 0;
         if (!activeTabUuid) return dashboardTiles.length;
-        return dashboardTiles.filter((tile) => tile.tabUuid === activeTabUuid)
-            .length;
-    }, [dashboardTiles, activeTabUuid]);
+        return (
+            getDashboardTileCountsByTab({
+                tiles: dashboardTiles,
+                tabs: dashboardTabs ?? [],
+            }).get(activeTabUuid) ?? 0
+        );
+    }, [dashboardTiles, dashboardTabs, activeTabUuid]);
 
     // Get limits from health config
     const maxTilesPerTab = health.data?.dashboard?.maxTilesPerTab || 50;

@@ -51,6 +51,8 @@ type FieldSelectProps<T extends Item = Item> = Omit<
     /** Fields not in the query yet, offered under an "Add to query" group.
      *  Picking one reaches `onChange` like any other item. */
     addItems?: T[];
+    /** Heading of the `addItems` group. */
+    addItemsGroupLabel?: string;
     /** Items from `items` to lift into a leading "Suggested" group, in the
      *  order given; they leave their table group so each is listed once. */
     suggestedItems?: T[];
@@ -69,6 +71,7 @@ const FieldSelectComponent = <T extends Item = Item>({
     item,
     items,
     addItems,
+    addItemsGroupLabel = ADD_TO_QUERY_GROUP_LABEL,
     suggestedItems,
     loading = false,
     onChange,
@@ -256,7 +259,8 @@ const FieldSelectComponent = <T extends Item = Item>({
                     : isCustomDimension(i)
                       ? tableLabelMap.get(i.table)
                       : undefined
-                : undefined,
+                : // Search never matches the group heading
+                  '',
             description: isField(i) ? i.description : undefined,
             disabled: inactiveItemIds.includes(getItemId(i)),
         }));
@@ -291,7 +295,7 @@ const FieldSelectComponent = <T extends Item = Item>({
             ...ungrouped,
             ...groupedData,
             ...(addEntries.length > 0
-                ? [{ group: ADD_TO_QUERY_GROUP_LABEL, items: addEntries }]
+                ? [{ group: addItemsGroupLabel, items: addEntries }]
                 : []),
         ];
     }, [
@@ -302,6 +306,7 @@ const FieldSelectComponent = <T extends Item = Item>({
         hasGrouping,
         tableLabelMap,
         inactiveItemIds,
+        addItemsGroupLabel,
     ]);
 
     const getUiString = useUiStrings();

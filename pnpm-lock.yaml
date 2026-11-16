@@ -734,6 +734,9 @@ importers:
       qs:
         specifier: 6.16.1
         version: 6.16.1
+      quickjs-emscripten:
+        specifier: 0.32.0
+        version: 0.32.0
       re2js:
         specifier: 1.3.3
         version: 1.3.3

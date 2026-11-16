@@ -20,6 +20,7 @@ import {
     ApiVirtualViewAsCodeListResponse,
     ApiVirtualViewAsCodeUpsertResponse,
     applyNewChartDefaults,
+    assertDashboardWithinLimits,
     assertUnreachable,
     ChartAsCode,
     ChartAsCodeConfig,
@@ -6338,6 +6339,10 @@ export class CoderService extends BaseService {
                 existingDashboard,
             ),
             existingDashboard?.tiles ?? [],
+        );
+        assertDashboardWithinLimits(
+            { tiles: tilesWithUuids, tabs: tabsWithUuids },
+            this.lightdashConfig.dashboard,
         );
         await this.assertTileChartsViewAccess({
             userUuid: user.userUuid,

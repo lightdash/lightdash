@@ -20,7 +20,7 @@ import {
 import MantineIcon from '../../components/common/MantineIcon';
 import { useNavBarMenuProps } from '../../components/NavBar/NavBarPortalContext';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import { isSignInIdle } from './isSignInIdle';
+import { isSignInIdle, isWaitingForScan } from './isSignInIdle';
 import classes from './MobileSettingsPage.module.css';
 import { useMobileSignInSeen } from './mobileSignInSeen';
 import {
@@ -84,7 +84,8 @@ const useKeepFocusInPopover = (
 const MobileSignInPopover: FC<{
     withLabel: boolean;
     upsell: MobileUpsellChoice | null;
-}> = ({ withLabel, upsell }) => {
+    sourceProjectUuid: string | null;
+}> = ({ withLabel, upsell, sourceProjectUuid }) => {
     const menuProps = useNavBarMenuProps();
     const id = useId();
     const [opened, setOpened] = useState(false);
@@ -92,6 +93,7 @@ const MobileSignInPopover: FC<{
     const preview = usePreviewSignInPhase();
     const liveSignIn = useMobileSignInCode({
         autoShow: opened && !preview.holdsMint,
+        sourceProjectUuid,
     });
     const previewSignIn = usePreviewSignIn(preview.forced);
     const signIn = previewSignIn ?? liveSignIn;
@@ -173,6 +175,7 @@ const MobileSignInPopover: FC<{
                 <MobileUpsellFrame
                     variation={upsell}
                     isIdle={isSignInIdle(signIn)}
+                    isWaitingForScan={isWaitingForScan(signIn)}
                     isSignedIn={signIn.phase === 'redeemed'}
                     title={
                         <Title order={6}>{MOBILE_STRINGS.signInTitle}</Title>
@@ -198,13 +201,20 @@ const MobileSignInPopover: FC<{
     );
 };
 
-export const MobileSignInMenu: FC<{ withLabel?: boolean }> = ({
-    withLabel = false,
-}) => {
+export const MobileSignInMenu: FC<{
+    withLabel?: boolean;
+    sourceProjectUuid?: string | null;
+}> = ({ withLabel = false, sourceProjectUuid = null }) => {
     const upsell = useMobileUpsell() ?? 6;
     const { data: qrSignInFlag } = useServerFeatureFlag(
         FeatureFlags.MobileQrSignIn,
     );
     if (!qrSignInFlag?.enabled) return null;
-    return <MobileSignInPopover withLabel={withLabel} upsell={upsell} />;
+    return (
+        <MobileSignInPopover
+            withLabel={withLabel}
+            upsell={upsell}
+            sourceProjectUuid={sourceProjectUuid}
+        />
+    );
 };
