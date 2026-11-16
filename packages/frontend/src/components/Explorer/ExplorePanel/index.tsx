@@ -84,11 +84,15 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const [isClearCacheOpen, clearCacheModalHandlers] = useDisclosure();
     const [, startTransition] = useTransition();
 
-    // Onboarding stays out of embeds and out of automated browsers
+    // Onboarding stays out of embeds, automated browsers, and the chart
+    // editors that open this panel over a dashboard or document
     const isEmbedded = useIsEmbedded();
     const tour = useGuidedTour({
         storageKey: EXPLORER_TOUR_STORAGE_KEY,
-        autoStartOnFirstVisit: !isEmbedded && !navigator.webdriver,
+        autoStartOnFirstVisit:
+            !isEmbedded &&
+            !navigator.webdriver &&
+            /\/(tables|saved)\//.test(window.location.pathname),
     });
 
     const projectUuid = useProjectUuid();

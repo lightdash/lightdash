@@ -10,7 +10,9 @@ const ShareShortLinkButton: FC<{
     disabled?: boolean;
     withLabel?: boolean;
     url?: { pathname: string; search: string };
-}> = ({ disabled, url, withLabel = false }) => {
+    /** Look of the icon-only button; the Explorer's quiet toolbars use subtle. */
+    variant?: 'default' | 'subtle';
+}> = ({ disabled, url, withLabel = false, variant = 'default' }) => {
     const location = useLocation();
 
     const { isLoading, mutateAsync: createShareUrl } = useCreateShareMutation();
@@ -44,7 +46,7 @@ const ShareShortLinkButton: FC<{
     return (
         <ActionIcon
             aria-label={copied ? 'Link copied' : 'Copy share link'}
-            variant="subtle"
+            variant={variant}
             onClick={handleCopy}
             disabled={isDisabled}
             color="gray"

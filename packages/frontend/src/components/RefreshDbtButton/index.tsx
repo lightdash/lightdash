@@ -95,6 +95,8 @@ const RefreshDbtButton: FC<{
     leftIcon?: React.ReactNode;
     defaultTextOverride?: React.ReactNode;
     refreshingTextOverride?: React.ReactNode;
+    /** The Explorer's quiet toolbar uses subtle. */
+    variant?: 'default' | 'subtle';
 }> = ({
     allowContentSync = true,
     onClick,
@@ -102,6 +104,7 @@ const RefreshDbtButton: FC<{
     leftIcon,
     defaultTextOverride,
     refreshingTextOverride,
+    variant = 'default',
 }) => {
     const projectUuid = useProjectUuid();
     const { data } = useProject(projectUuid);
@@ -251,7 +254,7 @@ const RefreshDbtButton: FC<{
         <Tooltip w={320} position="bottom" label={modeCopy[activeMode].tooltip}>
             <Button
                 size="xs"
-                variant="subtle"
+                variant={variant}
                 leftSection={leftIcon ?? <MantineIcon icon={IconRefresh} />}
                 loading={busy}
                 onClick={handleRefresh}
@@ -279,7 +282,7 @@ const RefreshDbtButton: FC<{
                             <Button
                                 size="xs"
                                 p={4}
-                                variant="subtle"
+                                variant={variant}
                                 disabled={busy}
                                 aria-label="Change refresh mode"
                             >

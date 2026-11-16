@@ -92,17 +92,24 @@
     opacity: 1;
 }
 
+/* Touch screens have no hover to reveal it */
+@media (hover: none) {
+    .results:not([data-grouped]) table thead th [class*='thActionsContainer'] {
+        opacity: 1;
+    }
+}
+
 /* Every results column aligns to the left, labels over their values */
-.results table tbody td,
-.results table tbody td[data-nan],
-.results table tfoot td,
-.results table tfoot td[data-nan],
-.results table tfoot th {
+.results:not([data-grouped]) table tbody td,
+.results:not([data-grouped]) table tbody td[data-nan],
+.results:not([data-grouped]) table tfoot td,
+.results:not([data-grouped]) table tfoot td[data-nan],
+.results:not([data-grouped]) table tfoot th {
     text-align: left !important;
 }
 
 /* The column menu sits at the column's right edge, clear of the label */
-.results table thead th [class*='thContainer'] {
+.results:not([data-grouped]) table thead th [class*='thContainer'] {
     justify-content: space-between;
 }
 

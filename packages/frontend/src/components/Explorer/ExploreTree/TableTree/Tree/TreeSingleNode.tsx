@@ -529,7 +529,8 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         '--tree-node-hover-bg': itemColors.bgHover,
                     }}
                     leftSection={icon}
-                    draggable={!isMissing}
+                    // A merge source's fields belong to another explore
+                    draggable={!isMissing && !customMetricSourceId}
                     onDragStart={(event: DragEvent) =>
                         startFieldDrag(event, {
                             fieldId: node.key,

@@ -269,24 +269,40 @@ const VisualizationCard: FC<Props> = memo((props) => {
         pickChartType: boolean;
     } | null>(null);
     const addDroppedFieldToQuery = useAddDroppedFieldToQuery();
+    const isPivotedTable =
+        chartType === ChartType.TABLE && (pivotConfig?.columns.length ?? 0) > 0;
     const fieldDrop = useFieldDrop((field) => {
         const wasClosed = !explorerStore
             .getState()
             .explorer.expandedSections.includes(ExplorerSection.VISUALIZATION);
         addDroppedFieldToQuery(field);
         if (wasClosed) toggleExpandedSection(ExplorerSection.VISUALIZATION);
-        setDroppedField({ field, pickChartType: wasClosed });
+        // Only a chart nobody has shaped yet gets a type picked for it
+        const isUntouchedChart =
+            !savedChart && chartType === ChartType.TABLE && !isPivotedTable;
+        setDroppedField({
+            field,
+            pickChartType: wasClosed && isUntouchedChart,
+        });
     });
 
     const isStale = useIsResultsStale();
     const isChoosingChartType =
         useExplorerSelector(selectChartSidebarStep) === 'choose';
+    // A chart can plot dimensions on its y-axis, so it only counts as empty
+    // when nothing has been put there
+    const hasYField = useExplorerSelector((state) => {
+        const chartConfig = selectChartConfig(state);
+        return (
+            chartConfig.type === ChartType.CARTESIAN &&
+            (chartConfig.config?.layout?.yField?.length ?? 0) > 0
+        );
+    });
     // Bars, lines and pivoted tables need a number: with only dimensions
     // they draw blank
-    const isPivotedTable =
-        chartType === ChartType.TABLE && (pivotConfig?.columns.length ?? 0) > 0;
     const hasNothingToPlot =
         (chartType === ChartType.CARTESIAN || isPivotedTable) &&
+        !hasYField &&
         metricQuery.metrics.length === 0 &&
         metricQuery.tableCalculations.length === 0 &&
         (resultsData?.rows.length ?? 0) > 0;

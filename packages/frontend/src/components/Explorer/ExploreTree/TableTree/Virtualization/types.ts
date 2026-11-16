@@ -50,7 +50,7 @@ export const ITEM_HEIGHTS = {
     SECTION_HEADER: 30,
     TREE_SINGLE_NODE: 26,
     TREE_GROUP_NODE: 26,
-    MISSING_FIELD: 26,
+    MISSING_FIELD: 32,
     EMPTY_STATE: 60,
 } as const;
 

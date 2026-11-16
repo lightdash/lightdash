@@ -215,7 +215,7 @@ const ExplorerHeader: FC = memo(() => {
             )}
 
             <Box>
-                <RefreshDbtButton />
+                <RefreshDbtButton variant="subtle" />
             </Box>
 
             <Group gap="xs">
@@ -274,6 +274,7 @@ const ExplorerHeader: FC = memo(() => {
                     })}
                 >
                     <ShareShortLinkButton
+                        variant="subtle"
                         disabled={!isValidQuery}
                         url={urlToShare}
                     />
