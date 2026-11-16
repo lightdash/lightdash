@@ -7,9 +7,11 @@ import {
     getItemLabelWithoutTableName,
     getTotalFilterRules,
     hasNestedGroups,
+    LIVE_SOURCE_INTEGRATION_PROFILES,
     isAndFilterGroup,
     isFilterableField,
     isOrFilterGroup,
+    type ApiSourceExplore,
     type FilterGroup,
     type FilterRule,
     type Filters,
@@ -30,6 +32,11 @@ import { useUncontrolled } from '@mantine/hooks';
 import { IconAlertTriangle, IconPlus, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useRef, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    getLiveSourceOperatorOptions,
+    getLiveSourceSupportedOperators,
+    isFilterableOnLiveSource,
+} from '../../../features/externalConnections/liveSources/apiSourceExplore';
 import {
     type FieldsWithSuggestions,
     type FieldWithSuggestions,
@@ -59,11 +66,20 @@ type InvalidFilterRule =
           reason: 'invalid_operator';
           rule: FilterRule;
           fieldLabel: string;
+      }
+    | {
+          reason: 'unsupported_on_live_source';
+          rule: FilterRule;
+          fieldLabel: string;
+          /** The operator as the filter builder names it; null when the field can't be filtered. */
+          operatorLabel: string | null;
+          sourceLabel: string;
       };
 
 const getInvalidFilterRules = (
     fields: FieldWithSuggestions[],
     filterRules: FilterRule[],
+    apiSource: ApiSourceExplore | null | undefined,
 ): InvalidFilterRule[] =>
     filterRules.reduce<InvalidFilterRule[]>((accumulator, filterRule) => {
         const fieldInRule = fields.find(
@@ -82,18 +98,47 @@ const getInvalidFilterRules = (
         }
 
         const filterType = getFilterTypeFromItem(fieldInRule);
-        const validOperators = getFilterOperatorOptions(
+        const operatorOptions = getFilterOperatorOptions(
             filterType,
             fieldInRule,
-        ).map((option) => option.value);
+        );
+        const fieldLabel = getItemLabelWithoutTableName(fieldInRule);
 
-        if (!validOperators.includes(filterRule.operator)) {
+        if (
+            !operatorOptions.some(({ value }) => value === filterRule.operator)
+        ) {
+            return [
+                ...accumulator,
+                { reason: 'invalid_operator', rule: filterRule, fieldLabel },
+            ];
+        }
+
+        // Saved before the builder followed the source's rules
+        if (
+            apiSource &&
+            !getLiveSourceOperatorOptions(
+                operatorOptions,
+                apiSource,
+                fieldInRule,
+            ).some(({ value }) => value === filterRule.operator)
+        ) {
             return [
                 ...accumulator,
                 {
-                    reason: 'invalid_operator',
+                    reason: 'unsupported_on_live_source',
                     rule: filterRule,
-                    fieldLabel: getItemLabelWithoutTableName(fieldInRule),
+                    fieldLabel,
+                    operatorLabel: isFilterableOnLiveSource(
+                        apiSource,
+                        fieldInRule,
+                    )
+                        ? (operatorOptions.find(
+                              ({ value }) => value === filterRule.operator,
+                          )?.label ?? filterRule.operator)
+                        : null,
+                    sourceLabel:
+                        LIVE_SOURCE_INTEGRATION_PROFILES[apiSource.integration]
+                            .label,
                 },
             ];
         }
@@ -194,7 +239,8 @@ const FiltersFormComponent: FC<Props> = ({
     onAddFilterOpenedChange,
 }) => {
     // const theme = useMantineTheme();
-    const { itemsMap, baseTable } = useFiltersContext<FieldsWithSuggestions>();
+    const { itemsMap, baseTable, apiSource } =
+        useFiltersContext<FieldsWithSuggestions>();
     const [isOpen, setIsOpen] = useUncontrolled({
         value: addFilterOpened,
         defaultValue: false,
@@ -214,7 +260,20 @@ const FiltersFormComponent: FC<Props> = ({
     const clearAllFilters = useCallback(() => {
         setFilters({});
     }, [setFilters]);
-    const invalidFilterRules = getInvalidFilterRules(fields, totalFilterRules);
+    const invalidFilterRules = getInvalidFilterRules(
+        fields,
+        totalFilterRules,
+        apiSource,
+    );
+    const addableFields = useMemo(
+        () =>
+            fields.filter(
+                (field) =>
+                    !isFilterableField(field) ||
+                    isFilterableOnLiveSource(apiSource, field),
+            ),
+        [fields, apiSource],
+    );
     const hasInvalidFilterRules = invalidFilterRules.length > 0;
 
     const showSimplifiedForm: boolean =
@@ -223,11 +282,20 @@ const FiltersFormComponent: FC<Props> = ({
     const addFieldRule = useCallback(
         (field: FieldWithSuggestions) => {
             if (isFilterableField(field)) {
-                setFilters(addFilterRule({ filters, field }));
+                setFilters(
+                    addFilterRule({
+                        filters,
+                        field,
+                        supportedOperators: getLiveSourceSupportedOperators(
+                            apiSource,
+                            field,
+                        ),
+                    }),
+                );
                 toggleFieldInput(false);
             }
         },
-        [filters, setFilters, toggleFieldInput],
+        [filters, setFilters, toggleFieldInput, apiSource],
     );
 
     const updateFiltersFromGroup = useCallback(
@@ -376,6 +444,24 @@ const FiltersFormComponent: FC<Props> = ({
                                             {entry.rule.target.fieldId}
                                         </Code>
                                     </>
+                                ) : entry.reason ===
+                                  'unsupported_on_live_source' ? (
+                                    <>
+                                        {entry.sourceLabel} can't filter{' '}
+                                        <Code fw={500} fz="xs">
+                                            {entry.fieldLabel}
+                                        </Code>
+                                        {entry.operatorLabel && (
+                                            <>
+                                                {' '}
+                                                with{' '}
+                                                <Code fw={500} fz="xs">
+                                                    {entry.operatorLabel}
+                                                </Code>
+                                            </>
+                                        )}
+                                        . Remove this filter to run the chart.
+                                    </>
                                 ) : (
                                     <>
                                         Filter on{' '}
@@ -410,7 +496,7 @@ const FiltersFormComponent: FC<Props> = ({
             {isEditMode && (
                 <AddFilterSection
                     isOpen={isOpen}
-                    fields={fields}
+                    fields={addableFields}
                     totalFilterRules={totalFilterRules.length}
                     baseTable={baseTable}
                     toggleFieldInput={toggleFieldInput}

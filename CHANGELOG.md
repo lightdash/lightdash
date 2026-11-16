@@ -1,3 +1,24 @@
+## [3.266.3](https://github.com/lightdash/lightdash/compare/3.266.2...3.266.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **external-connections:** delete secret and call log when a connection is deleted ([#32576](https://github.com/lightdash/lightdash/issues/32576)) ([505c093](https://github.com/lightdash/lightdash/commit/505c09394cd35a09da9f4beb1d3fd49e315e9152))
+
+## [3.266.2](https://github.com/lightdash/lightdash/compare/3.266.1...3.266.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai:** name Tables configuration when an agent has no explores ([#32631](https://github.com/lightdash/lightdash/issues/32631)) ([c4232a4](https://github.com/lightdash/lightdash/commit/c4232a48fab707e94062322b40c10a1bd9fbc3eb))
+
+## [3.266.1](https://github.com/lightdash/lightdash/compare/3.266.0...3.266.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* honour user overrides throughout mobile QR sign-in ([#32633](https://github.com/lightdash/lightdash/issues/32633)) ([6eea4ce](https://github.com/lightdash/lightdash/commit/6eea4ce15660a53aea85345919fe09d3951b3958))
+
 # [3.266.0](https://github.com/lightdash/lightdash/compare/3.265.3...3.266.0) (2026-11-16)
 
 
