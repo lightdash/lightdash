@@ -705,14 +705,67 @@ describe('the push installations of a denied grant', () => {
         flagState.overrides.set(disabledOrg, false);
         const url = await start();
 
-        await getProjects(url, 'other-org-mobile-access');
-        await getProjects(url, 'cli-access');
-        await refresh(url, 'cli-refresh', 'cli-client');
+        const statuses = [
+            (await getProjects(url, 'other-org-mobile-access')).status,
+            (await getProjects(url, 'cli-access')).status,
+            (await refresh(url, 'cli-refresh', 'cli-client')).status,
+        ];
         flagState.overrides.delete(disabledOrg);
-        await getProjects(url, 'mobile-access');
-        await refresh(url, 'mobile-refresh', 'mobile-client');
+        statuses.push(
+            (await getProjects(url, 'mobile-access')).status,
+            (await refresh(url, 'mobile-refresh', 'mobile-client')).status,
+        );
 
+        expect(statuses).toEqual([200, 200, 200, 200, 200]);
         expect(onMobileAccessDenied).not.toHaveBeenCalled();
+    });
+
+    it('are reported for the person who signs in, not for a fixed user, when a sign-in grant is denied', async () => {
+        managedSignIn.exchangeIdToken.mockResolvedValueOnce({
+            ...defaultSessionUser,
+            userId: 77,
+            organizationUuid: disabledOrg,
+        });
+        flagState.overrides.set(disabledOrg, false);
+        const url = await start();
+
+        const response = await send(`${url}/api/v1/oauth/token`, {
+            form: {
+                grant_type: TOKEN_EXCHANGE_GRANT_TYPE,
+                subject_token: 'a-microsoft-id-token',
+                subject_token_type: ID_TOKEN_TYPE,
+                scope: 'read',
+                client_id: 'mobile-client',
+            },
+        });
+
+        expect(response.status).toBe(403);
+        expect(onMobileAccessDenied).toHaveBeenCalledTimes(1);
+        expect(onMobileAccessDenied).toHaveBeenCalledWith({
+            userId: 77,
+            clientId: 'mobile-client',
+            organizationUuid: disabledOrg,
+        });
+    });
+
+    it('do not change a denied refresh when the removal fails', async () => {
+        const warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+        onMobileAccessDenied.mockRejectedValueOnce(new Error('database down'));
+        flagState.overrides.set(disabledOrg, false);
+        const url = await start();
+
+        const denied = await refresh(url, 'mobile-refresh', 'mobile-client');
+
+        expect(denied.status).toBe(400);
+        expect(denied.body).toEqual({
+            error: 'invalid_grant',
+            error_description: 'mobile_org_disabled',
+            organization_uuid: disabledOrg,
+        });
+        expect(warn).toHaveBeenCalledWith(
+            'Unable to remove mobile push installations of a denied grant',
+            expect.anything(),
+        );
     });
 
     it('are left alone when the browser authorize step is refused', async () => {

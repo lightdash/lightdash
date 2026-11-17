@@ -1645,7 +1645,7 @@ describe('MobilePushNotificationService for an organization with mobile access o
         ).not.toHaveBeenCalled();
     });
 
-    it('still lets the app remove its installation and its activity', async () => {
+    it('still removes an installation and an activity for a caller that passes authentication', async () => {
         const { dependencies, service } = createDisabled();
 
         await service.revokeInstallation({

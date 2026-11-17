@@ -11,7 +11,10 @@ import {
     type OAuthClientSummary,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
-import { MobileOrgDisabledOAuthError } from '../../auth/mobileAppAccess';
+import {
+    MobileOrgDisabledOAuthError,
+    type MobileGrant,
+} from '../../auth/mobileAppAccess';
 import { assertOAuthCredentialOperationAllowed } from '../../auth/oauthScopes/credentials';
 import {
     oauthApiResource,
@@ -44,11 +47,9 @@ export type OAuthGrantRevokedHandler = (args: {
     clientId: string;
 }) => Promise<void>;
 
-export type OAuthMobileAccessDeniedHandler = (args: {
-    userId: number;
-    clientId: string;
-    organizationUuid: string;
-}) => Promise<void>;
+export type OAuthMobileAccessDeniedHandler = (
+    args: MobileGrant & { organizationUuid: string },
+) => Promise<void>;
 
 type OAuthServiceArguments = {
     userModel: UserModel;

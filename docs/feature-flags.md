@@ -518,10 +518,12 @@ finishes.
 
 **Enable again.** The server keeps no revocation record. New sign-ins work at
 once, and an unexpired token works again. An app that received the denial has
-deleted its tokens, so the person signs in again. A device that received the
-denial has no push installation left, so it receives pushes again only after
-the app registers one, which needs a valid sign-in. A device that stayed
-offline for the whole time keeps its installation and its token.
+deleted its tokens, so the person signs in again. A device whose mobile
+token was denied has no push installation left, so it receives pushes again
+only after the app registers one, which needs a valid sign-in. A device that
+stayed offline for the whole time keeps its installation and its token. An
+installation registered with a cookie session belongs to no grant and is not
+removed; it receives no push while the organisation is off.
 
 **ENV.** `LIGHTDASH_DISABLE_FEATURE_FLAGS=mobile-app-access` turns mobile access
 off for the whole deployment. `LIGHTDASH_ENABLE_FEATURE_FLAGS=mobile-app-access`
