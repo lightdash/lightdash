@@ -25,7 +25,8 @@
 .results:not([data-grouped]) table thead th,
 .results:not([data-grouped]) table thead th:not(:first-child) {
     padding: 7px 8.5px;
-    vertical-align: middle;
+    /* Names of different lengths all start on the same top line */
+    vertical-align: top;
     box-shadow: none;
 }
 
@@ -36,7 +37,7 @@
 }
 
 .results:not([data-grouped]) [class*='thContainer'] {
-    align-items: center;
+    align-items: flex-start;
 }
 
 /* Header label: the field name in ink, led by its type icon in the field
