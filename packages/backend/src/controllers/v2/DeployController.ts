@@ -9,6 +9,7 @@ import {
     assertRegisteredAccount,
     LightdashCliVersionHeader,
     type DeployTarget,
+    type NativeMaterializationDocument,
 } from '@lightdash/common';
 import {
     Body,
@@ -27,6 +28,10 @@ import express from 'express';
 import { toSessionUser } from '../../auth/account';
 import { assertAgentConnectionGrantOperation } from '../../auth/agentConnectionGrants/evaluateGrant';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
+import {
+    assertAgentDeployDocuments,
+    attachDeployDocuments,
+} from '../../utils/nativeDeployDocuments';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -56,7 +61,8 @@ export class DeployController extends BaseController {
         @Body() body: {
             explores: AnyType[];
             complete: boolean;
-            dbtModelNames: string[];
+            dbtModelNames?: string[];
+            nativeModelDocuments?: (NativeMaterializationDocument | null)[];
             sourceUuid?: string;
             target?: DeployTarget;
         },
@@ -68,6 +74,12 @@ export class DeployController extends BaseController {
             deploymentOverrides: body,
         });
         assertRegisteredAccount(req.account);
+        attachDeployDocuments(body.explores, body.nativeModelDocuments);
+        if (
+            req.account.authentication.type === 'oauth' &&
+            req.account.authentication.agentConnectionGrant
+        )
+            assertAgentDeployDocuments(body.explores);
         const results = await this.services
             .getProjectService()
             .setExplores(
@@ -161,15 +173,22 @@ export class DeployController extends BaseController {
         }
         assertRegisteredAccount(req.account);
         this.setStatus(200);
+        const batch: ApiAddDeployBatchRequest = body;
+        attachDeployDocuments(batch.explores, batch.nativeModelDocuments);
+        if (
+            req.account.authentication.type === 'oauth' &&
+            req.account.authentication.agentConnectionGrant
+        )
+            assertAgentDeployDocuments(batch.explores);
         const result = await this.services
             .getDeployService()
             .addDeployBatch(
                 toSessionUser(req.account),
                 projectUuid,
                 sessionUuid,
-                (body as unknown as ApiAddDeployBatchRequest).explores,
-                (body as unknown as ApiAddDeployBatchRequest).batchNumber,
-                (body as unknown as ApiAddDeployBatchRequest).complete,
+                batch.explores,
+                batch.batchNumber,
+                batch.complete,
             );
         return {
             status: 'ok',

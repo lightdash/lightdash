@@ -54,6 +54,7 @@ const getDuckdbType = ({
     }
     throw new ParameterError(
         'Unsupported Postgres column type or precision for materialization',
+        { code: 'materialization_unsupported_type' },
     );
 };
 

@@ -130,6 +130,7 @@ import {
     getMetrics,
     getModelInventoryFromManifest,
     getModelsFromManifest,
+    getNativeMaterializationDocument,
     getNewHandWrittenAdditionalMetrics,
     getNextResultsCacheClearAt,
     getParameterReferences,
@@ -534,6 +535,8 @@ import {
 } from '../cliDeploy';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import { inferCliDeploySource } from '../inferCliDeploySource';
+import { nativeModelPublication } from '../ModelMaterializationService/nativeModelPublication';
+import { validateNativeMaterializationDocuments } from '../ModelMaterializationService/validateNativeMaterializationDocuments';
 import {
     MultiConnectionCompiler,
     withConnectionWarnings,
@@ -4321,6 +4324,13 @@ export class ProjectService
                 hasAdditionalDbtSources,
             );
         }
+        const optedIn = args.explores
+            .map(getNativeMaterializationDocument)
+            .find((document) => document?.content != null);
+        if (optedIn)
+            throw new ParameterError(
+                `Model ${optedIn.name} cannot be materialized in a source-scoped deploy.`,
+            );
         if (args.complete !== true) {
             throw new ParameterError(
                 'A deploy to a project with multiple connections must send every explore of its dbt source',
@@ -4708,7 +4718,23 @@ export class ProjectService
                 'compileProject',
             );
         throwIfCompileAborted();
-        const { cachedExploreUuids } = await saveExplores(summary);
+        const { cachedExploreUuids } = await nativeModelPublication.run(
+            {
+                projectUuid,
+                userUuid,
+                full: complete === true,
+                studio: args.publishDocuments !== undefined,
+                publishedNames: new Set(),
+                documents: new Map(),
+                validate: (docs) =>
+                    validateNativeMaterializationDocuments(
+                        this,
+                        projectUuid,
+                        docs,
+                    ),
+            },
+            () => saveExplores(summary),
+        );
         markCompilePublished();
         const connectionIndexCatalogJob = connectionProject
             ? await this.schedulerClient.indexCatalog({

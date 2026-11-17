@@ -364,3 +364,29 @@ export type SemanticStudioWorkspaceStartBody = {
 };
 
 export type SemanticStudioWorkspaceRenameBody = { name: string };
+
+export type ModelMaterializationStatus = {
+    state: 'live' | 'preparing' | 'materialized' | 'blocked';
+    servingCopy: boolean;
+    asOf: string | null;
+    rowCount: number | null;
+    maxRows: number | null;
+    byteCount: number | null;
+    nextRefresh: string | null;
+    failureReason: string | null;
+};
+
+export type ModelMaterializationSample = {
+    columns: string[];
+    rows: Record<string, string | number | boolean | null>[];
+};
+
+export type ModelMaterializationList = {
+    models: string[];
+};
+
+export type ApiModelMaterializationStatus =
+    ApiSuccess<ModelMaterializationStatus>;
+export type ApiModelMaterializationSample =
+    ApiSuccess<ModelMaterializationSample>;
+export type ApiModelMaterializationList = ApiSuccess<ModelMaterializationList>;

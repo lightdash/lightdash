@@ -25,6 +25,7 @@ export const BaseResponse: HealthState = {
     isAuthenticated: false,
     requiresOrgRegistration: false,
     instanceBrand: null,
+    supportsNativeMaterializationDeploy: true,
     localDbtEnabled: true,
     defaultProject: undefined,
     siteUrl: 'https://test.lightdash.cloud',

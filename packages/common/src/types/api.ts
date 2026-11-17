@@ -1,4 +1,5 @@
 import { type ExploreWarningReport } from '../compiler/compilationReport';
+import { type NativeMaterializationDocument } from '../compiler/compileLightdashModels';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
@@ -480,6 +481,9 @@ import {
 import { type SchedulerWithLogs } from './schedulerLog';
 import { type SearchResults } from './search';
 import {
+    type ApiModelMaterializationList,
+    type ApiModelMaterializationSample,
+    type ApiModelMaterializationStatus,
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
@@ -758,6 +762,7 @@ export type HealthState = {
             ios: string | null;
         };
     };
+    supportsNativeMaterializationDeploy?: boolean;
     localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
@@ -1000,6 +1005,7 @@ export type ApiStartDeploySessionResponse = {
 };
 
 export type ApiAddDeployBatchRequest = {
+    nativeModelDocuments?: (NativeMaterializationDocument | null)[];
     explores: (Explore | ExploreError)[];
     batchNumber: number;
     complete?: boolean;
@@ -1911,6 +1917,9 @@ type ApiResults =
     | ApiAiProviderCredentialsResponse['results']
     | ApiAiProviderCredentialCreatedResponse['results']
     | ApiProjectAiCredentialResponse['results']
+    | ApiModelMaterializationList['results']
+    | ApiModelMaterializationSample['results']
+    | ApiModelMaterializationStatus['results']
     | ApiSemanticLayerDraftResponse['results']
     | ApiSemanticLayerDraftedModelsResponse['results']
     | ApiSemanticLayerDraftStateResponse['results']

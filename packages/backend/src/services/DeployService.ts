@@ -18,6 +18,7 @@ import { DeploySessionModel } from '../models/DeploySessionModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { captureAgentConnectionTask } from '../utils/agentConnectionExecution';
+import { assertAgentDeployDocuments } from '../utils/nativeDeployDocuments';
 import { agentExecutionContext } from './AiAccessService/agentExecutionContext';
 import { BaseService } from './BaseService';
 import { NO_CLI_DEPLOY_SELECTION, type CliDeploySelection } from './cliDeploy';
@@ -306,6 +307,7 @@ export class DeployService extends BaseService {
             );
             const data =
                 await this.deploySessionModel.getDeployData(sessionUuid);
+            assertAgentDeployDocuments(data.explores);
             assertPreAggregateRefresh(
                 EMPTY_PRE_AGGREGATE_REFRESH,
                 data.explores,

@@ -351,6 +351,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SWEEP_SLACK_AI_ARTIFACT_IMAGES]: TraceTaskBase;
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
     [SCHEDULER_TASKS.MATERIALIZE_MODEL]: TraceTaskBase & {
+        manualRequestUuid?: string;
         configUuid: string;
         revisionUuid: string;
         policyEpoch: number;

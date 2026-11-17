@@ -1,12 +1,24 @@
+import {
+    attachNativeMaterializationDocument,
+    compileLightdashModels,
+    DEFAULT_SPOTLIGHT_CONFIG,
+    parseModelDocument,
+    WarehouseTypes,
+} from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { type Knex } from 'knex';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { ProjectModelDocumentModel } from '../../../ee/models/ProjectModelDocumentModel';
-import { saveMaterializationPolicies } from '../../../ee/services/SemanticStudioService/materializationPublish';
 import {
     ModelMaterializationModel,
     type MaterializationBuildIntent,
 } from '../../../models/ModelMaterializationModel';
+import { ModelMaterializationStatusModel } from '../../../models/ModelMaterializationStatusModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import {
+    finalizeNativePublication,
+    nativeModelPublication,
+} from '../../../services/ModelMaterializationService/nativeModelPublication';
 import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -17,6 +29,10 @@ import {
     up as createGenerations,
     down as dropGenerations,
 } from '../20261118120100_create_model_materialization_generations';
+import {
+    up as createManualRequests,
+    down as dropManualRequests,
+} from '../20261118120200_model_materialization_manual_requests';
 import {
     createMigratedTestDatabase,
     type MigratedTestDatabase,
@@ -119,6 +135,7 @@ describe('Model materialization persistence', () => {
     };
 
     test('both migrations reverse and reapply', async () => {
+        await db.transaction(dropManualRequests);
         await db.transaction(dropGenerations);
         await db.transaction(dropConfigs);
         expect(
@@ -129,6 +146,7 @@ describe('Model materialization persistence', () => {
         );
         await db.transaction(createConfigs);
         await db.transaction(createGenerations);
+        await db.transaction(createManualRequests);
         expect(
             await db.schema.hasTable('model_materialization_generations'),
         ).toBe(true);
@@ -216,16 +234,21 @@ describe('Model materialization persistence', () => {
                             table_names: ['orders'],
                             explore: { name: 'orders' },
                         });
+                        await nativeModelPublication.run(
+                            {
+                                projectUuid,
+                                userUuid,
+                                studio: true,
+                                full: false,
+                                publishedNames: new Set(),
+                                documents: new Map([['orders', content]]),
+                                validate: async () => {},
+                            },
+                            () => finalizeNativePublication(trx, projectUuid),
+                        );
                         expect(await visible()).toEqual([0, 0, 0, 0]);
                         if (rollback) throw new Error('Deploy failed');
                     }),
-                (trx, changeSetUuid) =>
-                    saveMaterializationPolicies(
-                        trx,
-                        projectUuid,
-                        changeSetUuid,
-                        userUuid,
-                    ),
             );
         await expect(deploy(true)).rejects.toThrow('Deploy failed');
         expect(await visible()).toEqual([0, 0, 0, 0]);
@@ -321,13 +344,6 @@ describe('Model materialization persistence', () => {
                             write,
                         );
                 },
-                (trx, changeSetUuid) =>
-                    saveMaterializationPolicies(
-                        trx,
-                        projectUuid,
-                        changeSetUuid,
-                        userUuid,
-                    ),
             );
             try {
                 await vi.waitFor(async () => {
@@ -354,6 +370,332 @@ describe('Model materialization persistence', () => {
             );
         },
     );
+
+    test('repo stream publish builds a changed definition, retains a queued pin and refreshes the same revision', async () => {
+        const {
+            rows: [{ project_uuid: projectUuid }],
+        } = await db.raw<{ rows: { project_uuid: string }[] }>(
+            'INSERT INTO projects(name,organization_id) VALUES (?,?) RETURNING project_uuid',
+            ['repo', organizationId],
+        );
+        const {
+            rows: [{ user_uuid: userUuid }],
+        } = await db.raw<{ rows: { user_uuid: string }[] }>(
+            'INSERT INTO users(first_name,last_name) VALUES (?,?) RETURNING user_uuid',
+            ['', ''],
+        );
+        const projects = new ProjectModel({
+            database: db,
+            lightdashConfig: lightdashConfigMock,
+            encryptionUtil: new EncryptionUtil({
+                lightdashConfig: lightdashConfigMock,
+            }),
+        });
+        const configs = () =>
+            db('model_materialization_configs')
+                .join(
+                    'project_model_documents',
+                    'document_uuid',
+                    'project_model_document_uuid',
+                )
+                .where('project_uuid', projectUuid);
+        const key = async () => {
+            const config = await configs().first();
+            return {
+                configUuid: config.config_uuid,
+                revisionUuid: config.desired_revision_uuid,
+                policyEpoch: config.policy_epoch,
+            };
+        };
+        const write = async (table: string | null) => {
+            const content = `type: model\nname: orders\nsql_from: raw.${table ?? 'live'}\ndimensions:\n  - {name: id, type: number, sql: '\${TABLE}.id'}\n${table === null ? '' : 'materialize: {max_rows: 10}'}\n`;
+            const [explore] = await compileLightdashModels({
+                models: [parseModelDocument(content, 'models/orders.yml')],
+                warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                    WarehouseTypes.POSTGRES,
+                ),
+                lightdashProjectConfig: { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            });
+            const validate = vi.fn(async () => {});
+            await nativeModelPublication.run(
+                {
+                    projectUuid,
+                    userUuid,
+                    studio: false,
+                    full: true,
+                    publishedNames: new Set(),
+                    documents: new Map(),
+                    validate,
+                },
+                () =>
+                    projects.saveExploreStreamToCache(
+                        projectUuid,
+                        (async function* compiledExplores() {
+                            yield explore;
+                        })(),
+                    ),
+            );
+            expect(validate).toHaveBeenCalledWith([
+                {
+                    name: 'orders',
+                    content:
+                        table === null
+                            ? null
+                            : expect.stringContaining(`raw.${table}`),
+                },
+            ]);
+        };
+        await write('first');
+        const original = await key();
+        const first = await claim(original);
+        await model.promote(first, verified);
+        await expect(
+            nativeModelPublication.run(
+                {
+                    projectUuid,
+                    userUuid,
+                    studio: false,
+                    full: false,
+                    publishedNames: new Set(),
+                    documents: new Map(),
+                    validate: async () => {},
+                },
+                () =>
+                    projects.saveExploresToCache(projectUuid, [
+                        {
+                            ...validExplore,
+                            baseTable: 'orders',
+                            name: 'orders',
+                        },
+                    ]),
+            ),
+        ).rejects.toThrow('Deploy the native model definition');
+        await write('first');
+        expect(await key()).toEqual(original);
+        expect(await model.claim(original)).toEqual({ status: 'ready' });
+        await write('second');
+        const next = await key();
+        expect(next.revisionUuid).not.toBe(original.revisionUuid);
+        expect(await model.getServingCopy(projectUuid, 'orders')).toEqual({
+            status: 'pending',
+        });
+        const second = await claim(next);
+        await model.promote(second, verified);
+        expect(
+            await model.getPinnedObjectKey(projectUuid, 'orders', {
+                configUuid: first.configUuid,
+                generationUuid: first.generationUuid,
+                policyEpoch: first.policyEpoch,
+            }),
+        ).toBe(first.objectKey);
+        await model.manualRefresh(projectUuid, 'orders', userUuid);
+        const job = await db('graphile_worker.jobs')
+            .where('key', 'like', 'model-materialization:manual:%')
+            .first('key');
+        const manual = {
+            ...next,
+            manualRequestUuid: job.key.split(':').at(-1),
+        };
+        const refreshed = await claim(manual);
+        expect(await model.getServingCopy(projectUuid, 'orders')).toMatchObject(
+            { objectKey: second.objectKey },
+        );
+        await model.promote(refreshed, verified);
+        expect(await model.claim(manual)).toEqual({ status: 'ready' });
+        expect(await model.getServingCopy(projectUuid, 'orders')).toMatchObject(
+            { objectKey: refreshed.objectKey },
+        );
+        expect(
+            await model.getPinnedObjectKey(projectUuid, 'orders', {
+                configUuid: second.configUuid,
+                generationUuid: second.generationUuid,
+                policyEpoch: second.policyEpoch,
+            }),
+        ).toBe(second.objectKey);
+        await write(null);
+        expect(await configs()).toHaveLength(0);
+    });
+
+    test('Studio publishing a new model keeps the ready copy of an unchanged sibling', async () => {
+        const { config, intent } = await publish();
+        const { projectUuid } = config;
+        const first = await claim(intent);
+        await model.promote(first, verified);
+        const [user] = await db
+            .raw<{ rows: { user_uuid: string }[] }>(
+                'INSERT INTO users(first_name,last_name) VALUES (?,?) RETURNING user_uuid',
+                ['', ''],
+            )
+            .then(({ rows }) => rows);
+        const userUuid = user.user_uuid;
+        const documents = new ProjectModelDocumentModel({ database: db });
+        const projects = new ProjectModel({
+            database: db,
+            lightdashConfig: lightdashConfigMock,
+            encryptionUtil: new EncryptionUtil({
+                lightdashConfig: lightdashConfigMock,
+            }),
+        });
+        const name = 'totals';
+        const content = materializedDocument.replace(
+            'name: orders',
+            'name: totals',
+        );
+        const sibling = {
+            ...validExplore,
+            baseTable: 'orders',
+            name: 'orders',
+        };
+        const added = { ...validExplore, baseTable: name, name };
+        attachNativeMaterializationDocument(added, { name, content });
+        await documents.publishWithExplores(
+            {
+                projectUuid,
+                userUuid,
+                workspaceUuid: null,
+                readVersions: new Map([['orders', 1]]),
+                documents: [{ name, content }],
+                source: { kind: 'undo', reverts: [] },
+            },
+            (write) =>
+                nativeModelPublication.run(
+                    {
+                        projectUuid,
+                        userUuid,
+                        studio: true,
+                        full: false,
+                        publishedNames: new Set(),
+                        documents: new Map(),
+                        validate: async () => {},
+                    },
+                    () =>
+                        projects.saveExploresToCache(
+                            projectUuid,
+                            [sibling, added],
+                            false,
+                            undefined,
+                            undefined,
+                            undefined,
+                            write,
+                        ),
+                ),
+        );
+        expect(await model.getServingCopy(projectUuid, 'orders')).toMatchObject(
+            { status: 'ready', objectKey: first.objectKey },
+        );
+        expect(await model.getServingCopy(projectUuid, name)).toEqual({
+            status: 'pending',
+        });
+        const jobs = await db('graphile_worker.jobs')
+            .where('task_identifier', 'materializeModel')
+            .whereRaw("payload->>'projectUuid' = ?", [projectUuid])
+            .select('payload');
+        expect(jobs).toHaveLength(1);
+        expect(jobs[0].payload.configUuid).not.toBe(intent.configUuid);
+    });
+
+    test('status and inventory follow the active copy through queued, building and failed refreshes', async () => {
+        const { config, intent } = await publish();
+        const statuses = new ModelMaterializationStatusModel(db);
+        const status = () => statuses.get(config.projectUuid, 'orders');
+        const inventory = () => statuses.list(config.projectUuid);
+        expect(await statuses.get(config.projectUuid, 'other')).toEqual({
+            state: 'live',
+            servingCopy: false,
+            maxRows: null,
+            rowCount: null,
+            byteCount: null,
+            asOf: null,
+            nextRefresh: null,
+            failureReason: null,
+        });
+        expect(await inventory()).toEqual({ models: [] });
+        expect(await status()).toMatchObject({
+            state: 'preparing',
+            servingCopy: false,
+            maxRows: 10,
+            rowCount: null,
+        });
+        const first = await claim(intent);
+        await model.fail(first, 'row_limit');
+        expect(await status()).toMatchObject({
+            state: 'blocked',
+            servingCopy: false,
+            failureReason: 'The source exceeded the row limit of 10.',
+        });
+        const second = await claim(intent);
+        await model.promote(second, { ...verified, rowCount: 0 });
+        const ready = {
+            state: 'materialized',
+            servingCopy: true,
+            maxRows: 10,
+            rowCount: 0,
+            byteCount: verified.byteCount,
+            asOf: verified.sourceReadAt.toISOString(),
+            nextRefresh: null,
+            failureReason: null,
+        };
+        expect(await status()).toEqual(ready);
+        expect(await inventory()).toEqual({ models: ['orders'] });
+        const [user] = await db('users')
+            .insert({
+                first_name: '',
+                last_name: '',
+                is_active: true,
+                is_marketing_opted_in: false,
+                is_setup_complete: true,
+                is_tracking_anonymized: false,
+            })
+            .returning('user_uuid');
+        await model.manualRefresh(config.projectUuid, 'orders', user.user_uuid);
+        const preparing = { ...ready, state: 'preparing' };
+        expect(await status()).toEqual(preparing);
+        const [job] = await db('graphile_worker.jobs')
+            .where('task_identifier', 'materializeModel')
+            .whereRaw("payload->>'configUuid' = ?", [intent.configUuid])
+            .select<{ payload: { manualRequestUuid: string } }[]>('payload');
+        const refresh = await claim({
+            ...intent,
+            manualRequestUuid: job.payload.manualRequestUuid,
+        });
+        expect(await status()).toEqual(preparing);
+        await model.fail(refresh, 'unsupported_type');
+        expect(await status()).toEqual({
+            ...ready,
+            state: 'blocked',
+            failureReason: 'The source contains an unsupported column type.',
+        });
+        await db('model_materialization_generations')
+            .where('generation_uuid', refresh.generationUuid)
+            .update({ failure_reason: refresh.objectKey });
+        expect(await status()).toEqual({
+            ...ready,
+            state: 'blocked',
+            failureReason:
+                'The last build failed. Check the source before refreshing.',
+        });
+        expect(await inventory()).toEqual({ models: ['orders'] });
+        const other = await fixture();
+        expect(await statuses.get(other.projectUuid, 'orders')).toMatchObject({
+            state: 'live',
+        });
+        expect(await statuses.list(other.projectUuid)).toEqual({ models: [] });
+        await db('project_model_documents')
+            .where('project_model_document_uuid', config.documentUuid)
+            .increment('document_version', 1);
+        await expect(
+            model.getServingCopy(config.projectUuid, 'orders'),
+        ).rejects.toThrow();
+        expect(await status()).toMatchObject({
+            state: 'blocked',
+            servingCopy: false,
+            asOf: null,
+            byteCount: null,
+            rowCount: null,
+            failureReason: 'The copy does not match the published model.',
+        });
+        expect(await inventory()).toEqual({ models: [] });
+    });
 
     test('concurrent claims register exactly one key, and promotion stores verified metadata', async () => {
         const { config, intent } = await publish();

@@ -216,3 +216,36 @@ it.each(
         expect(finalize).not.toHaveBeenCalled();
     },
 );
+
+it.each(['deployExplores', 'addDeployBatch'])(
+    '%s rejects invalid native model documents and unauthorized materialization effects',
+    async (operation) => {
+        const { call, account, dispatch } = setup();
+        account.authentication.agentConnectionGrant!.approvedCapabilities = [
+            AgentCapability.DeployUpload,
+        ];
+        const explores = [{ name: 'orders', baseTable: 'orders', tables: {} }];
+        await expect(
+            call(operation, undefined, {
+                explores,
+                nativeModelDocuments: [{ name: 'orders', content: '{}' }],
+            }),
+        ).rejects.toThrow('Agent connections');
+        account.authentication.agentConnectionGrant = null;
+        await Promise.all(
+            [
+                [],
+                [{ name: 'other', content: '{}' }],
+                [{ name: 'orders', content: 10 }],
+            ].map((nativeModelDocuments) =>
+                expect(
+                    call(operation, undefined, {
+                        explores,
+                        nativeModelDocuments,
+                    }),
+                ).rejects.toThrow('Native model'),
+            ),
+        );
+        expect(dispatch).not.toHaveBeenCalled();
+    },
+);

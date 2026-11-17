@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    attachNativeMaterializationDocument,
     DbtProjectType,
     diffModelDocuments,
     doModelPathsOverlap,
@@ -24,6 +25,9 @@ import {
     type Explore,
     type ExploreError,
     type LightdashError,
+    type ModelMaterializationList,
+    type ModelMaterializationSample,
+    type ModelMaterializationStatus,
     type Project,
     type SaveSemanticStudioSourceRequest,
     type SemanticLayerDraft,
@@ -97,7 +101,7 @@ import {
     type DraftCheckerProjectService,
 } from './DraftChecker';
 import { foldDraft, toModelPath, withWrites } from './draftFold';
-import { saveMaterializationPolicies } from './materializationPublish';
+import { isNativeModelProject } from './materializationSource';
 import {
     findDraftedPaths,
     findRefusedPaths,
@@ -124,6 +128,22 @@ type ModelProject = Pick<
 > & { dbtConnection: Project['dbtConnection'] };
 
 export type SemanticStudioServiceArguments = {
+    materializations: {
+        get: (
+            projectUuid: string,
+            model: string,
+        ) => Promise<ModelMaterializationStatus>;
+        list: (projectUuid: string) => Promise<ModelMaterializationList>;
+        sample: (
+            projectUuid: string,
+            model: string,
+        ) => Promise<ModelMaterializationSample>;
+        refresh: (
+            projectUuid: string,
+            model: string,
+            userUuid: string,
+        ) => Promise<void>;
+    };
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     projectModel: {
         get: (projectUuid: string) => Promise<ModelProject>;
@@ -305,6 +325,8 @@ const PULL_REQUEST_REFRESH_MS = 55_000;
 const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
 
 export class SemanticStudioService extends BaseService {
+    private readonly materializations: SemanticStudioServiceArguments['materializations'];
+
     private readonly featureFlagModel: SemanticStudioServiceArguments['featureFlagModel'];
 
     private readonly projectModel: SemanticStudioServiceArguments['projectModel'];
@@ -344,6 +366,7 @@ export class SemanticStudioService extends BaseService {
 
     constructor(args: SemanticStudioServiceArguments) {
         super();
+        this.materializations = args.materializations;
         this.featureFlagModel = args.featureFlagModel;
         this.projectModel = args.projectModel;
         this.projectModelDocumentModel = args.projectModelDocumentModel;
@@ -510,12 +533,11 @@ export class SemanticStudioService extends BaseService {
     private async assertCanEditModels(
         user: SessionUser,
         projectUuid: string,
-    ): Promise<void> {
-        const blocker = await this.findBlocker(
-            user,
-            await this.projectModel.get(projectUuid),
-        );
+    ): Promise<ModelProject> {
+        const project = await this.projectModel.get(projectUuid);
+        const blocker = await this.findBlocker(user, project);
         if (blocker) throw blocker;
+        return project;
     }
 
     async canEditModels(
@@ -1832,6 +1854,102 @@ export class SemanticStudioService extends BaseService {
         return publish;
     }
 
+    private async assertMaterializationAccess(
+        user: SessionUser,
+        projectUuid: string,
+    ) {
+        const project = await this.assertCanEditModels(user, projectUuid);
+        if (!isNativeModelProject(project.dbtConnection))
+            throw new ParameterError(
+                'Materialization requires native YAML models.',
+            );
+        return project;
+    }
+
+    async listMaterializations(user: SessionUser, projectUuid: string) {
+        await this.assertMaterializationAccess(user, projectUuid);
+        return this.materializations.list(projectUuid);
+    }
+
+    async getMaterialization(
+        user: SessionUser,
+        projectUuid: string,
+        model: string,
+    ) {
+        await this.assertMaterializationAccess(user, projectUuid);
+        return this.materializations.get(projectUuid, model);
+    }
+
+    async sampleMaterialization(
+        user: SessionUser,
+        projectUuid: string,
+        model: string,
+    ) {
+        const project = await this.assertMaterializationAccess(
+            user,
+            projectUuid,
+        );
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('SqlRunner', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        )
+            throw new ForbiddenError(
+                'You do not have permission to sample the source rows.',
+            );
+        return this.materializations.sample(projectUuid, model);
+    }
+
+    async refreshMaterialization(
+        user: SessionUser,
+        projectUuid: string,
+        model: string,
+    ) {
+        await this.assertMaterializationAccess(user, projectUuid);
+        await this.materializations.refresh(projectUuid, model, user.userUuid);
+    }
+
+    async draftMaterialization(
+        user: SessionUser,
+        projectUuid: string,
+        model: string,
+    ) {
+        await this.assertMaterializationAccess(user, projectUuid);
+        const current = await this.readDraftedModel(user, projectUuid, model);
+        if (!current.content) throw new NotFoundError('Model not found');
+        if (parseModelDocument(current.content, toModelPath(model)).materialize)
+            return;
+        const definition = {
+            name: model,
+            materialize: {
+                max_rows: 1000000,
+                refresh: { cron: '0 0 * * *', on_change: true },
+            },
+        };
+        const result = await this.proposeDraftChange(
+            user,
+            projectUuid,
+            [
+                {
+                    name: model,
+                    yaml: JSON.stringify(definition),
+                    remove: [],
+                    removeModel: false,
+                },
+            ],
+            null,
+        );
+        const change = result.results[0];
+        if (change?.status !== 'ready' && change?.status !== 'unchanged')
+            throw new ParameterError(
+                change?.error ?? 'Could not add materialization to the draft.',
+            );
+    }
+
     private async findMaterializationFailures(
         user: SessionUser,
         projectUuid: string,
@@ -1846,11 +1964,10 @@ export class SemanticStudioService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
         let projectError: string | null = null;
         if (
-            project.dbtConnection.type !== DbtProjectType.NONE ||
+            !isNativeModelProject(project.dbtConnection) ||
             project.warehouseConnection?.type !== WarehouseTypes.POSTGRES
         )
-            projectError =
-                'Materialization requires an app-held Postgres model.';
+            projectError = 'Materialization requires a native Postgres model.';
         else if (
             project.warehouseConnection.requireUserCredentials ||
             project.connectionRoute === 'multi'
@@ -2041,17 +2158,20 @@ export class SemanticStudioService extends BaseService {
                 content,
             })),
         };
-        const affectsCopy = (name: string, content: string | null) =>
-            content !== null &&
-            !!parseModelDocument(content, toModelPath(name)).materialize;
-        const savePolicy =
-            changeSet.documents.some(({ name, content }) =>
-                affectsCopy(name, content),
-            ) ||
-            stored.some(
-                ({ name, content }) =>
-                    writes.has(name) && affectsCopy(name, content),
-            );
+        explores.forEach((explore) => {
+            if (isExploreError(explore)) return;
+            const name =
+                explore.tables[explore.baseTable]?.originalName ??
+                explore.baseTable;
+            const content = writes.get(name);
+            if (content !== undefined && content !== null) {
+                const model = parseModelDocument(content, toModelPath(name));
+                attachNativeMaterializationDocument(explore, {
+                    name,
+                    content: model.materialize ? content : null,
+                });
+            }
+        });
         return this.projectModelDocumentModel.publishWithExplores(
             changeSet,
             async (write) => {
@@ -2083,15 +2203,6 @@ export class SemanticStudioService extends BaseService {
                     },
                 );
                 return exploreCount;
-            },
-            async (trx, changeSetUuid) => {
-                if (savePolicy)
-                    await saveMaterializationPolicies(
-                        trx,
-                        owner.projectUuid,
-                        changeSetUuid,
-                        user.userUuid,
-                    );
             },
         );
     }

@@ -7,15 +7,18 @@ import {
     ExploreError,
     friendlyName,
     getErrorMessage,
+    getNativeMaterializationDocument,
     getWarehouseLocation,
     LightdashError,
     ParseError,
     Project,
     ProjectType,
     WarehouseTypes,
+    type ApiHealthResults,
     type ConnectionRoute,
     type DeployTarget,
     type LightdashProjectConfig,
+    type NativeMaterializationDocument,
     type Tag,
 } from '@lightdash/common';
 import inquirer from 'inquirer';
@@ -91,6 +94,7 @@ type DeployArgs = DeployHandlerOptions & {
     dbtModelNames?: string[];
     sourceUuid?: string;
     deployTarget?: DeployTarget;
+    supportsNativeMaterializationDeploy?: boolean;
 };
 
 const deployDestinationQuery = (options: DeployArgs): string =>
@@ -341,9 +345,12 @@ const retryBatchUpload = async <T>(
     throw new Error(`Batch ${batchNumber} upload failed unexpectedly`);
 };
 
+type NativeDocuments = (NativeMaterializationDocument | null)[];
+
 const deployBatched = async (
     explores: (Explore | ExploreError)[],
     options: DeployArgs,
+    nativeModelDocuments: NativeDocuments | undefined,
 ): Promise<boolean> => {
     const batchSize = parseInt(options.batchSize || '50', 10);
     if (Number.isNaN(batchSize) || batchSize < 1 || batchSize > 1000) {
@@ -425,6 +432,10 @@ const deployBatched = async (
                     url: `/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/batch`,
                     body: JSON.stringify({
                         explores: batch,
+                        nativeModelDocuments: nativeModelDocuments?.slice(
+                            batchIndex * batchSize,
+                            batchIndex * batchSize + batch.length,
+                        ),
                         batchNumber: batchIndex,
                         complete: options.complete === true,
                     }),
@@ -535,6 +546,27 @@ export const deploy = async (
         }
     }
 
+    const documents = explores.map(getNativeMaterializationDocument);
+    let nativeModelDocuments: NativeDocuments | undefined;
+    if (documents.some((document) => document !== null)) {
+        const supported =
+            options.supportsNativeMaterializationDeploy ??
+            (
+                await lightdashApi<ApiHealthResults>({
+                    method: 'GET',
+                    url: '/api/v1/health?skipMigrationCheck=true',
+                    body: undefined,
+                    safeToRetry: true,
+                })
+            ).supportsNativeMaterializationDeploy;
+        if (supported === true) {
+            nativeModelDocuments = documents;
+        } else if (documents.some((document) => document?.content != null)) {
+            throw new Error(
+                'Upgrade the server to deploy materialized models.',
+            );
+        }
+    }
     const deployableExplores = explores.map(stripWarehouseColumnErrors);
 
     const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
@@ -544,14 +576,21 @@ export const deploy = async (
 
     const shouldUseLegacyDeploy =
         options.batchedDeploy === false ||
-        !(await deployBatched(deployableExplores, options));
+        !(await deployBatched(
+            deployableExplores,
+            options,
+            nativeModelDocuments,
+        ));
     if (shouldUseLegacyDeploy) {
         const deployStartTime = Date.now();
+        const useV1 =
+            options.dbtModelNames === undefined && !nativeModelDocuments;
         const deployPayload = JSON.stringify(
-            options.dbtModelNames === undefined
+            useV1
                 ? deployableExplores
                 : {
                       explores: deployableExplores,
+                      nativeModelDocuments,
                       dbtModelNames: options.dbtModelNames,
                       complete: options.complete === true,
                       sourceUuid: options.sourceUuid,
@@ -562,15 +601,15 @@ export const deploy = async (
             const deployResponse = await lightdashApi<ApiDeployExploresResults>(
                 {
                     method: 'PUT',
-                    url:
-                        options.dbtModelNames === undefined
-                            ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`
-                            : `/api/v2/projects/${options.projectUuid}/deploy`,
+                    url: useV1
+                        ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`
+                        : `/api/v2/projects/${options.projectUuid}/deploy`,
                     body: deployPayload,
                 },
             ).catch(async (error: unknown) => {
                 if (getAgentConnectionSelection() !== null) throw error;
                 if (
+                    nativeModelDocuments !== undefined ||
                     options.dbtModelNames === undefined ||
                     !(error instanceof LightdashError) ||
                     error.statusCode !== 404
@@ -815,7 +854,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     if (options.gzip) {
         setGzipEnabled(true);
     }
-    await checkLightdashVersion();
+    const health = await checkLightdashVersion();
     const executionId = uuidv4();
     const config = await (getAgentConnectionSelection() === null
         ? getConfig()
@@ -894,6 +933,8 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         ...options,
         projectUuid,
         complete: isProjectComplete,
+        supportsNativeMaterializationDeploy:
+            health?.supportsNativeMaterializationDeploy === true,
         dbtModelNames,
         sourceUuid,
         deployTarget: await getDeployTarget(

@@ -1,9 +1,11 @@
 import {
     DeploySessionStatus,
+    getNativeMaterializationDocument,
     NotFoundError,
     type DeploySession,
     type Explore,
     type ExploreError,
+    type NativeMaterializationDocument,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
@@ -13,8 +15,10 @@ import {
     type DbDeploySessionBatch,
     type DbDeploySessionBatchInsert,
 } from '../database/entities/deploySessions';
+import { attachDeployDocuments } from '../utils/nativeDeployDocuments';
 
 type StoredDeploySessionBatch = {
+    nativeModelDocuments?: (NativeMaterializationDocument | null)[];
     explores: (Explore | ExploreError)[];
     complete: boolean;
 };
@@ -62,12 +66,18 @@ export class DeploySessionModel {
         batchNumber: number,
         complete?: boolean,
     ): Promise<void> {
+        const documents = explores.map(getNativeMaterializationDocument);
         const batchInsert: DbDeploySessionBatchInsert = {
             deploy_session_uuid: sessionUuid,
             project_uuid: projectUuid,
             batch_number: batchNumber,
             explores: JSON.stringify({
                 explores,
+                nativeModelDocuments: documents.some(
+                    (document) => document !== null,
+                )
+                    ? documents
+                    : undefined,
                 complete: complete === true,
             } satisfies StoredDeploySessionBatch),
             explore_count: explores.length,
@@ -103,6 +113,10 @@ export class DeploySessionModel {
                 complete = false;
             } else {
                 const storedBatch = batch.explores as StoredDeploySessionBatch;
+                attachDeployDocuments(
+                    storedBatch.explores,
+                    storedBatch.nativeModelDocuments,
+                );
                 allExplores.push(...storedBatch.explores);
                 complete = complete && storedBatch.complete === true;
             }

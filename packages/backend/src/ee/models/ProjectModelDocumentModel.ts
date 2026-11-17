@@ -801,13 +801,9 @@ export class ProjectModelDocumentModel {
     async publishWithExplores<T>(
         args: Parameters<ProjectModelDocumentModel['createChangeSet']>[0],
         deploy: (write: (trx: Knex.Transaction) => Promise<void>) => Promise<T>,
-        save: (trx: Knex.Transaction, changeSetUuid: string) => Promise<void>,
     ): Promise<T> {
         return deploy(async (connection) => {
-            await this.createChangeSet(args, async () => undefined, {
-                connection,
-                save,
-            });
+            await this.createChangeSet(args, async () => undefined, connection);
         });
     }
 
@@ -825,163 +821,141 @@ export class ProjectModelDocumentModel {
             documents: { name: string; content: string | null }[];
         },
         deploy: () => Promise<T>,
-        publish?: {
-            connection: Knex.Transaction;
-            save: (
-                trx: Knex.Transaction,
-                changeSetUuid: string,
-            ) => Promise<void>;
-        },
+        connection: Knex = this.database,
     ): Promise<{ changeSetUuid: string; deployed: T }> {
         const { projectUuid, userUuid } = owner;
-        return (publish?.connection ?? this.database).transaction(
-            async (trx) => {
-                await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
-                    `semantic-layer:${projectUuid}`,
-                ]);
-                const stored = await trx(ProjectModelDocumentsTableName)
-                    .select('name', 'content', 'document_version')
-                    .where('project_uuid', projectUuid);
-                const unchanged =
-                    stored.length === readVersions.size &&
-                    stored.every(
-                        (row) =>
-                            readVersions.get(row.name) === row.document_version,
-                    );
-                if (!unchanged) throw new ModelDocumentsChangedError();
+        return connection.transaction(async (trx) => {
+            await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                `semantic-layer:${projectUuid}`,
+            ]);
+            const stored = await trx(ProjectModelDocumentsTableName)
+                .select('name', 'content', 'document_version')
+                .where('project_uuid', projectUuid);
+            const unchanged =
+                stored.length === readVersions.size &&
+                stored.every(
+                    (row) =>
+                        readVersions.get(row.name) === row.document_version,
+                );
+            if (!unchanged) throw new ModelDocumentsChangedError();
 
-                const [{ project_model_change_set_uuid: changeSetUuid }] =
-                    await trx(ProjectModelChangeSetsTableName)
-                        .insert({
+            const [{ project_model_change_set_uuid: changeSetUuid }] =
+                await trx(ProjectModelChangeSetsTableName)
+                    .insert({
+                        project_uuid: projectUuid,
+                        kind: source.kind,
+                        prompt_uuid:
+                            source.kind === 'draft' ? source.promptUuid : null,
+                        created_by_user_uuid: userUuid,
+                        // Taken under the lock, so history orders the way writes landed.
+                        created_at: trx.raw('clock_timestamp()'),
+                    })
+                    .returning('project_model_change_set_uuid');
+
+            const before = new Map(stored.map((row) => [row.name, row]));
+            const added = documents
+                .map(({ name }) => name)
+                .filter((name) => !before.has(name));
+            // A model made again keeps counting from its last version, so an old base never reads as live.
+            const lastVersions = new Map(
+                added.length === 0
+                    ? []
+                    : (
+                          await trx(ProjectModelRevisionsTableName)
+                              .innerJoin(
+                                  ProjectModelChangeSetsTableName,
+                                  `${ProjectModelChangeSetsTableName}.project_model_change_set_uuid`,
+                                  `${ProjectModelRevisionsTableName}.project_model_change_set_uuid`,
+                              )
+                              .where(
+                                  `${ProjectModelChangeSetsTableName}.project_uuid`,
+                                  projectUuid,
+                              )
+                              .whereIn(
+                                  `${ProjectModelRevisionsTableName}.name`,
+                                  added,
+                              )
+                              .groupBy(`${ProjectModelRevisionsTableName}.name`)
+                              .select({
+                                  name: `${ProjectModelRevisionsTableName}.name`,
+                              })
+                              .max({
+                                  version: `${ProjectModelRevisionsTableName}.document_version`,
+                              })
+                      ).map(({ name, version }): [string, number] => [
+                          name,
+                          Number(version),
+                      ]),
+            );
+            await Promise.all(
+                documents.map(async ({ name, content }) => {
+                    const current = before.get(name);
+                    const version =
+                        (current?.document_version ??
+                            lastVersions.get(name) ??
+                            0) + 1;
+                    const document = () =>
+                        trx(ProjectModelDocumentsTableName).where({
                             project_uuid: projectUuid,
-                            kind: source.kind,
-                            prompt_uuid:
-                                source.kind === 'draft'
-                                    ? source.promptUuid
-                                    : null,
-                            created_by_user_uuid: userUuid,
-                            // Taken under the lock, so history orders the way writes landed.
-                            created_at: trx.raw('clock_timestamp()'),
-                        })
-                        .returning('project_model_change_set_uuid');
-
-                const before = new Map(stored.map((row) => [row.name, row]));
-                const added = documents
-                    .map(({ name }) => name)
-                    .filter((name) => !before.has(name));
-                // A model made again keeps counting from its last version, so an old base never reads as live.
-                const lastVersions = new Map(
-                    added.length === 0
-                        ? []
-                        : (
-                              await trx(ProjectModelRevisionsTableName)
-                                  .innerJoin(
-                                      ProjectModelChangeSetsTableName,
-                                      `${ProjectModelChangeSetsTableName}.project_model_change_set_uuid`,
-                                      `${ProjectModelRevisionsTableName}.project_model_change_set_uuid`,
-                                  )
-                                  .where(
-                                      `${ProjectModelChangeSetsTableName}.project_uuid`,
-                                      projectUuid,
-                                  )
-                                  .whereIn(
-                                      `${ProjectModelRevisionsTableName}.name`,
-                                      added,
-                                  )
-                                  .groupBy(
-                                      `${ProjectModelRevisionsTableName}.name`,
-                                  )
-                                  .select({
-                                      name: `${ProjectModelRevisionsTableName}.name`,
-                                  })
-                                  .max({
-                                      version: `${ProjectModelRevisionsTableName}.document_version`,
-                                  })
-                          ).map(({ name, version }): [string, number] => [
-                              name,
-                              Number(version),
-                          ]),
-                );
-                await Promise.all(
-                    documents.map(async ({ name, content }) => {
-                        const current = before.get(name);
-                        const version =
-                            (current?.document_version ??
-                                lastVersions.get(name) ??
-                                0) + 1;
-                        const document = () =>
-                            trx(ProjectModelDocumentsTableName).where({
-                                project_uuid: projectUuid,
-                                name,
-                            });
-                        if (content === null) {
-                            await document().delete();
-                        } else if (current) {
-                            await document().update({
-                                content,
-                                document_version: version,
-                            });
-                        } else {
-                            await trx(ProjectModelDocumentsTableName).insert({
-                                project_uuid: projectUuid,
-                                name,
-                                content,
-                                document_version: version,
-                            });
-                        }
-                        await trx(ProjectModelRevisionsTableName).insert({
-                            project_model_change_set_uuid: changeSetUuid,
                             name,
-                            document_version: version,
-                            content_before: current?.content ?? null,
-                            content_after: content,
                         });
-                    }),
-                );
+                    if (content === null) {
+                        await document().delete();
+                    } else if (current) {
+                        await document().update({
+                            content,
+                            document_version: version,
+                        });
+                    } else {
+                        await trx(ProjectModelDocumentsTableName).insert({
+                            project_uuid: projectUuid,
+                            name,
+                            content,
+                            document_version: version,
+                        });
+                    }
+                    await trx(ProjectModelRevisionsTableName).insert({
+                        project_model_change_set_uuid: changeSetUuid,
+                        name,
+                        document_version: version,
+                        content_before: current?.content ?? null,
+                        content_after: content,
+                    });
+                }),
+            );
 
-                if (source.kind === 'undo') {
-                    const reverted = await trx(ProjectModelChangeSetsTableName)
-                        .update({ reverted_by_change_set_uuid: changeSetUuid })
-                        .where('project_uuid', projectUuid)
-                        .whereIn(
-                            'project_model_change_set_uuid',
-                            source.reverts,
-                        )
-                        .whereNull('reverted_by_change_set_uuid');
-                    if (reverted !== source.reverts.length) {
-                        throw new ModelDocumentsChangedError();
-                    }
-                } else {
-                    const { changeUuids } = source.drafts;
-                    const present =
-                        await ProjectModelDocumentModel.openDraftChanges(
-                            trx,
-                            owner,
-                        )
-                            .whereIn(
-                                'project_model_draft_change_uuid',
-                                changeUuids,
-                            )
-                            .select('project_model_draft_change_uuid');
-                    if (present.length !== changeUuids.length) {
-                        throw new ModelDocumentsChangedError();
-                    }
-                    await ProjectModelDocumentModel.updateSelectedDraftChanges(
-                        trx,
-                        owner,
-                        source.drafts,
-                        {
-                            status: 'applied',
-                            applied_change_set_uuid: changeSetUuid,
-                            applied_pull_request_url: null,
-                        },
-                    );
+            if (source.kind === 'undo') {
+                const reverted = await trx(ProjectModelChangeSetsTableName)
+                    .update({ reverted_by_change_set_uuid: changeSetUuid })
+                    .where('project_uuid', projectUuid)
+                    .whereIn('project_model_change_set_uuid', source.reverts)
+                    .whereNull('reverted_by_change_set_uuid');
+                if (reverted !== source.reverts.length) {
+                    throw new ModelDocumentsChangedError();
                 }
+            } else {
+                const { changeUuids } = source.drafts;
+                const present =
+                    await ProjectModelDocumentModel.openDraftChanges(trx, owner)
+                        .whereIn('project_model_draft_change_uuid', changeUuids)
+                        .select('project_model_draft_change_uuid');
+                if (present.length !== changeUuids.length) {
+                    throw new ModelDocumentsChangedError();
+                }
+                await ProjectModelDocumentModel.updateSelectedDraftChanges(
+                    trx,
+                    owner,
+                    source.drafts,
+                    {
+                        status: 'applied',
+                        applied_change_set_uuid: changeSetUuid,
+                        applied_pull_request_url: null,
+                    },
+                );
+            }
 
-                // Deploy inside the lock so two writers never deploy out of order.
-                await publish?.save(trx, changeSetUuid);
-                return { changeSetUuid, deployed: await deploy() };
-            },
-        );
+            // Deploy inside the lock so two writers never deploy out of order.
+            return { changeSetUuid, deployed: await deploy() };
+        });
     }
 }

@@ -1,7 +1,9 @@
 import {
+    attachNativeMaterializationDocument,
     Explore,
     ExploreError,
     ExploreType,
+    getNativeMaterializationDocument,
     isExploreError,
     type WeekDay,
 } from '@lightdash/common';
@@ -50,6 +52,13 @@ export const enhanceExploresForPreAggregates = ({
             generatedExplores.find(
                 (generatedExplore) => generatedExplore.name === explore.name,
             ) ?? explore;
+
+        const document = getNativeMaterializationDocument(explore);
+        if (document && !isExploreError(enhancedSourceExplore))
+            attachNativeMaterializationDocument(
+                enhancedSourceExplore,
+                document,
+            );
 
         const generatedPreAggregateExplores = generatedExplores.filter(
             (generatedExplore) => generatedExplore.name !== explore.name,

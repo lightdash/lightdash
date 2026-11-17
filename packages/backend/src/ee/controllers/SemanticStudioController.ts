@@ -1,6 +1,9 @@
 import {
     assertRegisteredAccount,
     type ApiErrorPayload,
+    type ApiModelMaterializationList,
+    type ApiModelMaterializationSample,
+    type ApiModelMaterializationStatus,
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
@@ -58,6 +61,89 @@ import { type SemanticStudioService } from '../services/SemanticStudioService/Se
 export class SemanticStudioController extends BaseController {
     private getService(): SemanticStudioService {
         return this.services.getSemanticStudioService<SemanticStudioService>();
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/materializations')
+    @OperationId('listMaterializations')
+    async listMaterializations(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiModelMaterializationList> {
+        assertRegisteredAccount(req.account);
+        const results = await this.getService().listMaterializations(
+            toSessionUser(req.account),
+            projectUuid,
+        );
+        return { status: 'ok', results };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/models/{model}/materialization')
+    @OperationId('getMaterialization')
+    async getMaterialization(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+    ): Promise<ApiModelMaterializationStatus> {
+        assertRegisteredAccount(req.account);
+        const results = await this.getService().getMaterialization(
+            toSessionUser(req.account),
+            projectUuid,
+            model,
+        );
+        return { status: 'ok', results };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/models/{model}/materialization/sample')
+    @OperationId('sampleMaterialization')
+    async sampleMaterialization(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+    ): Promise<ApiModelMaterializationSample> {
+        assertRegisteredAccount(req.account);
+        const results = await this.getService().sampleMaterialization(
+            toSessionUser(req.account),
+            projectUuid,
+            model,
+        );
+        return { status: 'ok', results };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/models/{model}/materialization/refresh')
+    @OperationId('refreshMaterialization')
+    async refreshMaterialization(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().refreshMaterialization(
+            toSessionUser(req.account),
+            projectUuid,
+            model,
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/models/{model}/materialization/draft')
+    @OperationId('draftMaterialization')
+    async draftMaterialization(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().draftMaterialization(
+            toSessionUser(req.account),
+            projectUuid,
+            model,
+        );
+        return { status: 'ok', results: undefined };
     }
 
     /**

@@ -1099,6 +1099,7 @@ export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCreden
                 if (rowCount > maxRows) {
                     throw new WarehouseQueryError(
                         'Materialization exceeds max_rows',
+                        { code: 'materialization_row_limit' },
                     );
                 }
                 // eslint-disable-next-line no-await-in-loop

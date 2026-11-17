@@ -6,11 +6,13 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
+import { SchedulerClient } from '../scheduler/SchedulerClient';
 
 const configs = 'model_materialization_configs';
 const generations = 'model_materialization_generations';
 
 export type MaterializationBuildIntent = {
+    manualRequestUuid?: string;
     configUuid: string;
     revisionUuid: string;
     policyEpoch: number;
@@ -102,7 +104,7 @@ export class ModelMaterializationModel {
                    d.content, g.object_key,
                    (r.name = d.name AND s.project_uuid = d.project_uuid AND
                     r.document_version = d.document_version AND r.content_after IS NOT DISTINCT FROM d.content) AS revision_matches,
-                   (g.status = 'ready' AND g.revision_uuid = c.desired_revision_uuid AND
+                   (g.status = 'ready' AND
                     g.build_fingerprint = c.build_fingerprint AND g.compatibility_fingerprint = c.compatibility_fingerprint AND
                     g.policy_epoch = c.policy_epoch) AS generation_matches
             FROM project_model_documents d
@@ -188,7 +190,13 @@ export class ModelMaterializationModel {
         const [row] = await trx<ConfigRow>(configs)
             .insert({ document_uuid: config.documentUuid, ...desired })
             .onConflict('document_uuid')
-            .merge(desired)
+            .merge({
+                ...desired,
+                active_generation_uuid:
+                    trx.raw(`CASE WHEN model_materialization_configs.build_fingerprint = excluded.build_fingerprint
+                    AND model_materialization_configs.compatibility_fingerprint = excluded.compatibility_fingerprint
+                    THEN model_materialization_configs.active_generation_uuid ELSE NULL END`),
+            })
             .returning([
                 'config_uuid',
                 'policy_epoch',
@@ -204,6 +212,53 @@ export class ModelMaterializationModel {
             revisionUuid: config.revisionUuid,
             policyEpoch: row.policy_epoch,
         };
+    }
+
+    async manualRefresh(
+        projectUuid: string,
+        modelName: string,
+        userUuid: string,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            const config = await trx(configs)
+                .join(
+                    'project_model_documents',
+                    'project_model_document_uuid',
+                    'document_uuid',
+                )
+                .join(
+                    'projects',
+                    'projects.project_uuid',
+                    'project_model_documents.project_uuid',
+                )
+                .join(
+                    'organizations',
+                    'organizations.organization_id',
+                    'projects.organization_id',
+                )
+                .where({
+                    'project_model_documents.project_uuid': projectUuid,
+                    'project_model_documents.name': modelName,
+                })
+                .forUpdate(configs)
+                .first<ConfigRow & { organization_uuid: string }>(
+                    'config_uuid',
+                    'desired_revision_uuid',
+                    'policy_epoch',
+                    'organization_uuid',
+                );
+            if (!config)
+                throw new NotFoundError('Model materialization was not found.');
+            await SchedulerClient.enqueueModelMaterialization(trx, {
+                projectUuid,
+                userUuid,
+                organizationUuid: config.organization_uuid,
+                configUuid: config.config_uuid,
+                revisionUuid: config.desired_revision_uuid,
+                policyEpoch: config.policy_epoch,
+                manualRequestUuid: randomUUID(),
+            });
+        });
     }
 
     static async removeIntent(trx: Knex.Transaction, documentUuid: string) {
@@ -231,7 +286,16 @@ export class ModelMaterializationModel {
                 intent,
             );
             if (!config) return { status: 'obsolete' };
-            if (config.active_generation_uuid !== null)
+            if (intent.manualRequestUuid) {
+                const completed = await trx(generations)
+                    .where({
+                        config_uuid: intent.configUuid,
+                        manual_request_uuid: intent.manualRequestUuid,
+                        status: 'ready',
+                    })
+                    .first('generation_uuid');
+                if (completed) return { status: 'ready' };
+            } else if (config.active_generation_uuid !== null)
                 return { status: 'ready' };
 
             const building = trx(generations).where({
@@ -282,7 +346,8 @@ export class ModelMaterializationModel {
                 policy_epoch: intent.policyEpoch,
                 build_fingerprint: config.build_fingerprint,
                 compatibility_fingerprint: config.compatibility_fingerprint,
-                trigger: 'publish',
+                trigger: intent.manualRequestUuid ? 'manual' : 'publish',
+                manual_request_uuid: intent.manualRequestUuid ?? null,
                 status: 'building',
                 attempt_token: attemptToken,
                 lease_expires_at: trx.raw(
@@ -327,7 +392,12 @@ export class ModelMaterializationModel {
                 trx,
                 attempt,
             );
-            if (!config || config.active_generation_uuid !== null) return false;
+            if (
+                !config ||
+                (!attempt.manualRequestUuid &&
+                    config.active_generation_uuid !== null)
+            )
+                return false;
             const updated = await ModelMaterializationModel.ownedAttempt(
                 trx,
                 attempt,
