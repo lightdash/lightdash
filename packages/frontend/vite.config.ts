@@ -140,6 +140,7 @@ export default defineConfig({
         },
     },
     test: {
+        clearMocks: false,
         globals: true,
         environment: 'jsdom',
         setupFiles: './src/testing/vitest.setup.ts',

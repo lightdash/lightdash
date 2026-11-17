@@ -45,6 +45,7 @@ const resolve = {
 };
 
 const shared = {
+    clearMocks: false,
     environment: 'node',
     globals: true,
     setupFiles: ['./setupVitest.ts'],
@@ -63,9 +64,11 @@ export const baseConfig = {
 
 export default defineConfig({
     test: {
+        clearMocks: false,
         maxWorkers: baseConfig.test.maxWorkers,
         projects: [
             {
+                extends: false,
                 resolve,
                 test: {
                     ...shared,
@@ -76,6 +79,7 @@ export default defineConfig({
                 },
             },
             {
+                extends: false,
                 resolve,
                 test: {
                     ...shared,

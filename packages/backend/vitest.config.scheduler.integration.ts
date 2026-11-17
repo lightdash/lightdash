@@ -4,6 +4,7 @@ import { baseConfig as unitConfig } from './vitest.config';
 export default defineConfig({
     ...unitConfig,
     test: {
+        clearMocks: false,
         ...unitConfig.test,
         name: 'scheduler-integration-tests',
         include: ['src/scheduler/SchedulerWorker.quiesce.integration.test.ts'],

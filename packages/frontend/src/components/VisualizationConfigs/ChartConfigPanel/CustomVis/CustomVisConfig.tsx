@@ -10,7 +10,6 @@ import { useDebouncedCallback } from '@mantine/hooks';
 import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { useDeepCompareEffect } from 'react-use';
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
 import { useChartStudioAvailable } from '../../../../features/chartTypes/hooks/useChartStudioAvailable';
@@ -286,7 +285,7 @@ export const ConfigTabs: React.FC = memo(() => {
             });
         }
     }, [forgetNudge, projectUuid, track]);
-    useDeepCompareEffect(() => {
+    useEffect(() => {
         /** Creates a container that belongs to body, outside of the sidebar
          * so we can place the autocomplete tooltip and it doesn't overflow
          * CSS for this component is set on `monaco.css`
@@ -305,7 +304,7 @@ export const ConfigTabs: React.FC = memo(() => {
             ...MONACO_DEFAULT_OPTIONS,
             overflowWidgetsDomNode: container,
         });
-    }, [monacoOptions]);
+    }, []);
 
     if (!monacoOptions || isLoading) {
         return <Loader color="gray" size="xs" />;

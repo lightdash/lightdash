@@ -4,6 +4,7 @@ import { baseConfig as unitConfig } from './vitest.config';
 export default defineConfig({
     ...unitConfig,
     test: {
+        clearMocks: false,
         ...unitConfig.test,
         name: 'analytics-postgres-tests',
         include: ['src/models/AnalyticsModel.integration.test.ts'],

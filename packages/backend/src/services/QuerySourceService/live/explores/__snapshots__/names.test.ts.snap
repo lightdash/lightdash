@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`live data source names > 'GitHub' explore names and field ids never change 1`] = `
+exports[`live data source names > GitHub explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -60,7 +60,7 @@ exports[`live data source names > 'GitHub' explore names and field ids never cha
 }
 `;
 
-exports[`live data source names > 'Google Ads' explore names and field ids never change 1`] = `
+exports[`live data source names > Google Ads explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -121,7 +121,7 @@ exports[`live data source names > 'Google Ads' explore names and field ids never
 }
 `;
 
-exports[`live data source names > 'Google Analytics' explore names and field ids never change 1`] = `
+exports[`live data source names > Google Analytics explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -174,7 +174,7 @@ exports[`live data source names > 'Google Analytics' explore names and field ids
 }
 `;
 
-exports[`live data source names > 'LinkedIn Ads' explore names and field ids never change 1`] = `
+exports[`live data source names > LinkedIn Ads explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -220,7 +220,7 @@ exports[`live data source names > 'LinkedIn Ads' explore names and field ids nev
 }
 `;
 
-exports[`live data source names > 'Meta Ads' explore names and field ids never change 1`] = `
+exports[`live data source names > Meta Ads explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -269,7 +269,7 @@ exports[`live data source names > 'Meta Ads' explore names and field ids never c
 }
 `;
 
-exports[`live data source names > 'PostHog' explore names and field ids never change 1`] = `
+exports[`live data source names > PostHog explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -305,7 +305,7 @@ exports[`live data source names > 'PostHog' explore names and field ids never ch
 }
 `;
 
-exports[`live data source names > 'Pylon' explore names and field ids never change 1`] = `
+exports[`live data source names > Pylon explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -371,7 +371,7 @@ exports[`live data source names > 'Pylon' explore names and field ids never chan
 }
 `;
 
-exports[`live data source names > 'Search Console' explore names and field ids never change 1`] = `
+exports[`live data source names > Search Console explore names and field ids never change 1`] = `
 {
   "explores": [
     {
@@ -396,7 +396,7 @@ exports[`live data source names > 'Search Console' explore names and field ids n
 }
 `;
 
-exports[`live data source names > 'YouTube Analytics' explore names and field ids never change 1`] = `
+exports[`live data source names > YouTube Analytics explore names and field ids never change 1`] = `
 {
   "explores": [
     {
