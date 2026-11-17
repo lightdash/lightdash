@@ -238,7 +238,10 @@ export const MobileSignInMenu: FC<{
     const { data: qrSignInFlag } = useServerFeatureFlag(
         FeatureFlags.MobileQrSignIn,
     );
-    if (!qrSignInFlag?.enabled) return null;
+    const { data: mobileAppAccessFlag } = useServerFeatureFlag(
+        FeatureFlags.MobileAppAccess,
+    );
+    if (!qrSignInFlag?.enabled || !mobileAppAccessFlag?.enabled) return null;
     return (
         <MobileSignInPopover
             withLabel={withLabel}
