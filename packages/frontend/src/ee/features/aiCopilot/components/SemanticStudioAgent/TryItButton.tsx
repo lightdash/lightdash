@@ -48,29 +48,28 @@ export const TryIt: FC<{
     onClose: () => void;
 }> = ({ projectUuid, models, previewProjectUuid, prUrl, onClose }) => {
     const [isOn, setIsOn] = useDevelopmentView();
-    const turnOn = useRef({ isOn, setIsOn, previewProjectUuid });
+    // The preview the try started on: one that lands meanwhile would reload everything under it.
+    const [preview] = useState(previewProjectUuid);
+    const turnOn = useRef({ isOn, setIsOn, preview });
     useEffect(() => {
-        const {
-            isOn: wasOn,
-            setIsOn: set,
-            previewProjectUuid: preview,
-        } = turnOn.current;
-        set(true, preview);
+        const { isOn: wasOn, setIsOn: set, preview: tried } = turnOn.current;
+        set(true, tried);
         return () => {
             if (!wasOn) set(false);
         };
     }, []);
-    return (
+    // Explore opens once the app reads the changes, so nothing is read live first and then again.
+    return isOn ? (
         <Suspense fallback={null}>
             <TryItModal
                 projectUuid={projectUuid}
                 models={models}
-                previewProjectUuid={previewProjectUuid}
+                previewProjectUuid={preview}
                 prUrl={prUrl}
                 onClose={onClose}
             />
         </Suspense>
-    );
+    ) : null;
 };
 
 /** Tries a pull request's changes in Explore, over the page, starting on its first changed model. */
