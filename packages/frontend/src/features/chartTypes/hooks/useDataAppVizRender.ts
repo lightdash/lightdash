@@ -21,6 +21,9 @@ type DataAppVizRenderTarget = {
     // Set only while previewing an older chart version; the backend authorizes
     // against that version's config instead of the latest.
     chartVersionUuid?: string | undefined;
+    // Set when the saved chart is rendered from the viewer's own unpublished
+    // draft; the backend then authorizes against that draft's config.
+    hasUnpublishedChanges?: boolean | undefined;
     // Set when rendering a saved Document cell, which authorizes through the Document.
     document?: DocumentQueryReference | undefined;
     // Set on a composer chart tile, which authorizes through the composer chart.
@@ -59,13 +62,21 @@ const getChartVersionQuery = ({
     isEmbedded,
     savedChartUuid,
     chartVersionUuid,
+    hasUnpublishedChanges,
     document,
+    composerChartUuid,
 }: DataAppVizRenderTarget): string => {
     if (!isEmbedded && document) {
         return `?documentVersionUuid=${document.versionUuid}`;
     }
-    return !isEmbedded && savedChartUuid && chartVersionUuid
-        ? `?chartVersionUuid=${chartVersionUuid}`
+    if (!isEmbedded && savedChartUuid && chartVersionUuid) {
+        return `?chartVersionUuid=${chartVersionUuid}`;
+    }
+    return !isEmbedded &&
+        savedChartUuid &&
+        !composerChartUuid &&
+        hasUnpublishedChanges
+        ? '?includeUnpublishedDraft=true'
         : '';
 };
 
@@ -115,6 +126,7 @@ const getRenderMetadataQueryKey = (
     target.document,
     target.composerChartUuid,
     pinnedVersion,
+    target.hasUnpublishedChanges,
 ];
 
 export const useDataAppVizRenderMetadata = (
@@ -172,6 +184,7 @@ export const useDataAppVizPreviewToken = (
             target.chartVersionUuid,
             target.document,
             target.composerChartUuid,
+            target.hasUnpublishedChanges,
         ],
         queryFn: async () => {
             const { token } = await lightdashApi<

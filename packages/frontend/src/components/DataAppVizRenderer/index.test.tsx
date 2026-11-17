@@ -934,6 +934,31 @@ describe('DataAppVizRenderer', () => {
         );
     });
 
+    it("renders a saved chart from the viewer's unpublished draft only when the host says so", () => {
+        const view = renderRenderer();
+        expect(mocks.renderMetadataHook.mock.lastCall?.[2]).not.toMatchObject({
+            hasUnpublishedChanges: true,
+        });
+
+        mocks.vizContextOverrides.current = { hasUnpublishedChanges: true };
+        view.rerender(rendererElement());
+
+        expect(mocks.renderMetadataHook.mock.lastCall?.[2]).toMatchObject({
+            savedChartUuid: 'saved-chart-uuid',
+            hasUnpublishedChanges: true,
+        });
+        expect(mocks.previewTokenHook.mock.lastCall?.[3]).toMatchObject({
+            savedChartUuid: 'saved-chart-uuid',
+            hasUnpublishedChanges: true,
+        });
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                chartContext: { savedChartUuid: 'saved-chart-uuid' },
+            }),
+            undefined,
+        );
+    });
+
     it('passes the chart version selected by the host', () => {
         mocks.chartVersionUuid.current = 'chart-version-uuid';
 
