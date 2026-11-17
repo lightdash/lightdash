@@ -39,6 +39,10 @@ export const META_ADS_TOKEN_FORM = {
     getTestRequest: (adAccountId) => ({
         method: 'GET',
         path: getMetaAdsInsightsPath(adAccountId),
-        query: { fields: 'spend', date_preset: 'last_7d', limit: '1' },
+        query: {
+            fields: 'spend,account_name,account_currency',
+            date_preset: 'last_7d',
+            limit: '1',
+        },
     }),
 } satisfies TokenLiveSourceForm;
