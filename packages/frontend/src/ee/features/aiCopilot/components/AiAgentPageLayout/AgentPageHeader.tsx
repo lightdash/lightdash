@@ -41,9 +41,9 @@ export const AgentPageHeader: FC<Props> = ({
     const showMemories = Boolean(onOpenMemories) && !isMobile;
     const showMinimize = Boolean(onMinimize) && !isMobile;
     const showSettings = Boolean(settingsHref) && !isMobile;
+    const showNewThread = Boolean(newThreadHref) && !isMobile;
     const hasAgentActions = showMemories || showSettings;
-    const hasThreadActions =
-        Boolean(newThreadHref) || Boolean(onShare) || showMinimize;
+    const hasThreadActions = showNewThread || Boolean(onShare) || showMinimize;
 
     return (
         <Group
@@ -98,7 +98,7 @@ export const AgentPageHeader: FC<Props> = ({
                         className={styles.divider}
                     />
                 )}
-                {newThreadHref && (
+                {showNewThread && newThreadHref && (
                     <Tooltip label="New thread" position="bottom">
                         <ActionIcon
                             component={Link}
