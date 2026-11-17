@@ -9,6 +9,7 @@ import {
     DimensionType,
     DownloadFileType,
     FeatureFlags,
+    FeatureNotEnabledError,
     FieldReferenceError,
     FieldType,
     FilterOperator,
@@ -22,7 +23,9 @@ import {
     NotEnoughResults,
     PartialFailureType,
     PersistentDownloadFileAccessMode,
+    QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySourceType,
     RequestMethod,
     SchedulerFormat,
     SchedulerJobStatus,
@@ -74,6 +77,7 @@ import { managedExecutionFixture } from '../auth/agentConnectionGrants/managedEx
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import type { ExecutionContextInfo } from '../logging/winston';
+import { QueryPollingTimeoutError } from '../models/QueryHistoryModel/QueryHistoryModel';
 import { AGENT_SUMMARY_REFUSED_MESSAGE } from '../services/AgentPermissionService/agentWorkAuthority';
 import {
     agentExecutionContext,
@@ -2544,125 +2548,306 @@ describe('dashboard CSV delivery — saved parameter controls', () => {
 });
 
 describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
-    it.each([SchedulerFormat.CSV, SchedulerFormat.XLSX])(
-        'delivers the classic tiles and skips the composer tile (%s)',
-        async (format) => {
-            const executeAsyncDashboardChartQuery = vi
-                .fn()
-                .mockRejectedValue(new Error('stop after the query request'));
-            const task = makeTaskWithDeps({
-                schedulerService: asDep<'schedulerService'>({
-                    dashboardModel: {
-                        getByIdOrSlug: vi.fn().mockResolvedValue({
-                            uuid: 'dashboard-1',
-                            organizationUuid: 'org-1',
-                            projectUuid: 'project-1',
-                            filters: {
-                                dimensions: [],
-                                metrics: [],
-                                tableCalculations: [],
-                            },
-                            tabs: [],
-                            tiles: [
-                                {
-                                    uuid: 'classic-tile',
-                                    type: DashboardTileTypes.SAVED_CHART,
-                                    x: 0,
-                                    y: 0,
-                                    properties: {
-                                        title: 'Classic',
-                                        savedChartUuid: 'chart-1',
-                                    },
-                                },
-                                {
-                                    uuid: 'composer-tile',
-                                    type: DashboardTileTypes.COMPOSER_CHART,
-                                    x: 0,
-                                    y: 1,
-                                    properties: {
-                                        title: 'Composer',
-                                        composerChartUuid: 'composer-chart-1',
-                                    },
-                                },
-                            ],
-                            config: { isDateZoomDisabled: false },
-                        }),
-                    },
-                    savedChartModel: {
-                        get: vi.fn().mockResolvedValue({
-                            chartConfig: { type: ChartType.TABLE, config: {} },
-                        }),
-                    },
-                }),
-                asyncQueryService: asDep<'asyncQueryService'>({
-                    executeAsyncDashboardChartQuery,
-                }),
-                projectService: asDep<'projectService'>({
-                    projectParametersModel: {
-                        find: vi.fn().mockResolvedValue([]),
-                    },
-                }),
-                featureFlagModel: asDep<'featureFlagModel'>({
-                    get: vi.fn().mockResolvedValue({ enabled: false }),
-                }),
-                fileStorageClient: asDep<'fileStorageClient'>({
-                    isEnabled: () => false,
-                }),
-                analytics: asDep<'analytics'>({ trackAccount: vi.fn() }),
-                slackClient: asDep<'slackClient'>({ isEnabled: false }),
-                lightdashConfig: asDep<'lightdashConfig'>({
-                    scheduler: lightdashConfigMock.scheduler,
-                    siteUrl: 'http://localhost:8090',
-                }),
-            });
-            Object.assign(task, {
-                getChartOrDashboard: vi.fn().mockResolvedValue({
-                    url: 'http://localhost:8090/dashboard',
-                    minimalUrl: 'http://localhost:8090/minimal',
-                    pageType: LightdashPage.DASHBOARD,
-                    details: { name: 'Dashboard', description: undefined },
-                    organizationUuid: 'org-1',
-                    projectUuid: 'project-1',
-                }),
-            });
+    const statusFilter = {
+        id: 'status-filter',
+        label: undefined,
+        target: { fieldId: 'orders_status', tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: ['placed'],
+    };
+    const emptyFilters = { dimensions: [], metrics: [], tableCalculations: [] };
+    const dashboard = {
+        uuid: 'dashboard-1',
+        name: 'Dashboard',
+        organizationUuid: 'org-1',
+        projectUuid: 'project-1',
+        filters: { ...emptyFilters, dimensions: [statusFilter] },
+        parameters: {},
+        tabs: [],
+        tiles: [
+            {
+                uuid: 'composer-tile',
+                type: DashboardTileTypes.COMPOSER_CHART,
+                x: 0,
+                y: 1,
+                properties: {
+                    title: '',
+                    composerChartUuid: 'composer-chart-1',
+                    chartName: 'Composer',
+                },
+            },
+            {
+                uuid: 'classic-tile',
+                type: DashboardTileTypes.SAVED_CHART,
+                x: 0,
+                y: 0,
+                properties: { title: 'Classic', savedChartUuid: 'chart-1' },
+            },
+        ],
+        config: { isDateZoomDisabled: false },
+    };
+    const runResults = (chartStageQueryUuid: string | null) => ({
+        queries: [
+            {
+                nodeId: 'orders',
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                queryUuid: 'orders-q',
+            },
+            {
+                nodeId: 'result',
+                sourceType: QuerySourceType.PYTHON,
+                queryUuid: 'terminal-q',
+            },
+        ],
+        chartStageQueryUuid,
+    });
+    const account = {
+        user: { id: 'user-1', type: 'registered' },
+        isJwtUser: () => false,
+        organization: { organizationUuid: 'org-1' },
+    };
 
-            await expect(
-                (
-                    task as unknown as {
-                        getNotificationPageData(
-                            ...args: unknown[]
-                        ): Promise<unknown>;
-                    }
-                ).getNotificationPageData(
-                    {
-                        name: 'Daily export',
-                        createdBy: 'user-1',
-                        format,
-                        savedChartUuid: null,
-                        dashboardUuid: 'dashboard-1',
-                        appUuid: null,
-                        options: {},
-                        filters: [],
-                    },
-                    'job-1',
-                    false,
-                    undefined,
-                    undefined,
-                    undefined,
-                    {
-                        user: { id: 'user-1' },
-                        isJwtUser: () => false,
-                        organization: { organizationUuid: 'org-1' },
-                    },
-                ),
-            ).resolves.toBeDefined();
-            expect(
-                executeAsyncDashboardChartQuery.mock.calls.map(
-                    ([args]) => args.tileUuid,
-                ),
-            ).toEqual(['classic-tile']);
+    const setupDelivery = ({
+        run,
+        download = async ({ queryUuid }: { queryUuid: string }) => ({
+            fileUrl: `https://files/${queryUuid}`,
+        }),
+    }: {
+        run: Mock;
+        download?: (args: { queryUuid: string }) => Promise<unknown>;
+    }) => {
+        const downloadSyncQueryResults = vi.fn(download);
+        const task = makeTaskWithDeps({
+            schedulerService: asDep<'schedulerService'>({
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn(async () =>
+                        structuredClone(dashboard),
+                    ),
+                },
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        name: 'Classic',
+                        chartConfig: { type: ChartType.TABLE, config: {} },
+                        tableConfig: { columnOrder: [] },
+                    }),
+                },
+                logSchedulerJob: vi.fn(),
+            }),
+            asyncQueryService: asDep<'asyncQueryService'>({
+                executeAsyncDashboardChartQuery: vi
+                    .fn()
+                    .mockResolvedValue({ queryUuid: 'classic-q' }),
+                downloadSyncQueryResults,
+            }),
+            composerChartService: asDep<'composerChartService'>({
+                run,
+                get: vi.fn().mockResolvedValue({
+                    name: 'Composer',
+                    pipeline: { terminalNodeId: 'result' },
+                }),
+            }),
+            userService: asDep<'userService'>({
+                getAccountByUserUuid: vi.fn().mockResolvedValue(account),
+            }),
+            projectService: asDep<'projectService'>({
+                projectParametersModel: {
+                    find: vi.fn().mockResolvedValue([]),
+                },
+            }),
+            featureFlagModel: asDep<'featureFlagModel'>({
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            }),
+            fileStorageClient: asDep<'fileStorageClient'>({
+                isEnabled: () => true,
+            }),
+            analytics: asDep<'analytics'>({ trackAccount: vi.fn() }),
+            slackClient: asDep<'slackClient'>({ isEnabled: false }),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                scheduler: lightdashConfigMock.scheduler,
+                siteUrl: 'http://localhost:8090',
+            }),
+        });
+        const createZipDownloadUrl = vi.fn().mockResolvedValue('zip-url');
+        Object.assign(task, {
+            createZipDownloadUrl,
+            getChartOrDashboard: vi.fn().mockResolvedValue({
+                url: 'http://localhost:8090/dashboard',
+                minimalUrl: 'http://localhost:8090/minimal',
+                pageType: LightdashPage.DASHBOARD,
+                details: { name: 'Dashboard', description: undefined },
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            }),
+        });
+        const deliver = (format: SchedulerFormat) =>
+            (
+                task as unknown as {
+                    getNotificationPageData(
+                        ...args: unknown[]
+                    ): Promise<NotificationPayloadBase['page']>;
+                }
+            ).getNotificationPageData(
+                {
+                    name: 'Daily export',
+                    createdBy: 'user-1',
+                    format,
+                    savedChartUuid: null,
+                    dashboardUuid: 'dashboard-1',
+                    appUuid: null,
+                    options: {},
+                    filters: [{ ...statusFilter, values: ['shipped'] }],
+                    parameters: { region: 'EU' },
+                },
+                'job-1',
+                false,
+                undefined,
+                undefined,
+                undefined,
+                account,
+            );
+        const exportZip = () =>
+            (
+                task as unknown as {
+                    exportCsvDashboard(...args: unknown[]): Promise<void>;
+                }
+            ).exportCsvDashboard('job-1', new Date(), {
+                dashboardUuid: 'dashboard-1',
+                dashboardFilters: dashboard.filters,
+                dateZoomGranularity: undefined,
+                selectedTabs: null,
+                userUuid: 'user-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+        return { deliver, exportZip, createZipDownloadUrl };
+    };
+
+    const fileNames = (page: NotificationPayloadBase['page']) =>
+        page.csvUrls?.map(({ filename }) => filename);
+
+    it.each([SchedulerFormat.CSV, SchedulerFormat.XLSX])(
+        'delivers the rows the composer tile draws, in layout order (%s)',
+        async (format) => {
+            const { deliver } = setupDelivery({
+                run: vi.fn().mockResolvedValue(runResults('stage-q')),
+            });
+            const page = await deliver(format);
+            expect(fileNames(page)).toEqual(['Classic', 'Composer']);
+            expect(page.csvUrls?.[1].path).toBe('https://files/stage-q');
+            expect(page.failures).toBeUndefined();
         },
     );
+
+    it('delivers the terminal node when the run has no chart stage', async () => {
+        const { deliver } = setupDelivery({
+            run: vi.fn().mockResolvedValue(runResults(null)),
+        });
+        const page = await deliver(SchedulerFormat.CSV);
+        expect(page.csvUrls?.[1].path).toBe('https://files/terminal-q');
+    });
+
+    it("runs the tile as a scheduled delivery with the schedule's filters and parameters", async () => {
+        const run = vi.fn().mockResolvedValue(runResults(null));
+        const { deliver } = setupDelivery({ run });
+        await deliver(SchedulerFormat.CSV);
+        expect(run).toHaveBeenCalledWith(
+            account,
+            'project-1',
+            'composer-chart-1',
+            {
+                dashboardUuid: 'dashboard-1',
+                tileUuid: 'composer-tile',
+                dashboardFilters: expect.objectContaining({
+                    dimensions: [
+                        expect.objectContaining({
+                            id: 'status-filter',
+                            values: ['shipped'],
+                        }),
+                    ],
+                }),
+                parameters: { region: 'EU' },
+                excludedParameterKeys: [],
+                invalidateCache: true,
+            },
+            QueryExecutionContext.SCHEDULED_DELIVERY,
+        );
+    });
+
+    it.each([
+        ['the run errors', new Error('Python node raised ValueError')],
+        [
+            'the creator lacks the flag',
+            new FeatureNotEnabledError(FeatureFlags.ComposerCharts),
+        ],
+    ])(
+        'ships the other tiles and reports the composer tile when %s',
+        async (_, error) => {
+            const { deliver } = setupDelivery({
+                run: vi.fn().mockRejectedValue(error),
+            });
+            const page = await deliver(SchedulerFormat.CSV);
+            expect(fileNames(page)).toEqual(['Classic']);
+            expect(page.failures).toEqual([
+                {
+                    type: PartialFailureType.DASHBOARD_COMPOSER_CHART,
+                    composerChartUuid: 'composer-chart-1',
+                    chartName: 'Composer',
+                    tileUuid: 'composer-tile',
+                    error: expect.any(String),
+                },
+            ]);
+        },
+    );
+
+    it('says a flag-off composer tile is not included', async () => {
+        const { deliver } = setupDelivery({
+            run: vi
+                .fn()
+                .mockRejectedValue(
+                    new FeatureNotEnabledError(FeatureFlags.ComposerCharts),
+                ),
+        });
+        const page = await deliver(SchedulerFormat.CSV);
+        expect(page.failures?.[0]).toMatchObject({
+            error: expect.stringMatching(/not included/i),
+        });
+    });
+
+    it('reports a composer tile that times out as its own partial failure', async () => {
+        const { deliver } = setupDelivery({
+            run: vi.fn().mockResolvedValue(runResults(null)),
+            download: async ({ queryUuid }) => {
+                if (queryUuid === 'terminal-q') {
+                    throw new QueryPollingTimeoutError(180_000);
+                }
+                return { fileUrl: `https://files/${queryUuid}` };
+            },
+        });
+        const page = await deliver(SchedulerFormat.XLSX);
+        expect(fileNames(page)).toEqual(['Classic']);
+        expect(page.failures).toEqual([
+            expect.objectContaining({
+                type: PartialFailureType.DASHBOARD_COMPOSER_CHART,
+                tileUuid: 'composer-tile',
+                error: 'Query polling timed out after 180000ms',
+            }),
+        ]);
+    });
+
+    it('adds the composer tile to the on-demand dashboard CSV zip', async () => {
+        const run = vi.fn().mockResolvedValue(runResults('stage-q'));
+        const { exportZip, createZipDownloadUrl } = setupDelivery({ run });
+        await exportZip();
+        expect(run.mock.calls[0][4]).toBe(QueryExecutionContext.CSV);
+        expect(createZipDownloadUrl.mock.calls[0][0].files).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    chartName: 'Composer',
+                    localPath: 'https://files/stage-q',
+                }),
+            ]),
+        );
+    });
 });
 
 describe('uploadGsheets — SQL chart values', () => {

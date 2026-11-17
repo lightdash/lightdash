@@ -613,6 +613,15 @@ export type ComposerChartRunResults = {
     usedParameterValuesByNodeId: Record<string, ParametersValuesMap>;
 };
 
+/** The query a composer chart tile draws, and so exports: its series-split stage, else its terminal node. */
+export const getComposerChartDisplayedQueryUuid = (
+    run: Pick<ComposerChartRunResults, 'queries' | 'chartStageQueryUuid'>,
+    terminalNodeId: string,
+): string | null =>
+    run.chartStageQueryUuid ??
+    run.queries.find(({ nodeId }) => nodeId === terminalNodeId)?.queryUuid ??
+    null;
+
 export type ApiComposerChartRunResponse = {
     status: 'ok';
     results: ComposerChartRunResults;

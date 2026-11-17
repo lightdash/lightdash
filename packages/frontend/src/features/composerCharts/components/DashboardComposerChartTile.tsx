@@ -1,14 +1,22 @@
+import { subject } from '@casl/ability';
 import {
     ChartType,
     FeatureFlags,
     getChartKind,
+    getComposerChartDisplayedQueryUuid,
     getComposerChartDraw,
     pickComposerChartRows,
     type ComposerChartDraw,
     type DashboardComposerChartTile as ComposerChartTile,
 } from '@lightdash/common';
+import { Menu } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import * as Sentry from '@sentry/react';
-import { IconAlertCircle, IconChartDots3 } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconChartDots3,
+    IconTableExport,
+} from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -16,7 +24,9 @@ import {
     type ComponentProps,
     type FC,
 } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import ExportDataModal from '../../../components/DashboardTiles/ExportDataModal';
 import TileBase from '../../../components/DashboardTiles/TileBase/index';
 import { TileFiltersPopover } from '../../../components/DashboardTiles/TileFiltersPopover';
 import { TileParametersPopover } from '../../../components/DashboardTiles/TileParametersPopover';
@@ -25,6 +35,7 @@ import useDashboardFiltersForTile from '../../../hooks/dashboard/useDashboardFil
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useInfiniteQueryResults } from '../../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import {
@@ -205,19 +216,28 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
         [chart, run, parameterDefinitions, parameters, excludedKeys],
     );
     const title = getTitle(tile);
+    const terminalQueryUuid = run?.queries.find(
+        ({ nodeId }) => nodeId === chart?.pipeline.terminalNodeId,
+    )?.queryUuid;
+    const displayedQueryUuid =
+        run && chart
+            ? getComposerChartDisplayedQueryUuid(
+                  run,
+                  chart.pipeline.terminalNodeId,
+              )
+            : null;
+    const drawsFromStage =
+        !!displayedQueryUuid && displayedQueryUuid !== terminalQueryUuid;
     const terminal = useInfiniteQueryResults(
         projectUuid,
-        run?.queries.find(
-            ({ nodeId }) => nodeId === chart?.pipeline.terminalNodeId,
-        )?.queryUuid,
+        terminalQueryUuid,
         title,
     );
     const stage = useInfiniteQueryResults(
         projectUuid,
-        run?.chartStageQueryUuid ?? undefined,
+        drawsFromStage ? displayedQueryUuid : undefined,
         title,
     );
-    const drawsFromStage = !!run?.chartStageQueryUuid;
     const results = drawsFromStage ? stage : terminal;
     useEffect(() => {
         if (
@@ -274,6 +294,19 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
     }, [errorMessage, drawState.status]);
     const isLoading =
         !errorMessage && (!readyDraw || !results.hasFetchedAllRows);
+    const { user } = useApp();
+    const canExportData = !!user.data?.ability?.can(
+        'manage',
+        subject('ExportCsv', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+    const downloadData = useUiString('tileMenu.downloadData');
+    const [exportOpened, { open: openExport, close: closeExport }] =
+        useDisclosure(false);
+    const exportQueryUuid =
+        !errorMessage && results.hasFetchedAllRows ? displayedQueryUuid : null;
     const handleScreenshotReady = useCallback(
         () => markTileScreenshotReady(tile.uuid),
         [markTileScreenshotReady, tile.uuid],
@@ -299,6 +332,17 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                     : null
             }
             fullWidth={readyDraw?.chartConfig.type === ChartType.TABLE}
+            extraMenuItems={
+                canExportData && (
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconTableExport} />}
+                        disabled={props.isEditMode || !exportQueryUuid}
+                        onClick={openExport}
+                    >
+                        {downloadData}
+                    </Menu.Item>
+                )
+            }
             extraHeaderElement={
                 <>
                     <TileFiltersPopover
@@ -344,6 +388,17 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                         />
                     </Sentry.ErrorBoundary>
                 )
+            )}
+            {exportQueryUuid && projectUuid && (
+                <ExportDataModal
+                    isOpen={exportOpened}
+                    onClose={closeExport}
+                    projectUuid={projectUuid}
+                    totalResults={results.totalResults}
+                    getDownloadQueryUuid={async () => exportQueryUuid}
+                    chartName={title}
+                    hideLimitSelection
+                />
             )}
         </TileBase>
     );

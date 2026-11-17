@@ -1,6 +1,8 @@
 import { ParameterError } from '../types/errors';
+import { QuerySourceType } from '../types/querySources';
 import { ChartType } from '../types/savedCharts';
 import {
+    getComposerChartDisplayedQueryUuid,
     parseComposerChartInput,
     parseComposerChartRunRequest,
     parseComposerPipeline,
@@ -422,5 +424,47 @@ describe('parseComposerChartRunRequest', () => {
         expect(() =>
             parseComposerChartRunRequest({ ...request, ...extra }),
         ).toThrow(key);
+    });
+});
+
+describe('getComposerChartDisplayedQueryUuid', () => {
+    const queries = [
+        {
+            nodeId: 'orders',
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            queryUuid: 'q-orders',
+        },
+        {
+            nodeId: 'monthly',
+            sourceType: QuerySourceType.DUCKDB,
+            queryUuid: 'q-monthly',
+        },
+    ];
+
+    it('is the chart stage when the run has one', () => {
+        expect(
+            getComposerChartDisplayedQueryUuid(
+                { queries, chartStageQueryUuid: 'q-stage' },
+                'monthly',
+            ),
+        ).toBe('q-stage');
+    });
+
+    it('is the terminal node without a chart stage', () => {
+        expect(
+            getComposerChartDisplayedQueryUuid(
+                { queries, chartStageQueryUuid: null },
+                'monthly',
+            ),
+        ).toBe('q-monthly');
+    });
+
+    it('is null when the terminal node did not run', () => {
+        expect(
+            getComposerChartDisplayedQueryUuid(
+                { queries: [], chartStageQueryUuid: null },
+                'monthly',
+            ),
+        ).toBeNull();
     });
 });
