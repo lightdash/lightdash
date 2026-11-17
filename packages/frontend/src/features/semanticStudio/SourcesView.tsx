@@ -236,8 +236,9 @@ export const SourcesRail: FC<{
         if (!hasOverview && !selected && firstChange) open(firstChange);
     }, [hasOverview, selected, firstChange, open]);
     // The tree keeps its first options, so its listener reads the latest through a ref.
-    const latest = useRef({ open, selected, files: new Set<string>() });
-    latest.current = { open, selected, files: new Set(all) };
+    const fileSet = useMemo(() => new Set(all), [all]);
+    const latest = useRef({ open, selected, files: fileSet });
+    latest.current = { open, selected, files: fileSet };
     const { model } = useFileTree({
         paths: [],
         icons: SOURCE_ICONS,
@@ -261,6 +262,14 @@ export const SourcesRail: FC<{
             }),
         [model, all],
     );
+    // The open file can change from outside the tree, and a reset drops what was selected.
+    useEffect(() => {
+        const shown = model.getSelectedPaths();
+        if (!selected || !fileSet.has(selected) || shown.includes(selected))
+            return;
+        shown.forEach((path) => model.getItem(path)?.deselect());
+        model.getItem(selected)?.select();
+    }, [model, fileSet, selected]);
     useEffect(
         () =>
             model.setGitStatus(
@@ -496,11 +505,13 @@ export const SourcePane: FC<{
         (justSaved?.key === editKey ? justSaved.content : null);
     const value = text ?? loaded ?? '';
     const isDirty = text !== null && text !== loaded;
+    // A proposal shown in the editor is the agent's until the person types over it.
+    const hasOwnEdits = isDirty && text !== offered;
     // Null at first, so coming back to Sources brings back what was left unsaved.
     const shownKey = useRef<string | null>(null);
     useEffect(() => {
         if (shownKey.current === editKey) {
-            if (isDirty && text !== null) keepUnsaved(editKey, text);
+            if (hasOwnEdits && text !== null) keepUnsaved(editKey, text);
             else unsavedEdits.delete(editKey);
             return;
         }
@@ -512,7 +523,7 @@ export const SourcePane: FC<{
         setProposedFrom(null);
         setOffered(null);
         setRevision((current) => current + 1);
-    }, [editKey, isDirty, text]);
+    }, [editKey, hasOwnEdits, text]);
     const linted = useDeferredValue(value);
     const markers = useMemo(
         () =>
@@ -531,18 +542,23 @@ export const SourcePane: FC<{
         if (codeRef.current?.getEditState())
             codeRef.current.setMarkers(markers);
     }, [markers]);
-    const proposed =
-        path && loaded !== null ? applyProposal(proposal, path, loaded) : null;
+    const proposed = useMemo(
+        () =>
+            path && loaded !== null
+                ? applyProposal(proposal, path, loaded)
+                : null,
+        [proposal, path, loaded],
+    );
     // Like an editor's agent: a proposal for the open file lands in it as an unsaved edit, once.
     useEffect(() => {
-        if (!proposed || proposed === offered || isDirty) return;
+        if (hasOwnEdits || proposed === offered) return;
         setOffered(proposed);
-        setProposedFrom(loaded);
+        setProposedFrom(proposed === null ? null : loaded);
         setBase(proposed);
         setText(proposed);
-        setLayout('diff');
+        if (proposed !== null) setLayout('diff');
         setRevision((current) => current + 1);
-    }, [proposed, offered, isDirty, loaded]);
+    }, [proposed, offered, hasOwnEdits, loaded]);
     const where = target.changeName ?? 'live';
 
     const reset = () => {
@@ -827,7 +843,7 @@ export const SourcePane: FC<{
                     <CopyActionIcon value={value} copyLabel="Copy" />
                 </Group>
             </Group>
-            {proposed && proposed !== offered && isDirty ? (
+            {proposed && proposed !== offered && hasOwnEdits ? (
                 <Alert color="violet" radius={0} py={8}>
                     <Text fz="xs">
                         The agent proposed a change to this file. Discard your

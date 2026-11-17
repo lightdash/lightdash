@@ -22,7 +22,14 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { uniqBy } from 'es-toolkit/compat';
-import { useEffect, useEffectEvent, useRef, useState, type FC } from 'react';
+import {
+    memo,
+    useEffect,
+    useEffectEvent,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SidebarPosition } from '../../../../../components/common/Page/types';
@@ -400,6 +407,10 @@ type AgentProps = OpenModel &
         onAttach: (ref: StudioChatRef) => void;
     };
 
+// The panel renders on every move of its resize handle; the thread only when what it is given changes.
+const ExistingThreadMemo = memo(ExistingThread);
+const NewThreadMemo = memo(NewThread);
+
 const SemanticStudioAgentPanel: FC<AgentProps> = ({
     projectUuid,
     modelName,
@@ -517,7 +528,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                 </Group>
                 <Box className={classes.body}>
                     {thread ? (
-                        <ExistingThread
+                        <ExistingThreadMemo
                             key={thread.threadUuid}
                             projectUuid={projectUuid}
                             agent={thread.agent}
@@ -531,7 +542,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                             onAttachedSent={onAttachedSent}
                         />
                     ) : (
-                        <NewThread
+                        <NewThreadMemo
                             projectUuid={projectUuid}
                             agent={agent}
                             onCreated={setStored}

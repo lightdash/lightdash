@@ -14,6 +14,7 @@ import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 // Element references and pipeline nodes never render inline; they always show as pills.
 // Restore items live on hidden turns and are rendered as build cards.
 // A theme pick is a composer setting, not a mention, so it stays a chip.
+// A model is attached, never typed as a mention, so a word that happens to be its name stays a word.
 type InlineReferenceItem = Exclude<
     AiPromptContextItem,
     {
@@ -21,7 +22,8 @@ type InlineReferenceItem = Exclude<
             | 'data_app_element'
             | 'composer_node'
             | 'data_app_restore'
-            | 'design';
+            | 'design'
+            | 'semantic_model';
     }
 >;
 
@@ -31,7 +33,8 @@ const isInlineReferenceItem = (
     item.type !== 'data_app_element' &&
     item.type !== 'composer_node' &&
     item.type !== 'data_app_restore' &&
-    item.type !== 'design';
+    item.type !== 'design' &&
+    item.type !== 'semantic_model';
 
 export type ContentReferenceSegment =
     | {
@@ -149,10 +152,6 @@ const getPromptContextItemLabel = (item: InlineReferenceItem) => {
             return item.title;
         case 'preview_environment':
             return item.projectName ?? 'Preview environment';
-        case 'semantic_model':
-            return item.fieldName
-                ? `${item.modelName}.${item.fieldName}`
-                : item.modelName;
         case 'data_app':
             return getDataAppContextItemName(item);
         case 'document':
