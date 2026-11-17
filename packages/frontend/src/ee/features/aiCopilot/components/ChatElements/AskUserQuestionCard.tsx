@@ -10,7 +10,7 @@ import {
     Text,
     Textarea,
 } from '@mantine/core';
-import { IconCheck, IconPencil } from '@tabler/icons-react';
+import { IconPencil } from '@tabler/icons-react';
 import {
     useEffect,
     useRef,
@@ -134,6 +134,9 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
     const groupName = `ask-user-question-${index}`;
     const options = question.options.map((option, i) => {
         const OptionCard = question.multiSelect ? Checkbox.Card : Radio.Card;
+        const Indicator = question.multiSelect
+            ? Checkbox.Indicator
+            : Radio.Indicator;
         return (
             <OptionCard
                 key={option.label}
@@ -141,13 +144,8 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                 withBorder={false}
                 className={styles.optionRow}
             >
-                <Box
-                    component="span"
-                    className={styles.optionKey}
-                    mod={{ round: !question.multiSelect }}
-                    aria-hidden
-                >
-                    {i + 1}
+                <Box component="span" className={styles.optionMark}>
+                    <Indicator size="xs" />
                 </Box>
                 <Box>
                     <Text fz="sm" fw={500}>
@@ -159,12 +157,8 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                         </Text>
                     )}
                 </Box>
-                <Box
-                    component="span"
-                    className={styles.optionCheck}
-                    aria-hidden
-                >
-                    <MantineIcon icon={IconCheck} />
+                <Box component="span" className={styles.optionKey} aria-hidden>
+                    {i + 1}
                 </Box>
             </OptionCard>
         );
@@ -173,8 +167,8 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
     // A label, so a click anywhere on the row focuses the input.
     const ownAnswer = (
         <Box component="label" className={styles.ownAnswerRow}>
-            <Box component="span" className={styles.optionKey} aria-hidden>
-                <MantineIcon icon={IconPencil} size={14} />
+            <Box component="span" className={styles.optionMark} aria-hidden>
+                <MantineIcon icon={IconPencil} size={14} color="dimmed" />
             </Box>
             <Textarea
                 autosize
