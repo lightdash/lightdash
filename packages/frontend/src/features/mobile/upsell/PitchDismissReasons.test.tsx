@@ -18,7 +18,7 @@ describe('PitchDismissReasons', () => {
         renderReasons();
 
         expect(
-            screen.getByRole('group', { name: 'Why not?' }),
+            screen.getByRole('group', { name: 'Help us improve the app' }),
         ).toBeInTheDocument();
         const pills = screen.getAllByRole('button');
         expect(pills.length).toBeGreaterThanOrEqual(4);

@@ -78,6 +78,25 @@ describe('MobileSignInMenu pitch dismiss', () => {
         expect(track).not.toHaveBeenCalled();
     });
 
+    it('shows Not interested as an X icon at the top of the pitch, named without hover', async () => {
+        renderMenu();
+        await openMenu();
+        const control = await screen.findByRole('button', {
+            name: MOBILE_PITCH_DISMISS_STRINGS.action,
+        });
+        const headline = screen.getByRole('heading', {
+            name: UPSELL_STRINGS[6].headline,
+        });
+
+        expect(control).toHaveAccessibleName('Not interested');
+        expect(control).toHaveTextContent('Not interested');
+        expect(control.querySelector('svg')).toBeInTheDocument();
+        expect(
+            control.compareDocumentPosition(headline) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+    });
+
     it('does not put the first focus on Not interested when the popover opens', async () => {
         renderMenu();
         const dialog = await openMenu();
@@ -95,7 +114,7 @@ describe('MobileSignInMenu pitch dismiss', () => {
         await userEvent.keyboard('{Enter}');
 
         expect(
-            screen.queryByRole('group', { name: 'Why not?' }),
+            screen.queryByRole('group', { name: 'Help us improve the app' }),
         ).not.toBeInTheDocument();
         expect(track).not.toHaveBeenCalled();
         expect(window.localStorage.getItem(MOBILE_PITCH_DISMISSED_KEY)).toBe(
@@ -121,7 +140,7 @@ describe('MobileSignInMenu pitch dismiss', () => {
         await waitFor(() => expect(openButton()).toHaveFocus());
     });
 
-    it('swaps the card for the Why not? prompt without tracking yet', async () => {
+    it('swaps the card for the Help us improve the app prompt without tracking yet', async () => {
         renderMenu();
         await openMenu();
 
@@ -132,7 +151,7 @@ describe('MobileSignInMenu pitch dismiss', () => {
         );
 
         expect(
-            screen.getByRole('group', { name: 'Why not?' }),
+            screen.getByRole('group', { name: 'Help us improve the app' }),
         ).toBeInTheDocument();
         expect(
             screen.queryByText(UPSELL_STRINGS[6].headline),
