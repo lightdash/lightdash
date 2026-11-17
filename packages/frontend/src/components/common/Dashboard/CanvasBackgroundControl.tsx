@@ -1,4 +1,4 @@
-import { Box, Center, SegmentedControl, Tooltip } from '@mantine/core';
+import { Center, SegmentedControl, Tooltip } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import {
     IconColumns3,
@@ -49,39 +49,33 @@ export const CanvasBackgroundControl = memo(() => {
     );
 
     return (
-        <Box
-            display="inline-flex"
-            data-tour="dashboard-edit-guides"
-            data-tour-hints
-        >
-            <ShortcutHint shortcut={EDIT_SHORTCUTS.background} position="top">
-                <SegmentedControl
-                    size="xs"
-                    aria-label="Canvas background while editing"
-                    value={background}
-                    onChange={(next) => {
-                        if (isCanvasBackground(next))
-                            dispatch(
-                                dashboardEditActions.setCanvasBackground(next),
-                            );
-                    }}
-                    data={OPTIONS.map((option) => ({
-                        value: option.value,
-                        label: (
-                            <Tooltip
-                                label={option.tooltip}
-                                position="bottom"
-                                openDelay={200}
-                            >
-                                <Center aria-label={option.tooltip}>
-                                    <MantineIcon icon={option.icon} />
-                                </Center>
-                            </Tooltip>
-                        ),
-                    }))}
-                />
-            </ShortcutHint>
-        </Box>
+        <ShortcutHint shortcut={EDIT_SHORTCUTS.background} position="top">
+            <SegmentedControl
+                size="xs"
+                aria-label="Canvas background while editing"
+                value={background}
+                onChange={(next) => {
+                    if (isCanvasBackground(next))
+                        dispatch(
+                            dashboardEditActions.setCanvasBackground(next),
+                        );
+                }}
+                data={OPTIONS.map((option) => ({
+                    value: option.value,
+                    label: (
+                        <Tooltip
+                            label={option.tooltip}
+                            position="bottom"
+                            openDelay={200}
+                        >
+                            <Center aria-label={option.tooltip}>
+                                <MantineIcon icon={option.icon} />
+                            </Center>
+                        </Tooltip>
+                    ),
+                }))}
+            />
+        </ShortcutHint>
     );
 });
 CanvasBackgroundControl.displayName = 'CanvasBackgroundControl';

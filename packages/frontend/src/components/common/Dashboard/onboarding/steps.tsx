@@ -13,14 +13,13 @@ export const DASHBOARD_EDIT_TOUR_STEPS: GuidedTourStep[] = [
         body: <ToolbarIntro />,
     },
     {
-        target: '[data-tour="dashboard-edit-history"]',
+        target: null,
+        highlights: [
+            '[data-tour="dashboard-edit-history"]',
+            '[data-tour="dashboard-edit-changes"]',
+        ],
         title: 'Edit history',
-        body: 'Undo and redo your layout changes one step at a time.',
-    },
-    {
-        target: '[data-tour="dashboard-edit-changes"]',
-        title: 'See every change',
-        body: 'Once you change something, this turns into Unsaved changes. Click it for the full list of edits before you save.',
+        body: 'Undo and redo your changes from the toolbar. Once you change something, Editing at the top lists every unsaved edit.',
     },
     {
         target: '[data-tour="dashboard-edit-tiles"]',
@@ -28,14 +27,9 @@ export const DASHBOARD_EDIT_TOUR_STEPS: GuidedTourStep[] = [
         body: 'Add a tile, or tidy the layout to close the gaps.',
     },
     {
-        target: '[data-tour="dashboard-edit-zoom"]',
-        title: 'Zoom the canvas',
-        body: 'Zoom out to arrange a long dashboard, or fit it to your screen.',
-    },
-    {
-        target: '[data-tour="dashboard-edit-guides"]',
-        title: 'Pick your guides',
-        body: 'Switch between a grid, dots or column guides to line tiles up.',
+        target: '[data-tour="dashboard-edit-canvas"]',
+        title: 'Zoom and guides',
+        body: 'Zoom out to arrange a long dashboard, and pick a grid, dots or column guides to line tiles up.',
     },
     {
         target: '[data-tour="dashboard-edit-filters"]',

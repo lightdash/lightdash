@@ -791,8 +791,15 @@ const DashboardHeader = memo(
                                     <TidyTilesButton />
                                 </Group>
                                 <ActionBar.Divider />
-                                <CanvasZoomControls />
-                                <CanvasBackgroundControl />
+                                <Group
+                                    gap="xs"
+                                    wrap="nowrap"
+                                    data-tour="dashboard-edit-canvas"
+                                    data-tour-hints
+                                >
+                                    <CanvasZoomControls />
+                                    <CanvasBackgroundControl />
+                                </Group>
                                 <EditFiltersVisibilityControl
                                     value={editFiltersVisibility}
                                     onChange={onEditFiltersVisibilityChange}
