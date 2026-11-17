@@ -1,3 +1,10 @@
+# [3.277.0](https://github.com/lightdash/lightdash/compare/3.276.2...3.277.0) (2026-11-17)
+
+
+### Features
+
+* open dashboard from save-to-dashboard toast ([#32692](https://github.com/lightdash/lightdash/issues/32692)) ([3ecdc4e](https://github.com/lightdash/lightdash/commit/3ecdc4e6058cd062dab9d5a23445fe29d6ebb371))
+
 ## [3.276.2](https://github.com/lightdash/lightdash/compare/3.276.1...3.276.2) (2026-11-17)
 
 
