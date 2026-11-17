@@ -1,3 +1,10 @@
+## [3.285.1](https://github.com/lightdash/lightdash/compare/3.285.0...3.285.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **setup:** reuse the setup service account across restarts ([#32717](https://github.com/lightdash/lightdash/issues/32717)) ([cdf4d7b](https://github.com/lightdash/lightdash/commit/cdf4d7b55931ae0b91ee3b6043c0fd1e9196c0b0))
+
 # [3.285.0](https://github.com/lightdash/lightdash/compare/3.284.0...3.285.0) (2026-11-17)
 
 
