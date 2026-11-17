@@ -61,6 +61,34 @@ const fitInsideScreenGutter: Extract<
     },
 };
 
+const FOCUSABLE =
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]';
+
+const isFocusable = (element: HTMLElement) =>
+    element.tabIndex >= 0 &&
+    element.closest('[hidden], [inert], [aria-hidden="true"]') === null &&
+    (typeof element.checkVisibility !== 'function' ||
+        element.checkVisibility());
+
+const findFocusNeighbour = (
+    anchor: HTMLElement,
+    exclude: HTMLElement | null,
+): HTMLElement | null => {
+    const scope = anchor.closest('header') ?? document.body;
+    const candidates = Array.from(
+        scope.querySelectorAll<HTMLElement>(FOCUSABLE),
+    ).filter(
+        (element) =>
+            element === anchor ||
+            (isFocusable(element) &&
+                !anchor.contains(element) &&
+                !exclude?.contains(element)),
+    );
+    const index = candidates.indexOf(anchor);
+    if (index === -1) return null;
+    return candidates[index + 1] ?? candidates[index - 1] ?? null;
+};
+
 const hasLostFocus = () =>
     document.activeElement === null || document.activeElement === document.body;
 
@@ -86,7 +114,7 @@ const useKeepFocusInPopover = (
 const MobileSignInPopover: FC<{
     withLabel: boolean;
     pitch: MobileUpsellChoice;
-    onPitchDismissed: () => void;
+    onPitchDismissed: (focusNext: HTMLElement | null) => void;
     sourceProjectUuid: string | null;
 }> = ({ withLabel, pitch, onPitchDismissed, sourceProjectUuid }) => {
     const menuProps = useNavBarMenuProps();
@@ -104,6 +132,7 @@ const MobileSignInPopover: FC<{
     const isConfirming = signIn.phase === 'claimed';
     const qrPlaceholder = previewSignIn ? <PreviewQrPattern /> : undefined;
     const dropdown = useRef<HTMLDivElement>(null);
+    const phoneButton = useRef<HTMLButtonElement>(null);
     useKeepFocusInPopover(signIn.phase, dropdown);
 
     const open = () => {
@@ -121,8 +150,11 @@ const MobileSignInPopover: FC<{
             name: EventName.MOBILE_PITCH_DISMISSED,
             properties: { reason, variation: pitch },
         });
+        const focusNext = phoneButton.current
+            ? findFocusNeighbour(phoneButton.current, dropdown.current)
+            : null;
         close();
-        onPitchDismissed();
+        onPitchDismissed(focusNext);
     };
 
     return (
@@ -155,6 +187,7 @@ const MobileSignInPopover: FC<{
                     disabled={opened}
                 >
                     <Button
+                        ref={phoneButton}
                         id={id}
                         aria-label={MOBILE_STRINGS.signInTitle}
                         aria-haspopup="dialog"
@@ -209,6 +242,16 @@ export const MobileSignInMenu: FC<{
 }> = ({ withLabel = false, sourceProjectUuid = null }) => {
     const upsell = useMobileUpsell() ?? 6;
     const { dismissed, dismiss } = useMobilePitchDismissed();
+    const focusAfterDismiss = useRef<HTMLElement | null>(null);
+    useEffect(() => {
+        if (!dismissed) return;
+        focusAfterDismiss.current?.focus();
+        focusAfterDismiss.current = null;
+    }, [dismissed]);
+    const onPitchDismissed = (focusNext: HTMLElement | null) => {
+        focusAfterDismiss.current = focusNext;
+        dismiss();
+    };
     const { data: qrSignInFlag } = useServerFeatureFlag(
         FeatureFlags.MobileQrSignIn,
     );
@@ -221,7 +264,7 @@ export const MobileSignInMenu: FC<{
         <MobileSignInPopover
             withLabel={withLabel}
             pitch={upsell}
-            onPitchDismissed={dismiss}
+            onPitchDismissed={onPitchDismissed}
             sourceProjectUuid={sourceProjectUuid}
         />
     );

@@ -202,6 +202,59 @@ describe('MobileSignInMenu pitch dismiss', () => {
         ).not.toBeInTheDocument();
     });
 
+    const renderInNav = (after: boolean) =>
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/projects/p1/saved/c1']}>
+                <header>
+                    <button type="button">Notifications</button>
+                    <MobileSignInMenu />
+                    {after && <button type="button">Help</button>}
+                </header>
+            </MemoryRouter>,
+        );
+
+    const dismissByKeyboard = async () => {
+        const user = userEvent.setup();
+        openButton().focus();
+        await user.keyboard('{Enter}');
+        await screen.findByRole('dialog', { name: 'Sign in on your phone' });
+        const control = await screen.findByRole('button', {
+            name: MOBILE_PITCH_DISMISS_STRINGS.action,
+        });
+        control.focus();
+        await user.keyboard('{Enter}');
+        screen
+            .getByRole('button', {
+                name: MOBILE_PITCH_DISMISS_STRINGS.reasons.already_use,
+            })
+            .focus();
+        await user.keyboard('{Enter}');
+        await waitFor(() => expect(phoneEntry()).not.toBeInTheDocument());
+    };
+
+    it('moves focus to the next nav control after a keyboard dismissal', async () => {
+        renderInNav(true);
+
+        await dismissByKeyboard();
+
+        await waitFor(() =>
+            expect(screen.getByRole('button', { name: 'Help' })).toHaveFocus(),
+        );
+        expect(document.body).not.toHaveFocus();
+    });
+
+    it('moves focus to the previous nav control when nothing follows the phone entry', async () => {
+        renderInNav(false);
+
+        await dismissByKeyboard();
+
+        await waitFor(() =>
+            expect(
+                screen.getByRole('button', { name: 'Notifications' }),
+            ).toHaveFocus(),
+        );
+    });
+
     it.each([false, true])(
         'renders no phone entry when the dismissal is already stored (withLabel %s)',
         (withLabel) => {
