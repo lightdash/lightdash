@@ -98,7 +98,8 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                     >
                         <Button
                             data-testid={`${title}-card-expand`}
-                            variant="subtle"
+                            // The whole heading toggles and highlights, so the chevron stays quiet
+                            variant="transparent"
                             color="gray"
                             w="xxl"
                             h="xxl"

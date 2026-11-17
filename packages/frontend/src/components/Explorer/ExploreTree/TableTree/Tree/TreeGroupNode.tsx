@@ -186,7 +186,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                             <Text
                                 truncate
                                 fz={13}
-                                fw={600}
+                                fw={500}
                                 ff="var(--mantine-font-family)"
                             >
                                 <Highlight

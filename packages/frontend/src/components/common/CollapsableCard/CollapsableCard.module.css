@@ -4,6 +4,8 @@
 
 .activeCardHeading {
     cursor: pointer;
+    /* Toggling twice in a row would otherwise select the title */
+    user-select: none;
 }
 
 .activeCardHeading:hover {
