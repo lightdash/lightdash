@@ -71,6 +71,7 @@ import { type SemanticStudioWorkspaceModel } from '../../models/SemanticStudioWo
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import { type AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { type ParsedDbtProject } from '../AiWritebackService/types';
+import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import {
     findModelsToCompile,
     findNewCompileErrors,
@@ -176,6 +177,10 @@ export type SemanticStudioServiceArguments = {
     >;
     savedChartModel: Pick<SavedChartModel, 'analyzeFieldImpact'>;
     jobModel: Pick<JobModel, 'findLatestCompileStatus'>;
+    writebackPreviewService: Pick<
+        WritebackPreviewService,
+        'createPreviewForPullRequest'
+    >;
     aiWritebackService: Pick<
         AiWritebackService,
         'openStudioCheckout' | 'saveWithScript'
@@ -311,6 +316,8 @@ export class SemanticStudioService extends BaseService {
 
     private readonly jobModel: SemanticStudioServiceArguments['jobModel'];
 
+    private readonly writebackPreviewService: SemanticStudioServiceArguments['writebackPreviewService'];
+
     private readonly checker: DraftChecker;
 
     /** Publishes under way, so a repeated request joins the one already running. */
@@ -333,6 +340,7 @@ export class SemanticStudioService extends BaseService {
         this.workspaceModel = args.workspaceModel;
         this.aiWritebackService = args.aiWritebackService;
         this.jobModel = args.jobModel;
+        this.writebackPreviewService = args.writebackPreviewService;
         this.checker = new DraftChecker(args.projectService);
     }
 
@@ -2255,6 +2263,19 @@ export class SemanticStudioService extends BaseService {
                 );
             });
         }
+        // A preview built by an earlier round would otherwise keep showing the pull request without this edit.
+        await this.writebackPreviewService
+            .createPreviewForPullRequest({
+                user,
+                projectUuid,
+                prUrl: savedPrUrl,
+                reuseOnly: true,
+            })
+            .catch((error: unknown) => {
+                this.logger.warn(
+                    `SemanticStudio: failed to refresh the preview after a hand edit: ${getErrorMessage(error)}`,
+                );
+            });
         return {
             status: 'saved',
             prUrl: savedPrUrl,

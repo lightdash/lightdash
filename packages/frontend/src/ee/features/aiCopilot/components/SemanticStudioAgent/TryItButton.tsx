@@ -86,7 +86,9 @@ export const TryItButton: FC<{
     const { changedModels, previewProjectUuid, prUrl } = pullRequest;
     const [isTrying, setIsTrying] = useState(false);
     const stopTrying = useCallback(() => setIsTrying(false), []);
+    // Without its preview, a teammate's change would be tried as your own changes, or as live.
     if (changedModels.length === 0) return null;
+    if (!pullRequest.isMine && !previewProjectUuid) return null;
     return (
         <>
             <Tooltip multiline w={240} label={HINT}>

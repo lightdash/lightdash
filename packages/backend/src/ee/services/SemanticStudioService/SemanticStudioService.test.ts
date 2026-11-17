@@ -315,6 +315,7 @@ const setup = ({
         }) => ({ url: PULL_REQUEST_URL }),
     );
     const queueImpactCheck = vi.fn(async () => undefined);
+    const createPreviewForPullRequest = vi.fn(async () => null);
     const compileExploresFromManifest = vi.fn(
         async (): Promise<(Explore | ExploreError)[]> => [TRY_OUT_EXPLORE],
     );
@@ -524,6 +525,7 @@ const setup = ({
             compileExploresFromManifest,
         },
         jobModel: { findLatestCompileStatus: async () => previewCompile },
+        writebackPreviewService: { createPreviewForPullRequest },
         fileStorageClient: {
             isEnabled: () => true,
             uploadTxt: async (txt, id) => {

@@ -601,9 +601,15 @@ export const SourcePane: FC<{
                         content: value,
                     });
                     unsavedEdits.delete(savedKey);
-                    // A save from live moves to its new change, and what is typed in another file comes along.
+                    // A save from live moves to its new change, and what is typed in another live file comes along.
+                    const liveKey = `${target.projectUuid}\n\n${open.current.path ?? ''}`;
                     const typed = unsavedEdits.get(open.current.key);
-                    if (!isStillOpen() && typed !== undefined) {
+                    if (
+                        target.prUrl === null &&
+                        open.current.key === liveKey &&
+                        !isStillOpen() &&
+                        typed !== undefined
+                    ) {
                         unsavedEdits.delete(open.current.key);
                         keepUnsaved(
                             `${target.projectUuid}\n${result.prUrl}\n${open.current.path ?? ''}`,

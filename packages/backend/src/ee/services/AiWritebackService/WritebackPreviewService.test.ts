@@ -302,6 +302,20 @@ describe('WritebackPreviewService reusing a preview', () => {
         expect(githubClient.createPullRequestComment).not.toHaveBeenCalled();
     });
 
+    it('builds no preview when asked only to reuse one and there is none', async () => {
+        const projectService = { createPreview: vi.fn() };
+        const service = buildService({ projectService });
+        expect(
+            await service.createPreviewForPullRequest({
+                user: userWithSourceCodeAccess(true),
+                projectUuid: PROJECT,
+                prUrl: PR_URL,
+                reuseOnly: true,
+            }),
+        ).toBeNull();
+        expect(projectService.createPreview).not.toHaveBeenCalled();
+    });
+
     it('builds a new preview when the commented one is for another branch', async () => {
         const { result, projectService } = await run('someone-elses-branch');
         expect(result?.previewProjectUuid).toBe('new-preview');

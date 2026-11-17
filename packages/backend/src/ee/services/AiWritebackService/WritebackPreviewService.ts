@@ -116,11 +116,14 @@ export class WritebackPreviewService extends BaseService {
         projectUuid,
         prUrl,
         assertPublishAllowed = null,
+        reuseOnly = false,
     }: {
         user: SessionUser;
         projectUuid: string;
         prUrl: string;
         assertPublishAllowed?: (() => Promise<void>) | null;
+        /** Compile the preview this pull request already has again, and build none when it has none. */
+        reuseOnly?: boolean;
     }): Promise<WritebackPreviewResult | null> {
         const project = await this.projectModel.get(projectUuid);
         if (
@@ -208,7 +211,7 @@ export class WritebackPreviewService extends BaseService {
                 headRef: pullRequest.headRef,
                 comments,
             });
-            if (existing) return existing;
+            if (existing || reuseOnly) return existing;
 
             const preview = await this.projectService.createPreview(
                 user,
