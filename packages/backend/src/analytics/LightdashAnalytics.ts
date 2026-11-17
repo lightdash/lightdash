@@ -2035,6 +2035,7 @@ export type DashboardView = BaseTrack & {
     userId: string;
     properties: {
         dashboardId: string;
+        dashboardSlug?: string;
         projectId: string;
         organizationId: string;
         parametersCount: number;
