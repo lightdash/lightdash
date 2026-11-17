@@ -94,6 +94,7 @@ export type VisualizationProviderProps = {
         e: EchartsSeriesClickEvent,
         series: EChartsSeries[],
     ) => void;
+    onAxisSort?: (fieldId: string) => void;
     onChartTypeChange?: (value: ChartType) => void;
     onChartConfigChange?: (value: ChartConfig) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
@@ -248,6 +249,7 @@ const VisualizationProvider: FC<
     chartConfig,
     onChartConfigChange,
     onSeriesContextMenu,
+    onAxisSort,
     onChartTypeChange,
     onPivotDimensionsChange,
     onPivotRowsChange,
@@ -307,6 +309,10 @@ const VisualizationProvider: FC<
             onSeriesContextMenu?.(e, series),
     );
     const hasSeriesContextMenu = onSeriesContextMenu !== undefined;
+    const stableOnAxisSort = useStableCallback((fieldId: string) =>
+        onAxisSort?.(fieldId),
+    );
+    const hasAxisSort = onAxisSort !== undefined;
 
     const { colorMappings } = useChartColorMappings();
     const theme = useMantineTheme();
@@ -512,6 +518,7 @@ const VisualizationProvider: FC<
             onSeriesContextMenu: hasSeriesContextMenu
                 ? stableOnSeriesContextMenu
                 : undefined,
+            onAxisSort: hasAxisSort ? stableOnAxisSort : undefined,
             setChartType,
             setPivotDimensions,
             setPivotRows,
@@ -523,6 +530,8 @@ const VisualizationProvider: FC<
             setCartesianType,
             hasSeriesContextMenu,
             stableOnSeriesContextMenu,
+            hasAxisSort,
+            stableOnAxisSort,
             setChartType,
             setPivotDimensions,
             setPivotRows,

@@ -1,3 +1,8 @@
-.grabHandle {
-    cursor: grab;
+/* Keeps the new row's field in line with the rows above it */
+.placeholderHandle {
+    visibility: hidden;
+}
+
+.addSort {
+    align-self: flex-start;
 }

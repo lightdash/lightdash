@@ -4,6 +4,7 @@ import {
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
 import { ga4Integration } from './integrations/ga4';
+import { githubIntegration } from './integrations/github';
 import { googleAdsIntegration } from './integrations/googleAds';
 import { linkedInAdsIntegration } from './integrations/linkedInAds';
 import { metaAdsIntegration } from './integrations/metaAds';
@@ -23,6 +24,7 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.GOOGLE_ADS]: googleAdsIntegration,
     [ApiConnectorType.YOUTUBE_ANALYTICS]: youtubeAnalyticsIntegration,
     [ApiConnectorType.LINKEDIN_ADS]: linkedInAdsIntegration,
+    [ApiConnectorType.GITHUB]: githubIntegration,
 };
 
 export const getLiveIntegration = (

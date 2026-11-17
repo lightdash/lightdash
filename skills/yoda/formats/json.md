@@ -28,7 +28,7 @@ type Review = {
 
 - **Sources:** verdict per [review.md](../review.md#verdict); testing per [testing.md](../testing.md).
 - **Impact:** not stored; renderers show the highest diff impact ([lenses/README.md](../lenses/README.md#impact)), or `none` with no diffs.
-- **Finding markdown:** one small paragraph (~70 words).
+- **Finding markdown:** as [review.md](../review.md#render) writes it.
 - **Diff:** [Base Diff](../lenses/README.md#base-diff) fields, then the lens's extras in its type's order, then note; coverage drops from [testing.md](../testing.md#coverage-drop-diff).
 - **Ordering:** findings by state (Fix first), then triage lens order, then more changed lines first; Testing findings and coverage diffs sort after Observability and before Tooling. Testing rows: gaps, then verification. Diffs follow Base Diff ordering.
 - **Standalone json mode:** no lens ran checks, so omit verdict, findings and testing.

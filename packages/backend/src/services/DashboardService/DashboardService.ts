@@ -1803,6 +1803,7 @@ export class DashboardService
                 userId: user.userUuid,
                 properties: {
                     dashboardId: dashboard.uuid,
+                    dashboardSlug: dashboard.slug,
                     organizationId: dashboard.organizationUuid,
                     projectId: dashboard.projectUuid,
                     parametersCount: Object.keys(dashboard.parameters || {})

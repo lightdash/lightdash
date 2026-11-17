@@ -1,4 +1,5 @@
 import {
+    allowsOptionalUserCredentials,
     BigqueryAuthenticationType,
     buildSafeDbtEnvironmentVariables,
     DbtVersionOptionLatest,
@@ -33,7 +34,84 @@ import {
     type CreateWarehouseCredentials,
     type CreateWarehouseCredentialsWithOptionalSecrets,
     type DuckdbAnalyticsCredentials,
+    type WarehouseCredentials,
 } from './projects';
+
+describe('allowsOptionalUserCredentials', () => {
+    const snowflake: WarehouseCredentials = {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'account',
+        database: 'database',
+        warehouse: 'warehouse',
+        schema: 'schema',
+    };
+    const bigquery: WarehouseCredentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'project',
+        dataset: 'dataset',
+        timeoutSeconds: undefined,
+        priority: undefined,
+        retries: undefined,
+        location: undefined,
+        maximumBytesBilled: undefined,
+    };
+
+    test.each<[string, WarehouseCredentials | undefined, boolean]>([
+        ['undefined credentials', undefined, false],
+        ['Snowflake without the opt-in', snowflake, false],
+        [
+            'Snowflake with the opt-in off',
+            { ...snowflake, allowUserCredentials: false },
+            false,
+        ],
+        [
+            'Snowflake with the opt-in',
+            { ...snowflake, allowUserCredentials: true },
+            true,
+        ],
+        ['BigQuery without the opt-in', bigquery, false],
+        [
+            'BigQuery with the opt-in',
+            { ...bigquery, allowUserCredentials: true },
+            true,
+        ],
+        [
+            'Databricks',
+            {
+                type: WarehouseTypes.DATABRICKS,
+                database: 'database',
+                serverHostName: 'host',
+                httpPath: 'path',
+            },
+            true,
+        ],
+        [
+            'Trino',
+            {
+                type: WarehouseTypes.TRINO,
+                host: 'host',
+                port: 443,
+                dbname: 'dbname',
+                schema: 'schema',
+                http_scheme: 'https',
+            },
+            true,
+        ],
+        [
+            'Postgres',
+            {
+                type: WarehouseTypes.POSTGRES,
+                host: 'host',
+                port: 5432,
+                dbname: 'dbname',
+                schema: 'schema',
+            },
+            false,
+        ],
+    ])('%s', (_name, credentials, expected) => {
+        expect(allowsOptionalUserCredentials(credentials)).toBe(expected);
+    });
+});
 
 describe('project dbt source name validation', () => {
     test.each([
@@ -262,6 +340,36 @@ describe('mergeWarehouseCredentials', () => {
             const preview: CreateBigqueryCredentials = {
                 ...connection,
                 dataset: 'preview',
+                ...(allowUserCredentials === undefined
+                    ? {}
+                    : { allowUserCredentials }),
+            };
+
+            expect(
+                mergeWarehouseCredentials(base, preview).allowUserCredentials,
+            ).toBe(allowUserCredentials ?? true);
+        },
+    );
+
+    test.each([undefined, false, true])(
+        'preserves or overrides the Snowflake personal credential opt-in (%s)',
+        (allowUserCredentials) => {
+            const connection: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'user',
+                password: 'password',
+                database: 'database',
+                warehouse: 'warehouse',
+                schema: 'schema',
+            };
+            const base: CreateSnowflakeCredentials = {
+                ...connection,
+                allowUserCredentials: true,
+            };
+            const preview: CreateSnowflakeCredentials = {
+                ...connection,
+                schema: 'preview',
                 ...(allowUserCredentials === undefined
                     ? {}
                     : { allowUserCredentials }),

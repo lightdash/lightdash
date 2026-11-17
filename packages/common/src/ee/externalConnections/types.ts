@@ -59,6 +59,14 @@ export type LinkedInAdsApiSource = {
     adAccountId: string;
 };
 
+export type GithubApiSource = {
+    connector: ApiConnectorType.GITHUB;
+    /** The user or organization that owns the repository, e.g. lightdash. */
+    owner: string;
+    /** The repository name, without the owner, e.g. lightdash. */
+    repo: string;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
@@ -67,7 +75,8 @@ export type ExternalConnectionApiSource =
     | MetaAdsApiSource
     | GoogleAdsApiSource
     | YoutubeAnalyticsApiSource
-    | LinkedInAdsApiSource;
+    | LinkedInAdsApiSource
+    | GithubApiSource;
 
 /** The settings of one integration's sources. */
 export type ApiSourceOf<C extends ApiConnectorType> = Extract<
@@ -100,6 +109,12 @@ export const META_ADS_API_VERSION = 'v25.0';
 
 export const getMetaAdsInsightsPath = (adAccountId: string) =>
     `/${META_ADS_API_VERSION}/act_${adAccountId}/insights`;
+
+export const GITHUB_ORIGIN = 'https://api.github.com';
+export const GITHUB_SEARCH_PATH = '/search/issues';
+
+export const getGithubContributorsPath = (owner: string, repo: string) =>
+    `/repos/${owner}/${repo}/stats/contributors`;
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */

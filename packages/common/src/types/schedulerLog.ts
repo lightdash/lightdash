@@ -27,6 +27,7 @@ export enum PartialFailureType {
     MISSING_TARGETS = 'missing_targets',
     DASHBOARD_CHART = 'dashboard_chart',
     DASHBOARD_SQL_CHART = 'dashboard_sql_chart',
+    DASHBOARD_COMPOSER_CHART = 'dashboard_composer_chart',
     AI_AUGMENTATION = 'ai_augmentation',
     APP_QUERY = 'app_query',
     APP_QUERY_MISSING = 'app_query_missing',
@@ -44,6 +45,14 @@ export type DashboardChartPartialFailure = {
 export type DashboardSqlChartPartialFailure = {
     type: PartialFailureType.DASHBOARD_SQL_CHART;
     savedSqlUuid: string;
+    chartName: string;
+    tileUuid: string;
+    error: string;
+};
+
+export type DashboardComposerChartPartialFailure = {
+    type: PartialFailureType.DASHBOARD_COMPOSER_CHART;
+    composerChartUuid: string;
     chartName: string;
     tileUuid: string;
     error: string;
@@ -89,6 +98,7 @@ export type AppCaptureOverflowPartialFailure = {
 export type PartialFailure =
     | DashboardChartPartialFailure
     | DashboardSqlChartPartialFailure
+    | DashboardComposerChartPartialFailure
     | MissingTargetsPartialFailure
     | AiAugmentationPartialFailure
     | AppQueryPartialFailure

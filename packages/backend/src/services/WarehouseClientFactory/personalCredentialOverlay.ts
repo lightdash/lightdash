@@ -219,6 +219,7 @@ export const personalCredentialFieldClassification = {
         organizationWarehouseCredentialsUuid: 'connection',
         authenticationType: 'auth',
         requireUserCredentials: 'connection',
+        allowUserCredentials: 'connection',
     },
 } as const satisfies {
     [W in NonDuckdbWarehouseType]: Record<keyof CredentialsFor<W>, FieldClass>;

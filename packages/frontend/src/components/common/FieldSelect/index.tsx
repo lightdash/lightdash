@@ -311,6 +311,9 @@ const FieldSelectComponent = <T extends Item = Item>({
 
     const getUiString = useUiStrings();
 
+    // Icons follow the control: the default size overpowers xs text
+    const isCompact = rest.size === 'xs';
+
     const renderOption = useCallback(
         ({ option, checked }: { option: ComboboxItem; checked?: boolean }) => {
             if (option.value === MORE_OPTIONS_VALUE) {
@@ -347,6 +350,7 @@ const FieldSelectComponent = <T extends Item = Item>({
                         <FieldIcon
                             className={classes.optionIcon}
                             item={fieldItem}
+                            size={isCompact ? 14 : 'lg'}
                         />
                         <Text
                             span
@@ -363,14 +367,14 @@ const FieldSelectComponent = <T extends Item = Item>({
                         </Text>
                         {checked && (
                             <Box component="span" ml="auto" display="flex">
-                                <CheckIcon size={12} />
+                                <CheckIcon size={isCompact ? 9 : 12} />
                             </Box>
                         )}
                     </Group>
                 </Tooltip>
             );
         },
-        [rest.size, getUiString],
+        [rest.size, isCompact, getUiString],
     );
 
     return (
@@ -385,7 +389,11 @@ const FieldSelectComponent = <T extends Item = Item>({
                 groupLabel: classes.separatorLabel,
             }}
             renderOption={renderOption}
-            leftSection={item ? <FieldIcon item={item} /> : undefined}
+            leftSection={
+                item ? (
+                    <FieldIcon item={item} size={isCompact ? 14 : 'lg'} />
+                ) : undefined
+            }
             placeholder={rest.placeholder ?? 'Search field...'}
             nothingFoundMessage={getUiString('filters.config.noMatchingFields')}
             allowDeselect={false}

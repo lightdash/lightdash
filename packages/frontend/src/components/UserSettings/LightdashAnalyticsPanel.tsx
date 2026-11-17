@@ -59,17 +59,14 @@ const LightdashAnalyticsPanel = ({
         dashboards.data?.filter((dashboard) => dashboard.verification) ?? [];
     const showOverview =
         status.isSuccess && analyticsProject && projectUrlIdentifier;
+    // The subtitle only helps before the project exists; once it does, the tabs say what is here
     const heading = (
         <Stack gap="xs">
             <Title order={1}>Lightdash analytics</Title>
-            <Text fz="sm" c="dimmed">
-                Track adoption and usage.
-            </Text>
-            {showOverview && (
-                <AnalyticsProcessingSummary
-                    processing={analyticsProject.processing}
-                    compact
-                />
+            {!showOverview && (
+                <Text fz="sm" c="dimmed">
+                    Track adoption and usage.
+                </Text>
             )}
         </Stack>
     );
@@ -106,6 +103,12 @@ const LightdashAnalyticsPanel = ({
                     projectUrlIdentifier={projectUrlIdentifier}
                     dashboards={verifiedDashboards}
                     heading={heading}
+                    status={
+                        <AnalyticsProcessingSummary
+                            processing={analyticsProject.processing}
+                            compact
+                        />
+                    }
                     actions={
                         <Group gap="sm" wrap="nowrap">
                             {canAskAi && (

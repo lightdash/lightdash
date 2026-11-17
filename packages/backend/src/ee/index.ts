@@ -203,6 +203,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AnalyticsProjectService({
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
+                    appModel: models.getAppModel(),
+                    getAppGenerateService: () =>
+                        repository.getAppGenerateService<AppGenerateService>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),
@@ -874,6 +877,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardService: repository.getDashboardService(),
                     documentService: repository.getDocumentService(),
                     savedChartService: repository.getSavedChartService(),
+                    savedSqlService: repository.getSavedSqlService(),
                     contentService: repository.getContentService(),
                     aiCreditService:
                         repository.getAiCreditService<AiCreditService>(),
@@ -1970,6 +1974,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
                 learnSandboxService:
                     context.serviceRepository.getLearnSandboxService(),
+                composerChartService:
+                    context.serviceRepository.getComposerChartService(),
                 managedAgentService:
                     context.serviceRepository.getManagedAgentService<ManagedAgentService>(),
                 appGenerateService:

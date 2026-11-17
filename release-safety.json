@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.278.1",
-  "previousVersion": "3.278.0",
-  "releaseDate": "2026-11-17T10:26:11.860Z",
+  "version": "3.286.0",
+  "previousVersion": "3.285.1",
+  "releaseDate": "2026-11-17T14:17:39.077Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,8 +20,13 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `github` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/apiSource/integration` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `github` enum value to the `results/log/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/apiSource/integration` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/explores/{exploreId} — added the new `github` enum value to the `results/apiSource/integration` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/semantic-studio/draft — added the new `github` enum value to the `results/models/items/explore/allOf[#/components/schemas/Explore]/apiSource/integration` response property for the response status `200`"
+      ],
+      "advisoryCount": 4
     },
     "mcp": {
       "checked": true,

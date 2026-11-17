@@ -51,11 +51,16 @@ export enum WarehouseTypes {
 }
 
 /**
- * Warehouse types that support optional personal credentials. BigQuery also
- * requires the project to opt in via allowUserCredentials.
+ * Warehouse types that support optional personal credentials. BigQuery and
+ * Snowflake also require the project to opt in via allowUserCredentials.
  */
 export const WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS: WarehouseTypes[] =
-    [WarehouseTypes.DATABRICKS, WarehouseTypes.TRINO, WarehouseTypes.BIGQUERY];
+    [
+        WarehouseTypes.DATABRICKS,
+        WarehouseTypes.TRINO,
+        WarehouseTypes.BIGQUERY,
+        WarehouseTypes.SNOWFLAKE,
+    ];
 
 export const supportsOptionalUserCredentials = (
     warehouseType: WarehouseTypes | undefined,
@@ -68,7 +73,8 @@ export const allowsOptionalUserCredentials = (
 ): boolean =>
     !!credentials &&
     supportsOptionalUserCredentials(credentials.type) &&
-    (credentials.type !== WarehouseTypes.BIGQUERY ||
+    ((credentials.type !== WarehouseTypes.BIGQUERY &&
+        credentials.type !== WarehouseTypes.SNOWFLAKE) ||
         credentials.allowUserCredentials === true);
 
 export enum DuckdbConnectionType {
@@ -652,6 +658,7 @@ export type CreateSnowflakeCredentials = {
     user: string;
     password?: string;
     requireUserCredentials?: boolean;
+    allowUserCredentials?: boolean;
     requireAgentSession?: boolean;
     privateKey?: string;
     privateKeyPass?: string;

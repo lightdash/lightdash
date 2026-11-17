@@ -132,6 +132,7 @@ const renderDashboardTile = (tile: Dashboard['tiles'][number]) => {
             return (
                 <SqlChartTile
                     key={tile.uuid}
+                    minimal
                     tile={tile}
                     isEditMode={false}
                     onDelete={() => {}}

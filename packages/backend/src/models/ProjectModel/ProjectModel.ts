@@ -823,8 +823,10 @@ export class ProjectModel {
         // CLI credential refreshes omit project-only settings. Preserve the
         // opt-in unless the update explicitly enables or disables it.
         const warehouseConnection =
-            incomingWarehouse.type === WarehouseTypes.BIGQUERY &&
-            savedWarehouse?.type === WarehouseTypes.BIGQUERY
+            (incomingWarehouse.type === WarehouseTypes.BIGQUERY &&
+                savedWarehouse?.type === WarehouseTypes.BIGQUERY) ||
+            (incomingWarehouse.type === WarehouseTypes.SNOWFLAKE &&
+                savedWarehouse?.type === WarehouseTypes.SNOWFLAKE)
                 ? {
                       ...incomingWarehouse,
                       allowUserCredentials:

@@ -457,8 +457,8 @@ export const analyticsTabs: {
         id: 'adoption',
         summary: null,
         label: 'Adoption',
-        description:
-            'See who is active, which apps and dashboards people use, and how Ask AI use develops.',
+        description: 'Explore usage and feature adoption by team.',
+        // Shown where the Adoption app is not available
         dashboardSlug: 'lightdash-analytics-adoption',
         charts: [
             activeUsers,
