@@ -662,7 +662,7 @@ describe('ExternalConnectionService live source writes', () => {
         );
     });
 
-    it('tracks a live source by kind and connector', async () => {
+    it('tracks a live source by kind and integration', async () => {
         const { service, analytics } = buildService();
         await service.create(account, 'proj-1', postHogCreate);
         await service.delete(account, 'proj-1', 'conn-1');
@@ -673,14 +673,14 @@ describe('ExternalConnectionService live source writes', () => {
                 event: 'external_connection.created',
                 properties: expect.objectContaining({
                     connectionKind: 'live_source',
-                    connector: ApiConnectorType.POSTHOG,
+                    integration: ApiConnectorType.POSTHOG,
                 }),
             }),
             expect.objectContaining({
                 event: 'external_connection.deleted',
                 properties: expect.objectContaining({
                     connectionKind: 'live_source',
-                    connector: ApiConnectorType.POSTHOG,
+                    integration: ApiConnectorType.POSTHOG,
                 }),
             }),
         ]);

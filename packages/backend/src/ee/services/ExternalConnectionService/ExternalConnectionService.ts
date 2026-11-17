@@ -658,7 +658,7 @@ export class ExternalConnectionService extends BaseService {
     ) {
         return {
             connectionKind: connection.kind ?? 'data_app',
-            connector: connection.apiSource?.connector ?? null,
+            integration: connection.apiSource?.connector ?? null,
         };
     }
 
@@ -2071,7 +2071,7 @@ export class ExternalConnectionService extends BaseService {
                         projectId: projectUuid,
                         externalConnectionUuid:
                             connection.externalConnectionUuid,
-                        connector: connection.apiSource?.connector ?? null,
+                        integration: connection.apiSource?.connector ?? null,
                         context: call.context,
                         outcome: call.outcome,
                         apiCalls: usage.apiCalls,

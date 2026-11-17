@@ -13497,7 +13497,7 @@ export class AsyncQueryService extends ProjectService {
                         warehousePhaseTimings: null,
                         totalRowCount,
                         columnsCount,
-                        apiConnector: connector,
+                        integration: connector,
                         apiQueryOutcome: outcome,
                         ...(liveSourceErrorCode ? { liveSourceErrorCode } : {}),
                         ...(truncated !== null ? { truncated } : {}),
