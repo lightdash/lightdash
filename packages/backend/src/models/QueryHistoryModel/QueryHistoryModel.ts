@@ -65,6 +65,10 @@ export type QueryHistoryWithLineage = QueryHistory & {
     duckdbExecutionReferences?: Record<string, string> | null;
 };
 
+const resultExecution = (
+    spec: DbQueryHistory['duckdb_execution'],
+): DuckdbExecutionSpec | null => (spec && !('kind' in spec) ? spec : null);
+
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
 ): QueryHistoryWithLineage {
@@ -72,7 +76,7 @@ function convertDbQueryHistoryToQueryHistory(
         queryUuid: queryHistory.query_uuid,
         agentIdentity: queryHistory.agent_identity ?? null,
         duckdbExecutionReferences:
-            queryHistory.duckdb_execution?.references ?? null,
+            resultExecution(queryHistory.duckdb_execution)?.references ?? null,
         createdAt: queryHistory.created_at,
         createdBy:
             queryHistory.created_by_user_uuid ??
@@ -286,6 +290,7 @@ export class QueryHistoryModel {
         > & {
             agentIdentity?: AgentIdentityClaim | null;
             cacheOutcome?: QueryHistoryCacheOutcome;
+            modelMaterializationLiveSql?: string;
         },
         binding?: { warehouseConnectionUuid: string | null },
     ) {
@@ -349,7 +354,12 @@ export class QueryHistoryModel {
                 pre_aggregate_execution: null,
                 pre_aggregate_fallback_reason: null,
                 processing_started_at: null,
-                duckdb_execution: null,
+                duckdb_execution: queryHistory.modelMaterializationLiveSql
+                    ? {
+                          kind: 'modelMaterialization',
+                          liveSql: queryHistory.modelMaterializationLiveSql,
+                      }
+                    : null,
                 ...(binding
                     ? {
                           warehouse_connection_uuid:
@@ -862,7 +872,7 @@ export class QueryHistoryModel {
                 queryHistory: internalLookup
                     ? convertDbQueryHistoryToQueryHistory(row)
                     : this.convertAccountScopedRow(row, account),
-                execution: row.duckdb_execution ?? null,
+                execution: resultExecution(row.duckdb_execution),
             };
         });
     }
@@ -884,7 +894,18 @@ export class QueryHistoryModel {
             .select('duckdb_execution')
             .where('query_uuid', queryUuid)
             .first();
-        return row?.duckdb_execution ?? null;
+        return resultExecution(row?.duckdb_execution ?? null);
+    }
+
+    async getMaterializationLiveSql(queryUuid: string): Promise<string | null> {
+        const row = await this.database(QueryHistoryTableName)
+            .select('duckdb_execution')
+            .where('query_uuid', queryUuid)
+            .first();
+        const spec = row?.duckdb_execution;
+        return spec && 'kind' in spec && spec.kind === 'modelMaterialization'
+            ? spec.liveSql
+            : null;
     }
 
     /** Cancels those of the given queries still running that no running query but the consumer reads. */

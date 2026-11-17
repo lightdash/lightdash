@@ -959,6 +959,10 @@ export class AsyncQueryService extends ProjectService {
         {
             pin: ModelMaterializationPin;
             objectKey: string;
+            liveBase: {
+                explore: Explore;
+                warehouseSqlBuilder: WarehouseSqlBuilder;
+            };
         } | null
     >();
 
@@ -1103,12 +1107,64 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    private async runLiveIfMaterializationDisabled(
+        args: RunAsyncWarehouseQueryArgs,
+        submittedSql: string | null,
+    ): Promise<boolean> {
+        const cacheKey = `${args.queryUuid}.live`;
+        if (args.cacheKey !== cacheKey) {
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid: args.organizationUuid },
+                featureFlagId: FeatureFlags.SemanticStudioEditing,
+            });
+            if (enabled) return false;
+        }
+        const liveSql =
+            submittedSql ??
+            (await this.queryHistoryModel.getMaterializationLiveSql(
+                args.queryUuid,
+            ));
+        if (!liveSql)
+            throw new ParameterError(
+                'The authorized live query is unavailable.',
+            );
+
+        await this.queryHistoryModel.update(
+            args.queryUuid,
+            args.projectUuid,
+            {
+                cache_key: cacheKey,
+                compiled_sql: liveSql,
+            },
+            {
+                user: { id: args.userUuid },
+                isRegisteredUser: () => args.isRegisteredUser,
+            },
+        );
+        await this.runAsyncWarehouseQuery({
+            ...args,
+            query: liveSql,
+            cacheKey,
+        });
+        return true;
+    }
+
     private async runFileQuery(
         warehouseArgs: RunAsyncWarehouseQueryArgs,
         plan: FileExecutionPlan,
         producer: QueryResultProducer | null,
+        liveSql: string | null = null,
     ): Promise<void> {
         try {
+            if (
+                plan.target === 'model_materialization' &&
+                liveSql !== null &&
+                (await this.runLiveIfMaterializationDisabled(
+                    warehouseArgs,
+                    liveSql,
+                ))
+            )
+                return;
             if (
                 plan.target === 'model_materialization' &&
                 producer?.credentialOwner.kind !== 'shared_connection'
@@ -1200,14 +1256,13 @@ export class AsyncQueryService extends ProjectService {
             const pin = query.requestParameters.modelMaterialization;
             if (pin) {
                 producer = query.requestParameters.resultProducer ?? null;
-                const { enabled } = await this.featureFlagModel.get({
-                    user: { organizationUuid: query.organizationUuid },
-                    featureFlagId: FeatureFlags.SemanticStudioEditing,
-                });
-                if (!enabled)
-                    throw new ForbiddenError(
-                        'Model materialization is disabled',
-                    );
+                if (
+                    await this.runLiveIfMaterializationDisabled(
+                        { ...args, warehouseConnectionUuid },
+                        null,
+                    )
+                )
+                    return true;
                 const objectKey =
                     await this.modelMaterializationModel.getPinnedObjectKey(
                         args.projectUuid,
@@ -1556,7 +1611,7 @@ export class AsyncQueryService extends ProjectService {
         this.materializationBindings.set(
             result.explore,
             copy.status === 'ready'
-                ? { pin: copy.pin, objectKey: copy.objectKey }
+                ? { pin: copy.pin, objectKey: copy.objectKey, liveBase: live }
                 : null,
         );
         const snapshot = this.unfilteredExploreSnapshots.get(explore);
@@ -2157,20 +2212,6 @@ export class AsyncQueryService extends ProjectService {
         accountAlreadyRefreshed = false,
         exportResults = false,
     ): Promise<void> {
-        if (
-            queries.some(
-                (query) => query.requestParameters?.modelMaterialization,
-            )
-        ) {
-            const { organizationUuid } =
-                await this.projectModel.getSummary(projectUuid);
-            const { enabled } = await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.SemanticStudioEditing,
-                user: { organizationUuid },
-            });
-            if (!enabled)
-                throw new ForbiddenError('Model materialization is disabled');
-        }
         let projectPromise: ReturnType<
             typeof this.projectModel.getSummary
         > | null = null;
@@ -7122,10 +7163,15 @@ export class AsyncQueryService extends ProjectService {
                         );
                     }
 
-                    const query = queryComposer.getSql({
-                        columnLimit:
-                            this.lightdashConfig.pivotTable.maxColumnLimit,
-                    });
+                    const columnLimit =
+                        this.lightdashConfig.pivotTable.maxColumnLimit;
+                    const query = queryComposer.getSql({ columnLimit });
+                    const liveSql = binding
+                        ? queryComposer.getMetricSqlForBase(
+                              binding.liveBase,
+                              columnLimit,
+                          )
+                        : null;
                     span.setAttribute('generatedSql', query);
 
                     const onboardingFlow = await this.getOnboardingFlow({
@@ -7381,6 +7427,9 @@ export class AsyncQueryService extends ProjectService {
                         context,
                         fields: fieldsMap,
                         compiledSql: query,
+                        ...(liveSql
+                            ? { modelMaterializationLiveSql: liveSql }
+                            : {}),
                         requestParameters: executionRequestParameters,
                         usedParameters: queryComposer.getUsedParameters(),
                         // Persist the gated display timezone (matches
@@ -7865,6 +7914,7 @@ export class AsyncQueryService extends ProjectService {
                                             'model_materialization'
                                             ? requesterProducer
                                             : null,
+                                        liveSql,
                                     );
                                 case 'materialization':
                                 case 'warehouse':

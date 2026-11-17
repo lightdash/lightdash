@@ -22508,6 +22508,27 @@ describe('fresh stored result read boundary', () => {
         service.exportsStorageClient.isEnabled = vi.fn(() => true);
         return { service, access, account, history, reload, currentUser, page };
     };
+    test('reads a completed copy after flag disable and still applies current viewer access', async () => {
+        const f = setupRead();
+        f.history.requestParameters.modelMaterialization = {
+            configUuid: 'config',
+            generationUuid: 'first',
+            policyEpoch: 1,
+        };
+        const read = () =>
+            f.service.getAsyncQueryResults({
+                account: f.account,
+                projectUuid,
+                queryUuid: f.history.queryUuid,
+            });
+        await expect(read()).resolves.toMatchObject({
+            status: QueryHistoryStatus.READY,
+        });
+        f.currentUser.ability = new Ability<PossibleAbilities>([]);
+        await expect(read()).rejects.toBeInstanceOf(ForbiddenError);
+        expect(f.page).toHaveBeenCalledTimes(1);
+    });
+
     test('checks a result against the unpublished model the development view ran it on', async () => {
         const f = setupRead();
         vi.mocked(f.service.projectModel.getExploreFromCache).mockRejectedValue(
@@ -32795,6 +32816,10 @@ dimensions:
                 '__lightdash_materialized_model',
             );
             expect(first.compiledSql).not.toContain('raw.items');
+            expect(first.modelMaterializationLiveSql).toContain('raw.items');
+            expect(first.requestParameters).not.toHaveProperty(
+                'modelMaterializationLiveSql',
+            );
             if (enabled) {
                 expect(
                     service.natsClient.enqueueExternalSourceQuery,
@@ -32821,6 +32846,21 @@ dimensions:
             pin.policyEpoch += 1;
             await submitMetric();
             expect(create.mock.lastCall![1].cacheKey).not.toEqual(secondKey);
+            vi.mocked(service.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: false,
+                }),
+            );
+            getServingCopy.mockClear();
+            await submitMetric();
+            const fresh = create.mock.lastCall![1];
+            expect(fresh.compiledSql).toBe(first.modelMaterializationLiveSql);
+            expect(
+                fresh.requestParameters.modelMaterialization,
+            ).toBeUndefined();
+            expect(getServingCopy).not.toHaveBeenCalled();
+            expect(fresh.cacheKey).not.toBe(first.cacheKey);
         },
     );
 
@@ -32893,8 +32933,9 @@ dimensions:
         expect(f.resolver).not.toHaveBeenCalled();
     });
 
-    it('refuses a pinned job when the organization flag is off', async () => {
+    it('runs the authorized live SQL in a private cache partition when the flag is disabled after enqueue', async () => {
         const f = setup();
+        f.history.cacheKey = 'generation-key';
         f.history.requestParameters = {
             ...f.history.requestParameters,
             modelMaterialization: {
@@ -32909,13 +32950,31 @@ dimensions:
                 enabled: false,
             }),
         );
+        const sql = 'SELECT sum(amount) FROM raw.items WHERE category = 7';
+        Object.assign(f.service.queryHistoryModel, {
+            getMaterializationLiveSql: vi.fn(async () => sql),
+        });
         await expect(
             f.service.runAsyncExternalSourceQueryFromHistory(
                 f.history.queryUuid,
                 'worker',
             ),
-        ).rejects.toThrow('Model materialization is disabled');
-        expect(f.run).not.toHaveBeenCalled();
+        ).resolves.toBe(true);
+        const key = `${f.history.queryUuid}.live`;
+        expect(f.service.queryHistoryModel.update).toHaveBeenCalledWith(
+            f.history.queryUuid,
+            projectUuid,
+            { cache_key: key, compiled_sql: sql },
+            expect.anything(),
+        );
+        const [args] = f.run.mock.calls[0];
+        expect(args).toMatchObject({
+            cacheKey: key,
+            query: sql,
+            userUuid: f.history.createdByUserUuid,
+        });
+        expect(args.warehouseClientOverride).toBeUndefined();
+        expect(f.createExecutionWarehouseClient).not.toHaveBeenCalled();
     });
 
     it('records the stored warehouse connection on the result producer', async () => {

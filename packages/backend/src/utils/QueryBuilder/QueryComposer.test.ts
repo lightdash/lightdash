@@ -109,6 +109,29 @@ describe('QueryComposer', () => {
         expect(sql).toMatchSnapshot();
     });
 
+    it('preserves the original pivot and field selection in the warehouse fallback', () => {
+        const definition = {
+            metricQuery: METRIC_QUERY,
+            pivotConfiguration: PIVOT_CONFIGURATION,
+        };
+        const composer = new QueryComposer(definition, CONTEXT);
+        const live = structuredClone(EXPLORE);
+        live.tables.table1.sqlTable = 'raw.source_rows';
+        const base = {
+            explore: live,
+            warehouseSqlBuilder: warehouseClientMock,
+        };
+        const expected = new QueryComposer(definition, {
+            ...CONTEXT,
+            ...base,
+        }).getSql({ columnLimit: 100 });
+        expect(composer.getMetricSqlForBase(base, 100)).toBe(expected);
+        expect(expected).toContain('raw.source_rows');
+        expect(composer.getSql({ columnLimit: 100 })).not.toContain(
+            'raw.source_rows',
+        );
+    });
+
     describe('getters', () => {
         it('combines user access controls only when both attribute maps are in context', () => {
             const withAttributes = new QueryComposer(
