@@ -381,10 +381,10 @@ describe('Project model documents on PostgreSQL', () => {
             ]),
         );
         expect(published.get('orders')).toEqual(
-            expect.objectContaining({ by: 'Ada Lovelace' }),
+            expect.objectContaining({ by: 'Ada Lovelace', isYours: false }),
         );
         expect(published.has('customers')).toBe(false);
-        // What a person published themself is not news to them.
+        // A person's own publish, from another of their workspaces, is marked as theirs.
         expect(
             (
                 await model.findPublishedSince(
@@ -392,8 +392,10 @@ describe('Project model documents on PostgreSQL', () => {
                     other.user_uuid,
                     new Map([['orders', before]]),
                 )
-            ).size,
-        ).toBe(0);
+            ).get('orders'),
+        ).toEqual(
+            expect.objectContaining({ by: 'Ada Lovelace', isYours: true }),
+        );
     });
 
     test('two draft changes trade places', async () => {

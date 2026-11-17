@@ -191,8 +191,8 @@ export type SemanticLayerDraftModel = {
     reconciliation: SemanticLayerDraftReconciliation | null;
     /** Other people with unpublished changes to this model, and the parts each is changing; never the content. */
     alsoChanging: SemanticLayerDrafter[];
-    /** The latest change someone else published to this model since this draft first touched it; null when none. */
-    publishedSince: { by: string | null; at: Date } | null;
+    /** The latest change published to this model since this draft first touched it, from another person or another of yours; null when none. */
+    publishedSince: { by: string | null; at: Date; isYours: boolean } | null;
 };
 
 /** What became of a change that left the draft. */
