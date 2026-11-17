@@ -1,7 +1,6 @@
 import {
     CustomDimensionType,
     DimensionType,
-    MetricType,
     type ChartAsCode,
 } from '@lightdash/common';
 import { CoderService } from './CoderService';
@@ -50,11 +49,9 @@ describe('content-as-code SQL permission detector', () => {
         } as ChartAsCode;
 
         expect(
-            CoderService.getChartContentAsCodePermissionChecks(
-                chart,
-                { metricQuery: chart.metricQuery },
-                [],
-            ),
+            CoderService.getChartContentAsCodePermissionChecks(chart, {
+                metricQuery: chart.metricQuery,
+            }),
         ).toEqual([]);
     });
 
@@ -127,11 +124,7 @@ describe('content-as-code SQL permission detector', () => {
         } as ChartAsCode;
 
         expect(
-            CoderService.getChartContentAsCodePermissionChecks(
-                next,
-                current,
-                [],
-            ),
+            CoderService.getChartContentAsCodePermissionChecks(next, current),
         ).toEqual([
             {
                 check: 'customSqlDimension',
@@ -142,30 +135,6 @@ describe('content-as-code SQL permission detector', () => {
                 check: 'sqlTableCalculation',
                 message:
                     'User cannot upload content with new or modified SQL table calculations: calc, new_calc (chart slug "chart")',
-            },
-        ]);
-    });
-
-    it('reports the custom metrics that need permission', () => {
-        const written = {
-            name: 'written',
-            label: 'Written',
-            table: 'orders',
-            type: MetricType.SUM,
-            sql: '(SELECT 4242 + 1)',
-        };
-
-        expect(
-            CoderService.getChartContentAsCodePermissionChecks(
-                baseChart,
-                null,
-                [written],
-            ),
-        ).toEqual([
-            {
-                check: 'customMetricSql',
-                message:
-                    'Custom metrics written in SQL need permission to manage custom fields: Written (chart slug "chart")',
             },
         ]);
     });

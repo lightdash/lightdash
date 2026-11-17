@@ -1,15 +1,13 @@
 import {
     isCustomSqlDimension,
     isSqlTableCalculation,
-    type AdditionalMetric,
     type ChartAsCode,
     type CustomDimension,
     type TableCalculation,
 } from '@lightdash/common';
-import { getCustomMetricSqlPermissionMessage } from '../ProjectService/customMetricSqlPermission';
 
 export type ContentAsCodeSqlPermissionCheckResult = {
-    check: 'customSqlDimension' | 'sqlTableCalculation' | 'customMetricSql';
+    check: 'customSqlDimension' | 'sqlTableCalculation';
     message: string;
 };
 
@@ -22,8 +20,7 @@ export type CurrentChartSqlItems = {
 
 export const getChartContentAsCodePermissionChecks = (
     nextChart: ChartAsCode,
-    currentChart: CurrentChartSqlItems | null,
-    customMetricsNeedingPermission: AdditionalMetric[],
+    currentChart?: CurrentChartSqlItems,
 ): ContentAsCodeSqlPermissionCheckResult[] => {
     const checks: ContentAsCodeSqlPermissionCheckResult[] = [];
     const currentMetricQuery = currentChart?.metricQuery;
@@ -66,13 +63,6 @@ export const getChartContentAsCodePermissionChecks = (
             message: `User cannot upload content with new or modified SQL table calculations: ${changedCalculations.join(
                 ', ',
             )} (chart slug "${nextChart.slug}")`,
-        });
-    }
-
-    if (customMetricsNeedingPermission.length > 0) {
-        checks.push({
-            check: 'customMetricSql',
-            message: `${getCustomMetricSqlPermissionMessage(customMetricsNeedingPermission)} (chart slug "${nextChart.slug}")`,
         });
     }
     return checks;
