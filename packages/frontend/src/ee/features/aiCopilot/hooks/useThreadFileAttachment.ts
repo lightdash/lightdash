@@ -1,6 +1,7 @@
 import {
     AI_THREAD_FILE_MAX_BYTES,
     AI_THREAD_IMAGES_MAX_PER_PROMPT,
+    AI_THREAD_IMAGES_MAX_PER_THREAD,
     AI_THREAD_IMAGES_MAX_THREAD_BYTES,
     FeatureFlags,
     isApiError,
@@ -73,14 +74,18 @@ const isAbortError = (error: unknown) =>
     error instanceof DOMException && error.name === 'AbortError';
 const imageBudgetError = () =>
     new Error(
-        'Attach up to 5 images per message and 12 MiB of images per conversation. Remove an image or start a new conversation.',
+        'Attach up to 5 images per message, and 10 images or 12 MiB per conversation. Remove an image or start a new conversation.',
     );
+/** Images earlier messages already added to the conversation. */
+export type SentThreadImages = { count: number; bytes: number };
 
 /** Unsent uploads are disposable. Retention protects a pending claim; previews live until success/removal. */
 export const useThreadFileAttachment = ({
     onReady,
+    getSentImages,
 }: {
     onReady: (attachment: ThreadFileAttachment) => void;
+    getSentImages: () => SentThreadImages;
 }) => {
     const lightdashApi = useLightdashApi();
     const { showToastApiError, showToastError } = useToaster();
@@ -95,6 +100,8 @@ export const useThreadFileAttachment = ({
     const pendingIdRef = useRef(0);
     const onReadyRef = useRef(onReady);
     onReadyRef.current = onReady;
+    const getSentImagesRef = useRef(getSentImages);
+    getSentImagesRef.current = getSentImages;
     const mountedRef = useRef(true);
     const inFlightRef = useRef(new Map<number, PendingUpload>());
     const disposableFileUuidsRef = useRef(new Set<string>());
@@ -197,7 +204,7 @@ export const useThreadFileAttachment = ({
         [clearPreviews, lightdashApi],
     );
     const imageBytesExcept = useCallback((excludedId: number) => {
-        let bytes = 0;
+        let { bytes } = getSentImagesRef.current();
         readyImagesRef.current.forEach((image) => {
             bytes += image.sizeBytes;
         });
@@ -287,9 +294,12 @@ export const useThreadFileAttachment = ({
                 const pendingCount = Array.from(
                     inFlightRef.current.values(),
                 ).filter((pending) => pending.kind === 'image').length;
+                const composerCount =
+                    readyImagesRef.current.size + pendingCount;
                 if (
-                    readyImagesRef.current.size + pendingCount >=
-                    AI_THREAD_IMAGES_MAX_PER_PROMPT
+                    composerCount >= AI_THREAD_IMAGES_MAX_PER_PROMPT ||
+                    getSentImagesRef.current().count + composerCount >=
+                        AI_THREAD_IMAGES_MAX_PER_THREAD
                 ) {
                     reportError(imageBudgetError());
                     return;

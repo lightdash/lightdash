@@ -12,6 +12,7 @@ import {
     type AiPromptContextItem,
     type AiPromptContextItemInput,
     type AiModelOption,
+    type ApiAiAgentThreadResponse,
     type ExternalSource,
 } from '@lightdash/common';
 import {
@@ -38,6 +39,7 @@ import {
     IconTelescope,
     IconTerminal2,
 } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import Mention from '@tiptap/extension-mention';
 import { type AnyExtension, type Editor } from '@tiptap/react';
 import {
@@ -94,6 +96,7 @@ import { useHasActiveDeepResearchRun } from '../../hooks/useDeepResearch';
 import { useDeepResearchComposer } from '../../hooks/useDeepResearchComposer';
 import { useFileDropTarget } from '../../hooks/useFileDropTarget';
 import {
+    getAiAgentThreadQueryKey,
     useCreateAiAgentThreadMessageSteerMutation,
     useInterruptAiAgentThreadMessageMutation,
     useProjectAiAgent,
@@ -504,6 +507,25 @@ export const AgentChatInput = ({
     const hasImageAttachments = threadFileAttachments.some(
         ({ type }) => type === 'thread_image',
     );
+    const queryClient = useQueryClient();
+    // Read at attach time from the thread already on screen; the server
+    // still enforces the limits when nothing is cached.
+    const getSentThreadImages = useCallback(() => {
+        const thread = queryClient.getQueryData<
+            ApiAiAgentThreadResponse['results']
+        >(getAiAgentThreadQueryKey(projectUuid ?? '', agentUuid, threadUuid));
+        const sizes = (thread?.messages ?? []).flatMap((message) =>
+            message.role === 'user'
+                ? message.context.flatMap((item) =>
+                      item.type === 'thread_image' ? [item.sizeBytes] : [],
+                  )
+                : [],
+        );
+        return {
+            count: sizes.length,
+            bytes: sizes.reduce((total, size) => total + size, 0),
+        };
+    }, [queryClient, projectUuid, agentUuid, threadUuid]);
     const handleThreadFileReady = useCallback(
         (attachment: ThreadFileAttachment) => {
             setThreadFileAttachments((attachments) => [
@@ -526,7 +548,10 @@ export const AgentChatInput = ({
         isUploading: isUploadingThreadFile,
         pendingFiles: pendingThreadFiles,
         retainFiles: retainThreadFiles,
-    } = useThreadFileAttachment({ onReady: handleThreadFileReady });
+    } = useThreadFileAttachment({
+        onReady: handleThreadFileReady,
+        getSentImages: getSentThreadImages,
+    });
     const attachThreadImages = useCallback(
         (files: File[]) => {
             if (imagesEnabled && imageAttachmentsUnavailableReason) {
