@@ -1,7 +1,11 @@
 import { DashboardTileTypes, type Dashboard } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { fireEvent, screen } from '@testing-library/react';
+import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { dashboardEditActions } from '../../../features/dashboard/store';
+import { createDashboardTestStore } from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../../testing/testUtils';
 import TileBase from './index';
 
@@ -34,10 +38,18 @@ const hiddenTitleTile: Dashboard['tiles'][number] = {
 
 const CHART_HREF = '/projects/jaffle-shop/saved/revenue/';
 
+const renderInDashboard = (ui: ReactNode, store = createDashboardTestStore()) =>
+    renderWithProviders(
+        <DashboardStoreTestProvider store={store}>
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
+
 const renderTile = (
     props: Partial<{ isEditMode: boolean; minimal: boolean }> = {},
+    store = createDashboardTestStore(),
 ) =>
-    renderWithProviders(
+    renderInDashboard(
         <TileBase
             tile={hiddenTitleTile}
             title="Revenue"
@@ -50,6 +62,7 @@ const renderTile = (
         >
             <div>chart</div>
         </TileBase>,
+        store,
     );
 
 describe('TileBase chart page link', () => {
@@ -89,7 +102,7 @@ describe('TileBase chart page link', () => {
                 }) as MediaQueryList,
         );
 
-        renderWithProviders(
+        renderInDashboard(
             <TileBase
                 tile={hiddenTitleTile}
                 title="Revenue"
@@ -210,7 +223,7 @@ describe('TileBase connection badge', () => {
         minimal?: boolean;
         hideTitle?: boolean;
     }) =>
-        renderWithProviders(
+        renderInDashboard(
             <TileBase
                 tile={{
                     ...hiddenTitleTile,
@@ -244,5 +257,44 @@ describe('TileBase connection badge', () => {
         renderBadgeTile(props);
 
         expect(screen.queryByText('Finance')).toBeNull();
+    });
+});
+
+describe('TileBase selection', () => {
+    const selectedStore = () => {
+        const store = createDashboardTestStore();
+        store.dispatch(dashboardEditActions.setTiles([hiddenTitleTile]));
+        store.dispatch(dashboardEditActions.selectTile(hiddenTitleTile.uuid));
+        return store;
+    };
+
+    it('shows the tile actions only for the selected tile while editing', () => {
+        renderTile({ isEditMode: true });
+        expect(
+            screen.queryByRole('toolbar', { name: 'Tile actions' }),
+        ).toBeNull();
+
+        renderTile({ isEditMode: true }, selectedStore());
+        expect(
+            screen.getByRole('toolbar', { name: 'Tile actions' }),
+        ).toBeInTheDocument();
+    });
+
+    it('resizes the tile to the picked width', () => {
+        const store = selectedStore();
+        renderTile({ isEditMode: true }, store);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Half width' }));
+
+        expect(store.getState().edit.tiles?.[0].w).toBe(18);
+    });
+
+    it('deselects the tile on a press outside it', () => {
+        const store = selectedStore();
+        renderTile({ isEditMode: true }, store);
+
+        fireEvent.pointerDown(document.body);
+
+        expect(store.getState().edit.selectedTileUuid).toBeNull();
     });
 });

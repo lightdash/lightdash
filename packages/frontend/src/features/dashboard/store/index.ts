@@ -89,6 +89,7 @@ export {
     selectCanUndoTileLayout,
     selectCanvasBackground,
     selectCanvasZoom,
+    selectIsTileSelected,
     selectControlOrder,
     selectControlSections,
     selectDashboardCustomMetrics,

@@ -352,6 +352,18 @@ export const getPointerPosition = (
     return touch ?? null;
 };
 
+const CLICK_SLOP_PX = 4;
+
+/** Whether a press was released close enough to where it started */
+export const isClick = (
+    pressed: PointerPosition,
+    released: PointerPosition,
+): boolean =>
+    Math.hypot(
+        released.clientX - pressed.clientX,
+        released.clientY - pressed.clientY,
+    ) <= CLICK_SLOP_PX;
+
 const PINNED_GRID_ITEM_PROPERTIES = ['top', 'left', 'width', 'height'] as const;
 
 const findGridItem = (node: HTMLElement): HTMLElement | null =>
@@ -409,6 +421,62 @@ export const resolveDropOverlaps = (
     }, layout.filter(isDropped));
     const settledById = new Map(settled.map((item) => [item.i, item]));
     return layout.map((item) => settledById.get(item.i) ?? item);
+};
+
+/** Widths a selected tile can jump to, in desktop columns */
+export const TILE_WIDTH_PRESETS = [
+    { label: '¼', name: 'Quarter width', w: GRID_DESKTOP_COLS / 4 },
+    { label: '⅓', name: 'Third width', w: GRID_DESKTOP_COLS / 3 },
+    { label: '½', name: 'Half width', w: GRID_DESKTOP_COLS / 2 },
+    { label: 'Full', name: 'Full width', w: GRID_DESKTOP_COLS },
+] as const;
+
+type TilePlacement = {
+    uuid: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+};
+
+/**
+ * Gives one tile a new width. Its left edge stays unless the tile would leave
+ * the grid, and every tile it then covers moves down.
+ */
+export const getTilesWithTileWidth = (
+    tiles: TilePlacement[],
+    tileUuid: string,
+    width: number,
+): TilePlacement[] => {
+    const w = Math.min(Math.max(width, MIN_TILE_COLS), GRID_DESKTOP_COLS);
+    const layout = tiles.map(({ uuid, x, y, w: tileWidth, h }) =>
+        uuid === tileUuid
+            ? { i: uuid, x: Math.min(x, GRID_DESKTOP_COLS - w), y, w, h }
+            : { i: uuid, x, y, w: tileWidth, h },
+    );
+    return resolveDropOverlaps(layout, [tileUuid]).map(
+        ({ i, x, y, w: tileWidth, h }) => ({ uuid: i, x, y, w: tileWidth, h }),
+    );
+};
+
+/** Moves one tile to a cell; every tile it then covers moves down */
+export const getTilesWithTileAt = (
+    tiles: TilePlacement[],
+    tileUuid: string,
+    cell: { x: number; y: number },
+): TilePlacement[] => {
+    const layout = tiles.map(({ uuid, x, y, w, h }) =>
+        uuid === tileUuid
+            ? { i: uuid, x: cell.x, y: cell.y, w, h }
+            : { i: uuid, x, y, w, h },
+    );
+    return resolveDropOverlaps(layout, [tileUuid]).map(({ i, x, y, w, h }) => ({
+        uuid: i,
+        x,
+        y,
+        w,
+        h,
+    }));
 };
 
 /** How long the pointer rests over a slot before the dragged tile takes it */
@@ -566,6 +634,22 @@ export const getPointerCell = ({
 });
 
 export type GridSlot = Pick<Layout, 'x' | 'y' | 'w' | 'h'>;
+
+/**
+ * Where a tile carried by the pointer would land: held by the middle of its
+ * top row, and kept inside the grid.
+ */
+export const getCarriedTileCell = (
+    pointerCell: GridCell,
+    size: { w: number },
+    cols = GRID_DESKTOP_COLS,
+): GridCell => ({
+    x: Math.min(
+        Math.max(pointerCell.x - Math.floor(size.w / 2), 0),
+        cols - size.w,
+    ),
+    y: Math.max(pointerCell.y, 0),
+});
 
 const isOnCell = (item: GridSlot, cell: GridCell): boolean =>
     item.x <= cell.x &&
