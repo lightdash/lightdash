@@ -502,15 +502,12 @@
     color: var(--mantine-color-ldGray-5);
 }
 
-/* Rows with their own 12px hover inset bleed out so their text sits flush with the composer edge. */
-.bleed {
-    margin-inline: -12px;
-}
-
-/* Scoped under the bubble to outrank the markdown component's own rules. */
+/* Assistant reply: inset to line up with the build rows above it. Scoped under
+   the bubble to outrank the markdown component's own rules. */
 .assistantBubble .completionNote {
     --ai-markdown-font-size: var(--mantine-font-size-sm);
-    --ai-markdown-padding-left: 0;
+    --ai-markdown-padding-left: 12px;
+    padding-right: 12px;
     line-height: 1.65;
 
     & > div > * + * {
