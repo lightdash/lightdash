@@ -139,13 +139,13 @@ export type SemanticStudioServiceArguments = {
             projectUuid: string,
             names: string[],
             connection?: Knex.Transaction,
+            beforeDelete?: (trx: Knex.Transaction) => Promise<void>,
         ) => Promise<void>;
     };
     projectModelDocumentModel: Pick<
         ProjectModelDocumentModel,
         | 'findDocuments'
         | 'publishWithExplores'
-        | 'createChangeSet'
         | 'findChangeSets'
         | 'findModelHistory'
         | 'findDraftChanges'
@@ -2044,70 +2044,56 @@ export class SemanticStudioService extends BaseService {
         const affectsCopy = (name: string, content: string | null) =>
             content !== null &&
             !!parseModelDocument(content, toModelPath(name)).materialize;
-        if (
-            explores.length &&
-            (changeSet.documents.some(({ name, content }) =>
+        const savePolicy =
+            changeSet.documents.some(({ name, content }) =>
                 affectsCopy(name, content),
             ) ||
-                stored.some(
-                    ({ name, content }) =>
-                        writes.has(name) && affectsCopy(name, content),
-                ))
-        ) {
-            const { exploreCount } =
-                await this.projectModelDocumentModel.publishWithExplores(
-                    changeSet,
-                    (write) =>
-                        this.projectService.setExplores(
-                            user,
-                            owner.projectUuid,
-                            explores,
-                            undefined,
-                            undefined,
-                            undefined,
-                            undefined,
-                            write,
-                        ),
-                    async (trx, changeSetUuid) => {
+            stored.some(
+                ({ name, content }) =>
+                    writes.has(name) && affectsCopy(name, content),
+            );
+        return this.projectModelDocumentModel.publishWithExplores(
+            changeSet,
+            async (write) => {
+                if (!explores.length) {
+                    await this.projectModel.deleteCachedExplores(
+                        owner.projectUuid,
+                        removed,
+                        undefined,
+                        write,
+                    );
+                    return 0;
+                }
+                const { exploreCount } = await this.projectService.setExplores(
+                    user,
+                    owner.projectUuid,
+                    explores,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    async (trx) => {
+                        await write(trx);
                         if (removed.length)
                             await this.projectModel.deleteCachedExplores(
                                 owner.projectUuid,
                                 removed,
                                 trx,
                             );
-                        await saveMaterializationPolicies(
-                            trx,
-                            owner.projectUuid,
-                            changeSetUuid,
-                            user.userUuid,
-                        );
                     },
                 );
-            return exploreCount;
-        }
-        const { deployed } =
-            await this.projectModelDocumentModel.createChangeSet(
-                changeSet,
-                async () => {
-                    const { exploreCount } =
-                        explores.length > 0
-                            ? await this.projectService.setExplores(
-                                  user,
-                                  owner.projectUuid,
-                                  explores,
-                              )
-                            : { exploreCount: 0 };
-                    // Neither write joins the commit's transaction; the removal goes last so a failed deploy removes nothing.
-                    if (removed.length > 0) {
-                        await this.projectModel.deleteCachedExplores(
-                            owner.projectUuid,
-                            removed,
-                        );
-                    }
-                    return exploreCount;
-                },
-            );
-        return deployed;
+                return exploreCount;
+            },
+            async (trx, changeSetUuid) => {
+                if (savePolicy)
+                    await saveMaterializationPolicies(
+                        trx,
+                        owner.projectUuid,
+                        changeSetUuid,
+                        user.userUuid,
+                    );
+            },
+        );
     }
 
     /** A model's YAML as this person's draft leaves it, for the agent working on that draft. */

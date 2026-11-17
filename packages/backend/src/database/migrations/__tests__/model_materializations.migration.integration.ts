@@ -1,10 +1,14 @@
 import { type Knex } from 'knex';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { ProjectModelDocumentModel } from '../../../ee/models/ProjectModelDocumentModel';
 import { saveMaterializationPolicies } from '../../../ee/services/SemanticStudioService/materializationPublish';
 import {
     ModelMaterializationModel,
     type MaterializationBuildIntent,
 } from '../../../models/ModelMaterializationModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
+import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import {
     up as createConfigs,
     down as dropConfigs,
@@ -246,6 +250,108 @@ describe('Model materialization persistence', () => {
         expect(attempt.content).toBe(content);
     });
 
+    test.each(['replace', 'delete'])(
+        'a concurrent live writer can finish before a materialized %s',
+        async (operation) => {
+            const { documentUuid } = await fixture();
+            const { project_uuid: projectUuid } = await db(
+                'project_model_documents',
+            )
+                .where('project_model_document_uuid', documentUuid)
+                .first()
+                .then((row) => {
+                    if (!row) throw new Error('Missing test document');
+                    return row;
+                });
+            const {
+                rows: [{ user_uuid: userUuid }],
+            } = await db.raw<{ rows: { user_uuid: string }[] }>(
+                'INSERT INTO users(first_name,last_name) VALUES (?,?) RETURNING user_uuid',
+                ['', ''],
+            );
+            const project = new ProjectModel({
+                database: db,
+                lightdashConfig: lightdashConfigMock,
+                encryptionUtil: new EncryptionUtil({
+                    lightdashConfig: lightdashConfigMock,
+                }),
+            });
+            const documents = new ProjectModelDocumentModel({ database: db });
+            const earlier = await db.transaction();
+            await earlier.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                `semantic-layer:${projectUuid}`,
+            ]);
+            const {
+                rows: [{ pid }],
+            } = await earlier.raw<{ rows: { pid: number }[] }>(
+                'SELECT pg_backend_pid() AS pid',
+            );
+            const content =
+                operation === 'delete'
+                    ? null
+                    : 'type: model\nname: orders\nsql_from: raw.orders\ndimensions: []\nmaterialize: {max_rows: 10}\n';
+            const publishing = documents.publishWithExplores(
+                {
+                    projectUuid,
+                    userUuid,
+                    workspaceUuid: null,
+                    readVersions: new Map([['orders', 1]]),
+                    documents: [{ name: 'orders', content }],
+                    source: { kind: 'undo', reverts: [] },
+                },
+                async (write) => {
+                    if (content === null)
+                        await project.deleteCachedExplores(
+                            projectUuid,
+                            ['orders'],
+                            undefined,
+                            write,
+                        );
+                    else
+                        await project.saveExploresToCache(
+                            projectUuid,
+                            [{ ...validExplore, name: 'orders' }],
+                            false,
+                            undefined,
+                            undefined,
+                            undefined,
+                            write,
+                        );
+                },
+                (trx, changeSetUuid) =>
+                    saveMaterializationPolicies(
+                        trx,
+                        projectUuid,
+                        changeSetUuid,
+                        userUuid,
+                    ),
+            );
+            try {
+                await vi.waitFor(async () => {
+                    const { rows } = await db.raw<{
+                        rows: { blocked: boolean }[];
+                    }>(
+                        'SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE ? = ANY(pg_blocking_pids(pid))) AS blocked',
+                        [pid],
+                    );
+                    expect(rows[0].blocked).toBe(true);
+                });
+                await earlier.raw("SET LOCAL lock_timeout = '1s'");
+                await ProjectModel.lockAndEnsureCachedExplores(
+                    earlier,
+                    projectUuid,
+                );
+                await earlier.commit();
+            } finally {
+                if (!earlier.isCompleted()) await earlier.rollback();
+                await publishing;
+            }
+            expect(await documents.findDocuments(projectUuid)).toHaveLength(
+                content === null ? 0 : 1,
+            );
+        },
+    );
+
     test('concurrent claims register exactly one key, and promotion stores verified metadata', async () => {
         const { config, intent } = await publish();
         const results = await Promise.all([
@@ -273,7 +379,7 @@ describe('Model materialization persistence', () => {
             status: 'ready',
             native_schema: verified.nativeSchema,
             row_count: 1,
-            byte_count: '128',
+            byte_count: BigInt(128),
             source_read_at: verified.sourceReadAt,
             ready_at: expect.any(Date),
         });

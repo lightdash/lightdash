@@ -3757,12 +3757,15 @@ export class ProjectModel {
         playgroundBundleVersion?: string,
         // Use only statements on the given transaction; no other I/O or connection.
         beforeWrite?: ExploreWriteCheck,
+        publishDocuments?: ExploreWriteCheck,
     ) {
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
             {},
             async () =>
                 this.database.transaction(async (trx) => {
+                    // Studio takes its document lock before the cache lock, including during rolling upgrades.
+                    await publishDocuments?.(trx, explores);
                     await ProjectModel.lockAndEnsureCachedExplores(
                         trx,
                         projectUuid,
@@ -8966,8 +8969,10 @@ export class ProjectModel {
         projectUuid: string,
         names: string[],
         connection: Knex = this.database,
+        beforeDelete?: (trx: Knex.Transaction) => Promise<void>,
     ): Promise<void> {
         await connection.transaction(async (trx) => {
+            await beforeDelete?.(trx);
             await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
             await trx(CachedExploreTableName)
                 .where('project_uuid', projectUuid)

@@ -26,6 +26,8 @@ import {
     type SemanticStudioWorkspacePullRequestState,
     type SessionUser,
 } from '@lightdash/common';
+import knex, { type Knex } from 'knex';
+import { MockClient } from 'knex-mock-client';
 import { Readable } from 'node:stream';
 import { stringify } from 'yaml';
 import { user } from '../../../services/ProjectService/ProjectService.mock';
@@ -256,14 +258,32 @@ const setup = ({
             _user: SessionUser,
             _projectUuid: string,
             explores: (Explore | ExploreError)[],
-        ) => ({
-            exploreCount: explores.length,
-            warnings: {
-                warningCount: 0,
-                warningExploreCount: 0,
-                exploresWithWarnings: [],
-            },
-        }),
+            _jobUuid?: unknown,
+            _cliDeploy?: unknown,
+            _version?: unknown,
+            _options?: unknown,
+            write?: (
+                trx: Knex.Transaction,
+                batch: (Explore | ExploreError)[],
+            ) => Promise<void>,
+        ) => {
+            if (write) {
+                const database = knex({ client: MockClient, dialect: 'pg' });
+                try {
+                    await database.transaction((trx) => write(trx, explores));
+                } finally {
+                    await database.destroy();
+                }
+            }
+            return {
+                exploreCount: explores.length,
+                warnings: {
+                    warningCount: 0,
+                    warningExploreCount: 0,
+                    exploresWithWarnings: [],
+                },
+            };
+        },
     );
     const findModelHistory = vi.fn(
         async (): Promise<Omit<SemanticLayerModelChange, 'replaced'>[]> => [],
@@ -479,7 +499,6 @@ const setup = ({
                 });
                 return true;
             },
-            createChangeSet: commit,
             publishWithExplores: async (change, deploy) => {
                 await commit(change, async () => undefined);
                 return deploy(async () => undefined);
@@ -2826,9 +2845,11 @@ dimensions:
                 'created-customers',
                 'patched-orders',
             ]);
-            expect(deleteCachedExplores).toHaveBeenCalledWith(PROJECT_UUID, [
-                'customers',
-            ]);
+            expect(deleteCachedExplores).toHaveBeenCalledWith(
+                PROJECT_UUID,
+                ['customers'],
+                expect.any(Function),
+            );
             expect(commitCalls[0]).toMatchObject({
                 source: {
                     kind: 'undo',
@@ -2857,9 +2878,12 @@ dimensions:
             await expect(
                 service.undo(deployer, PROJECT_UUID, ['created-customers']),
             ).resolves.toEqual({ exploreCount: 0 });
-            expect(deleteCachedExplores).toHaveBeenCalledWith(PROJECT_UUID, [
-                'customers',
-            ]);
+            expect(deleteCachedExplores).toHaveBeenCalledWith(
+                PROJECT_UUID,
+                ['customers'],
+                undefined,
+                expect.any(Function),
+            );
             expect(setExplores).not.toHaveBeenCalled();
         });
 

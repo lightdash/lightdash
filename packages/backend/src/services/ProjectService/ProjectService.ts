@@ -4136,16 +4136,16 @@ export class ProjectService
                 const [beforeWrite] = this.getConnectionExploreWriteChecks(
                     args.projectUuid,
                 );
-                const publish = args.publishDocuments;
-                const check: ExploreWriteCheck | undefined = publish
-                    ? async (trx, batch) => {
-                          await beforeWrite?.(trx, batch);
-                          await publish(trx, batch);
-                      }
-                    : beforeWrite;
-                const writeCheckArgs: [undefined?, ExploreWriteCheck?] = check
-                    ? [undefined, check]
-                    : [];
+                const writeCheckArgs: [
+                    undefined?,
+                    ExploreWriteCheck?,
+                    ExploreWriteCheck?,
+                ] =
+                    beforeWrite || args.publishDocuments
+                        ? [undefined, beforeWrite]
+                        : [];
+                if (args.publishDocuments)
+                    writeCheckArgs.push(args.publishDocuments);
                 const saved = await this.projectModel.saveExploresToCache(
                     args.projectUuid,
                     explores,
