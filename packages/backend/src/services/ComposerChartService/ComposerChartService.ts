@@ -83,7 +83,7 @@ export type ComposerChartRunContext =
     | QueryExecutionContext.SCHEDULED_DELIVERY
     | QueryExecutionContext.CSV;
 
-type ProjectSubject = { organizationUuid: string; projectUuid: string };
+export type ProjectSubject = { organizationUuid: string; projectUuid: string };
 
 export class ComposerChartService extends BaseService {
     private readonly composerChartModel: ComposerChartModel;

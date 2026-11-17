@@ -1,5 +1,6 @@
 import {
     isDashboardComposerChartTile,
+    type Dashboard,
     type DashboardComposerChartTile,
     type DashboardTile,
     type RegisteredAccount,
@@ -8,7 +9,10 @@ import { isEqual } from 'es-toolkit/compat';
 import { type Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
 import { type ComposerChartModel } from '../../models/ComposerChartModel';
-import { type ComposerChartService } from '../ComposerChartService/ComposerChartService';
+import {
+    type ComposerChartService,
+    type ProjectSubject,
+} from '../ComposerChartService/ComposerChartService';
 
 const getComposerChartUuids = (tiles: DashboardTile[]) =>
     new Set(
@@ -17,9 +21,8 @@ const getComposerChartUuids = (tiles: DashboardTile[]) =>
             .flatMap((tile) => tile.properties.composerChartUuid ?? []),
     );
 
-// Duplicate copies each chart's current pipeline, so it skips the author checks.
-
-// One at a time: composer slugs take no lock, so parallel copies of one name would collide.
+// Copies each chart's current pipeline, so it skips the author checks. One at a time:
+// composer slugs take no lock, so parallel copies of one name would collide.
 export const duplicateComposerChartTiles = async (
     composerChartModel: Pick<ComposerChartModel, 'duplicate'>,
     tiles: DashboardTile[],
@@ -57,25 +60,29 @@ export const assertCanRollbackComposerCharts = async (
         'assertCanRestore'
     >,
     account: RegisteredAccount,
-    project: { organizationUuid: string; projectUuid: string },
-    tiles: DashboardTile[],
-    dashboardVersionUuid: string,
+    project: ProjectSubject,
+    targetVersion: Pick<Dashboard, 'tiles' | 'versionUuid'>,
 ) => {
-    for (const chartUuid of getComposerChartUuids(tiles)) {
-        // eslint-disable-next-line no-await-in-loop
-        const pipelines = await composerChartModel.getRollbackPipelines(
-            chartUuid,
-            dashboardVersionUuid,
-        );
-        if (pipelines && !isEqual(pipelines.restored, pipelines.current)) {
-            // eslint-disable-next-line no-await-in-loop
-            await getComposerChartService().assertCanRestore(
-                account,
-                project,
-                pipelines.restored,
-            );
-        }
-    }
+    await Promise.all(
+        [...getComposerChartUuids(targetVersion.tiles)].map(
+            async (chartUuid) => {
+                const pipelines = await composerChartModel.getRollbackPipelines(
+                    chartUuid,
+                    targetVersion.versionUuid,
+                );
+                if (
+                    pipelines &&
+                    !isEqual(pipelines.restored, pipelines.current)
+                ) {
+                    await getComposerChartService().assertCanRestore(
+                        account,
+                        project,
+                        pipelines.restored,
+                    );
+                }
+            },
+        ),
+    );
 };
 
 export const rollbackComposerCharts = async (

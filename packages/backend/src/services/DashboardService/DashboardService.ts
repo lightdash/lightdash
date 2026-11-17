@@ -5046,8 +5046,7 @@ export class DashboardService
                 organizationUuid: dashboardDao.organizationUuid,
                 projectUuid: dashboardDao.projectUuid,
             },
-            targetVersion.tiles,
-            targetVersion.versionUuid,
+            targetVersion,
         );
 
         const agentIdentity = getContentWriteAgentIdentity({
