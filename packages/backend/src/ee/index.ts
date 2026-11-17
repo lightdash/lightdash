@@ -5,6 +5,7 @@ import {
     createPullRequestComment,
     getInstallationToken,
     getPullRequest,
+    getPullRequestComments,
 } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
@@ -569,6 +570,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         createPullRequestComment,
                         getInstallationToken,
                         getPullRequest,
+                        getPullRequestComments,
                     },
                 }),
             externalSourceService: ({ context, models, clients }) =>

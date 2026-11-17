@@ -69,6 +69,7 @@ const makeGithubClient =
                 .fn()
                 .mockResolvedValue('installation-token'),
             getPullRequest: vi.fn().mockResolvedValue(openPullRequest()),
+            getPullRequestComments: vi.fn().mockResolvedValue([]),
             createPullRequestComment: vi.fn().mockResolvedValue(undefined),
         }) as AnyType;
 
@@ -254,3 +255,56 @@ it.each([1, 2])(
         expect(assertPublishAllowed).toHaveBeenCalledTimes(failAt);
     },
 );
+
+describe('WritebackPreviewService reusing a preview', () => {
+    const PREVIEW = '11111111-2222-4333-8444-555555555555';
+    const previewComment = `Preview ready: https://lightdash.example.com/projects/${PREVIEW}/home`;
+    const previewProject = (branch: string): AnyType => ({
+        type: 'PREVIEW',
+        upstreamProjectUuid: PROJECT,
+        dbtConnection: { type: DbtProjectType.GITHUB, branch },
+    });
+    const run = async (branch: string) => {
+        const githubClient = makeGithubClient();
+        githubClient.getPullRequestComments.mockResolvedValue([previewComment]);
+        const projectService = {
+            createPreview: vi.fn().mockResolvedValue({
+                projectUuid: 'new-preview',
+                compileJobUuid: 'compile',
+            }),
+            scheduleCompileProject: vi
+                .fn()
+                .mockResolvedValue({ jobUuid: 'recompile' }),
+        };
+        const service = buildService({
+            githubClient,
+            projectService,
+            projectModel: {
+                get: vi.fn(async (uuid: string) =>
+                    uuid === PREVIEW ? previewProject(branch) : githubProject(),
+                ),
+            },
+        });
+        const result = await service.createPreviewForPullRequest({
+            user: userWithSourceCodeAccess(true),
+            projectUuid: PROJECT,
+            prUrl: PR_URL,
+        });
+        return { result, githubClient, projectService };
+    };
+
+    it('compiles the preview already built for the branch again', async () => {
+        const { result, githubClient, projectService } =
+            await run('feature/writeback');
+        expect(result?.previewProjectUuid).toBe(PREVIEW);
+        expect(projectService.scheduleCompileProject).toHaveBeenCalledTimes(1);
+        expect(projectService.createPreview).not.toHaveBeenCalled();
+        expect(githubClient.createPullRequestComment).not.toHaveBeenCalled();
+    });
+
+    it('builds a new preview when the commented one is for another branch', async () => {
+        const { result, projectService } = await run('someone-elses-branch');
+        expect(result?.previewProjectUuid).toBe('new-preview');
+        expect(projectService.scheduleCompileProject).not.toHaveBeenCalled();
+    });
+});
