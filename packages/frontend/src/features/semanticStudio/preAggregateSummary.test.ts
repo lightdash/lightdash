@@ -117,7 +117,16 @@ describe('summariseUsage', () => {
         missCount: number,
         missReason: string | null,
         preAggregateName: string | null,
-    ) => ({ exploreName, hitCount, missCount, missReason, preAggregateName });
+        chart: string | null = null,
+    ) => ({
+        exploreName,
+        hitCount,
+        missCount,
+        missReason,
+        preAggregateName,
+        chartUuid: chart,
+        chartName: chart,
+    });
 
     it('counts one model, by pre-aggregate and by why queries missed', () => {
         const usage = summariseUsage(
@@ -136,6 +145,47 @@ describe('summariseUsage', () => {
         expect(usage.topMisses).toEqual([
             ['dimension_not_in_pre_aggregate', 4],
             ['granularity_too_fine', 1],
+        ]);
+    });
+
+    it('lists the charts that ran on the warehouse, most first, with their main reason', () => {
+        const usage = summariseUsage(
+            [
+                stat('orders', 0, 1, 'granularity_too_fine', null, 'Revenue'),
+                stat(
+                    'orders',
+                    0,
+                    3,
+                    'dimension_not_in_pre_aggregate',
+                    null,
+                    'Revenue',
+                ),
+                stat(
+                    'orders',
+                    0,
+                    2,
+                    'metric_not_in_pre_aggregate',
+                    null,
+                    'Funnel',
+                ),
+                stat('orders', 4, 0, null, 'daily_orders', 'Served'),
+                stat('orders', 0, 7, 'granularity_too_fine', null),
+            ],
+            'orders',
+        );
+        expect(usage.missedCharts).toEqual([
+            {
+                chartUuid: 'Revenue',
+                chartName: 'Revenue',
+                count: 4,
+                reason: 'dimension_not_in_pre_aggregate',
+            },
+            {
+                chartUuid: 'Funnel',
+                chartName: 'Funnel',
+                count: 2,
+                reason: 'metric_not_in_pre_aggregate',
+            },
         ]);
     });
 });

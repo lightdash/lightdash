@@ -5,11 +5,22 @@ import {
     type PreAggregateMaterializationSummary,
     type PreAggregateMissReason,
 } from '@lightdash/common';
-import { Badge, Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
+import {
+    Anchor,
+    Badge,
+    Box,
+    Button,
+    Group,
+    Paper,
+    Stack,
+    Text,
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { Fragment, type FC } from 'react';
 import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
+import MaterializationDetailDrawer from '../../components/PreAggregateMaterializations/MaterializationDetailDrawer';
 import { useExploreByProjectUuid } from '../../hooks/useExplore';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
@@ -31,6 +42,9 @@ const STATS_DAYS = 7;
 
 const isMissReason = (reason: string): reason is PreAggregateMissReason =>
     reason in preAggregateMissReasonLabels;
+
+const missReasonLabel = (reason: string) =>
+    isMissReason(reason) ? preAggregateMissReasonLabels[reason] : reason;
 
 const plural = (count: number, one: string, many: string) =>
     `${count.toLocaleString()} ${count === 1 ? one : many}`;
@@ -62,6 +76,7 @@ const PreAggregateCard: FC<{
     hits: number;
 }> = ({ projectUuid, summary, explore, hits }) => {
     const refresh = useRefreshPreAggregateByDefinitionName(projectUuid);
+    const [isDetailOpen, detail] = useDisclosure(false);
     const status = getPreAggregateStatus(summary);
     const { materialization } = summary;
     const isBuilding = materialization?.status === 'in_progress';
@@ -86,6 +101,13 @@ const PreAggregateCard: FC<{
     const error = summary.definitionError ?? materialization?.errorMessage;
     return (
         <Paper p="md">
+            <MaterializationDetailDrawer
+                summary={summary}
+                opened={isDetailOpen}
+                onClose={detail.close}
+                onRefresh={(name) => refresh.mutate(name)}
+                isRefreshing={refresh.isLoading || isBuilding}
+            />
             <Stack gap="sm">
                 <Group justify="space-between" wrap="nowrap" gap="sm">
                     <Group gap="xs" wrap="nowrap" miw={0}>
@@ -97,6 +119,14 @@ const PreAggregateCard: FC<{
                         </Badge>
                     </Group>
                     <Group gap="xs" wrap="nowrap" flex="none">
+                        <Button
+                            size="xs"
+                            variant="subtle"
+                            color="gray"
+                            onClick={detail.open}
+                        >
+                            Details
+                        </Button>
                         {explore && status.label === 'Ready' ? (
                             <Button
                                 component="a"
@@ -246,14 +276,40 @@ export const ModelPreAggregates: FC<{
                                 </Text>
                                 {usage.topMisses.map(([reason, count]) => (
                                     <Text key={reason} fz="sm">
-                                        {isMissReason(reason)
-                                            ? preAggregateMissReasonLabels[
-                                                  reason
-                                              ]
-                                            : reason}
+                                        {missReasonLabel(reason)}
                                         <Text span inherit c="dimmed">
                                             {' '}
                                             · {count.toLocaleString()}
+                                        </Text>
+                                    </Text>
+                                ))}
+                            </Box>
+                        ) : null}
+                        {usage.missedCharts.length > 0 ? (
+                            <Box>
+                                <Text fz="xs" c="dimmed">
+                                    Charts that ran on the warehouse
+                                </Text>
+                                {usage.missedCharts.map((chart) => (
+                                    <Text key={chart.chartUuid} fz="sm">
+                                        <Anchor
+                                            href={`/projects/${projectUuid}/saved/${chart.chartUuid}`}
+                                            target="_blank"
+                                            inherit
+                                        >
+                                            {chart.chartName}
+                                        </Anchor>
+                                        <Text span inherit c="dimmed">
+                                            {' '}
+                                            ·{' '}
+                                            {chart.reason
+                                                ? `${missReasonLabel(chart.reason)}, `
+                                                : ''}
+                                            {plural(
+                                                chart.count,
+                                                'time',
+                                                'times',
+                                            )}
                                         </Text>
                                     </Text>
                                 ))}

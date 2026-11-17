@@ -77,6 +77,8 @@ export const summariseUsage = (
         missCount: number;
         missReason: string | null;
         preAggregateName: string | null;
+        chartUuid: string | null;
+        chartName: string | null;
     }[],
     exploreName: string,
 ) => {
@@ -85,6 +87,10 @@ export const summariseUsage = (
     const misses = mine.reduce((total, stat) => total + stat.missCount, 0);
     const hitsByName = new Map<string, number>();
     const missesByReason = new Map<string, number>();
+    const missesByChart = new Map<
+        string,
+        { chartName: string; count: number; reasons: Map<string, number> }
+    >();
     mine.forEach((stat) => {
         if (stat.preAggregateName && stat.hitCount > 0) {
             hitsByName.set(
@@ -98,6 +104,21 @@ export const summariseUsage = (
                 (missesByReason.get(stat.missReason) ?? 0) + stat.missCount,
             );
         }
+        if (stat.chartUuid && stat.chartName && stat.missCount > 0) {
+            const chart = missesByChart.get(stat.chartUuid) ?? {
+                chartName: stat.chartName,
+                count: 0,
+                reasons: new Map<string, number>(),
+            };
+            chart.count += stat.missCount;
+            if (stat.missReason) {
+                chart.reasons.set(
+                    stat.missReason,
+                    (chart.reasons.get(stat.missReason) ?? 0) + stat.missCount,
+                );
+            }
+            missesByChart.set(stat.chartUuid, chart);
+        }
     });
     return {
         hits,
@@ -106,6 +127,16 @@ export const summariseUsage = (
         topMisses: [...missesByReason]
             .sort(([, a], [, b]) => b - a)
             .slice(0, 3),
+        missedCharts: [...missesByChart]
+            .map(([chartUuid, { chartName, count, reasons }]) => ({
+                chartUuid,
+                chartName,
+                count,
+                reason:
+                    [...reasons].sort(([, a], [, b]) => b - a)[0]?.[0] ?? null,
+            }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5),
     };
 };
 
