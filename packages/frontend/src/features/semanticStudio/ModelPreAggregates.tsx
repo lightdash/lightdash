@@ -6,7 +6,7 @@ import {
     type PreAggregateMissReason,
 } from '@lightdash/common';
 import { Badge, Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
-import { type FC } from 'react';
+import { Fragment, type FC } from 'react';
 import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
@@ -18,7 +18,6 @@ import { usePreAggregateStats } from '../../hooks/usePreAggregateStats';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import { formatDuration, formatFileSize } from '../../utils/formatters';
 import { VIEW_PARAM } from './modelCode';
-import classes from './ModelPreAggregates.module.css';
 import {
     describeRefresh,
     getFieldLabel,
@@ -73,14 +72,11 @@ const PreAggregateCard: FC<{
         materialization?.totalBytes != null
             ? formatFileSize(materialization.totalBytes)
             : null,
-        materialization?.durationMs != null
-            ? `took ${formatDuration(materialization.durationMs)}`
-            : null,
     ].filter((fact): fact is string => fact !== null);
     const dimensions = [
         ...(summary.timeDimension && summary.granularity
             ? [
-                  `${getFieldLabel(explore, summary.timeDimension)} by ${summary.granularity.toLowerCase()}`,
+                  `${getFieldLabel(explore, summary.timeDimension)} (${summary.granularity.toLowerCase()})`,
               ]
             : []),
         ...summary.dimensions.map((reference) =>
@@ -133,53 +129,52 @@ const PreAggregateCard: FC<{
                         )}
                     </Group>
                 </Group>
-                <Box className={classes.facts}>
-                    <Text fz="xs" c="dimmed">
-                        Answers
-                    </Text>
+                <Box>
                     <Text fz="sm">
                         {summary.metrics
                             .map((reference) =>
                                 getFieldLabel(explore, reference),
                             )
                             .join(', ')}
-                        {dimensions.length > 0 ? (
-                            <Text span inherit c="dimmed">
-                                {' '}
-                                split by{' '}
-                            </Text>
-                        ) : null}
-                        {dimensions.join(', ')}
+                    </Text>
+                    {dimensions.length > 0 ? (
+                        <Text fz="sm" c="dimmed">
+                            by {dimensions.join(', ')}
+                        </Text>
+                    ) : null}
+                </Box>
+                <Box>
+                    <Text
+                        fz="xs"
+                        c="dimmed"
+                        title={
+                            materialization?.durationMs != null
+                                ? `Took ${formatDuration(materialization.durationMs)} to build`
+                                : undefined
+                        }
+                    >
+                        {[
+                            materialization?.materializedAt ? (
+                                <BuiltAgo
+                                    key="built"
+                                    date={materialization.materializedAt}
+                                />
+                            ) : (
+                                (summary.externalTable ?? 'Not built yet')
+                            ),
+                            ...facts,
+                        ].map((fact, index) => (
+                            <Fragment key={index}>
+                                {index > 0 ? ' · ' : null}
+                                {fact}
+                            </Fragment>
+                        ))}
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        Data
-                    </Text>
-                    <Text fz="sm">
-                        {materialization?.materializedAt ? (
-                            <BuiltAgo date={materialization.materializedAt} />
-                        ) : summary.externalTable ? (
-                            summary.externalTable
-                        ) : (
-                            'Nothing built yet'
-                        )}
-                        {facts.length > 0 ? (
-                            <Text span inherit c="dimmed">
-                                {' '}
-                                · {facts.join(' · ')}
-                            </Text>
-                        ) : null}
-                    </Text>
-                    <Text fz="xs" c="dimmed">
-                        Refresh
-                    </Text>
-                    <Text fz="sm">{describeRefresh(summary)}</Text>
-                    <Text fz="xs" c="dimmed">
-                        Used
-                    </Text>
-                    <Text fz="sm">
+                        {describeRefresh(summary)} ·{' '}
                         {hits > 0
-                            ? `Answered ${plural(hits, 'query', 'queries')} in the last ${STATS_DAYS} days`
-                            : `No queries answered in the last ${STATS_DAYS} days`}
+                            ? `answered ${plural(hits, 'query', 'queries')} in the last ${STATS_DAYS} days`
+                            : `no queries answered in the last ${STATS_DAYS} days`}
                     </Text>
                 </Box>
                 {error ? (
@@ -226,11 +221,6 @@ export const ModelPreAggregates: FC<{
     const total = usage.hits + usage.misses;
     return (
         <Stack gap="md">
-            <Text fz="sm" c="dimmed" maw={640}>
-                A pre-aggregate is a summary of this model that is built ahead
-                of time. A query that fits inside one is answered from it, and
-                every other query runs on the warehouse as usual.
-            </Text>
             {total > 0 ? (
                 <Paper p="md">
                     <Group gap="xl" align="flex-start">
@@ -275,9 +265,12 @@ export const ModelPreAggregates: FC<{
             {summaries.length === 0 ? (
                 <Paper variant="dotted" p="md">
                     <Text fz="sm">This model has no pre-aggregates yet.</Text>
-                    <Text fz="sm" c="dimmed">
+                    <Text fz="sm" c="dimmed" maw={640}>
+                        A pre-aggregate is a summary of this model built ahead
+                        of time. Queries that fit inside one are answered from
+                        it; every other query runs on the warehouse as usual.
                         Add a <code>pre_aggregates</code> block to the model to
-                        answer its most common queries without the warehouse.
+                        make one.
                     </Text>
                 </Paper>
             ) : (
