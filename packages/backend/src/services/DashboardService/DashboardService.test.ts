@@ -267,9 +267,7 @@ const catalogModel = {
 const composerChartModel = {
     deleteOrphans: vi.fn(async () => {}),
     lockRollbackPipelines: vi.fn(
-        async (): Promise<
-            { uuid: string; restored: unknown; current: unknown }[]
-        > => [],
+        async (): Promise<{ restored: unknown; current: unknown }[]> => [],
     ),
     rollbackToDashboardVersion: vi.fn(async () => {}),
 };
@@ -3244,7 +3242,6 @@ describe('DashboardService', () => {
         test('refuses when a restored pipeline is one the user may not save', async () => {
             composerChartModel.lockRollbackPipelines.mockResolvedValueOnce([
                 {
-                    uuid: 'composer-chart-uuid',
                     restored: pipeline('select 1'),
                     current: pipeline('select 2'),
                 },
@@ -3280,7 +3277,6 @@ describe('DashboardService', () => {
         test('restores a pipeline equal to the current one without the save check', async () => {
             composerChartModel.lockRollbackPipelines.mockResolvedValueOnce([
                 {
-                    uuid: 'composer-chart-uuid',
                     restored: pipeline('select 1'),
                     current: pipeline('select 1'),
                 },

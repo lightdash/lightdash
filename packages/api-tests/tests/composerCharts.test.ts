@@ -1407,7 +1407,8 @@ describe('Composer charts', () => {
             });
             expect(changed.body.results.action).toBe('update');
             const current = await getDashboard(dashboard.uuid);
-            expect((await saveTiles(current, current.tiles)).status).toBe(200);
+            const saved = await saveTiles(current, current.tiles);
+            expect(saved.status).toBe(200);
             const rollbackUrl = `/api/v1/dashboards/${dashboard.uuid}/rollback/${dashboard.versionUuid}`;
 
             const refused = await editor.post(
@@ -1420,7 +1421,7 @@ describe('Composer charts', () => {
                 (await getChart(chart.uuid)).body.results.pipeline.nodes[0],
             ).toMatchObject({ sql: changedSql });
             expect((await getDashboard(dashboard.uuid)).versionUuid).toBe(
-                current.versionUuid,
+                saved.body.results.versionUuid,
             );
 
             expect((await admin.post(rollbackUrl, {})).status).toBe(200);

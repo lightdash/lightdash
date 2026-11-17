@@ -206,18 +206,14 @@ export class ComposerChartModel {
         uuids: string[],
         dashboardVersionUuid: string,
         trx: Knex.Transaction,
-    ): Promise<{ uuid: string; restored: unknown; current: unknown }[]> {
+    ): Promise<{ restored: unknown; current: unknown }[]> {
         // A version insert takes a key-share lock on its chart, which this waits for or blocks
         await trx(ComposerChartsTableName)
             .select('composer_chart_uuid')
             .whereIn('composer_chart_uuid', uuids)
             .orderBy('composer_chart_uuid')
             .forUpdate();
-        const pipelines: {
-            uuid: string;
-            restored: unknown;
-            current: unknown;
-        }[] = [];
+        const pipelines: { restored: unknown; current: unknown }[] = [];
         for (const uuid of uuids) {
             /* eslint-disable no-await-in-loop */
             const restored = await ComposerChartModel.versionAsOf(
@@ -233,7 +229,6 @@ export class ComposerChartModel {
             /* eslint-enable no-await-in-loop */
             if (restored && current) {
                 pipelines.push({
-                    uuid,
                     restored: restored.pipeline,
                     current: current.pipeline,
                 });
