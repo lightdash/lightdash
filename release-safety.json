@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.300.0",
-  "previousVersion": "3.299.0",
-  "releaseDate": "2026-11-17T21:45:18.069Z",
+  "version": "3.300.1",
+  "previousVersion": "3.300.0",
+  "releaseDate": "2026-11-17T21:56:50.949Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261117170000_add_workspace_uuid_to_project_model_draft_changes.ts",
-        "edition": "ee",
-        "tables": [
-          "project_model_draft_changes",
-          "semantic_studio_workspaces"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

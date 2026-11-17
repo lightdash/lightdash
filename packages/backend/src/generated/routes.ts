@@ -48519,6 +48519,10 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                isYours: {
+                                    dataType: 'boolean',
+                                    required: true,
+                                },
                                 at: { dataType: 'datetime', required: true },
                                 by: {
                                     dataType: 'union',

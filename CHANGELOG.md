@@ -1,3 +1,10 @@
+## [3.300.1](https://github.com/lightdash/lightdash/compare/3.300.0...3.300.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **frontend:** say it was you when your other Studio change published under this draft ([#32802](https://github.com/lightdash/lightdash/issues/32802)) ([b6fd94e](https://github.com/lightdash/lightdash/commit/b6fd94e5c1a8c2275ff372dddedcbc02f0b6d2ee))
+
 # [3.300.0](https://github.com/lightdash/lightdash/compare/3.299.0...3.300.0) (2026-11-17)
 
 
