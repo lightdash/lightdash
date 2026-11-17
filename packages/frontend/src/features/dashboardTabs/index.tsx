@@ -95,8 +95,12 @@ import {
     hasLayoutChanged,
     countResizedItems,
     withGridItem,
+    getSnapDwellRemaining,
+    getSnapRest,
     getSnapTarget,
     type GridSlot,
+    type SnapPlacement,
+    type SnapRest,
     GRID_DESKTOP_COLS,
     EDIT_RESIZE_HANDLES,
     DEFAULT_RESIZE_HANDLES,
@@ -409,11 +413,24 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const { start: startAutoScroll, stop: stopAutoScroll } =
         useAutoScrollOnDrag();
 
+    const snapRestRef = useRef<SnapRest | null>(null);
+    const shownSnapRef = useRef<SnapPlacement | null>(null);
+    const snapDwellTimerRef = useRef<number | null>(null);
+    const clearSnapDwell = useCallback(() => {
+        if (snapDwellTimerRef.current === null) return;
+        window.clearTimeout(snapDwellTimerRef.current);
+        snapDwellTimerRef.current = null;
+    }, []);
+    useEffect(() => clearSnapDwell, [clearSnapDwell]);
+
     const endInteraction = useCallback(() => {
         stopAutoScroll();
+        clearSnapDwell();
+        snapRestRef.current = null;
+        shownSnapRef.current = null;
         setIsInteracting(false);
         setShadowSnapped(false);
-    }, [stopAutoScroll, setShadowSnapped]);
+    }, [stopAutoScroll, clearSnapDwell, setShadowSnapped]);
     const handleInteractionStart = useCallback<ItemCallback>(
         (_layout, _before, _after, _placeholder, _event, node) => {
             if (isEditErgonomicsEnabled) pinGridItem(node);
@@ -557,9 +574,48 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         },
         [isEditErgonomicsEnabled, gridScale],
     );
+    // A snap waits for the pointer to rest, so a tile can be dropped as it is
+    const getRestedSnap = useCallback<
+        (...args: Parameters<typeof getDragSnap>) => SnapPlacement | null
+    >(
+        (layout, before, event, node) => {
+            clearSnapDwell();
+            const pointer = getPointerPosition(event);
+            const snap = getDragSnap(layout, before, event, node);
+            if (!snap || !pointer) {
+                snapRestRef.current = null;
+                return null;
+            }
+            const now = performance.now();
+            const rest = getSnapRest({
+                previous: snapRestRef.current,
+                slot: snap.slot,
+                pointer,
+                now,
+            });
+            snapRestRef.current = rest;
+            const remaining = getSnapDwellRemaining(rest, now);
+            if (remaining === 0) return snap;
+            // A resting pointer reports no moves, so the grid is sent one
+            snapDwellTimerRef.current = window.setTimeout(
+                () =>
+                    document.dispatchEvent(
+                        new MouseEvent('mousemove', {
+                            bubbles: true,
+                            clientX: pointer.clientX,
+                            clientY: pointer.clientY,
+                        }),
+                    ),
+                remaining,
+            );
+            return null;
+        },
+        [clearSnapDwell, getDragSnap],
+    );
     const handleDrag = useCallback<ItemCallback>(
         (layout, before, _after, placeholder, event, node) => {
-            const snap = getDragSnap(layout, before, event, node);
+            const snap = getRestedSnap(layout, before, event, node);
+            shownSnapRef.current = snap;
             setShadowSnapped(snap !== null);
             // The grid draws the shadow from this object after the callback
             if (snap) {
@@ -567,11 +623,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 Object.assign(placeholder, { x, y, w, h });
             }
         },
-        [getDragSnap, setShadowSnapped],
+        [getRestedSnap, setShadowSnapped],
     );
     const handleDragStop = useCallback<ItemCallback>(
         (layout, before, after, placeholder, event, node) => {
-            const snap = getDragSnap(layout, before, event, node);
+            // The drop lands where the shadow last showed it would
+            const snap = shownSnapRef.current;
             if (!snap) {
                 handleResizeStop(
                     layout,
@@ -589,7 +646,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             Object.assign(after, { x, y, w, h });
             applyDrop(withGridItem(layout, before), snap.layout);
         },
-        [getDragSnap, handleResizeStop, applyDrop],
+        [handleResizeStop, applyDrop],
     );
     const handleWidthChange = useCallback(
         (cw: number) => setGridWidth(cw),

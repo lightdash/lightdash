@@ -22,6 +22,7 @@ const sessionUser = {
 const client = {
     id: 'client-0000-test',
     grants: [TOKEN_EXCHANGE_GRANT_TYPE],
+    redirectUris: ['com.lightdash.mobile://oauth/callback'],
 } as unknown as OAuth2Server.Client;
 
 const body = {

@@ -196,7 +196,7 @@ describe('MobileSignInMenu', () => {
         },
     );
 
-    it('keeps the sign-in QR as the only action and closes on Escape', async () => {
+    it('keeps the sign-in QR and Not interested as the only actions and closes on Escape', async () => {
         window.history.replaceState({}, '', '/?mobileUpsell=1');
         const user = userEvent.setup();
         const server = mockServer();
@@ -208,7 +208,11 @@ describe('MobileSignInMenu', () => {
         });
         await within(popover).findByRole('img', { name: 'Sign-in QR code' });
         expect(within(popover).queryByRole('link')).not.toBeInTheDocument();
-        expect(within(popover).queryByRole('button')).not.toBeInTheDocument();
+        expect(
+            within(popover)
+                .getAllByRole('button')
+                .map((button) => button.textContent),
+        ).toEqual(['Not interested']);
 
         await user.keyboard('{Escape}');
 

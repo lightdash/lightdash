@@ -522,12 +522,18 @@ const getIncompatibilityIssues = (
     names: IssueNames,
     metricQuery: MetricQuery,
 ): ApiSourceQueryIssue[] => {
-    const used = new Set([
+    const selected = new Set([
         ...metricQuery.dimensions,
         ...metricQuery.metrics,
+    ]);
+    const selectedOrFiltered = new Set([
+        ...selected,
         ...getFilterFieldIds(metricQuery),
     ]);
     return apiSource.incompatible.flatMap((incompatibility) => {
+        const used = incompatibility.selectedOnly
+            ? selected
+            : selectedOrFiltered;
         const field = incompatibility.fields.find((id) => used.has(id));
         const other = incompatibility.with.find((id) => used.has(id));
         if (!field || !other) {

@@ -1,7 +1,7 @@
 import { type ReattachableLiveSource } from '@lightdash/common';
 import { Alert, Loader, Select, Stack, Text } from '@mantine/core';
 import { IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineModal from '../../../components/common/MantineModal';
 import { getSemanticStudioSourceUrl } from '../../semanticStudio/urls';
@@ -27,7 +27,10 @@ const toOptionLabel = ({
 }: ReattachableLiveSource) =>
     `${name} (${explorePrefix}) · ${formatChartCount(usedByChartCount)}`;
 
-/** The last step of adding a source, wherever it was added from. */
+/**
+ * The last step of adding a source, wherever it was added from: opens the
+ * source's page, first offering to reattach a deleted source when there is one.
+ */
 export const SourceConnectedModal: FC<Props> = ({
     projectUuid,
     connectionUuid,
@@ -58,6 +61,17 @@ export const SourceConnectedModal: FC<Props> = ({
         onClose();
         void navigate(getSemanticStudioSourceUrl(projectUuid, connectionUuid));
     };
+
+    // Nothing to reattach: go straight to the source's page
+    const hasNothingToReattach =
+        !isLoadingDeleted && deletedSources.length === 0;
+    useEffect(() => {
+        if (hasNothingToReattach) viewFields();
+        // viewFields only closes and navigates; run once when it's known
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasNothingToReattach]);
+
+    if (isLoadingDeleted || hasNothingToReattach) return null;
 
     return (
         <MantineModal

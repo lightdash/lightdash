@@ -1,5 +1,65 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`live data source names > GitHub explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "github_pull_requests_assignee",
+        "github_pull_requests_author",
+        "github_pull_requests_closed_at",
+        "github_pull_requests_comments",
+        "github_pull_requests_count",
+        "github_pull_requests_created_at",
+        "github_pull_requests_draft",
+        "github_pull_requests_labels",
+        "github_pull_requests_merged_at",
+        "github_pull_requests_number",
+        "github_pull_requests_search",
+        "github_pull_requests_state",
+        "github_pull_requests_title",
+        "github_pull_requests_updated_at",
+        "github_pull_requests_url",
+      ],
+      "name": "github_pull_requests",
+    },
+    {
+      "fieldIds": [
+        "github_issues_assignee",
+        "github_issues_author",
+        "github_issues_closed_at",
+        "github_issues_comments",
+        "github_issues_count",
+        "github_issues_created_at",
+        "github_issues_labels",
+        "github_issues_number",
+        "github_issues_search",
+        "github_issues_state",
+        "github_issues_state_reason",
+        "github_issues_title",
+        "github_issues_updated_at",
+        "github_issues_url",
+      ],
+      "name": "github_issues",
+    },
+    {
+      "fieldIds": [
+        "github_contributors_additions",
+        "github_contributors_author",
+        "github_contributors_commits",
+        "github_contributors_deletions",
+        "github_contributors_week",
+      ],
+      "name": "github_contributors",
+    },
+  ],
+  "reservedExploreNames": [
+    "github_workflow_runs",
+    "github_releases",
+  ],
+}
+`;
+
 exports[`live data source names > Google Ads explore names and field ids never change 1`] = `
 {
   "explores": [

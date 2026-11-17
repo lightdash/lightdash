@@ -76,6 +76,11 @@ export type ApiSourceIncompatibility = {
     fields: FieldId[];
     with: FieldId[];
     reason: string;
+    /**
+     * Only selected fields clash; filtering on them is fine. For APIs that
+     * filter on a field they can't group by, like a search total by author.
+     */
+    selectedOnly?: true;
 };
 
 /**

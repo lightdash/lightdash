@@ -29,6 +29,11 @@ export const ShortcutHint: FC<ShortcutHintProps> = ({
     </Box>
 );
 
+/** A tour target over its parent and the hints drawn above it */
+export const TourFrame: FC<{ name: string }> = ({ name }) => (
+    <Box className={classes.tourFrame} data-tour={name} aria-hidden />
+);
+
 type ShortcutTooltipLabelProps = {
     label: string;
     shortcut: EditShortcut;

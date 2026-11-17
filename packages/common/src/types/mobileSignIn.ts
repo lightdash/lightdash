@@ -5,6 +5,8 @@ export const MOBILE_SIGN_IN_CODE_TOKEN_TYPE =
 
 export const MOBILE_SIGN_IN_PATH = '/m/sign-in';
 
+export const MOBILE_ORG_DISABLED_CODE = 'mobile_org_disabled';
+
 export const MOBILE_SIGN_IN_CODE_TTL_SECONDS = 120;
 export const MOBILE_SIGN_IN_CLAIM_TTL_SECONDS = 300;
 export const MOBILE_SIGN_IN_REDEEM_INTERVAL_SECONDS = 2;
@@ -38,6 +40,7 @@ export enum MobileSignInRefusal {
     ORGANIZATION_REQUIRED = 'organization_required',
     FEATURE_DISABLED = 'feature_disabled',
     QR_SIGN_IN_DISABLED = 'qr_sign_in_disabled',
+    MOBILE_APP_DISABLED = 'mobile_app_disabled',
     RATE_LIMITED = 'rate_limited',
     APPROVAL_SESSION_MISMATCH = 'approval_session_mismatch',
     INVALID_STATE = 'invalid_state',
@@ -107,4 +110,14 @@ export type MobileSignInCapabilities = {
     capabilities: {
         mobile_sign_in_source_project?: 1;
     };
+};
+
+export type MobileAppAccess = {
+    enabled: true;
+    organizationUuid: string;
+};
+
+export type ApiMobileAppAccessResponse = {
+    status: 'ok';
+    results: MobileAppAccess;
 };

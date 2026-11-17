@@ -1,3 +1,74 @@
+# [3.289.0](https://github.com/lightdash/lightdash/compare/3.288.0...3.289.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* skip unnested tables during deploy name allocation ([#32730](https://github.com/lightdash/lightdash/issues/32730)) ([4ab43f7](https://github.com/lightdash/lightdash/commit/4ab43f7807edd42ad597366de6d5909c6292500e))
+
+
+### Features
+
+* **dashboards:** introduce the new edit toolbar with a first-visit tour ([#32701](https://github.com/lightdash/lightdash/issues/32701)) ([6094ffa](https://github.com/lightdash/lightdash/commit/6094ffa1e0fb2a9a3f5a013455495bf695002d3a))
+* **dashboards:** snap a dragged tile only once the pointer rests over a slot ([#32731](https://github.com/lightdash/lightdash/issues/32731)) ([e2828e9](https://github.com/lightdash/lightdash/commit/e2828e9f2f117fda66b3d843a637d20ee4efa25c))
+
+# [3.288.0](https://github.com/lightdash/lightdash/compare/3.287.0...3.288.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** track live data source API calls in product analytics ([#32729](https://github.com/lightdash/lightdash/issues/32729)) ([5ef74e5](https://github.com/lightdash/lightdash/commit/5ef74e5ff7a39cee581eacba3389884fdf8b999c)), closes [#32728](https://github.com/lightdash/lightdash/issues/32728)
+
+# [3.287.0](https://github.com/lightdash/lightdash/compare/3.286.0...3.287.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **cli:** allow uppercase letters and digits in rename names ([#32611](https://github.com/lightdash/lightdash/issues/32611)) ([2aae2a9](https://github.com/lightdash/lightdash/commit/2aae2a93dbc7ae8bf77544b1d48c77d334dbc052))
+
+
+### Features
+
+* **mobile:** let staff turn off mobile app access for one org ([#32705](https://github.com/lightdash/lightdash/issues/32705)) ([b50bd20](https://github.com/lightdash/lightdash/commit/b50bd202f5a7e436a441e0b5594007d47dffbcce))
+
+# [3.286.0](https://github.com/lightdash/lightdash/compare/3.285.1...3.286.0) (2026-11-17)
+
+
+### Features
+
+* add the GitHub live integration ([#32707](https://github.com/lightdash/lightdash/issues/32707)) ([dd474e8](https://github.com/lightdash/lightdash/commit/dd474e8d5eb4dbdf40c2a70f53eb5e2a979ce964))
+* support integrations with several live explores ([#32706](https://github.com/lightdash/lightdash/issues/32706)) ([75a9e1b](https://github.com/lightdash/lightdash/commit/75a9e1b018211410248e6e5cdfa7bdc4c57e32a7))
+
+## [3.285.1](https://github.com/lightdash/lightdash/compare/3.285.0...3.285.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **setup:** reuse the setup service account across restarts ([#32717](https://github.com/lightdash/lightdash/issues/32717)) ([cdf4d7b](https://github.com/lightdash/lightdash/commit/cdf4d7b55931ae0b91ee3b6043c0fd1e9196c0b0))
+
+# [3.285.0](https://github.com/lightdash/lightdash/compare/3.284.0...3.285.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **mobile:** let users dismiss the phone app pitch with Not interested ([#32689](https://github.com/lightdash/lightdash/issues/32689)) ([e622557](https://github.com/lightdash/lightdash/commit/e622557387bfe9e93ea6b7a0b5efc7ed7c9ec22b))
+
+
+### Features
+
+* **composer:** export composer chart tiles in dashboard CSV and XLSX deliveries ([#32709](https://github.com/lightdash/lightdash/issues/32709)) ([7a0a819](https://github.com/lightdash/lightdash/commit/7a0a8199e35d3d9c27ce727968c21ca205ca457a))
+
+# [3.284.0](https://github.com/lightdash/lightdash/compare/3.283.2...3.284.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **explorer:** quieten section headers and field group names ([#32715](https://github.com/lightdash/lightdash/issues/32715)) ([b2c49f6](https://github.com/lightdash/lightdash/commit/b2c49f695e595295123b3db7f78bb6919e413962))
+
+
+### Features
+
+* **ai:** Ask AI on SQL chart dashboard tiles ([#32711](https://github.com/lightdash/lightdash/issues/32711)) ([90b9b12](https://github.com/lightdash/lightdash/commit/90b9b127065bc4155e4c75e848efd9ff64222c6d))
+
 ## [3.283.2](https://github.com/lightdash/lightdash/compare/3.283.1...3.283.2) (2026-11-17)
 
 

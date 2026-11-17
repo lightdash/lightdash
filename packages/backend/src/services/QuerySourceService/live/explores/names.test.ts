@@ -98,6 +98,15 @@ const SOURCES: {
         },
         scan: {},
     },
+    {
+        name: 'GitHub',
+        apiSource: {
+            connector: ApiConnectorType.GITHUB,
+            owner: 'lightdash',
+            repo: 'lightdash',
+        },
+        scan: {},
+    },
 ];
 
 describe('live data source names', () => {

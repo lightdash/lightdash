@@ -72,6 +72,12 @@ const mockQueries = (
                 return { queryUuid };
             }
             if (method === 'POST' && url.endsWith('/cancel')) return undefined;
+            if (method === 'GET' && url.endsWith('/explores/content_inventory'))
+                return {
+                    tables: {
+                        content_health: { dimensions: { project_type: {} } },
+                    },
+                };
             const queryUuid = url.split('/').at(-1) ?? '';
             const query = byId.get(queryUuid);
             if (method === 'GET' && query) return getResult(query, queryUuid);
@@ -211,6 +217,14 @@ describe('Analytics settings overview', () => {
         await act(async () => finishChart.resolve(ready()));
         await waitFor(() => expect(ninetyDayQueries()).toHaveLength(8));
         const preceding = ninetyDayQueries().slice(5);
+        for (const period of [current, preceding]) {
+            const inventory = period.find(
+                ({ exploreName }) => exploreName === 'content_inventory',
+            );
+            expect(
+                inventory && filterValue(inventory, 'exclude-preview-projects'),
+            ).toBe(ProjectType.PREVIEW);
+        }
         expect(
             preceding.every(
                 (query) =>
@@ -293,15 +307,16 @@ describe('Analytics settings overview', () => {
     it('cancels a superseded query even when its creation response arrives after the project switch', async () => {
         mockQueries();
         const respond = Promise.withResolvers<{ queryUuid: string }>();
-        mockedLightdashApi.mockImplementationOnce(
-            (request: LightdashApiProps) => {
-                expect(request.url).toBe(
-                    '/projects/analytics/query/metric-query',
-                );
-                expect(request.signal).toBeUndefined();
-                return respond.promise;
-            },
-        );
+        const handleRequest = mockedLightdashApi.getMockImplementation()!;
+        let intercepted = false;
+        mockedLightdashApi.mockImplementation((request: LightdashApiProps) => {
+            if (intercepted || !request.url.endsWith('/query/metric-query'))
+                return handleRequest(request);
+            intercepted = true;
+            expect(request.url).toBe('/projects/analytics/query/metric-query');
+            expect(request.signal).toBeUndefined();
+            return respond.promise;
+        });
         renderOverview();
         await userEvent.click(
             screen.getByRole('combobox', { name: 'Project' }),

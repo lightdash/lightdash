@@ -1,6 +1,10 @@
 import { ParameterError } from '../types/errors';
+import { FieldType, MetricType } from '../types/field';
+import { QuerySourceType } from '../types/querySources';
 import { ChartType } from '../types/savedCharts';
 import {
+    getComposerChartDisplayedQueryUuid,
+    getComposerChartExportLabels,
     parseComposerChartInput,
     parseComposerChartRunRequest,
     parseComposerPipeline,
@@ -422,5 +426,66 @@ describe('parseComposerChartRunRequest', () => {
         expect(() =>
             parseComposerChartRunRequest({ ...request, ...extra }),
         ).toThrow(key);
+    });
+});
+
+describe('getComposerChartDisplayedQueryUuid', () => {
+    const queries = [
+        {
+            nodeId: 'orders',
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            queryUuid: 'q-orders',
+        },
+        {
+            nodeId: 'monthly',
+            sourceType: QuerySourceType.DUCKDB,
+            queryUuid: 'q-monthly',
+        },
+    ];
+
+    it('is the chart stage when the run has one', () => {
+        expect(
+            getComposerChartDisplayedQueryUuid(
+                { queries, chartStageQueryUuid: 'q-stage' },
+                'monthly',
+            ),
+        ).toBe('q-stage');
+    });
+
+    it('is the terminal node without a chart stage', () => {
+        expect(
+            getComposerChartDisplayedQueryUuid(
+                { queries, chartStageQueryUuid: null },
+                'monthly',
+            ),
+        ).toBe('q-monthly');
+    });
+
+    it('is null when the terminal node did not run', () => {
+        expect(
+            getComposerChartDisplayedQueryUuid(
+                { queries: [], chartStageQueryUuid: null },
+                'monthly',
+            ),
+        ).toBeNull();
+    });
+});
+
+describe('getComposerChartExportLabels', () => {
+    it('labels each column with its governed label, without the table', () => {
+        expect(
+            getComposerChartExportLabels({
+                orders_total_order_amount: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'total_order_amount',
+                    label: 'Total order amount',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '',
+                    hidden: false,
+                },
+            }),
+        ).toEqual({ orders_total_order_amount: 'Total order amount' });
     });
 });

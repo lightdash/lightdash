@@ -27,6 +27,36 @@ describe('GuidedTour', () => {
         expect(screen.queryByText('Step one')).not.toBeInTheDocument();
     });
 
+    it('rings every highlighted control of a centered step', async () => {
+        renderWithProviders(
+            <>
+                <button data-tour="first">First</button>
+                <button data-tour="second">Second</button>
+                <GuidedTour
+                    steps={[
+                        {
+                            target: null,
+                            highlights: [
+                                '[data-tour="first"]',
+                                '[data-tour="second"]',
+                                '[data-tour="missing"]',
+                            ],
+                            title: 'Two places',
+                            body: 'body',
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>,
+        );
+        await waitFor(() =>
+            expect(
+                document.querySelectorAll('[data-tour-highlight]'),
+            ).toHaveLength(2),
+        );
+    });
+
     it('walks forward and back through steps', async () => {
         const user = userEvent.setup();
         renderWithProviders(

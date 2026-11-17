@@ -49,6 +49,11 @@ exports[`connector capability declarations > the summable tags 1`] = `
       "aggregation": "non_additive",
     },
   },
+  "github": {
+    "count": {
+      "aggregation": "additive",
+    },
+  },
   "google_ads": {
     "all_conversions": {
       "aggregation": "additive",

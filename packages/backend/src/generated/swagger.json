@@ -16436,7 +16436,8 @@
                     "meta_ads",
                     "google_ads",
                     "youtube_analytics",
-                    "linkedin_ads"
+                    "linkedin_ads",
+                    "github"
                 ],
                 "type": "string"
             },
@@ -16606,6 +16607,27 @@
                 "required": ["adAccountId", "connector"],
                 "type": "object"
             },
+            "ApiConnectorType.GITHUB": {
+                "enum": ["github"],
+                "type": "string"
+            },
+            "GithubApiSource": {
+                "properties": {
+                    "repo": {
+                        "type": "string",
+                        "description": "The repository name, without the owner, e.g. lightdash."
+                    },
+                    "owner": {
+                        "type": "string",
+                        "description": "The user or organization that owns the repository, e.g. lightdash."
+                    },
+                    "connector": {
+                        "$ref": "#/components/schemas/ApiConnectorType.GITHUB"
+                    }
+                },
+                "required": ["repo", "owner", "connector"],
+                "type": "object"
+            },
             "ExternalConnectionApiSource": {
                 "anyOf": [
                     {
@@ -16628,6 +16650,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/LinkedInAdsApiSource"
+                    },
+                    {
+                        "$ref": "#/components/schemas/GithubApiSource"
                     }
                 ],
                 "description": "Connector settings of a live source; the server fixes its access rules."
@@ -21499,6 +21524,12 @@
             },
             "ApiSourceIncompatibility": {
                 "properties": {
+                    "selectedOnly": {
+                        "type": "boolean",
+                        "enum": [true],
+                        "nullable": false,
+                        "description": "Only selected fields clash; filtering on them is fine. For APIs that\nfilter on a field they can't group by, like a search total by author."
+                    },
                     "reason": {
                         "type": "string"
                     },
@@ -28689,6 +28720,24 @@
                             }
                         },
                         "required": ["dashboardUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "sqlChartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "sqlChartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["sql_chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["sqlChartSlug", "sqlChartUuid", "type"],
                         "type": "object"
                     },
                     {
@@ -36508,6 +36557,38 @@
                             "pinnedVersionUuid",
                             "dashboardSlug",
                             "dashboardUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "pinnedVersionUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "sqlChartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "sqlChartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["sql_chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "pinnedVersionUuid",
+                            "sqlChartSlug",
+                            "sqlChartUuid",
                             "type"
                         ],
                         "type": "object"
@@ -57123,9 +57204,12 @@
                 "properties": {
                     "memoryTour": {
                         "type": "boolean"
+                    },
+                    "dashboardEditTour": {
+                        "type": "boolean"
                     }
                 },
-                "required": ["memoryTour"],
+                "required": ["memoryTour", "dashboardEditTour"],
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
@@ -57154,8 +57238,7 @@
             },
             "UserOnboardingTour": {
                 "type": "string",
-                "enum": ["memoryTour"],
-                "nullable": false
+                "enum": ["memoryTour", "dashboardEditTour"]
             },
             "ApiCompleteUserOnboardingTourRequest": {
                 "properties": {
@@ -60862,6 +60945,37 @@
                 ],
                 "type": "object"
             },
+            "PartialFailureType.DASHBOARD_COMPOSER_CHART": {
+                "enum": ["dashboard_composer_chart"],
+                "type": "string"
+            },
+            "DashboardComposerChartPartialFailure": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    },
+                    "chartName": {
+                        "type": "string"
+                    },
+                    "composerChartUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/PartialFailureType.DASHBOARD_COMPOSER_CHART"
+                    }
+                },
+                "required": [
+                    "error",
+                    "tileUuid",
+                    "chartName",
+                    "composerChartUuid",
+                    "type"
+                ],
+                "type": "object"
+            },
             "PartialFailureType.MISSING_TARGETS": {
                 "enum": ["missing_targets"],
                 "type": "string"
@@ -60960,6 +61074,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardSqlChartPartialFailure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardComposerChartPartialFailure"
                     },
                     {
                         "$ref": "#/components/schemas/MissingTargetsPartialFailure"
@@ -69323,6 +69440,34 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/MobileAppLinkStatus"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "MobileAppAccess": {
+                "properties": {
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "enabled": {
+                        "type": "boolean",
+                        "enum": [true],
+                        "nullable": false
+                    }
+                },
+                "required": ["organizationUuid", "enabled"],
+                "type": "object"
+            },
+            "ApiMobileAppAccessResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MobileAppAccess"
                     },
                     "status": {
                         "type": "string",
@@ -79881,7 +80026,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.283.2",
+        "version": "3.289.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -114176,6 +114321,38 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/mobile/access": {
+            "get": {
+                "operationId": "getMobileAppAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobileAppAccessResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Tells a mobile app whether the organization of the current sign-in can\nuse the mobile apps. A disabled organization gets a 401 with the code\nmobile_org_disabled",
+                "summary": "Get mobile app access",
+                "tags": ["Mobile"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/runMetricTotal": {

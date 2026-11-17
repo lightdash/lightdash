@@ -88,6 +88,18 @@ const SOURCES = [
             metric: 'clicks',
         },
     },
+    {
+        apiSource: {
+            connector: ApiConnectorType.GITHUB,
+            owner: 'lightdash',
+            repo: 'lightdash',
+        },
+        fields: { dimension: 'author', other: 'assignee', metric: 'count' },
+        // A search total can't be split by a dimension, so cases filter on
+        // it instead of selecting it
+        date: 'created_at',
+        selectsDimension: false,
+    },
 ] as const;
 
 const CONNECTORS: ApiConnectorType[] = SOURCES.map(
@@ -164,6 +176,8 @@ type Case = {
     name: string;
     /** The refusal's code wherever it is refused; per message when they differ. */
     code?: LiveSourceRefusalCode;
+    /** Where a connector refuses it under another code. */
+    codes?: Partial<Record<ApiConnectorType, LiveSourceRefusalCode>>;
     query: (connector: ApiConnectorType) => Partial<MetricQuery>;
     context?: ApiSourceQueryContext;
     /** Today's refusal per connector; absent means the query runs. */
@@ -215,7 +229,14 @@ const id = (
     connector: ApiConnectorType,
     key: keyof (typeof SOURCES)[number]['fields'],
 ) => toFieldId(connector, getSource(connector).fields[key]);
-const date = (connector: ApiConnectorType) => toFieldId(connector, 'date');
+const date = (connector: ApiConnectorType) => {
+    // A source names its date field when it isn't `date`
+    const source = getSource(connector);
+    return toFieldId(
+        connector,
+        'date' in source ? String(source.date) : 'date',
+    );
+};
 
 // Every refusal the shared check replaced, with the message users saw
 // before connectors declared capabilities.
@@ -357,8 +378,14 @@ const CASES: Case[] = [
             },
         }),
         // Search Console ORs the values in one regex filter
-        expected: {},
+        expected: {
+            [ApiConnectorType.GITHUB]: [
+                `GitHub matches one value per filter; filter ${fieldLabel(ApiConnectorType.GITHUB, id(ApiConnectorType.GITHUB, 'dimension'))} by one value at a time.`,
+            ],
+        },
         stale: {
+            // Never cached before capabilities, which allowed it
+            [ApiConnectorType.GITHUB]: [],
             [ApiConnectorType.SEARCH_CONSOLE]: [
                 `Search Console matches one value per filter; filter ${fieldLabel(ApiConnectorType.SEARCH_CONSOLE, id(ApiConnectorType.SEARCH_CONSOLE, 'dimension'))} by one value at a time.`,
             ],
@@ -461,6 +488,10 @@ const CASES: Case[] = [
     {
         name: 'a date operator the API lacks',
         code: 'live_source.refused.date_operator',
+        // GitHub has no date range, so its dates are ordinary filters
+        codes: {
+            [ApiConnectorType.GITHUB]: 'live_source.refused.filter_operator',
+        },
         query: (connector) => ({
             filters: {
                 dimensions: {
@@ -494,7 +525,10 @@ const toQuery = (
     overrides: Partial<MetricQuery>,
 ): MetricQuery => ({
     exploreName: `${connector}_explore`,
-    dimensions: [id(connector, 'dimension')],
+    dimensions:
+        'selectsDimension' in getSource(connector)
+            ? []
+            : [id(connector, 'dimension')],
     metrics: [id(connector, 'metric')],
     filters: {},
     sorts: [],
@@ -521,7 +555,8 @@ describe('live data source capabilities keep their refusals', () => {
 
         test.each(CASES)(
             '$name',
-            ({ query, context, expected, stale, code }) => {
+            ({ query, context, expected, stale, code: caseCode, codes }) => {
+                const code = codes?.[connector] ?? caseCode;
                 const metricQuery = toQuery(connector, query(connector));
                 const messages = getMessages(explore, metricQuery, context);
                 expect(messages).toEqual(expected[connector] ?? []);
@@ -607,8 +642,11 @@ describe('connector capability declarations', () => {
 
         test('the date range field uses the date operators', () => {
             definitions.forEach(({ dateRange, dimensions }) => {
+                if (!dateRange) {
+                    return;
+                }
                 const field = dimensions.find(
-                    ({ name }) => name === dateRange?.dimension,
+                    ({ name }) => name === dateRange.dimension,
                 );
                 expect(field?.filterOperators).toEqual(
                     capabilities.dates.operators,

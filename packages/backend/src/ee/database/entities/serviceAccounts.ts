@@ -47,6 +47,11 @@ export type DbUpdateServiceAccount = {
     scopes?: string[];
 };
 
+type DbReplaceServiceAccountToken = {
+    token_hash: string;
+    expires_at: Date | null;
+};
+
 type DbUpdateUsedDatePersonalAccessToken = {
     last_used_at: Date;
 };
@@ -60,6 +65,7 @@ export type ServiceAccountTable = Knex.CompositeTableType<
     DbServiceAccounts,
     DbCreateServiceAccount,
     | DbRotateServiceAccount
+    | DbReplaceServiceAccountToken
     | DbUpdateServiceAccount
     | DbUpdateUsedDatePersonalAccessToken
     | DbBackfillServiceAccountUserUuid
