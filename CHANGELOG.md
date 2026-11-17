@@ -1,3 +1,10 @@
+## [3.295.1](https://github.com/lightdash/lightdash/compare/3.295.0...3.295.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** keep a model's pre-aggregates when Semantic Studio publishes it ([#32792](https://github.com/lightdash/lightdash/issues/32792)) ([254212c](https://github.com/lightdash/lightdash/commit/254212cd49e5bbade8f0f02cf2889cad0e0aa6ac))
+
 # [3.295.0](https://github.com/lightdash/lightdash/compare/3.294.3...3.295.0) (2026-11-17)
 
 
