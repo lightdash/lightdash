@@ -12,10 +12,15 @@ export const PitchDismissReasons: FC<{
     const titleId = useId();
     return (
         <Stack gap="sm">
-            <Title order={5} id={titleId}>
+            <Title order={5} id={titleId} ta="center">
                 {MOBILE_PITCH_DISMISS_STRINGS.title}
             </Title>
-            <Group gap="xs" role="group" aria-labelledby={titleId}>
+            <Group
+                gap="xs"
+                justify="center"
+                role="group"
+                aria-labelledby={titleId}
+            >
                 {MOBILE_PITCH_DISMISS_REASONS.map((reason, index) => (
                     <Button
                         key={reason}
