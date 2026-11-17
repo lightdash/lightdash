@@ -1,5 +1,6 @@
 import {
     getSqlApprovalSql,
+    isComposerChartContentArgs,
     isSqlApprovalToolCall,
     isSqlChartContentArgs,
 } from '@lightdash/common';
@@ -124,8 +125,9 @@ export const createSqlChartGate = (
             );
         };
         try {
+            // A composer chart edit asks only when it adds SQL; the service decides.
             const call =
-                isSqlChart && approvalGate
+                (isSqlChart || isComposerChartContentArgs(args)) && approvalGate
                     ? await approvalGate.forToolCall(toolCallId, {
                           sql: getGatedSql(args),
                       })

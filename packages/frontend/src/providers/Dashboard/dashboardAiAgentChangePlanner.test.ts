@@ -290,6 +290,40 @@ describe('planDashboardAiAgentChanges', () => {
         });
     });
 
+    it('plans a focused composer chart refresh for composer chart edits', () => {
+        const composerChartEditPart = {
+            ...chartEditPart,
+            toolCallId: 'composer-chart-edit',
+            toolArgs: { type: 'composer_chart', slug: 'orders', patch: [] },
+            toolResult: {
+                ...(chartEditPart as { toolResult: object }).toolResult,
+                metadata: {
+                    status: 'success',
+                    slug: 'orders',
+                    name: 'Orders',
+                    uuid: 'composer-chart-uuid',
+                    href: '/projects/project-uuid/dashboards/dashboard-uuid/view',
+                    warnings: [],
+                    versionUuids: { before: 'v1', after: 'v2' },
+                },
+            },
+        } as StreamPart;
+        expect(
+            planDashboardAiAgentChanges({
+                parts: [composerChartEditPart],
+                handledToolCallIds: new Set(),
+                currentDashboardSlug: 'jaffle-dashboard',
+                pendingChartToFocus: null,
+            }).actions,
+        ).toEqual([
+            {
+                type: 'refreshChart',
+                chart: { type: 'composer_chart', slug: 'orders' },
+                focusTile: true,
+            },
+        ]);
+    });
+
     it('plans a focused SQL chart refresh for SQL chart edits', () => {
         expect(
             planDashboardAiAgentChanges({
@@ -396,8 +430,33 @@ const unsavedSqlChartTile: DashboardTile = {
     },
 };
 
+const composerChartTile: DashboardTile = {
+    ...tileBase,
+    uuid: 'composer-chart-tile',
+    type: DashboardTileTypes.COMPOSER_CHART,
+    properties: {
+        composerChartUuid: 'composer-chart-uuid',
+        chartName: 'Orders (composer)',
+        chartSlug: 'orders',
+    },
+};
+
 describe('getDashboardTilesForChart', () => {
-    const tiles = [savedChartTile, sqlChartTile, unsavedSqlChartTile];
+    const tiles = [
+        savedChartTile,
+        sqlChartTile,
+        unsavedSqlChartTile,
+        composerChartTile,
+    ];
+
+    it('matches composer chart tiles for composer charts sharing a slug with a chart', () => {
+        expect(
+            getDashboardTilesForChart(tiles, {
+                type: 'composer_chart',
+                slug: 'orders',
+            }),
+        ).toEqual({ type: 'composer_chart', tiles: [composerChartTile] });
+    });
 
     it('matches saved chart tiles for charts', () => {
         expect(

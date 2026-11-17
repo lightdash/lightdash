@@ -516,6 +516,33 @@ describe('ComposerChartService.create', () => {
     });
 });
 
+describe('ComposerChartService.preflightPipeline', () => {
+    const project = { organizationUuid, projectUuid };
+
+    test('refuses a SQL node from an editor without SQL runner, before any write', async () => {
+        const { service, composerChartModel } = setup();
+        await expect(
+            service.preflightPipeline(
+                sessionAccount(abilityWithout('SqlRunner')),
+                project,
+                createBody(PIPELINES.sql).pipeline,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(composerChartModel.create).not.toHaveBeenCalled();
+    });
+
+    test('passes an editor who holds every permission the nodes need', async () => {
+        const { service } = setup();
+        await expect(
+            service.preflightPipeline(
+                sessionAccount(abilityWithout(null)),
+                project,
+                createBody(PIPELINES.sql).pipeline,
+            ),
+        ).resolves.toBeUndefined();
+    });
+});
+
 describe('ComposerChartService.create with a custom chart type', () => {
     test('pins the latest renderable version when the chart names none', async () => {
         const { service, composerChartModel } = setup();

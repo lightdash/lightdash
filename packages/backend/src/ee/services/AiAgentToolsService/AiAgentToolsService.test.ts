@@ -3669,6 +3669,301 @@ describe('AiAgentToolsService', () => {
         });
     });
 
+    describe('composer chart edits', () => {
+        const ordersSql = 'select status, count(*) as n from orders group by 1';
+        const editableChart = {
+            contentType: 'composer_chart',
+            version: 1,
+            slug: 'orders-by-status',
+            name: 'Orders by status',
+            description: null,
+            dashboardSlug: 'ops',
+            spaceSlug: 'jaffle',
+            pipeline: {
+                schemaVersion: 1,
+                terminalNodeId: 'orders',
+                nodes: [
+                    {
+                        sourceType: 'sql',
+                        nodeId: 'orders',
+                        title: 'Orders',
+                        sql: ordersSql,
+                    },
+                ],
+            },
+            chart: {
+                schemaVersion: 1,
+                columns: [
+                    { reference: 'status', fieldType: 'dimension' },
+                    { reference: 'n', fieldType: 'metric' },
+                ],
+                chartConfig: { type: 'table' },
+                pivotConfig: null,
+                tableConfig: { columnOrder: ['status', 'n'] },
+            },
+        };
+        const opsDashboard = {
+            uuid: 'ops-uuid',
+            slug: 'ops',
+            spaceUuid: 'jaffle-uuid',
+            tiles: [],
+        };
+        const renameChart = [
+            { op: 'replace', path: '/name', value: 'Orders by state' },
+        ];
+        const changeSql = [
+            {
+                op: 'replace',
+                path: '/pipeline/nodes/0/sql',
+                value: 'select status from orders',
+            },
+        ];
+
+        const makeEditService = ({
+            flagEnabled = true,
+            preflightPipeline = vi.fn().mockResolvedValue(undefined),
+            threadBinding = null,
+            boundDashboardSlug = 'ops',
+        }: {
+            flagEnabled?: boolean;
+            preflightPipeline?: import('vitest').Mock;
+            threadBinding?: AiAgentToolsRuntimeContext['threadBinding'];
+            boundDashboardSlug?: string;
+        } = {}) => {
+            let version = 1;
+            const upsertComposerChart = vi.fn(async () => {
+                version += 1;
+                return {
+                    action: 'update',
+                    composerChartUuid: 'composer-chart-uuid',
+                };
+            });
+            const upsertChart = vi.fn();
+            const service = makeService({
+                coderService: {
+                    getComposerChartsForRead: vi.fn(async () => ({
+                        composerCharts: [editableChart],
+                    })),
+                    getChartsForRead: vi.fn(async () => ({
+                        charts: [{ slug: 'orders-by-status' }],
+                    })),
+                    getCurrentContentVersionBySlug: vi.fn(async () => ({
+                        contentUuid: 'composer-chart-uuid',
+                        versionUuid: `version-${version}`,
+                    })),
+                    upsertComposerChart,
+                    upsertChart,
+                },
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(opsDashboard),
+                },
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'bound-uuid',
+                        slug: boundDashboardSlug,
+                    }),
+                },
+                composerChartService: {
+                    isEnabled: vi.fn().mockResolvedValue(flagEnabled),
+                    preflightPipeline,
+                },
+                aiAgentContentValidation: new AiAgentContentValidation(),
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ threadBinding }),
+            );
+            return { runtime, upsertComposerChart, upsertChart };
+        };
+
+        it('saves an edit without SQL changes in place as a new version, asking for no approval', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+            const approveSql = vi.fn();
+
+            const edited = await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: renameChart,
+                approveSql,
+            });
+
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertComposerChart).toHaveBeenCalledExactlyOnceWith(
+                user,
+                account,
+                projectUuid,
+                'orders-by-status',
+                expect.objectContaining({ name: 'Orders by state' }),
+                { authorization: 'space_access' },
+            );
+            expect(edited).toMatchObject({
+                type: 'composer_chart',
+                uuid: 'composer-chart-uuid',
+                versionUuids: { before: 'version-1', after: 'version-2' },
+            });
+        });
+
+        it('waits for approval of new warehouse SQL before saving', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+            const approveSql = vi.fn(async () => {
+                expect(upsertComposerChart).not.toHaveBeenCalled();
+            });
+
+            await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: changeSql,
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledExactlyOnceWith({
+                sql: '-- orders\nselect status from orders',
+                chartName: 'Orders by status',
+                sqlChanged: true,
+            });
+            expect(upsertComposerChart).toHaveBeenCalledOnce();
+        });
+
+        it('saves nothing when the new SQL is rejected', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql: vi.fn().mockRejectedValue(new Error('no')),
+                }),
+            ).rejects.toThrow('no');
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses new SQL without SQL mode', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql: null,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses SQL it cannot preview, such as SQL copied from another field', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: [
+                        {
+                            op: 'copy',
+                            from: '/name',
+                            path: '/pipeline/nodes/0/sql',
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses an editor who cannot write the new pipeline before asking for approval', async () => {
+            const { runtime, upsertComposerChart } = makeEditService({
+                preflightPipeline: vi
+                    .fn()
+                    .mockRejectedValue(
+                        new ForbiddenError('You cannot write SQL nodes'),
+                    ),
+            });
+            const approveSql = vi.fn();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses with the composer charts flag off', async () => {
+            const { runtime, upsertComposerChart } = makeEditService({
+                flagEnabled: false,
+            });
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: renameChart,
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it("refuses another dashboard's chart in a thread bound to a dashboard", async () => {
+            const { runtime, upsertComposerChart } = makeEditService({
+                threadBinding: {
+                    type: 'dashboard',
+                    dashboardUuid: 'bound-uuid',
+                },
+                boundDashboardSlug: 'sales',
+            });
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: renameChart,
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses moving a composer chart to another dashboard', async () => {
+            const { runtime } = makeEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/dashboardSlug',
+                            value: 'sales',
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('edits the composer chart when a classic chart shares its slug', async () => {
+            const { runtime, upsertComposerChart, upsertChart } =
+                makeEditService();
+
+            await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: renameChart,
+                approveSql: vi.fn(),
+            });
+
+            expect(upsertComposerChart).toHaveBeenCalledOnce();
+            expect(upsertChart).not.toHaveBeenCalled();
+        });
+    });
+
     describe('SQL charts', () => {
         const makeSqlChartContent = (
             overrides: Record<string, unknown> = {},

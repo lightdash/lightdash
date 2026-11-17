@@ -248,7 +248,13 @@ export const mcpReadContentArgsSchema = toolReadContentArgsSchema.extend({
 });
 
 export const mcpEditContentArgsSchema = toolEditContentArgsSchema.extend({
-    type: z.enum(['dashboard', 'chart', 'sql_chart', 'document']),
+    type: z.enum([
+        'dashboard',
+        'chart',
+        'sql_chart',
+        'composer_chart',
+        'document',
+    ]),
     patch: toolEditContentArgsSchema.shape.patch.nullish(),
     documentEdit: mcpDocumentEditSchema
         .nullish()

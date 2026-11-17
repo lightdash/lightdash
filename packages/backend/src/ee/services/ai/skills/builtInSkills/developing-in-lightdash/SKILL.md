@@ -25,6 +25,7 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 | ----------------------------- | --------------------------------------------------------------- | ------------------------------------- |
 | Read dashboards and charts    | `readContent`                                                   | `dashboard-reference`, chart refs     |
 | Create, read, edit SQL charts | `createContent` / `readContent` / `editContent`, `sql_chart`    | `sql-chart-reference`                 |
+| Read, edit composer charts    | `readContent` / `editContent`, `composer_chart`                 | `composer-chart-reference`            |
 | Read data apps (read-only)    | `readContent` with `type: data_app`                             | manifest-shaped JSON, no source code  |
 | Edit dashboards               | `editContent` with RFC6902 JSON Patch                           | `dashboard-reference`                 |
 | Edit charts and tiles         | `editContent`, then update referencing dashboards if needed     | Chart refs, `dashboard-reference`     |
@@ -118,6 +119,10 @@ For a weekly chart of "the last 12 weeks up to today" where every week starts on
 ### Create and Edit SQL Charts
 
 Always read `sql-chart-reference` first: it says when to create a SQL chart, and how to save, edit and place one on a dashboard.
+
+### Edit Composer Charts
+
+A `composer_chart` tile shows a chart drawn from a pipeline of queries. Read `composer-chart-reference` first: read the chart with `type: composer_chart`, test changed nodes with `query`, then patch it with `editContent` (`type: composer_chart`).
 
 ## Editing Charts
 
@@ -233,6 +238,7 @@ For period comparisons, read `period-over-period-reference` in addition to the c
 - `custom-viz-reference` - Vega-Lite
 - `period-over-period-reference` - PoP comparisons
 - `sql-chart-reference` - Charts saved from raw warehouse SQL, their approval step, and dashboards built from them
+- `composer-chart-reference` - Dashboard charts drawn from a pipeline of queries: reading, testing and editing them
 - `field-formatting-reference` - Chart-level field formatting overrides for metrics and dimensions
 
 ### Dashboards

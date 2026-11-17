@@ -27,6 +27,7 @@ import {
     findFieldByIdInExplore,
     ForbiddenError,
     getAppDisplayName,
+    getComposerChartPatchSql,
     getConnectionDefaults,
     getContentAsCodePathFromLtreePath,
     getDateZoomXAxisFieldId,
@@ -45,6 +46,7 @@ import {
     isExploreIncludedInTableSelection,
     isFilterAutocompleteManualOnly,
     isGitProjectType,
+    isSameApprovalSql,
     JobStatusType,
     mcpDocumentEditSchema,
     normalizeDateZoomConfig,
@@ -54,6 +56,7 @@ import {
     parseDocumentContent,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySourceType,
     QuerySurface,
     RequestMethod,
     resolveTileDateZoom,
@@ -74,6 +77,8 @@ import {
     type AppDashboardReference,
     type AppExternalConnectionLink,
     type ChartAsCode,
+    type ComposerChartAsCode,
+    type ComposerChartPipeline,
     type CustomChartType,
     type Dashboard,
     type DashboardAsCode,
@@ -275,6 +280,9 @@ const CONTENT_AS_CODE_TYPE_LABELS = {
 
 export const SQL_CHART_SAVE_PERMISSION_MESSAGE =
     'You do not have the SQL chart save permission (manage custom SQL) in this project, so SQL charts cannot be saved. Do not retry; ask the user to get this permission or save a chart built from an explore instead.';
+
+const COMPOSER_CHART_SQL_DISABLED_MESSAGE =
+    'Adding warehouse SQL to a composer chart needs SQL mode, which is not enabled for this agent. Do not retry; change the chart without new SQL, or ask an admin to enable SQL mode.';
 
 const READ_ONLY_SPACE_MESSAGE =
     'This space is read-only for this agent. Save the content to one of its writable spaces instead.';
@@ -538,7 +546,7 @@ type AiAgentToolsServiceDependencies = {
     savedSqlService: SavedSqlService;
     composerChartService: Pick<
         ComposerChartService,
-        'get' | 'runWithSavedDashboardState' | 'isEnabled'
+        'get' | 'runWithSavedDashboardState' | 'isEnabled' | 'preflightPipeline'
     >;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
@@ -3266,6 +3274,7 @@ export class AiAgentToolsService extends BaseService {
     private async readComposerChartAsCode(
         context: AiAgentToolsRuntimeContext,
         slug: string,
+        action: 'read' | 'update' = 'read',
     ): Promise<
         Extract<Awaited<ReturnType<ReadContentFn>>, { type: 'composer_chart' }>
     > {
@@ -3287,7 +3296,7 @@ export class AiAgentToolsService extends BaseService {
             context,
             composerChart.spaceSlug,
             notFound,
-            'read',
+            action,
         );
         const dashboard = await this.dashboardService.getByIdOrSlug(
             context.user,
@@ -3692,6 +3701,13 @@ export class AiAgentToolsService extends BaseService {
                 this.editDocumentContent(context, args.slug, args.documentEdit),
             );
         }
+        if (args.type === 'composer_chart') {
+            return wrapSentryTransaction(
+                `${AiAgentToolsService.transactionPrefix(context)}.editContent`,
+                { slug: args.slug, type: args.type },
+                () => this.editComposerChart(context, args),
+            );
+        }
         const { slug, type, patch } = args;
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.editContent`,
@@ -4080,6 +4096,169 @@ export class AiAgentToolsService extends BaseService {
                         return assertUnreachable(type, 'Invalid content type');
                 }
             },
+        );
+    }
+
+    /**
+     * Saves a composer chart in place as a new version. Warehouse SQL the
+     * chart did not have waits for approval; every write check reruns for the
+     * user at save.
+     */
+    private async editComposerChart(
+        context: AiAgentToolsRuntimeContext,
+        {
+            slug,
+            patch,
+            approveSql,
+        }: Extract<Parameters<EditContentFn>[0], { type: 'composer_chart' }>,
+    ): Promise<
+        Extract<Awaited<ReturnType<EditContentFn>>, { type: 'composer_chart' }>
+    > {
+        if (!Array.isArray(patch)) {
+            throw new ParameterError('Patch must be an RFC6902 patch array');
+        }
+        this.aiAgentContentValidation.validatePatch('composer_chart', patch);
+        const bound = await this.getBoundResource(context);
+        if (bound?.type === 'chart') {
+            await this.refuseOutsideThreadBinding(context, {
+                objectType: 'composer_chart',
+                action: 'update',
+                bound,
+                reason: 'Only that chart can be edited.',
+            });
+        }
+        const current = await this.readComposerChartAsCode(
+            context,
+            slug,
+            'update',
+        );
+        if (
+            bound?.type === 'dashboard' &&
+            current.content.dashboardSlug !== bound.slug
+        ) {
+            await this.refuseOutsideThreadBinding(context, {
+                objectType: 'composer_chart',
+                action: 'update',
+                bound,
+                reason: 'Only composer charts on that dashboard can be edited.',
+            });
+        }
+        const patched: unknown = JsonPatch.applyPatch(
+            structuredClone(current.content),
+            patch,
+            true,
+        ).newDocument;
+        this.aiAgentContentValidation.validateContent(
+            'composer_chart',
+            patched,
+        );
+        const edited = patched as ComposerChartAsCode;
+
+        const newSqlNodes = AiAgentToolsService.getNewWarehouseSqlNodes(
+            current.content.pipeline,
+            edited.pipeline,
+        );
+        const patchSql = getComposerChartPatchSql(patch);
+        if (newSqlNodes.length > 0) {
+            // Approval previews the patch, so new SQL must be written there as text.
+            const unseen = newSqlNodes.filter(
+                ({ sql }) =>
+                    !patchSql.some((written) =>
+                        isSameApprovalSql(written, sql),
+                    ),
+            );
+            if (unseen.length > 0) {
+                throw new ParameterError(
+                    `Set the sql of node ${unseen
+                        .map(({ nodeId }) => `"${nodeId}"`)
+                        .join(
+                            ', ',
+                        )} as a string value in the patch; SQL moved or copied from elsewhere cannot be approved.`,
+                );
+            }
+            await this.assertToolEffectAllowed(
+                context,
+                'editContent.composer_chart_sql',
+            );
+            if (!approveSql) {
+                throw new ForbiddenError(COMPOSER_CHART_SQL_DISABLED_MESSAGE);
+            }
+            const { account } = context;
+            assertRegisteredAccount(account);
+            await this.composerChartService.preflightPipeline(
+                account,
+                {
+                    organizationUuid: context.organizationUuid,
+                    projectUuid: context.projectUuid,
+                },
+                edited.pipeline,
+            );
+            await approveSql({
+                sql: newSqlNodes
+                    .map(({ nodeId, sql }) => `-- ${nodeId}\n${sql}`)
+                    .join('\n\n'),
+                chartName: edited.name,
+                sqlChanged: true,
+            });
+        } else if (approveSql && patchSql.length > 0) {
+            await approveSql({
+                sql: patchSql.join('\n\n'),
+                chartName: edited.name,
+                sqlChanged: false,
+            });
+        }
+
+        const versionBefore =
+            await this.coderService.getCurrentContentVersionBySlug(
+                context.user,
+                context.projectUuid,
+                'composer_chart',
+                slug,
+            );
+        const { account } = context;
+        assertRegisteredAccount(account);
+        const { composerChartUuid } =
+            await this.coderService.upsertComposerChart(
+                context.user,
+                account,
+                context.projectUuid,
+                slug,
+                edited,
+                { authorization: 'space_access' },
+            );
+        const saved = await this.readComposerChartAsCode(context, slug);
+        const versionAfter =
+            await this.coderService.getCurrentContentVersionBySlug(
+                context.user,
+                context.projectUuid,
+                'composer_chart',
+                slug,
+            );
+        return {
+            ...saved,
+            uuid: composerChartUuid,
+            versionUuids: {
+                before: versionBefore.versionUuid,
+                after: versionAfter.versionUuid,
+            },
+        };
+    }
+
+    /** Warehouse SQL nodes whose SQL text the chart did not already run. */
+    private static getNewWarehouseSqlNodes(
+        before: ComposerChartPipeline,
+        after: ComposerChartPipeline,
+    ): Array<{ nodeId: string; sql: string }> {
+        const warehouseSql = (pipeline: ComposerChartPipeline) =>
+            pipeline.nodes.flatMap((node) =>
+                node.sourceType === QuerySourceType.SQL
+                    ? [{ nodeId: node.nodeId, sql: node.sql }]
+                    : [],
+            );
+        const existing = warehouseSql(before);
+        return warehouseSql(after).filter(
+            ({ sql }) =>
+                !existing.some((node) => isSameApprovalSql(node.sql, sql)),
         );
     }
 

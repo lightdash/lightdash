@@ -156,6 +156,17 @@ export const executeEditContent = async (
                 }
                 return { slug, type, patch, approveSql: sqlApproval };
             }
+            if (type === 'composer_chart') {
+                return {
+                    slug,
+                    type,
+                    patch,
+                    approveSql:
+                        sqlChartSaving.mode === 'client_approved'
+                            ? approveClientSql
+                            : approveSql,
+                };
+            }
             return { slug, type, patch };
         };
         const result = await editContent(await getEditArgs());

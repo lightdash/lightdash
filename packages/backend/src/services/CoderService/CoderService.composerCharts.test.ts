@@ -128,3 +128,69 @@ describe('CoderService composer chart read for the agent', () => {
         expect(result.missingIds).toEqual(['hidden']);
     });
 });
+
+describe('CoderService composer chart upsert for the agent', () => {
+    const editedFile = (): AnyType => ({
+        ...storedChart('visible'),
+        contentType: 'composer_chart',
+        version: 1,
+        name: 'Renamed',
+        spaceSlug: 'jaffle',
+    });
+    const makeUpsertService = () => {
+        const writeFromCode = vi.fn(async () => 'visible');
+        const service = new CoderService({
+            lightdashConfig: { contentAsCode: { maxDownloads: 100 } },
+            projectModel: {
+                get: vi.fn(async () => ({
+                    projectUuid: PROJECT_UUID,
+                    organizationUuid: ORG_UUID,
+                })),
+            },
+            appModel: { findAppsByUuids: vi.fn(async () => []) },
+            composerChartModel: {
+                findIdentityBySlug: vi.fn(async () => ({
+                    uuid: 'visible',
+                    deleted: false,
+                })),
+                get: vi.fn(async () => storedChart('visible')),
+            },
+            composerChartService: {
+                isEnabled: vi.fn(async () => true),
+                writeFromCode,
+            },
+        } as AnyType);
+        return { service, writeFromCode };
+    };
+    const viewer = {
+        ...user,
+        ability: new Ability<PossibleAbilities>([]),
+    } as unknown as SessionUser;
+
+    it('needs the content as code permission by default', async () => {
+        const { service, writeFromCode } = makeUpsertService();
+        await expect(
+            service.upsertComposerChart(
+                viewer,
+                account,
+                PROJECT_UUID,
+                'visible',
+                editedFile(),
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(writeFromCode).not.toHaveBeenCalled();
+    });
+
+    it('skips only the content as code permission with space access, leaving the write checks to the composer chart service', async () => {
+        const { service, writeFromCode } = makeUpsertService();
+        await service.upsertComposerChart(
+            viewer,
+            account,
+            PROJECT_UUID,
+            'visible',
+            editedFile(),
+            { authorization: 'space_access' },
+        );
+        expect(writeFromCode).toHaveBeenCalledOnce();
+    });
+});
