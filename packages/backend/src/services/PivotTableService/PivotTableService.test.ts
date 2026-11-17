@@ -6,7 +6,7 @@ import {
 import { PivotTableService } from './PivotTableService';
 
 describe('PivotTableService.downloadPivotTableCsv', () => {
-    it('writes raw boolean pivot values as true and false', async () => {
+    it('writes raw boolean pivot and cell values as true and false', async () => {
         const service = new PivotTableService(
             {} as ConstructorParameters<typeof PivotTableService>[0],
         );
@@ -22,7 +22,7 @@ describe('PivotTableService.downloadPivotTableCsv', () => {
             projectUuid: 'project-1',
             rows: [
                 {
-                    orders_status: 'completed',
+                    orders_is_returned: false,
                     orders_total_order_amount_any_false: null,
                     orders_total_order_amount_any_true: 2397,
                 },
@@ -36,7 +36,10 @@ describe('PivotTableService.downloadPivotTableCsv', () => {
             pivotDetails: {
                 totalColumnCount: 3,
                 indexColumn: [
-                    { reference: 'orders_status', type: VizIndexType.CATEGORY },
+                    {
+                        reference: 'orders_is_returned',
+                        type: VizIndexType.CATEGORY,
+                    },
                 ],
                 valuesColumns: [false, true].map((value, index) => ({
                     referenceField: 'orders_total_order_amount',
@@ -65,8 +68,8 @@ describe('PivotTableService.downloadPivotTableCsv', () => {
         });
 
         const { csvContent } = downloadCsvFile.mock.calls[0][0];
-        expect(csvContent.split('\n')[0]).toBe(
-            '"orders_is_completed","false","true"',
-        );
+        const [pivotHeader, , dataRow] = csvContent.split('\n');
+        expect(pivotHeader).toBe('"orders_is_completed","false","true"');
+        expect(dataRow).toBe('"false",,"2397"');
     });
 });
