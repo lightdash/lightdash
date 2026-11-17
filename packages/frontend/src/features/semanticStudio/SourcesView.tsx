@@ -508,12 +508,18 @@ export const SourcePane: FC<{
     const [justSaved, setJustSaved] = useState<{
         key: string;
         content: string;
+        revision: string;
     } | null>(null);
-    const loaded =
-        file?.content ??
-        (justSaved?.key === editKey ? justSaved.content : null);
+    const saved = justSaved?.key === editKey ? justSaved : null;
+    const loaded = file?.content ?? saved?.content ?? null;
     const sourceRevision = useRef<string | null>(null);
-    if (text === null) sourceRevision.current = file?.revision ?? null;
+    // The revision is that of whatever is shown: the file once read, or what was just saved until then.
+    if (text === null) {
+        sourceRevision.current =
+            file?.content != null
+                ? file.revision
+                : (saved?.revision ?? file?.revision ?? null);
+    }
     const value = text ?? loaded ?? '';
     const isDirty = text !== null && text !== loaded;
     // A proposal shown in the editor is the agent's until the person types over it.
@@ -607,6 +613,7 @@ export const SourcePane: FC<{
                     setJustSaved({
                         key: `${target.projectUuid}\n${result.prUrl}\n${path}`,
                         content: value,
+                        revision: result.revision,
                     });
                     unsavedEdits.delete(savedKey);
                     // A save from live moves to its new change, and what is typed in another live file comes along.

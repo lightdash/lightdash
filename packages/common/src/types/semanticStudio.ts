@@ -100,6 +100,8 @@ export type SemanticStudioSourceSave =
           prAction: 'opened' | 'updated';
           commitSha: string;
           checked: boolean;
+          /** The revision of the file as saved, for the next save to be based on. */
+          revision: string;
       }
     | { status: 'failed'; error: string };
 

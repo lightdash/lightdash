@@ -2313,6 +2313,7 @@ export class SemanticStudioService extends BaseService {
             prAction: saved.result.prAction === 'opened' ? 'opened' : 'updated',
             commitSha,
             checked,
+            revision: createHash('sha256').update(content).digest('hex'),
         };
     }
 
