@@ -183,15 +183,9 @@ const warehouseQueryTypes: pg.CustomTypesConfig = {
     getTypeParser: getWarehouseTypeParser,
 };
 
-const parseUtcTimestamp = types.getTypeParser(builtins.TIMESTAMPTZ);
-
-const toLegacyTemporalValue = (value: string, oid: number) => {
-    if (value === 'infinity' || value === '-infinity') {
-        return parseUtcTimestamp(value);
-    }
-    const suffix = oid === builtins.DATE ? ' 00:00:00Z' : 'Z';
-    return parseUtcTimestamp(value.replace(/( BC)?$/, `${suffix}$1`));
-};
+// pg's own parse, in the server's timezone: result formatters rely on it to show the warehouse's wall clock.
+const toLegacyTemporalValue = (value: string, oid: number) =>
+    types.getTypeParser(oid, 'text')(value);
 
 const POSTGRES_NAME_TOO_LONG_SQLSTATE = '42622';
 

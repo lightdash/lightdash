@@ -136,14 +136,14 @@ describe('PostgresWarehouseClient', () => {
                 ]);
             });
 
-            it('returns the same Date values as the legacy UTC direct query', async () => {
+            it('returns the Date values pg parsed before, in the server timezone, for direct queries', async () => {
                 const warehouse = new PostgresWarehouseClient(credentials);
                 const { rows } = await warehouse.runQuery('SELECT temporal');
                 expect(rows).toEqual([
                     {
-                        day: new Date('2024-07-01T00:00:00.000Z'),
-                        midnight: new Date('2024-07-01T00:00:00.123Z'),
-                        springGap: new Date('2024-03-31T01:30:00.000Z'),
+                        day: new Date(2024, 6, 1),
+                        midnight: new Date(2024, 6, 1, 0, 0, 0, 123),
+                        springGap: new Date(2024, 2, 31, 1, 30),
                         duplicate: 'text',
                         ...instants,
                     },
