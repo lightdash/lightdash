@@ -18338,6 +18338,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                threadOwnershipIdentifier: { dataType: 'string' },
                 canViewDebugInfo: { dataType: 'boolean' },
                 canExplore: { dataType: 'boolean' },
                 agentUuid: { dataType: 'string', required: true },
@@ -83824,11 +83825,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.ParametersValuesMap_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'ParametersValuesMap' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ComposerChartRunResults: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                usedParameterValuesByNodeId: {
+                    ref: 'Record_string.ParametersValuesMap_',
+                    required: true,
+                },
                 sqlColumns: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'ResultColumn' },

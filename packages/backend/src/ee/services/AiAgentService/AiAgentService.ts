@@ -123,6 +123,7 @@ import {
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
+    getEmbedThreadOwnerIdentifier,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
     getFields,
@@ -986,6 +987,8 @@ type EmbedAiAgentRuntimeOptions = {
     writeSpaceUuids: string[];
     // The host application's id for the viewer, when its token carries one.
     externalUserId: string | null;
+    // Owns the threads this token starts: its threadOwnershipIdentifier, else the viewer.
+    threadOwnerIdentifier: string | null;
     threadScope: EmbedThreadScope;
     spaceAccess: string[];
     // Source spaces the agent may read but not write to.
@@ -3573,6 +3576,9 @@ export class AiAgentService extends BaseService {
         const chartSpaceUuids = getEmbedActorChartSpaceUuids(account);
         const externalUserId =
             account.authentication.data.user?.externalId || null;
+        const threadOwnerIdentifier = getEmbedThreadOwnerIdentifier(
+            account.authentication.data,
+        );
         const isReadOnly = isEmbedReadOnlyAiAgentToken(
             account.authentication.data,
         );
@@ -3595,13 +3601,16 @@ export class AiAgentService extends BaseService {
             threadScope = {
                 type: 'writeSpaces',
                 writeSpaceUuids,
-                externalUserId,
+                ownerIdentifier: threadOwnerIdentifier,
             };
-        } else if (externalUserId !== null) {
-            threadScope = { type: 'externalUser', externalUserId };
+        } else if (threadOwnerIdentifier !== null) {
+            threadScope = {
+                type: 'owner',
+                ownerIdentifier: threadOwnerIdentifier,
+            };
         } else {
             throw new ForbiddenError(
-                'Embed tokens without write spaces must include user.externalId',
+                'Embed tokens without write spaces must include user.externalId or content.threadOwnershipIdentifier',
             );
         }
 
@@ -3611,6 +3620,7 @@ export class AiAgentService extends BaseService {
             runtimeOptions: {
                 writeSpaceUuids,
                 externalUserId,
+                threadOwnerIdentifier,
                 threadScope,
                 spaceAccess: chartSpaceUuids,
                 readOnlySpaceUuids: chartSpaceUuids.filter(
@@ -5877,7 +5887,7 @@ export class AiAgentService extends BaseService {
             createdFrom: body.createdFrom ?? createdFrom,
             agentUuid,
             embedSpaceUuids: runtimeOptions?.writeSpaceUuids,
-            embedExternalUserId: runtimeOptions?.externalUserId ?? null,
+            embedOwnerIdentifier: runtimeOptions?.threadOwnerIdentifier ?? null,
             battleProfile: body.battleProfile ?? null,
             binding,
             threadContext,
@@ -10416,6 +10426,9 @@ export class AiAgentService extends BaseService {
             }))
         )
             return 'agent_unavailable';
+        // Results an agent produced while Data Access was on stop being
+        // readable as that agent once Data Access is off.
+        if (!agent.enableDataAccess) return 'data_access_off';
         return 'allowed';
     }
 
@@ -10442,10 +10455,13 @@ export class AiAgentService extends BaseService {
             prompt.agentUuid !== agent.uuid ||
             prompt.projectUuid !== projectUuid ||
             prompt.organizationUuid !== user.organizationUuid ||
-            prompt.threadUuid !== artifact.threadUuid ||
-            !agent.enableDataAccess
+            prompt.threadUuid !== artifact.threadUuid
         )
             throw new ForbiddenError('Artifact results are unavailable');
+        // A metadata-only agent never runs data queries, so no agent produced
+        // these results. The owner runs and reads the chart as themselves,
+        // under their own access, like any other person opening it.
+        if (!agent.enableDataAccess) return { kind: 'person', authMethod };
         const surface =
             querySurfaceFromPrompt(prompt) === QuerySurface.SLACK
                 ? AgentActorSurface.SLACK_AGENT

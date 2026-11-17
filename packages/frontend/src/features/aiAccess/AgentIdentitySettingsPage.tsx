@@ -112,7 +112,7 @@ export const AgentIdentitySettingsPage = ({
         <SettingsPage
             title="Agents"
             breadcrumbs={[{ title: 'Organization settings' }]}
-            description="Who agents run as, and what they may do. Agents are Ask AI, the Slack agent, MCP clients and the CLI."
+            description="These rules apply to every project in this organization. Agents are Ask AI, the Slack agent, MCP clients and the CLI. Each project's shared agent account is in that project's settings."
         >
             <AgentSettingsContent access={access} />
         </SettingsPage>

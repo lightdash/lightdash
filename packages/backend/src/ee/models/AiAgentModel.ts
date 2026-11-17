@@ -318,14 +318,14 @@ const sqlApprovalToolCallSql = (alias: string): string =>
         queries: [{ sourceType: QuerySourceType.SQL }],
     })}'::jsonb))`;
 
-/** Which embedded threads a token can see: by its write spaces and viewer, or by its viewer alone when it has no write spaces. */
+/** Which embedded threads a token can see: by its write spaces and thread owner, or by its thread owner alone when it has no write spaces. */
 export type EmbedThreadScope =
     | {
           type: 'writeSpaces';
           writeSpaceUuids: string[];
-          externalUserId: string | null;
+          ownerIdentifier: string | null;
       }
-    | { type: 'externalUser'; externalUserId: string };
+    | { type: 'owner'; ownerIdentifier: string };
 
 export type AiPromptResponseState = {
     respondedAt: string | null;
@@ -7174,6 +7174,7 @@ export class AiAgentModel {
                 threadUuid: `${AiPromptTableName}.ai_thread_uuid`,
                 threadCreatedFrom: `${AiThreadTableName}.created_from`,
                 threadEmbedSpaceUuid: `${AiWebAppThreadTableName}.embed_space_uuid`,
+                threadEmbedOwnerIdentifier: `${AiWebAppThreadTableName}.embed_external_user_id`,
                 agentUuid: `${AiThreadTableName}.agent_uuid`,
                 createdByUserUuid: `${AiPromptTableName}.created_by_user_uuid`,
                 userUuid: `${AiWebAppPromptTableName}.user_uuid`,
@@ -7228,7 +7229,7 @@ export class AiAgentModel {
                 embed_space_uuids: data.embedSpaceUuids?.length
                     ? data.embedSpaceUuids
                     : null,
-                embed_external_user_id: data.embedExternalUserId ?? null,
+                embed_external_user_id: data.embedOwnerIdentifier ?? null,
             });
 
             return row.ai_thread_uuid;
@@ -7247,7 +7248,7 @@ export class AiAgentModel {
             .select({
                 createdFrom: `${AiThreadTableName}.created_from`,
                 embedSpaceUuid: `${AiWebAppThreadTableName}.embed_space_uuid`,
-                embedExternalUserId: `${AiWebAppThreadTableName}.embed_external_user_id`,
+                embedOwnerIdentifier: `${AiWebAppThreadTableName}.embed_external_user_id`,
             })
             .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
             .first();
@@ -7360,16 +7361,16 @@ export class AiAgentModel {
             case 'writeSpaces': {
                 // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
                 const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
-                // A token without a viewer only sees threads started without one.
+                // A token without an owner only sees threads started without one.
                 return this.database.raw(
                     `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0 AND ${AiWebAppThreadTableName}.embed_external_user_id IS NOT DISTINCT FROM ?::text)`,
-                    [scope.writeSpaceUuids, scope.externalUserId],
+                    [scope.writeSpaceUuids, scope.ownerIdentifier],
                 );
             }
-            case 'externalUser':
+            case 'owner':
                 return this.database.raw(
                     `(${AiWebAppThreadTableName}.embed_space_uuid IS NULL AND ${AiWebAppThreadTableName}.embed_space_uuids IS NULL AND ${AiWebAppThreadTableName}.embed_external_user_id = ?)`,
-                    [scope.externalUserId],
+                    [scope.ownerIdentifier],
                 );
             default:
                 return assertUnreachable(scope, 'Unknown embed thread scope');

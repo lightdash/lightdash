@@ -18,6 +18,8 @@ import {
 } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import TileBase from '../../../components/DashboardTiles/TileBase/index';
+import { TileFiltersPopover } from '../../../components/DashboardTiles/TileFiltersPopover';
+import { TileParametersPopover } from '../../../components/DashboardTiles/TileParametersPopover';
 import { useUiString } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardFiltersForTile from '../../../hooks/dashboard/useDashboardFiltersForTile';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -29,6 +31,8 @@ import {
     dashboardParametersActions,
     dashboardTileStatusActions,
     selectSqlChartTilesMetadata,
+    selectDashboardParameterDefinitions,
+    selectFilterableFieldsByTileUuid,
     selectInvalidateCache,
     selectParameterValues,
     selectRefreshCounter,
@@ -40,6 +44,8 @@ import {
     useComposerChart,
     useComposerChartRun,
 } from '../hooks/useComposerChartRun';
+import { getComposerTileFilterItems } from '../utils/composerTileFilterItems';
+import { getComposerTileParameterItems } from '../utils/composerTileParameterItems';
 import { ComposerChartVisualization } from './ComposerChartVisualization';
 
 type Props = Pick<
@@ -111,8 +117,17 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
     const projectUuid = useProjectUuid();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const appliedParameterValues = useDashboardSelector(selectParameterValues);
-    const { dashboardValues: parameters, excludedParameterKeys } =
-        useTileDashboardParameterInputs(tile.uuid, appliedParameterValues);
+    const {
+        dashboardValues: parameters,
+        excludedKeys,
+        excludedParameterKeys,
+    } = useTileDashboardParameterInputs(tile.uuid, appliedParameterValues);
+    const parameterDefinitions = useDashboardSelector(
+        selectDashboardParameterDefinitions,
+    );
+    const filterableFields = useDashboardSelector(
+        (state) => selectFilterableFieldsByTileUuid(state)?.[tile.uuid],
+    );
     const invalidateCache = useDashboardSelector(selectInvalidateCache);
     const refreshCounter = useDashboardSelector(selectRefreshCounter);
     const dashboardFilters = useDashboardFiltersForTile(tile.uuid);
@@ -162,6 +177,33 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             );
         }
     }, [dispatch, tile.uuid, run, hasReportedSqlColumns]);
+    const filterItems = useMemo(
+        () =>
+            chart && run
+                ? getComposerTileFilterItems({
+                      nodes: chart.pipeline.nodes,
+                      appliedDashboardFiltersByNodeId:
+                          run.appliedDashboardFiltersByNodeId,
+                      fields: filterableFields ?? [],
+                      sqlColumns: run.sqlColumns,
+                  })
+                : [],
+        [chart, run, filterableFields],
+    );
+    const parameterItems = useMemo(
+        () =>
+            chart && run
+                ? getComposerTileParameterItems({
+                      nodes: chart.pipeline.nodes,
+                      usedParameterValuesByNodeId:
+                          run.usedParameterValuesByNodeId,
+                      definitions: parameterDefinitions,
+                      dashboardValues: parameters,
+                      excludedKeys,
+                  })
+                : [],
+        [chart, run, parameterDefinitions, parameters, excludedKeys],
+    );
     const title = getTitle(tile);
     const terminal = useInfiniteQueryResults(
         projectUuid,
@@ -257,6 +299,15 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                     : null
             }
             fullWidth={readyDraw?.chartConfig.type === ChartType.TABLE}
+            extraHeaderElement={
+                <>
+                    <TileFiltersPopover
+                        dashboardFilters={filterItems}
+                        chartFilters={[]}
+                    />
+                    <TileParametersPopover items={parameterItems} />
+                </>
+            }
         >
             {errorMessage ? (
                 <TileError tileUuid={tile.uuid} message={errorMessage} />

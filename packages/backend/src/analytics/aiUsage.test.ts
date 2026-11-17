@@ -432,20 +432,20 @@ describe('getAiUsageChannel', () => {
     it.each([
         ['web_app', null, null, 'web'],
         ['web_app', 'space-1', null, 'embed'],
-        ['web_app', null, 'viewer-1', 'embed'],
+        ['web_app', null, 'owner-1', 'embed'],
         ['api', null, null, 'api'],
         ['slack', null, null, 'slack'],
         ['evals', null, null, 'evals'],
         ['scheduler', null, null, 'scheduler'],
         ['data_app', null, null, 'data_app'],
     ] as const)(
-        'labels a %s thread (embed space %s, embed viewer %s) as %s',
-        (createdFrom, embedSpaceUuid, embedExternalUserId, channel) => {
+        'labels a %s thread (embed space %s, embed owner %s) as %s',
+        (createdFrom, embedSpaceUuid, embedOwnerIdentifier, channel) => {
             expect(
                 getAiUsageChannel({
                     createdFrom,
                     embedSpaceUuid,
-                    embedExternalUserId,
+                    embedOwnerIdentifier,
                 }),
             ).toBe(channel);
         },

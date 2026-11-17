@@ -164,10 +164,11 @@ describe('artifact export access', () => {
         const { access, getExplore } = setup({
             writeSpaceUuids: ['other-space'],
             externalUserId: null,
+            threadOwnerIdentifier: null,
             threadScope: {
                 type: 'writeSpaces',
                 writeSpaceUuids: ['other-space'],
-                externalUserId: null,
+                ownerIdentifier: null,
             },
             spaceAccess: ['other-space'],
             readOnlySpaceUuids: [],
