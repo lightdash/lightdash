@@ -28693,6 +28693,24 @@
                     },
                     {
                         "properties": {
+                            "sqlChartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "sqlChartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["sql_chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["sqlChartSlug", "sqlChartUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "promptUuid": {
                                 "type": "string",
                                 "nullable": true
@@ -36508,6 +36526,38 @@
                             "pinnedVersionUuid",
                             "dashboardSlug",
                             "dashboardUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "pinnedVersionUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "sqlChartSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "sqlChartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["sql_chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "pinnedVersionUuid",
+                            "sqlChartSlug",
+                            "sqlChartUuid",
                             "type"
                         ],
                         "type": "object"
@@ -79881,7 +79931,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.283.2",
+        "version": "3.284.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

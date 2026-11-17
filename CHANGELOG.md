@@ -1,3 +1,15 @@
+# [3.284.0](https://github.com/lightdash/lightdash/compare/3.283.2...3.284.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **explorer:** quieten section headers and field group names ([#32715](https://github.com/lightdash/lightdash/issues/32715)) ([b2c49f6](https://github.com/lightdash/lightdash/commit/b2c49f695e595295123b3db7f78bb6919e413962))
+
+
+### Features
+
+* **ai:** Ask AI on SQL chart dashboard tiles ([#32711](https://github.com/lightdash/lightdash/issues/32711)) ([90b9b12](https://github.com/lightdash/lightdash/commit/90b9b127065bc4155e4c75e848efd9ff64222c6d))
+
 ## [3.283.2](https://github.com/lightdash/lightdash/compare/3.283.1...3.283.2) (2026-11-17)
 
 
