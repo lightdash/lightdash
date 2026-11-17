@@ -177,6 +177,7 @@ import {
 } from '../verifiedContentGuards';
 import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 import {
+    assertCanRollbackComposerCharts,
     duplicateComposerChartTiles,
     rollbackComposerCharts,
 } from './composerChartTiles';
@@ -217,7 +218,7 @@ type DashboardServiceArguments = {
     >;
     getComposerChartService: () => Pick<
         ComposerChartService,
-        'getParameterReferences'
+        'getParameterReferences' | 'assertCanRestore'
     >;
 };
 
@@ -4983,10 +4984,11 @@ export class DashboardService
     }
 
     async rollback(
-        user: SessionUser,
+        account: RegisteredAccount,
         dashboardUuidOrSlug: UuidOrSlug,
         versionUuid: UUID,
     ): Promise<void> {
+        const user = toSessionUser(account);
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
@@ -5035,6 +5037,17 @@ export class DashboardService
         assertDashboardWithinLimits(
             targetVersion,
             this.lightdashConfig.dashboard,
+        );
+        await assertCanRollbackComposerCharts(
+            this.composerChartModel,
+            this.getComposerChartService,
+            account,
+            {
+                organizationUuid: dashboardDao.organizationUuid,
+                projectUuid: dashboardDao.projectUuid,
+            },
+            targetVersion.tiles,
+            targetVersion.versionUuid,
         );
 
         const agentIdentity = getContentWriteAgentIdentity({

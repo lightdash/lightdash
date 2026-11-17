@@ -180,6 +180,48 @@ export class ComposerChartModel {
             .delete();
     }
 
+    /** The chart's version that was current when the dashboard version was saved. */
+    private static versionAsOf(
+        database: Knex,
+        uuid: string,
+        dashboardVersionUuid: string,
+    ) {
+        // Compared in Postgres: a JS Date would drop the microseconds
+        return database(ComposerChartVersionsTableName)
+            .select('pipeline', 'chart')
+            .where('composer_chart_uuid', uuid)
+            .where(
+                'created_at',
+                '<=',
+                database(DashboardVersionsTableName)
+                    .select('created_at')
+                    .where('dashboard_version_uuid', dashboardVersionUuid),
+            )
+            .orderBy('created_at', 'desc')
+            .first();
+    }
+
+    /** The pipeline a rollback to the dashboard version would restore, beside the current one; null when there is none. */
+    async getRollbackPipelines(
+        uuid: string,
+        dashboardVersionUuid: string,
+    ): Promise<{ restored: unknown; current: unknown } | null> {
+        const [restored, current] = await Promise.all([
+            ComposerChartModel.versionAsOf(
+                this.database,
+                uuid,
+                dashboardVersionUuid,
+            ),
+            this.database(ComposerChartVersionsTableName)
+                .select('pipeline')
+                .where('composer_chart_uuid', uuid)
+                .orderBy('created_at', 'desc')
+                .first(),
+        ]);
+        if (!restored || !current) return null;
+        return { restored: restored.pipeline, current: current.pipeline };
+    }
+
     /** Appends a copy of the version current when the dashboard version was saved, if any. */
     async rollbackToDashboardVersion(
         uuid: string,
@@ -187,19 +229,11 @@ export class ComposerChartModel {
         userUuid: string,
         trx: Knex.Transaction,
     ): Promise<void> {
-        // Compared in Postgres: a JS Date would drop the microseconds
-        const version = await trx(ComposerChartVersionsTableName)
-            .select('pipeline', 'chart')
-            .where('composer_chart_uuid', uuid)
-            .where(
-                'created_at',
-                '<=',
-                trx(DashboardVersionsTableName)
-                    .select('created_at')
-                    .where('dashboard_version_uuid', dashboardVersionUuid),
-            )
-            .orderBy('created_at', 'desc')
-            .first();
+        const version = await ComposerChartModel.versionAsOf(
+            trx,
+            uuid,
+            dashboardVersionUuid,
+        );
         if (!version) return;
         await trx(ComposerChartVersionsTableName).insert({
             composer_chart_uuid: uuid,

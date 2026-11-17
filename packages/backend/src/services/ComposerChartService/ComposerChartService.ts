@@ -319,6 +319,19 @@ export class ComposerChartService extends BaseService {
         await this.pinCustomChartType(project.projectUuid, input);
     }
 
+    /** A rollback makes a stored pipeline current again, so it passes the checks a write does. */
+    async assertCanRestore(
+        account: RegisteredAccount,
+        project: ProjectSubject,
+        storedPipeline: unknown,
+    ): Promise<void> {
+        await this.assertCanWritePipeline(
+            account,
+            project,
+            parseComposerPipeline(storedPipeline),
+        );
+    }
+
     async create(
         account: RegisteredAccount,
         projectUuid: string,
