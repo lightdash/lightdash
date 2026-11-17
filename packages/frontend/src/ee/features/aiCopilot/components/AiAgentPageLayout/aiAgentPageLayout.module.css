@@ -20,13 +20,8 @@
         color-mix(in srgb, var(--mantine-color-ldGray-0) 50%, white),
         var(--mantine-color-ldGray-0)
     );
-    &[data-collapsed] {
-        min-width: 3rem;
-    }
-
     &[data-collapsed='true'] {
-        align-items: center;
-        padding: var(--mantine-spacing-sm) rem(6px);
+        padding: 0;
     }
 }
 
@@ -61,11 +56,6 @@
 .sidebarHeader {
     flex-shrink: 0;
     margin-bottom: var(--mantine-spacing-xs);
-
-    &[data-collapsed] {
-        flex-direction: column-reverse;
-        gap: var(--mantine-spacing-sm);
-    }
 }
 
 .sidebarTitle {
@@ -73,9 +63,18 @@
 }
 
 .chat {
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
+}
+
+/* Pages without a header (router view) float the controls top-left */
+.floatingSidebarOpener {
+    position: absolute;
+    top: var(--mantine-spacing-md);
+    left: var(--mantine-spacing-md);
+    z-index: 2;
 }
 
 .chatHeader {
