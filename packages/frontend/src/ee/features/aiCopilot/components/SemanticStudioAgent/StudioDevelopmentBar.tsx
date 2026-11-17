@@ -13,6 +13,7 @@ import MantineModal from '../../../../../components/common/MantineModal';
 import { DevelopmentBar } from '../../../../../features/semanticStudio/DevelopmentBar';
 import {
     getDevelopmentPreview,
+    isDevelopmentViewPinned,
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
 import { rememberGoingLive } from '../../../../../features/semanticStudio/useGoingLive';
@@ -77,6 +78,7 @@ export const StudioDevelopmentBar: FC<{
     useEffect(() => {
         if (
             isTrying &&
+            !isDevelopmentViewPinned() &&
             previewProjectUuid &&
             getDevelopmentPreview() !== previewProjectUuid
         ) {

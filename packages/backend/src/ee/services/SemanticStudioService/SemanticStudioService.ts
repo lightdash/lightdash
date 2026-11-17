@@ -12,6 +12,7 @@ import {
     isDashboardValidationError,
     isExploreError,
     isUserManagedExplore,
+    JobStatusType,
     NotFoundError,
     ParameterError,
     ProjectType,
@@ -52,6 +53,7 @@ import { text } from 'node:stream/consumers';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import { type DraftImpactBreaks } from '../../../database/entities/projectModelDraftImpacts';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { type JobModel } from '../../../models/JobModel/JobModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { BaseService } from '../../../services/BaseService';
 import { readCompiledDbtManifest } from '../../../services/ProjectService/compiledDbtManifest';
@@ -173,6 +175,7 @@ export type SemanticStudioServiceArguments = {
         'isInstalled' | 'load' | 'openPullRequest'
     >;
     savedChartModel: Pick<SavedChartModel, 'analyzeFieldImpact'>;
+    jobModel: Pick<JobModel, 'findLatestCompileStatus'>;
     aiWritebackService: Pick<
         AiWritebackService,
         'openStudioCheckout' | 'saveWithScript'
@@ -306,6 +309,8 @@ export class SemanticStudioService extends BaseService {
 
     private readonly aiWritebackService: SemanticStudioServiceArguments['aiWritebackService'];
 
+    private readonly jobModel: SemanticStudioServiceArguments['jobModel'];
+
     private readonly checker: DraftChecker;
 
     /** Publishes under way, so a repeated request joins the one already running. */
@@ -327,6 +332,7 @@ export class SemanticStudioService extends BaseService {
         this.fileStorageClient = args.fileStorageClient;
         this.workspaceModel = args.workspaceModel;
         this.aiWritebackService = args.aiWritebackService;
+        this.jobModel = args.jobModel;
         this.checker = new DraftChecker(args.projectService);
     }
 
@@ -1057,6 +1063,13 @@ export class SemanticStudioService extends BaseService {
         // Until its first compile a preview holds only the explores copied into it; the person's own compiled change stands in.
         if (Object.values(explores).every(isUserManagedExplore)) {
             return this.findDbtTryOutExplores(user, projectUuid);
+        }
+        // A reused preview holds the previous round until its compile ends, and for good if that compile fails.
+        const compile =
+            await this.jobModel.findLatestCompileStatus(previewProjectUuid);
+        if (compile !== null && compile !== JobStatusType.DONE) {
+            const tryOut = await this.findDbtTryOutExplores(user, projectUuid);
+            if (tryOut) return tryOut;
         }
         return new Map<string, Explore | ExploreError | null>([
             // A model the branch removes is in the live project and not in its preview.

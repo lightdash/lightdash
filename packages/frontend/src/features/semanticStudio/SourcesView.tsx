@@ -513,8 +513,8 @@ export const SourcePane: FC<{
     const isDirty = text !== null && text !== loaded;
     // A proposal shown in the editor is the agent's until the person types over it.
     const hasOwnEdits = isDirty && text !== offered;
-    const openKey = useRef(editKey);
-    openKey.current = editKey;
+    const open = useRef({ key: editKey, path });
+    open.current = { key: editKey, path };
     // Null at first, so coming back to Sources brings back what was left unsaved.
     const shownKey = useRef<string | null>(null);
     useEffect(() => {
@@ -579,7 +579,7 @@ export const SourcePane: FC<{
         if (!path || !isDirty || save.isLoading || !target.canEdit) return;
         // The save may land after another file is opened; it then leaves that file alone.
         const savedKey = editKey;
-        const isStillOpen = () => openKey.current === savedKey;
+        const isStillOpen = () => open.current.key === savedKey;
         const named = (message: string) =>
             isStillOpen() ? message : `${fileName(path)}: ${message}`;
         save.mutate(
@@ -601,6 +601,15 @@ export const SourcePane: FC<{
                         content: value,
                     });
                     unsavedEdits.delete(savedKey);
+                    // A save from live moves to its new change, and what is typed in another file comes along.
+                    const typed = unsavedEdits.get(open.current.key);
+                    if (!isStillOpen() && typed !== undefined) {
+                        unsavedEdits.delete(open.current.key);
+                        keepUnsaved(
+                            `${target.projectUuid}\n${result.prUrl}\n${open.current.path ?? ''}`,
+                            typed,
+                        );
+                    }
                     if (isStillOpen()) {
                         reset();
                         setNotice(
@@ -656,7 +665,7 @@ export const SourcePane: FC<{
         );
     }
     // An unread file is not shown as an empty one, which could be typed in and saved over it.
-    if (readError && loaded === null) {
+    if (readError && loaded === null && text === null) {
         return (
             <Stack align="center" gap="xs" py="xl">
                 <Text fz="sm" c="dimmed">

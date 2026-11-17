@@ -26,17 +26,21 @@ const getPendingWritebackExpiresAt = (thread: Thread): number | null => {
                 ? message.toolResults.flatMap((toolResult) => {
                       if (!isToolEditDbtProjectResult(toolResult)) return [];
                       const { metadata } = toolResult;
-                      // A recorded pull request is still read again until its preview settles.
-                      const isPending =
-                          metadata.status === 'pending' ||
-                          (metadata.status === 'success' &&
-                              metadata.isPreviewPending === true);
-                      if (!isPending) return [];
+                      // A recorded pull request is read again until its preview settles, timed from when it was recorded.
+                      const previewPendingSince =
+                          metadata.status === 'success'
+                              ? (metadata.previewPendingSince ?? null)
+                              : null;
+                      if (
+                          metadata.status !== 'pending' &&
+                          previewPendingSince === null
+                      ) {
+                          return [];
+                      }
 
-                      const createdAt =
-                          toolResult.createdAt instanceof Date
-                              ? toolResult.createdAt.getTime()
-                              : new Date(toolResult.createdAt).getTime();
+                      const createdAt = new Date(
+                          previewPendingSince ?? toolResult.createdAt,
+                      ).getTime();
                       return Number.isFinite(createdAt)
                           ? [createdAt + AI_WRITEBACK_PENDING_GRACE_MS]
                           : [];

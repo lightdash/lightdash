@@ -477,12 +477,30 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         expect(
             updateToolResult.mock.calls.map(([, , { metadata }]) => [
                 metadata.previewUrl,
-                metadata.isPreviewPending,
+                typeof metadata.previewPendingSince,
             ]),
         ).toEqual([
-            [null, true],
-            ['https://preview.example.com', false],
+            [null, 'string'],
+            ['https://preview.example.com', 'object'],
         ]);
+    });
+
+    it('keeps a Studio pull request recorded when its preview is refused', async () => {
+        const { service, updateToolResult, createPreviewForPullRequest } =
+            buildService({ threadCreatedFrom: 'semantic_studio' });
+        createPreviewForPullRequest.mockRejectedValue(
+            new WritebackAgentAccessError(new Error('revoked')),
+        );
+
+        await expect(
+            service.runEditDbtProjectPipeline(PAYLOAD),
+        ).rejects.toBeInstanceOf(WritebackAgentAccessError);
+
+        expect(updateToolResult.mock.lastCall?.[2].metadata).toMatchObject({
+            status: 'success',
+            previewUrl: null,
+            previewPendingSince: null,
+        });
     });
 
     it('classifies a closed-PR error and does not rethrow', async () => {

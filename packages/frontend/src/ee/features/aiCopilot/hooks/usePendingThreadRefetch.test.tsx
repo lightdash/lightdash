@@ -136,8 +136,9 @@ describe('usePendingThreadRefetch', () => {
     it('keeps reading a recorded pull request until its preview settles', () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-08-11T12:00:00.000Z'));
-        const withPreview = (isPreviewPending: boolean) => {
-            const thread = pendingThread('2026-08-11T12:00:00.001Z');
+        // The run itself started long ago; only the preview's own clock counts.
+        const withPreview = (previewPendingSince: string | null) => {
+            const thread = pendingThread('2026-08-11T11:00:00.000Z');
             Object.assign(thread!.messages[0], {
                 toolResults: [
                     {
@@ -146,25 +147,25 @@ describe('usePendingThreadRefetch', () => {
                         metadata: {
                             status: 'success',
                             prUrl: 'https://github.com/acme/dbt/pull/7',
-                            isPreviewPending,
+                            previewPendingSince,
                         },
-                        createdAt: '2026-08-11T12:00:00.001Z',
+                        createdAt: '2026-08-11T11:00:00.000Z',
                     },
                 ],
             });
             return thread;
         };
-        const isPending = (isPreviewPending: boolean) =>
+        const isPending = (previewPendingSince: string | null) =>
             renderHook(() =>
                 usePendingThreadRefetch(
-                    withPreview(isPreviewPending),
+                    withPreview(previewPendingSince),
                     'thread-1',
                     vi.fn(),
                 ),
             ).result.current.isBackgroundWorkPending;
 
-        expect(isPending(true)).toBe(true);
-        expect(isPending(false)).toBe(false);
+        expect(isPending('2026-08-11T11:59:00.000Z')).toBe(true);
+        expect(isPending(null)).toBe(false);
     });
 
     it('polls a pending thread while recovering its connection', async () => {

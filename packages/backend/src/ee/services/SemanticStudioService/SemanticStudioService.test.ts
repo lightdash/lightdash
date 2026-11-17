@@ -7,6 +7,7 @@ import {
     FieldImpactSeverity,
     ForbiddenError,
     isExploreError,
+    JobStatusType,
     MetricType,
     NotFoundError,
     ParameterError,
@@ -140,6 +141,7 @@ const setup = ({
     usedFields = [],
     previewOf = PROJECT_UUID,
     previewExplores = {},
+    previewCompile = null,
     publishedSince = new Map(),
     enabled = true,
     dbtConnection = { type: DbtProjectType.NONE },
@@ -164,6 +166,7 @@ const setup = ({
     /** The project the preview project was built from. */
     previewOf?: string;
     previewExplores?: Record<string, Explore | ExploreError>;
+    previewCompile?: JobStatusType | null;
     publishedSince?: Map<string, { by: string | null; at: Date }>;
     enabled?: boolean;
     /** A repository connection makes `stored` the models in that repository. */
@@ -520,6 +523,7 @@ const setup = ({
             setExplores,
             compileExploresFromManifest,
         },
+        jobModel: { findLatestCompileStatus: async () => previewCompile },
         fileStorageClient: {
             isEnabled: () => true,
             uploadTxt: async (txt, id) => {
@@ -1225,6 +1229,42 @@ describe('SemanticStudioService', () => {
                 )?.get('try_out'),
             ).toEqual(TRY_OUT_EXPLORE);
         });
+
+        it.each([
+            [JobStatusType.RUNNING, 'try_out'],
+            [JobStatusType.ERROR, 'try_out'],
+            [JobStatusType.DONE, 'payments'],
+        ])(
+            'reads a reused preview only once its compile is done (%s)',
+            async (previewCompile, shown) => {
+                const context = dbt({
+                    previewExplores: {
+                        payments: {
+                            name: 'payments',
+                            label: 'Payments',
+                            errors: [],
+                        },
+                    },
+                    previewCompile,
+                });
+                await context.service.saveDbtTryOut(
+                    repoWriter,
+                    PROJECT_UUID,
+                    project,
+                    null,
+                );
+                const explores = await context.service.findPreviewExplores(
+                    repoWriter,
+                    PROJECT_UUID,
+                    PREVIEW_UUID,
+                );
+                expect(
+                    ['try_out', 'payments'].filter((name) =>
+                        explores?.has(name),
+                    ),
+                ).toEqual([shown]);
+            },
+        );
 
         it('compiles nothing for someone who cannot change the project, or a manifest that is not JSON', async () => {
             const context = dbt();

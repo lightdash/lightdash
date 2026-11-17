@@ -10,7 +10,10 @@ import {
     type FC,
 } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useDevelopmentView } from '../../../../../features/semanticStudio/developmentView';
+import {
+    pinDevelopmentView,
+    useDevelopmentView,
+} from '../../../../../features/semanticStudio/developmentView';
 import {
     useStudioPullRequest,
     type StudioPullRequest,
@@ -53,8 +56,10 @@ export const TryIt: FC<{
     const turnOn = useRef({ isOn, setIsOn, preview });
     useEffect(() => {
         const { isOn: wasOn, setIsOn: set, preview: tried } = turnOn.current;
+        const unpin = pinDevelopmentView();
         set(true, tried);
         return () => {
+            unpin();
             if (!wasOn) set(false);
         };
     }, []);

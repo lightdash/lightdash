@@ -193,19 +193,20 @@ export class WritebackPreviewService extends BaseService {
                 return null;
             }
 
+            const comments = await this.githubClient
+                .getPullRequestComments({
+                    owner: parsed.owner,
+                    repo: parsed.repo,
+                    pullNumber: parsed.pullNumber,
+                    token,
+                })
+                .catch(() => []);
             if (assertPublishAllowed) await assertPublishAllowed();
             const existing = await this.refreshExistingPreview({
                 user,
                 projectUuid,
                 headRef: pullRequest.headRef,
-                comments: await this.githubClient
-                    .getPullRequestComments({
-                        owner: parsed.owner,
-                        repo: parsed.repo,
-                        pullNumber: parsed.pullNumber,
-                        token,
-                    })
-                    .catch(() => []),
+                comments,
             });
             if (existing) return existing;
 
@@ -281,7 +282,6 @@ export class WritebackPreviewService extends BaseService {
             ) {
                 return null;
             }
-            // ponytail: the preview serves the previous round until this compile ends; clear or version its explores if that minute matters.
             const { jobUuid } =
                 await this.projectService.scheduleCompileProject(
                     user,
