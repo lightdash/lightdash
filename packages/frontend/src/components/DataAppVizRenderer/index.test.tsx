@@ -968,6 +968,26 @@ describe('DataAppVizRenderer', () => {
         );
     });
 
+    it.each([
+        ['a chart version', { chartVersionUuid: 'chart-version-uuid' }],
+        ['an embed', { embedToken: 'embed-token' }],
+    ])(
+        'never asks external fetches for the draft from %s',
+        (_label, target) => {
+            mocks.vizContextOverrides.current = {
+                hasUnpublishedChanges: true,
+            };
+            mocks.chartVersionUuid.current = target.chartVersionUuid;
+            mocks.embedToken.current = target.embedToken;
+
+            renderRenderer();
+
+            expect(
+                mocks.iframePreview.mock.lastCall?.[0].chartContext,
+            ).not.toHaveProperty('includeUnpublishedDraft');
+        },
+    );
+
     it('passes the chart version selected by the host', () => {
         mocks.chartVersionUuid.current = 'chart-version-uuid';
 
