@@ -136,7 +136,7 @@ import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { EDIT_BAR_POSITION } from './editBarPosition';
 import { EDIT_SHORTCUTS, toHotkeyItems } from './editShortcuts';
-import { DashboardEditTour } from './onboarding';
+import { DashboardEditTour, EXAMPLE_PENDING_CHANGES } from './onboarding';
 import { PendingChangesButton } from './PendingChangesButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
 import { ShortcutHint, TourFrame } from './ShortcutHint';
@@ -250,6 +250,7 @@ const DashboardHeader = memo(
                 : [],
         );
         const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+        const [showsExampleChanges, setShowsExampleChanges] = useState(false);
         const [isRefreshOptionsOpen, setIsRefreshOptionsOpen] = useState(false);
         const [isUpdating, setIsUpdating] = useState(false);
         const [isSlugRenameModalOpen, slugRenameModalHandlers] =
@@ -804,13 +805,22 @@ const DashboardHeader = memo(
                                     value={editFiltersVisibility}
                                     onChange={onEditFiltersVisibilityChange}
                                 />
-                                <DashboardEditTour />
+                                <DashboardEditTour
+                                    onExampleChangesToggle={
+                                        setShowsExampleChanges
+                                    }
+                                />
                             </ActionBar>
                         )}
 
                         {pendingSettingsChanges !== null && (
                             <PendingChangesButton
                                 settingsChanges={pendingSettingsChanges}
+                                exampleChanges={
+                                    showsExampleChanges
+                                        ? EXAMPLE_PENDING_CHANGES
+                                        : null
+                                }
                             />
                         )}
                         <ShortcutHint

@@ -5,6 +5,7 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import {
+    Badge,
     Box,
     Button,
     Group,
@@ -122,118 +123,139 @@ const ChangeRow: FC<{ change: PendingChange }> = ({ change }) => {
 type Props = {
     /** Areas tracked by a changed flag only */
     settingsChanges: PendingChange[];
+    /** Sample rows shown in an open list in place of the real changes */
+    exampleChanges: PendingChange[] | null;
 };
 
-export const PendingChangesButton = memo<Props>(({ settingsChanges }) => {
-    const dashboard = useDashboardSelector(selectDashboard);
-    const tiles = useDashboardSelector(selectDashboardTiles);
-    const tabs = useDashboardSelector(selectDashboardTabs);
-    const filters = useDashboardAllFilters();
-    const parameters = useDashboardSelector(selectDashboardParameters);
-    const fieldsMap = useDashboardSelector(selectAllFilterableFieldsMap);
-    const parameterDefinitions = useDashboardSelector(
-        selectDashboardParameterDefinitions,
-    );
-    const { data: dashboardControlsFlag } = useServerFeatureFlag(
-        FeatureFlags.DashboardControls,
-    );
-    const keepsRequiredDefaults = dashboardControlsFlag?.enabled === true;
-
-    const getFilterLabel = useCallback(
-        (rule: DashboardFilterRule) => {
-            if (rule.label) return rule.label;
-            const field = fieldsMap[rule.target.fieldId];
-            return field === undefined
-                ? rule.target.fieldId
-                : getItemLabelWithoutTableName(field);
-        },
-        [fieldsMap],
-    );
-
-    const changes = useMemo(() => {
-        if (dashboard === undefined) return [];
-        return [
-            ...getPendingChanges(
-                {
-                    tiles: dashboard.tiles,
-                    tabs: dashboard.tabs,
-                    filters: dashboard.filters,
-                    parameters: dashboard.parameters ?? {},
-                },
-                {
-                    tiles: tiles ?? dashboard.tiles,
-                    tabs,
-                    filters: {
-                        ...filters,
-                        dimensions: getDimensionFiltersToSave(
-                            filters.dimensions,
-                            keepsRequiredDefaults,
-                        ),
-                    },
-                    parameters,
-                },
-                {
-                    getFilterLabel,
-                    getParameterLabel: (key) =>
-                        parameterDefinitions[key]?.label ?? key,
-                },
-            ),
-            ...settingsChanges,
-        ].toSorted((a, b) => rankOf(a.kind) - rankOf(b.kind));
-    }, [
-        dashboard,
-        tiles,
-        tabs,
-        filters,
-        keepsRequiredDefaults,
-        parameters,
-        getFilterLabel,
-        parameterDefinitions,
-        settingsChanges,
-    ]);
-
-    if (changes.length === 0) {
-        return (
-            <Group
-                gap="xs"
-                wrap="nowrap"
-                px="xs"
-                data-tour="dashboard-edit-changes"
-            >
-                <Box className={classes.dot} />
-                <Text fz="xs" c="dimmed">
-                    Editing
-                </Text>
-            </Group>
+export const PendingChangesButton = memo<Props>(
+    ({ settingsChanges, exampleChanges }) => {
+        const dashboard = useDashboardSelector(selectDashboard);
+        const tiles = useDashboardSelector(selectDashboardTiles);
+        const tabs = useDashboardSelector(selectDashboardTabs);
+        const filters = useDashboardAllFilters();
+        const parameters = useDashboardSelector(selectDashboardParameters);
+        const fieldsMap = useDashboardSelector(selectAllFilterableFieldsMap);
+        const parameterDefinitions = useDashboardSelector(
+            selectDashboardParameterDefinitions,
         );
-    }
+        const { data: dashboardControlsFlag } = useServerFeatureFlag(
+            FeatureFlags.DashboardControls,
+        );
+        const keepsRequiredDefaults = dashboardControlsFlag?.enabled === true;
 
-    return (
-        <Popover position="bottom-end" withinPortal>
-            <Popover.Target>
-                <Button
-                    variant="light"
-                    size="xs"
+        const getFilterLabel = useCallback(
+            (rule: DashboardFilterRule) => {
+                if (rule.label) return rule.label;
+                const field = fieldsMap[rule.target.fieldId];
+                return field === undefined
+                    ? rule.target.fieldId
+                    : getItemLabelWithoutTableName(field);
+            },
+            [fieldsMap],
+        );
+
+        const changes = useMemo(() => {
+            if (dashboard === undefined) return [];
+            return [
+                ...getPendingChanges(
+                    {
+                        tiles: dashboard.tiles,
+                        tabs: dashboard.tabs,
+                        filters: dashboard.filters,
+                        parameters: dashboard.parameters ?? {},
+                    },
+                    {
+                        tiles: tiles ?? dashboard.tiles,
+                        tabs,
+                        filters: {
+                            ...filters,
+                            dimensions: getDimensionFiltersToSave(
+                                filters.dimensions,
+                                keepsRequiredDefaults,
+                            ),
+                        },
+                        parameters,
+                    },
+                    {
+                        getFilterLabel,
+                        getParameterLabel: (key) =>
+                            parameterDefinitions[key]?.label ?? key,
+                    },
+                ),
+                ...settingsChanges,
+            ].toSorted((a, b) => rankOf(a.kind) - rankOf(b.kind));
+        }, [
+            dashboard,
+            tiles,
+            tabs,
+            filters,
+            keepsRequiredDefaults,
+            parameters,
+            getFilterLabel,
+            parameterDefinitions,
+            settingsChanges,
+        ]);
+
+        const shownChanges = exampleChanges ?? changes;
+
+        if (shownChanges.length === 0) {
+            return (
+                <Group
+                    gap="xs"
+                    wrap="nowrap"
+                    px="xs"
                     data-tour="dashboard-edit-changes"
-                    leftSection={<Box className={classes.dot} data-unsaved />}
-                    rightSection={
-                        <MantineIcon icon={IconChevronDown} size={14} />
-                    }
                 >
-                    Unsaved changes
-                </Button>
-            </Popover.Target>
-            <Popover.Dropdown p="xs" w={360}>
-                <Stack gap="xs" className={classes.list}>
-                    {changes.map((change) => (
-                        <ChangeRow
-                            key={`${change.area}:${change.kind}:${change.id}`}
-                            change={change}
-                        />
-                    ))}
-                </Stack>
-            </Popover.Dropdown>
-        </Popover>
-    );
-});
+                    <Box className={classes.dot} />
+                    <Text fz="xs" c="dimmed">
+                        Editing
+                    </Text>
+                </Group>
+            );
+        }
+
+        return (
+            <Popover
+                position="bottom-end"
+                withinPortal
+                opened={exampleChanges === null ? undefined : true}
+            >
+                <Popover.Target>
+                    <Button
+                        variant="light"
+                        size="xs"
+                        data-tour="dashboard-edit-changes"
+                        leftSection={
+                            <Box className={classes.dot} data-unsaved />
+                        }
+                        rightSection={
+                            <MantineIcon icon={IconChevronDown} size={14} />
+                        }
+                    >
+                        Unsaved changes
+                    </Button>
+                </Popover.Target>
+                <Popover.Dropdown
+                    p="xs"
+                    w={360}
+                    data-tour="dashboard-edit-changes-list"
+                >
+                    <Stack gap="xs" className={classes.list}>
+                        {exampleChanges !== null && (
+                            <Badge size="xs" variant="light" color="gray">
+                                Example
+                            </Badge>
+                        )}
+                        {shownChanges.map((change) => (
+                            <ChangeRow
+                                key={`${change.area}:${change.kind}:${change.id}`}
+                                change={change}
+                            />
+                        ))}
+                    </Stack>
+                </Popover.Dropdown>
+            </Popover>
+        );
+    },
+);
 PendingChangesButton.displayName = 'PendingChangesButton';

@@ -1,4 +1,5 @@
 import { type GuidedTourStep } from '../../GuidedTour';
+import { EXAMPLE_CHANGES_LIST_TARGET } from './exampleData';
 import { ToolbarIntro } from './ToolbarIntro';
 
 export const DASHBOARD_EDIT_TOUR_STEPS: GuidedTourStep[] = [
@@ -17,6 +18,7 @@ export const DASHBOARD_EDIT_TOUR_STEPS: GuidedTourStep[] = [
         highlights: [
             '[data-tour="dashboard-edit-history"]',
             '[data-tour="dashboard-edit-changes"]',
+            EXAMPLE_CHANGES_LIST_TARGET,
         ],
         title: 'Edit history',
         body: 'Keep track of your changes with the new edit history. See what changed, and undo or redo without losing your work.',
