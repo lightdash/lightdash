@@ -2624,6 +2624,9 @@ const AppGenerate: FC = () => {
                                                                 msg.version,
                                                             )}
                                                         <AppVersionNarration
+                                                            className={
+                                                                classes.bleed
+                                                            }
                                                             narration={{
                                                                 reasoning:
                                                                     msg.reasoning,
@@ -2690,19 +2693,25 @@ const AppGenerate: FC = () => {
                                                                 null &&
                                                             !isAgentWorking &&
                                                             !isVerifiedLocked && (
-                                                                <UndoChangeButton
-                                                                    previousVersion={
-                                                                        undoTargetVersion
+                                                                <Box
+                                                                    className={
+                                                                        classes.bleed
                                                                     }
-                                                                    loading={
-                                                                        isRestoringVersion &&
-                                                                        restoreTargetVersion ===
-                                                                            null
-                                                                    }
-                                                                    onUndo={
-                                                                        undoLatestChange
-                                                                    }
-                                                                />
+                                                                >
+                                                                    <UndoChangeButton
+                                                                        previousVersion={
+                                                                            undoTargetVersion
+                                                                        }
+                                                                        loading={
+                                                                            isRestoringVersion &&
+                                                                            restoreTargetVersion ===
+                                                                                null
+                                                                        }
+                                                                        onUndo={
+                                                                            undoLatestChange
+                                                                        }
+                                                                    />
+                                                                </Box>
                                                             )}
                                                     </Box>
                                                 </Box>
@@ -2754,29 +2763,35 @@ const AppGenerate: FC = () => {
                                                             </Text>
                                                         ) : (
                                                             <>
-                                                                <BuildProgressCard
-                                                                    version={
-                                                                        latestBuildingVersion?.version ??
-                                                                        null
+                                                                <Box
+                                                                    className={
+                                                                        classes.bleed
                                                                     }
-                                                                    narration={
-                                                                        liveNarration
-                                                                    }
-                                                                    statusMessage={
-                                                                        latestBuildingVersion &&
-                                                                        latestBuildingVersion.status !==
-                                                                            'generating'
-                                                                            ? latestBuildingVersion.statusMessage
-                                                                            : null
-                                                                    }
-                                                                    // The preview's stepper shows the stage until a version exists.
-                                                                    showStage={
-                                                                        !!previewApp
-                                                                    }
-                                                                    stageIndex={
-                                                                        buildStageIndex
-                                                                    }
-                                                                />
+                                                                >
+                                                                    <BuildProgressCard
+                                                                        version={
+                                                                            latestBuildingVersion?.version ??
+                                                                            null
+                                                                        }
+                                                                        narration={
+                                                                            liveNarration
+                                                                        }
+                                                                        statusMessage={
+                                                                            latestBuildingVersion &&
+                                                                            latestBuildingVersion.status !==
+                                                                                'generating'
+                                                                                ? latestBuildingVersion.statusMessage
+                                                                                : null
+                                                                        }
+                                                                        // The preview's stepper shows the stage until a version exists.
+                                                                        showStage={
+                                                                            !!previewApp
+                                                                        }
+                                                                        stageIndex={
+                                                                            buildStageIndex
+                                                                        }
+                                                                    />
+                                                                </Box>
                                                             </>
                                                         )}
                                                     </Box>
