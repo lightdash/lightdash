@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { FeatureFlags } from '@lightdash/common';
 
 let restoreFetch = () => {};

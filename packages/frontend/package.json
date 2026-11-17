@@ -183,6 +183,7 @@
         "@vitest/eslint-plugin": "1.6.28",
         "csstype": "3.2.3",
         "eslint-plugin-jest-dom": "5.10.2",
+        "happy-dom": "21.0.4",
         "jsdom": "26.1.0",
         "nock": "14.0.17",
         "node-fetch": "2.7.0",

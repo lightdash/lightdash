@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { Button, Popover, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';

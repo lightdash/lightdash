@@ -142,7 +142,8 @@ export default defineConfig({
     test: {
         clearMocks: false,
         globals: true,
-        environment: 'jsdom',
+        // Files that rely on jsdom behaviour opt back in with `// @vitest-environment jsdom`.
+        environment: 'happy-dom',
         setupFiles: './src/testing/vitest.setup.ts',
         env: {
             VITE_REACT_QUERY_DEVTOOLS_ENABLED: 'false',
