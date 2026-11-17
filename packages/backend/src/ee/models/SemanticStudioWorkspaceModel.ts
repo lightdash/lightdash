@@ -306,16 +306,16 @@ export class SemanticStudioWorkspaceModel {
                 [url],
             )
             .whereNull('finished_at')
-            // Checks load often; only a new state is an update.
+            // Open checks only update new state; terminal states also finish older unfinished records.
             .andWhereRaw(
-                '(pull_request_url IS DISTINCT FROM ? OR pull_request_state IS DISTINCT FROM ?)',
-                [url, state],
+                "(pull_request_url IS DISTINCT FROM ? OR pull_request_state IS DISTINCT FROM ? OR ? <> 'open')",
+                [url, state, state],
             )
             .update({
                 pull_request_url: url,
                 pull_request_state: state,
                 updated_at: now,
-                ...(state === 'merged'
+                ...(state !== 'open'
                     ? { is_active: false, finished_at: now }
                     : {}),
             });

@@ -16,6 +16,7 @@ import {
     splitPatchIntoFiles,
 } from '../ChatElements/ToolCalls/splitPatch';
 import { getOpenProposal, isInPullRequest } from './studioProposal';
+import { resolveStudioPullRequestState } from './studioPullRequestState';
 import { useStudioAgent, useStudioThread } from './useSemanticStudioChat';
 
 /** The last revision each pull request was seen at, so its checks are read again once when it moves. */
@@ -56,9 +57,11 @@ export const useStudioPullRequest = (
     const workspace =
         shown !== undefined
             ? shown
-            : (workspaces?.mine.find(
-                  ({ threadUuid }) => threadUuid === thread?.threadUuid,
-              ) ?? null);
+            : ([
+                  ...(workspaces?.mine ?? []),
+                  ...(workspaces?.recent ?? []).filter((item) => item.isMine),
+              ].find(({ threadUuid }) => threadUuid === thread?.threadUuid) ??
+              null);
     const isChatOfChange =
         !workspace || workspace.threadUuid === thread?.threadUuid;
     const results = (isChatOfChange ? (data?.messages ?? []) : [])
@@ -115,11 +118,7 @@ export const useStudioPullRequest = (
     );
     if (!prUrl) return null;
     const known = workspace?.pullRequest?.state ?? null;
-    const state: StudioPullRequest['state'] = ciChecks
-        ? ciChecks.merged
-            ? 'merged'
-            : ciChecks.state
-        : (known ?? 'open');
+    const state = resolveStudioPullRequestState(known, ciChecks ?? null);
     return {
         prUrl,
         commitSha: metadata?.commitSha ?? null,

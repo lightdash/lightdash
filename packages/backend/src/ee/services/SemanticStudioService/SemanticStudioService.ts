@@ -173,7 +173,7 @@ export type SemanticStudioServiceArguments = {
     >;
     repoModels: Pick<
         RepoModelSource,
-        'isInstalled' | 'load' | 'openPullRequest'
+        'isInstalled' | 'load' | 'openPullRequest' | 'getPullRequestState'
     >;
     savedChartModel: Pick<SavedChartModel, 'analyzeFieldImpact'>;
     jobModel: Pick<JobModel, 'findLatestCompileStatus'>;
@@ -289,6 +289,7 @@ const assertSourcePath = (path: string) => {
     }
 };
 
+const MAX_PULL_REQUEST_REFRESHES = 5;
 const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
 
 export class SemanticStudioService extends BaseService {
@@ -2291,10 +2292,51 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
     ): Promise<SemanticStudioWorkspaces> {
         await this.assertCanUseStudio(user, projectUuid);
-        const all = await this.workspaceModel.findInProject(
+        let all = await this.workspaceModel.findInProject(
             projectUuid,
             user.userUuid,
         );
+        const pending = all
+            .filter(
+                (workspace) =>
+                    workspace.isMine &&
+                    !workspace.finishedAt &&
+                    workspace.pullRequest,
+            )
+            .sort((a, b) => Number(b.isActive) - Number(a.isActive))
+            .slice(0, MAX_PULL_REQUEST_REFRESHES);
+        let changed = false;
+        await runWithConcurrency(pending, 1, async (workspace) => {
+            if (!workspace.pullRequest) return;
+            try {
+                const project = await this.projectModel.get(projectUuid);
+                const prUrl = workspace.pullRequest.url;
+                const state = await this.repoModels.getPullRequestState(
+                    project.organizationUuid,
+                    project.dbtConnection,
+                    prUrl,
+                );
+                if (state && state !== 'open') {
+                    await this.recordPullRequestState(
+                        projectUuid,
+                        prUrl,
+                        state,
+                    );
+                    changed = true;
+                    await this.retireDbtTryOut(user, projectUuid, prUrl);
+                }
+            } catch (error) {
+                this.logger.warn(
+                    `SemanticStudio: failed to refresh pull request state: ${getErrorMessage(error)}`,
+                );
+            }
+        });
+        if (changed) {
+            all = await this.workspaceModel.findInProject(
+                projectUuid,
+                user.userUuid,
+            );
+        }
         const recentSince = Date.now() - RECENT_WORKSPACE_MS;
         return {
             mine: all
