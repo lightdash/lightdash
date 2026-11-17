@@ -89,8 +89,7 @@ import {
 } from '../../../features/promotion/hooks/usePromoteDashboard';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
-import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
-import { useFavorites } from '../../../hooks/favorites/useFavorites';
+import { useFavoriteToggle } from '../../../hooks/favorites/useFavoriteToggle';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import {
@@ -375,13 +374,10 @@ const DashboardHeader = memo(
             toggleDashboardPinning({ uuid: dashboardUuid });
         }, [dashboardUuid, toggleDashboardPinning]);
 
-        const { data: favorites } = useFavorites(projectUuid);
-        const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
-        const isDashboardFavorited = useMemo(
-            () =>
-                favorites?.some((f) => f.data.uuid === dashboardUuid) ?? false,
-            [favorites, dashboardUuid],
-        );
+        const { isFavorite, toggle: toggleFavorite } =
+            useFavoriteToggle(projectUuid);
+        const isDashboardFavorited =
+            !!dashboardUuid && isFavorite(dashboardUuid);
 
         const { user, health } = useApp();
         const preAggregatesEnabled =
@@ -619,10 +615,10 @@ const DashboardHeader = memo(
                             size="md"
                             isFavorite={isDashboardFavorited}
                             onToggle={() => {
-                                toggleFavorite({
-                                    contentType: ContentType.DASHBOARD,
-                                    contentUuid: dashboardUuid,
-                                });
+                                toggleFavorite(
+                                    ContentType.DASHBOARD,
+                                    dashboardUuid,
+                                );
                             }}
                         />
                     )}
@@ -1142,11 +1138,10 @@ const DashboardHeader = memo(
                                                 />
                                             }
                                             onClick={() =>
-                                                toggleFavorite({
-                                                    contentType:
-                                                        ContentType.DASHBOARD,
-                                                    contentUuid: dashboardUuid,
-                                                })
+                                                toggleFavorite(
+                                                    ContentType.DASHBOARD,
+                                                    dashboardUuid,
+                                                )
                                             }
                                         >
                                             {isDashboardFavorited
