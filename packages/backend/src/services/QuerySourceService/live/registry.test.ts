@@ -54,6 +54,9 @@ const SAMPLE_SETTINGS: {
         owner: 'lightdash',
         repo: 'lightdash',
     },
+    [ApiConnectorType.PYLON]: {
+        connector: ApiConnectorType.PYLON,
+    },
 };
 
 const SERVER_ERROR: LiveHttpResponse = {

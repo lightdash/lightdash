@@ -305,6 +305,72 @@ exports[`live data source names > 'PostHog' explore names and field ids never ch
 }
 `;
 
+exports[`live data source names > 'Pylon' explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "pylon_issues_account_id",
+        "pylon_issues_account_name",
+        "pylon_issues_assignee_email",
+        "pylon_issues_average_first_response_minutes",
+        "pylon_issues_average_resolution_hours",
+        "pylon_issues_count",
+        "pylon_issues_created_at",
+        "pylon_issues_csat_score",
+        "pylon_issues_first_response_minutes",
+        "pylon_issues_link",
+        "pylon_issues_number",
+        "pylon_issues_requester_email",
+        "pylon_issues_resolution_hours",
+        "pylon_issues_resolved_at",
+        "pylon_issues_source",
+        "pylon_issues_state",
+        "pylon_issues_tags",
+        "pylon_issues_team_id",
+        "pylon_issues_title",
+        "pylon_issues_touches",
+        "pylon_issues_type",
+        "pylon_issues_updated_at",
+      ],
+      "name": "pylon_issues",
+    },
+    {
+      "fieldIds": [
+        "pylon_accounts_count",
+        "pylon_accounts_created_at",
+        "pylon_accounts_domain",
+        "pylon_accounts_id",
+        "pylon_accounts_last_customer_activity_at",
+        "pylon_accounts_last_vendor_activity_at",
+        "pylon_accounts_name",
+        "pylon_accounts_owner_email",
+        "pylon_accounts_tags",
+        "pylon_accounts_type",
+      ],
+      "name": "pylon_accounts",
+    },
+    {
+      "fieldIds": [
+        "pylon_contacts_account_id",
+        "pylon_contacts_account_name",
+        "pylon_contacts_count",
+        "pylon_contacts_email",
+        "pylon_contacts_id",
+        "pylon_contacts_name",
+        "pylon_contacts_portal_role",
+      ],
+      "name": "pylon_contacts",
+    },
+  ],
+  "reservedExploreNames": [
+    "pylon_messages",
+    "pylon_users",
+    "pylon_teams",
+  ],
+}
+`;
+
 exports[`live data source names > 'Search Console' explore names and field ids never change 1`] = `
 {
   "explores": [

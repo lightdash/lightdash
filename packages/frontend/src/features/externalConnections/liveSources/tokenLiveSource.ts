@@ -15,6 +15,7 @@ export type TokenLiveSourceForm = {
     defaultName: string;
     description: string;
     origin: string;
+    /** Null when the token alone decides what the source reads. */
     account: {
         label: string;
         description: string;
@@ -23,7 +24,7 @@ export type TokenLiveSourceForm = {
         /** Accepts the forms the provider's own UI shows the id in. */
         normalize: (value: string) => string;
         isValid: (normalizedValue: string) => boolean;
-    };
+    } | null;
     tokenLabel: string;
     toApiSource: (accountId: string) => ExternalConnectionApiSource;
     /** The account id of a saved source, or blank for another integration's. */
@@ -66,6 +67,7 @@ export const useTokenLiveSourceForm = (
             name: (value) =>
                 value.trim().length === 0 ? 'Name is required' : null,
             accountId: (value) =>
+                !form.account ||
                 form.account.isValid(form.account.normalize(value))
                     ? null
                     : form.account.invalidMessage,
@@ -76,11 +78,15 @@ export const useTokenLiveSourceForm = (
         },
     });
 
+/** The account id as the API takes it; blank for forms without one. */
+export const normalizeAccountId = (form: TokenLiveSourceForm, value: string) =>
+    form.account ? form.account.normalize(value) : '';
+
 export const toTokenLiveSourceCreatePayload = (
     form: TokenLiveSourceForm,
     values: TokenLiveSourceValues,
 ): CreateExternalConnection => {
-    const accountId = form.account.normalize(values.accountId);
+    const accountId = normalizeAccountId(form, values.accountId);
     return {
         name: values.name.trim(),
         type: 'bearer_token',
@@ -102,7 +108,7 @@ export const toTokenLiveSourceUpdatePayload = (
     const token = values.token.trim();
     return {
         name: values.name.trim(),
-        apiSource: form.toApiSource(form.account.normalize(values.accountId)),
+        apiSource: form.toApiSource(normalizeAccountId(form, values.accountId)),
         ...(token ? { secret: token } : {}),
     };
 };

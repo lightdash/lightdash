@@ -15,7 +15,7 @@ const splitRepository = (repository: string) => {
     return { owner, repo };
 };
 
-export const GITHUB_TOKEN_FORM: TokenLiveSourceForm = {
+export const GITHUB_TOKEN_FORM = {
     label: 'GitHub',
     defaultName: 'GitHub',
     description:
@@ -60,4 +60,4 @@ export const GITHUB_TOKEN_FORM: TokenLiveSourceForm = {
         path: GITHUB_SEARCH_PATH,
         query: { q: `repo:${repository} is:pr`, per_page: '1' },
     }),
-};
+} satisfies TokenLiveSourceForm;
