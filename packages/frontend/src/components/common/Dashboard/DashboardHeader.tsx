@@ -139,7 +139,7 @@ import { EDIT_SHORTCUTS, toHotkeyItems } from './editShortcuts';
 import { DashboardEditTour } from './onboarding';
 import { PendingChangesButton } from './PendingChangesButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
-import { ShortcutHint } from './ShortcutHint';
+import { ShortcutHint, TourFrame } from './ShortcutHint';
 import { TidyTilesButton } from './TidyTilesButton';
 import { TileLayoutHistoryButtons } from './TileLayoutHistoryButtons';
 import { useDashboardManageAccess } from './useDashboardManageAccess';
@@ -763,14 +763,15 @@ const DashboardHeader = memo(
                                 aria-label="Dashboard editing tools"
                                 position={EDIT_BAR_POSITION}
                                 className={headerClasses.editBar}
-                                data-tour="dashboard-edit-bar"
                             >
+                                <TourFrame name="dashboard-edit-bar" />
                                 <TileLayoutHistoryButtons />
                                 <ActionBar.Divider />
                                 <Group
                                     gap="xs"
                                     wrap="nowrap"
                                     data-tour="dashboard-edit-tiles"
+                                    data-tour-hints
                                 >
                                     <ShortcutHint
                                         shortcut={EDIT_SHORTCUTS.addTile}

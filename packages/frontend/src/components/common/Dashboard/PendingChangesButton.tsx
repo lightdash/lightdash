@@ -194,7 +194,12 @@ export const PendingChangesButton = memo<Props>(({ settingsChanges }) => {
 
     if (changes.length === 0) {
         return (
-            <Group gap="xs" wrap="nowrap" px="xs">
+            <Group
+                gap="xs"
+                wrap="nowrap"
+                px="xs"
+                data-tour="dashboard-edit-changes"
+            >
                 <Box className={classes.dot} />
                 <Text fz="xs" c="dimmed">
                     Editing
@@ -209,6 +214,7 @@ export const PendingChangesButton = memo<Props>(({ settingsChanges }) => {
                 <Button
                     variant="light"
                     size="xs"
+                    data-tour="dashboard-edit-changes"
                     leftSection={<Box className={classes.dot} data-unsaved />}
                     rightSection={
                         <MantineIcon icon={IconChevronDown} size={14} />
