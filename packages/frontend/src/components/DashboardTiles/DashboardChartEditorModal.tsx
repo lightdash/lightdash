@@ -99,29 +99,31 @@ const DashboardChartEditorView: FC<
     const rightSidebarProps = useChartGalleryRightSidebar({ enabled: true });
 
     return (
-        <Page
-            withContainerHeight
-            title={title}
-            sidebar={
-                <ExploreSideBar
-                    onExploreClick={(explore) => onExploreSelect(explore.name)}
-                    onBackToTables={onBackToTables}
-                />
-            }
-            isSidebarOpen
-            {...rightSidebarProps}
-            withFullHeight
-            withPaddedContent
-        >
-            <MergeProvider savedMerge={editChart?.merge ?? null}>
+        <MergeProvider savedMerge={editChart?.merge ?? null}>
+            <Page
+                withContainerHeight
+                title={title}
+                sidebar={
+                    <ExploreSideBar
+                        onExploreClick={(explore) =>
+                            onExploreSelect(explore.name)
+                        }
+                        onBackToTables={onBackToTables}
+                    />
+                }
+                isSidebarOpen
+                {...rightSidebarProps}
+                withFullHeight
+                withPaddedContent
+            >
                 <DashboardChartEditorHeaderActions
                     onOpenChartPage={onOpenChartPage}
                     onOpenVersionHistory={onOpenVersionHistory}
                     onDeleted={onDeleted}
                 />
                 <Explorer />
-            </MergeProvider>
-        </Page>
+            </Page>
+        </MergeProvider>
     );
 };
 

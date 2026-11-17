@@ -52,28 +52,28 @@ const EmbedExploreView: FC<{
     useExplorerQueryEffects();
 
     return (
-        <Page
-            withContainerHeight={fitContainerHeight}
-            title={data ? data?.label : 'Tables'}
-            sidebar={
-                <ExploreSideBar
-                    onExploreClick={
-                        onExploreSelect
-                            ? (explore) => onExploreSelect(explore.name)
-                            : undefined
-                    }
-                    onBackToTables={onBackToTables}
-                />
-            }
-            isSidebarOpen={isEditMode}
-            {...rightSidebarProps}
-            withFullHeight
-            withPaddedContent
-        >
-            <MergeProvider readOnly={!isEditMode}>
+        <MergeProvider readOnly={!isEditMode}>
+            <Page
+                withContainerHeight={fitContainerHeight}
+                title={data ? data?.label : 'Tables'}
+                sidebar={
+                    <ExploreSideBar
+                        onExploreClick={
+                            onExploreSelect
+                                ? (explore) => onExploreSelect(explore.name)
+                                : undefined
+                        }
+                        onBackToTables={onBackToTables}
+                    />
+                }
+                isSidebarOpen={isEditMode}
+                {...rightSidebarProps}
+                withFullHeight
+                withPaddedContent
+            >
                 <Explorer chartView={chartView} />
-            </MergeProvider>
-        </Page>
+            </Page>
+        </MergeProvider>
     );
 };
 
