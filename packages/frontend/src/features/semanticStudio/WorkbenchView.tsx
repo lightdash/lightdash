@@ -1925,7 +1925,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                 aria-selected={isSourcesView}
                                                 onClick={showSources}
                                             >
-                                                Sources
+                                                Code
                                             </UnstyledButton>
                                         </div>
                                         {changePicker ? (

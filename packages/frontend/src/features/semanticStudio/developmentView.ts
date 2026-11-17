@@ -68,6 +68,16 @@ export const getDevelopmentViewHeaders = (): Record<string, string> => {
     }
 };
 
+/** Open Try it sessions; each keeps the view it started on, so nothing moves it under them. */
+let pins = 0;
+export const pinDevelopmentView = (): (() => void) => {
+    pins += 1;
+    return () => {
+        pins -= 1;
+    };
+};
+export const isDevelopmentViewPinned = (): boolean => pins > 0;
+
 export const isDevelopmentViewOn = (): boolean =>
     Object.keys(getDevelopmentViewHeaders()).length > 0;
 

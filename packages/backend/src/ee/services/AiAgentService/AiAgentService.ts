@@ -14140,29 +14140,6 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     });
             }
 
-            const isBitbucketPullRequest =
-                result.prUrl?.startsWith('https://bitbucket.org/') === true;
-            let previewUrl: string | null = null;
-            if (
-                result.prUrl &&
-                !isBitbucketPullRequest &&
-                !suppressWritebackPreview &&
-                !reviewRemediation
-            ) {
-                const preview =
-                    await this.writebackPreviewService.createPreviewForPullRequest(
-                        {
-                            user,
-                            projectUuid,
-                            prUrl: result.prUrl,
-                            ...(assertPublishAllowed
-                                ? { assertPublishAllowed }
-                                : {}),
-                        },
-                    );
-                previewUrl = preview?.previewUrl ?? null;
-            }
-
             const target = `Lightdash project "${result.projectName}" (repository ${result.repository})`;
             const prVerb = result.prAction === 'updated' ? 'Updated' : 'Opened';
             let base: string;
@@ -14174,29 +14151,67 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 base = `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${result.output}`;
             }
 
-            let toolResult = base;
-            if (result.prUrl && previewUrl) {
-                toolResult += `\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`;
-            }
+            const storeResult = (
+                previewUrl: string | null,
+                previewPendingSince: string | null,
+            ) =>
+                this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
+                    result: previewUrl
+                        ? `${base}\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`
+                        : base,
+                    metadata: {
+                        status: 'success',
+                        prUrl: result.prUrl ?? null,
+                        prAction: result.prAction ?? null,
+                        commitSha: result.commitSha ?? null,
+                        additions: result.additions ?? null,
+                        deletions: result.deletions ?? null,
+                        previewUrl,
+                        previewPendingSince,
+                        steps: result.steps,
+                        changedModels,
+                        needsDbtSourceSelection:
+                            result.needsDbtSourceSelection ?? null,
+                        dbtSourceOptions: result.dbtSourceOptions ?? null,
+                    },
+                });
 
-            if (assertPublishAllowed) await assertPublishAllowed();
-            await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
-                result: toolResult,
-                metadata: {
-                    status: 'success',
-                    prUrl: result.prUrl ?? null,
-                    prAction: result.prAction ?? null,
-                    commitSha: result.commitSha ?? null,
-                    additions: result.additions ?? null,
-                    deletions: result.deletions ?? null,
-                    previewUrl: previewUrl ?? null,
-                    steps: result.steps,
-                    changedModels,
-                    needsDbtSourceSelection:
-                        result.needsDbtSourceSelection ?? null,
-                    dbtSourceOptions: result.dbtSourceOptions ?? null,
-                },
-            });
+            const isBitbucketPullRequest =
+                result.prUrl?.startsWith('https://bitbucket.org/') === true;
+            let previewUrl: string | null = null;
+            try {
+                if (
+                    result.prUrl &&
+                    !isBitbucketPullRequest &&
+                    !suppressWritebackPreview &&
+                    !reviewRemediation
+                ) {
+                    // Studio shows the pull request now; building its preview can take a minute.
+                    if (prompt.threadCreatedFrom === 'semantic_studio') {
+                        if (assertPublishAllowed) await assertPublishAllowed();
+                        await storeResult(null, new Date().toISOString());
+                        toolResultWritten = true;
+                    }
+                    const preview =
+                        await this.writebackPreviewService.createPreviewForPullRequest(
+                            {
+                                user,
+                                projectUuid,
+                                prUrl: result.prUrl,
+                                ...(assertPublishAllowed
+                                    ? { assertPublishAllowed }
+                                    : {}),
+                            },
+                        );
+                    previewUrl = preview?.previewUrl ?? null;
+                }
+                if (assertPublishAllowed) await assertPublishAllowed();
+            } catch (error) {
+                // The pull request stays recorded; only waiting on its preview ends.
+                if (toolResultWritten) await storeResult(null, null);
+                throw error;
+            }
+            await storeResult(previewUrl, null);
             toolResultWritten = true;
 
             // Deliver the PR card to Slack now that the tool result is final — the

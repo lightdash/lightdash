@@ -9,6 +9,7 @@ import {
     Kbd,
     Loader,
     Menu,
+    Stack,
     Text,
     TextInput,
     Tooltip,
@@ -463,7 +464,12 @@ export const SourcePane: FC<{
             (entry) => entry.path === path,
         ) ?? null;
     const isChangedFile = !!change && !change.isProposed;
-    const { data: file, isFetching } = useStudioSourceFile(
+    const {
+        data: file,
+        isFetching,
+        error: readError,
+        refetch,
+    } = useStudioSourceFile(
         target.projectUuid,
         target.prUrl,
         target.head,
@@ -507,6 +513,8 @@ export const SourcePane: FC<{
     const isDirty = text !== null && text !== loaded;
     // A proposal shown in the editor is the agent's until the person types over it.
     const hasOwnEdits = isDirty && text !== offered;
+    const open = useRef({ key: editKey, path });
+    open.current = { key: editKey, path };
     // Null at first, so coming back to Sources brings back what was left unsaved.
     const shownKey = useRef<string | null>(null);
     useEffect(() => {
@@ -569,6 +577,11 @@ export const SourcePane: FC<{
     };
     const submit = () => {
         if (!path || !isDirty || save.isLoading || !target.canEdit) return;
+        // The save may land after another file is opened; it then leaves that file alone.
+        const savedKey = editKey;
+        const isStillOpen = () => open.current.key === savedKey;
+        const named = (message: string) =>
+            isStillOpen() ? message : `${fileName(path)}: ${message}`;
         save.mutate(
             {
                 path,
@@ -580,26 +593,47 @@ export const SourcePane: FC<{
             {
                 onSuccess: (result) => {
                     if (result.status === 'failed') {
-                        setNotice({ tone: 'error', text: result.error });
+                        setNotice({ tone: 'error', text: named(result.error) });
                         return;
                     }
                     setJustSaved({
                         key: `${target.projectUuid}\n${result.prUrl}\n${path}`,
                         content: value,
                     });
-                    reset();
-                    setNotice(
-                        result.checked
-                            ? null
-                            : {
-                                  tone: 'info',
-                                  text: 'Saved. SQL is checked when dbt next builds the change.',
-                              },
-                    );
+                    unsavedEdits.delete(savedKey);
+                    // A save from live moves to its new change, and what is typed in another live file comes along.
+                    const liveKey = `${target.projectUuid}\n\n${open.current.path ?? ''}`;
+                    const typed = unsavedEdits.get(open.current.key);
+                    if (
+                        target.prUrl === null &&
+                        open.current.key === liveKey &&
+                        !isStillOpen() &&
+                        typed !== undefined
+                    ) {
+                        unsavedEdits.delete(open.current.key);
+                        keepUnsaved(
+                            `${target.projectUuid}\n${result.prUrl}\n${open.current.path ?? ''}`,
+                            typed,
+                        );
+                    }
+                    if (isStillOpen()) {
+                        reset();
+                        setNotice(
+                            result.checked
+                                ? null
+                                : {
+                                      tone: 'info',
+                                      text: 'Saved. SQL is checked when dbt next builds the change.',
+                                  },
+                        );
+                    }
                     onSaved(result.prUrl, result.thread);
                 },
                 onError: (error) =>
-                    setNotice({ tone: 'error', text: saveErrorText(error) }),
+                    setNotice({
+                        tone: 'error',
+                        text: named(saveErrorText(error)),
+                    }),
             },
         );
     };
@@ -634,6 +668,23 @@ export const SourcePane: FC<{
             <Text fz="sm" c="dimmed" ta="center" py="xl">
                 Pick a file to read or edit it.
             </Text>
+        );
+    }
+    // An unread file is not shown as an empty one, which could be typed in and saved over it.
+    if (readError && loaded === null && text === null) {
+        return (
+            <Stack align="center" gap="xs" py="xl">
+                <Text fz="sm" c="dimmed">
+                    {readError.error.message}
+                </Text>
+                <Button
+                    size="xs"
+                    variant="default"
+                    onClick={() => void refetch()}
+                >
+                    Try again
+                </Button>
+            </Stack>
         );
     }
     const compare = isChangedFile
