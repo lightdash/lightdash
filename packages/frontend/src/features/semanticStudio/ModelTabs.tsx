@@ -256,35 +256,54 @@ export const ModelTabs: FC<{
     projectUuid: string;
     modelName: string;
     fields: ReactNode;
-}> = ({ projectUuid, modelName, fields }) => {
+    /** The explore's lineage: its upstream dbt models and its joins; null where it does not apply. */
+    lineage?: ReactNode;
+}> = ({ projectUuid, modelName, fields, lineage = null }) => {
     const { data: model } = useSemanticLayerModel(projectUuid, modelName);
     // A repository keeps its own history.
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const hasHistory = !!model && !asPullRequest;
+    const hasLineage = lineage !== null;
     const [searchParams, setSearchParams] = useSearchParams();
+    const requested = searchParams.get(VIEW_PARAM);
     const view =
-        model && !asPullRequest && searchParams.get(VIEW_PARAM) === 'history'
+        hasHistory && requested === 'history'
             ? 'history'
-            : 'fields';
+            : hasLineage && requested === 'lineage'
+              ? 'lineage'
+              : 'fields';
     return (
         <Tabs
             className={classes.root}
             value={view}
             onChange={(next) =>
                 setSearchParams(
-                    next === 'history' ? { [VIEW_PARAM]: next } : {},
+                    next === 'history' || next === 'lineage'
+                        ? { [VIEW_PARAM]: next }
+                        : {},
                     { replace: true },
                 )
             }
         >
-            {model && !asPullRequest ? (
+            {hasHistory || hasLineage ? (
                 <Tabs.List mb="md">
                     <Tabs.Tab value="fields">Fields</Tabs.Tab>
-                    <Tabs.Tab value="history">History</Tabs.Tab>
+                    {hasLineage ? (
+                        <Tabs.Tab value="lineage">Lineage</Tabs.Tab>
+                    ) : null}
+                    {hasHistory ? (
+                        <Tabs.Tab value="history">History</Tabs.Tab>
+                    ) : null}
                 </Tabs.List>
             ) : null}
             <Tabs.Panel value="fields" className={classes.panel}>
                 {fields}
             </Tabs.Panel>
+            {view === 'lineage' ? (
+                <Tabs.Panel value="lineage" className={classes.panel}>
+                    {lineage}
+                </Tabs.Panel>
+            ) : null}
             {model && view === 'history' ? (
                 <Tabs.Panel value="history" className={classes.panel}>
                     <HistoryPane
