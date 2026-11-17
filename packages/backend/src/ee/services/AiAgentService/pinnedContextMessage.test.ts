@@ -785,9 +785,10 @@ describe('AiAgentService.createPinnedContextMessage images', () => {
         expect(JSON.stringify(message)).not.toContain('storageKey');
     });
 
-    it.each<{ status: 'missing' | 'incomplete'; text: string }>([
+    it.each<{ status: 'missing' | 'incomplete' | 'omitted'; text: string }>([
         { status: 'missing', text: 'image bytes are missing' },
         { status: 'incomplete', text: 'upload did not complete' },
+        { status: 'omitted', text: 'the image itself is not included here' },
     ])(
         'retains an honest $status placeholder without an image part',
         ({ status, text }) => {

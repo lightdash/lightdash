@@ -27,12 +27,50 @@ test('PNG normalization strips metadata without changing pixels or transparency'
 });
 
 test.each(['jpeg', 'webp'] as const)(
-    'valid %s without metadata is not recompressed',
+    '%s is always re-encoded, so an embedded colour profile does not survive',
     async (format) => {
-        const input = await screenshot().toFormat(format).toBuffer();
-        expect((await normalizeThreadImage(input)).bytes).toBe(input);
+        const input = await screenshot()
+            .withIccProfile('p3')
+            .toFormat(format)
+            .toBuffer();
+        expect((await sharp(input).metadata()).icc).toBeDefined();
+        const normalized = await normalizeThreadImage(input);
+        expect(normalized.mediaType).toBe(`image/${format}`);
+        expect(normalized.bytes).not.toBe(input);
+        const metadata = await sharp(normalized.bytes).metadata();
+        expect(metadata.icc).toBeUndefined();
+        expect(metadata.exif).toBeUndefined();
+        expect(metadata.xmp).toBeUndefined();
+        expect(metadata.iptc).toBeUndefined();
     },
 );
+
+test('bytes hidden inside a JPEG comment block do not survive', async () => {
+    const jpeg = await screenshot().jpeg().toBuffer();
+    const secret = Buffer.from('HIDDEN-PAYLOAD');
+    // A COM segment (FF FE, 2-byte length) placed right after the SOI marker.
+    const comment = Buffer.concat([
+        Buffer.from([0xff, 0xfe, 0x00, secret.length + 2]),
+        secret,
+    ]);
+    const input = Buffer.concat([
+        jpeg.subarray(0, 2),
+        comment,
+        jpeg.subarray(2),
+    ]);
+    expect(input.includes(secret)).toBe(true);
+    const normalized = await normalizeThreadImage(input);
+    expect(normalized.bytes.includes(secret)).toBe(false);
+});
+
+test('a lossless WebP stays lossless', async () => {
+    const input = await screenshot().webp({ lossless: true }).toBuffer();
+    const normalized = await normalizeThreadImage(input);
+    expect(normalized.mediaType).toBe('image/webp');
+    expect(await sharp(normalized.bytes).raw().toBuffer()).toEqual(
+        await sharp(input).raw().toBuffer(),
+    );
+});
 
 test('orientation is applied before metadata is stripped', async () => {
     const input = await screenshot()
@@ -88,6 +126,8 @@ test('unsupported formats and spoofed image data are rejected', async () => {
     await expect(
         normalizeThreadImage(Buffer.from('this is not a PNG')),
     ).rejects.toBeInstanceOf(ParameterError);
+    const gif = await screenshot().gif().toBuffer();
+    await expect(normalizeThreadImage(gif)).rejects.toThrow('Only PNG');
 });
 
 test('animated WebP is rejected instead of silently flattening the first frame', async () => {

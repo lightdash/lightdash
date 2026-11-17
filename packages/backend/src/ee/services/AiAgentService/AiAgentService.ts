@@ -565,6 +565,7 @@ import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
 import {
     resolveThreadImages,
+    threadImagesWithoutBytes,
     withoutFileParts,
     type ResolvedThreadImage,
 } from '../ai/threadImageContext';
@@ -824,6 +825,13 @@ type AgentConversationContext = {
 };
 
 /** How the history builder treats verified examples for the prompt being answered. */
+type ThreadAttachments = {
+    threadFiles: Map<string, { content: string; path: string }>;
+    threadImages: Map<string, ResolvedThreadImage>;
+};
+type ThreadAttachmentsLoader = (
+    contextMap: Map<string, AiPromptContext>,
+) => Promise<ThreadAttachments>;
 type CurrentPromptExamples =
     | { type: 'retrieve' }
     | { type: 'omit' }
@@ -8755,11 +8763,14 @@ export class AiAgentService extends BaseService {
             deferCurrentVerifiedExamples = false,
             enableFastDecisions = true,
             aiCreditCheck,
+            threadImages = 'load',
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
             aiCreditCheck: AiCreditCheck | null;
+            /** 'omit' names the attached images without reading them from storage. */
+            threadImages?: 'load' | 'omit';
             retrieveRelevantArtifacts?: boolean;
             enableFastDecisions?: boolean;
             /** Look up the prompt's verified examples without blocking fast decisions on them. */
@@ -8937,7 +8948,18 @@ export class AiAgentService extends BaseService {
                 targetThreadMessages,
                 applicableCompaction?.compacted_through_ai_prompt_uuid ?? null,
             );
+        // Both history builds below cover the same messages: read the images once.
+        let threadAttachments: Promise<ThreadAttachments> | null = null;
+        const loadThreadAttachments: ThreadAttachmentsLoader = (contextMap) => {
+            threadAttachments ??= this.getThreadAttachments(
+                prompt.threadUuid,
+                contextMap,
+                threadImages,
+            );
+            return threadAttachments;
+        };
         const historyOptions = {
+            loadThreadAttachments,
             organizationUuid: prompt.organizationUuid,
             projectUuid: agent.projectUuid,
             agentUuid: agent.uuid,
@@ -10287,6 +10309,8 @@ export class AiAgentService extends BaseService {
                     threadUuid,
                     retrieveRelevantArtifacts: false,
                     aiCreditCheck: null,
+                    // A title never needs the pixels.
+                    threadImages: 'omit',
                 });
 
             // The title is generated from the thread's own messages, so it must
@@ -10322,7 +10346,7 @@ export class AiAgentService extends BaseService {
                 ...(compaction
                     ? [Compaction.createSummaryMessage(compaction.summary)]
                     : []),
-                // A title never needs the pixels, and the fast model may not accept them.
+                // The fast model may not accept files of any kind.
                 ...withoutFileParts(chatHistoryMessages),
             ]);
 
@@ -13357,6 +13381,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                             return `${reference} — image bytes are missing. Ask the user to upload it again if needed.`;
                         case 'incomplete':
                             return `${reference} — upload did not complete; image bytes are unavailable.`;
+                        case 'omitted':
+                            return `${reference} — attached to this message; the image itself is not included here.`;
                         default:
                             return assertUnreachable(
                                 status,
@@ -13719,17 +13745,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
     private async getThreadAttachments(
         threadUuid: string,
         contextMap: Map<string, AiPromptContext>,
-    ): Promise<{
-        threadFiles: Map<string, { content: string; path: string }>;
-        threadImages: Map<string, ResolvedThreadImage>;
-    }> {
+        images: 'load' | 'omit',
+    ): Promise<ThreadAttachments> {
         const context = [...contextMap.values()].flat();
         const hasImages = context.some((item) => item.type === 'thread_image');
-        if (hasImages && this.lightdashConfig.uploads.s3 === null) {
-            throw new ParameterError(
-                'Image attachments are unavailable because durable uploads storage is not configured.',
-            );
-        }
         if (
             !hasImages &&
             !context.some((item) => item.type === 'thread_file')
@@ -13747,6 +13766,24 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
                 return [file.uuid, { content: file.content, path }];
             }),
         );
+        if (!hasImages || images === 'omit') {
+            return {
+                threadFiles,
+                threadImages: threadImagesWithoutBytes(contextMap, 'omitted'),
+            };
+        }
+        // Never fall back to the exports bucket; the conversation carries on
+        // and the agent is told the images are unavailable.
+        if (this.lightdashConfig.uploads.s3 === null) {
+            Logger.warn(
+                'Thread images are unavailable: durable uploads storage is not configured',
+                { threadUuid },
+            );
+            return {
+                threadFiles,
+                threadImages: threadImagesWithoutBytes(contextMap, 'missing'),
+            };
+        }
         const threadImages = await resolveThreadImages({
             contextMap,
             files,
@@ -13772,6 +13809,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
             currentPromptExamples?: CurrentPromptExamples;
             pendingRejectedSqlApprovalResults?: Parameters<StoreToolResultsFn>[0];
             threadUuid: string;
+            /** Lets several history builds of one turn share a single read of the images. */
+            loadThreadAttachments?: ThreadAttachmentsLoader;
         },
     ): Promise<ModelMessage[]> {
         const currentPromptExamples = options.currentPromptExamples ?? {
@@ -13782,10 +13821,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`;
         );
         const contextMap =
             await this.aiAgentModel.getContextForPromptUuids(promptUuids);
-        const { threadFiles, threadImages } = await this.getThreadAttachments(
-            options.threadUuid,
-            contextMap,
-        );
+        const { threadFiles, threadImages } =
+            await (options.loadThreadAttachments
+                ? options.loadThreadAttachments(contextMap)
+                : this.getThreadAttachments(
+                      options.threadUuid,
+                      contextMap,
+                      'load',
+                  ));
 
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {

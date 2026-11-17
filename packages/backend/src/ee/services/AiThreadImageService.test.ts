@@ -117,6 +117,7 @@ const setup = (durableUploadsConfigured = true) => {
 const cleanupObject = (key: string): DbAiThreadImageObject => ({
     storage_key: key,
     organization_uuid: 'organization',
+    created_by_user_uuid: 'user',
     media_type: 'image/png',
     width: 20,
     height: 10,
@@ -229,6 +230,57 @@ test('rate limits are shared with text attachments', async () => {
         }),
     ).rejects.toBeInstanceOf(TooManyRequestsError);
     expect(storage.createUploadStream).not.toHaveBeenCalled();
+});
+
+test('parallel uploads from one user are checked and decoded one at a time', async () => {
+    const { service, model } = setup();
+    const order: string[] = [];
+    model.countRecentUploadsForUser.mockImplementation(async () => {
+        order.push('check');
+        return 0;
+    });
+    const createImage = model.createImage.getMockImplementation();
+    if (createImage === undefined) throw new Error('Expected a default mock');
+    model.createImage.mockImplementation(async (args) => {
+        order.push('record');
+        return createImage(args);
+    });
+    const bytes = await png();
+    await Promise.all(
+        ['a.png', 'b.png', 'c.png'].map((fileName) =>
+            service.uploadImage(account, { fileName, bytes }),
+        ),
+    );
+    expect(order).toEqual([
+        'check',
+        'record',
+        'check',
+        'record',
+        'check',
+        'record',
+    ]);
+});
+
+test('a flood of parallel uploads from one user is refused, not queued without bound', async () => {
+    const { service } = setup();
+    const bytes = await png();
+    const results = await Promise.allSettled(
+        Array.from({ length: 25 }, (_, index) =>
+            service.uploadImage(account, {
+                fileName: `chart-${index}.png`,
+                bytes,
+            }),
+        ),
+    );
+    const refused = results.filter(
+        (result) =>
+            result.status === 'rejected' &&
+            result.reason instanceof TooManyRequestsError,
+    );
+    expect(refused).toHaveLength(15);
+    expect(
+        results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(10);
 });
 
 test('failed storage writes never mark an image ready and retain durable cleanup identity', async () => {

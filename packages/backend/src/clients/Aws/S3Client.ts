@@ -36,6 +36,13 @@ type S3ClientArguments = {
     s3Config?: S3Config;
 };
 
+// NoSuchBucket is also a 404, so the status code alone cannot tell them apart.
+const isMissingObjectError = (error: unknown): boolean =>
+    error instanceof NoSuchKey ||
+    error instanceof NotFound ||
+    (error instanceof S3ServiceException &&
+        (error.name === 'NoSuchKey' || error.name === 'NotFound'));
+
 export class S3Client extends S3BaseClient implements FileStorageClient {
     lightdashConfig: LightdashConfig;
 
@@ -270,12 +277,7 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
                 contentDisposition: response.ContentDisposition ?? null,
             };
         } catch (error) {
-            if (
-                error instanceof NoSuchKey ||
-                error instanceof NotFound ||
-                (error instanceof S3ServiceException &&
-                    error.$metadata.httpStatusCode === 404)
-            ) {
+            if (isMissingObjectError(error)) {
                 throw new NotFoundError('File not found');
             }
             if (error instanceof S3Error) {
@@ -431,12 +433,8 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
                 options,
             );
         } catch (error) {
-            // Only a missing object is a completed delete: NoSuchBucket is also a 404.
-            if (
-                error instanceof S3ServiceException &&
-                (error.name === 'NoSuchKey' || error.name === 'NotFound')
-            )
-                return;
+            // A missing object is a completed delete; a missing bucket is not.
+            if (isMissingObjectError(error)) return;
             throw error;
         }
     }

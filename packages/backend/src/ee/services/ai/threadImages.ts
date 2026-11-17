@@ -1,16 +1,104 @@
 import {
     AI_THREAD_IMAGE_MAX_BYTES,
     AI_THREAD_IMAGE_MAX_DIMENSION,
+    assertUnreachable,
     ParameterError,
+    sniffThreadImageMediaType,
     type AiThreadImageMediaType,
 } from '@lightdash/common';
-import sharp from 'sharp';
+import sharp, { type Sharp } from 'sharp';
 
-/** Fully decode before trusting an image, retaining screenshot detail. */
+const LOSSY_QUALITIES = [92, 85, 75];
+
+const isLosslessWebp = (bytes: Buffer): boolean => {
+    // RIFF chunks start after the 12-byte header: 4-byte type, 4-byte size.
+    for (let offset = 12; offset + 8 <= bytes.length; ) {
+        if (bytes.toString('latin1', offset, offset + 4) === 'VP8L')
+            return true;
+        const size = bytes.readUInt32LE(offset + 4);
+        offset += 8 + size + (size % 2);
+    }
+    return false;
+};
+
+/** The first encoding that fits; a re-encode can be larger than its source. */
+const firstWithinLimit = async (
+    encodings: (() => Promise<Buffer>)[],
+): Promise<Buffer> => {
+    let smallest: Buffer | null = null;
+    for (const encode of encodings) {
+        // eslint-disable-next-line no-await-in-loop -- Later encodings only run when the earlier one is too large.
+        const encoded = await encode();
+        if (encoded.length <= AI_THREAD_IMAGE_MAX_BYTES) return encoded;
+        if (smallest === null || encoded.length < smallest.length)
+            smallest = encoded;
+    }
+    if (smallest === null) throw new Error('No image encoding was attempted');
+    return smallest;
+};
+
+const reencode = (
+    upright: Sharp,
+    source: {
+        format: 'png' | 'jpeg' | 'webp';
+        isPalette: boolean;
+        bytes: Buffer;
+    },
+): Promise<Buffer> => {
+    switch (source.format) {
+        case 'png':
+            // Sharp's defaults can double a photographic or indexed PNG.
+            return upright
+                .clone()
+                .png(
+                    source.isPalette
+                        ? { palette: true }
+                        : { adaptiveFiltering: true, compressionLevel: 9 },
+                )
+                .toBuffer();
+        case 'jpeg':
+            return firstWithinLimit(
+                LOSSY_QUALITIES.map(
+                    (quality) => () =>
+                        upright.clone().jpeg({ quality }).toBuffer(),
+                ),
+            );
+        case 'webp':
+            return firstWithinLimit([
+                ...(isLosslessWebp(source.bytes)
+                    ? [
+                          () =>
+                              upright
+                                  .clone()
+                                  .webp({ lossless: true })
+                                  .toBuffer(),
+                      ]
+                    : []),
+                ...LOSSY_QUALITIES.map(
+                    (quality) => () =>
+                        upright.clone().webp({ quality }).toBuffer(),
+                ),
+            ]);
+        default:
+            return assertUnreachable(source.format, 'Unknown image format');
+    }
+};
+
+/**
+ * Fully decode before trusting an image, then always re-encode it in its own
+ * format: that drops every metadata block and any bytes appended to the file.
+ */
 export const normalizeThreadImage = async (bytes: Buffer) => {
     if (bytes.length === 0 || bytes.length > AI_THREAD_IMAGE_MAX_BYTES) {
         throw new ParameterError(
             'Images must be nonempty and no larger than 3 MiB.',
+        );
+    }
+    // Checked before the decoder sees the bytes, so only these three readers run.
+    const sniffed = sniffThreadImageMediaType(bytes);
+    if (sniffed === null) {
+        throw new ParameterError(
+            'Only PNG, JPEG and WebP images can be attached.',
         );
     }
     try {
@@ -55,29 +143,11 @@ export const normalizeThreadImage = async (bytes: Buffer) => {
             );
         }
         await decoder.clone().raw().toBuffer();
-        let normalized = bytes;
-        if (format === 'png') {
-            // Sharp's defaults can double a photographic or indexed PNG.
-            normalized = await decoder
-                .clone()
-                .rotate()
-                .png(
-                    metadata.isPalette
-                        ? { palette: true }
-                        : { adaptiveFiltering: true, compressionLevel: 9 },
-                )
-                .toBuffer();
-        } else if (
-            metadata.exif ||
-            metadata.xmp ||
-            (metadata.orientation ?? 1) !== 1
-        ) {
-            normalized = await decoder
-                .clone()
-                .rotate()
-                .toFormat(format, { quality: 92 })
-                .toBuffer();
-        }
+        const normalized = await reencode(decoder.clone().rotate(), {
+            format,
+            isPalette: metadata.isPalette === true,
+            bytes,
+        });
         if (normalized.length > AI_THREAD_IMAGE_MAX_BYTES) {
             throw new ParameterError(
                 'The processed image exceeds 3 MiB. Attach a smaller image.',
@@ -92,6 +162,11 @@ export const normalizeThreadImage = async (bytes: Buffer) => {
             jpeg: 'image/jpeg',
             webp: 'image/webp',
         } satisfies Record<typeof format, AiThreadImageMediaType>;
+        if (mediaTypes[format] !== sniffed) {
+            throw new ParameterError(
+                'The image content does not match its format.',
+            );
+        }
         return {
             bytes: normalized,
             mediaType: mediaTypes[format],
