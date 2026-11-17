@@ -10,6 +10,7 @@ import {
     oauthApiResource,
     resolveGrantedOAuthResource,
 } from '../../../auth/oauthScopes/oauthResources';
+import { isMobileOAuthClient } from '../../../models/OAuth2Model';
 import { MobileSignInOAuthError } from '../../MobileSignInService/MobileSignInOAuthError';
 import type { MobileSignInService } from '../../MobileSignInService/MobileSignInService';
 import { ManagedSignInRejection } from './ManagedSignInRejection';
@@ -21,10 +22,13 @@ const {
     InvalidRequestError,
     InvalidScopeError,
     OAuthError,
+    UnauthorizedClientError,
 } = OAuth2Server;
 
 export class MobileSignInGrantError extends OAuthError {
     readonly retryAfterSeconds: number | undefined;
+
+    readonly organizationUuid: string | undefined;
 
     constructor(error: MobileSignInOAuthError) {
         super(error.description ?? error.error, {
@@ -32,6 +36,7 @@ export class MobileSignInGrantError extends OAuthError {
             name: error.error,
         });
         this.retryAfterSeconds = error.retryAfterSeconds;
+        this.organizationUuid = error.organizationUuid;
     }
 }
 
@@ -68,6 +73,11 @@ export const createMicrosoftTokenExchangeGrantType = (
             request: OAuth2Server.Request,
             client: OAuth2Server.Client,
         ): Promise<OAuth2Server.Token> {
+            if (!isMobileOAuthClient(client.redirectUris)) {
+                throw new UnauthorizedClientError(
+                    'Unauthorized client: `grant_type` is invalid',
+                );
+            }
             const subjectToken = request.body.subject_token;
             const subjectTokenType = request.body.subject_token_type;
 

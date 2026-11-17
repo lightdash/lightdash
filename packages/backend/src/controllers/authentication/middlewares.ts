@@ -9,6 +9,7 @@ import {
     DeactivatedAccountError,
     InvalidUser,
     LightdashMode,
+    MobileOrgDisabledError,
     NotFoundError,
     SessionUser,
 } from '@lightdash/common';
@@ -26,6 +27,7 @@ import { fromApiKey, fromOauth } from '../../auth/account/account';
 import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { getGrantOperationContract } from '../../auth/agentConnectionGrants/operationContracts';
+import { MobileOrgDisabledOAuthError } from '../../auth/mobileAppAccess';
 import { resolveOAuthScopeMode } from '../../auth/oauthScopes/mode';
 import {
     oauthApiResource,
@@ -67,6 +69,15 @@ const refuseOAuthToken = (
         );
     }
     res.status(401).json({ error: 'invalid_token' });
+};
+
+const refuseDisabledMobileOrg = (
+    error: unknown,
+    next: NextFunction,
+): boolean => {
+    if (!(error instanceof MobileOrgDisabledOAuthError)) return false;
+    next(new MobileOrgDisabledError(error.organizationUuid));
+    return true;
 };
 
 export const acceptAnyOAuthAudience: RequestHandler = (_req, res, next) => {
@@ -428,6 +439,7 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                 });
         })
         .catch(async (error) => {
+            if (refuseDisabledMobileOrg(error, next)) return;
             if (error instanceof OAuthBearerRefusalError) {
                 refuseOAuthToken(req, res);
                 return;
@@ -587,6 +599,7 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                 });
         })
         .catch(async (error) => {
+            if (refuseDisabledMobileOrg(error, next)) return;
             if (error instanceof OAuthBearerRefusalError) {
                 refuseOAuthToken(req, res);
                 return;

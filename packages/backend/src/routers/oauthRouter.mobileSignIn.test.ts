@@ -197,6 +197,48 @@ describe('POST /api/v1/oauth/mobile-sign-in/claim', () => {
     });
 });
 
+describe.each(['claim', 'cancel'] as const)(
+    'POST /api/v1/oauth/mobile-sign-in/%s for an organization with mobile access off',
+    (operation) => {
+        it('answers 403 with the code and the organization', async () => {
+            const refuse = async () => {
+                throw new MobileSignInOAuthError('access_denied', {
+                    description: 'mobile_org_disabled',
+                    statusCode: 403,
+                    organizationUuid: 'organization-uuid',
+                });
+            };
+            const { base, close } = await startApp({
+                getMobileSignInService: () => ({
+                    getClientAddress: (req: Request) =>
+                        getClientAddress(req, true),
+                    claim: refuse,
+                    cancelFromPhone: refuse,
+                }),
+            });
+            try {
+                const response = await fetch(
+                    `${base}/mobile-sign-in/${operation}`,
+                    {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: '{}',
+                    },
+                );
+                expect(response.status).toBe(403);
+                expect(response.headers.get('cache-control')).toBe('no-store');
+                expect(await response.json()).toEqual({
+                    error: 'access_denied',
+                    error_description: 'mobile_org_disabled',
+                    organization_uuid: 'organization-uuid',
+                });
+            } finally {
+                close();
+            }
+        });
+    },
+);
+
 describe('POST /api/v1/oauth/mobile-sign-in/cancel', () => {
     const postCancel = (base: string, body: string) =>
         fetch(`${base}/mobile-sign-in/cancel`, {
@@ -340,6 +382,20 @@ describe('POST /api/v1/oauth/token with a mobile sign-in code', () => {
             {
                 error: 'access_denied',
                 error_description: 'qr_sign_in_disabled',
+            },
+            null,
+        ],
+        [
+            new MobileSignInOAuthError('access_denied', {
+                description: 'mobile_org_disabled',
+                statusCode: 403,
+                organizationUuid: 'organization-uuid',
+            }),
+            403,
+            {
+                error: 'access_denied',
+                error_description: 'mobile_org_disabled',
+                organization_uuid: 'organization-uuid',
             },
             null,
         ],

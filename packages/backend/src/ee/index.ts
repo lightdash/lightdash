@@ -1,5 +1,6 @@
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
+import { isMobileAppAccessEnabled } from '../auth/mobileAppAccess';
 import {
     createPullRequestComment,
     getInstallationToken,
@@ -244,6 +245,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 const scheduler =
                     clients.getSchedulerClient() as CommercialSchedulerClient;
                 const apnsClient = clients.getApnsClient();
+                const isMobileAccessEnabled = (organizationUuid: string) =>
+                    isMobileAppAccessEnabled(
+                        models.getFeatureFlagModel(),
+                        organizationUuid,
+                    );
                 const reconciler = new MobilePushNotificationReconciler({
                     notificationStore,
                     threadStore,
@@ -251,6 +257,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     fcmClient: clients.getFcmClient(),
                     scheduler,
                     analytics: context.lightdashAnalytics,
+                    isMobileAppAccessEnabled: isMobileAccessEnabled,
                     completionAlert: undefined,
                 });
                 return new MobilePushNotificationService({
@@ -263,6 +270,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     reconciler,
                     analytics: context.lightdashAnalytics,
                     apnsClient,
+                    isMobileAppAccessEnabled: isMobileAccessEnabled,
                 });
             },
             oauthService: ({ models, context, repository }) =>
