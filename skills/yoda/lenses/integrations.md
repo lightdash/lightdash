@@ -9,7 +9,6 @@
 - **provider failure:** timeouts, rate limits, expired auth and partial responses are handled and surfaced to the user.
 - **tenant variance:** settings that differ per customer (regions, roles, SSO, self-hosted hosts and ports) keep working for existing setups.
 - **one-way side effects:** outgoing messages, webhooks and third-party writes are stated in the PR.
-- **credentials:** secrets stay out of logs and responses.
 - **provider limits:** the provider's payload size and rate limits are respected (Slack message length, API quotas).
 
 ## Impact
