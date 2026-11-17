@@ -25,6 +25,7 @@ import { type ResultColumn } from '../types/results';
 import { ChartType, type ChartConfig } from '../types/savedCharts';
 import { getHandWrittenAdditionalMetrics } from '../utils/additionalMetrics';
 import assertUnreachable from '../utils/assertUnreachable';
+import { getItemLabelWithoutTableName } from '../utils/item';
 
 type StoredNode<T> = T & {
     /** @pattern ^[a-zA-Z_][a-zA-Z0-9_]{0,62}$ */
@@ -621,6 +622,17 @@ export const getComposerChartDisplayedQueryUuid = (
     run.chartStageQueryUuid ??
     run.queries.find(({ nodeId }) => nodeId === terminalNodeId)?.queryUuid ??
     null;
+
+/** Export headers from the terminal run's fields; a series-split stage carries only column names. */
+export const getComposerChartExportLabels = (
+    fields: ItemsMap,
+): Record<string, string> =>
+    Object.fromEntries(
+        Object.entries(fields).map(([fieldId, item]) => [
+            fieldId,
+            getItemLabelWithoutTableName(item),
+        ]),
+    );
 
 export type ApiComposerChartRunResponse = {
     status: 'ok';

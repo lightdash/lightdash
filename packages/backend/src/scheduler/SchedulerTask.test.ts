@@ -2600,6 +2600,18 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
             },
         ],
         chartStageQueryUuid,
+        fields: {
+            orders_total_order_amount: {
+                fieldType: FieldType.METRIC,
+                type: MetricType.SUM,
+                name: 'total_order_amount',
+                label: 'Total order amount',
+                table: 'orders',
+                tableLabel: 'Orders',
+                sql: '',
+                hidden: false,
+            },
+        },
     });
     const account = {
         user: { id: 'user-1', type: 'registered' },
@@ -2719,7 +2731,12 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
                 organizationUuid: 'org-1',
                 projectUuid: 'project-1',
             });
-        return { deliver, exportZip, createZipDownloadUrl };
+        return {
+            deliver,
+            exportZip,
+            createZipDownloadUrl,
+            downloadSyncQueryResults,
+        };
     };
 
     const fileNames = (page: NotificationPayloadBase['page']) =>
@@ -2728,13 +2745,23 @@ describe('dashboard CSV and XLSX delivery with a composer chart tile', () => {
     it.each([SchedulerFormat.CSV, SchedulerFormat.XLSX])(
         'delivers the rows the composer tile draws, in layout order (%s)',
         async (format) => {
-            const { deliver } = setupDelivery({
+            const { deliver, downloadSyncQueryResults } = setupDelivery({
                 run: vi.fn().mockResolvedValue(runResults('stage-q')),
             });
             const page = await deliver(format);
             expect(fileNames(page)).toEqual(['Classic', 'Composer']);
             expect(page.csvUrls?.[1].path).toBe('https://files/stage-q');
             expect(page.failures).toBeUndefined();
+            // The split stage has no governed labels of its own
+            expect(downloadSyncQueryResults).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    queryUuid: 'stage-q',
+                    customLabels: {
+                        orders_total_order_amount: 'Total order amount',
+                    },
+                }),
+                expect.anything(),
+            );
         },
     );
 

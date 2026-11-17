@@ -1,8 +1,10 @@
 import { ParameterError } from '../types/errors';
+import { FieldType, MetricType } from '../types/field';
 import { QuerySourceType } from '../types/querySources';
 import { ChartType } from '../types/savedCharts';
 import {
     getComposerChartDisplayedQueryUuid,
+    getComposerChartExportLabels,
     parseComposerChartInput,
     parseComposerChartRunRequest,
     parseComposerPipeline,
@@ -466,5 +468,24 @@ describe('getComposerChartDisplayedQueryUuid', () => {
                 'monthly',
             ),
         ).toBeNull();
+    });
+});
+
+describe('getComposerChartExportLabels', () => {
+    it('labels each column with its governed label, without the table', () => {
+        expect(
+            getComposerChartExportLabels({
+                orders_total_order_amount: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'total_order_amount',
+                    label: 'Total order amount',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '',
+                    hidden: false,
+                },
+            }),
+        ).toEqual({ orders_total_order_amount: 'Total order amount' });
     });
 });

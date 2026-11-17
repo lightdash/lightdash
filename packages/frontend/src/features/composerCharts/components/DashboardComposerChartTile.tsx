@@ -4,6 +4,7 @@ import {
     FeatureFlags,
     getChartKind,
     getComposerChartDisplayedQueryUuid,
+    getComposerChartExportLabels,
     getComposerChartDraw,
     pickComposerChartRows,
     type ComposerChartDraw,
@@ -389,13 +390,14 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                     </Sentry.ErrorBoundary>
                 )
             )}
-            {exportQueryUuid && projectUuid && (
+            {exportQueryUuid && projectUuid && run && (
                 <ExportDataModal
                     isOpen={exportOpened}
                     onClose={closeExport}
                     projectUuid={projectUuid}
                     totalResults={results.totalResults}
                     getDownloadQueryUuid={async () => exportQueryUuid}
+                    customLabels={getComposerChartExportLabels(run.fields)}
                     chartName={title}
                     hideLimitSelection
                 />

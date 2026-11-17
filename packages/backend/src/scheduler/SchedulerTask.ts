@@ -36,6 +36,7 @@ import {
     friendlyName,
     getColumnOrderFromVizTableConfig,
     getComposerChartDisplayedQueryUuid,
+    getComposerChartExportLabels,
     getConditionalFormattingsFromChartConfig,
     getCronCadence,
     getCustomLabelsFromTableConfig,
@@ -7265,7 +7266,13 @@ export default class SchedulerTask {
         }
         const { fileUrl, s3FileUrl } =
             await this.asyncQueryService.downloadSyncQueryResults(
-                { ...download, account, projectUuid, queryUuid },
+                {
+                    ...download,
+                    account,
+                    projectUuid,
+                    queryUuid,
+                    customLabels: getComposerChartExportLabels(run.fields),
+                },
                 this.schedulerPollingOptions,
             );
         return { chartName: chart.name, queryUuid, fileUrl, s3FileUrl };
