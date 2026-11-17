@@ -1,3 +1,10 @@
+# [3.294.0](https://github.com/lightdash/lightdash/compare/3.293.1...3.294.0) (2026-11-17)
+
+
+### Features
+
+* **semantic-studio:** show each explore's lineage and joins on the Semantic Layer page ([#32593](https://github.com/lightdash/lightdash/issues/32593)) ([2118a43](https://github.com/lightdash/lightdash/commit/2118a431309f63f14e155a2e284999c13f1ba490))
+
 ## [3.293.1](https://github.com/lightdash/lightdash/compare/3.293.0...3.293.1) (2026-11-17)
 
 
