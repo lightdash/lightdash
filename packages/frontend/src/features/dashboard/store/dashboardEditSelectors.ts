@@ -35,6 +35,10 @@ export const selectCanvasZoom = (state: DashboardStoreState) =>
     state.edit.canvasZoom;
 export const selectCanvasBackground = (state: DashboardStoreState) =>
     state.edit.canvasBackground;
+export const selectIsTileSelected = (
+    state: DashboardStoreState,
+    tileUuid: string,
+) => state.edit.selectedTileUuid === tileUuid;
 export const selectDashboardTabs = (state: DashboardStoreState) =>
     state.edit.tabs;
 export const selectHaveTabsChanged = (state: DashboardStoreState) =>
