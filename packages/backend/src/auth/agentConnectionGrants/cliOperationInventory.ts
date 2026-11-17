@@ -830,7 +830,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Project lifecycle and warehouse configuration changes are refused in v1.',
         ),
         refused(
-            'handlers/renameHandler.ts:151',
+            'handlers/renameHandler.ts:152',
             'POST',
             '`/api/v1/projects/${projectUuid}/rename`',
             ['RenameController.rename'],
