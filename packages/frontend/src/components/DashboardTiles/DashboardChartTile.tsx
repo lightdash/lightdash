@@ -376,6 +376,7 @@ const ValidDashboardChartTile: FC<{
                 onSeriesContextMenu={onSeriesContextMenu}
                 columnOrder={chart.tableConfig.columnOrder}
                 savedChartUuid={chart.uuid}
+                hasUnpublishedChanges={!!chart.hasUnpublishedChanges}
                 dashboardFilters={dashboardFilters}
                 invalidateCache={invalidateCache}
                 colorPalette={colorPalette}

@@ -934,6 +934,85 @@ describe('DataAppVizRenderer', () => {
         );
     });
 
+    it("renders a saved chart from the viewer's unpublished draft only when the host says so", () => {
+        const view = renderRenderer();
+        expect(mocks.renderMetadataHook.mock.lastCall?.[2]).not.toMatchObject({
+            hasUnpublishedChanges: true,
+        });
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                chartContext: { savedChartUuid: 'saved-chart-uuid' },
+            }),
+            undefined,
+        );
+
+        mocks.vizContextOverrides.current = { hasUnpublishedChanges: true };
+        view.rerender(rendererElement());
+
+        expect(mocks.renderMetadataHook.mock.lastCall?.[2]).toMatchObject({
+            savedChartUuid: 'saved-chart-uuid',
+            hasUnpublishedChanges: true,
+        });
+        expect(mocks.previewTokenHook.mock.lastCall?.[3]).toMatchObject({
+            savedChartUuid: 'saved-chart-uuid',
+            hasUnpublishedChanges: true,
+        });
+        expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                chartContext: {
+                    savedChartUuid: 'saved-chart-uuid',
+                    includeUnpublishedDraft: true,
+                },
+            }),
+            undefined,
+        );
+    });
+
+    it.each<{
+        label: string;
+        chartVersionUuid: string | undefined;
+        embedToken: string | undefined;
+    }>([
+        {
+            label: 'a chart version',
+            chartVersionUuid: 'chart-version-uuid',
+            embedToken: undefined,
+        },
+        {
+            label: 'an embed',
+            chartVersionUuid: undefined,
+            embedToken: 'embed-token',
+        },
+    ])(
+        'never asks external fetches for the draft from $label',
+        ({ chartVersionUuid, embedToken }) => {
+            mocks.vizContextOverrides.current = {
+                hasUnpublishedChanges: true,
+            };
+            mocks.chartVersionUuid.current = chartVersionUuid;
+            mocks.embedToken.current = embedToken;
+
+            renderRenderer();
+
+            expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    chartContext: expect.objectContaining({
+                        savedChartUuid: 'saved-chart-uuid',
+                    }),
+                }),
+                undefined,
+            );
+            expect(mocks.iframePreview).not.toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    chartContext: expect.objectContaining({
+                        includeUnpublishedDraft: true,
+                    }),
+                }),
+                undefined,
+            );
+        },
+    );
+
     it('passes the chart version selected by the host', () => {
         mocks.chartVersionUuid.current = 'chart-version-uuid';
 

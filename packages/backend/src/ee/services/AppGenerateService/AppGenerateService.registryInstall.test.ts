@@ -287,6 +287,7 @@ function buildService(overrides: {
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
         chartRegistryClient: fullChartRegistryClient as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,
             verify: async () => undefined,

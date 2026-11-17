@@ -238,6 +238,7 @@ const buildService = ({
             appModel: appModel as never,
         }),
         chartRegistryClient: {} as never,
+        contentDraftModel: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,
         } as never,

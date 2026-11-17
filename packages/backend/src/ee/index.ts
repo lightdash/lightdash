@@ -692,6 +692,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                     contentVerificationModel:
                         models.getContentVerificationModel(),
+                    contentDraftModel: models.getContentDraftModel(),
                 }),
             roadmapService: ({ context }) =>
                 new RoadmapService({

@@ -378,6 +378,8 @@ export const EXTERNAL_CONNECTION_DEFAULTS = {
 export type ExternalFetchSavedChartContext = {
     savedChartUuid: UUID;
     chartVersionUuid?: UUID;
+    /** Authorize against the requester's own unpublished draft of the chart. */
+    includeUnpublishedDraft?: boolean;
 };
 
 /** A chart of a specific Document version rendering a chart type. */
