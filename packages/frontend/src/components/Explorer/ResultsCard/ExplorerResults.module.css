@@ -40,9 +40,9 @@
 }
 
 /* Header label: the field name in ink, led by its type icon in the field
-   kind's colour, with its table in grey underneath. Long names wrap inside
-   the column, so it stays as wide as its values, and every line starts at
-   the column's left edge. */
+   kind's colour, with its table in grey underneath. A long name wraps between
+   words, so a column is never narrower than its longest word and a wide
+   table scrolls sideways. */
 .results:not([data-grouped]) [class*='tableHeaderLabelContainer'] {
     display: flex;
     flex-direction: column;
@@ -55,12 +55,6 @@
 .results:not([data-grouped]) [class*='tableHeaderBoldLabel'] {
     color: var(--mantine-color-text);
     font-weight: 500;
-    /* Two lines at most; the header tooltip has the full name */
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
-    overflow-wrap: anywhere;
 }
 
 /* The icon flows with the name's first word */
@@ -97,6 +91,12 @@
     .results:not([data-grouped]) table thead th [class*='thActionsContainer'] {
         opacity: 1;
     }
+}
+
+/* A total stays on one line, like the values above it */
+.results:not([data-grouped]) table tfoot td,
+.results:not([data-grouped]) table tfoot th {
+    white-space: nowrap;
 }
 
 /* Every results column aligns to the left, labels over their values */
