@@ -630,6 +630,26 @@ describe('OAuth authorize for an organization with mobile access off', () => {
         expect(oauthService.authorize).not.toHaveBeenCalled();
     });
 
+    it('keeps the organization out of a redirect that does not go to the app', async () => {
+        const oauthService = createOAuthService();
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+        oauthService.isMobileAppAccessDenied.mockResolvedValue(true);
+
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'mixed-client',
+                redirect_uri: 'https://registered.example/callback',
+                state: 'request-state',
+            },
+            oauthService,
+        });
+
+        expect(getRedirectUrl(response.body)).toBe(
+            'https://registered.example/callback?error=access_denied&error_description=mobile_org_disabled&state=request-state',
+        );
+        expect(response.body).not.toContain('organization-uuid');
+    });
+
     it('does not redirect to an unregistered URI', async () => {
         const oauthService = createOAuthService();
         oauthService.validateRedirectUri.mockResolvedValue(false);

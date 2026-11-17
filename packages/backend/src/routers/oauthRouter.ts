@@ -28,7 +28,10 @@ import {
     unauthorisedInDemo,
 } from '../controllers/authentication';
 import Logger from '../logging/logger';
-import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
+import {
+    DEFAULT_OAUTH_CLIENT_ID,
+    isMobileOAuthClient,
+} from '../models/OAuth2Model';
 import { MobileSignInOAuthError } from '../services/MobileSignInService/MobileSignInOAuthError';
 import { isClientIdMetadataDocumentUrl } from '../services/OAuthService/clientIdMetadataDocument';
 import { InvalidRedirectUriError } from '../services/OAuthService/InvalidRedirectUriError';
@@ -194,7 +197,12 @@ const refuseDisabledMobileOrg = async (
     }
     redirectUrl.searchParams.set('error', 'access_denied');
     redirectUrl.searchParams.set('error_description', MOBILE_ORG_DISABLED_CODE);
-    redirectUrl.searchParams.set('organization_uuid', params.organizationUuid);
+    if (isMobileOAuthClient(redirectUrl.href)) {
+        redirectUrl.searchParams.set(
+            'organization_uuid',
+            params.organizationUuid,
+        );
+    }
     if (typeof params.state === 'string' && params.state !== '') {
         redirectUrl.searchParams.set('state', params.state);
     }

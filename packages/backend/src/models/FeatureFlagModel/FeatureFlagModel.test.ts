@@ -976,6 +976,23 @@ describe('mobile app access', () => {
         expect((await getFrom(model, 'other-org')).enabled).toBe(false);
     });
 
+    it('is forced on by the ENV enable list, which an organization override cannot undo outside previews', async () => {
+        const model = buildModel(
+            {
+                ...productionConfig,
+                enabledFeatureFlags: new Set([FeatureFlags.MobileAppAccess]),
+            },
+            buildFakeDatabase({
+                flag: { default_enabled: null },
+                orgOverride: {
+                    organization_uuid: dbUser.organizationUuid,
+                    enabled: false,
+                },
+            }),
+        );
+        expect((await getFrom(model)).enabled).toBe(true);
+    });
+
     it('lets an organization override turn it off in a preview environment', async () => {
         const rows: FakeRows = {};
         const model = buildModel(

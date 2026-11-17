@@ -531,7 +531,12 @@ forces it on, and Console cannot turn it off there. ENV changes need a restart.
   call the health check, which answers 401 for a cookie session too; that check
   is not a security control.
 - A person who registers an OAuth client of their own with another redirect URI
-  keeps the API access that the CLI has.
+  keeps the API access that the CLI has. A personal access token that a person
+  created earlier also keeps working. The flag controls the apps, not the API.
+- The token exchange grant (QR code and Microsoft ID token) accepts mobile
+  clients only.
+- The sign-in redirect carries `organization_uuid` only when it goes to the
+  app's own redirect scheme.
 - If the database read for the flag fails, the resolver logs a warning and uses
   the default, which is on.
 

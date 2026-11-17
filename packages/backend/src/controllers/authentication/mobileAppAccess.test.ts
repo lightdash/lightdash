@@ -1,4 +1,9 @@
-import { FeatureFlags, LightdashError } from '@lightdash/common';
+import {
+    FeatureFlags,
+    ID_TOKEN_TYPE,
+    LightdashError,
+    TOKEN_EXCHANGE_GRANT_TYPE,
+} from '@lightdash/common';
 import express, {
     type NextFunction,
     type Request,
@@ -7,6 +12,7 @@ import express, {
 } from 'express';
 import knex from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
+import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { request as httpRequest, type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
@@ -22,6 +28,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import { OAuth2Model } from '../../models/OAuth2Model';
 import { type UserModel } from '../../models/UserModel';
 import oauthRouter from '../../routers/oauthRouter';
+import { type ManagedSignInService } from '../../services/OAuthService/managedSignIn/ManagedSignInService';
 import { OAuthService } from '../../services/OAuthService/OAuthService';
 import {
     allowApiKeyAuthentication,
@@ -39,6 +46,10 @@ vi.mock('../../models/FeatureFlagModel/flagCheckAggregator', () => ({
 const disabledOrg = '11111111-1111-4111-8111-111111111111';
 const otherOrg = '22222222-2222-4222-8222-222222222222';
 const mobileRedirectUri = 'com.lightdash.mobile://oauth/callback';
+const codeVerifier = 'verifier-0000-test-0000-test-0000-test-0000-test-00';
+const codeChallenge = createHash('sha256')
+    .update(codeVerifier)
+    .digest('base64url');
 
 const clients: Record<string, { redirect_uris: string[]; grants: string[] }> = {
     'mobile-client': {
@@ -49,9 +60,17 @@ const clients: Record<string, { redirect_uris: string[]; grants: string[] }> = {
         redirect_uris: ['http://localhost:*/callback'],
         grants: ['authorization_code', 'refresh_token'],
     },
+    'exchange-client': {
+        redirect_uris: ['https://client.example/callback'],
+        grants: [TOKEN_EXCHANGE_GRANT_TYPE, 'refresh_token'],
+    },
 };
 
 type StoredToken = { clientId: string; organizationUuid: string };
+
+const authorizationCodes: Record<string, StoredToken> = {
+    'mobile-code': { clientId: 'mobile-client', organizationUuid: disabledOrg },
+};
 
 const accessTokens: Record<string, StoredToken> = {
     'mobile-access': {
@@ -102,10 +121,20 @@ const featureFlagModel = new FeatureFlagModel({
     lightdashConfig: config,
 });
 const oauthModel = new OAuth2Model(database, config, featureFlagModel);
+const managedSignIn = {
+    exchangeIdToken: vi.fn(async () => ({
+        ...defaultSessionUser,
+        userId: 42,
+        organizationUuid: disabledOrg,
+    })),
+    recordSignInAllowed: vi.fn(),
+};
 const oauthService = new OAuthService({
     lightdashConfig: config,
     userModel: {} as UserModel,
     oauthModel,
+    getManagedSignInService: () =>
+        managedSignIn as unknown as ManagedSignInService,
 });
 
 const findStored = (
@@ -193,6 +222,28 @@ const registerQueries = (
                         : null,
             };
         });
+    tracker.on
+        .select(/from "oauth2_authorization_codes"/)
+        .response(({ bindings }) => {
+            const stored = findStored(authorizationCodes, bindings);
+            if (!stored) return undefined;
+            return {
+                authorization_code: stored.presented,
+                expires_at: new Date(Date.now() + 60_000),
+                redirect_uri: mobileRedirectUri,
+                scope: ['read', 'write'],
+                client_id: stored.clientId,
+                ...clients[stored.clientId],
+                user_id: 42,
+                organization_uuid: stored.organizationUuid,
+                code_challenge: codeChallenge,
+                code_challenge_method: 'S256',
+                resource: null,
+                agent_connection_grant_uuid: null,
+                session_expires_at: null,
+            };
+        });
+    tracker.on.delete('oauth2_authorization_codes').response(1);
     tracker.on.select(/from "oauth2_clients"/).response(({ bindings }) => {
         const clientId = bindings[0] as string;
         return clients[clientId]
@@ -500,6 +551,7 @@ describe('the token endpoint for a mobile client', () => {
             organization_uuid: disabledOrg,
         });
         expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update).toHaveLength(1);
     });
 
     it('still refreshes a non-mobile client of the same organization', async () => {
@@ -522,6 +574,114 @@ describe('the token endpoint for a mobile client', () => {
         });
 
         expect(revoked.status).toBe(200);
+    });
+});
+
+describe('the other grants for a mobile client', () => {
+    const exchangeCode = (url: string) =>
+        send(`${url}/api/v1/oauth/token`, {
+            form: {
+                grant_type: 'authorization_code',
+                code: 'mobile-code',
+                redirect_uri: mobileRedirectUri,
+                client_id: 'mobile-client',
+                code_verifier: codeVerifier,
+            },
+        });
+    const exchangeIdToken = (url: string, clientId: string) =>
+        send(`${url}/api/v1/oauth/token`, {
+            form: {
+                grant_type: TOKEN_EXCHANGE_GRANT_TYPE,
+                subject_token: 'a-microsoft-id-token',
+                subject_token_type: ID_TOKEN_TYPE,
+                scope: 'read',
+                client_id: clientId,
+            },
+        });
+    const denied = {
+        error: 'access_denied',
+        error_description: 'mobile_org_disabled',
+        organization_uuid: disabledOrg,
+    };
+
+    it('issues no token for an authorization code of a disabled organization', async () => {
+        flagState.overrides.set(disabledOrg, false);
+        const url = await start();
+
+        const response = await exchangeCode(url);
+
+        expect(response.status).toBe(403);
+        expect(response.body).toEqual(denied);
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+
+    it('exchanges an authorization code for an enabled organization', async () => {
+        const url = await start();
+
+        const response = await exchangeCode(url);
+
+        expect(response.status).toBe(200);
+        expect(response.body.access_token).toEqual(expect.any(String));
+    });
+
+    it('issues no token for a Microsoft ID token of a disabled organization', async () => {
+        flagState.overrides.set(disabledOrg, false);
+        const url = await start();
+
+        const response = await exchangeIdToken(url, 'mobile-client');
+
+        expect(response.status).toBe(403);
+        expect(response.body).toEqual(denied);
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(managedSignIn.recordSignInAllowed).not.toHaveBeenCalled();
+    });
+
+    it('exchanges a Microsoft ID token for an enabled organization', async () => {
+        const url = await start();
+
+        const response = await exchangeIdToken(url, 'mobile-client');
+
+        expect(response.status).toBe(200);
+        expect(response.body.access_token).toEqual(expect.any(String));
+        expect(managedSignIn.recordSignInAllowed).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses the Microsoft ID token exchange for a client that is not a mobile app', async () => {
+        const url = await start();
+
+        const response = await exchangeIdToken(url, 'exchange-client');
+
+        expect(response.status).toBeGreaterThanOrEqual(400);
+        expect(response.body.error).toBe('unauthorized_client');
+        expect(managedSignIn.exchangeIdToken).not.toHaveBeenCalled();
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+});
+
+describe('OAuthService.isMobileAppAccessDenied', () => {
+    it('is true only for a mobile client of a disabled organization', async () => {
+        flagState.overrides.set(disabledOrg, false);
+
+        await expect(
+            oauthService.isMobileAppAccessDenied('mobile-client', disabledOrg),
+        ).resolves.toBe(true);
+        await expect(
+            oauthService.isMobileAppAccessDenied('mobile-client', otherOrg),
+        ).resolves.toBe(false);
+        await expect(
+            oauthService.isMobileAppAccessDenied('cli-client', disabledOrg),
+        ).resolves.toBe(false);
+        await expect(
+            oauthService.isMobileAppAccessDenied('unknown-client', disabledOrg),
+        ).resolves.toBe(false);
+    });
+
+    it('is false again when the organization is turned back on', async () => {
+        flagState.overrides.set(disabledOrg, true);
+
+        await expect(
+            oauthService.isMobileAppAccessDenied('mobile-client', disabledOrg),
+        ).resolves.toBe(false);
     });
 });
 
