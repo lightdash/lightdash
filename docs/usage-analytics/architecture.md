@@ -14,6 +14,9 @@ For current role requirements, project-list visibility and support guidance, see
 [managed analytics project access](access.md). A standard project type does not
 remove the analytics-specific organization-management check.
 
+For implementation precedents and validation steps for new built-in content,
+see the [Managed Analytics contributor guide](contributor-guide.md).
+
 For the automatic import on project creation and the Settings action for
 existing projects, see [historical backfill](history-backfill.md). It recovers
 retained query history and AI usage into their event datasets, plus legacy
