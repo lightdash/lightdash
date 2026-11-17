@@ -24140,22 +24140,48 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_DataAppVizUpgradeImpact_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__questions-string-Array__': {
+    AppClarifyQuestion: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        questions: {
-                            dataType: 'array',
-                            array: { dataType: 'string' },
-                            required: true,
-                        },
-                    },
+                options: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
                     required: true,
                 },
+                question: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AppClarifyResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                items: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'AppClarifyQuestion' },
+                    required: true,
+                },
+                questions: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_AppClarifyResult_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'AppClarifyResult', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -24164,7 +24190,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiClarifyAppResponse: {
         dataType: 'refAlias',
-        type: { ref: 'ApiSuccess__questions-string-Array__', validators: {} },
+        type: { ref: 'ApiSuccess_AppClarifyResult_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiClarifyAppRequest: {

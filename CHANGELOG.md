@@ -1,3 +1,10 @@
+# [3.279.0](https://github.com/lightdash/lightdash/compare/3.278.1...3.279.0) (2026-11-17)
+
+
+### Features
+
+* **apps:** calmer data app builder chat, preview and header ([#32635](https://github.com/lightdash/lightdash/issues/32635)) ([abb703c](https://github.com/lightdash/lightdash/commit/abb703c2b2472459fdbb369143c39a57ec90ee95))
+
 ## [3.278.1](https://github.com/lightdash/lightdash/compare/3.278.0...3.278.1) (2026-11-17)
 
 
