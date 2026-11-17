@@ -1,3 +1,15 @@
+## [3.289.2](https://github.com/lightdash/lightdash/compare/3.289.1...3.289.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** smooth Semantic Studio's path from proposal to merge ([#32727](https://github.com/lightdash/lightdash/issues/32727)) ([2128f25](https://github.com/lightdash/lightdash/commit/2128f25ba2e7f2e974cd69fd95a3625a00950c08))
+
+
+### Performance Improvements
+
+* **ai:** cut wasted requests and renders in Semantic Studio ([#32734](https://github.com/lightdash/lightdash/issues/32734)) ([9c7db33](https://github.com/lightdash/lightdash/commit/9c7db335da0ce7312e313e7f48c3ec67e6ef0dd7))
+
 ## [3.289.1](https://github.com/lightdash/lightdash/compare/3.289.0...3.289.1) (2026-11-17)
 
 
