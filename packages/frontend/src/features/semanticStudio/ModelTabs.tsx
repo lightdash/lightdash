@@ -14,7 +14,7 @@ import {
 } from '@mantine/core';
 import { File, WorkerPoolContextProvider } from '@pierre/diffs/react';
 import dayjs from 'dayjs';
-import { useState, type FC, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import {
@@ -29,7 +29,7 @@ import {
     DRAFT_REVIEW,
     getChangeKind,
     changeTitle,
-    findFieldLine,
+    findFieldBlock,
     VIEW_PARAM,
 } from './modelCode';
 import { ModelPreAggregates } from './ModelPreAggregates';
@@ -40,6 +40,16 @@ import {
     useAppliesAsPullRequest,
     useUndoSemanticLayerChanges,
 } from './useSemanticLayerModel';
+
+/** Fades the lines around the marked definition; hovering the code brings them back. */
+const ISOLATE_BLOCK_CSS = `
+[data-line]:not([data-selected-line]),
+[data-column-number]:not([data-selected-line]) {
+    opacity: 0.3;
+    transition: opacity 150ms ease;
+}
+:host(:hover) :is([data-line], [data-column-number]) { opacity: 1; }
+`;
 
 /** A model's YAML, read only: its draft when it has one, or what is live. */
 export const ModelCodeView: FC<{
@@ -59,8 +69,28 @@ export const ModelCodeView: FC<{
     const [version, setVersion] = useState<'draft' | 'live'>('draft');
     const isDraft = draftContent !== undefined && version === 'draft';
     const content = isDraft ? draftContent : (model?.content ?? null);
-    const line =
-        fieldName && content ? findFieldLine(content, fieldName) : null;
+    const block =
+        fieldName && content ? findFieldBlock(content, fieldName) : null;
+    const line = block?.start ?? null;
+    const editor = useRef<HTMLDivElement>(null);
+    // The viewer marks the line but does not bring it into view, and it renders after this does.
+    useEffect(() => {
+        if (line === null) return undefined;
+        let frame = 0;
+        let tries = 0;
+        const reveal = () => {
+            const target = editor.current
+                ?.querySelector('diffs-container')
+                ?.shadowRoot?.querySelector(`[data-line="${line}"]`);
+            if (target) target.scrollIntoView({ block: 'center' });
+            else if (tries < 60) {
+                tries += 1;
+                frame = requestAnimationFrame(reveal);
+            }
+        };
+        reveal();
+        return () => cancelAnimationFrame(frame);
+    }, [line, modelName]);
     if (isLoading) return null;
     if (!model && draftContent === undefined) {
         return (
@@ -99,7 +129,7 @@ export const ModelCodeView: FC<{
                     ) : null}
                 </Group>
             </Group>
-            <Box className={classes.codeEditor}>
+            <Box className={classes.codeEditor} ref={editor}>
                 {content === null ? (
                     <Text fz="sm" c="dimmed" p="md">
                         Your draft removes this model.
@@ -114,11 +144,7 @@ export const ModelCodeView: FC<{
                                 name: `${modelName}.yml`,
                                 contents: content,
                             }}
-                            selectedLines={
-                                line === null
-                                    ? null
-                                    : { start: line, end: line }
-                            }
+                            selectedLines={block}
                             options={{
                                 theme:
                                     colorScheme === 'dark'
@@ -126,6 +152,7 @@ export const ModelCodeView: FC<{
                                         : 'pierre-light',
                                 overflow: 'wrap',
                                 disableFileHeader: true,
+                                unsafeCSS: block ? ISOLATE_BLOCK_CSS : '',
                             }}
                         />
                     </WorkerPoolContextProvider>

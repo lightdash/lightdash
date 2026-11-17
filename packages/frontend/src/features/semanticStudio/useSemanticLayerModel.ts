@@ -250,7 +250,12 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                     [DRAFT_STATE_KEY, projectUuid],
                     // Explores read the draft while the development view is on.
                     ...(isDevelopmentViewOn() ? [['tables']] : []),
-                    ...(changesLive ? [[MODEL_KEY, projectUuid]] : []),
+                    ...(changesLive
+                        ? [
+                              [MODEL_KEY, projectUuid],
+                              ['preAggregateMaterializations', projectUuid],
+                          ]
+                        : []),
                 ].map((queryKey) =>
                     queryClient.invalidateQueries({ queryKey }),
                 ),

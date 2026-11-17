@@ -6,6 +6,9 @@ import {
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 
+// Read in one page; a project with more pre-aggregates than this shows only the first ones.
+export const PRE_AGGREGATES_PAGE_SIZE = 500;
+
 type Status = { label: string; color: string | undefined };
 
 export const getPreAggregateStatus = (
