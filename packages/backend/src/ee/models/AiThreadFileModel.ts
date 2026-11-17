@@ -192,6 +192,12 @@ export class AiThreadFileModel {
         const threadOrganization = trx(AiThreadTableName)
             .select('organization_uuid')
             .where('ai_thread_uuid', args.threadUuid);
+        // Lock first: a concurrent send of the same file must already see it
+        // claimed here, so it is reported unavailable, not over the limit.
+        await trx(AiThreadTableName)
+            .where('ai_thread_uuid', args.threadUuid)
+            .forNoKeyUpdate()
+            .first('ai_thread_uuid');
         const images = await this.claimable(trx)
             .whereIn('ai_thread_file_uuid', args.fileUuids)
             .where('created_by_user_uuid', args.userUuid)
@@ -199,10 +205,6 @@ export class AiThreadFileModel {
             .where('kind', 'image')
             .select('size_bytes');
         if (images.length > 0) {
-            await trx(AiThreadTableName)
-                .where('ai_thread_uuid', args.threadUuid)
-                .forNoKeyUpdate()
-                .first('ai_thread_uuid');
             const [budget] = await trx(AiThreadFileTableName)
                 .where('ai_thread_uuid', args.threadUuid)
                 .where('kind', 'image')
@@ -227,7 +229,7 @@ export class AiThreadFileModel {
                     AI_THREAD_IMAGES_MAX_THREAD_BYTES
             ) {
                 throw new ParameterError(
-                    'Image attachment limit reached: up to 5 images per message, 10 images and 12 MiB per conversation.',
+                    `Image attachment limit reached: up to ${AI_THREAD_IMAGES_MAX_PER_PROMPT} images per message, ${AI_THREAD_IMAGES_MAX_PER_THREAD} images and ${AI_THREAD_IMAGES_MAX_THREAD_BYTES / (1024 * 1024)} MiB per conversation.`,
                 );
             }
         }
