@@ -58880,6 +58880,7 @@ const models: TsoaRoute.Models = {
                 privateKeyPass: { dataType: 'string' },
                 privateKey: { dataType: 'string' },
                 requireAgentSession: { dataType: 'boolean' },
+                allowUserCredentials: { dataType: 'boolean' },
                 requireUserCredentials: { dataType: 'boolean' },
                 password: { dataType: 'string' },
                 user: { dataType: 'string', required: true },
@@ -59550,6 +59551,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    allowUserCredentials: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     requireAgentSession: {
                         dataType: 'union',
                         subSchemas: [
@@ -60058,6 +60066,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    allowUserCredentials: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     authenticationType: {
                         dataType: 'union',
                         subSchemas: [
@@ -60123,13 +60138,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
-                    allowUserCredentials: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'boolean' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -61759,6 +61767,13 @@ const models: TsoaRoute.Models = {
                     },
                     account: { dataType: 'string', required: true },
                     requireUserCredentials: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    allowUserCredentials: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'boolean' },

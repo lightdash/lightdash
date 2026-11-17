@@ -1,3 +1,15 @@
+# [3.283.0](https://github.com/lightdash/lightdash/compare/3.282.0...3.283.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **apps:** AI analysis offer is an outline callout with clearer copy ([#32703](https://github.com/lightdash/lightdash/issues/32703)) ([aa7443e](https://github.com/lightdash/lightdash/commit/aa7443e3973a3b4d74a8d147632e2f970b004cf0))
+
+
+### Features
+
+* **snowflake:** allow optional personal credentials ([#32700](https://github.com/lightdash/lightdash/issues/32700)) ([d77a66f](https://github.com/lightdash/lightdash/commit/d77a66fb9c6b6ab611dccfeb0cbd481bd6775a6e))
+
 # [3.282.0](https://github.com/lightdash/lightdash/compare/3.281.0...3.282.0) (2026-11-17)
 
 
