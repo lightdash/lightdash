@@ -7,6 +7,7 @@ import {
     getEmbedDefaultWriteSpaceUuid,
     getEmbedExcludedParameterKeys,
     getEmbedParameterValues,
+    getEmbedThreadOwnerIdentifier,
     getEmbedWriteSpaceUuids,
     isEmbedReadOnlyAiAgentToken,
     isParameterAllowedInEmbed,
@@ -168,6 +169,42 @@ describe('isEmbedReadOnlyAiAgentToken', () => {
                 writeActions: { ...actor, sourceSpaceUuids: ['space-a'] },
             }),
         ).toBe(false);
+    });
+});
+
+describe('AI agent thread owner', () => {
+    const aiAgent = { type: 'aiAgent' as const, agentUuid: 'agent-uuid' };
+
+    it('keeps threadOwnershipIdentifier when parsing the token', () => {
+        const { content } = EmbedJwtSchema.parse({
+            ...baseJwt,
+            content: { ...aiAgent, threadOwnershipIdentifier: 'dashboard-1' },
+        });
+        expect(content).toMatchObject({
+            threadOwnershipIdentifier: 'dashboard-1',
+        });
+    });
+
+    it('prefers threadOwnershipIdentifier over the viewer', () => {
+        expect(
+            getEmbedThreadOwnerIdentifier({
+                content: {
+                    ...aiAgent,
+                    threadOwnershipIdentifier: 'dashboard-1',
+                },
+                user: { externalId: 'viewer-1' },
+            }),
+        ).toBe('dashboard-1');
+    });
+
+    it('falls back to the viewer, then to no owner', () => {
+        expect(
+            getEmbedThreadOwnerIdentifier({
+                content: { ...aiAgent, threadOwnershipIdentifier: '' },
+                user: { externalId: 'viewer-1' },
+            }),
+        ).toBe('viewer-1');
+        expect(getEmbedThreadOwnerIdentifier({ content: aiAgent })).toBeNull();
     });
 });
 

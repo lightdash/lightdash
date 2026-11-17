@@ -1774,6 +1774,11 @@ describe('composer bound run', () => {
             } as ComposerChart,
             tileUuid: 'tile-uuid',
             resolved: { nodes: storedNodes, parameters: {} },
+            dashboardFilters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
         });
     const createBoundSources = () => {
         const queryUuid = (nodeId: string) => ({

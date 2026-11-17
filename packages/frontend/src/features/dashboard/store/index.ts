@@ -127,6 +127,7 @@ export {
     selectAllFilterableFieldsMap,
     selectDashboard,
     selectEmbedDashboard,
+    selectFilterableFieldsByTileUuid,
 } from './dashboardSourceSelectors';
 export { getDashboardContextView } from './contextView';
 export * from './hooks';

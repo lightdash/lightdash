@@ -2,8 +2,10 @@ import { NotFoundError, UnexpectedGitError } from '@lightdash/common';
 import { Octokit } from '@octokit/rest';
 import {
     createFile,
+    getFileContent,
     getLastCommit,
     getRepoTree,
+    getWholeFileContent,
     isGithubRateLimitError,
     searchRepoCode,
 } from './Github';
@@ -14,6 +16,7 @@ const mockGetTree = vi.fn();
 const mockSearchCode = vi.fn();
 const mockListCommits = vi.fn();
 const mockCreateOrUpdateFileContents = vi.fn();
+const mockGetContent = vi.fn();
 (Octokit as unknown as import('vitest').Mock).mockImplementation(
     // eslint-disable-next-line prefer-arrow-callback
     function MockOctokit() {
@@ -23,6 +26,7 @@ const mockCreateOrUpdateFileContents = vi.fn();
                 repos: {
                     listCommits: mockListCommits,
                     createOrUpdateFileContents: mockCreateOrUpdateFileContents,
+                    getContent: mockGetContent,
                 },
                 search: { code: mockSearchCode },
             },
@@ -280,5 +284,31 @@ describe('getLastCommit', () => {
         const promise = getLastCommit(args);
         await expect(promise).rejects.toBeInstanceOf(UnexpectedGitError);
         await expect(promise).rejects.toThrow('Bad gateway');
+    });
+});
+
+describe('reading a file over 1 MB', () => {
+    const args = {
+        owner: 'acme',
+        repo: 'jaffle',
+        fileName: 'models/big.yml',
+        branch: 'main',
+        token: 't',
+    };
+    beforeEach(() => {
+        mockGetContent.mockResolvedValue({
+            data: { content: '', encoding: 'none', sha: 'f' },
+        });
+    });
+
+    it('reads as empty for existing callers', async () => {
+        await expect(getFileContent(args)).resolves.toEqual({
+            content: '',
+            sha: 'f',
+        });
+    });
+
+    it('throws for a caller that must not read it as empty', async () => {
+        await expect(getWholeFileContent(args)).rejects.toThrow(/too large/);
     });
 });

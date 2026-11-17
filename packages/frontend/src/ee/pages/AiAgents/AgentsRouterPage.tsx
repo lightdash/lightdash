@@ -78,7 +78,7 @@ const AgentsRouterPage = () => {
         projectUuid,
     });
 
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
     const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
     const memoryEnabled = useAiAgentMemoryEnabled();
 
@@ -340,17 +340,9 @@ const AgentsRouterPage = () => {
             isAgentSidebarCollapsed={isSidebarCollapsed}
             setIsAgentSidebarCollapsed={setIsSidebarCollapsed}
             SidebarHeader={
-                <NewThreadButton
-                    to={`/projects/${projectUuid}/ai-agents`}
-                    isCollapsed={isSidebarCollapsed}
-                />
+                <NewThreadButton to={`/projects/${projectUuid}/ai-agents`} />
             }
-            Sidebar={
-                <AutoModeSidebar
-                    projectUuid={projectUuid!}
-                    isAgentSidebarCollapsed={isSidebarCollapsed}
-                />
-            }
+            Sidebar={<AutoModeSidebar projectUuid={projectUuid!} />}
         >
             <Box className={classes.routerView}>
                 <Group gap={4} className={classes.routerActions}>

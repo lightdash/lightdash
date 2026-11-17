@@ -3,6 +3,7 @@
 /* eslint-disable class-methods-use-this */
 import {
     getErrorMessage,
+    NotFoundError,
     ParameterError,
     PullRequestProvider,
     UnexpectedServerError,
@@ -17,12 +18,18 @@ import {
     createBranch,
     createPullRequest,
     createSignedCommitOnBranch,
+    deleteBranch,
     getAppBotIdentity,
     getBranchHeadSha,
+    getFilesChangedSince,
     getInstallationToken,
     getPullRequest,
+    getRepoDefaultBranch,
+    getRepoTree,
+    getWholeFileContent,
     updatePullRequest,
     userTokenHasRepoAccess,
+    type GithubFileChanges,
 } from '../../../../clients/github/Github';
 import type { GithubAppInstallationsModel } from '../../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { GithubAppService } from '../../../../services/GithubAppService/GithubAppService';
@@ -33,7 +40,10 @@ import {
     COMMIT_AUTHOR_NAME,
     CWD,
 } from '../constants';
-import { WritebackGitNotConnectedError } from '../errors';
+import {
+    WritebackGitNotConnectedError,
+    WritebackThreadPrClosedError,
+} from '../errors';
 import type {
     AdoptedPullRequest,
     CloneTarget,
@@ -97,6 +107,36 @@ const githubAuth = (
     installation.userToken
         ? { token: installation.userToken }
         : { installationId: installation.installationId };
+
+export type ApiCheckout = {
+    prUrl: string | null;
+    /** The branch read from: the pull request's head, or the base a new one starts from. */
+    branch: string;
+    baseBranch: string | null;
+    headSha: string;
+    listFiles: () => Promise<string[]>;
+    readFile: (path: string) => Promise<string | null>;
+    /** A file as it was at a commit; null where it did not exist. */
+    readFileAt: (path: string, commitSha: string) => Promise<string | null>;
+    /** The files changed between a commit and the head read from; null when that cannot be told. */
+    listFilesChangedSince: (commitSha: string) => Promise<string[] | null>;
+};
+
+// Acting as the user, their token authors the commit; as the app bot, credit the bot and the user.
+const commitBody = (
+    installation: GithubInstallation,
+    user: SessionUser,
+    description: string,
+): string => {
+    if (installation.userToken) return description;
+    const userTrailer = buildUserCoAuthorTrailer(user);
+    const coAuthorTrailer = userTrailer
+        ? `${installation.coAuthorTrailer}\n${userTrailer}`
+        : installation.coAuthorTrailer;
+    return description
+        ? `${description}\n\n${coAuthorTrailer}`
+        : coAuthorTrailer;
+};
 
 type GithubProviderDeps = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -508,21 +548,6 @@ export class GithubProvider implements GitProvider {
         await commitLocal(sandbox, title, installation.commitAuthor);
 
         setStage('push');
-        // When acting as the user (their token signs the commit), the commit is
-        // already authored by them — no co-author trailer. Otherwise the commit
-        // is the app bot's, so credit both the bot and the triggering user.
-        let body: string;
-        if (installation.userToken) {
-            body = description;
-        } else {
-            const userTrailer = buildUserCoAuthorTrailer(user);
-            const coAuthorTrailer = userTrailer
-                ? `${installation.coAuthorTrailer}\n${userTrailer}`
-                : installation.coAuthorTrailer;
-            body = description
-                ? `${description}\n\n${coAuthorTrailer}`
-                : coAuthorTrailer;
-        }
         if (assertPublishAllowed) await assertPublishAllowed();
         const commit = await createSignedCommitOnBranch({
             owner: connection.owner,
@@ -530,10 +555,178 @@ export class GithubProvider implements GitProvider {
             branch,
             expectedHeadOid,
             headline: title,
-            body,
+            body: commitBody(installation, user, description),
             fileChanges,
             ...githubAuth(installation),
         });
         return { commitSha: commit.oid, ...diffStat };
+    }
+
+    /** Reads a branch through the API alone, for a change made without a sandbox. */
+    async openApiCheckout(args: {
+        connection: GitConnection;
+        installation: GitInstallation;
+        /** An open pull request to add the commit to, or null to open one. */
+        prUrl: string | null;
+    }): Promise<ApiCheckout> {
+        const connection = asGithubConnection(args.connection);
+        const auth = githubAuth(asGithubInstallation(args.installation));
+        const repo = { owner: connection.owner, repo: connection.repo };
+        let branch: string;
+        let baseBranch: string | null = null;
+        if (args.prUrl) {
+            const parsed = parsePullRequestUrl(args.prUrl);
+            if (
+                `${parsed.owner}/${parsed.repo}`.toLowerCase() !==
+                `${repo.owner}/${repo.repo}`.toLowerCase()
+            ) {
+                throw new ParameterError(
+                    "That pull request is not in this project's repository.",
+                );
+            }
+            const pr = await getPullRequest({
+                ...repo,
+                pullNumber: parsed.pullNumber,
+                ...auth,
+            });
+            if (pr.merged || pr.state === 'closed') {
+                throw new WritebackThreadPrClosedError(
+                    pr.merged ? 'merged' : 'closed',
+                );
+            }
+            if (
+                pr.headRepoFullName?.toLowerCase() !==
+                `${repo.owner}/${repo.repo}`.toLowerCase()
+            ) {
+                throw new ParameterError(
+                    'This pull request comes from a fork, so it cannot be updated here.',
+                );
+            }
+            branch = pr.headRef;
+        } else {
+            branch =
+                connection.branch ||
+                (await getRepoDefaultBranch({ ...repo, ...auth }));
+            baseBranch = branch;
+        }
+        const headSha = await getBranchHeadSha({ ...repo, branch, ...auth });
+        const readFileAt = async (path: string, commitSha: string) => {
+            try {
+                // Saving over a file read as empty would erase it.
+                const { content } = await getWholeFileContent({
+                    ...repo,
+                    fileName: path,
+                    branch: commitSha,
+                    ...auth,
+                });
+                return content;
+            } catch (error) {
+                if (error instanceof NotFoundError) return null;
+                throw error;
+            }
+        };
+        return {
+            prUrl: args.prUrl,
+            branch,
+            baseBranch,
+            headSha,
+            listFiles: async () =>
+                (
+                    await getRepoTree({ ...repo, branch: headSha, ...auth })
+                ).files.map((file) => file.path),
+            readFile: (path) => readFileAt(path, headSha),
+            readFileAt,
+            listFilesChangedSince: (commitSha) =>
+                getFilesChangedSince({
+                    ...repo,
+                    base: commitSha,
+                    head: headSha,
+                    ...auth,
+                }),
+        };
+    }
+
+    /** Commits on top of what the checkout read, so a push in between fails rather than being overwritten. */
+    async commitApiChanges(args: {
+        connection: GitConnection;
+        installation: GitInstallation;
+        user: SessionUser;
+        checkout: ApiCheckout;
+        title: string;
+        description: string;
+        fileChanges: GithubFileChanges;
+        setStage: SetStage;
+        assertPublishAllowed: (() => Promise<void>) | null;
+    }): Promise<{ prUrl: string; prCreated: boolean; commitSha: string }> {
+        const connection = asGithubConnection(args.connection);
+        const installation = asGithubInstallation(args.installation);
+        const auth = githubAuth(installation);
+        const repo = { owner: connection.owner, repo: connection.repo };
+        const { checkout, assertPublishAllowed } = args;
+        const branch = checkout.prUrl
+            ? checkout.branch
+            : `lightdash-ai-writeback/${randomUUID()}`;
+        args.setStage('commit');
+        if (assertPublishAllowed) await assertPublishAllowed();
+        if (checkout.prUrl) {
+            args.setStage('push');
+            const commit = await createSignedCommitOnBranch({
+                ...repo,
+                branch,
+                expectedHeadOid: checkout.headSha,
+                headline: args.title,
+                body: commitBody(installation, args.user, args.description),
+                fileChanges: args.fileChanges,
+                ...auth,
+            });
+            return {
+                prUrl: checkout.prUrl,
+                prCreated: false,
+                commitSha: commit.oid,
+            };
+        }
+        await createBranch({
+            ...repo,
+            sha: checkout.headSha,
+            branch,
+            ...auth,
+        });
+        try {
+            args.setStage('push');
+            const commit = await createSignedCommitOnBranch({
+                ...repo,
+                branch,
+                expectedHeadOid: checkout.headSha,
+                headline: args.title,
+                body: commitBody(installation, args.user, args.description),
+                fileChanges: args.fileChanges,
+                ...auth,
+            });
+            args.setStage('pull_request');
+            if (assertPublishAllowed) await assertPublishAllowed();
+            const pr = await createPullRequest({
+                ...repo,
+                title: args.title,
+                body: args.description,
+                head: branch,
+                base: checkout.baseBranch ?? checkout.branch,
+                ...auth,
+            });
+            return {
+                prUrl: pr.html_url,
+                prCreated: true,
+                commitSha: commit.oid,
+            };
+        } catch (error) {
+            // A branch with no pull request is noise in the repo, so it goes with the failure.
+            await deleteBranch({ ...repo, branch, ...auth }).catch(
+                (cleanupError: unknown) => {
+                    this.logger.warn(
+                        `AiWriteback: failed to delete branch ${branch} after a failed save: ${getErrorMessage(cleanupError)}`,
+                    );
+                },
+            );
+            throw error;
+        }
     }
 }

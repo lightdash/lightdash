@@ -35,6 +35,7 @@
 
 .support {
     color: var(--mantine-color-dimmed);
+    text-wrap: pretty;
 }
 
 .stage {
@@ -65,13 +66,18 @@
     display: grid;
     grid-template-columns: 160px minmax(0, 1fr);
     gap: var(--mantine-spacing-md);
-    align-items: center;
+    align-items: stretch;
 }
 
 .qrColumn {
     display: grid;
+    align-content: start;
     gap: var(--mantine-spacing-xs);
     min-width: 0;
+}
+
+.rescanHint {
+    text-wrap: balance;
 }
 
 .qrColumn [data-used='true'] {
@@ -119,13 +125,23 @@
         justify-items: start;
     }
 
+    .qrColumn {
+        width: 160px;
+    }
+
     .side {
-        width: 100%;
+        justify-self: stretch;
     }
 
     .panel[data-step-active='true'] .qrColumn,
     .panel[data-step-active='true'] .stage {
         display: none;
+    }
+}
+
+@container sign-in (width >= 440px) {
+    .side .stage {
+        height: 100%;
     }
 }
 

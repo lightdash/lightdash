@@ -117,7 +117,12 @@ does not revoke dashboard capabilities on tokens using default mode.
 user must be active; a service-account actor must resolve to a service account
 in that organization. Without write spaces, the actor can still supply role-based
 embed capabilities, but content writes remain disabled. Read-only AI tokens retain
-their `sourceSpaceUuids` and `user.externalId` requirements.
+their `sourceSpaceUuids` requirement and need a thread owner.
+
+An AI agent thread belongs to the token's thread owner: `content.threadOwnershipIdentifier`
+when set, otherwise `user.externalId`. Tokens with write spaces also need the thread's
+spaces within their own. Tokens that share a `threadOwnershipIdentifier` share those
+threads, and `user.externalId` still attributes each prompt to its viewer.
 
 When write spaces are present, `getEmbedWriteContext` resolves their access, checks
 that they belong to the embedded project, and evaluates the actor's relevant

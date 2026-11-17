@@ -532,7 +532,7 @@ describe('Agent identity settings routes', () => {
                 ).toBeInTheDocument();
                 expect(
                     screen.getByText(
-                        'Who agents run as, and what they may do. Agents are Ask AI, the Slack agent, MCP clients and the CLI.',
+                        "These rules apply to every project in this organization. Agents are Ask AI, the Slack agent, MCP clients and the CLI. Each project's shared agent account is in that project's settings.",
                     ),
                 ).toBeInTheDocument();
                 expect(

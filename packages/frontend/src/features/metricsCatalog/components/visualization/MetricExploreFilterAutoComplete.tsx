@@ -14,7 +14,6 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MultiValuePastePopover from '../../../../components/common/Filters/FilterInputs/MultiValuePastePopover';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { MultiSelectCombobox } from '../../../../components/common/MultiSelectCombobox/MultiSelectCombobox';
-import useHealth from '../../../../hooks/health/useHealth';
 import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValues,
@@ -53,7 +52,6 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
-    const { data: healthData } = useHealth();
 
     const [search, setSearch] = useState('');
     const [pastePopUpOpened, setPastePopUpOpened] = useState(false);
@@ -62,7 +60,13 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
     >();
     const [forceRefresh, setForceRefresh] = useState<boolean>(false);
 
-    const { isInitialLoading, results, refreshedAt, refetch } = useFieldValues(
+    const {
+        isInitialLoading,
+        results,
+        refreshedAt,
+        hasCachedResults,
+        refetch,
+    } = useFieldValues(
         search,
         [],
         projectUuid,
@@ -210,7 +214,7 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                     ) : null
                 }
                 footer={
-                    healthData?.hasCacheAutocompleResults ? (
+                    hasCachedResults ? (
                         <Tooltip
                             position="left"
                             label="Click here to refresh cache filter values"

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { MobileSignInMenu } from './MobileSignInMenu';
+import { MOBILE_SIGN_IN_STRINGS } from './mobileStrings';
 import {
     isPreviewBuild,
     parsePreviewSignInPhase,
@@ -104,6 +105,20 @@ describe('preview sign-in state', () => {
             ).toBeInTheDocument();
             expect(screen.queryByText(/Preview state/)).not.toBeInTheDocument();
             expect(api).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(PREVIEW_SIGN_IN_PHASES)(
+        'shows the rescan hint only while the code waits: %s',
+        async (phase) => {
+            renderMenu(`?mobileSignInState=${phase}`);
+            await openMenu();
+            await screen.findByText(EXPECTED_TEXT[phase], {
+                ignore: '[aria-live], script, style',
+            });
+            const hint = screen.queryByText(MOBILE_SIGN_IN_STRINGS.rescanHint);
+            if (phase === 'showing') expect(hint).toBeInTheDocument();
+            else expect(hint).not.toBeInTheDocument();
         },
     );
 

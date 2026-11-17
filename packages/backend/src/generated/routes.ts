@@ -69,6 +69,8 @@ import { MetricsExplorerController } from './../controllers/metricsExplorerContr
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MobileAppController } from './../controllers/mobileAppController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { MobileSignInCapabilitiesController } from './../controllers/mobileSignInCapabilitiesController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MobileSignInController } from './../controllers/mobileSignInController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { NotificationsController } from './../controllers/notificationsController';
@@ -18336,6 +18338,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                threadOwnershipIdentifier: { dataType: 'string' },
                 canViewDebugInfo: { dataType: 'boolean' },
                 canExplore: { dataType: 'boolean' },
                 agentUuid: { dataType: 'string', required: true },
@@ -74376,19 +74379,31 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MobileSignInMintReason: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['show'] },
+                { dataType: 'enum', enums: ['auto_refresh'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MintMobileSignInCodeRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                reason: {
+                sourceProjectUuid: {
                     dataType: 'union',
                     subSchemas: [
-                        { dataType: 'enum', enums: ['show'] },
-                        { dataType: 'enum', enums: ['auto_refresh'] },
+                        { ref: 'UUID' },
+                        { dataType: 'enum', enums: [null] },
                     ],
-                    required: true,
                 },
+                reason: { ref: 'MobileSignInMintReason', required: true },
             },
             validators: {},
         },
@@ -74552,6 +74567,27 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: { nonce: { dataType: 'string', required: true } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MobileSignInCapabilities: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                capabilities: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        mobile_sign_in_source_project: {
+                            dataType: 'enum',
+                            enums: [1],
+                        },
+                    },
+                    required: true,
+                },
+                schemaVersion: { dataType: 'enum', enums: [1], required: true },
+            },
             validators: {},
         },
     },
@@ -83789,11 +83825,30 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.ParametersValuesMap_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'ParametersValuesMap' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ComposerChartRunResults: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                usedParameterValuesByNodeId: {
+                    ref: 'Record_string.ParametersValuesMap_',
+                    required: true,
+                },
+                sqlColumns: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ResultColumn' },
+                    required: true,
+                },
                 parameterReferences: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -141796,6 +141851,59 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: 204,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsMobileSignInCapabilitiesController_getCapabilities: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {};
+    app.get(
+        '/api/v1/mobile/sign-in-capabilities',
+        ...fetchMiddlewares<RequestHandler>(MobileSignInCapabilitiesController),
+        ...fetchMiddlewares<RequestHandler>(
+            MobileSignInCapabilitiesController.prototype.getCapabilities,
+        ),
+
+        async function MobileSignInCapabilitiesController_getCapabilities(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsMobileSignInCapabilitiesController_getCapabilities,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<MobileSignInCapabilitiesController>(
+                        MobileSignInCapabilitiesController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getCapabilities',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
                 });
             } catch (err) {
                 return next(err);

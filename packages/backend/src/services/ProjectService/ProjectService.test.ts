@@ -974,7 +974,6 @@ describe('ProjectService', () => {
                     results: {
                         ...lightdashConfigWithGoogleOAuthMock.results,
                         cacheEnabled: true,
-                        autocompleteEnabled: true,
                     },
                 });
                 vi.mocked(configured.featureFlagModel.get).mockImplementation(
@@ -6434,7 +6433,6 @@ describe('ProjectService', () => {
                     results: {
                         ...lightdashConfigWithGoogleOAuthMock.results,
                         cacheEnabled: false,
-                        autocompleteEnabled: false,
                     },
                 },
                 {
@@ -6744,13 +6742,15 @@ describe('ProjectService', () => {
             async (_name, cached, results, queryCount) => {
                 const { configured, client } = setup();
                 Object.assign(configured, {
-                    lightdashConfig: {
-                        ...lightdashConfigWithGoogleOAuthMock,
-                        results: {
-                            ...lightdashConfigWithGoogleOAuthMock.results,
-                            autocompleteEnabled: true,
+                    projectModel: withResultsCacheConfig(
+                        projectModel as unknown as ProjectModel,
+                        {
+                            results: {
+                                ...lightdashConfigWithGoogleOAuthMock.results,
+                                cacheEnabled: true,
+                            },
                         },
-                    },
+                    ),
                     s3CacheClient: {
                         getIfFresh: vi.fn(async () => cached),
                         uploadResults: vi.fn(async () => undefined),
@@ -10810,7 +10810,7 @@ describe('ProjectService', () => {
                     ...lightdashConfigWithGoogleOAuthMock,
                     results: {
                         ...lightdashConfigWithGoogleOAuthMock.results,
-                        autocompleteEnabled: true,
+                        cacheEnabled: true,
                     },
                 });
                 flaggedService.warehouseClientFactory.warehouseClients = {};
@@ -10865,6 +10865,78 @@ describe('ProjectService', () => {
                     }),
                 );
                 expect(getIfFresh).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+                expect(uploadResults).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+            },
+        );
+
+        test.each([
+            [true, true],
+            [false, false],
+        ])(
+            'autocomplete cache with project results cache %s',
+            async (projectCacheEnabled, usesCache) => {
+                const configured = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                );
+                configured.warehouseClientFactory.warehouseClients = {};
+                vi.mocked(configured.featureFlagModel.get).mockImplementation(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    }),
+                );
+                const defaultSettings =
+                    await projectModel.getResultsCacheSettings(projectUuid);
+                const getResultsCacheSettings = vi
+                    .spyOn(projectModel, 'getResultsCacheSettings')
+                    .mockResolvedValue({
+                        ...defaultSettings,
+                        cacheEnabled: projectCacheEnabled,
+                    });
+                const getIfFresh = vi.fn(async () => undefined);
+                const uploadResults = vi.fn(async () => undefined);
+                Object.assign(configured, {
+                    s3CacheClient: { getIfFresh, uploadResults },
+                });
+                vi.spyOn(
+                    configured.warehouseClientFactory,
+                    'resolveLoadedCredentials',
+                ).mockResolvedValue({
+                    ...warehouseClientMock.credentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+                vi.mocked(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).mockImplementation(() => ({
+                    ...warehouseClientMock,
+                    runQuery: vi.fn(async () => resultsWith1Row),
+                }));
+
+                try {
+                    await configured.searchFieldUniqueValues(
+                        fromSession({
+                            ...user,
+                            organizationUuid: projectSummary.organizationUuid,
+                        }),
+                        projectUuid,
+                        'a',
+                        'a_dim1',
+                        'test',
+                        10,
+                        undefined,
+                        false,
+                    );
+                } finally {
+                    getResultsCacheSettings.mockRestore();
+                }
+
+                expect(getIfFresh).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+                if (usesCache) {
+                    expect(getIfFresh).toHaveBeenCalledWith(
+                        expect.any(String),
+                        86400,
+                    );
+                }
                 expect(uploadResults).toHaveBeenCalledTimes(usesCache ? 1 : 0);
             },
         );
@@ -11101,7 +11173,7 @@ describe('ProjectService', () => {
                 ...lightdashConfigWithGoogleOAuthMock,
                 results: {
                     ...lightdashConfigWithGoogleOAuthMock.results,
-                    autocompleteEnabled: true,
+                    cacheEnabled: true,
                     cacheStateTimeSeconds: 86400,
                 },
             });
@@ -11186,7 +11258,7 @@ describe('ProjectService', () => {
                 ...lightdashConfigWithGoogleOAuthMock,
                 results: {
                     ...lightdashConfigWithGoogleOAuthMock.results,
-                    autocompleteEnabled: true,
+                    cacheEnabled: true,
                     cacheStateTimeSeconds: 86400,
                 },
             });
@@ -19770,6 +19842,146 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
                 },
             }),
         ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+
+    describe('getCustomMetricsNeedingPermission', () => {
+        const metricsNeedingPermission = (
+            caller: ReturnType<typeof buildAccount>,
+            sql: string,
+            savedAdditionalMetrics: ReturnType<typeof additionalMetric> = [],
+        ) =>
+            service.getCustomMetricsNeedingPermission({
+                account: caller,
+                projectUuid,
+                exploreName,
+                additionalMetrics: additionalMetric(sql),
+                savedAdditionalMetrics,
+            });
+        const savedOnViewableChart = (table = 'a') =>
+            savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+                tableCalculations: [],
+                customSqlDimensions: [],
+                additionalMetrics: [
+                    { sql: metricSubquerySql, table, spaceUuid },
+                ],
+            });
+
+        it('allows SQL the chart already saved, without loading the explore', async () => {
+            const getExplore = spyExplore();
+
+            await expect(
+                metricsNeedingPermission(
+                    noScopeAccount,
+                    metricSubquerySql,
+                    additionalMetric(metricSubquerySql),
+                ),
+            ).resolves.toEqual([]);
+            expect(getExplore).not.toHaveBeenCalled();
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('allows a metric whose SQL is a modelled field, without a saved chart lookup', async () => {
+            spyExplore();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, fieldRefSql),
+            ).resolves.toEqual([]);
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('allows SQL saved on a chart the user can view in the same explore', async () => {
+            spyExplore();
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual([]);
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).toHaveBeenCalledWith({
+                projectUuid,
+                exploreName,
+                tableCalculationSqls: [],
+                customSqlDimensions: [],
+                additionalMetrics: [{ sql: metricSubquerySql, table: 'a' }],
+            });
+        });
+
+        it('returns SQL that no chart holds', async () => {
+            spyExplore();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('returns SQL changed from what the chart saved', async () => {
+            spyExplore();
+
+            await expect(
+                metricsNeedingPermission(
+                    noScopeAccount,
+                    metricSubquerySql,
+                    additionalMetric('(SELECT 1)'),
+                ),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('returns SQL saved only on a chart the user cannot view', async () => {
+            spyExplore();
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(restrictedAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('returns SQL saved on a viewable chart under another table', async () => {
+            spyExplore();
+            savedOnViewableChart('b');
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('never looks up saved charts for an embed account', async () => {
+            spyExplore();
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(jwtAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('still allows SQL on a viewable chart when the explore is missing', async () => {
+            vi.spyOn(service, 'getExplore')
+                .mockClear()
+                .mockRejectedValue(new NotFoundError('Explore not found'));
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual([]);
+        });
+
+        it('fails when the saved chart lookup fails', async () => {
+            spyExplore();
+            savedChartModel.findCustomSqlProvenance.mockRejectedValue(
+                new Error('database unavailable'),
+            );
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).rejects.toThrow('database unavailable');
+        });
     });
 });
 

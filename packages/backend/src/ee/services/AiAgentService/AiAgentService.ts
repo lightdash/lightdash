@@ -123,6 +123,7 @@ import {
     getComposerSlackEchartsConfig,
     getComposerSlackRunQueryChart,
     getDataAppVizChartFromArtifact,
+    getEmbedThreadOwnerIdentifier,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
     getFields,
@@ -986,6 +987,8 @@ type EmbedAiAgentRuntimeOptions = {
     writeSpaceUuids: string[];
     // The host application's id for the viewer, when its token carries one.
     externalUserId: string | null;
+    // Owns the threads this token starts: its threadOwnershipIdentifier, else the viewer.
+    threadOwnerIdentifier: string | null;
     threadScope: EmbedThreadScope;
     spaceAccess: string[];
     // Source spaces the agent may read but not write to.
@@ -3573,6 +3576,9 @@ export class AiAgentService extends BaseService {
         const chartSpaceUuids = getEmbedActorChartSpaceUuids(account);
         const externalUserId =
             account.authentication.data.user?.externalId || null;
+        const threadOwnerIdentifier = getEmbedThreadOwnerIdentifier(
+            account.authentication.data,
+        );
         const isReadOnly = isEmbedReadOnlyAiAgentToken(
             account.authentication.data,
         );
@@ -3595,13 +3601,16 @@ export class AiAgentService extends BaseService {
             threadScope = {
                 type: 'writeSpaces',
                 writeSpaceUuids,
-                externalUserId,
+                ownerIdentifier: threadOwnerIdentifier,
             };
-        } else if (externalUserId !== null) {
-            threadScope = { type: 'externalUser', externalUserId };
+        } else if (threadOwnerIdentifier !== null) {
+            threadScope = {
+                type: 'owner',
+                ownerIdentifier: threadOwnerIdentifier,
+            };
         } else {
             throw new ForbiddenError(
-                'Embed tokens without write spaces must include user.externalId',
+                'Embed tokens without write spaces must include user.externalId or content.threadOwnershipIdentifier',
             );
         }
 
@@ -3611,6 +3620,7 @@ export class AiAgentService extends BaseService {
             runtimeOptions: {
                 writeSpaceUuids,
                 externalUserId,
+                threadOwnerIdentifier,
                 threadScope,
                 spaceAccess: chartSpaceUuids,
                 readOnlySpaceUuids: chartSpaceUuids.filter(
@@ -5877,7 +5887,7 @@ export class AiAgentService extends BaseService {
             createdFrom: body.createdFrom ?? createdFrom,
             agentUuid,
             embedSpaceUuids: runtimeOptions?.writeSpaceUuids,
-            embedExternalUserId: runtimeOptions?.externalUserId ?? null,
+            embedOwnerIdentifier: runtimeOptions?.threadOwnerIdentifier ?? null,
             battleProfile: body.battleProfile ?? null,
             binding,
             threadContext,
@@ -10416,6 +10426,9 @@ export class AiAgentService extends BaseService {
             }))
         )
             return 'agent_unavailable';
+        // Results an agent produced while Data Access was on stop being
+        // readable as that agent once Data Access is off.
+        if (!agent.enableDataAccess) return 'data_access_off';
         return 'allowed';
     }
 
@@ -10442,10 +10455,13 @@ export class AiAgentService extends BaseService {
             prompt.agentUuid !== agent.uuid ||
             prompt.projectUuid !== projectUuid ||
             prompt.organizationUuid !== user.organizationUuid ||
-            prompt.threadUuid !== artifact.threadUuid ||
-            !agent.enableDataAccess
+            prompt.threadUuid !== artifact.threadUuid
         )
             throw new ForbiddenError('Artifact results are unavailable');
+        // A metadata-only agent never runs data queries, so no agent produced
+        // these results. The owner runs and reads the chart as themselves,
+        // under their own access, like any other person opening it.
+        if (!agent.enableDataAccess) return { kind: 'person', authMethod };
         const surface =
             querySurfaceFromPrompt(prompt) === QuerySurface.SLACK
                 ? AgentActorSurface.SLACK_AGENT
@@ -13904,6 +13920,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const runArgs = {
                     ...(prompt.threadCreatedFrom === 'semantic_studio'
                         ? {
+                              continuesThreadPullRequest: true,
                               onDbtProject: async (
                                   project: ParsedDbtProject,
                               ) => {
@@ -13932,13 +13949,58 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 result = await wrapSentryTransaction(
                     'AiAgent.editDbtProject',
                     {},
-                    () =>
-                        writebackGuard
+                    async () => {
+                        if (payload.script) {
+                            const saved =
+                                await this.aiWritebackService.saveWithScript(
+                                    runArgs,
+                                    payload.script,
+                                    {
+                                        dryRun: false,
+                                        assertPublishAllowed,
+                                        checkDbt: (change) =>
+                                            this.semanticStudioService.checkDbtScriptChange(
+                                                user,
+                                                projectUuid,
+                                                change,
+                                                { checkQueries: false },
+                                            ),
+                                    },
+                                );
+                            if (saved?.status === 'saved') {
+                                changedModels = saved.changedModels;
+                                if (saved.explores !== null) {
+                                    await this.semanticStudioService
+                                        .saveDbtScriptTryOut(
+                                            user,
+                                            projectUuid,
+                                            prompt.threadUuid,
+                                            {
+                                                prUrl: saved.result.prUrl,
+                                                explores: saved.explores,
+                                            },
+                                        )
+                                        .catch((error: unknown) => {
+                                            Logger.warn(
+                                                `AiAgent.runEditDbtProjectPipeline: failed to keep the try-out of run ${aiWritebackRunUuid}: ${getErrorMessage(error)}`,
+                                            );
+                                        });
+                                }
+                                return saved.result;
+                            }
+                            if (saved?.status === 'script_failed') {
+                                throw new ParameterError(
+                                    `The script did not run, so nothing was saved: ${saved.error}`,
+                                );
+                            }
+                        }
+                        return writebackGuard
                             ? this.aiWritebackService.run(
                                   runArgs,
                                   writebackGuard.assert,
                               )
-                            : this.aiWritebackService.run(runArgs),
+                            : this.aiWritebackService.run(runArgs);
+                    },
                 );
             } catch (error) {
                 if (writebackGuard?.getFailure()) {
@@ -14998,6 +15060,37 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     'editDbtProject requires a tool call id (progressId)',
                 );
             }
+            let { script } = args;
+            if (script) {
+                // Run it once now so a broken script goes back to the model instead of failing in the background.
+                const checked = await this.aiWritebackService.saveWithScript(
+                    {
+                        agentPermissionsApply: true,
+                        user,
+                        projectUuid,
+                        prompt: writebackPrompt,
+                        dbtSourceUuid: options?.dbtSourceUuid,
+                        prUrl: args.prUrl,
+                        startNewPullRequest: args.startNewPullRequest ?? false,
+                        aiThreadUuid: prompt.threadUuid,
+                        source,
+                    },
+                    script,
+                    {
+                        dryRun: true,
+                        assertPublishAllowed: null,
+                        checkDbt: (change) =>
+                            this.semanticStudioService.checkDbtScriptChange(
+                                user,
+                                projectUuid,
+                                change,
+                                { checkQueries: true },
+                            ),
+                    },
+                );
+                if (checked?.status === 'script_failed') return checked;
+                if (checked === null) script = null;
+            }
             const { aiWritebackRunUuid } =
                 await this.aiWritebackService.createPendingRun({
                     user,
@@ -15031,9 +15124,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 prUrl: args.prUrl,
                 startNewPullRequest: args.startNewPullRequest ?? null,
                 suppressWritebackPreview: options?.suppressWritebackPreview,
+                script,
             });
 
-            return { aiWritebackRunUuid };
+            return {
+                status: 'started',
+                aiWritebackRunUuid,
+                inSandbox: !script,
+            };
         };
 
         // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
@@ -17650,6 +17748,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                           promptProject.projectUuid,
                       )
                     : null;
+                // Studio saves a dbt change with a script wherever Studio itself is on for the person.
+                const semanticStudioCodeMode =
+                    semanticStudioStatus?.appliesAs === 'dbt_pull_request' &&
+                    semanticStudioStatus.enabled;
                 const semanticStudioDrafts =
                     semanticStudioStatus !== null &&
                     semanticStudioStatus.enabled &&
@@ -17749,6 +17851,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             prompt.threadUuid,
                         )
                     ).length > 0;
+                const pinnedThreadUuids =
+                    await this.aiAgentModel.findPinnedThreadContextUuids(
+                        prompt.threadUuid,
+                    );
 
                 if (!hasTrustedPromptUserIdentity) {
                     this.logger.info(
@@ -18169,9 +18275,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread,
                     semanticStudioDrafts,
+                    semanticStudioCodeMode,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
+                    enableReadPinnedThread: pinnedThreadUuids.length > 0,
                     enableAskUser,
                     enableFilterExpressions: filterExpressionsEnabled,
                     repoFsRoot,
@@ -18353,11 +18461,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     // Only conversations pinned as context on this thread are
                     // readable — the pin is the capability grant.
                     readPinnedThread: async ({ threadUuid }) => {
-                        const pinnedThreadUuids =
+                        const currentPinnedThreadUuids =
                             await this.aiAgentModel.findPinnedThreadContextUuids(
                                 prompt.threadUuid,
                             );
-                        if (!pinnedThreadUuids.includes(threadUuid)) {
+                        if (!currentPinnedThreadUuids.includes(threadUuid)) {
                             throw new ForbiddenError(
                                 'This conversation is not attached as context on this thread',
                             );

@@ -18862,6 +18862,10 @@
             },
             "EmbedJwtContentAiAgent": {
                 "properties": {
+                    "threadOwnershipIdentifier": {
+                        "type": "string",
+                        "description": "Owns the threads started with this token instead of user.externalId. Tokens that share it share those threads."
+                    },
                     "canViewDebugInfo": {
                         "type": "boolean",
                         "description": "Shows agent debug information. Ignored in roles mode, where view:EmbedAiAgentDebug decides."
@@ -18972,7 +18976,7 @@
                         "properties": {
                             "externalId": {
                                 "type": "string",
-                                "description": "Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts."
+                                "description": "Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts, unless the token sets content.threadOwnershipIdentifier."
                             },
                             "email": {
                                 "type": "string"
@@ -68844,11 +68848,22 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "MobileSignInMintReason": {
+                "type": "string",
+                "enum": ["show", "auto_refresh"]
+            },
             "MintMobileSignInCodeRequest": {
                 "properties": {
+                    "sourceProjectUuid": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UUID"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "reason": {
-                        "type": "string",
-                        "enum": ["show", "auto_refresh"]
+                        "$ref": "#/components/schemas/MobileSignInMintReason"
                     }
                 },
                 "required": ["reason"],
@@ -68998,6 +69013,27 @@
                     }
                 },
                 "required": ["nonce"],
+                "type": "object"
+            },
+            "MobileSignInCapabilities": {
+                "properties": {
+                    "capabilities": {
+                        "properties": {
+                            "mobile_sign_in_source_project": {
+                                "type": "number",
+                                "enum": [1],
+                                "nullable": false
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "schemaVersion": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": ["capabilities", "schemaVersion"],
                 "type": "object"
             },
             "MobileAppLink": {
@@ -78381,8 +78417,27 @@
                 "required": ["chart", "pipeline", "name", "dashboardUuid"],
                 "type": "object"
             },
+            "Record_string.ParametersValuesMap_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/ParametersValuesMap"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "ComposerChartRunResults": {
                 "properties": {
+                    "usedParameterValuesByNodeId": {
+                        "$ref": "#/components/schemas/Record_string.ParametersValuesMap_",
+                        "description": "The parameter values each node query ran with, keyed by node; nodes can run different values."
+                    },
+                    "sqlColumns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultColumn"
+                        },
+                        "type": "array",
+                        "description": "The SQL nodes' columns, one per name, that a filter can target on this tile."
+                    },
                     "parameterReferences": {
                         "items": {
                             "type": "string"
@@ -78427,6 +78482,8 @@
                     }
                 },
                 "required": [
+                    "usedParameterValuesByNodeId",
+                    "sqlColumns",
                     "parameterReferences",
                     "appliedDashboardFiltersByNodeId",
                     "appliedDashboardFilters",
@@ -79613,7 +79670,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.267.2",
+        "version": "3.276.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -113659,6 +113716,26 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/mobile/sign-in-capabilities": {
+            "get": {
+                "operationId": "GetMobileSignInCapabilities",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MobileSignInCapabilities"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Mobile"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/user/mobile/app-links": {

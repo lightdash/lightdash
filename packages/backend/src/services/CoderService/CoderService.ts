@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AdditionalMetric,
     AgentCapability,
     AlertAsCode,
     AlreadyExistsError,
@@ -19,6 +20,7 @@ import {
     ApiVirtualViewAsCodeListResponse,
     ApiVirtualViewAsCodeUpsertResponse,
     applyNewChartDefaults,
+    assertDashboardWithinLimits,
     assertUnreachable,
     ChartAsCode,
     ChartAsCodeConfig,
@@ -180,6 +182,7 @@ import { BaseService } from '../BaseService';
 import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
+import { getCustomMetricSqlPermissionMessage } from '../ProjectService/customMetricSqlPermission';
 import { getAvailableParameterDefinitions } from '../ProjectService/parameters';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
@@ -417,6 +420,54 @@ export class CoderService extends BaseService {
         currentChart?: CurrentChartSqlItems,
     ): ContentAsCodeSqlPermissionCheckResult[] {
         return getChartContentAsCodePermissionChecks(nextChart, currentChart);
+    }
+
+    /** Run after the space access checks: it loads the explore and saved charts. */
+    private async assertCanUploadCustomMetricSql({
+        account,
+        auditedAbility,
+        project,
+        chart,
+        getSavedAdditionalMetrics,
+    }: {
+        account: Account;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        project: Pick<Project, 'projectUuid' | 'organizationUuid'>;
+        chart: ChartAsCode;
+        getSavedAdditionalMetrics: () => Promise<AdditionalMetric[]>;
+    }): Promise<void> {
+        const additionalMetrics = chart.metricQuery.additionalMetrics ?? [];
+        if (
+            additionalMetrics.length === 0 ||
+            auditedAbility.can(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                    metadata: { slug: chart.slug },
+                }),
+            )
+        ) {
+            return;
+        }
+        if (!this.projectService) {
+            throw new Error(
+                'ProjectService is required to check custom metric uploads',
+            );
+        }
+        const needingPermission =
+            await this.projectService.getCustomMetricsNeedingPermission({
+                account,
+                projectUuid: project.projectUuid,
+                exploreName: chart.metricQuery.exploreName,
+                additionalMetrics,
+                savedAdditionalMetrics: await getSavedAdditionalMetrics(),
+            });
+        if (needingPermission.length > 0) {
+            throw new ForbiddenError(
+                `${getCustomMetricSqlPermissionMessage(needingPermission)} (chart slug "${chart.slug}")`,
+            );
+        }
     }
 
     directAccessService: DirectAccessService;
@@ -4759,6 +4810,15 @@ export class CoderService extends BaseService {
                 errorMessage: `You don't have access to create charts in space "${chartWithDefaults.spaceSlug}"`,
                 accessContexts: spaceAccessContexts,
             });
+            if (!canUploadAnyContent) {
+                await this.assertCanUploadCustomMetricSql({
+                    account: options.account ?? fromSession(user),
+                    auditedAbility,
+                    project,
+                    chart: chartWithDefaults,
+                    getSavedAdditionalMetrics: async () => [],
+                });
+            }
 
             console.info(
                 `Creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
@@ -5002,6 +5062,20 @@ export class CoderService extends BaseService {
                 action: 'update',
                 metadata: { savedChartUuid: chart.uuid },
                 errorMessage: `You don't have access to update chart "${slug}"`,
+            });
+        }
+
+        if (!canUploadAnyContent) {
+            await this.assertCanUploadCustomMetricSql({
+                account: options.account ?? fromSession(user),
+                auditedAbility,
+                project,
+                chart: chartWithDefaults,
+                getSavedAdditionalMetrics: async () =>
+                    (
+                        currentChart ??
+                        (await this.savedChartModel.get(chart.uuid))
+                    ).metricQuery.additionalMetrics ?? [],
             });
         }
 
@@ -6273,6 +6347,10 @@ export class CoderService extends BaseService {
                 existingDashboard,
             ),
             existingDashboard?.tiles ?? [],
+        );
+        assertDashboardWithinLimits(
+            { tiles: tilesWithUuids, tabs: tabsWithUuids },
+            this.lightdashConfig.dashboard,
         );
         await this.assertTileChartsViewAccess({
             userUuid: user.userUuid,

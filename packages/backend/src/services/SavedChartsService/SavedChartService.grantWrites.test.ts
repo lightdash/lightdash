@@ -178,6 +178,9 @@ vi.spyOn(analyticsMock, 'track');
 
 describe('SavedChartService direct-grant write parity', () => {
     const service = new SavedChartService({
+        getProjectService: () => ({
+            getCustomMetricsNeedingPermission: vi.fn(async () => []),
+        }),
         analytics: analyticsMock,
         lightdashConfig: lightdashConfigMock,
         projectModel: projectModel as unknown as ProjectModel,

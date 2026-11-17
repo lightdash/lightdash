@@ -1,3 +1,5 @@
+import type { UUID } from './api/uuid';
+
 export const MOBILE_SIGN_IN_CODE_TOKEN_TYPE =
     'urn:lightdash:params:oauth:token-type:mobile-sign-in-code';
 
@@ -94,3 +96,15 @@ export type MobileSignInClaimResponse = {
 
 export const formatMobileSignInMatchNumber = (value: number): string =>
     String(value).padStart(2, '0');
+
+export type MintMobileSignInCodeRequest = {
+    reason: MobileSignInMintReason;
+    sourceProjectUuid?: UUID | null;
+};
+
+export type MobileSignInCapabilities = {
+    schemaVersion: 1;
+    capabilities: {
+        mobile_sign_in_source_project?: 1;
+    };
+};

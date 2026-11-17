@@ -67,7 +67,7 @@ const AgentPage = () => {
     });
 
     const [isAgentSidebarCollapsed, setIsAgentSidebarCollapsed] =
-        useState(false);
+        useState(true);
 
     const { data: agent, isLoading: isLoadingAgent } = useAiAgent(
         projectUuid!,
@@ -235,18 +235,15 @@ const AgentPage = () => {
         ? `/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`
         : undefined;
 
+    const newThreadHref = `/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`;
+
     return (
         <AiAgentPageLayout
             isEmbed={isEmbed}
             setIsAgentSidebarCollapsed={setIsAgentSidebarCollapsed}
             isAgentSidebarCollapsed={isAgentSidebarCollapsed}
             SidebarHeader={
-                isEmbed ? undefined : (
-                    <NewThreadButton
-                        to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
-                        isCollapsed={isAgentSidebarCollapsed}
-                    />
-                )
+                isEmbed ? undefined : <NewThreadButton to={newThreadHref} />
             }
             Sidebar={
                 isEmbed ? undefined : (
@@ -254,7 +251,6 @@ const AgentPage = () => {
                         agent={agent}
                         projectUuid={projectUuid!}
                         threadUuid={threadUuid}
-                        isAgentSidebarCollapsed={isAgentSidebarCollapsed}
                     />
                 )
             }
@@ -284,6 +280,11 @@ const AgentPage = () => {
                         }
                         onMinimize={() => handleMinimize()}
                         settingsHref={agentSettingsHref}
+                        newThreadHref={
+                            isAgentSidebarCollapsed && threadUuid
+                                ? newThreadHref
+                                : undefined
+                        }
                     />
                 ) : undefined
             }

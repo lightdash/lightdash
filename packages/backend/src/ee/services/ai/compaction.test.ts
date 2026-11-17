@@ -306,7 +306,7 @@ describe('AI context compaction helpers', () => {
         ]);
 
         expect(serialized).toContain(
-            'element reference [button "Send"] in data app F1 standings (app-1, version 3',
+            'element reference [button "Send"] in data app F1 standings (f1-standings, version 3',
         );
     });
 

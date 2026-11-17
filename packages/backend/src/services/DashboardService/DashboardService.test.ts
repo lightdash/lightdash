@@ -46,6 +46,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import {
@@ -137,6 +138,12 @@ const savedSqlModel = {
             uuid: publicSpace.uuid,
         },
     })),
+};
+
+const projectService = {
+    getCustomMetricsNeedingPermission: vi.fn<
+        ProjectService['getCustomMetricsNeedingPermission']
+    >(async () => []),
 };
 
 const projectModel = {
@@ -298,7 +305,7 @@ describe('DashboardService', () => {
             organizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
-        projectService: {} as never,
+        projectService: projectService as never,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
     });
@@ -1976,6 +1983,18 @@ describe('DashboardService', () => {
             }),
         );
     });
+    test('should reject an update over the tiles-per-tab limit before saving', async () => {
+        const { maxTilesPerTab } = lightdashConfigMock.dashboard;
+        await expect(
+            service.update(user, dashboardUuid, {
+                ...updateDashboardDetailsAndTiles,
+                tiles: Array(maxTilesPerTab + 1).fill(createDashboard.tiles[0]),
+            }),
+        ).rejects.toThrow(ParameterError);
+
+        expect(dashboardModel.update).not.toHaveBeenCalled();
+        expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+    });
     test('should not fail save when an orphan chart is already gone', async () => {
         // Race with a retried save: getOrphanedCharts returns a chart that
         // permanentDelete then can't find. The save must still succeed.
@@ -3194,6 +3213,60 @@ describe('DashboardService', () => {
                 [{ uuid: affectedChart.uuid, name: affectedChart.name }],
             );
             savedChartModel.get.mockResolvedValue(affectedChart as never);
+        });
+
+        const writtenMetric = {
+            ...registryMetric,
+            sql: '(SELECT 4242 + 1)',
+        };
+
+        test('refuses a shared metric a chart using it would need permission for', async () => {
+            projectService.getCustomMetricsNeedingPermission.mockResolvedValueOnce(
+                [writtenMetric as never],
+            );
+            await expect(
+                service.updateCustomMetric(user, dashboardUuid, {
+                    metric: writtenMetric as never,
+                }),
+            ).rejects.toThrowError(
+                'Custom metrics written in SQL need permission to manage custom fields: Avg amount',
+            );
+            expect(
+                projectService.getCustomMetricsNeedingPermission,
+            ).toHaveBeenCalledWith({
+                account: expect.anything(),
+                projectUuid: affectedChart.projectUuid,
+                exploreName: affectedChart.metricQuery.exploreName,
+                additionalMetrics: [writtenMetric],
+                savedAdditionalMetrics: [registryMetric],
+            });
+            expect(
+                dashboardModel.updateLatestVersionConfig,
+            ).not.toHaveBeenCalled();
+            expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+        });
+
+        test('saves a shared metric no chart using it needs permission for', async () => {
+            await service.updateCustomMetric(user, dashboardUuid, {
+                metric: writtenMetric as never,
+            });
+            expect(dashboardModel.updateLatestVersionConfig).toHaveBeenCalled();
+        });
+
+        test('refuses changed SQL on a shared metric no chart uses', async () => {
+            dashboardModel.getDashboardOwnedChartsUsingMetric.mockResolvedValueOnce(
+                [],
+            );
+            await expect(
+                service.updateCustomMetric(user, dashboardUuid, {
+                    metric: writtenMetric as never,
+                }),
+            ).rejects.toThrowError(
+                'Custom metrics written in SQL need permission to manage custom fields: Avg amount',
+            );
+            expect(
+                dashboardModel.updateLatestVersionConfig,
+            ).not.toHaveBeenCalled();
         });
 
         test('swaps the registry entry and re-versions the affected charts', async () => {

@@ -8,6 +8,7 @@ import {
     FieldType,
     ForbiddenError,
     MergeJoinType,
+    MetricType,
     QuerySourceType,
     TableCalculationType,
     type ComposerChartPipelineNode,
@@ -126,6 +127,30 @@ const PIPELINES: Record<string, ComposerChartPipelineNode[]> = {
             ],
         }),
     ],
+    handWrittenMetric: [
+        semantic({
+            nodeId: 'result',
+            additionalMetrics: [
+                {
+                    table: 'orders',
+                    name: 'handwritten',
+                    type: MetricType.NUMBER,
+                    sql: '(SELECT 4242 + 1)',
+                },
+            ],
+        }),
+    ],
+    mergeSqlTableCalculation: reading({
+        sourceType: QuerySourceType.MERGE,
+        nodeId: 'result',
+        title: 'Result',
+        sources: [{ nodeId: 'orders' }, { nodeId: 'other' }],
+        joinKey: [],
+        joinType: MergeJoinType.FULL,
+        tableCalculations: [
+            { name: 'doubled', displayName: 'Doubled', sql: '4242 + 1' },
+        ],
+    }),
     sqlTableCalculation: [
         semantic({
             nodeId: 'result',
@@ -194,6 +219,12 @@ const customChartBody = (
     };
 };
 
+// The values each node query's history row records; null for the rest
+const usedParametersByQuery: Record<string, ParametersValuesMap> = {
+    'orders-query': { region: 'EU' },
+    'other-query': { region: 'UK' },
+};
+
 const setup = ({ flagEnabled = true } = {}) => {
     const querySourceService = {
         submitComposerRun: vi.fn(
@@ -214,7 +245,18 @@ const setup = ({ flagEnabled = true } = {}) => {
                     name,
                     baseTable: name,
                     joinedTables: [],
-                    tables: { [name]: { dimensions: {}, metrics: {} } },
+                    tables: {
+                        [name]: {
+                            name,
+                            dimensions: {
+                                amount: {
+                                    name: 'amount',
+                                    sql: '${TABLE}.amount',
+                                },
+                            },
+                            metrics: {},
+                        },
+                    },
                 }) as unknown as Explore,
         ),
         getComposerTileContext: vi.fn(
@@ -290,7 +332,9 @@ const setup = ({ flagEnabled = true } = {}) => {
         } as unknown as SpacePermissionService,
         queryHistoryModel: {
             getByQueryUuid: vi.fn(async (queryUuid: string) => ({
+                queryUuid,
                 fields: { [`${queryUuid}_field`]: {} },
+                usedParameters: usedParametersByQuery[queryUuid] ?? null,
             })),
         } as unknown as QueryHistoryModel,
         getQuerySourceService: () => querySourceService,
@@ -343,6 +387,16 @@ describe('ComposerChartService.create', () => {
             'CustomSqlTableCalculations',
             PIPELINES.sqlTableCalculation,
         ],
+        [
+            'a custom metric with hand-written SQL without custom fields',
+            'CustomFields',
+            PIPELINES.handWrittenMetric,
+        ],
+        [
+            'a merge node SQL table calculation without SQL table calculations',
+            'CustomSqlTableCalculations',
+            PIPELINES.mergeSqlTableCalculation,
+        ],
     ])('refuses %s', async (_, missing, nodes) => {
         const { service, composerChartModel } = setup();
         await expect(
@@ -353,6 +407,55 @@ describe('ComposerChartService.create', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
         expect(composerChartModel.create).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        [
+            'a custom metric over a modelled field without custom fields',
+            'CustomFields',
+            [
+                semantic({
+                    nodeId: 'result',
+                    additionalMetrics: [
+                        {
+                            table: 'orders',
+                            name: 'amount_sum',
+                            type: MetricType.SUM,
+                            sql: '${TABLE}.amount',
+                            baseDimensionName: 'amount',
+                        },
+                    ],
+                }),
+            ],
+        ],
+        [
+            'a merge node formula calculation without SQL table calculations',
+            'CustomSqlTableCalculations',
+            reading({
+                sourceType: QuerySourceType.MERGE,
+                nodeId: 'result',
+                title: 'Result',
+                sources: [{ nodeId: 'orders' }, { nodeId: 'other' }],
+                joinKey: [],
+                joinType: MergeJoinType.FULL,
+                tableCalculations: [
+                    {
+                        name: 'doubled',
+                        displayName: 'Doubled',
+                        sql: '',
+                        formula: '=orders_orders_count * 2',
+                    },
+                ],
+            }),
+        ],
+    ])('allows %s', async (_, missing, nodes) => {
+        const { service, composerChartModel } = setup();
+        await service.create(
+            sessionAccount(abilityWithout(missing)),
+            projectUuid,
+            createBody(nodes),
+        );
+        expect(composerChartModel.create).toHaveBeenCalledOnce();
     });
 
     test('refuses an author who cannot update the dashboard', async () => {
@@ -573,6 +676,21 @@ describe('ComposerChartService.run', () => {
         });
         expect(result.chartStageQueryUuid).toBe('chart_stage-query');
         expect(result.fields).toEqual({ 'result-query_field': {} });
+    });
+
+    test('returns the parameter values each node query ran with', async () => {
+        const { service } = setupRun();
+        const result = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            runRequest,
+        );
+        expect(result.usedParameterValuesByNodeId).toEqual({
+            orders: { region: 'EU' },
+            other: { region: 'UK' },
+            result: {},
+        });
     });
 
     test('writes the dashboard parameter onto the nodes and the shared map', async () => {
