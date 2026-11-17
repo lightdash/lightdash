@@ -546,13 +546,13 @@ describe('live API source metrics', () => {
         );
 
         expect((await requests!.get()).values).toContainEqual({
-            labels: { connector: 'posthog', outcome: 'rate_limited' },
+            labels: { integration: 'posthog', outcome: 'rate_limited' },
             value: 0,
         });
 
         metrics.trackApiSourceInflight(ApiConnectorType.POSTHOG, 1);
         expect((await inflight!.get()).values).toContainEqual({
-            labels: { connector: 'posthog' },
+            labels: { integration: 'posthog' },
             value: 1,
         });
         metrics.observeApiSourceRequest(
@@ -563,11 +563,11 @@ describe('live API source metrics', () => {
         metrics.trackApiSourceInflight(ApiConnectorType.POSTHOG, -1);
 
         expect((await requests!.get()).values).toContainEqual({
-            labels: { connector: 'posthog', outcome: 'rate_limited' },
+            labels: { integration: 'posthog', outcome: 'rate_limited' },
             value: 1,
         });
         expect((await inflight!.get()).values).toContainEqual({
-            labels: { connector: 'posthog' },
+            labels: { integration: 'posthog' },
             value: 0,
         });
     });
