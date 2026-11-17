@@ -11,6 +11,16 @@ export const DEVELOPMENT_VIEW_HEADER = 'Lightdash-Development-View';
 /** Names the preview project to read instead, for a project whose unpublished changes live on a branch. */
 export const DEVELOPMENT_PREVIEW_HEADER = 'Lightdash-Development-Preview';
 
+// Queries that read the repository or name their own view, so switching the view cannot change them.
+const SAME_IN_EITHER_VIEW = new Set([
+    'pullRequestCiChecks',
+    'pullRequestDiff',
+    'aiWritebackRunStatus',
+    'semantic-studio-sources',
+    'semantic-studio-workspaces',
+    'semantic-studio-model-version',
+]);
+
 const PROJECT_IN_PATH = /\/projects\/([^/]+)/;
 
 const findProjectInPath = (pathname: string): string | null =>
@@ -58,6 +68,9 @@ export const getDevelopmentViewHeaders = (): Record<string, string> => {
     }
 };
 
+export const isDevelopmentViewOn = (): boolean =>
+    Object.keys(getDevelopmentViewHeaders()).length > 0;
+
 /**
  * The development view of the project in the address bar, and its switch;
  * switching refetches everything, since any query may read a changed model. A
@@ -82,6 +95,14 @@ export const useDevelopmentView = (): [
     const set = useCallback(
         (next: boolean, previewProjectUuid: string | null = null) => {
             const here = findProjectInPath(pathname);
+            const preview = next && here ? previewProjectUuid : null;
+            // Asked for what is already showing: nothing reads differently, so nothing is fetched again.
+            if (
+                next === isDevelopmentViewOn() &&
+                preview === getDevelopmentPreview()
+            ) {
+                return;
+            }
             try {
                 if (next && here && previewProjectUuid) {
                     localStorage.setItem(
@@ -103,7 +124,10 @@ export const useDevelopmentView = (): [
                       ].join(' ')
                     : null,
             );
-            void queryClient.invalidateQueries();
+            void queryClient.invalidateQueries({
+                predicate: ({ queryKey }) =>
+                    !SAME_IN_EITHER_VIEW.has(String(queryKey[0])),
+            });
         },
         [pathname, queryClient, setProject, projectRoute],
     );
