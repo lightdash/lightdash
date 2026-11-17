@@ -176,14 +176,16 @@ export const StudioDevelopmentBar: FC<{
                         merge(
                             { prUrl, sha: null },
                             {
-                                onSuccess: ({ compileJobUuid }) =>
+                                // A failed merge keeps the dialog, under the toast that says why.
+                                onSuccess: ({ compileJobUuid }) => {
+                                    setMerging(false);
                                     rememberGoingLive(
                                         queryClient,
                                         projectUuid,
                                         prUrl,
                                         compileJobUuid,
-                                    ),
-                                onSettled: () => setMerging(false),
+                                    );
+                                },
                             },
                         )
                     }
