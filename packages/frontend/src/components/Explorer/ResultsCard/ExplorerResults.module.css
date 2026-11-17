@@ -113,11 +113,10 @@
     justify-content: space-between;
 }
 
-/* Pagination shares the totals row's tint, with small quiet controls */
+/* Pagination sits on the page, under the tinted totals that close the table */
 .results:not([data-grouped]) [class*='tableFooter'] {
     padding: 4px 8.5px;
     margin-top: 0;
-    background-color: var(--mantine-color-ldGray-0);
 }
 
 /* Pages or Scroll is a plain text choice: the current one in ink */
