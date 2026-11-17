@@ -72,7 +72,7 @@ export const useSaveStudioSource = (projectUuid: string) => {
         }
     >({
         mutationFn: async ({ newChangeAgentUuid, ...body }) => {
-            // ponytail: a save that then fails leaves a conversation no change points at.
+            // A save that then fails leaves a conversation no change points at.
             const startThread = async (agentUuid: string) => {
                 const created = await lightdashApi<
                     ApiAiAgentThreadCreateResponse['results']

@@ -21,7 +21,7 @@ export const useGoingLive = (
     projectUuid: string,
     prUrl: string | null,
 ): 'unknown' | 'running' | 'failed' | 'done' => {
-    // ponytail: kept for the tab only, so after a reload a merge reads as merged, not live.
+    // Kept for the tab only, so after a reload a merge reads as merged, not live.
     const { data: jobUuid } = useQuery<string | null>({
         queryKey: [GOING_LIVE_KEY, projectUuid, prUrl],
         queryFn: () => null,

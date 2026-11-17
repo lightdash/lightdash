@@ -236,7 +236,7 @@ export type DiscardTarget =
 // A write rereads and rechecks when another one lands first.
 const MAX_WRITE_ATTEMPTS = 3;
 
-// ponytail: a check whose worker died reads as failed after this long; sweep stale checks if that is not enough.
+// A check whose worker died reads as failed after this long; sweep stale checks if that is not enough.
 const IMPACT_CHECK_TIMEOUT_MS = 10 * 60 * 1000;
 
 const NO_IMPACT: SemanticLayerDraftImpact = { status: 'done', breaks: [] };
@@ -269,10 +269,10 @@ const failed = (
 });
 
 /** Keeps a project's native models on the server and takes reviewed drafts of them live. */
-// ponytail: a draft that redefines more fields than this is only partly looked up; page the lookup if drafts grow that large.
+// A draft that redefines more fields than this is only partly looked up; page the lookup if drafts grow that large.
 const MAX_USAGE_FIELDS = 40;
 
-// ponytail: dbt's default folders; read model-paths from dbt_project.yml if a project moves them.
+// dbt's default folders; read model-paths from dbt_project.yml if a project moves them.
 const SOURCE_FILE =
     /^(dbt_project\.yml|(models|macros|snapshots|seeds|lightdash\/models)\/.+\.(ya?ml|sql))$/;
 
@@ -328,7 +328,7 @@ export class SemanticStudioService extends BaseService {
         Promise<SemanticLayerDraftApplyResult>
     >();
 
-    // ponytail: per process, so several API processes each ask once a minute; share it if provider limits bite.
+    // Per process, so several API processes each ask once a minute; share it if provider limits bite.
     private readonly pullRequestRefreshedAt = new Map<string, number>();
 
     constructor(args: SemanticStudioServiceArguments) {
@@ -1029,7 +1029,7 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
     ): Promise<Map<string, Explore | ExploreError> | null> {
         const found = await this.readDbtTryOut(user, projectUuid);
-        // ponytail: models the change removes still show; the preview shows removals.
+        // Models the change removes still show; the preview shows removals.
         return found
             ? new Map(
                   found.tryOut.explores.map((explore) => [
@@ -1984,7 +1984,7 @@ export class SemanticStudioService extends BaseService {
                                   explores,
                               )
                             : { exploreCount: 0 };
-                    // ponytail: neither write joins the commit's transaction; the removal goes last so a failed deploy removes nothing.
+                    // Neither write joins the commit's transaction; the removal goes last so a failed deploy removes nothing.
                     if (removed.length > 0) {
                         await this.projectModel.deleteCachedExplores(
                             projectUuid,

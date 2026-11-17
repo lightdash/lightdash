@@ -66,7 +66,7 @@ import {
 } from './useStudioSources';
 import classes from './WorkbenchView.module.css';
 
-// ponytail: unsaved edits live for the tab only; leaving the page warns while any are kept.
+// Unsaved edits live for the tab only; leaving the page warns while any are kept.
 const unsavedEdits = new Map<string, string>();
 let warnsOnLeave = false;
 const keepUnsaved = (key: string, text: string) => {

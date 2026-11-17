@@ -206,7 +206,7 @@ type ModelSummary = {
     metrics: number;
 } | null;
 
-// ponytail: the review asks for the same documents on every render; cleared when it grows, an LRU if drafts get large.
+// The review asks for the same documents on every render; cleared when it grows, an LRU if drafts get large.
 const summaries = new Map<string, ModelSummary>();
 
 const readModelSummary = (content: string): ModelSummary => {

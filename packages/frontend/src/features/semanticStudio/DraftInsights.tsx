@@ -145,7 +145,7 @@ const ChangedWords: FC<{ value: string; base: string | null }> = ({
     base,
 }) => {
     if (base === null) return value;
-    // ponytail: words compared as a set, so a moved or repeated word is not marked; use a real diff if that misleads.
+    // Words compared as a set, so a moved or repeated word is not marked; use a real diff if that misleads.
     const known = new Set(base.split(/\s+/).map(toBareWord));
     return value.split(/(\s+)/).map((word, index) =>
         toBareWord(word) === '' || known.has(toBareWord(word)) ? (

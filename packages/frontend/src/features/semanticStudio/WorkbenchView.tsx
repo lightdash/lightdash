@@ -935,7 +935,7 @@ const Rail: FC<{
 
 /**
  * The Code view's rail: every model with YAML behind it, and any the draft adds.
- * ponytail: not virtualised; only native YAML projects get here, so add it if one reaches thousands of models.
+ * Not virtualised; only native YAML projects get here, so add it if one reaches thousands of models.
  */
 const CodeRail: FC<{
     files: string[];
@@ -1724,7 +1724,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             ? (pullRequest?.changedModels[0] ?? null)
             : null;
     const goBack = hasWorkspaces ? showChanges : showLive;
-    // ponytail: explore named after the model, so a renamed explore misses
+    // Explore named after the model, so a renamed explore misses
     const changeLinks = liveModel ? (
         <Anchor
             component={Link}

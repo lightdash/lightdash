@@ -5716,7 +5716,7 @@ export class ProjectService
     }
 
     // Onboarding can start from a live source and add the warehouse later.
-    // ponytail: fires on save, before the worker tests the connection, as project creation does.
+    // Fires on save, before the worker tests the connection, as project creation does.
     private async trackWarehouseAddedToProject(
         account: Account,
         savedProject: Pick<
