@@ -85,6 +85,8 @@ export const toolEditDbtProjectMetadataSchema = z.discriminatedUnion('status', [
         // run made no preview (non-GitHub, or creation failed) or the row
         // predates this field. Replaces the old PR-comment scraping.
         previewUrl: z.string().nullish(),
+        // True between the pull request being recorded and its preview being settled. Nullish: older rows.
+        isPreviewPending: z.boolean().nullish(),
         // Ordered actions the sandbox took, surfaced as persistent step
         // rows under the writeback tool call. Generic shape (kind + label)
         // so the chat UI can group/render them without writeback knowledge.

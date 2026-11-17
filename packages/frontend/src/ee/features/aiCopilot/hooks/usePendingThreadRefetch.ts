@@ -24,12 +24,14 @@ const getPendingWritebackExpiresAt = (thread: Thread): number | null => {
         thread?.messages.flatMap((message) =>
             message.role === 'assistant'
                 ? message.toolResults.flatMap((toolResult) => {
-                      if (
-                          !isToolEditDbtProjectResult(toolResult) ||
-                          toolResult.metadata.status !== 'pending'
-                      ) {
-                          return [];
-                      }
+                      if (!isToolEditDbtProjectResult(toolResult)) return [];
+                      const { metadata } = toolResult;
+                      // A recorded pull request is still read again until its preview settles.
+                      const isPending =
+                          metadata.status === 'pending' ||
+                          (metadata.status === 'success' &&
+                              metadata.isPreviewPending === true);
+                      if (!isPending) return [];
 
                       const createdAt =
                           toolResult.createdAt instanceof Date

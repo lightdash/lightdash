@@ -14140,6 +14140,48 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     });
             }
 
+            const target = `Lightdash project "${result.projectName}" (repository ${result.repository})`;
+            const prVerb = result.prAction === 'updated' ? 'Updated' : 'Opened';
+            let base: string;
+            if (result.needsDbtSourceSelection) {
+                base = `${result.output}\n\nTell the user which dbt sources they can choose from and ask them to re-run naming one.`;
+            } else if (result.prUrl) {
+                base = `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which project/repository it targeted.\n\nAgent summary:\n${result.output}`;
+            } else {
+                base = `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${result.output}`;
+            }
+
+            const writeResult = async (
+                previewUrl: string | null,
+                isPreviewPending: boolean,
+            ) => {
+                if (assertPublishAllowed) await assertPublishAllowed();
+                await this.aiAgentModel.updateToolResult(
+                    promptUuid,
+                    toolCallId,
+                    {
+                        result: previewUrl
+                            ? `${base}\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`
+                            : base,
+                        metadata: {
+                            status: 'success',
+                            prUrl: result.prUrl ?? null,
+                            prAction: result.prAction ?? null,
+                            commitSha: result.commitSha ?? null,
+                            additions: result.additions ?? null,
+                            deletions: result.deletions ?? null,
+                            previewUrl,
+                            isPreviewPending,
+                            steps: result.steps,
+                            changedModels,
+                            needsDbtSourceSelection:
+                                result.needsDbtSourceSelection ?? null,
+                            dbtSourceOptions: result.dbtSourceOptions ?? null,
+                        },
+                    },
+                );
+            };
+
             const isBitbucketPullRequest =
                 result.prUrl?.startsWith('https://bitbucket.org/') === true;
             let previewUrl: string | null = null;
@@ -14149,6 +14191,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 !suppressWritebackPreview &&
                 !reviewRemediation
             ) {
+                // Studio shows the pull request now; building its preview can take a minute.
+                if (prompt.threadCreatedFrom === 'semantic_studio') {
+                    await writeResult(null, true);
+                    toolResultWritten = true;
+                }
                 const preview =
                     await this.writebackPreviewService.createPreviewForPullRequest(
                         {
@@ -14162,41 +14209,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     );
                 previewUrl = preview?.previewUrl ?? null;
             }
-
-            const target = `Lightdash project "${result.projectName}" (repository ${result.repository})`;
-            const prVerb = result.prAction === 'updated' ? 'Updated' : 'Opened';
-            let base: string;
-            if (result.needsDbtSourceSelection) {
-                base = `${result.output}\n\nTell the user which dbt sources they can choose from and ask them to re-run naming one.`;
-            } else if (result.prUrl) {
-                base = `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which project/repository it targeted.\n\nAgent summary:\n${result.output}`;
-            } else {
-                base = `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${result.output}`;
-            }
-
-            let toolResult = base;
-            if (result.prUrl && previewUrl) {
-                toolResult += `\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`;
-            }
-
-            if (assertPublishAllowed) await assertPublishAllowed();
-            await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
-                result: toolResult,
-                metadata: {
-                    status: 'success',
-                    prUrl: result.prUrl ?? null,
-                    prAction: result.prAction ?? null,
-                    commitSha: result.commitSha ?? null,
-                    additions: result.additions ?? null,
-                    deletions: result.deletions ?? null,
-                    previewUrl: previewUrl ?? null,
-                    steps: result.steps,
-                    changedModels,
-                    needsDbtSourceSelection:
-                        result.needsDbtSourceSelection ?? null,
-                    dbtSourceOptions: result.dbtSourceOptions ?? null,
-                },
-            });
+            await writeResult(previewUrl, false);
             toolResultWritten = true;
 
             // Deliver the PR card to Slack now that the tool result is final — the
