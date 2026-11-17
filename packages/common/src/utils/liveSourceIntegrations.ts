@@ -147,6 +147,18 @@ export const LIVE_INTEGRATION_CATALOG: {
         }),
         getTarget: ({ owner, repo }) => `${owner}/${repo}`,
     },
+    [ApiConnectorType.PYLON]: {
+        id: 'pylon',
+        label: 'Pylon',
+        messageLabel: 'Pylon',
+        agentLabel: 'Pylon',
+        description: 'Support issues, accounts and contacts',
+        setup: 'token',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.PYLON),
+        }),
+        getTarget: () => 'Pylon workspace',
+    },
 };
 
 /** One integration's catalog entry, for a source of any connector. */
