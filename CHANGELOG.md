@@ -1,3 +1,10 @@
+## [3.294.2](https://github.com/lightdash/lightdash/compare/3.294.1...3.294.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **mobile:** hide the mobile nav item when organization mobile access is off ([#32770](https://github.com/lightdash/lightdash/issues/32770)) ([50f40cb](https://github.com/lightdash/lightdash/commit/50f40cb004b326d479e4b46a42afac0c0aea36f2))
+
 ## [3.294.1](https://github.com/lightdash/lightdash/compare/3.294.0...3.294.1) (2026-11-17)
 
 
