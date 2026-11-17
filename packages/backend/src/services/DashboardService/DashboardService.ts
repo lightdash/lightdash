@@ -111,7 +111,6 @@ import {
     LightdashAnalytics,
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
-import { analyticsContentAsCode } from '../../analytics/systemExplores/sampleContent';
 import {
     fromSession,
     getAccountWriteContext,
@@ -1798,18 +1797,13 @@ export class DashboardService
                 });
             });
 
-        const builtInDashboardSlug = analyticsContentAsCode.find(
-            ({ dashboard: builtIn }) => builtIn.slug === dashboard.slug,
-        )?.dashboard.slug;
         this.analytics.track(
             {
                 event: 'dashboard.view',
                 userId: user.userUuid,
                 properties: {
                     dashboardId: dashboard.uuid,
-                    ...(builtInDashboardSlug && {
-                        dashboardSlug: builtInDashboardSlug,
-                    }),
+                    dashboardSlug: dashboard.slug,
                     organizationId: dashboard.organizationUuid,
                     projectId: dashboard.projectUuid,
                     parametersCount: Object.keys(dashboard.parameters || {})
