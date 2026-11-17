@@ -7,10 +7,10 @@ import {
     type ApiCiChecksResponse,
     type ApiClosePullRequestResponse,
     type ApiErrorPayload,
-    type ApiMergePullRequestResponse,
     type ApiProjectFilesResponse,
     type ApiProjectRepositoriesResponse,
     type ApiPullRequestDiffResponse,
+    type ApiWritebackMergeResponse,
     type ClosePullRequestRequestBody,
     type MergePullRequestRequestBody,
     type UUID,
@@ -262,7 +262,7 @@ export class AiWritebackController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Body() body: MergePullRequestRequestBody,
-    ): Promise<ApiMergePullRequestResponse> {
+    ): Promise<ApiWritebackMergeResponse> {
         assertRegisteredAccount(req.account);
         const parsed = mergePullRequestBodySchema.safeParse(body);
         if (!parsed.success) {
@@ -277,6 +277,16 @@ export class AiWritebackController extends BaseController {
             prUrl: parsed.data.prUrl,
             sha: parsed.data.sha,
         });
+        // Recorded now, so the change reads merged from the moment it was, not from whenever its checks next load.
+        if (results.merged) {
+            await this.services
+                .getSemanticStudioService<SemanticStudioService>()
+                .recordPullRequestState(
+                    projectUuid,
+                    parsed.data.prUrl,
+                    'merged',
+                );
+        }
         return {
             status: 'ok',
             results,

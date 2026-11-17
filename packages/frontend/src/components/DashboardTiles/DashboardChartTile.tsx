@@ -1,23 +1,19 @@
 import { subject } from '@casl/ability';
 import {
     type ApiError,
-    assertUnreachable,
     ChartType,
     createDashboardFilterRuleFromField,
     type CreateSavedChartVersion,
     type Dashboard,
     type DashboardChartTile as IDashboardChartTile,
     type DashboardFilterRule,
-    DashboardTileParameterSource,
     DashboardTileTypes,
     type EChartsSeries,
-    type Field,
     isOtherPivotValue,
     type FilterDashboardToRule,
     getChartKind,
     getConditionalFormattingsFromChartConfig,
     getCustomLabelsFromTableConfig,
-    getDashboardTileParameterSource,
     getDimensions,
     getFields,
     getHiddenTableFields,
@@ -26,6 +22,7 @@ import {
     getPivotConfig,
     getMergeDefinitionQueryExploreNames,
     getShowColumnTotalsFromChartConfig,
+    getShowSubtotalsFromChartConfig,
     getVisibleFields,
     isDashboardChartTileType,
     isFilterableField,
@@ -37,17 +34,13 @@ import {
     type ResultValue,
     type SavedChart,
     type Series,
-    type UiStringResolver,
+    type Explore,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Group,
     Menu,
-    Stack,
     Text,
-    Badge,
-    Popover,
     Portal,
     Tooltip,
     useComputedColorScheme,
@@ -58,12 +51,10 @@ import {
     IconAlertTriangle,
     IconCopy,
     IconFilePencil,
-    IconFilter,
     IconFolders,
     IconRefreshDot,
     IconTableExport,
     IconTelescope,
-    IconVariable,
 } from '@tabler/icons-react';
 import React, {
     memo,
@@ -181,7 +172,6 @@ import {
     hasDashboardTileParameterOverrides,
     isSavedDataAppVizDashboardImageExportAvailable,
 } from '../common/ChartDownload/chartDownloadUtils';
-import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import PivotColumnLimitWarning from '../common/PivotColumnLimitWarning';
@@ -205,26 +195,16 @@ import EmbeddedDashboardChartInteractions, {
 import ExportDataModal from './ExportDataModal';
 import ExportImageModal from './ExportImageModal';
 import TileBase from './TileBase';
-import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
 import TileExecutionInfo from './TileExecutionInfo';
+import {
+    TileFiltersPopover,
+    type TileChartFilterItem,
+    type TileFilterItem,
+} from './TileFiltersPopover';
+import { getTileParameterItems } from './tileParameterItems';
+import { TileParametersPopover } from './TileParametersPopover';
 import TileTimezoneInfo from './TileTimezoneInfo';
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
-
-const getParameterSourceLabel = (
-    source: DashboardTileParameterSource,
-    getUiString: UiStringResolver,
-): string => {
-    switch (source) {
-        case DashboardTileParameterSource.CHART:
-            return getUiString('parameters.source.chart');
-        case DashboardTileParameterSource.DASHBOARD:
-            return getUiString('parameters.source.dashboard');
-        case DashboardTileParameterSource.DEFAULT:
-            return getUiString('parameters.source.default');
-        default:
-            return assertUnreachable(source, 'Unknown parameter source');
-    }
-};
 
 interface ExportGoogleSheetProps {
     savedChart: SavedChart;
@@ -1088,8 +1068,74 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             ],
         );
 
-        const hasFiltersToShow =
-            appliedFilterItems.length > 0 || chartFilterItems.length > 0;
+        const parameterItems = useMemo(
+            () =>
+                getTileParameterItems({
+                    usedParameterValues: usedParametersValues ?? {},
+                    definitions: parameterDefinitions,
+                    inputs: {
+                        ...tileParameterInputs,
+                        chartSavedValues: chart.parameters ?? {},
+                    },
+                    sourceLabel: null,
+                }),
+            [
+                usedParametersValues,
+                parameterDefinitions,
+                tileParameterInputs,
+                chart.parameters,
+            ],
+        );
+        const filterItems = useMemo(() => {
+            const fieldOf = (
+                sourceExplore: Explore | undefined,
+                fieldId: string,
+            ) => {
+                const field = sourceExplore
+                    ? getVisibleFields(sourceExplore).find(
+                          (f) => getItemId(f) === fieldId,
+                      )
+                    : undefined;
+                return field && isFilterableField(field) ? field : null;
+            };
+            return {
+                dashboardFilters: appliedFilterItems.map(
+                    ({
+                        filterRule,
+                        sourceId,
+                        sourceExploreName,
+                    }): TileFilterItem => {
+                        const sourceExplore =
+                            sourceExploreName === null ||
+                            sourceExploreName === explore?.name
+                                ? explore
+                                : additionalExplore;
+                        return {
+                            key: `${sourceId ?? ''}:${filterRule.id}`,
+                            filterRule,
+                            field: fieldOf(
+                                sourceExplore,
+                                filterRule.target.fieldId,
+                            ),
+                            sourceLabel:
+                                sourceExploreName === null
+                                    ? null
+                                    : (sourceExplore?.label ??
+                                      sourceExploreName),
+                        };
+                    },
+                ),
+                chartFilters: chartFilterItems.map(
+                    ({ filterRule, isOverridden }): TileChartFilterItem => ({
+                        key: filterRule.id,
+                        filterRule,
+                        field: fieldOf(explore, filterRule.target.fieldId),
+                        sourceLabel: null,
+                        isOverridden,
+                    }),
+                ),
+            };
+        }, [appliedFilterItems, chartFilterItems, explore, additionalExplore]);
 
         const chartWithDashboardFilters = useMemo(
             () => ({
@@ -1202,410 +1248,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                         <>
                             {/* Dashboard comments button only appears on hover if there are no comments yet */}
                             {tileHasComments ? undefined : dashboardComments}
-                            {hasFiltersToShow && (
-                                <TileHeaderPopover>
-                                    <Popover.Dropdown
-                                        maw="calc(100vw - 24px)"
-                                        mah="calc(100dvh - 24px)"
-                                        className={
-                                            tileClasses.scrollableDropdown
-                                        }
-                                    >
-                                        <Stack gap="xs" align="flex-start">
-                                            {appliedFilterItems.length > 0 && (
-                                                <>
-                                                    <Text
-                                                        c="dimmed"
-                                                        fw={500}
-                                                        fz="xs"
-                                                    >
-                                                        Dashboard filter
-                                                        {appliedFilterItems.length >
-                                                        1
-                                                            ? 's'
-                                                            : ''}{' '}
-                                                        applied:
-                                                    </Text>
-                                                    {appliedFilterItems.map(
-                                                        ({
-                                                            filterRule,
-                                                            sourceId,
-                                                            sourceExploreName,
-                                                        }) => {
-                                                            const sourceExplore =
-                                                                sourceExploreName ===
-                                                                    null ||
-                                                                sourceExploreName ===
-                                                                    explore?.name
-                                                                    ? explore
-                                                                    : additionalExplore;
-                                                            const sourceLabel =
-                                                                sourceExploreName ===
-                                                                null
-                                                                    ? null
-                                                                    : (sourceExplore?.label ??
-                                                                      sourceExploreName);
-                                                            const fields: Field[] =
-                                                                sourceExplore
-                                                                    ? getVisibleFields(
-                                                                          sourceExplore,
-                                                                      )
-                                                                    : [];
-
-                                                            const field =
-                                                                fields.find(
-                                                                    (f) => {
-                                                                        return (
-                                                                            getItemId(
-                                                                                f,
-                                                                            ) ===
-                                                                            filterRule
-                                                                                .target
-                                                                                .fieldId
-                                                                        );
-                                                                    },
-                                                                );
-                                                            if (
-                                                                !field ||
-                                                                !isFilterableField(
-                                                                    field,
-                                                                )
-                                                            )
-                                                                return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
-
-                                                            const filterRuleLabels =
-                                                                getConditionalRuleLabelFromItem(
-                                                                    filterRule,
-                                                                    field,
-                                                                    getUiString,
-                                                                );
-                                                            return (
-                                                                <Badge
-                                                                    maw="100%"
-                                                                    h="auto"
-                                                                    className={
-                                                                        tileClasses.wrapBadge
-                                                                    }
-                                                                    key={`${sourceId ?? ''}:${filterRule.id}`}
-                                                                    variant="outline"
-                                                                    color="ldGray.4"
-                                                                    size="lg"
-                                                                    fz="xs"
-                                                                    fw="normal"
-                                                                    c="black"
-                                                                >
-                                                                    {sourceLabel !==
-                                                                        null && (
-                                                                        <Text
-                                                                            span
-                                                                            inherit
-                                                                            c="dimmed"
-                                                                        >
-                                                                            {
-                                                                                sourceLabel
-                                                                            }{' '}
-                                                                            ·{' '}
-                                                                        </Text>
-                                                                    )}
-                                                                    <Text
-                                                                        fw={600}
-                                                                        span
-                                                                        inherit
-                                                                        c="foreground"
-                                                                    >
-                                                                        {
-                                                                            filterRuleLabels.field
-                                                                        }
-                                                                        :
-                                                                    </Text>{' '}
-                                                                    {filterRule.disabled ? (
-                                                                        <Text
-                                                                            c="foreground"
-                                                                            span
-                                                                            inherit
-                                                                        >
-                                                                            is
-                                                                            any
-                                                                            value
-                                                                        </Text>
-                                                                    ) : (
-                                                                        <>
-                                                                            <Text
-                                                                                span
-                                                                                inherit
-                                                                                c="foreground"
-                                                                            >
-                                                                                {
-                                                                                    filterRuleLabels.operator
-                                                                                }
-                                                                            </Text>{' '}
-                                                                            <Text
-                                                                                fw={
-                                                                                    600
-                                                                                }
-                                                                                span
-                                                                                inherit
-                                                                                c="foreground"
-                                                                            >
-                                                                                {
-                                                                                    filterRuleLabels.value
-                                                                                }
-                                                                            </Text>
-                                                                        </>
-                                                                    )}
-                                                                </Badge>
-                                                            );
-                                                        },
-                                                    )}
-                                                </>
-                                            )}
-                                            {chartFilterItems.length > 0 && (
-                                                <>
-                                                    <Text
-                                                        c="dimmed"
-                                                        fw={500}
-                                                        fz="xs"
-                                                    >
-                                                        Chart filter
-                                                        {chartFilterItems.length >
-                                                        1
-                                                            ? 's'
-                                                            : ''}
-                                                        :
-                                                    </Text>
-                                                    {chartFilterItems.map(
-                                                        ({
-                                                            filterRule,
-                                                            isOverridden,
-                                                        }) => {
-                                                            const fields: Field[] =
-                                                                explore
-                                                                    ? getVisibleFields(
-                                                                          explore,
-                                                                      )
-                                                                    : [];
-                                                            const field =
-                                                                fields.find(
-                                                                    (f) =>
-                                                                        getItemId(
-                                                                            f,
-                                                                        ) ===
-                                                                        filterRule
-                                                                            .target
-                                                                            .fieldId,
-                                                                );
-                                                            if (
-                                                                !field ||
-                                                                !isFilterableField(
-                                                                    field,
-                                                                )
-                                                            )
-                                                                return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
-                                                            const filterRuleLabels =
-                                                                getConditionalRuleLabelFromItem(
-                                                                    filterRule,
-                                                                    field,
-                                                                    getUiString,
-                                                                );
-                                                            const ruleTextDecoration =
-                                                                isOverridden
-                                                                    ? 'line-through'
-                                                                    : undefined;
-                                                            return (
-                                                                <Badge
-                                                                    maw="100%"
-                                                                    h="auto"
-                                                                    key={
-                                                                        filterRule.id
-                                                                    }
-                                                                    variant="outline"
-                                                                    color="ldGray.4"
-                                                                    size="lg"
-                                                                    fz="xs"
-                                                                    fw="normal"
-                                                                    className={
-                                                                        tileClasses.overrideBadge
-                                                                    }
-                                                                    data-overridden={
-                                                                        isOverridden ||
-                                                                        undefined
-                                                                    }
-                                                                >
-                                                                    <Text
-                                                                        fw={600}
-                                                                        span
-                                                                        inherit
-                                                                        c="foreground"
-                                                                        td={
-                                                                            ruleTextDecoration
-                                                                        }
-                                                                    >
-                                                                        {
-                                                                            filterRuleLabels.field
-                                                                        }
-                                                                        :
-                                                                    </Text>{' '}
-                                                                    {filterRule.disabled ? (
-                                                                        <Text
-                                                                            c="foreground"
-                                                                            span
-                                                                            inherit
-                                                                            td={
-                                                                                ruleTextDecoration
-                                                                            }
-                                                                        >
-                                                                            is
-                                                                            any
-                                                                            value
-                                                                        </Text>
-                                                                    ) : (
-                                                                        <>
-                                                                            <Text
-                                                                                span
-                                                                                inherit
-                                                                                c="foreground"
-                                                                                td={
-                                                                                    ruleTextDecoration
-                                                                                }
-                                                                            >
-                                                                                {
-                                                                                    filterRuleLabels.operator
-                                                                                }
-                                                                            </Text>{' '}
-                                                                            <Text
-                                                                                fw={
-                                                                                    600
-                                                                                }
-                                                                                span
-                                                                                inherit
-                                                                                c="foreground"
-                                                                                td={
-                                                                                    ruleTextDecoration
-                                                                                }
-                                                                            >
-                                                                                {
-                                                                                    filterRuleLabels.value
-                                                                                }
-                                                                            </Text>
-                                                                        </>
-                                                                    )}
-                                                                    {isOverridden && (
-                                                                        <Text
-                                                                            span
-                                                                            inherit
-                                                                            c="foreground"
-                                                                            fs="italic"
-                                                                        >
-                                                                            {' '}
-                                                                            (overridden
-                                                                            by
-                                                                            dashboard)
-                                                                        </Text>
-                                                                    )}
-                                                                </Badge>
-                                                            );
-                                                        },
-                                                    )}
-                                                </>
-                                            )}
-                                        </Stack>
-                                    </Popover.Dropdown>
-
-                                    <Popover.Target>
-                                        <ActionIcon
-                                            aria-label={getUiString(
-                                                'tileMenu.filters',
-                                            )}
-                                            size="sm"
-                                        >
-                                            <MantineIcon icon={IconFilter} />
-                                        </ActionIcon>
-                                    </Popover.Target>
-                                </TileHeaderPopover>
-                            )}
-                            {usedParametersValues &&
-                                Object.keys(usedParametersValues).length >
-                                    0 && (
-                                    <TileHeaderPopover>
-                                        <Popover.Dropdown
-                                            maw="calc(100vw - 24px)"
-                                            mah="calc(100dvh - 24px)"
-                                            className={
-                                                tileClasses.scrollableDropdown
-                                            }
-                                        >
-                                            <Text c="dimmed" fw={500} mb="xs">
-                                                Parameters
-                                            </Text>
-                                            <Stack
-                                                gap="xs"
-                                                align="flex-start"
-                                                ml="xs"
-                                            >
-                                                {Object.entries(
-                                                    usedParametersValues,
-                                                ).map(([key, value]) => {
-                                                    const sourceLabel =
-                                                        getParameterSourceLabel(
-                                                            getDashboardTileParameterSource(
-                                                                {
-                                                                    key,
-                                                                    definitions:
-                                                                        parameterDefinitions,
-                                                                    ...tileParameterInputs,
-                                                                    chartSavedValues:
-                                                                        chart.parameters ??
-                                                                        {},
-                                                                },
-                                                            ),
-                                                            getUiString,
-                                                        );
-                                                    return (
-                                                        <Text
-                                                            key={key}
-                                                            size="xs"
-                                                            c="dimmed"
-                                                        >
-                                                            <Text span fw={600}>
-                                                                {parameterDefinitions[
-                                                                    key
-                                                                ]?.label || key}
-                                                                :
-                                                            </Text>{' '}
-                                                            {Array.isArray(
-                                                                value,
-                                                            )
-                                                                ? value.join(
-                                                                      ', ',
-                                                                  )
-                                                                : value}{' '}
-                                                            <Text
-                                                                span
-                                                                inherit
-                                                                fs="italic"
-                                                            >
-                                                                {`(${sourceLabel})`}
-                                                            </Text>
-                                                        </Text>
-                                                    );
-                                                })}
-                                            </Stack>
-                                        </Popover.Dropdown>
-
-                                        <Popover.Target>
-                                            <ActionIcon
-                                                aria-label={getUiString(
-                                                    'tileMenu.parameters',
-                                                )}
-                                                size="sm"
-                                            >
-                                                <MantineIcon
-                                                    icon={IconVariable}
-                                                />
-                                            </ActionIcon>
-                                        </Popover.Target>
-                                    </TileHeaderPopover>
-                                )}
+                            <TileFiltersPopover
+                                dashboardFilters={filterItems.dashboardFilters}
+                                chartFilters={filterItems.chartFilters}
+                            />
+                            <TileParametersPopover items={parameterItems} />
                             <TileTimezoneInfo
                                 resolvedTimezone={resolvedTimezone}
                                 timezoneSetting={metricQuery?.timezone}
@@ -2057,6 +1704,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     showColumnTotals={getShowColumnTotalsFromChartConfig(
                         chart.chartConfig.config,
                     )}
+                    showSubtotals={getShowSubtotalsFromChartConfig(
+                        chart.chartConfig.config,
+                    )}
                 />
                 <ExportImageModal
                     echartRef={echartRef}
@@ -2445,6 +2095,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
                     pivotConfig={downloadPivotConfig}
                     showColumnTotals={getShowColumnTotalsFromChartConfig(
+                        chart.chartConfig.config,
+                    )}
+                    showSubtotals={getShowSubtotalsFromChartConfig(
                         chart.chartConfig.config,
                     )}
                 />

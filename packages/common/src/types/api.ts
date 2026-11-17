@@ -191,6 +191,7 @@ import {
     type ApiAwsWebIdentityResponse,
 } from './awsWebIdentity';
 import { type BigqueryProjectRecommendation } from './bigQuerySSO';
+import { type ApiBillingPortalLinkResponse } from './billing';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -211,6 +212,8 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiComposerChartAsCodeListResponse,
+    type ApiComposerChartAsCodeUpsertResponse,
     type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodePullResponse,
     type ApiContentAsCodeSettingsResponse,
@@ -482,6 +485,9 @@ import {
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
+    type ApiSemanticStudioSourceFileResponse,
+    type ApiSemanticStudioSourceSaveResponse,
+    type ApiSemanticStudioSourcesResponse,
     type ApiSemanticStudioWorkspaceResponse,
     type ApiSemanticStudioWorkspacesResponse,
 } from './semanticStudio';
@@ -884,6 +890,7 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;
+    /** @deprecated Always false. Autocomplete caching follows each project's results cache setting. */
     hasCacheAutocompleResults: boolean;
     appearance: {
         overrideColorPalette: string[] | undefined;
@@ -1586,6 +1593,7 @@ type ApiResults =
     | ApiRoadmapResponse['results']
     | ApiRoadmapProjectResponse['results']
     | ApiRoadmapFollowProjectResponse['results']
+    | ApiBillingPortalLinkResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory
@@ -1699,6 +1707,8 @@ type ApiResults =
     | ApiAlertAsCodeUpsertResponse['results']
     | ApiChartAsCodeListResponse['results']
     | ApiSqlChartAsCodeListResponse['results']
+    | ApiComposerChartAsCodeListResponse['results']
+    | ApiComposerChartAsCodeUpsertResponse['results']
     | ApiDashboardAsCodeListResponse['results']
     | ApiGoogleSheetsSyncAsCodeListResponse['results']
     | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
@@ -1903,6 +1913,9 @@ type ApiResults =
     | ApiSemanticLayerDraftedModelsResponse['results']
     | ApiSemanticLayerDraftStateResponse['results']
     | ApiSemanticStudioWorkspacesResponse['results']
+    | ApiSemanticStudioSourcesResponse['results']
+    | ApiSemanticStudioSourceFileResponse['results']
+    | ApiSemanticStudioSourceSaveResponse['results']
     | ApiSemanticStudioWorkspaceResponse['results']
     | ApiSemanticLayerDraftApplyResponse['results']
     | ApiSemanticLayerDraftImpactResponse['results']

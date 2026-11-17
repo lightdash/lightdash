@@ -503,7 +503,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             />
             <DashboardParametersSync
                 projectUuid={projectUuid}
-                isEditMode={isEditMode}
+                isEditMode={isEditModeExternal ? isStoreEditMode : isEditMode}
             />
             <ConnectedDashboardDateZoomSync
                 dashboardConfig={currentDashboardConfig}

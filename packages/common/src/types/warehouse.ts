@@ -494,6 +494,8 @@ export type WarehouseExecuteAsyncQueryArgs = {
     sql: string;
     // Redshift only: retry a read-only query that stalls before it reaches the warehouse.
     recoverStalledQuery?: boolean;
+    /** Analytics only: check whether a queued query is still needed when its slot opens. */
+    isQueuedQueryCancelled?: () => Promise<boolean>;
 };
 
 export type WarehouseQueryEstimate = {

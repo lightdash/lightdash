@@ -1,18 +1,17 @@
 import { useLocalStorage } from '@mantine/hooks';
+import { useCallback } from 'react';
+import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { useCanEditSemanticLayer } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import {
+    useActiveStudioWorkspace,
     useStudioWorkspaceAction,
     useStudioWorkspaces,
 } from '../../../../../features/semanticStudio/useStudioWorkspaces';
+import useToaster from '../../../../../hooks/toaster/useToaster';
+import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
 export type StoredThread = { threadUuid: string; agentUuid: string };
-
-export const useChatOpen = () =>
-    useLocalStorage({
-        key: 'semantic-studio-agent-open',
-        defaultValue: true,
-    });
 
 /** The chat this browser has open; it follows the active workspace, see useSyncStudioWorkspace. */
 export const useStoredStudioThread = (projectUuid: string) =>
@@ -20,6 +19,68 @@ export const useStoredStudioThread = (projectUuid: string) =>
         key: `semantic-studio-agent-thread-${projectUuid}`,
         defaultValue: null,
     });
+
+/** Whether the chat is open on the change you are on; closing it is remembered per change. */
+export const useChatOpen = (projectUuid: string) => {
+    const [stored] = useStoredStudioThread(projectUuid);
+    const [closed, setClosed] = useLocalStorage<string[]>({
+        key: 'semantic-studio-chat-closed',
+        defaultValue: [],
+    });
+    const change = stored?.threadUuid ?? 'new';
+    const setIsOpen = useCallback(
+        (isOpen: boolean) =>
+            setClosed((current) => {
+                // Opening also reopens a blank new change, which starting one asks for before it has a thread.
+                const others = current.filter(
+                    (key) => key !== change && !(isOpen && key === 'new'),
+                );
+                return isOpen ? others : [...others, change].slice(-50);
+            }),
+        [change, setClosed],
+    );
+    return [!closed.includes(change), setIsOpen] as const;
+};
+
+/** A Studio chat's thread; one that no longer exists is forgotten instead of failing on every load. */
+export const useStudioThread = (
+    projectUuid: string,
+    agentUuid: string | undefined,
+    threadUuid: string | undefined,
+) => {
+    const [, setStored] = useStoredStudioThread(projectUuid);
+    const { showToastApiError } = useToaster();
+    return useAiAgentThread(projectUuid, agentUuid, threadUuid, {
+        onError: ({ error }) => {
+            if (error.name === 'AiAgentNotFoundError') {
+                setStored((current) =>
+                    current?.threadUuid === threadUuid ? null : current,
+                );
+            } else if (!getAiAccessRefusal(error)) {
+                showToastApiError({
+                    title: 'Failed to fetch AI agent thread',
+                    apiError: error,
+                });
+            }
+        },
+    });
+};
+
+/** After a discard: ends the active workspace and closes its chat, so the next request starts a new one. */
+export const useFinishDiscardedWork = (projectUuid: string) => {
+    const [, setStored] = useStoredStudioThread(projectUuid);
+    const activeWorkspace = useActiveStudioWorkspace(projectUuid);
+    const { mutate } = useStudioWorkspaceAction(projectUuid);
+    return () => {
+        setStored(null);
+        if (activeWorkspace) {
+            mutate({
+                kind: 'finish',
+                workspaceUuid: activeWorkspace.workspaceUuid,
+            });
+        }
+    };
+};
 
 export const useStudioAgent = (projectUuid: string) => {
     const isEnabled = useCanEditSemanticLayer(projectUuid);

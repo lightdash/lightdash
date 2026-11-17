@@ -90,6 +90,7 @@ const EmbedDashboardChartEditorModal: FC<Props> = ({
                             : () => setPickedExploreId(undefined)
                     }
                     fitContainerHeight
+                    emitsContentState={false}
                 />
             </EmbedProviderContext.Provider>
         </MantineModal>

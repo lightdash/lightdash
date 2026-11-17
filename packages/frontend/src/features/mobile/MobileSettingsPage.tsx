@@ -35,12 +35,13 @@ import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import useHealth from '../../hooks/health/useHealth';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../providers/App/useApp';
+import { CloudMobileSignInView } from './CloudMobileSignInView';
 import { getHost } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
 import { StoreBadges } from './StoreBadges';
+import { useCloudMobileSetup } from './useCloudMobileSetup';
 import { useMobileAppLink } from './useMobileAppLink';
 import {
     useMobileSignInCode,
@@ -114,7 +115,11 @@ const QrCodePanel: FC<{
             {hasFailed ? (
                 <Text size="sm">{MOBILE_STRINGS.couldNotCreateCode}</Text>
             ) : (
-                link && <Text size="sm">{MOBILE_STRINGS.waitingForScan}</Text>
+                link && (
+                    <VisuallyHidden aria-live="polite">
+                        {MOBILE_STRINGS.waitingForScan}
+                    </VisuallyHidden>
+                )
             )}
             <Group gap="xs">
                 {hasFailed ? (
@@ -252,7 +257,6 @@ const SignInStepsView: FC<SignInStepsViewProps> = ({
     setHasApp,
 }) => {
     const { link, isScanned, hasFailed, retry } = appLink;
-    const { user } = useApp();
     const isStepOneDone = isScanned || hasApp;
     const signIn = useMobileSignInCode({ autoShow: isStepOneDone });
 
@@ -319,13 +323,7 @@ const SignInStepsView: FC<SignInStepsViewProps> = ({
                 headingRef={stepTwoHeading}
             >
                 {isStepOneDone && <SignInHost host={host} />}
-                {isStepOneDone && (
-                    <MobileSignInStep
-                        signIn={signIn}
-                        host={host}
-                        email={user.data?.email}
-                    />
-                )}
+                {isStepOneDone && <MobileSignInStep signIn={signIn} />}
             </StepCard>
         </Stack>
     );
@@ -335,14 +333,22 @@ export const MobileSettingsPage: FC = () => {
     const { data: health } = useHealth();
     const host = getHost(health?.siteUrl);
     const [hasApp, setHasApp] = useState(false);
-    const appLink = useMobileAppLink({ isPaused: hasApp });
+    const isCloudMobileSetup = useCloudMobileSetup();
+    const appLink = useMobileAppLink({
+        isPaused: hasApp,
+        enabled: isCloudMobileSetup === false,
+    });
     const { data: qrSignInFlag } = useServerFeatureFlag(
         FeatureFlags.MobileQrSignIn,
     );
 
+    if (isCloudMobileSetup === null) return null;
+
     return (
         <SettingsPage title={MOBILE_STRINGS.pageTitle}>
-            {qrSignInFlag?.enabled ? (
+            {isCloudMobileSetup ? (
+                <CloudMobileSignInView host={host} />
+            ) : qrSignInFlag?.enabled ? (
                 <SignInStepsView
                     host={host}
                     appLink={appLink}

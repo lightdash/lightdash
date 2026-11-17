@@ -1805,7 +1805,6 @@ export type LightdashConfig = {
     results: {
         /** @deprecated When set, forces results caching on or off for every project. */
         cacheEnabled: boolean | null;
-        autocompleteEnabled: boolean;
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
@@ -3928,8 +3927,6 @@ export const parseConfig = (): LightdashConfig => {
         s3: parseBaseS3Config(),
         results: {
             cacheEnabled: resultsCacheEnabled,
-            autocompleteEnabled:
-                process.env.AUTOCOMPLETE_CACHE_ENABLED === 'true',
             cacheStateTimeSeconds: parseInt(
                 process.env.CACHE_STALE_TIME_SECONDS || '86400', // A day in seconds
                 10,

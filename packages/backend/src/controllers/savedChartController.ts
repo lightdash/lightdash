@@ -360,11 +360,12 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
         },
         @Request() req: express.Request,
     ): Promise<ApiCalculateTotalResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const totalResult = await this.services
             .getAsyncQueryService()
             .calculateTotalFromSavedChart(
-                req.account!,
+                req.account,
                 chartUuid,
                 body.dashboardFilters,
                 body.invalidateCache,

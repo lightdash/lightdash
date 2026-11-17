@@ -7,9 +7,9 @@ import {
 } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-    buildApiSourceExplores,
-    describeApiSourceTarget,
-} from '../../../../../services/QuerySourceService/api/apiSourceExplores';
+    buildLiveExplores,
+    describeLiveTarget,
+} from '../../../../../services/QuerySourceService/live/explores/build';
 import {
     getServices,
     getTestContext,
@@ -160,7 +160,7 @@ describeOrSkip('live data source selection', () => {
             .replaceApiSourceExplores(
                 SEED_PROJECT.project_uuid,
                 externalConnectionUuid,
-                buildApiSourceExplores({
+                buildLiveExplores({
                     connectionUuid: externalConnectionUuid,
                     sourceName: source.prefix,
                     name: source.name,
@@ -168,7 +168,7 @@ describeOrSkip('live data source selection', () => {
                     scannedFields: [],
                     edits: {},
                     aiHint: [
-                        describeApiSourceTarget(apiSource, origin, null),
+                        describeLiveTarget(apiSource, origin, null),
                         ...(source.aiHint ? [source.aiHint] : []),
                     ],
                 }),

@@ -454,3 +454,39 @@ user-credential requirement; same-type extras still inherit the original's.
 it on, a CLI preview on a different Snowflake warehouse than its parent inherits
 the parent's connection settings. It applies when a preview is created or its
 credentials are refreshed from the CLI; saved previews are not changed.
+
+### Composer charts
+
+`composer-charts` is off by default; organisation scope. It gates composer
+charts shown as dashboard tiles.
+
+Rollout rule: do not enable it for an organisation that embeds dashboards with
+`@lightdash/sdk` until its apps run version **3.245.0** or later, the first
+SDK release containing PR #32548. Older SDKs throw on the unknown
+`composer_chart` tile type, and the whole embedded dashboard shows the error
+fallback. Turning the flag off later
+does not hide tiles already added. Iframe embeds and the web app are not
+affected. Check an organisation's SDK versions in request logs before enabling:
+`sdkVersion`, or `clientVersion` for SDKs older than 0.2617.0.
+
+### Mobile QR sign-in and source project support
+
+`mobile-qr-sign-in` is the only QR sign-in feature flag. Authenticated backend
+availability and mint checks resolve it for the user's organisation through the
+standard resolver. The web menu uses the server-resolved flag. Console organisation
+overrides work with ENV enable unset. Deployment defaults and generic ENV precedence
+apply as described above. Console changes apply to the next backend check and UI
+refetch; ENV changes require an API restart. Other mobile settings, mode, user and
+project access checks still apply.
+
+`GET /api/v1/mobile/sign-in-capabilities` advertises implemented protocol support,
+not QR availability or permission. Its static response always has `schemaVersion: 1`
+and `capabilities.mobile_sign_in_source_project: 1`, independent of flags, sessions,
+users and organisations. It resolves no flags and sends `Cache-Control: no-store`.
+
+Mint validates optional source project access, organisation and DEFAULT type.
+Token exchange returns stored context only when `include_source_project=true`.
+The web makes one uncached, bounded discovery request per mint attempt with a source
+project. Unknown or failed discovery uses the exact legacy mint shape. It retains
+no positive result. Disabling QR sign-in still refuses mint and normal QR actions;
+static protocol discovery grants no access and issues no code or token.

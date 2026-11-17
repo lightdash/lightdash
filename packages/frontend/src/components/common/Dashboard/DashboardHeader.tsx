@@ -23,7 +23,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure, useHotkeys } from '@mantine/hooks';
 import {
     IconArrowAutofitHeight,
     IconBolt,
@@ -89,8 +89,7 @@ import {
 } from '../../../features/promotion/hooks/usePromoteDashboard';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
-import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
-import { useFavorites } from '../../../hooks/favorites/useFavorites';
+import { useFavoriteToggle } from '../../../hooks/favorites/useFavoriteToggle';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import { useContentAuthoringEnabled } from '../../../hooks/useContentAuthoringEnabled';
 import {
@@ -136,11 +135,14 @@ import { DashboardPerformanceWarning } from './DashboardPerformanceWarning';
 import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { EDIT_BAR_POSITION } from './editBarPosition';
+import { EDIT_SHORTCUTS, toHotkeyItems } from './editShortcuts';
 import { PendingChangesButton } from './PendingChangesButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
+import { ShortcutHint } from './ShortcutHint';
 import { TidyTilesButton } from './TidyTilesButton';
 import { TileLayoutHistoryButtons } from './TileLayoutHistoryButtons';
 import { useDashboardManageAccess } from './useDashboardManageAccess';
+import { useShortcutHints } from './useShortcutHints';
 
 type DashboardHeaderProps = {
     dashboard: Dashboard;
@@ -236,6 +238,16 @@ const DashboardHeader = memo(
         const [isUploadModalOpen, uploadModalHandlers] = useDisclosure();
 
         const { track } = useTracking();
+
+        const hasEditBar = isEditMode && editFiltersVisibility !== null;
+        useShortcutHints(hasEditBar);
+        useHotkeys(
+            hasEditBar
+                ? toHotkeyItems(EDIT_SHORTCUTS.save, () => {
+                      if (hasDashboardChanged && !isSaving) onSaveDashboard();
+                  })
+                : [],
+        );
         const [isDetailsOpen, setIsDetailsOpen] = useState(false);
         const [isRefreshOptionsOpen, setIsRefreshOptionsOpen] = useState(false);
         const [isUpdating, setIsUpdating] = useState(false);
@@ -375,13 +387,10 @@ const DashboardHeader = memo(
             toggleDashboardPinning({ uuid: dashboardUuid });
         }, [dashboardUuid, toggleDashboardPinning]);
 
-        const { data: favorites } = useFavorites(projectUuid);
-        const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
-        const isDashboardFavorited = useMemo(
-            () =>
-                favorites?.some((f) => f.data.uuid === dashboardUuid) ?? false,
-            [favorites, dashboardUuid],
-        );
+        const { isFavorite, toggle: toggleFavorite } =
+            useFavoriteToggle(projectUuid);
+        const isDashboardFavorited =
+            !!dashboardUuid && isFavorite(dashboardUuid);
 
         const { user, health } = useApp();
         const preAggregatesEnabled =
@@ -619,10 +628,10 @@ const DashboardHeader = memo(
                             size="md"
                             isFavorite={isDashboardFavorited}
                             onToggle={() => {
-                                toggleFavorite({
-                                    contentType: ContentType.DASHBOARD,
-                                    contentUuid: dashboardUuid,
-                                });
+                                toggleFavorite(
+                                    ContentType.DASHBOARD,
+                                    dashboardUuid,
+                                );
                             }}
                         />
                     )}
@@ -756,15 +765,21 @@ const DashboardHeader = memo(
                             >
                                 <TileLayoutHistoryButtons />
                                 <ActionBar.Divider />
-                                <AddTileButton
-                                    onAddTiles={onAddTiles}
-                                    disabled={isSaving}
-                                    setAddingTab={setAddingTab}
-                                    activeTabUuid={activeTabUuid}
-                                    dashboardTabs={dashboardTabs}
-                                    onNewChart={onNewChart}
-                                    radius="md"
-                                />
+                                <ShortcutHint
+                                    shortcut={EDIT_SHORTCUTS.addTile}
+                                    position="top"
+                                >
+                                    <AddTileButton
+                                        onAddTiles={onAddTiles}
+                                        disabled={isSaving}
+                                        setAddingTab={setAddingTab}
+                                        activeTabUuid={activeTabUuid}
+                                        dashboardTabs={dashboardTabs}
+                                        onNewChart={onNewChart}
+                                        radius="md"
+                                        shortcut={EDIT_SHORTCUTS.addTile}
+                                    />
+                                </ShortcutHint>
                                 <TidyTilesButton />
                                 <ActionBar.Divider />
                                 <CanvasZoomControls />
@@ -781,43 +796,48 @@ const DashboardHeader = memo(
                                 settingsChanges={pendingSettingsChanges}
                             />
                         )}
-                        <Tooltip
-                            fz="xs"
-                            position="bottom"
-                            label="No changes to save"
-                            disabled={hasDashboardChanged}
-                            openDelay={200}
-                            transitionProps={{
-                                transition: 'fade',
-                                duration: 150,
-                            }}
+                        <ShortcutHint
+                            shortcut={EDIT_SHORTCUTS.save}
+                            position="corner"
                         >
-                            <Box>
-                                <Button
-                                    size="xs"
-                                    className={headerClasses.save}
-                                    disabled={!hasDashboardChanged}
-                                    loading={isSaving}
-                                    onClick={onSaveDashboard}
-                                    // Walkthrough marker for manage:Dashboard:
-                                    // a new dashboard with a saved chart on
-                                    // it, then saved. The name is typed (the
-                                    // card suggests one); the space and chart
-                                    // are picked by name. See
-                                    // scripts/scope-tours/generate.ts.
-                                    data-tour-scope="manage:Dashboard"
-                                    data-tour-step="2"
-                                    data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/edit"
-                                    data-tour-label="Click Save changes"
-                                    data-tour-title="Create a dashboard"
-                                    data-tour-interactive="true"
-                                    data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-dashboard"] >> [data-tour-anchor="dashboard-name"] >> [data-tour-anchor="dashboard-create-next"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"] >> [data-tour-anchor="dashboard-create-submit"] >> [data-tour-anchor="add-tile"] >> [data-tour-anchor="add-saved-chart"] >> [data-tour-anchor="chart-picker"] >> [data-tour-anchor="chart-option"][data-tour-value="Orders over time"] >> [data-tour-anchor="add-charts-submit"]'
-                                    data-tour-docs="explore/dashboards.mdx#save-your-dashboard:1"
-                                >
-                                    Save changes
-                                </Button>
-                            </Box>
-                        </Tooltip>
+                            <Tooltip
+                                fz="xs"
+                                position="bottom"
+                                label="No changes to save"
+                                disabled={hasDashboardChanged}
+                                openDelay={200}
+                                transitionProps={{
+                                    transition: 'fade',
+                                    duration: 150,
+                                }}
+                            >
+                                <Box>
+                                    <Button
+                                        size="xs"
+                                        className={headerClasses.save}
+                                        disabled={!hasDashboardChanged}
+                                        loading={isSaving}
+                                        onClick={onSaveDashboard}
+                                        // Walkthrough marker for manage:Dashboard:
+                                        // a new dashboard with a saved chart on
+                                        // it, then saved. The name is typed (the
+                                        // card suggests one); the space and chart
+                                        // are picked by name. See
+                                        // scripts/scope-tours/generate.ts.
+                                        data-tour-scope="manage:Dashboard"
+                                        data-tour-step="2"
+                                        data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/edit"
+                                        data-tour-label="Click Save changes"
+                                        data-tour-title="Create a dashboard"
+                                        data-tour-interactive="true"
+                                        data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-dashboard"] >> [data-tour-anchor="dashboard-name"] >> [data-tour-anchor="dashboard-create-next"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"] >> [data-tour-anchor="dashboard-create-submit"] >> [data-tour-anchor="add-tile"] >> [data-tour-anchor="add-saved-chart"] >> [data-tour-anchor="chart-picker"] >> [data-tour-anchor="chart-option"][data-tour-value="Orders over time"] >> [data-tour-anchor="add-charts-submit"]'
+                                        data-tour-docs="explore/dashboards.mdx#save-your-dashboard:1"
+                                    >
+                                        Save changes
+                                    </Button>
+                                </Box>
+                            </Tooltip>
+                        </ShortcutHint>
                         <Button
                             variant="default"
                             size="xs"
@@ -1142,11 +1162,10 @@ const DashboardHeader = memo(
                                                 />
                                             }
                                             onClick={() =>
-                                                toggleFavorite({
-                                                    contentType:
-                                                        ContentType.DASHBOARD,
-                                                    contentUuid: dashboardUuid,
-                                                })
+                                                toggleFavorite(
+                                                    ContentType.DASHBOARD,
+                                                    dashboardUuid,
+                                                )
                                             }
                                         >
                                             {isDashboardFavorited

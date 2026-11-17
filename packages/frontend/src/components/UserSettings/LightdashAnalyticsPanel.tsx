@@ -1,15 +1,4 @@
-import {
-    Accordion,
-    Badge,
-    Box,
-    Button,
-    Group,
-    Paper,
-    SimpleGrid,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Box, Button, Group, Stack, Text, Title } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -30,7 +19,6 @@ import MantineModal from '../common/MantineModal';
 import { SettingRow, SettingsSection } from '../common/Settings/SettingLayout';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { AnalyticsAskAiButton } from './AnalyticsAskAiButton';
-import AnalyticsDashboardCard from './AnalyticsDashboardCard';
 import AnalyticsHistoryBackfill from './AnalyticsHistoryBackfill';
 import AnalyticsOverview from './AnalyticsOverview/AnalyticsOverview';
 import AnalyticsProcessingSummary from './AnalyticsProcessingSummary';
@@ -163,52 +151,6 @@ const LightdashAnalyticsPanel = ({
                         )}
                     </SettingRow>
                 </SettingsCard>
-            )}
-            {status.isSuccess && projectUrlIdentifier && (
-                <Accordion variant="separated">
-                    <Accordion.Item value="dashboards">
-                        <Accordion.Control>
-                            <Group gap="xs">
-                                <Text fz="sm">Verified dashboards</Text>
-                                {dashboards.isSuccess && (
-                                    <Badge size="sm">
-                                        {verifiedDashboards.length}
-                                    </Badge>
-                                )}
-                            </Group>
-                        </Accordion.Control>
-                        <Accordion.Panel>
-                            {dashboards.isLoading ? (
-                                <EmptyStateLoader title="Loading dashboards" />
-                            ) : dashboards.isError ? (
-                                <Callout
-                                    variant="danger"
-                                    title="Unable to load dashboards"
-                                >
-                                    {dashboards.error.error.message}
-                                </Callout>
-                            ) : verifiedDashboards.length ? (
-                                <SimpleGrid cols={{ base: 1, sm: 2, xl: 3 }}>
-                                    {verifiedDashboards.map((dashboard) => (
-                                        <AnalyticsDashboardCard
-                                            key={dashboard.uuid}
-                                            dashboard={dashboard}
-                                            projectUrlIdentifier={
-                                                projectUrlIdentifier
-                                            }
-                                        />
-                                    ))}
-                                </SimpleGrid>
-                            ) : (
-                                <Paper variant="dotted" p="lg">
-                                    <Text fz="sm" c="dimmed" ta="center">
-                                        No verified dashboards yet.
-                                    </Text>
-                                </Paper>
-                            )}
-                        </Accordion.Panel>
-                    </Accordion.Item>
-                </Accordion>
             )}
             {status.isSuccess && analyticsProject && (
                 <AnalyticsHistoryBackfill />

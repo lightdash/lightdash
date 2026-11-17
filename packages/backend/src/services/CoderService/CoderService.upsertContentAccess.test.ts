@@ -18,6 +18,7 @@ import {
     MergeJoinType,
     MetricType,
     OrganizationMemberRole,
+    ParameterError,
     PossibleAbilities,
     PromotionAction,
     reconcileDashboardControlOrder,
@@ -179,6 +180,8 @@ const buildService = (overrides: AnyType = {}) =>
         organizationMemberProfileModel: {} as AnyType,
         userModel: {} as AnyType,
         warehouseConnectionModel: {} as never,
+        composerChartModel: {} as never,
+        composerChartService: {} as never,
         ...overrides,
     });
 
@@ -783,6 +786,31 @@ const registerContentAccessTests = (
         ).rejects.toThrow('You don\'t have access to update chart "chart"');
         expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
         expect(service.promoteService.getPromoteCharts).not.toHaveBeenCalled();
+    });
+
+    it('rejects an upload over the tiles-per-tab limit before writing', async () => {
+        const service = buildService();
+        const getOrCreateSpace = vi.spyOn(service, 'getOrCreateSpace');
+        const user = makeUser([{ subject: 'ContentAsCode', action: 'manage' }]);
+        const markdownTile = {
+            type: 'markdown',
+            x: 0,
+            y: 0,
+            w: 6,
+            h: 3,
+            properties: { title: 'Note', content: 'text' },
+        };
+
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
+                ...dashboardAsCode,
+                tiles: Array(
+                    lightdashConfigMock.dashboard.maxTilesPerTab + 1,
+                ).fill(markdownTile),
+            } as unknown as DashboardAsCode),
+        ).rejects.toThrow(ParameterError);
+        expect(getOrCreateSpace).not.toHaveBeenCalled();
+        expect(service.dashboardModel.create).not.toHaveBeenCalled();
     });
 
     it('does not let ContentAsCode alone create dashboards in a space', async () => {
@@ -5575,5 +5603,156 @@ describe('CoderService dashboard control order as code', () => {
             expect(file.config?.dateZoomConfig).toEqual(shippedZooms);
             expect(JSON.stringify(file)).not.toMatch(/controlSlug|dateZoom"/);
         });
+    });
+});
+
+describe('CoderService custom metric SQL uploads', () => {
+    const metric = {
+        name: 'total',
+        label: 'Total',
+        table: 'orders',
+        type: 'sum',
+        sql: '(SELECT 1)',
+    };
+    const chartWithMetric = {
+        ...chartAsCode,
+        metricQuery: {
+            ...chartAsCode.metricQuery,
+            additionalMetrics: [metric],
+        },
+    } as unknown as ChartAsCode;
+    const createRules: RawRuleOf<Ability<PossibleAbilities>>[] = [
+        { subject: 'ContentAsCode', action: 'create' },
+        {
+            subject: 'SavedChart',
+            action: ['create', 'update'],
+            conditions: { projectUuid: PROJECT_UUID },
+        },
+    ];
+    const prepare = (needingPermission: unknown[]) => {
+        const service = buildService();
+        vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+            space: { uuid: SPACE_UUID } as AnyType,
+            created: false,
+        });
+        vi.mocked(service.savedChartModel.create).mockResolvedValue({
+            uuid: 'chart-uuid',
+        } as AnyType);
+        const getCustomMetricsNeedingPermission = vi.fn(
+            async () => needingPermission,
+        );
+        service.projectService = {
+            getCustomMetricsNeedingPermission,
+        } as AnyType;
+        return { service, getCustomMetricsNeedingPermission };
+    };
+
+    it('refuses a new chart with custom metrics that need permission', async () => {
+        const { service, getCustomMetricsNeedingPermission } = prepare([
+            metric,
+        ]);
+
+        await expect(
+            service.upsertChart(
+                makeSessionUser(createRules),
+                PROJECT_UUID,
+                chartWithMetric.slug,
+                chartWithMetric,
+            ),
+        ).rejects.toThrow(
+            'Custom metrics written in SQL need permission to manage custom fields: Total (chart slug "chart")',
+        );
+        expect(getCustomMetricsNeedingPermission).toHaveBeenCalledWith({
+            account: expect.anything(),
+            projectUuid: PROJECT_UUID,
+            exploreName: 'orders',
+            additionalMetrics: [metric],
+            savedAdditionalMetrics: [],
+        });
+        expect(service.savedChartModel.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a chart when no custom metric needs permission', async () => {
+        const { service } = prepare([]);
+
+        await expect(
+            service.upsertChart(
+                makeSessionUser(createRules),
+                PROJECT_UUID,
+                chartWithMetric.slug,
+                chartWithMetric,
+            ),
+        ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
+    });
+
+    it('refuses space access before checking custom metrics', async () => {
+        const { service, getCustomMetricsNeedingPermission } = prepare([
+            metric,
+        ]);
+
+        await expect(
+            service.upsertChart(
+                makeSessionUser([
+                    { subject: 'ContentAsCode', action: 'create' },
+                ]),
+                PROJECT_UUID,
+                chartWithMetric.slug,
+                chartWithMetric,
+            ),
+        ).rejects.toThrow(
+            'You don\'t have access to create charts in space "space"',
+        );
+        expect(getCustomMetricsNeedingPermission).not.toHaveBeenCalled();
+    });
+
+    it('skips the check for a user who can manage custom fields', async () => {
+        const { service, getCustomMetricsNeedingPermission } = prepare([
+            metric,
+        ]);
+
+        await expect(
+            service.upsertChart(
+                makeSessionUser([
+                    ...createRules,
+                    { subject: 'CustomFields', action: 'manage' },
+                ]),
+                PROJECT_UUID,
+                chartWithMetric.slug,
+                chartWithMetric,
+            ),
+        ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
+        expect(getCustomMetricsNeedingPermission).not.toHaveBeenCalled();
+    });
+
+    it('checks an updated chart against the metrics it saved', async () => {
+        const { service, getCustomMetricsNeedingPermission } = prepare([
+            metric,
+        ]);
+        vi.mocked(service.savedChartModel.find).mockResolvedValue([
+            { uuid: 'chart-uuid', spaceUuid: SPACE_UUID } as AnyType,
+        ]);
+        const savedMetric = { ...metric, sql: '(SELECT 2)' };
+        vi.mocked(service.savedChartModel.get).mockResolvedValue({
+            uuid: 'chart-uuid',
+            metricQuery: {
+                ...chartAsCode.metricQuery,
+                additionalMetrics: [savedMetric],
+            },
+        } as AnyType);
+
+        await expect(
+            service.upsertChart(
+                makeSessionUser(createRules),
+                PROJECT_UUID,
+                chartWithMetric.slug,
+                chartWithMetric,
+            ),
+        ).rejects.toThrow(
+            'Custom metrics written in SQL need permission to manage custom fields: Total (chart slug "chart")',
+        );
+        expect(getCustomMetricsNeedingPermission).toHaveBeenCalledWith(
+            expect.objectContaining({ savedAdditionalMetrics: [savedMetric] }),
+        );
+        expect(service.promoteService.getPromoteCharts).not.toHaveBeenCalled();
     });
 });

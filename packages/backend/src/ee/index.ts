@@ -108,6 +108,7 @@ import { AppStateService } from './services/AppStateService/AppStateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
 import { PreAggregationExternalResolver } from './services/AsyncQueryService/PreAggregationExternalResolver';
+import { BillingService } from './services/BillingService/BillingService';
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { ContentReviewNotificationService } from './services/ContentReviewNotificationService/ContentReviewNotificationService';
@@ -439,6 +440,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getGithubAppInstallationsModel(),
                     }),
                     savedChartModel: models.getSavedChartModel(),
+                    aiWritebackService:
+                        repository.getAiWritebackService<AiWritebackService>(),
                     fileStorageClient: clients.getFileStorageClient(),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
@@ -580,14 +583,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 registry.register(
                     new ApiQuerySource({
                         asyncQueryService: repository.getAsyncQueryService(),
-                        getApiConnector: (
-                            account,
-                            projectUuid,
-                            connectionUuid,
-                        ) =>
+                        getLiveSource: (account, projectUuid, connectionUuid) =>
                             repository
                                 .getExternalConnectionService<ExternalConnectionService>()
-                                .getApiConnector(
+                                .getLiveSource(
                                     account,
                                     projectUuid,
                                     connectionUuid,
@@ -647,6 +646,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSpacePermissionService(),
                     coderService: repository.getCoderService(),
                     documentService: repository.getDocumentService(),
+                    composerChartService: repository.getComposerChartService(),
                     dashboardService: repository.getDashboardService(),
                     projectService: repository.getProjectService(),
                     promoteService: repository.getPromoteService(),
@@ -686,6 +686,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new RoadmapService({
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
+                }),
+            billingService: ({ context, models }) =>
+                new BillingService({
+                    analytics: context.lightdashAnalytics,
+                    lightdashConfig: context.lightdashConfig,
+                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
@@ -1534,6 +1540,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     refreshTokenRotation: models.getRefreshTokenRotation(),
                     aiAccessService: repository.getAiAccessService(),
                     getDocumentService: () => repository.getDocumentService(),
+                    getComposerChartService: () =>
+                        repository.getComposerChartService(),
                     contentDraftModel: models.getContentDraftModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -1593,14 +1601,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getPersistentDownloadFileService(),
                     organizationAccessService:
                         repository.getOrganizationAccessService(),
-                    getApiSourceConnector: (
+                    getLiveSourceForExplore: (
                         account,
                         projectUuid,
                         connectionUuid,
                     ) =>
                         repository
                             .getExternalConnectionService<ExternalConnectionService>()
-                            .getApiSourceConnector(
+                            .getLiveSourceForExplore(
                                 account,
                                 projectUuid,
                                 connectionUuid,

@@ -128,6 +128,10 @@ function buildService() {
         remapPreviewChartVizBindings: vi.fn().mockResolvedValue(undefined),
     };
 
+    const composerChartService = {
+        remapPreviewDataAppVizs: vi.fn().mockResolvedValue(undefined),
+    };
+
     const externalConnectionModel = {
         listAppLinks: vi.fn().mockResolvedValue([]),
         copyConnectionsToProject: vi.fn().mockResolvedValue(new Map()),
@@ -184,6 +188,7 @@ function buildService() {
         } as never,
         coderService: {} as never,
         documentService: {} as never,
+        composerChartService: composerChartService as never,
         dashboardService: {} as never,
         projectService: {} as never,
         promoteService: {} as never,
@@ -215,7 +220,7 @@ function buildService() {
         bucket: 'test-bucket',
     });
 
-    return { service, appModel, externalConnectionModel };
+    return { service, appModel, externalConnectionModel, composerChartService };
 }
 
 describe('version metadata propagation on app copy paths', () => {
@@ -436,7 +441,7 @@ describe('version metadata propagation on app copy paths', () => {
     });
 
     it('duplicateAppsForPreview copies viz_schema onto the preview copy', async () => {
-        const { service, appModel } = buildService();
+        const { service, appModel, composerChartService } = buildService();
 
         await service.duplicateAppsForPreview(
             PROJECT_UUID,
@@ -460,15 +465,19 @@ describe('version metadata propagation on app copy paths', () => {
         );
         const previewAppUuid =
             appModel.createWithVersion.mock.calls[0][0].app_id;
+        const mappings = [
+            {
+                sourceAppUuid: SOURCE_APP_UUID,
+                previewAppUuid,
+                previewAppVersion: 1,
+            },
+        ];
         expect(appModel.remapPreviewChartVizBindings).toHaveBeenCalledWith(
             PREVIEW_PROJECT_UUID,
-            [
-                {
-                    sourceAppUuid: SOURCE_APP_UUID,
-                    previewAppUuid,
-                    previewAppVersion: 1,
-                },
-            ],
+            mappings,
         );
+        expect(
+            composerChartService.remapPreviewDataAppVizs,
+        ).toHaveBeenCalledWith(PREVIEW_PROJECT_UUID, mappings);
     });
 });

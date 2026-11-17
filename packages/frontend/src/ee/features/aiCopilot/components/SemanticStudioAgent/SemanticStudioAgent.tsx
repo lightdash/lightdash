@@ -17,20 +17,27 @@ import {
 import {
     IconArrowBackUp,
     IconGitPullRequest,
+    IconMessagePlus,
     IconLayoutSidebarRightCollapse,
     IconPlus,
 } from '@tabler/icons-react';
-import { useEffect, useEffectEvent, useRef, type FC } from 'react';
+import { uniqBy } from 'es-toolkit/compat';
+import { useEffect, useEffectEvent, useRef, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SidebarPosition } from '../../../../../components/common/Page/types';
+import {
+    withStudioChatCode,
+    isStudioChatRefDrag,
+    readStudioChatRefDrop,
+    type StudioChatRef,
+} from '../../../../../features/semanticStudio/studioChatRefs';
 import { STUDIO_STARTERS } from '../../../../../features/semanticStudio/studioStarters';
 import { useKeepsSemanticLayerDraft } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import useSidebarResize from '../../../../../hooks/useSidebarResize';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
-    useAiAgentThread,
     useCreateAgentThreadMessageMutation,
     useCreateAgentThreadMutation,
 } from '../../hooks/useProjectAiAgents';
@@ -41,15 +48,26 @@ import { AgentChatInput } from '../ChatElements/AgentChatInput';
 import { QuietCardsContext } from '../ChatElements/ToolCalls/quietCards';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
-import { getOpenProposal } from './studioProposal';
+import { StudioChatRefChips } from './StudioChatRefChips';
 import {
     useChatOpen,
     useStudioAgent,
+    useStudioThread,
     type StoredThread,
 } from './useSemanticStudioChat';
-import { useStudioPullRequest } from './useStudioPullRequest';
+import {
+    useStudioPendingChange,
+    useStudioProposal,
+    useStudioPullRequest,
+} from './useStudioPullRequest';
 
 type OpenModel = { modelName: string | null; fieldName: string | null };
+
+type Attached = {
+    attached: StudioChatRef[];
+    onDetach: (ref: StudioChatRef) => void;
+    onAttachedSent: () => void;
+};
 
 type AskedPrompt = { prompt: string | null; onPromptTaken: () => void };
 
@@ -61,16 +79,49 @@ type Submitted = {
 
 const withOpenModel = (
     { modelName, fieldName }: OpenModel,
+    attached: StudioChatRef[],
     { message, context, optimisticContext }: Submitted,
 ) => {
-    const item = modelName
-        ? [{ type: 'semantic_model' as const, modelName, fieldName }]
-        : [];
+    const refs = [
+        ...(modelName ? [{ modelName, fieldName }] : []),
+        ...attached
+            .filter(({ code }) => code === null)
+            .map((ref) => ({
+                modelName: ref.modelName,
+                fieldName: ref.fieldName,
+            })),
+    ];
+    const items = uniqBy(
+        refs,
+        (ref) => `${ref.modelName}:${ref.fieldName ?? ''}`,
+    ).map((ref) => ({ type: 'semantic_model' as const, ...ref }));
+    const code = attached.flatMap((ref) => (ref.code ? [ref.code] : []));
     return {
-        prompt: message,
-        context: [...item, ...(context ?? [])],
-        optimisticContext: [...item, ...(optimisticContext ?? [])],
+        prompt: withStudioChatCode(message, code),
+        context: [...items, ...(context ?? [])],
+        optimisticContext: [...items, ...(optimisticContext ?? [])],
     };
+};
+
+/** Whether a model or field is being dragged anywhere on the page. */
+const useStudioChatRefDragging = () => {
+    const [isDragging, setIsDragging] = useState(false);
+    useEffect(() => {
+        const onStart = (event: DragEvent) => {
+            if (event.dataTransfer && isStudioChatRefDrag(event.dataTransfer))
+                setIsDragging(true);
+        };
+        const onEnd = () => setIsDragging(false);
+        window.addEventListener('dragstart', onStart);
+        window.addEventListener('dragend', onEnd);
+        window.addEventListener('drop', onEnd);
+        return () => {
+            window.removeEventListener('dragstart', onStart);
+            window.removeEventListener('dragend', onEnd);
+            window.removeEventListener('drop', onEnd);
+        };
+    }, []);
+    return isDragging;
 };
 
 const PANEL_WIDTH = 360;
@@ -81,6 +132,7 @@ const useStartThread = (
     agent: AiAgentSummary,
     onCreated: (thread: StoredThread) => void,
     openModel: OpenModel,
+    { attached, onAttachedSent }: Attached,
 ) => {
     const sqlMode = useAiAgentSqlModeAvailable(projectUuid);
     const { mutateAsync: createThread, isLoading } =
@@ -94,13 +146,15 @@ const useStartThread = (
         });
     return {
         isLoading,
-        start: (submitted: Submitted) =>
+        start: (submitted: Submitted) => {
             void createThread({
                 agentUuid: agent.uuid,
                 createdFrom: 'semantic_studio',
                 enableSqlMode: sqlMode,
-                ...withOpenModel(openModel, submitted),
-            }),
+                ...withOpenModel(openModel, attached, submitted),
+            });
+            onAttachedSent();
+        },
     };
 };
 
@@ -128,7 +182,8 @@ const useAskedPrompt = (
 
 const NewThread: FC<
     OpenModel &
-        AskedPrompt & {
+        AskedPrompt &
+        Attached & {
             projectUuid: string;
             agent: AiAgentSummary;
             onCreated: (thread: StoredThread) => void;
@@ -143,11 +198,17 @@ const NewThread: FC<
     prompt,
     onPromptTaken,
     showStarters,
+    attached,
+    onDetach,
+    onAttachedSent,
 }) => {
-    const { start, isLoading } = useStartThread(projectUuid, agent, onCreated, {
-        modelName,
-        fieldName,
-    });
+    const { start, isLoading } = useStartThread(
+        projectUuid,
+        agent,
+        onCreated,
+        { modelName, fieldName },
+        { attached, onDetach, onAttachedSent },
+    );
     useAskedPrompt({ prompt, onPromptTaken }, (message) => start({ message }));
     const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     return (
@@ -169,7 +230,9 @@ const NewThread: FC<
                     </Group>
                 ) : null}
             </StudioChatEmptyState>
+            <StudioChatRefChips refs={attached} onRemove={onDetach} />
             <AgentChatInput
+                allowAttachments={false}
                 accessCalloutVariant="inline"
                 loading={isLoading}
                 onSubmit={start}
@@ -184,7 +247,8 @@ const NewThread: FC<
 
 const ExistingThread: FC<
     OpenModel &
-        AskedPrompt & {
+        AskedPrompt &
+        Attached & {
             projectUuid: string;
             agent: AiAgentSummary;
             threadUuid: string;
@@ -197,13 +261,16 @@ const ExistingThread: FC<
     fieldName,
     prompt,
     onPromptTaken,
+    attached,
+    onDetach,
+    onAttachedSent,
 }) => {
     const sqlMode = useAiAgentSqlModeAvailable(projectUuid);
     const {
         data: thread,
         isLoading,
         refetch,
-    } = useAiAgentThread(projectUuid, agent.uuid, threadUuid);
+    } = useStudioThread(projectUuid, agent.uuid, threadUuid);
     const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadUuid,
@@ -215,16 +282,19 @@ const ExistingThread: FC<
             agent.uuid,
             threadUuid,
         );
-    useAskedPrompt(
-        { prompt, onPromptTaken },
-        (message) =>
-            void sendMessage({
-                enableSqlMode: sqlMode,
-                ...withOpenModel({ modelName, fieldName }, { message }),
-            }),
-    );
+    const send = (submitted: Submitted) => {
+        void sendMessage({
+            enableSqlMode: sqlMode,
+            ...withOpenModel({ modelName, fieldName }, attached, submitted),
+        });
+        onAttachedSent();
+    };
+    useAskedPrompt({ prompt, onPromptTaken }, (message) => send({ message }));
     const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     const pullRequest = useStudioPullRequest(projectUuid);
+    // A save under way already has the proposal, so it is not offered twice.
+    const pendingChange = useStudioPendingChange(projectUuid);
+    const proposal = useStudioProposal(projectUuid);
     // Unknown counts as open, so a slow or unavailable status check never offers a second pull request.
     const isClosed = !!pullRequest?.ciChecks && !pullRequest.isOpen;
     const isRequestingPullRequest = useRef(false);
@@ -245,9 +315,7 @@ const ExistingThread: FC<
             agentUuid={agent.uuid}
             renderArtifactsInline
         >
-            {!keepsDraft &&
-            !isBusy &&
-            getOpenProposal(thread.messages).length > 0 ? (
+            {!keepsDraft && !isBusy && !pendingChange && proposal.length > 0 ? (
                 <div className={classes.pullRequestPrompt}>
                     <Stack className={classes.pullRequestCard} gap="sm">
                         <Group gap="sm" wrap="nowrap">
@@ -301,15 +369,18 @@ const ExistingThread: FC<
                     </Stack>
                 </div>
             ) : null}
+            {thread.messages.length === 0 && !isBusy ? (
+                <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
+                    You edited this change by hand. Ask for more here, or merge
+                    it when it is ready.
+                </Text>
+            ) : null}
+            <StudioChatRefChips refs={attached} onRemove={onDetach} />
             <AgentChatInput
+                allowAttachments={false}
                 accessCalloutVariant="inline"
                 loading={isBusy}
-                onSubmit={(submitted) =>
-                    void sendMessage({
-                        enableSqlMode: sqlMode,
-                        ...withOpenModel({ modelName, fieldName }, submitted),
-                    })
-                }
+                onSubmit={send}
                 placeholder="What should I build or change?"
                 messageCount={thread.messages.length}
                 projectUuid={projectUuid}
@@ -322,7 +393,12 @@ const ExistingThread: FC<
 };
 
 type AgentProps = OpenModel &
-    AskedPrompt & { projectUuid: string; showStarters: boolean };
+    AskedPrompt &
+    Attached & {
+        projectUuid: string;
+        showStarters: boolean;
+        onAttach: (ref: StudioChatRef) => void;
+    };
 
 const SemanticStudioAgentPanel: FC<AgentProps> = ({
     projectUuid,
@@ -331,7 +407,13 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
     prompt,
     onPromptTaken,
     showStarters,
+    attached,
+    onAttach,
+    onDetach,
+    onAttachedSent,
 }) => {
+    const [isDropping, setIsDropping] = useState(false);
+    const isDragging = useStudioChatRefDragging();
     const {
         isEnabled,
         agent,
@@ -341,7 +423,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
         previousThread,
         returnToPreviousThread,
     } = useStudioAgent(projectUuid);
-    const [isOpen, setIsOpen] = useChatOpen();
+    const [isOpen, setIsOpen] = useChatOpen(projectUuid);
 
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
         useSidebarResize({
@@ -359,7 +441,39 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                 className={classes.panel}
                 w={sidebarWidth}
                 data-quiet-cards
+                data-dragging={isDragging || undefined}
+                data-dropping={isDropping || undefined}
+                // Capture, so the editor inside never pastes the dragged name as text.
+                onDragOverCapture={(event) => {
+                    if (!isStudioChatRefDrag(event.dataTransfer)) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.dataTransfer.dropEffect = 'copy';
+                    setIsDropping(true);
+                }}
+                onDragLeave={(event) => {
+                    if (
+                        !event.currentTarget.contains(
+                            event.relatedTarget as Node | null,
+                        )
+                    )
+                        setIsDropping(false);
+                }}
+                onDropCapture={(event) => {
+                    if (!isStudioChatRefDrag(event.dataTransfer)) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setIsDropping(false);
+                    const ref = readStudioChatRefDrop(event.dataTransfer);
+                    if (ref) onAttach(ref);
+                }}
             >
+                {isDragging || isDropping ? (
+                    <div className={classes.dropHint}>
+                        <MantineIcon icon={IconMessagePlus} size={20} />
+                        Drop here to ask about it
+                    </div>
+                ) : null}
                 <Box
                     className={classes.resizeHandle}
                     data-resizing={isResizing}
@@ -412,6 +526,9 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                             fieldName={fieldName}
                             prompt={prompt}
                             onPromptTaken={onPromptTaken}
+                            attached={attached}
+                            onDetach={onDetach}
+                            onAttachedSent={onAttachedSent}
                         />
                     ) : (
                         <NewThread
@@ -423,6 +540,9 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                             fieldName={fieldName}
                             prompt={prompt}
                             onPromptTaken={onPromptTaken}
+                            attached={attached}
+                            onDetach={onDetach}
+                            onAttachedSent={onAttachedSent}
                         />
                     )}
                 </Box>

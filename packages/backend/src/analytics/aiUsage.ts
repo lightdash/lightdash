@@ -89,18 +89,18 @@ const parseChannel = (value: string | null): AiUsageChannel | null =>
 export type AiThreadOrigin = {
     createdFrom: AiThreadCreatedFrom;
     embedSpaceUuid: string | null;
-    embedExternalUserId: string | null;
+    embedOwnerIdentifier: string | null;
 };
 
 export const getAiUsageChannel = ({
     createdFrom,
     embedSpaceUuid,
-    embedExternalUserId,
+    embedOwnerIdentifier,
 }: AiThreadOrigin): AiUsageChannel => {
     switch (createdFrom) {
         case 'web_app':
-            // Embedded chats are scoped to the embed's spaces, or to the viewer when read-only.
-            return embedSpaceUuid === null && embedExternalUserId === null
+            // Embedded chats are scoped to the embed's spaces, or to the thread owner when read-only.
+            return embedSpaceUuid === null && embedOwnerIdentifier === null
                 ? 'web'
                 : 'embed';
         case 'api':

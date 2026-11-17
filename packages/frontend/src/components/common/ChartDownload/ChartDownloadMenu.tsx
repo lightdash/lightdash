@@ -201,6 +201,9 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                                 visualizationConfig.chartConfig
                                     .showColumnCalculation
                             }
+                            showSubtotals={
+                                visualizationConfig.chartConfig.showSubtotals
+                            }
                             getGsheetLink={
                                 getGsheetLink === undefined || isEmbedded
                                     ? undefined

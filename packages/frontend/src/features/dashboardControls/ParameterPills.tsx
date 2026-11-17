@@ -42,6 +42,7 @@ import { useControlsEditorSelector } from './useControlsEditor';
 import { useIsControlEdited } from './useIsControlEdited';
 import {
     getParameterEntryName,
+    useIsParameterControlLockedInEmbed,
     useParameterBarControls,
     type ParameterBar,
     type ParameterBarEntry,
@@ -451,10 +452,15 @@ export const ParameterPills: FC<Props> = ({
     const bar = useParameterBarControls();
     const isViewer = useParameterEditorSelector((c) => c.isViewer);
     const editingId = useParameterEditorSelector((c) => c.editingId);
-    // A hidden control is an editor's to see; its value still applies
+    const isLockedInEmbed = useIsParameterControlLockedInEmbed();
+    // A hidden control is an editor's to see; its value still applies.
+    // An embed viewer also doesn't see the controls their token keeps from them.
     const passEntries = bar.entries.filter(
         (entry) =>
-            !(isViewer && entry.control.hidden) &&
+            !(
+                isViewer &&
+                (entry.control.hidden || isLockedInEmbed(entry.control))
+            ) &&
             (sectionId === undefined ||
                 (entry.isNeedsValue
                     ? sectionId === null

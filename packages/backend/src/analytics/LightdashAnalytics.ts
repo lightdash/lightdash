@@ -102,7 +102,7 @@ import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
-import type { ApiQueryOutcome } from '../services/QuerySourceService/api/apiQueryOutcome';
+import type { LiveQueryOutcome } from '../services/QuerySourceService/live/query/outcome';
 import { VERSION } from '../version';
 import {
     isAiUsageEvent,
@@ -805,6 +805,7 @@ export type QueryCompletedEvent = BaseTrack & {
         responseTimingBasis?: 'request' | 'query_submission' | null;
         workloadOrigin?: string;
         dashboardTileId?: string | null;
+        chartKind?: 'classic_chart' | 'composer_chart' | null;
         appId?: string | null;
         appVersion?: number | null;
         requestId?: string | null;
@@ -823,7 +824,7 @@ export type QueryCompletedEvent = BaseTrack & {
         columnsCount: number | null;
         // Set only when executionSource is 'live_source'.
         apiConnector?: ApiConnectorType;
-        apiQueryOutcome?: ApiQueryOutcome;
+        apiQueryOutcome?: LiveQueryOutcome;
         /** Set only when a live_source query failed. */
         liveSourceErrorCode?: LiveSourceUpstreamErrorCode;
         truncated?: boolean;
@@ -3278,6 +3279,14 @@ export type RoadmapProjectFollowRequestedEvent = BaseTrack & {
     };
 };
 
+export type BillingPortalLinkCreatedEvent = BaseTrack & {
+    event: 'billing_portal.link_created';
+    userId: string;
+    properties: {
+        organizationId: string;
+    };
+};
+
 export type UserAttributeCreateAndUpdateEvent = BaseTrack & {
     event: 'user_attribute.created' | 'user_attribute.updated';
     userId: string;
@@ -5103,6 +5112,7 @@ type TypedEvent =
     | UserAttributesPageEvent
     | RoadmapViewedEvent
     | RoadmapProjectFollowRequestedEvent
+    | BillingPortalLinkCreatedEvent
     | UserAttributeCreateAndUpdateEvent
     | UserAttributeDeleteEvent
     | MetricFlowQueryEvent

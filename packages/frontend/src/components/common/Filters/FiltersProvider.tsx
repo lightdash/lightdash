@@ -1,5 +1,6 @@
 import {
     getDashboardFilterField,
+    type ApiSourceExplore,
     getDefaultStartOfWeek,
     type DashboardFilterableField,
     type DashboardFilters,
@@ -30,6 +31,7 @@ type Props<T extends DefaultFieldsMap> = {
     parameterValues?: ParametersValuesMap;
     activeTabUuid?: string;
     metricQueryTimezone?: string;
+    apiSource?: ApiSourceExplore | null;
     children?: ReactNode;
 };
 
@@ -46,6 +48,7 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
     parameterValues,
     activeTabUuid,
     metricQueryTimezone,
+    apiSource,
     children,
 }: Props<T>) => {
     const getField = useCallback(
@@ -93,6 +96,7 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
                 popoverProps,
                 parameterValues,
                 metricQueryTimezone,
+                apiSource,
             }}
         >
             {children}

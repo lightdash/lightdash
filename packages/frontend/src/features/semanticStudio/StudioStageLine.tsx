@@ -1,6 +1,7 @@
 import { assertUnreachable } from '@lightdash/common';
-import { IconCheck, IconX } from '@tabler/icons-react';
-import { Fragment, type FC } from 'react';
+import { Tooltip } from '@mantine/core';
+import { IconArrowUpRight } from '@tabler/icons-react';
+import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import classes from './StudioStageLine.module.css';
 
@@ -10,13 +11,22 @@ export type StudioStage =
     | { step: 'saving' }
     | { step: 'in_review'; pullRequestNumber: string | null }
     | { step: 'closed'; pullRequestNumber: string | null }
-    | { step: 'live' };
+    | {
+          step: 'live';
+          /** How its update for everyone is going, when this tab merged it. */
+          update: 'unknown' | 'running' | 'failed' | 'done';
+      };
+
+type StepState = 'done' | 'now' | 'busy' | 'stopped' | 'todo';
 
 const STEPS = ['Proposed', 'Saved', 'In review', 'Live'] as const;
 
+const withNumber = (label: string, pullRequestNumber: string | null) =>
+    pullRequestNumber ? `${label} #${pullRequestNumber}` : label;
+
 const positionOf = (
     stage: StudioStage,
-): { index: number; label: string; state: 'now' | 'busy' | 'stopped' } => {
+): { index: number; label: string; state: StepState } => {
     switch (stage.step) {
         case 'proposed':
             return { index: 0, label: 'Proposed', state: 'now' };
@@ -25,54 +35,109 @@ const positionOf = (
         case 'in_review':
             return {
                 index: 2,
-                label: stage.pullRequestNumber
-                    ? `In review #${stage.pullRequestNumber}`
-                    : 'In review',
+                label: withNumber('In review', stage.pullRequestNumber),
                 state: 'now',
             };
         case 'closed':
             return {
                 index: 2,
-                label: stage.pullRequestNumber
-                    ? `Closed #${stage.pullRequestNumber}`
-                    : 'Closed',
+                label: withNumber('Closed', stage.pullRequestNumber),
                 state: 'stopped',
             };
         case 'live':
-            return { index: 4, label: 'Live', state: 'now' };
+            switch (stage.update) {
+                case 'running':
+                    return {
+                        index: 3,
+                        label: 'Merged. Updating for everyone',
+                        state: 'busy',
+                    };
+                case 'failed':
+                    return {
+                        index: 3,
+                        label: 'Merged, but the update failed',
+                        state: 'stopped',
+                    };
+                case 'done':
+                    return {
+                        index: 3,
+                        label: 'Live for everyone',
+                        state: 'done',
+                    };
+                case 'unknown':
+                    return { index: 3, label: 'Merged', state: 'done' };
+                default:
+                    return assertUnreachable(stage.update, 'Unknown update');
+            }
         default:
             return assertUnreachable(stage, 'Unknown stage');
     }
 };
 
-export const StudioStageLine: FC<{ stage: StudioStage }> = ({ stage }) => {
+/** The current step as one quiet label; the whole path is a dot per step, spelled out on hover. */
+export const StudioStageLine: FC<{
+    stage: StudioStage;
+    /** Its pull request, so the stage is also the way to it. */
+    href: string | null;
+}> = ({ stage, href }) => {
     const { index, label, state } = positionOf(stage);
+    // A closed change has nowhere left to go, so its path ends where it stopped.
+    const steps = STEPS.slice(0, state === 'stopped' ? index + 1 : undefined);
+    const stateOf = (i: number): StepState =>
+        i < index ? 'done' : i === index ? state : 'todo';
+    const dots = (
+        <span className={classes.dots} aria-hidden>
+            {steps.map((name, i) => (
+                <span
+                    key={name}
+                    className={classes.dot}
+                    data-state={stateOf(i)}
+                />
+            ))}
+        </span>
+    );
     return (
-        <span className={classes.stages} aria-label={`Stage: ${label}`}>
-            {STEPS.map((name, i) => {
-                const stepState =
-                    i < index ? 'done' : i === index ? state : 'todo';
-                return (
-                    <Fragment key={name}>
-                        {i > 0 ? (
-                            <span
-                                className={classes.line}
-                                data-done={i <= index}
-                            />
-                        ) : null}
-                        <span className={classes.stage} data-state={stepState}>
-                            <span className={classes.dot}>
-                                {stepState === 'done' ? (
-                                    <MantineIcon icon={IconCheck} size={9} />
-                                ) : stepState === 'stopped' ? (
-                                    <MantineIcon icon={IconX} size={9} />
-                                ) : null}
-                            </span>
+        <Tooltip
+            withinPortal
+            position="bottom-start"
+            label={
+                <span className={classes.path}>
+                    {steps.map((name, i) => (
+                        <span
+                            key={name}
+                            className={classes.pathStep}
+                            data-state={stateOf(i)}
+                        >
+                            <span className={classes.dot} />
                             {i === index ? label : name}
                         </span>
-                    </Fragment>
-                );
-            })}
-        </span>
+                    ))}
+                </span>
+            }
+        >
+            {href ? (
+                <a
+                    className={classes.stage}
+                    data-state={state}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Stage: ${label}. Open the pull request`}
+                >
+                    {dots}
+                    {label}
+                    <MantineIcon icon={IconArrowUpRight} size={12} />
+                </a>
+            ) : (
+                <span
+                    className={classes.stage}
+                    data-state={state}
+                    aria-label={`Stage: ${label}`}
+                >
+                    {dots}
+                    {label}
+                </span>
+            )}
+        </Tooltip>
     );
 };

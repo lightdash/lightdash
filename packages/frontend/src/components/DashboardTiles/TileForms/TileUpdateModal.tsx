@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     DashboardTileTypes,
     type Dashboard,
+    type DashboardComposerChartTileProperties,
     type DashboardDataAppTileProperties,
     type DashboardHeadingTileProperties,
     type DashboardLoomTileProperties,
@@ -18,6 +19,7 @@ import {
 } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useMemo } from 'react';
+import ComposerChartTileForm from '../../../features/composerCharts/components/ComposerChartTileForm';
 import MantineModal from '../../common/MantineModal';
 import DataAppTileEditForm from './DataAppTileEditForm';
 import HeadingTileForm from './HeadingTileForm';
@@ -101,6 +103,7 @@ const TileUpdateModal = <T extends Tile>({
             case DashboardTileTypes.SAVED_CHART:
                 return undefined;
             case DashboardTileTypes.SQL_CHART:
+            case DashboardTileTypes.COMPOSER_CHART:
                 return undefined;
             default:
                 return assertUnreachable(type, 'Tile type not supported');
@@ -122,6 +125,8 @@ const TileUpdateModal = <T extends Tile>({
                 return 'Edit saved_chart tile';
             case DashboardTileTypes.SQL_CHART:
                 return 'Edit sql_chart tile';
+            case DashboardTileTypes.COMPOSER_CHART:
+                return 'Edit composer chart tile';
             default:
                 return assertUnreachable(type, 'Tile type not supported');
         }
@@ -180,6 +185,14 @@ const TileUpdateModal = <T extends Tile>({
                             form={
                                 form as UseFormReturnType<
                                     DashboardDataAppTileProperties['properties']
+                                >
+                            }
+                        />
+                    ) : tile.type === DashboardTileTypes.COMPOSER_CHART ? (
+                        <ComposerChartTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardComposerChartTileProperties['properties']
                                 >
                             }
                         />

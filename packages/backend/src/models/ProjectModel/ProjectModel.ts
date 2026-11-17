@@ -60,7 +60,6 @@ import {
     SnowflakeAuthenticationType,
     SpaceMemberRole,
     SpaceSummary,
-    stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedDatabaseError,
@@ -105,6 +104,7 @@ import {
     MetricsTreesTableName,
 } from '../../database/entities/catalog';
 import { DashboardTileCommentsTableName } from '../../database/entities/comments';
+import { DashboardTileComposerChartsTableName } from '../../database/entities/composerCharts';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -268,6 +268,7 @@ import {
     type CachedExploreSource,
     type CachedSourceCatalog,
 } from './cachedExploreSource';
+import { copyComposerChartsToPreview } from './copyComposerChartsToPreview';
 import {
     allocateStagedExploreNames,
     getLegacyPrimaryExploreNames,
@@ -2292,6 +2293,7 @@ export class ProjectModel {
                 DashboardTileLoomsTableName,
                 DashboardTileHeadingsTableName,
                 DashboardTileDataAppsTableName,
+                DashboardTileComposerChartsTableName,
             ];
             // Child rows reference the tile by (version, uuid) without ON
             // UPDATE, so the tile is re-inserted under the new uuid, the
@@ -2911,31 +2913,13 @@ export class ProjectModel {
         ) as DbtProjectConfig;
 
         const nonSensitiveCredentials = sensitiveCredentials
-            ? (Object.fromEntries(
-                  Object.entries(sensitiveCredentials).filter(
-                      ([key]) =>
-                          !sensitiveCredentialsFieldNames.includes(
-                              key as AnyType,
-                          ),
-                  ),
-              ) as WarehouseCredentials)
+            ? stripSensitiveWarehouseCredentials(sensitiveCredentials)
             : undefined;
-
-        const scrubbedCredentials =
-            nonSensitiveCredentials &&
-            sensitiveCredentials &&
-            sensitiveCredentials.type === WarehouseTypes.DUCKDB &&
-            sensitiveCredentials.connectionType ===
-                DuckdbConnectionType.DUCKLAKE
-                ? (stripDucklakeNestedSensitive(
-                      sensitiveCredentials,
-                  ) as WarehouseCredentials)
-                : nonSensitiveCredentials;
 
         const nonSensitiveCredentialsWithDefaults =
             ProjectModel.getConnectionWithDefaults(
                 sensitiveCredentials,
-                scrubbedCredentials,
+                nonSensitiveCredentials,
             );
 
         return {
@@ -8189,6 +8173,12 @@ export class ProjectModel {
             // source project's app — the preview project gets no `apps` row of
             // its own. See `docs/data-apps.md` Limitations.
             await copyDashboardTileContent('dashboard_tile_data_apps');
+            await copyComposerChartsToPreview(
+                trx,
+                previewProjectUuid,
+                previewDashboardUuidBySource,
+                previewDashboardVersionIdBySource,
+            );
 
             // Get AI Agents from the source project
             // Note: AI agents are an Enterprise Edition feature. The table may not exist

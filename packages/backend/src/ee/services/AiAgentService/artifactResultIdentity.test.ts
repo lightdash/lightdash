@@ -328,6 +328,7 @@ const setup = ({ personReadAccess = false } = {}) => {
         artifact,
         prompt,
         thread,
+        agent,
         flags,
         config,
         options,
@@ -819,6 +820,90 @@ describe('artifact result identity boundaries', () => {
         expect(agentExecutionContext.getStore()).toBeUndefined();
     });
 
+    it('lets the owner of a metadata-only agent chart run and read it as a person', async () => {
+        const { service, asyncService, user, options, artifact, agent } =
+            setup();
+        agent.enableDataAccess = false;
+        artifact.chartConfig = { source: 'sql', sql: 'select 1', limit: 2 };
+        const execute = vi
+            .spyOn(asyncService, 'executeAsyncSqlQuery')
+            .mockImplementation(async () => {
+                expect(agentExecutionContext.getStore()).toBeUndefined();
+                return {
+                    queryUuid: 'execution',
+                    fields: {},
+                    cacheMetadata: { cacheHit: false },
+                } as never;
+            });
+        await expect(
+            service.getArtifactVizQuery(user, options),
+        ).resolves.toMatchObject({ query: { queryUuid: 'execution' } });
+        expect(execute).toHaveBeenCalledOnce();
+        const personResults = {
+            status: QueryHistoryStatus.READY,
+            rows: [{ one: 1 }],
+        } as unknown as Awaited<
+            ReturnType<AsyncQueryService['getArtifactBoundQueryResults']>
+        >;
+        const read = vi
+            .spyOn(asyncService, 'getArtifactBoundQueryResults')
+            .mockResolvedValue(personResults);
+        await expect(
+            service.getArtifactQueryResults(user, {
+                ...options,
+                cached: false,
+            }),
+        ).resolves.toBe(personResults);
+        expect(read).toHaveBeenCalledOnce();
+        expect(read.mock.calls[0][0]).toMatchObject({
+            queryUuid: 'execution',
+            reader: { kind: 'person', authMethod: 'session' },
+        });
+        expect(read.mock.calls[0][1]).toEqual({
+            agentUuid: 'agent',
+            artifactUuid: 'artifact',
+            versionUuid: 'version',
+        });
+    });
+
+    it.each([
+        'createdByUserUuid',
+        'agentUuid',
+        'projectUuid',
+        'organizationUuid',
+        'threadUuid',
+    ] as const)(
+        'refuses a metadata-only agent owner when the prompt %s differs, before any query runs',
+        async (field) => {
+            const ctx = setup();
+            const { service, asyncService, user, options } = ctx;
+            ctx.agent.enableDataAccess = false;
+            ctx.artifact.chartConfig = {
+                source: 'sql',
+                sql: 'select 1',
+                limit: 2,
+            };
+            ctx.prompt[field] = 'different';
+            const execute = vi.spyOn(asyncService, 'executeAsyncSqlQuery');
+            const read = vi.spyOn(asyncService, 'getArtifactBoundQueryResults');
+            await expect(
+                service.getArtifactVizQuery(user, options),
+            ).rejects.toThrow(
+                new ForbiddenError('Artifact results are unavailable'),
+            );
+            await expect(
+                service.getArtifactQueryResults(user, {
+                    ...options,
+                    cached: false,
+                }),
+            ).rejects.toThrow(
+                new ForbiddenError('Artifact results are unavailable'),
+            );
+            expect(execute).not.toHaveBeenCalled();
+            expect(read).not.toHaveBeenCalled();
+        },
+    );
+
     it('rejects a person read of an owner semantic rerun and permits its artifact-scoped read', async () => {
         const {
             service,
@@ -996,6 +1081,38 @@ describe("artifact results read with the owner's own bearer token", () => {
             });
         },
     );
+
+    it('does not read an old agent-produced result as the agent once Data Access is off', async () => {
+        const ctx = setup({ personReadAccess: true });
+        const account = fromApiKey(ctx.user, 'test-pat');
+        await runOwnerArtifact(ctx, account);
+        expect(ctx.producer.agentIdentity?.act.surface).toBe(
+            AgentActorSurface.IN_APP_AGENT,
+        );
+        // Control: while Data Access is on, the owner reads it as the agent.
+        await expect(
+            ctx.asyncService.getAsyncQueryResults({
+                account,
+                projectUuid: 'project',
+                queryUuid: 'execution',
+            }),
+        ).resolves.toMatchObject({
+            status: QueryHistoryStatus.READY,
+            rows: [{}],
+        });
+        ctx.getDownloadStream.mockClear();
+        ctx.agent.enableDataAccess = false;
+        await expect(
+            ctx.asyncService.getAsyncQueryResults({
+                account,
+                projectUuid: 'project',
+                queryUuid: 'execution',
+            }),
+        ).rejects.toThrow(
+            "These results came from an AI agent and can no longer be read with this agent's Data Access. Run the query again to see them with your own access.",
+        );
+        expect(ctx.getDownloadStream).not.toHaveBeenCalled();
+    });
 
     it('refuses a different agent reading the owner answer with the same message', async () => {
         const ctx = setup({ personReadAccess: true });

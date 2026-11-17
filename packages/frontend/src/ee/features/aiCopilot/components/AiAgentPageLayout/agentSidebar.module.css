@@ -9,16 +9,6 @@
     box-shadow: none;
 }
 
-.sidebarSurface[data-collapsed='true'] {
-    flex-grow: 0;
-    align-items: center;
-    padding: 0;
-    overflow: visible;
-    background-color: transparent;
-    border-color: transparent;
-    box-shadow: none;
-}
-
 .threadList {
     flex-grow: 1;
     min-height: 0;

@@ -11,6 +11,7 @@ import { useDocumentVisibility } from '@mantine/hooks';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { supportsMobileSignInSourceProject } from './mobileSignInCapabilities';
 import { useNow } from './useNow';
 
 export const MOBILE_SIGN_IN_POLL_INTERVAL_MS = 2000;
@@ -111,11 +112,13 @@ const useMobileSignInRequests = ({
     onMinted,
     isWanted,
     isPolling,
+    sourceProjectUuid,
 }: {
     code: MobileSignInCode | null;
     onMinted: (code: MobileSignInCode) => void;
     isWanted: () => boolean;
     isPolling: boolean;
+    sourceProjectUuid: string | null;
 }) => {
     const lightdashApi = useLightdashApi();
     const cancel = useMutation<undefined, ApiError, string>((codeUuid) =>
@@ -131,12 +134,19 @@ const useMobileSignInRequests = ({
         ApiError,
         MobileSignInMintReason
     >(
-        (reason) =>
-            lightdashApi<MobileSignInCode>({
+        async (reason) => {
+            const includeSourceProject =
+                sourceProjectUuid !== null &&
+                (await supportsMobileSignInSourceProject());
+            return lightdashApi<MobileSignInCode>({
                 url: '/user/mobile/sign-in-codes',
                 method: 'POST',
-                body: JSON.stringify({ reason }),
-            }),
+                body: JSON.stringify({
+                    reason,
+                    ...(includeSourceProject ? { sourceProjectUuid } : {}),
+                }),
+            });
+        },
         {
             onSuccess: (minted) => {
                 if (isWanted()) onMinted(minted);
@@ -288,7 +298,11 @@ const useAutoShow = ({
 
 export const useMobileSignInCode = ({
     autoShow = false,
-}: { autoShow?: boolean } = {}) => {
+    sourceProjectUuid = null,
+}: {
+    autoShow?: boolean;
+    sourceProjectUuid?: string | null;
+} = {}) => {
     const isVisible = useDocumentVisibility() === 'visible';
     const [isShown, setIsShown] = useState(false);
     const isShownRef = useRef(false);
@@ -304,6 +318,7 @@ export const useMobileSignInCode = ({
 
     const { mint, cancel, state, decide } = useMobileSignInRequests({
         code,
+        sourceProjectUuid,
         onMinted: (minted) => {
             setCode(minted);
             setMintedAt(performance.now());

@@ -3,7 +3,11 @@ import {
     type ExternalConnectionApiSource,
     type ExternalConnectionAuthType,
 } from '@lightdash/common';
-import { getApiSourceIntegration } from '../../../services/QuerySourceService/api/apiSourceIntegrations';
+import {
+    getLiveAccessRules,
+    validateLiveConnection,
+} from '../../../services/QuerySourceService/live/integration';
+import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 
 /**
  * Api source connections reach only their integration's query and metadata
@@ -18,9 +22,10 @@ export const withApiSourceAccessRules = <
     config.apiSource
         ? {
               ...config,
-              ...getApiSourceIntegration(
-                  config.apiSource.connector,
-              ).getAccessRules(config.apiSource),
+              ...getLiveAccessRules(
+                  getLiveIntegration(config.apiSource.connector),
+                  config.apiSource,
+              ),
           }
         : config;
 
@@ -43,7 +48,7 @@ export const validateApiSourceConnection = ({
         }
         return;
     }
-    getApiSourceIntegration(apiSource.connector).validateConnection({
+    validateLiveConnection(getLiveIntegration(apiSource.connector), {
         apiSource,
         type,
         origin,

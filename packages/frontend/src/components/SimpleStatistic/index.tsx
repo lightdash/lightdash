@@ -14,6 +14,7 @@ import BigNumberContextMenu from './BigNumberContextMenu';
 
 interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
+    enableContextMenu?: boolean;
     /**
      * When the tile title is hidden it no longer carries the description
      * tooltip, so the big number and its label take it over instead.
@@ -27,6 +28,7 @@ interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
+    enableContextMenu = true,
     isTitleHidden = false,
     description,
     onScreenshotReady,
@@ -88,6 +90,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     if (!bigNumber || !resultsData?.rows.length) return <EmptyChart />;
 
     const shouldHideContextMenu =
+        !enableContextMenu ||
         !shouldShowMenu ||
         (account?.authentication.type === 'jwt' && !canViewUnderlyingData);
 

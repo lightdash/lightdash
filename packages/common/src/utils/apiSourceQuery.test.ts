@@ -2,13 +2,20 @@ import {
     type ApiSourceCapabilities,
     type ApiSourceExplore,
 } from '../types/apiSourceExplore';
-import { CustomDimensionType, DimensionType, MetricType } from '../types/field';
+import {
+    CustomDimensionType,
+    DimensionType,
+    FieldType,
+    MetricType,
+    type ItemsMap,
+} from '../types/field';
 import { FilterOperator, type FilterGroup } from '../types/filter';
 import { type MetricQuery } from '../types/metricQuery';
 import { ApiConnectorType } from '../types/querySources';
 import { TimeFrames } from '../types/timeFrames';
 import {
     getApiSourceCapabilities,
+    getApiSourceFilterOperators,
     getApiSourceQueryIssues,
     isDateZoomRefusedOnExplore,
     type ApiSourceQueryContext,
@@ -172,7 +179,7 @@ describe('getApiSourceQueryIssues', () => {
                 }),
             ),
         ).toEqual([
-            '"report_channel" can\'t be filtered with "include". Use one of: equals, notEquals.',
+            '"report_channel" can\'t use "include" on Google Analytics. Use one of: "equals", "notEquals".',
         ]);
     });
 
@@ -196,7 +203,7 @@ describe('getApiSourceQueryIssues', () => {
                 }),
             ),
         ).toEqual([
-            '"report_active_users" can\'t be filtered on this live data source.',
+            '"report_active_users" can\'t be filtered on Google Analytics.',
         ]);
     });
 
@@ -453,7 +460,7 @@ describe('getApiSourceQueryIssues with declared capabilities', () => {
                 }),
             ),
         ).toEqual([
-            '"report_sessions" can\'t be filtered on this live data source.',
+            '"report_sessions" can\'t be filtered on Google Analytics.',
         ]);
     });
 
@@ -597,5 +604,114 @@ describe('isDateZoomRefusedOnExplore', () => {
                 },
             }),
         ).toBe(false);
+    });
+});
+
+describe("getApiSourceQueryIssues with the explore's fields", () => {
+    const field = (
+        name: string,
+        label: string,
+        fieldType: FieldType,
+        type: DimensionType | MetricType,
+    ) => ({
+        name,
+        label,
+        fieldType,
+        type,
+        table: 'report',
+        tableLabel: 'Report',
+        sql: name,
+        hidden: false,
+    });
+    const itemsMap = {
+        report_date: field(
+            'date',
+            'Date',
+            FieldType.DIMENSION,
+            DimensionType.DATE,
+        ),
+        report_channel: field(
+            'channel',
+            'Channel',
+            FieldType.DIMENSION,
+            DimensionType.STRING,
+        ),
+        report_item_name: field(
+            'item_name',
+            'Item name',
+            FieldType.DIMENSION,
+            DimensionType.STRING,
+        ),
+        report_sessions: field(
+            'sessions',
+            'Sessions',
+            FieldType.METRIC,
+            MetricType.SUM,
+        ),
+    } as unknown as ItemsMap;
+    const labelledMessages = (metricQuery: MetricQuery) =>
+        getApiSourceQueryIssues(apiSource, metricQuery, { itemsMap }).map(
+            ({ message }) => message,
+        );
+
+    test('names the field and operators as the UI does, with date wording for dates', () => {
+        expect(
+            labelledMessages(
+                query({
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                rule(
+                                    'report_date',
+                                    FilterOperator.GREATER_THAN,
+                                    ['2026-01-01'],
+                                ),
+                            ],
+                        },
+                    },
+                }),
+            ),
+        ).toEqual([
+            'Date can\'t use "is after" on Google Analytics. Use one of: "is between", "in the last".',
+        ]);
+    });
+
+    test("names both fields when they can't be combined", () => {
+        expect(
+            labelledMessages(query({ dimensions: ['report_item_name'] })),
+        ).toEqual([
+            "Item name can't be combined with Sessions: item-scoped dimensions only work with item-scoped metrics.",
+        ]);
+    });
+});
+
+describe('getApiSourceFilterOperators', () => {
+    test('returns the operators the field declares', () => {
+        expect(
+            getApiSourceFilterOperators(apiSource, 'report_channel', false),
+        ).toEqual([FilterOperator.EQUALS, FilterOperator.NOT_EQUALS]);
+    });
+
+    test('returns none for a field the source does not know', () => {
+        expect(
+            getApiSourceFilterOperators(apiSource, 'unknown', false),
+        ).toEqual([]);
+    });
+
+    test('returns none for a metric where the source has no metric filters', () => {
+        const declared: ApiSourceExplore = {
+            ...apiSource,
+            capabilities: {
+                ...getApiSourceCapabilities(apiSource),
+                metricFilters: false,
+            },
+        };
+        expect(
+            getApiSourceFilterOperators(declared, 'report_sessions', true),
+        ).toEqual([]);
+        expect(
+            getApiSourceFilterOperators(apiSource, 'report_sessions', true),
+        ).toEqual([FilterOperator.GREATER_THAN]);
     });
 });

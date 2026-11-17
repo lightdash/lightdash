@@ -22,6 +22,7 @@ import {
     buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
+    canEmbedViewerResolveTileParameters,
     ChartType,
     CompiledDimension,
     CreateWarehouseCredentials,
@@ -33,6 +34,7 @@ import {
     Dimension,
     DimensionType,
     DownloadFileType,
+    DuckdbConnectionType,
     ExpiredQueryError,
     Explore,
     ExploreCompiler,
@@ -60,6 +62,8 @@ import {
     getDimensions,
     getDimensionsWithValidParameters,
     getDocumentRuntimeChartConfig,
+    getEmbedExcludedParameterKeys,
+    getEmbedParameterValues,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
     getExecutableFilterFieldIds,
@@ -73,6 +77,7 @@ import {
     getMetricsWithValidParameters,
     getPivotValueColumnName,
     getQueryCostEstimateSettings,
+    getSubtotalDimensionGroups,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isAiAccessQueryContext,
@@ -90,7 +95,6 @@ import {
     isMergeMetricSource,
     isMergeResultSource,
     isMetric,
-    isParameterInteractivityEnabled,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -159,7 +163,9 @@ import {
     type CalculateTotalKind,
     type CompiledCustomSqlDimension,
     type CompiledMetric,
+    type ComposerChartRunSource,
     type CustomDimension,
+    type DashboardTileParameterInputs,
     type DocumentQueryReference,
     type DocumentSqlChart,
     type DuckdbSourceQuery,
@@ -216,6 +222,7 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
+    AnalyticsQueryCancelledError,
     AnalyticsQueryError,
     DuckdbWarehouseClient,
     mapFieldTypeFromDuckdbTypeName,
@@ -336,6 +343,7 @@ import {
     personaliseStoredSharedSignInError,
 } from '../../utils/sharedSignInExpiry';
 import { splitJsonlStream } from '../../utils/streamUtils';
+import { type SubtotalExportLevel } from '../../utils/subtotalExport';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 import {
@@ -359,6 +367,7 @@ import type {
 } from '../CacheService/ICacheService';
 import { cacheMiss, CreateCacheResult } from '../CacheService/types';
 import type { CacheHitCacheResult } from '../CacheService/types';
+import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
 import { CsvService } from '../CsvService/CsvService';
 import { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import type { DocumentService } from '../DocumentService/DocumentService';
@@ -367,6 +376,7 @@ import { OrganizationAccessService } from '../OrganizationAccessService/Organiza
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import { getAnalyticsActivityWindow } from '../ProjectService/analyticsProject/getAnalyticsActivityWindow';
 import { developmentView } from '../ProjectService/developmentView';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
 import {
@@ -384,25 +394,27 @@ import {
     validatePagination,
 } from '../ProjectService/resultsPagination';
 import type {
-    ApiConnector,
-    ApiConnectorCall,
-    ApiConnectorResult,
-    MeteredApiConnector,
-} from '../QuerySourceService/api/ApiConnector';
+    LiveQueryCall,
+    MeteredLiveSource,
+} from '../QuerySourceService/live/calls';
 import {
-    getApiQueryOutcome,
+    assertLiveResultComplete,
+    compileLiveMetricQuery,
+    toLiveResult,
+} from '../QuerySourceService/live/explores/build';
+import { toLiveQueryError } from '../QuerySourceService/live/explores/definition';
+import {
+    getLiveQueryOutcome,
     getLiveSourceUpstreamErrorCode,
     isLiveSourceErrorReportable,
-    type ApiQueryOutcome,
-} from '../QuerySourceService/api/apiQueryOutcome';
-import { toApiSourceQueryError } from '../QuerySourceService/api/apiSourceExplore';
+    type LiveQueryOutcome,
+} from '../QuerySourceService/live/query/outcome';
 import {
-    assertApiResultComplete,
-    compileApiSourceMetricQuery,
-    toApiSourceResult,
-} from '../QuerySourceService/api/apiSourceExplores';
+    runLiveRequest,
+    type LiveQueryResult,
+} from '../QuerySourceService/live/query/run';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
-import type { ApiConnectorResolver } from '../QuerySourceService/sources/ApiQuerySource';
+import type { LiveSourceResolver } from '../QuerySourceService/sources/ApiQuerySource';
 import {
     buildResultsCacheStats,
     getContextsInGroup,
@@ -512,10 +524,15 @@ import {
     EstimateAsyncMetricQueryArgs,
     EstimateAsyncSqlQueryArgs,
     ExecuteAsyncSqlQueryArgs,
+    getComposerChartSource,
+    getDocumentQueryContext,
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
+    REQUEST_AUTHORITY,
     type BoundDuckdbQueryReferences,
     type CommonAsyncQueryArgs,
+    type ComposerAuthority,
+    type DocumentAuthority,
     type DownloadAsyncQueryResultsArgs,
     type DuckdbQueryColumns,
     type DuckdbQueryEngine,
@@ -541,6 +558,7 @@ import {
     type PreAggregateExecutionEngine,
     type PreAggregationRoute,
     type QueryHistoryActor,
+    type RequestAuthority,
     type RunAsyncPreAggregateQueryArgs,
     type RunAsyncWarehouseQueryArgs,
     type RunDuckdbQueryArgs,
@@ -652,6 +670,7 @@ type AsyncQueryExecutionPlan =
 
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
     getDocumentService: () => DocumentService;
+    getComposerChartService: () => Pick<ComposerChartService, 'assertCanView'>;
     contentDraftModel: ContentDraftModel;
     queryHistoryModel: QueryHistoryModel;
     downloadAuditModel: DownloadAuditModel;
@@ -668,8 +687,8 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     /** Lazy: the query source registry is built over this service. */
     getQuerySourceService: () => QuerySourceService;
     preAggregateStrategy?: PreAggregateStrategy;
-    /** EE resolver for live data source connectors; absent in OSS. */
-    getApiSourceConnector?: ApiConnectorResolver;
+    /** EE resolver for live data sources; absent in OSS. */
+    getLiveSourceForExplore?: LiveSourceResolver;
     /** EE resolver for external tables; absent in OSS. */
     externalSourceTableResolver?: (
         projectUuid: string,
@@ -703,6 +722,7 @@ type ExecuteAsyncQueryArgs = Pick<
     resultSource?: NonNullable<
         QueryHistory['requestParameters']['resultSource']
     >;
+    composerChartSource?: ComposerChartRunSource;
     identityEnabled?: boolean;
     // Single SQL seam: metric paths pass a QueryComposer, SQL-chart
     // paths a SqlQueryComposer — getSql() owns pivot wrapping for both.
@@ -720,8 +740,8 @@ type ExecuteAsyncQueryArgs = Pick<
     organizationUuid?: string;
 };
 
-/** Turns a connector's rows into the rows and columns a result stores. */
-type ApiResultShaper = (result: ApiConnectorResult) => {
+/** Turns a live query's rows into the rows and columns a result stores. */
+type ApiResultShaper = (result: LiveQueryResult) => {
     rows: Record<string, unknown>[];
     columns: ResultColumns;
 };
@@ -905,11 +925,13 @@ export class AsyncQueryService extends ProjectService {
     private readonly getQuerySourceService: () => QuerySourceService;
     private readonly getDocumentService: () => DocumentService;
 
+    private readonly getComposerChartService: AsyncQueryServiceArguments['getComposerChartService'];
+
     protected readonly preAggregateStrategy: PreAggregateStrategy;
 
     private readonly externalSourceTableResolver: AsyncQueryServiceArguments['externalSourceTableResolver'];
 
-    private readonly getApiSourceConnector: AsyncQueryServiceArguments['getApiSourceConnector'];
+    private readonly getLiveSourceForExplore: AsyncQueryServiceArguments['getLiveSourceForExplore'];
 
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
@@ -929,10 +951,11 @@ export class AsyncQueryService extends ProjectService {
         this.composeEngineClient = args.composeEngineClient;
         this.getQuerySourceService = args.getQuerySourceService;
         this.getDocumentService = args.getDocumentService;
+        this.getComposerChartService = args.getComposerChartService;
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
         this.externalSourceTableResolver = args.externalSourceTableResolver;
-        this.getApiSourceConnector = args.getApiSourceConnector;
+        this.getLiveSourceForExplore = args.getLiveSourceForExplore;
     }
 
     /**
@@ -2130,6 +2153,23 @@ export class AsyncQueryService extends ProjectService {
                     checkedContent.add(key);
                 }
             }
+            const composerSource = parameters?.composerChartSource;
+            if (
+                composerSource &&
+                !checkedContent.has(
+                    `composer:${composerSource.composerChartUuid}`,
+                )
+            ) {
+                assertRegisteredAccount(fresh);
+                await this.getComposerChartService().assertCanView(
+                    fresh,
+                    projectUuid,
+                    composerSource.composerChartUuid,
+                );
+                checkedContent.add(
+                    `composer:${composerSource.composerChartUuid}`,
+                );
+            }
             if (chartUuid && !checkedContent.has(`chart:${chartUuid}`)) {
                 await this.assertSavedChartQuerySourceAccess(
                     fresh,
@@ -2418,6 +2458,16 @@ export class AsyncQueryService extends ProjectService {
                 queryHistory.requestParameters.documentSource.documentUuid,
             );
         }
+        const composerSource =
+            queryHistory.requestParameters?.composerChartSource;
+        if (composerSource) {
+            assertRegisteredAccount(account);
+            await this.getComposerChartService().assertCanView(
+                account,
+                projectUuid,
+                composerSource.composerChartUuid,
+            );
+        }
         const { chartUuid, references } = getQuerySourceParameters(
             queryHistory.requestParameters,
         );
@@ -2570,23 +2620,61 @@ export class AsyncQueryService extends ProjectService {
             : results;
     }
 
-    private assertEmbedAiAgentCanDownload(
+    private assertEmbedCanDownload(
         account: Account,
         organizationUuid: string,
         projectUuid: string,
+        dashboardExportUuid?: string,
     ): void {
-        if (
-            isAiAgentEmbedAccount(account) &&
-            this.createAuditedAbility(account).cannot(
-                'view',
-                subject('EmbedCsvExport', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
+        if (!isJwtUser(account)) return;
+
+        const ability = this.createAuditedAbility(account);
+        const target = { organizationUuid, projectUuid };
+        const { content } = account.authentication.data;
+        let canDownload: boolean;
+        switch (content.type) {
+            case 'aiAgent':
+                canDownload = ability.can(
+                    'view',
+                    subject('EmbedCsvExport', target),
+                );
+                break;
+            case 'chart':
+            case 'metricsCatalog':
+                canDownload = ability.can(
+                    'export',
+                    subject('SavedChart', { ...target, type: 'csv' }),
+                );
+                break;
+            case 'dashboard':
+                canDownload =
+                    ability.can(
+                        'export',
+                        subject('Dashboard', { ...target, type: 'csv' }),
+                    ) ||
+                    (dashboardExportUuid !== undefined &&
+                        dashboardExportUuid ===
+                            account.access.content.dashboardUuid &&
+                        ability.can(
+                            'manage',
+                            subject('ExportCsv', {
+                                ...target,
+                                metadata: {
+                                    dashboardUuid: dashboardExportUuid,
+                                },
+                            }),
+                        ));
+                break;
+            case 'dataApp':
+            case 'apiAccess':
+                canDownload = false;
+                break;
+            default:
+                return assertUnreachable(content, 'Unknown embed content type');
+        }
+        if (!canDownload) {
             throw new ForbiddenError(
-                'Embed token is not allowed to download AI agent results',
+                'Embed token is not allowed to download query results',
             );
         }
     }
@@ -3137,14 +3225,17 @@ export class AsyncQueryService extends ProjectService {
     async downloadSyncQueryResults(
         args: DownloadAsyncQueryResultsArgs,
         pollingOptions?: PollingOptions,
+        // Only server-side dashboard bulk exports supply this authorization context.
+        dashboardExportUuid?: string,
     ) {
         const { queryUuid, projectUuid, account } = args;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-        this.assertEmbedAiAgentCanDownload(
+        this.assertEmbedCanDownload(
             account,
             organizationUuid,
             projectUuid,
+            dashboardExportUuid,
         );
         await this.pollForQueryCompletion({
             account,
@@ -3152,7 +3243,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             ...pollingOptions,
         });
-        return this.downloadAsyncQueryResults(args);
+        return this.downloadAsyncQueryResults(args, dashboardExportUuid);
     }
 
     async download(
@@ -3227,7 +3318,7 @@ export class AsyncQueryService extends ProjectService {
         const project = await this.projectModel.getSummary(payload.projectUuid);
         await this.assertAnalyticsProjectAccess(account, project);
         this.assertAnalyticsDownloadSupported(project, payload.type);
-        this.assertEmbedAiAgentCanDownload(
+        this.assertEmbedCanDownload(
             account,
             project.organizationUuid,
             payload.projectUuid,
@@ -3313,6 +3404,80 @@ export class AsyncQueryService extends ProjectService {
             });
             return undefined;
         }
+    }
+
+    // Subtotal rows are regrouped in memory, so larger exports go without them
+    private static readonly SUBTOTALS_EXPORT_MAX_ROWS = 100_000;
+
+    /**
+     * Subtotals for an unpivoted table export: one `calculate-total` query per
+     * group level, like the table chart runs. A level whose query fails is
+     * left out so the export still succeeds.
+     */
+    private async getExportSubtotalLevels({
+        account,
+        projectUuid,
+        queryHistory,
+        columnOrder,
+        hiddenFields,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryHistory: QueryHistory;
+        columnOrder: string[];
+        hiddenFields: string[];
+    }): Promise<SubtotalExportLevel[]> {
+        const { queryUuid: sourceQueryUuid, metricQuery } = queryHistory;
+        if (
+            metricQuery.exploreName === SQL_QUERY_MOCK_EXPLORER_NAME ||
+            'mergeQuery' in queryHistory.requestParameters
+        ) {
+            return [];
+        }
+        const dimensionGroups = getSubtotalDimensionGroups(
+            metricQuery.dimensions.filter((id) => !hiddenFields.includes(id)),
+            columnOrder,
+            [],
+        );
+        if (dimensionGroups.length === 0) {
+            return [];
+        }
+        if (
+            (queryHistory.totalRowCount ?? 0) >
+            AsyncQueryService.SUBTOTALS_EXPORT_MAX_ROWS
+        ) {
+            this.logger.warn('Too many rows to export with subtotals', {
+                projectUuid,
+                sourceQueryUuid,
+                totalRowCount: queryHistory.totalRowCount,
+            });
+            return [];
+        }
+
+        const levels = await Promise.all(
+            dimensionGroups.map(async (dimensions) => {
+                try {
+                    const { rows } =
+                        await this.executeCalculateTotalAndGetResults({
+                            account,
+                            projectUuid,
+                            queryUuid: sourceQueryUuid,
+                            kind: 'columnSubtotal',
+                            subtotalDimensions: dimensions,
+                        });
+                    return { dimensions, rows };
+                } catch (error) {
+                    this.logger.warn('Failed to compute subtotals for export', {
+                        projectUuid,
+                        sourceQueryUuid,
+                        dimensions,
+                        error: getErrorMessage(error),
+                    });
+                    return undefined;
+                }
+            }),
+        );
+        return levels.filter((level) => level !== undefined);
     }
 
     /**
@@ -3414,34 +3579,39 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    private async downloadAsyncQueryResults({
-        account,
-        projectUuid,
-        queryUuid,
-        type,
-        onlyRaw = false,
-        showTableNames = false,
-        customLabels = {},
-        columnOrder = [],
-        hiddenFields = [],
-        pivotConfig,
-        exportPivotedData = true,
-        attachmentDownloadName,
-        expirationSecondsOverride,
-        conditionalFormattings,
-        showColumnTotals = false,
-        accessMode,
-    }: DownloadAsyncQueryResultsArgs): Promise<DownloadAsyncQueryResultsInternal> {
+    private async downloadAsyncQueryResults(
+        {
+            account,
+            projectUuid,
+            queryUuid,
+            type,
+            onlyRaw = false,
+            showTableNames = false,
+            customLabels = {},
+            columnOrder = [],
+            hiddenFields = [],
+            pivotConfig,
+            exportPivotedData = true,
+            attachmentDownloadName,
+            expirationSecondsOverride,
+            conditionalFormattings,
+            showColumnTotals = false,
+            showSubtotals = false,
+            accessMode,
+        }: DownloadAsyncQueryResultsArgs,
+        dashboardExportUuid?: string,
+    ): Promise<DownloadAsyncQueryResultsInternal> {
         assertIsAccountWithOrg(account);
 
         const project = await this.projectModel.getSummary(projectUuid);
         await this.assertAnalyticsProjectAccess(account, project);
         this.assertAnalyticsDownloadSupported(project, type);
         const { organizationUuid } = project;
-        this.assertEmbedAiAgentCanDownload(
+        this.assertEmbedCanDownload(
             account,
             organizationUuid,
             projectUuid,
+            dashboardExportUuid,
         );
 
         const queryHistory = await this.queryHistoryModel.get(
@@ -3793,6 +3963,16 @@ export class AsyncQueryService extends ProjectService {
                                             : 'columnTotal',
                                     })
                                   : undefined,
+                              subtotalLevels:
+                                  showSubtotals && !pivotDetails
+                                      ? await this.getExportSubtotalLevels({
+                                            account,
+                                            projectUuid,
+                                            queryHistory,
+                                            columnOrder: validColumnOrder,
+                                            hiddenFields,
+                                        })
+                                      : undefined,
                           },
                           displayTimezone ?? undefined,
                       );
@@ -4012,6 +4192,7 @@ export class AsyncQueryService extends ProjectService {
         dataTimezone,
         displayTimezone,
         recoverStalledQuery,
+        isQueuedQueryCancelled,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -4023,6 +4204,7 @@ export class AsyncQueryService extends ProjectService {
         dataTimezone?: string;
         displayTimezone: string | null;
         recoverStalledQuery: boolean;
+        isQueuedQueryCancelled?: () => Promise<boolean>;
     }): Promise<{
         columns: ResultColumns;
         /** Pre-pivot columns, so pivoted queries keep a record of the
@@ -4308,6 +4490,9 @@ export class AsyncQueryService extends ProjectService {
                         tags: queryTags,
                         timezone: dataTimezone,
                         recoverStalledQuery,
+                        ...(isQueuedQueryCancelled && {
+                            isQueuedQueryCancelled,
+                        }),
                     },
                     transformRows,
                 ),
@@ -4730,7 +4915,11 @@ export class AsyncQueryService extends ProjectService {
             dashboardTileId:
                 'tileUuid' in history.requestParameters
                     ? (history.requestParameters.tileUuid ?? null)
-                    : null,
+                    : (trustedResultParameters.composerChartSource?.tileUuid ??
+                      null),
+            ...(trustedResultParameters.composerChartSource
+                ? { chartKind: 'composer_chart' as const }
+                : {}),
         };
         const enriched = {
             ...history,
@@ -5189,6 +5378,7 @@ export class AsyncQueryService extends ProjectService {
      * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
      */
     private async runAsyncWarehouseQueryInScope({
+        analyticsActivityWindow,
         userUuid,
         organizationUuid,
         isPreviewProject,
@@ -5279,6 +5469,7 @@ export class AsyncQueryService extends ProjectService {
 
         type WarehouseQueryAttempt =
             | { kind: 'complete' }
+            | { kind: 'cancelled' }
             | {
                   kind: 'retry';
                   execute: (warehouseClient: WarehouseClient) => Promise<void>;
@@ -5287,6 +5478,7 @@ export class AsyncQueryService extends ProjectService {
         const withWarehouseAttempt = (
             execute: (
                 warehouseClient: WarehouseClient,
+                isQueuedQueryCancelled?: () => Promise<boolean>,
             ) => Promise<WarehouseQueryAttempt>,
         ) =>
             this.warehouseClientFactory.withWarehouseClient(
@@ -5294,7 +5486,12 @@ export class AsyncQueryService extends ProjectService {
                     kind: 'binding',
                     projectUuid,
                     binding: { kind: 'query', queryUuid },
-                    overrides: warehouseCredentialsOverrides,
+                    overrides: analyticsActivityWindow
+                        ? {
+                              ...warehouseCredentialsOverrides,
+                              analyticsActivityWindow,
+                          }
+                        : warehouseCredentialsOverrides,
                 },
                 connectionContextFromUser(
                     {
@@ -5399,7 +5596,16 @@ export class AsyncQueryService extends ProjectService {
                         ? warehouseCredentials
                         : null;
                     warehouseCredentialsType ??= warehouseCredentials.type;
-                    const result = await execute(warehouseClient);
+                    const isAnalytics =
+                        warehouseCredentials.type === WarehouseTypes.DUCKDB &&
+                        warehouseCredentials.connectionType ===
+                            DuckdbConnectionType.ANALYTICS;
+                    const result = await execute(
+                        warehouseClient,
+                        isAnalytics
+                            ? () => this.isQueryCancelled(queryUuid)
+                            : undefined,
+                    );
                     warehouseQueryCompletedBeforeCleanup =
                         result.kind === 'complete';
                     return result;
@@ -5408,6 +5614,7 @@ export class AsyncQueryService extends ProjectService {
 
         const executeWithWarehouseClient = async (
             warehouseClient: WarehouseClient,
+            isQueuedQueryCancelled?: () => Promise<boolean>,
         ): Promise<WarehouseQueryAttempt> => {
             const credentialsType = warehouseCredentialsType;
             if (credentialsType === undefined) {
@@ -5561,6 +5768,9 @@ export class AsyncQueryService extends ProjectService {
                                 dataTimezone: resolvedDataTimezone,
                                 displayTimezone,
                                 recoverStalledQuery,
+                                ...(isQueuedQueryCancelled && {
+                                    isQueuedQueryCancelled,
+                                }),
                             });
                         setPhaseTimingAttributes(
                             span,
@@ -5812,6 +6022,9 @@ export class AsyncQueryService extends ProjectService {
             try {
                 queryResults = await runWarehouseQuery(warehouseClient);
             } catch (e) {
+                if (e instanceof AnalyticsQueryCancelledError) {
+                    return { kind: 'cancelled' };
+                }
                 const canRetry =
                     !hasWrittenRows &&
                     projectCredentials !== null &&
@@ -6065,6 +6278,8 @@ export class AsyncQueryService extends ProjectService {
                 query.requestParameters.resultEntitlementFingerprint ?? null,
             query: query.compiledSql,
             displayTimezone,
+            analyticsActivityWindow:
+                query.requestParameters.analyticsActivityWindow,
         };
     }
 
@@ -6651,7 +6866,7 @@ export class AsyncQueryService extends ProjectService {
     ): Promise<ExecuteAsyncQueryReturn> {
         await this.assertOrganizationNotBlocked(args.account);
         if (args.queryComposer.getExplore().type === ExploreType.API_SOURCE) {
-            return this.executePreparedApiSourceQuery(
+            return this.executePreparedLiveQuery(
                 args,
                 requestParameters,
                 organizationUuid,
@@ -6693,6 +6908,13 @@ export class AsyncQueryService extends ProjectService {
                     const displayTimezone = queryComposer.getDisplayTimezone();
 
                     const warehouseCredentialsType = warehouseCredentials.type;
+                    const analyticsActivityWindow =
+                        warehouseCredentials.type === WarehouseTypes.DUCKDB &&
+                        warehouseCredentials.connectionType ===
+                            DuckdbConnectionType.ANALYTICS &&
+                        !dateZoom
+                            ? getAnalyticsActivityWindow(metricQuery, timezone)
+                            : undefined;
                     const warehouseCredentialsOverrides: RunAsyncWarehouseQueryArgs['warehouseCredentialsOverrides'] =
                         {
                             snowflakeVirtualWarehouse: explore.warehouse,
@@ -6846,6 +7068,8 @@ export class AsyncQueryService extends ProjectService {
                                                   resultEffectiveParameters,
                                                   resultSource:
                                                       args.resultSource,
+                                                  composerChartSource:
+                                                      args.composerChartSource,
                                               },
                                           ),
                                       controls,
@@ -7014,6 +7238,7 @@ export class AsyncQueryService extends ProjectService {
                             {
                                 resultEffectiveParameters,
                                 resultSource: args.resultSource,
+                                composerChartSource: args.composerChartSource,
                                 externalSourceReferences:
                                     externalSourceReference &&
                                     'tableUuid' in externalSourceReference
@@ -7021,6 +7246,7 @@ export class AsyncQueryService extends ProjectService {
                                         : undefined,
                                 resultEntitlementFingerprint:
                                     entitlementFingerprint,
+                                analyticsActivityWindow,
                                 cacheSourceQueryUuid:
                                     resultsCache.cacheHit && identityEnabled
                                         ? resultsCache.queryUuid
@@ -7349,6 +7575,7 @@ export class AsyncQueryService extends ProjectService {
                     trackQueryExecuted(executedSource);
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
+                        analyticsActivityWindow,
                         authMethod: account.authentication.type,
                         agentIdentity: agentIdentity ?? null,
                         resultEntitlementFingerprint: entitlementFingerprint,
@@ -7707,7 +7934,7 @@ export class AsyncQueryService extends ProjectService {
                 mergeQuery: documentQueryContext.mergeQuery,
                 parameters: chart.parameters,
                 userAttributeOverrides: {},
-                documentQueryContext,
+                authority: { kind: 'document', context: documentQueryContext },
                 mode: { type: 'interactive' },
                 chart: {
                     chartConfig: getDocumentRuntimeChartConfig(
@@ -7725,7 +7952,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: documentQueryContext.metricQuery,
             parameters: chart.parameters,
             userAttributeOverrides: {},
-            documentQueryContext,
+            authority: { kind: 'document', context: documentQueryContext },
         });
     }
 
@@ -7808,9 +8035,17 @@ export class AsyncQueryService extends ProjectService {
     }
 
     async executeAsyncMetricQuery(
-        args: ExecuteAsyncMetricQueryArgs,
+        requestArgs: ExecuteAsyncMetricQueryArgs,
         reuseQueryUuid?: string,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
+        // Explore and data app tiles reach this with a dashboard embed token; its fixed values must hold
+        const args = {
+            ...requestArgs,
+            parameters: AsyncQueryService.lockEmbedParameterValues(
+                requestArgs.account,
+                requestArgs.parameters,
+            ),
+        };
         const {
             account,
             projectUuid,
@@ -7841,17 +8076,30 @@ export class AsyncQueryService extends ProjectService {
         // We only check `exploreName` for chart embeds. Otherwise, CASL doesn't match
         // on condition checks that aren't set. If no `exploreName` is set in conditions,
         // CASL ignores it.
-        if (args.documentQueryContext) {
-            args.documentQueryContext.assertMetricQuery(
-                account,
-                projectUuid,
-                inputMetricQuery,
-                args.parameters,
-            );
-            return this.runAsyncMetricQueryWithoutPermissionCheck(
-                args,
-                organizationUuid,
-            );
+        const authority = args.authority ?? REQUEST_AUTHORITY;
+        switch (authority.kind) {
+            case 'composer':
+                // Its author's checks ran at save; the explore still loads under the viewer's attributes
+                authority.binding.assertExecution(account, projectUuid);
+                return this.runAsyncMetricQueryWithoutPermissionCheck(
+                    args,
+                    organizationUuid,
+                );
+            case 'document':
+                authority.context.assertMetricQuery(
+                    account,
+                    projectUuid,
+                    inputMetricQuery,
+                    args.parameters,
+                );
+                return this.runAsyncMetricQueryWithoutPermissionCheck(
+                    args,
+                    organizationUuid,
+                );
+            case 'request':
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
         }
         const auditedAbility = this.createAuditedAbility(account);
         const isForbidden = auditedAbility.cannot(
@@ -7927,7 +8175,7 @@ export class AsyncQueryService extends ProjectService {
             materializationRole,
             dashboardFilters,
             totalConfiguration,
-            documentQueryContext,
+            authority = REQUEST_AUTHORITY,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
         sourceQueryHistory?: QueryHistory,
@@ -7935,6 +8183,7 @@ export class AsyncQueryService extends ProjectService {
         dataAppSource?: ExecuteAsyncQueryRequestParams['dataAppSource'],
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
+        const documentQueryContext = getDocumentQueryContext(authority);
 
         const queryTags: RunQueryTags = withAgentMarkerTag({
             ...this.getUserQueryTags(account),
@@ -8234,6 +8483,7 @@ export class AsyncQueryService extends ProjectService {
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
+                composerChartSource: getComposerChartSource(authority),
                 identityEnabled,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
@@ -8527,6 +8777,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides: {},
             invalidateCache: invalidateCache ?? false,
             plans: { [totalsNodeId]: plan },
+            authority: REQUEST_AUTHORITY,
             aiAttribution: null,
         });
         const totals = queries.find((query) => query.nodeId === totalsNodeId);
@@ -8677,11 +8928,10 @@ export class AsyncQueryService extends ProjectService {
             // Viewer-supplied parameters are only trusted when the JWT
             // grants parameter interactivity — parity with the embed
             // search endpoint.
-            acceptedParameters = isParameterInteractivityEnabled(
+            acceptedParameters = getEmbedParameterValues(
                 account.access.parameters,
-            )
-                ? parameters
-                : {};
+                parameters,
+            );
         }
 
         const context = QueryExecutionContext.FILTER_AUTOCOMPLETE;
@@ -9977,7 +10227,7 @@ export class AsyncQueryService extends ProjectService {
             appResolved.excludedParameterKeys !== undefined &&
             (appResolved.account.isRegisteredUser() ||
                 (isJwtUser(appResolved.account) &&
-                    isParameterInteractivityEnabled(
+                    canEmbedViewerResolveTileParameters(
                         appResolved.account.access.parameters,
                     )))
         ) {
@@ -10001,6 +10251,67 @@ export class AsyncQueryService extends ProjectService {
                           ({ name }) => name,
                       ),
         });
+    }
+
+    /** A composer tile's dashboard filters and parameter layer, resolved as for any tile. */
+    async getComposerTileContext({
+        account,
+        projectUuid,
+        organizationUuid,
+        dashboardUuid,
+        tileUuid,
+        dashboardFilters,
+        chartSavedValues,
+        parameters,
+        excludedParameterKeys,
+    }: {
+        account: RegisteredAccount;
+        projectUuid: string;
+        organizationUuid: string;
+        dashboardUuid: string;
+        tileUuid: string;
+        dashboardFilters: DashboardFilters;
+        chartSavedValues: ParametersValuesMap;
+        parameters: ParametersValuesMap;
+        excludedParameterKeys: string[];
+    }): Promise<
+        Pick<
+            DashboardTileParameterInputs,
+            'dashboardValues' | 'excludedKeys'
+        > & {
+            dashboardFilters: DashboardFilters;
+            projectDefinitions: ParameterDefinitions;
+        }
+    > {
+        const [resolvedFilters, layer, projectParameters] = await Promise.all([
+            resolveDashboardDateFilters({
+                tileUuid,
+                dashboardFilters,
+                findExploreContainingTable: (tableName) =>
+                    this.projectModel.findExploreContainingTable(
+                        projectUuid,
+                        tableName,
+                    ),
+            }),
+            this.getDashboardTileParameterLayer({
+                dashboardUuid,
+                projectUuid,
+                organizationUuid,
+                flagUser: { organizationUuid, userUuid: account.user.id },
+                tileUuid,
+                chartSavedValues,
+                requestParameters: parameters,
+                appResolved: { account, parameters, excludedParameterKeys },
+            }),
+            this.projectParametersModel.find(projectUuid),
+        ]);
+        return {
+            ...layer,
+            dashboardFilters: resolvedFilters,
+            projectDefinitions: Object.fromEntries(
+                projectParameters.map(({ name, config }) => [name, config]),
+            ),
+        };
     }
 
     /**
@@ -10133,6 +10444,41 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /** A viewer's parameter values and per-tile exclusions, as an embed token allows them */
+    static getAccountParameterInputs(
+        account: Account,
+        parameters: ParametersValuesMap | undefined,
+        excludedParameterKeys: string[] | undefined,
+    ): {
+        parameters: ParametersValuesMap | undefined;
+        excludedParameterKeys: string[] | undefined;
+    } {
+        if (!isJwtUser(account)) return { parameters, excludedParameterKeys };
+        return {
+            parameters: getEmbedParameterValues(
+                account.access.parameters,
+                parameters,
+            ),
+            excludedParameterKeys: getEmbedExcludedParameterKeys(
+                account.access.parameters,
+                excludedParameterKeys,
+            ),
+        };
+    }
+
+    // Keeps the given values but a dashboard embed token's fixed values win, unless the viewer may change them
+    static lockEmbedParameterValues(
+        account: Account,
+        parameters: ParametersValuesMap | undefined,
+    ): ParametersValuesMap | undefined {
+        if (!isJwtUser(account) || account.access.content.type !== 'dashboard')
+            return parameters;
+        return {
+            ...parameters,
+            ...getEmbedParameterValues(account.access.parameters, parameters),
+        };
+    }
+
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
@@ -10146,8 +10492,8 @@ export class AsyncQueryService extends ProjectService {
         querySurface,
         invalidateCache,
         limit,
-        parameters,
-        excludedParameterKeys,
+        parameters: requestedParameters,
+        excludedParameterKeys: requestedExcludedParameterKeys,
         pivotResults,
         includeUnpublishedDraft,
         sessionTimezone,
@@ -10156,6 +10502,13 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
+        // An embed token can call this route directly, so its parameter rules apply here too
+        const { parameters, excludedParameterKeys } =
+            AsyncQueryService.getAccountParameterInputs(
+                account,
+                requestedParameters,
+                requestedExcludedParameterKeys,
+            );
 
         const publishedChart =
             preloadedSavedChart ??
@@ -10557,7 +10910,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         dateZoom,
         limit,
-        parameters,
+        parameters: requestedParameters,
         sorts,
     }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
@@ -10592,6 +10945,15 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
+        // A dashboard embed drill-down runs with its source query's values, under the token's fixed values
+        const parameters =
+            isJwtUser(account) && account.access.content.type === 'dashboard'
+                ? AsyncQueryService.lockEmbedParameterValues(
+                      account,
+                      source.requestParameters?.parameters ??
+                          requestedParameters,
+                  )
+                : requestedParameters;
 
         const {
             warehouseCredentials,
@@ -10884,21 +11246,31 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         userAttributeOverrides,
         warehouseConnectionUuid: requestedConnectionUuid,
+        authority = REQUEST_AUTHORITY,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         const { organizationUuid, provisioningSource } =
             await this.projectModel.getSummary(projectUuid);
 
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('SqlRunner', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        switch (authority.kind) {
+            case 'composer':
+                // Runs its author's stored SQL, as a saved SQL chart tile does
+                authority.binding.assertExecution(account, projectUuid);
+                break;
+            case 'request':
+                if (
+                    this.createAuditedAbility(account).cannot(
+                        'manage',
+                        subject('SqlRunner', {
+                            organizationUuid,
+                            projectUuid,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError();
+                }
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
         }
 
         if (provisioningSource === 'analytics') {
@@ -10969,6 +11341,11 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             userAttributeOverrides,
             requestedConnectionUuid,
+            // A composer tile's SQL node applies its column targets, as a SQL chart tile does
+            ...(authority.kind === 'composer' && {
+                dashboardFilters: authority.binding.dashboardFilters,
+                tileUuid: authority.binding.stamp.tileUuid,
+            }),
         });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -10990,6 +11367,7 @@ export class AsyncQueryService extends ProjectService {
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
+                composerChartSource: getComposerChartSource(authority),
             },
             {
                 sql,
@@ -11577,37 +11955,14 @@ export class AsyncQueryService extends ProjectService {
         references,
         parameters,
         pivotConfiguration,
+        authority = REQUEST_AUTHORITY,
     }: ExecuteAsyncComposeSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
-        assertIsAccountWithOrg(account);
-
-        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ComposeSqlRunner,
-        });
-        if (!isEndpointEnabled) {
-            throw new ForbiddenError('Compose SQL queries are not enabled');
-        }
-
-        const projectSummary = await this.projectModel.getSummary(projectUuid);
-        const { organizationUuid } = projectSummary;
-
-        // Same ability that gates running a metric query from the explorer:
-        // interactive viewers and up, but not plain viewers.
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Explore', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        await this.assertCanRunComposeQueries(
+            account,
+            projectUuid,
+            authority,
+            'Compose SQL queries are not enabled',
+        );
 
         // User SQL runs on a session whose credentials reach only the results
         // it references, so a query that references nothing has nothing to
@@ -11628,6 +11983,7 @@ export class AsyncQueryService extends ProjectService {
             references,
             parameters,
             pivotConfiguration,
+            authority,
             plan: {
                 columns: { mode: 'discover' },
                 engine: 'scopedToReferencedResults',
@@ -11643,6 +11999,47 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: {},
             resolvedTimezone: null,
         };
+    }
+
+    /** The compose flag, and the ability that gates running a metric query from the explorer. */
+    private async assertCanRunComposeQueries(
+        account: Account,
+        projectUuid: string,
+        authority: RequestAuthority | ComposerAuthority,
+        disabledMessage: string,
+    ): Promise<void> {
+        assertIsAccountWithOrg(account);
+        switch (authority.kind) {
+            case 'composer':
+                // The author's Explore access was checked at save; per-source switches still apply
+                authority.binding.assertExecution(account, projectUuid);
+                return;
+            case 'request':
+                break;
+            default:
+                assertUnreachable(authority, 'Unknown query authority');
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
+        });
+        if (!enabled) {
+            throw new ForbiddenError(disabledMessage);
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        // Interactive viewers and up, but not plain viewers
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
     }
 
     /** Python queries run for at most this long inside the sandbox. */
@@ -11692,35 +12089,18 @@ export class AsyncQueryService extends ProjectService {
         references,
         parameters,
         invalidateCache,
+        authority = REQUEST_AUTHORITY,
     }: ExecuteAsyncPythonQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.ComposeSqlRunner,
-        });
-        if (!isEndpointEnabled) {
-            throw new ForbiddenError('Python queries are not enabled');
-        }
-
-        const projectSummary = await this.projectModel.getSummary(projectUuid);
-        const { organizationUuid } = projectSummary;
-
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('Explore', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        await this.assertCanRunComposeQueries(
+            account,
+            projectUuid,
+            authority,
+            'Python queries are not enabled',
+        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (Object.keys(references).length === 0) {
             throw new ParameterError(
@@ -11831,7 +12211,10 @@ export class AsyncQueryService extends ProjectService {
             undefined,
             undefined,
             querySurface,
-            { resultEntitlementFingerprint },
+            {
+                resultEntitlementFingerprint,
+                composerChartSource: getComposerChartSource(authority),
+            },
         );
         await this.queryHistoryModel.recordResultProducer(
             queryUuid,
@@ -12249,7 +12632,7 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         connectionUuid,
-        connector,
+        source,
         payload,
         context,
         querySurface,
@@ -12278,11 +12661,11 @@ export class AsyncQueryService extends ProjectService {
             context,
             parameters: parameters ?? {},
         };
-        const { queryUuid } = await this.submitApiQuery({
+        const { queryUuid } = await this.submitLiveQuery({
             account,
             projectUuid,
             organizationUuid,
-            connector,
+            source,
             payload,
             limit: effectiveLimit,
             cacheKeySql: JSON.stringify({
@@ -12403,7 +12786,7 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
-    private async executePreparedApiSourceQuery(
+    private async executePreparedLiveQuery(
         args: PreparedAsyncQueryArgs,
         requestParameters: ExecuteAsyncQueryRequestParams,
         organizationUuid: string,
@@ -12431,6 +12814,7 @@ export class AsyncQueryService extends ProjectService {
             {
                 isPivoted: !!queryComposer.getPivotConfiguration(),
                 dateZoomGranularity: queryComposer.getDateZoom()?.granularity,
+                itemsMap: getItemMap(explore),
             },
         );
         if (issues.length > 0) {
@@ -12444,9 +12828,9 @@ export class AsyncQueryService extends ProjectService {
                 context,
                 querySurface,
             });
-            throw toApiSourceQueryError(issues);
+            throw toLiveQueryError(issues);
         }
-        if (!this.getApiSourceConnector) {
+        if (!this.getLiveSourceForExplore) {
             throw new ForbiddenError('Live data sources are not enabled');
         }
         await this.assertApiQuerySourcesEnabled(account);
@@ -12454,22 +12838,22 @@ export class AsyncQueryService extends ProjectService {
 
         const metricQuery = queryComposer.getMetricQuery();
         const fields = queryComposer.getFields();
-        const connector = await this.getApiSourceConnector(
+        const source = await this.getLiveSourceForExplore(
             account,
             projectUuid,
             apiSource.connectionUuid,
         );
-        const compiled = compileApiSourceMetricQuery({
+        const compiled = compileLiveMetricQuery({
             explore,
             metricQuery,
             timezone: queryComposer.getTimezone() ?? 'UTC',
             now: new Date(),
         });
-        const { queryUuid, reusable } = await this.submitApiQuery({
+        const { queryUuid, reusable } = await this.submitLiveQuery({
             account,
             projectUuid,
             organizationUuid,
-            connector,
+            source,
             payload: { kind: 'query', query: compiled.query },
             limit: compiled.requestLimit,
             // The compiled request has every relative date resolved, so it
@@ -12486,14 +12870,17 @@ export class AsyncQueryService extends ProjectService {
                 false,
             history: { fields, requestParameters, metricQuery, explore },
             toResult: (result) => {
-                const { label, maxRows } = connector.describe();
-                assertApiResultComplete({
+                const {
+                    label,
+                    limits: { maxRows },
+                } = source.integration;
+                assertLiveResultComplete({
                     compiled,
                     hasMoreRows: result.hasMoreRows,
                     label,
                     maxRows,
                 });
-                return toApiSourceResult({
+                return toLiveResult({
                     compiled,
                     rows: result.rows,
                     fields,
@@ -12515,11 +12902,11 @@ export class AsyncQueryService extends ProjectService {
      * for the same request. `history.fields` null derives fields from the
      * result columns.
      */
-    private async submitApiQuery({
+    private async submitLiveQuery({
         account,
         projectUuid,
         organizationUuid,
-        connector,
+        source,
         payload,
         limit,
         cacheKeySql,
@@ -12532,7 +12919,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account;
         projectUuid: string;
         organizationUuid: string;
-        connector: MeteredApiConnector;
+        source: MeteredLiveSource;
         payload: ApiSourcePayload;
         limit: number;
         cacheKeySql: string;
@@ -12665,7 +13052,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 organizationUuid,
                 context,
-                connector: connector.describe().connector,
+                connector: source.integration.connector,
                 queryCreatedAt,
                 outcome: 'ok',
                 errorMessage: null,
@@ -12676,7 +13063,7 @@ export class AsyncQueryService extends ProjectService {
                 truncated: null,
                 cacheHit: true,
             });
-            void connector.logCall({
+            void source.logCall({
                 queryUuid,
                 context,
                 query: payload.query,
@@ -12693,12 +13080,12 @@ export class AsyncQueryService extends ProjectService {
             return { queryUuid, reusable };
         }
 
-        void this.runApiQuery({
+        void this.runLiveQuery({
             account,
             queryUuid,
             projectUuid,
             organizationUuid,
-            connector,
+            source,
             payload,
             limit,
             cacheKey,
@@ -12718,12 +13105,12 @@ export class AsyncQueryService extends ProjectService {
         return { queryUuid, reusable: null };
     }
 
-    private async runApiQuery({
+    private async runLiveQuery({
         account,
         queryUuid,
         projectUuid,
         organizationUuid,
-        connector,
+        source,
         payload,
         limit,
         cacheKey,
@@ -12737,7 +13124,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string;
         projectUuid: string;
         organizationUuid: string;
-        connector: MeteredApiConnector;
+        source: MeteredLiveSource;
         payload: ApiSourcePayload;
         limit: number;
         cacheKey: string;
@@ -12748,7 +13135,7 @@ export class AsyncQueryService extends ProjectService {
         exploreName: string | null;
         toResult: ApiResultShaper;
     }): Promise<void> {
-        const { connector: connectorType } = connector.describe();
+        const connectorType = source.integration.connector;
         const attributes = {
             'lightdash.queryUuid': queryUuid,
             'lightdash.projectUuid': projectUuid,
@@ -12766,7 +13153,7 @@ export class AsyncQueryService extends ProjectService {
                 let executeMs: number | null = null;
                 const logCall = (
                     call: Pick<
-                        ApiConnectorCall,
+                        LiveQueryCall,
                         | 'outcome'
                         | 'errorMessage'
                         | 'rowCount'
@@ -12774,7 +13161,7 @@ export class AsyncQueryService extends ProjectService {
                         | 'truncated'
                     >,
                 ) =>
-                    void connector.logCall({
+                    void source.logCall({
                         queryUuid,
                         context,
                         query: payload.query,
@@ -12791,19 +13178,13 @@ export class AsyncQueryService extends ProjectService {
                             name: 'api.query.execute',
                             attributes,
                         },
-                        () =>
-                            this.executeApiConnector(
-                                connector,
-                                connectorType,
-                                payload,
-                                limit,
-                            ),
+                        () => this.executeLiveRequest(source, payload, limit),
                     );
                     executeMs = Date.now() - startedAt;
                     span.setAttributes({
                         'lightdash.rowCount': result.rows.length,
                         'lightdash.truncated': result.hasMoreRows,
-                        'lightdash.apiCalls': connector.usage().apiCalls,
+                        'lightdash.apiCalls': source.usage().apiCalls,
                         ...(result.bytesRead !== null
                             ? { 'lightdash.bytesRead': result.bytesRead }
                             : {}),
@@ -12904,7 +13285,7 @@ export class AsyncQueryService extends ProjectService {
                     );
                 } catch (e) {
                     const message = getErrorMessage(e);
-                    const outcome = getApiQueryOutcome(e);
+                    const outcome = getLiveQueryOutcome(e);
                     const errorCode = getLiveSourceUpstreamErrorCode(outcome);
                     span.setAttributes({
                         'lightdash.error': message,
@@ -13009,17 +13390,20 @@ export class AsyncQueryService extends ProjectService {
         return latest;
     }
 
-    /** One connector call, measured by outcome; rethrows what it caught. */
-    private async executeApiConnector(
-        connector: ApiConnector,
-        connectorType: ApiConnectorType,
+    /** One live query, measured by outcome; rethrows what it caught. */
+    private async executeLiveRequest(
+        source: MeteredLiveSource,
         payload: ApiSourcePayload,
         limit: number,
-    ): Promise<ApiConnectorResult> {
+    ): Promise<LiveQueryResult> {
+        const connectorType = source.integration.connector;
         const startedAt = Date.now();
         this.prometheusMetrics?.trackApiSourceInflight(connectorType, 1);
         try {
-            const result = await connector.execute({ payload, limit });
+            const result = await runLiveRequest(source, {
+                query: payload.query,
+                limit,
+            });
             this.prometheusMetrics?.observeApiSourceRequest(
                 connectorType,
                 'ok',
@@ -13034,7 +13418,7 @@ export class AsyncQueryService extends ProjectService {
         } catch (error) {
             this.prometheusMetrics?.observeApiSourceRequest(
                 connectorType,
-                getApiQueryOutcome(error),
+                getLiveQueryOutcome(error),
                 Date.now() - startedAt,
             );
             throw error;
@@ -13067,7 +13451,7 @@ export class AsyncQueryService extends ProjectService {
         context: QueryExecutionContext;
         connector: ApiConnectorType;
         queryCreatedAt: Date;
-        outcome: ApiQueryOutcome;
+        outcome: LiveQueryOutcome;
         liveSourceErrorCode?: LiveSourceUpstreamErrorCode | null;
         errorMessage: string | null;
         totalRowCount: number | null;
@@ -13148,8 +13532,19 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         plan,
         invalidateCache,
+        authority = REQUEST_AUTHORITY,
     }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
+        switch (authority.kind) {
+            case 'composer':
+                authority.binding.assertExecution(account, projectUuid);
+                break;
+            case 'request':
+                // Callers gate their own entry; the duckdb engine trusts what it is handed
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
+        }
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const { organizationUuid } = projectSummary;
@@ -13272,7 +13667,10 @@ export class AsyncQueryService extends ProjectService {
             undefined,
             undefined,
             querySurface,
-            { resultEntitlementFingerprint },
+            {
+                resultEntitlementFingerprint,
+                composerChartSource: getComposerChartSource(authority),
+            },
         );
         this.prometheusMetrics?.trackQueryStateTransition(
             'new',
@@ -15117,7 +15515,7 @@ export class AsyncQueryService extends ProjectService {
         mode,
         pivotInput,
         userAttributeOverrides,
-        documentQueryContext,
+        authority = REQUEST_AUTHORITY,
     }: ExecuteMergeQueryInternalArgs): Promise<ApiExecuteAsyncMergeQueryResults> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } =
@@ -15137,7 +15535,7 @@ export class AsyncQueryService extends ProjectService {
                   })
                 : mergeQuery;
         const compiledMerge = await this.compileMergeQuery({
-            documentQueryContext,
+            authority,
             account,
             projectUuid,
             mergeQuery: effectiveMergeQuery,
@@ -15174,7 +15572,7 @@ export class AsyncQueryService extends ProjectService {
         })();
 
         const query = await this.submitMergeDag({
-            documentQueryContext,
+            authority,
             account,
             projectUuid,
             organizationUuid,
@@ -15215,9 +15613,9 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
         pivotConfiguration,
         compiledMerge,
-        documentQueryContext,
+        authority,
     }: {
-        documentQueryContext?: DocumentQueryContext;
+        authority: RequestAuthority | DocumentAuthority;
         account: Account;
         projectUuid: string;
         organizationUuid: string;
@@ -15268,8 +15666,8 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const requestParameters: ExecuteAsyncQueryRequestParams = {
-            ...(documentQueryContext
-                ? { documentSource: documentQueryContext.reference }
+            ...(authority.kind === 'document'
+                ? { documentSource: authority.context.reference }
                 : {}),
             context,
             invalidateCache,
@@ -15310,7 +15708,7 @@ export class AsyncQueryService extends ProjectService {
             },
             () =>
                 this.getQuerySourceService().submitQueries({
-                    documentQueryContext,
+                    authority,
                     account,
                     projectUuid,
                     context,
@@ -15381,7 +15779,9 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         userAttributeOverrides,
         sourceTitleById,
+        authority,
     }: {
+        authority: RequestAuthority | ComposerAuthority;
         account: Account;
         projectUuid: string;
         nodeId: string | null;
@@ -15397,6 +15797,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             userAttributeOverrides,
             sourceTitleById,
+            authority,
         });
         if (!isRunnableCompiledMergeQuery(compiled)) {
             throw new ParameterError(
@@ -15423,6 +15824,7 @@ export class AsyncQueryService extends ProjectService {
         labelBySourceId,
         parameters,
         invalidateCache,
+        authority,
     }: {
         account: Account;
         projectUuid: string;
@@ -15434,6 +15836,7 @@ export class AsyncQueryService extends ProjectService {
         labelBySourceId: Record<string, string>;
         parameters: ParametersValuesMap;
         invalidateCache: boolean;
+        authority: RequestAuthority | ComposerAuthority;
     }): Promise<{ queryUuid: string }> {
         const { joinNode, references, plan } = this.buildMergeJoin({
             nodeId: COMPOSE_MERGE_JOIN_NODE_ID,
@@ -15460,6 +15863,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             invalidateCache,
             plan,
+            authority,
         });
     }
 
@@ -16105,6 +16509,13 @@ export class AsyncQueryService extends ProjectService {
     async executeAsyncDashboardSqlChartQuery(
         args: ExecuteAsyncDashboardSqlChartArgs,
     ): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
+        // An embed token can call this route directly, so its parameter rules apply here too
+        const { parameters, excludedParameterKeys } =
+            AsyncQueryService.getAccountParameterInputs(
+                args.account,
+                args.parameters,
+                args.excludedParameterKeys,
+            );
         const savedChart = isExecuteAsyncDashboardSqlChartByUuid(args)
             ? await this.savedSqlModel.getByUuid(args.savedSqlUuid, {
                   projectUuid: args.projectUuid,
@@ -16190,8 +16601,8 @@ export class AsyncQueryService extends ProjectService {
                 requestParameters: undefined,
                 appResolved: {
                     account,
-                    parameters: args.parameters,
-                    excludedParameterKeys: args.excludedParameterKeys,
+                    parameters,
+                    excludedParameterKeys,
                 },
             }),
             this.projectParametersModel.find(projectUuid),
@@ -16201,7 +16612,7 @@ export class AsyncQueryService extends ProjectService {
         const combinedParameters = await this.combineParameters(
             projectUuid,
             undefined,
-            omit(args.parameters, tileParameterLayer.excludedKeys),
+            omit(parameters, tileParameterLayer.excludedKeys),
             tileParameterLayer.dashboardValues,
             projectParameters,
         );

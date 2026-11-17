@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
+import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/live/integrations/postHog/run';
 
 export const POSTHOG_OAUTH_SCOPES = ['query:read'];
 

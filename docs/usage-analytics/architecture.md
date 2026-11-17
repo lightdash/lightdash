@@ -326,9 +326,9 @@ remains the source of truth; this does not change capture or nightly compaction.
 | Resource                           | Limit / lifetime                                                                                                                                     |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Reusable memory cache              | 64 MiB of compressed bytes and 16,384 entries **per process**, shared capacity across orgs but separately keyed entries                              |
-| Eligible file                      | At most 1 MiB, with a positive known size and ETag                                                                                                   |
+| Eligible file                      | At most 4 MiB, with a positive known size and ETag                                                                                                   |
 | Cache downloads                    | At most 16 in flight per process; excess requests queue within reserved byte/entry limits; 10-second active-request timeout                          |
-| Per-query buffers and staged files | At most 32 MiB each; concurrent queries have separate staging directories                                                                            |
+| Per-query buffers and staged files | At most 64 MiB each, allocated only after a query slot is acquired; concurrent queries have separate staging directories                             |
 | Memory eviction                    | Least recently used completed entries are evicted when capacity is needed; no time-based TTL; process exit clears memory                             |
 | Reusable signatures                | At most 16,384 entries / 32 MiB per process, including pending entries; 16 active signatures, bounded queue, LRU eviction; process exit clears cache |
 | Disk cleanup                       | At session teardown after success or error; no scheduled cleanup interval                                                                            |

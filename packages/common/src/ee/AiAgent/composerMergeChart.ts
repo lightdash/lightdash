@@ -1,3 +1,4 @@
+import { getComposerResultFieldId } from '../../composer/composerResultChart';
 import {
     buildSavedMergeDefinition,
     parseSavedMergeDefinition,
@@ -20,10 +21,7 @@ import {
 import { stableJson } from '../../utils/stableJson';
 import { remapFieldIdsDeep } from './canonicalizeAiMerge';
 import { type AiComposerChartArtifactConfig } from './composerArtifact';
-import {
-    getComposerResultFieldId,
-    getComposerRunQueryChart,
-} from './composerChartVizConfig';
+import { getComposerRunQueryChart } from './composerChartVizConfig';
 
 export type ComposerMergeSavedChart = CreateSavedChartVersion & {
     merge: SavedMergeDefinition;

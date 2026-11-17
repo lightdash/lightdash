@@ -139,6 +139,7 @@ import {
     type DbApp,
     type DbAppVersion,
 } from '../../database/entities/apps';
+import { ComposerChartsTableName } from '../../database/entities/composerCharts';
 import { ContentAsCodeSnapshotsTableName } from '../../database/entities/contentAsCodeSnapshots';
 import {
     DashboardsTableName,
@@ -300,6 +301,15 @@ import { AiSlackArtifactDeliveryModel } from './AiSlackArtifactDeliveryModel';
 import type { AiThreadFileModel } from './AiThreadFileModel';
 import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
 
+// A deleted composer chart reads as unsaved, so the answer offers Save again.
+function onSavedComposerChart(this: Knex.JoinClause) {
+    this.on(
+        `${ComposerChartsTableName}.composer_chart_uuid`,
+        '=',
+        `${AiArtifactVersionsTableName}.saved_composer_chart_uuid`,
+    ).andOnNull(`${ComposerChartsTableName}.deleted_at`);
+}
+
 // Tool calls that can wait on SQL approval: runSql, or a composer query call with a sql node.
 const sqlApprovalToolCallSql = (alias: string): string =>
     `(${alias}.tool_name = 'runSql' OR (${alias}.tool_name IN (${COMPOSER_QUERY_TOOL_NAMES.map(
@@ -308,14 +318,14 @@ const sqlApprovalToolCallSql = (alias: string): string =>
         queries: [{ sourceType: QuerySourceType.SQL }],
     })}'::jsonb))`;
 
-/** Which embedded threads a token can see: by its write spaces and viewer, or by its viewer alone when it has no write spaces. */
+/** Which embedded threads a token can see: by its write spaces and thread owner, or by its thread owner alone when it has no write spaces. */
 export type EmbedThreadScope =
     | {
           type: 'writeSpaces';
           writeSpaceUuids: string[];
-          externalUserId: string | null;
+          ownerIdentifier: string | null;
       }
-    | { type: 'externalUser'; externalUserId: string };
+    | { type: 'owner'; ownerIdentifier: string };
 
 export type AiPromptResponseState = {
     respondedAt: string | null;
@@ -6659,15 +6669,22 @@ export class AiAgentModel {
         artifactVersionUuid: string,
         update:
             | Pick<AiArtifact, 'savedDashboardUuid'>
-            | Pick<AiArtifact, 'savedSqlUuid'>,
+            | Pick<AiArtifact, 'savedSqlUuid'>
+            | Pick<AiArtifact, 'savedComposerChartUuid'>,
     ): Promise<void> {
-        const dbUpdate =
-            'savedDashboardUuid' in update
-                ? { saved_dashboard_uuid: update.savedDashboardUuid }
-                : { saved_sql_uuid: update.savedSqlUuid };
+        let dbUpdate: Partial<DbAiArtifactVersion>;
+        if ('savedDashboardUuid' in update) {
+            dbUpdate = { saved_dashboard_uuid: update.savedDashboardUuid };
+        } else if ('savedSqlUuid' in update) {
+            dbUpdate = { saved_sql_uuid: update.savedSqlUuid };
+        } else {
+            dbUpdate = {
+                saved_composer_chart_uuid: update.savedComposerChartUuid,
+            };
+        }
 
         await this.database(AiArtifactVersionsTableName)
-            .update(dbUpdate satisfies Partial<DbAiArtifactVersion>)
+            .update(dbUpdate)
             .where({
                 ai_artifact_version_uuid: artifactVersionUuid,
             });
@@ -6700,6 +6717,21 @@ export class AiAgentModel {
                 chart_config: chartConfig,
             } satisfies Partial<DbAiArtifactVersion>)
             .where({ ai_artifact_version_uuid: artifactVersionUuid });
+    }
+
+    async isComposerChartInProject(
+        composerChartUuid: string,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(ComposerChartsTableName)
+            .select('composer_chart_uuid')
+            .where({
+                composer_chart_uuid: composerChartUuid,
+                project_uuid: projectUuid,
+            })
+            .whereNull('deleted_at')
+            .first();
+        return row !== undefined;
     }
 
     async isSavedSqlInProject(
@@ -7142,6 +7174,7 @@ export class AiAgentModel {
                 threadUuid: `${AiPromptTableName}.ai_thread_uuid`,
                 threadCreatedFrom: `${AiThreadTableName}.created_from`,
                 threadEmbedSpaceUuid: `${AiWebAppThreadTableName}.embed_space_uuid`,
+                threadEmbedOwnerIdentifier: `${AiWebAppThreadTableName}.embed_external_user_id`,
                 agentUuid: `${AiThreadTableName}.agent_uuid`,
                 createdByUserUuid: `${AiPromptTableName}.created_by_user_uuid`,
                 userUuid: `${AiWebAppPromptTableName}.user_uuid`,
@@ -7196,7 +7229,7 @@ export class AiAgentModel {
                 embed_space_uuids: data.embedSpaceUuids?.length
                     ? data.embedSpaceUuids
                     : null,
-                embed_external_user_id: data.embedExternalUserId ?? null,
+                embed_external_user_id: data.embedOwnerIdentifier ?? null,
             });
 
             return row.ai_thread_uuid;
@@ -7215,7 +7248,7 @@ export class AiAgentModel {
             .select({
                 createdFrom: `${AiThreadTableName}.created_from`,
                 embedSpaceUuid: `${AiWebAppThreadTableName}.embed_space_uuid`,
-                embedExternalUserId: `${AiWebAppThreadTableName}.embed_external_user_id`,
+                embedOwnerIdentifier: `${AiWebAppThreadTableName}.embed_external_user_id`,
             })
             .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
             .first();
@@ -7328,16 +7361,16 @@ export class AiAgentModel {
             case 'writeSpaces': {
                 // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
                 const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
-                // A token without a viewer only sees threads started without one.
+                // A token without an owner only sees threads started without one.
                 return this.database.raw(
                     `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0 AND ${AiWebAppThreadTableName}.embed_external_user_id IS NOT DISTINCT FROM ?::text)`,
-                    [scope.writeSpaceUuids, scope.externalUserId],
+                    [scope.writeSpaceUuids, scope.ownerIdentifier],
                 );
             }
-            case 'externalUser':
+            case 'owner':
                 return this.database.raw(
                     `(${AiWebAppThreadTableName}.embed_space_uuid IS NULL AND ${AiWebAppThreadTableName}.embed_space_uuids IS NULL AND ${AiWebAppThreadTableName}.embed_external_user_id = ?)`,
-                    [scope.externalUserId],
+                    [scope.ownerIdentifier],
                 );
             default:
                 return assertUnreachable(scope, 'Unknown embed thread scope');
@@ -9789,6 +9822,8 @@ export class AiAgentModel {
                 savedQueryUuid: version.saved_query_uuid,
                 savedSqlUuid: version.saved_sql_uuid,
                 savedDashboardUuid: version.saved_dashboard_uuid,
+                savedComposerChartUuid: null,
+                savedComposerChartDashboardUuid: null,
                 createdAt: artifact.created_at,
                 versionNumber: version.version_number,
                 versionUuid: version.ai_artifact_version_uuid,
@@ -9875,6 +9910,8 @@ export class AiAgentModel {
                 savedQueryUuid: version.saved_query_uuid,
                 savedSqlUuid: version.saved_sql_uuid,
                 savedDashboardUuid: version.saved_dashboard_uuid,
+                savedComposerChartUuid: null,
+                savedComposerChartDashboardUuid: null,
                 createdAt: artifact.created_at,
                 versionNumber: version.version_number,
                 versionUuid: version.ai_artifact_version_uuid,
@@ -9898,44 +9935,40 @@ export class AiAgentModel {
         title?: string;
         description?: string;
         vizConfig: Record<string, unknown>;
-        retry?: boolean;
     }): Promise<AiArtifact> {
-        try {
-            return await this.database.transaction(async (trx) => {
-                const existingArtifacts = await this.findArtifactsByThreadUuid(
-                    data.threadUuid,
-                    data.artifactType,
-                    { db: trx },
+        return this.database.transaction(async (trx) => {
+            // Parallel tool calls in one agent step write to the same thread artifact
+            await trx(AiThreadTableName)
+                .where('ai_thread_uuid', data.threadUuid)
+                .forNoKeyUpdate()
+                .first('ai_thread_uuid');
+
+            const existingArtifacts = await this.findArtifactsByThreadUuid(
+                data.threadUuid,
+                data.artifactType,
+                { db: trx },
+            );
+
+            if (existingArtifacts.length > 0) {
+                // TODO: Currently assuming first artifact in array since we only support one artifact per thread per artifact type
+                // In the future, we may support multiple artifacts per thread
+                const existingArtifact = existingArtifacts[0];
+                return this.createArtifactVersion(
+                    {
+                        artifactUuid: existingArtifact.artifactUuid,
+                        promptUuid: data.promptUuid,
+                        title: data.title,
+                        description: data.description,
+                        vizConfig: data.vizConfig,
+                    },
+                    {
+                        db: trx,
+                    },
                 );
-
-                if (existingArtifacts.length > 0) {
-                    // TODO: Currently assuming first artifact in array since we only support one artifact per thread per artifact type
-                    // In the future, we may support multiple artifacts per thread
-                    const existingArtifact = existingArtifacts[0];
-                    return this.createArtifactVersion(
-                        {
-                            artifactUuid: existingArtifact.artifactUuid,
-                            promptUuid: data.promptUuid,
-                            title: data.title,
-                            description: data.description,
-                            vizConfig: data.vizConfig,
-                        },
-                        {
-                            db: trx,
-                        },
-                    );
-                }
-
-                return this.createArtifact({ ...data }, { db: trx });
-            });
-        } catch (e) {
-            if (!data.retry) {
-                // TODO fix the race condition for version number
-                // this temporarily fixes the issue by retrying the operation
-                return this.createOrUpdateArtifact({ ...data, retry: true });
             }
-            throw e;
-        }
+
+            return this.createArtifact({ ...data }, { db: trx });
+        });
     }
 
     async findArtifactUuidByVersionUuid(
@@ -9959,6 +9992,8 @@ export class AiAgentModel {
                 savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
                 savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                 savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                savedComposerChartUuid: `${ComposerChartsTableName}.composer_chart_uuid`,
+                savedComposerChartDashboardUuid: `${ComposerChartsTableName}.dashboard_uuid`,
                 createdAt: `${AiArtifactsTableName}.created_at`,
                 versionNumber: `${AiArtifactVersionsTableName}.version_number`,
                 versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
@@ -9976,7 +10011,8 @@ export class AiAgentModel {
                 AiArtifactVersionsTableName,
                 `${AiArtifactsTableName}.ai_artifact_uuid`,
                 `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-            );
+            )
+            .leftJoin(ComposerChartsTableName, onSavedComposerChart);
 
         if (versionUuid) {
             // Get specific version by UUID
@@ -10029,6 +10065,8 @@ export class AiAgentModel {
                 savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
                 savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                 savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                savedComposerChartUuid: `${ComposerChartsTableName}.composer_chart_uuid`,
+                savedComposerChartDashboardUuid: `${ComposerChartsTableName}.dashboard_uuid`,
                 createdAt: `${AiArtifactsTableName}.created_at`,
                 versionNumber: `${AiArtifactVersionsTableName}.version_number`,
                 versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
@@ -10047,6 +10085,7 @@ export class AiAgentModel {
                 `${AiArtifactsTableName}.ai_artifact_uuid`,
                 `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
             )
+            .leftJoin(ComposerChartsTableName, onSavedComposerChart)
             .where(`${AiArtifactsTableName}.ai_artifact_uuid`, artifactUuid)
             .andWhere(
                 `${AiArtifactVersionsTableName}.version_number`,
@@ -10078,6 +10117,8 @@ export class AiAgentModel {
                     savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
                     savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                     savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                    savedComposerChartUuid: `${ComposerChartsTableName}.composer_chart_uuid`,
+                    savedComposerChartDashboardUuid: `${ComposerChartsTableName}.dashboard_uuid`,
                     createdAt: `${AiArtifactsTableName}.created_at`,
                     versionNumber: `${AiArtifactVersionsTableName}.version_number`,
                     versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
@@ -10096,6 +10137,7 @@ export class AiAgentModel {
                     `${AiArtifactsTableName}.ai_artifact_uuid`,
                     `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
                 )
+                .leftJoin(ComposerChartsTableName, onSavedComposerChart)
                 .where(`${AiArtifactsTableName}.ai_thread_uuid`, threadUuid)
                 .andWhere(
                     `${AiArtifactVersionsTableName}.version_number`,
@@ -10269,6 +10311,8 @@ export class AiAgentModel {
                 savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
                 savedSqlUuid: `${AiArtifactVersionsTableName}.saved_sql_uuid`,
                 savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                savedComposerChartUuid: `${ComposerChartsTableName}.composer_chart_uuid`,
+                savedComposerChartDashboardUuid: `${ComposerChartsTableName}.dashboard_uuid`,
                 createdAt: `${AiArtifactsTableName}.created_at`,
                 versionNumber: `${AiArtifactVersionsTableName}.version_number`,
                 versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
@@ -10286,6 +10330,7 @@ export class AiAgentModel {
                 `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
                 `${AiArtifactsTableName}.ai_artifact_uuid`,
             )
+            .leftJoin(ComposerChartsTableName, onSavedComposerChart)
             .where(`${AiArtifactVersionsTableName}.ai_prompt_uuid`, promptUuid)
             .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc')
             .then((results) =>

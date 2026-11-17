@@ -11,8 +11,7 @@ import { useState, type FC, type ReactNode } from 'react';
 import { FavoriteActionIcon } from '../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import PageHeader from '../../../components/common/Page/PageHeader';
-import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
-import { useFavorites } from '../../../hooks/favorites/useFavorites';
+import { useFavoriteToggle } from '../../../hooks/favorites/useFavoriteToggle';
 import AppConsumerAccessIndicator from './AppConsumerAccessIndicator';
 import classes from './AppHeader.module.css';
 import AppInfoOverlay from './AppInfoOverlay';
@@ -72,10 +71,8 @@ const appInSpaceTourProps = {
 const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
     const displayName = getAppDisplayName(app.name, app.uuid);
 
-    const { data: favorites } = useFavorites(projectUuid);
-    const favoriteMutation = useFavoriteMutation(projectUuid);
-    const isFavorited =
-        favorites?.some((favorite) => favorite.data.uuid === app.uuid) ?? false;
+    const favorite = useFavoriteToggle(projectUuid);
+    const isFavorited = favorite.isFavorite(app.uuid);
     const [favoriteSpaceModalOpen, setFavoriteSpaceModalOpen] = useState(false);
 
     return (
@@ -139,7 +136,6 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                 <FavoriteActionIcon
                     size="md"
                     isFavorite={isFavorited}
-                    disabled={favoriteMutation.isLoading}
                     onToggle={() => {
                         // Personal apps must be filed in a space before they
                         // can be favorited.
@@ -147,10 +143,7 @@ const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {
                             setFavoriteSpaceModalOpen(true);
                             return;
                         }
-                        favoriteMutation.mutate({
-                            contentType: ContentType.DATA_APP,
-                            contentUuid: app.uuid,
-                        });
+                        favorite.toggle(ContentType.DATA_APP, app.uuid);
                     }}
                 />
 

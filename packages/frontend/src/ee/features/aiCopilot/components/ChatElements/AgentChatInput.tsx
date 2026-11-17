@@ -316,6 +316,8 @@ interface AgentChatInputProps {
     toolbarStart?: ReactNode;
     // Rendered directly under the card composer, before suggestions.
     composerTray?: ReactNode;
+    // Off where files make no sense: hides the attach menu and ignores dropped files.
+    allowAttachments?: boolean;
     // Thread model shown in the status row under the inline composer.
     threadModelName?: string | null;
     threadModelWarning?: string | null;
@@ -389,6 +391,7 @@ export const AgentChatInput = ({
     footerNotice,
     toolbarStart,
     composerTray,
+    allowAttachments = true,
     threadModelName,
     threadModelWarning = null,
 }: AgentChatInputProps) => {
@@ -938,6 +941,7 @@ export const AgentChatInput = ({
     );
     const canAttachThreadFile = Boolean(projectUuid && !isEmbedded);
     const showAttachControl = Boolean(
+        allowAttachments &&
         (canAttachExternalSource || canAttachThreadFile) &&
         !disabled &&
         !canSteer,

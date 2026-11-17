@@ -138,6 +138,14 @@
         "addsSections": [],
         "addsSkills": []
     },
+    "readPinnedThread": {
+        "description": "Read conversations pinned as context on the thread",
+        "addsTools": [
+            "readPinnedThread"
+        ],
+        "addsSections": [],
+        "addsSkills": []
+    },
     "intentRouting": {
         "description": "Start each turn with the tools its intent needs",
         "addsTools": [

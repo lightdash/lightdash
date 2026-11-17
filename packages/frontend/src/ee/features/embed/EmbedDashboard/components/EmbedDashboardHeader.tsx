@@ -1,6 +1,6 @@
 import {
     isFilterInteractivityEnabled,
-    isParameterInteractivityEnabled,
+    isParameterInteractivityVisible,
     type Dashboard,
     type DashboardTile,
     type InteractivityOptions,
@@ -35,7 +35,7 @@ const EmbedDashboardHeader: FC<Props> = ({
 }) => {
     const hasFilterBar =
         dashboard.canDateZoom ||
-        isParameterInteractivityEnabled(dashboard.parameterInteractivity) ||
+        isParameterInteractivityVisible(dashboard.parameterInteractivity) ||
         isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity);
 
     const hasHeaderActions = Boolean(

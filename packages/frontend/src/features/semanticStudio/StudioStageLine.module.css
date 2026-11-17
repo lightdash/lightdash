@@ -1,81 +1,126 @@
-.stages {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: nowrap;
-    min-width: 0;
-    font-size: var(--mantine-font-size-xs);
-    color: var(--mantine-color-dimmed);
-}
-
 .stage {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
+    padding: 2px 8px;
+    border-radius: var(--mantine-radius-xl);
     white-space: nowrap;
-}
-
-.dot {
-    width: 14px;
-    height: 14px;
-    flex: none;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    border: 1.5px solid var(--mantine-color-default-border);
-    color: var(--mantine-color-body);
-}
-
-.stage[data-state='done'] .dot {
-    background: var(--mantine-color-text);
-    border-color: var(--mantine-color-text);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-text);
+    background: var(--mantine-color-default-hover);
+    cursor: default;
 }
 
 .stage[data-state='now'],
-.stage[data-state='busy'],
+.stage[data-state='busy'] {
+    color: var(--mantine-color-blue-light-color);
+    background: var(--mantine-color-blue-light);
+}
+
+.stage[data-state='done'] {
+    color: var(--mantine-color-green-light-color);
+    background: var(--mantine-color-green-light);
+}
+
 .stage[data-state='stopped'] {
-    color: var(--mantine-color-text);
-    font-weight: 500;
+    color: var(--mantine-color-red-light-color);
+    background: var(--mantine-color-red-light);
 }
 
-.stage[data-state='now'] .dot {
-    border-color: var(--mantine-color-text);
-    background: radial-gradient(
-        circle,
-        var(--mantine-color-text) 2.5px,
-        transparent 3px
-    );
+.dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
 }
 
-.stage[data-state='busy'] .dot {
-    border-top-color: var(--mantine-color-text);
-    animation: spin 0.9s linear infinite;
-}
-
-.stage[data-state='stopped'] .dot {
-    border-color: var(--mantine-color-red-6);
-    color: var(--mantine-color-red-6);
-}
-
-.line {
-    width: 16px;
-    height: 1.5px;
-    margin: 0 6px;
+.dot {
+    width: 6px;
+    height: 6px;
     flex: none;
-    background: var(--mantine-color-default-border);
+    border-radius: 50%;
+    border: 1px solid var(--mantine-color-default-border);
 }
 
-.line[data-done='true'] {
-    background: var(--mantine-color-text);
+.dot[data-state='done'] {
+    background: var(--mantine-color-dimmed);
+    border-color: var(--mantine-color-dimmed);
 }
 
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
+.dot[data-state='now'] {
+    background: var(--mantine-color-blue-6);
+    border-color: var(--mantine-color-blue-6);
+}
+
+.dot[data-state='busy'] {
+    background: var(--mantine-color-blue-6);
+    border-color: var(--mantine-color-blue-6);
+    animation: pulse 1.2s ease-in-out infinite;
+}
+
+.dot[data-state='stopped'] {
+    background: var(--mantine-color-red-6);
+    border-color: var(--mantine-color-red-6);
+}
+
+.stage[data-state='done'] .dot {
+    background: var(--mantine-color-green-6);
+    border-color: var(--mantine-color-green-6);
+}
+
+.path {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pathStep {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0.6;
+}
+
+.pathStep[data-state='done'],
+.pathStep[data-state='now'],
+.pathStep[data-state='busy'],
+.pathStep[data-state='stopped'] {
+    opacity: 1;
+}
+
+.pathStep .dot {
+    border-color: currentColor;
+}
+
+.pathStep[data-state='done'] .dot,
+.pathStep[data-state='now'] .dot,
+.pathStep[data-state='busy'] .dot {
+    background: currentColor;
+}
+
+.pathStep[data-state='stopped'] .dot {
+    background: var(--mantine-color-red-6);
+    border-color: var(--mantine-color-red-6);
+}
+
+@keyframes pulse {
+    50% {
+        opacity: 0.35;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .stage[data-state='busy'] .dot {
+    .dot[data-state='busy'] {
         animation: none;
     }
+}
+
+a.stage {
+    cursor: pointer;
+    text-decoration: none;
+}
+
+a.stage:hover {
+    filter: brightness(0.95);
 }

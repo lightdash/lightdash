@@ -1,25 +1,22 @@
 import {
     assertUnreachable,
-    FeatureFlags,
     type ApiError,
     type SemanticStudioWorkspace,
     type SemanticStudioWorkspaces,
     type SemanticStudioWorkspaceStartBody,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { useCanEditSemanticLayer } from './useSemanticLayerModel';
 
-const WORKSPACES_KEY = 'semantic-studio-workspaces';
+export const WORKSPACES_KEY = 'semantic-studio-workspaces';
 const toUrl = (projectUuid: string, path: string) =>
     `/projects/${projectUuid}/semantic-studio/workspaces${path}`;
 
-/** Everyone's Studio work in this project; refreshed now and then so others' work and merges show up. */
+/** Everyone's Studio work in this project, for those who can change it; refreshed now and then so others' work and merges show up. */
 export const useStudioWorkspaces = (projectUuid: string | undefined) => {
     const lightdashApi = useLightdashApi();
-    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing, {
-        enabled: !!projectUuid,
-    });
+    const canEdit = useCanEditSemanticLayer(projectUuid ?? '');
     return useQuery<SemanticStudioWorkspaces, ApiError>({
         queryKey: [WORKSPACES_KEY, projectUuid],
         queryFn: () =>
@@ -28,7 +25,7 @@ export const useStudioWorkspaces = (projectUuid: string | undefined) => {
                 method: 'GET',
                 body: undefined,
             }),
-        enabled: !!projectUuid && flag.data?.enabled === true,
+        enabled: !!projectUuid && canEdit,
         refetchInterval: 60_000,
         // Without the workspace list Studio still works on the open chat alone.
         retry: false,

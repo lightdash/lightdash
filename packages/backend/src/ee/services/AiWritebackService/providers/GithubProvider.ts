@@ -3,6 +3,7 @@
 /* eslint-disable class-methods-use-this */
 import {
     getErrorMessage,
+    NotFoundError,
     ParameterError,
     PullRequestProvider,
     UnexpectedServerError,
@@ -17,12 +18,18 @@ import {
     createBranch,
     createPullRequest,
     createSignedCommitOnBranch,
+    deleteBranch,
     getAppBotIdentity,
     getBranchHeadSha,
+    getFilesChangedSince,
     getInstallationToken,
     getPullRequest,
+    getRepoDefaultBranch,
+    getRepoTree,
+    getWholeFileContent,
     updatePullRequest,
     userTokenHasRepoAccess,
+    type GithubFileChanges,
 } from '../../../../clients/github/Github';
 import type { GithubAppInstallationsModel } from '../../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { GithubAppService } from '../../../../services/GithubAppService/GithubAppService';
@@ -33,7 +40,10 @@ import {
     COMMIT_AUTHOR_NAME,
     CWD,
 } from '../constants';
-import { WritebackGitNotConnectedError } from '../errors';
+import {
+    WritebackGitNotConnectedError,
+    WritebackThreadPrClosedError,
+} from '../errors';
 import type {
     AdoptedPullRequest,
     CloneTarget,
@@ -51,6 +61,7 @@ import {
     parseGithubConnection,
     parsePullNumber,
     parsePullRequestUrl,
+    quoteShellArgument,
 } from '../utils';
 import type {
     AdoptPullRequestArgs,
@@ -97,6 +108,36 @@ const githubAuth = (
     installation.userToken
         ? { token: installation.userToken }
         : { installationId: installation.installationId };
+
+export type ApiCheckout = {
+    prUrl: string | null;
+    /** The branch read from: the pull request's head, or the base a new one starts from. */
+    branch: string;
+    baseBranch: string | null;
+    headSha: string;
+    listFiles: () => Promise<string[]>;
+    readFile: (path: string) => Promise<string | null>;
+    /** A file as it was at a commit; null where it did not exist. */
+    readFileAt: (path: string, commitSha: string) => Promise<string | null>;
+    /** The files changed between a commit and the head read from; null when that cannot be told. */
+    listFilesChangedSince: (commitSha: string) => Promise<string[] | null>;
+};
+
+// Acting as the user, their token authors the commit; as the app bot, credit the bot and the user.
+const commitBody = (
+    installation: GithubInstallation,
+    user: SessionUser,
+    description: string,
+): string => {
+    if (installation.userToken) return description;
+    const userTrailer = buildUserCoAuthorTrailer(user);
+    const coAuthorTrailer = userTrailer
+        ? `${installation.coAuthorTrailer}\n${userTrailer}`
+        : installation.coAuthorTrailer;
+    return description
+        ? `${description}\n\n${coAuthorTrailer}`
+        : coAuthorTrailer;
+};
 
 type GithubProviderDeps = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -508,21 +549,6 @@ export class GithubProvider implements GitProvider {
         await commitLocal(sandbox, title, installation.commitAuthor);
 
         setStage('push');
-        // When acting as the user (their token signs the commit), the commit is
-        // already authored by them — no co-author trailer. Otherwise the commit
-        // is the app bot's, so credit both the bot and the triggering user.
-        let body: string;
-        if (installation.userToken) {
-            body = description;
-        } else {
-            const userTrailer = buildUserCoAuthorTrailer(user);
-            const coAuthorTrailer = userTrailer
-                ? `${installation.coAuthorTrailer}\n${userTrailer}`
-                : installation.coAuthorTrailer;
-            body = description
-                ? `${description}\n\n${coAuthorTrailer}`
-                : coAuthorTrailer;
-        }
         if (assertPublishAllowed) await assertPublishAllowed();
         const commit = await createSignedCommitOnBranch({
             owner: connection.owner,
@@ -530,10 +556,274 @@ export class GithubProvider implements GitProvider {
             branch,
             expectedHeadOid,
             headline: title,
-            body,
+            body: commitBody(installation, user, description),
             fileChanges,
             ...githubAuth(installation),
         });
         return { commitSha: commit.oid, ...diffStat };
+    }
+
+    /** Reads a branch through the API alone, for a change made without a sandbox. */
+    async openApiCheckout(args: {
+        connection: GitConnection;
+        installation: GitInstallation;
+        /** An open pull request to add the commit to, or null to open one. */
+        prUrl: string | null;
+        /** Reading also opens a merged or closed pull request, at its last commit. */
+        access: 'read' | 'write';
+    }): Promise<ApiCheckout> {
+        const connection = asGithubConnection(args.connection);
+        const auth = githubAuth(asGithubInstallation(args.installation));
+        const repo = { owner: connection.owner, repo: connection.repo };
+        let branch: string;
+        let baseBranch: string | null = null;
+        let finishedHeadSha: string | null = null;
+        if (args.prUrl) {
+            const parsed = parsePullRequestUrl(args.prUrl);
+            if (
+                `${parsed.owner}/${parsed.repo}`.toLowerCase() !==
+                `${repo.owner}/${repo.repo}`.toLowerCase()
+            ) {
+                throw new ParameterError(
+                    "That pull request is not in this project's repository.",
+                );
+            }
+            const pr = await getPullRequest({
+                ...repo,
+                pullNumber: parsed.pullNumber,
+                ...auth,
+            });
+            const isFinished = pr.merged || pr.state === 'closed';
+            if (isFinished && args.access === 'write') {
+                throw new WritebackThreadPrClosedError(
+                    pr.merged ? 'merged' : 'closed',
+                );
+            }
+            if (
+                pr.headRepoFullName?.toLowerCase() !==
+                `${repo.owner}/${repo.repo}`.toLowerCase()
+            ) {
+                throw new ParameterError(
+                    'This pull request comes from a fork, so it cannot be updated here.',
+                );
+            }
+            if (isFinished) finishedHeadSha = pr.headSha;
+            branch = pr.headRef;
+        } else {
+            branch =
+                connection.branch ||
+                (await getRepoDefaultBranch({ ...repo, ...auth }));
+            baseBranch = branch;
+        }
+        const headSha =
+            finishedHeadSha ??
+            (await getBranchHeadSha({ ...repo, branch, ...auth }));
+        const readFileAt = async (path: string, commitSha: string) => {
+            try {
+                // Saving over a file read as empty would erase it.
+                const { content } = await getWholeFileContent({
+                    ...repo,
+                    fileName: path,
+                    branch: commitSha,
+                    ...auth,
+                });
+                return content;
+            } catch (error) {
+                if (error instanceof NotFoundError) return null;
+                throw error;
+            }
+        };
+        return {
+            prUrl: args.prUrl,
+            branch,
+            baseBranch,
+            headSha,
+            listFiles: async () =>
+                (
+                    await getRepoTree({ ...repo, branch: headSha, ...auth })
+                ).files.map((file) => file.path),
+            readFile: (path) => readFileAt(path, headSha),
+            readFileAt,
+            listFilesChangedSince: (commitSha) =>
+                getFilesChangedSince({
+                    ...repo,
+                    base: commitSha,
+                    head: headSha,
+                    ...auth,
+                }),
+        };
+    }
+
+    /** Brings a resumed sandbox up to its pull request, so commits made outside the agent are neither hidden from it nor overwritten. */
+    async syncSandboxWithPullRequest(args: {
+        sandbox: SandboxHandle;
+        connection: GitConnection;
+        installation: GitInstallation;
+        prUrl: string;
+    }): Promise<string[]> {
+        const { sandbox } = args;
+        const connection = asGithubConnection(args.connection);
+        const installation = asGithubInstallation(args.installation);
+        const checkout = await this.openApiCheckout({
+            connection,
+            installation,
+            prUrl: args.prUrl,
+            access: 'write',
+        });
+        const remote = await getRepoTree({
+            owner: connection.owner,
+            repo: connection.repo,
+            branch: checkout.headSha,
+            ...githubAuth(installation),
+        });
+        const { stdout: localTree } = await sandbox.commands.run(
+            `git -C ${CWD} rev-parse 'HEAD^{tree}'`,
+        );
+        if (localTree.trim() === remote.sha) return [];
+        if (remote.truncated) {
+            throw new ParameterError(
+                'This pull request is too large to bring up to date. Start a new change to keep editing.',
+            );
+        }
+        const { stdout: listing } = await sandbox.commands.run(
+            `git -C ${CWD} ls-tree -r -z HEAD`,
+        );
+        // Blob hashes match across clones, so equal hashes mean equal files.
+        const local = new Map(
+            listing
+                .split('\0')
+                // Links and submodules are not files the remote tree lists.
+                .filter(
+                    (line) =>
+                        line &&
+                        !line.startsWith('120000 ') &&
+                        !line.startsWith('160000 '),
+                )
+                .map((line) => {
+                    const [meta, path] = line.split('\t');
+                    return [path, meta.split(' ')[2]] as const;
+                }),
+        );
+        const remoteFiles = new Map(
+            remote.files.map((file) => [file.path, file.sha]),
+        );
+        const changed = [
+            ...[...remoteFiles]
+                .filter(([path, sha]) => local.get(path) !== sha)
+                .map(([path]) => path),
+            ...[...local.keys()].filter((path) => !remoteFiles.has(path)),
+        ];
+        // ponytail: one read per file; a tarball fetch if large hand edits become common.
+        if (changed.length > 50) {
+            throw new ParameterError(
+                'This pull request changed too much outside the chat to continue it here. Start a new change to keep editing.',
+            );
+        }
+        if (changed.length === 0) return [];
+        await Promise.all(
+            changed.map(async (path) => {
+                const content = remoteFiles.has(path)
+                    ? await checkout.readFile(path)
+                    : null;
+                if (content === null) {
+                    await sandbox.files.remove(`${CWD}/${path}`);
+                } else {
+                    await sandbox.files.write(`${CWD}/${path}`, content);
+                }
+            }),
+        );
+        await sandbox.commands.run(
+            `git -C ${CWD} add --all -- ${changed.map(quoteShellArgument).join(' ')}`,
+        );
+        await commitLocal(
+            sandbox,
+            'Sync with the pull request',
+            installation.commitAuthor,
+        );
+        return changed;
+    }
+
+    /** Commits on top of what the checkout read, so a push in between fails rather than being overwritten. */
+    async commitApiChanges(args: {
+        connection: GitConnection;
+        installation: GitInstallation;
+        user: SessionUser;
+        checkout: ApiCheckout;
+        title: string;
+        description: string;
+        fileChanges: GithubFileChanges;
+        setStage: SetStage;
+        assertPublishAllowed: (() => Promise<void>) | null;
+    }): Promise<{ prUrl: string; prCreated: boolean; commitSha: string }> {
+        const connection = asGithubConnection(args.connection);
+        const installation = asGithubInstallation(args.installation);
+        const auth = githubAuth(installation);
+        const repo = { owner: connection.owner, repo: connection.repo };
+        const { checkout, assertPublishAllowed } = args;
+        const branch = checkout.prUrl
+            ? checkout.branch
+            : `lightdash-ai-writeback/${randomUUID()}`;
+        args.setStage('commit');
+        if (assertPublishAllowed) await assertPublishAllowed();
+        if (checkout.prUrl) {
+            args.setStage('push');
+            const commit = await createSignedCommitOnBranch({
+                ...repo,
+                branch,
+                expectedHeadOid: checkout.headSha,
+                headline: args.title,
+                body: commitBody(installation, args.user, args.description),
+                fileChanges: args.fileChanges,
+                ...auth,
+            });
+            return {
+                prUrl: checkout.prUrl,
+                prCreated: false,
+                commitSha: commit.oid,
+            };
+        }
+        await createBranch({
+            ...repo,
+            sha: checkout.headSha,
+            branch,
+            ...auth,
+        });
+        try {
+            args.setStage('push');
+            const commit = await createSignedCommitOnBranch({
+                ...repo,
+                branch,
+                expectedHeadOid: checkout.headSha,
+                headline: args.title,
+                body: commitBody(installation, args.user, args.description),
+                fileChanges: args.fileChanges,
+                ...auth,
+            });
+            args.setStage('pull_request');
+            if (assertPublishAllowed) await assertPublishAllowed();
+            const pr = await createPullRequest({
+                ...repo,
+                title: args.title,
+                body: args.description,
+                head: branch,
+                base: checkout.baseBranch ?? checkout.branch,
+                ...auth,
+            });
+            return {
+                prUrl: pr.html_url,
+                prCreated: true,
+                commitSha: commit.oid,
+            };
+        } catch (error) {
+            // A branch with no pull request is noise in the repo, so it goes with the failure.
+            await deleteBranch({ ...repo, branch, ...auth }).catch(
+                (cleanupError: unknown) => {
+                    this.logger.warn(
+                        `AiWriteback: failed to delete branch ${branch} after a failed save: ${getErrorMessage(cleanupError)}`,
+                    );
+                },
+            );
+            throw error;
+        }
     }
 }

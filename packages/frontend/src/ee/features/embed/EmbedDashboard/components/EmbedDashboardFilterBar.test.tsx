@@ -80,14 +80,17 @@ vi.mock('../../../../../features/dashboardControls/SectionedFilters', () => ({
         viewerActions,
         editorActions,
         triggerClassName,
+        hiddenFilters = [],
     }: {
         viewerActions?: ReactNode;
         editorActions?: ReactNode;
         triggerClassName?: string;
+        hiddenFilters?: { id: string }[];
     }) => (
         <div
             data-testid="sectioned-filters"
             data-editor={editorActions !== undefined || undefined}
+            data-hidden-filters={hiddenFilters.map(({ id }) => id).join(',')}
             className={triggerClassName}
         >
             {viewerActions}
@@ -123,7 +126,7 @@ vi.mock(
     '../../../../../features/dashboardControls/useParameterBarControls',
     () => ({
         useParameterBarControls: () => ({
-            entries: [{ control: { hidden: false } }],
+            entries: [{ control: { hidden: false, parameters: {} } }],
         }),
     }),
 );
@@ -143,7 +146,12 @@ vi.mock('../../../../../features/dashboardControls/ParameterPills', () => ({
     ParameterPills: () => <div data-testid="parameter-pills" />,
 }));
 vi.mock('./EmbedDashboardParameters', () => ({
-    default: () => <div data-testid="shipped-parameters" />,
+    default: ({ parameters }: { parameters: Record<string, unknown> }) => (
+        <div
+            data-testid="shipped-parameters"
+            data-names={Object.keys(parameters).join(',')}
+        />
+    ),
 }));
 vi.mock('./EmbedDashboardFilters', () => ({
     default: () => <div data-testid="shipped-filters" />,
@@ -165,15 +173,25 @@ vi.mock('../../../../../features/dateZoom', () => ({
     ),
 }));
 
-const dashboard = (canAddFilters: boolean, areParametersEnabled = false) =>
+const dashboard = (
+    canAddFilters: boolean,
+    areParametersEnabled = false,
+    parameterInteractivity: Partial<
+        NonNullable<InteractivityOptions['parameterInteractivity']>
+    > = {},
+) =>
     ({
         uuid: 'dashboard-1',
+        filters: { dimensions: [], metrics: [], tableCalculations: [] },
         canDateZoom: false,
         dashboardFiltersInteractivity: {
             enabled: FilterInteractivityValues.all,
             canAddFilters,
         },
-        parameterInteractivity: { enabled: areParametersEnabled },
+        parameterInteractivity: {
+            enabled: areParametersEnabled,
+            ...parameterInteractivity,
+        },
     }) as unknown as Dashboard & InteractivityOptions;
 
 const savedRule = {
@@ -333,10 +351,12 @@ describe('EmbedDashboardFilterBar', () => {
             canDateZoom,
             areParametersEnabled,
             isControlsEnabled = true,
+            token = {},
         }: {
             canDateZoom: boolean;
             areParametersEnabled: boolean;
             isControlsEnabled?: boolean;
+            token?: Partial<Dashboard & InteractivityOptions>;
         }) => {
             // A flat dashboard: no sections, no stored order
             const store = createDashboardTestStore({
@@ -359,6 +379,7 @@ describe('EmbedDashboardFilterBar', () => {
                             // Viewers may not add filters; an editor always can
                             ...dashboard(false, areParametersEnabled),
                             canDateZoom,
+                            ...token,
                         }}
                         shouldShowFilters
                         activeTiles={[]}
@@ -412,6 +433,45 @@ describe('EmbedDashboardFilterBar', () => {
             },
         );
 
+        it.each([
+            {
+                enabled: FilterInteractivityValues.some,
+                allowedFilters: ['saved'],
+                hidden: 'hidden',
+            },
+            {
+                enabled: FilterInteractivityValues.all,
+                allowedFilters: undefined,
+                hidden: '',
+            },
+        ])(
+            'tells the sections which saved filters the token hides ($enabled)',
+            ({ enabled, allowedFilters, hidden }) => {
+                renderEditor({
+                    canDateZoom: false,
+                    areParametersEnabled: false,
+                    token: {
+                        filters: {
+                            dimensions: [
+                                { ...savedRule, id: 'hidden', sectionId: 'a' },
+                                savedRule,
+                            ],
+                            metrics: [{ ...savedRule, id: 'metric' }],
+                            tableCalculations: [],
+                        },
+                        dashboardFiltersInteractivity: {
+                            enabled,
+                            allowedFilters,
+                        },
+                    },
+                });
+                expect(screen.getByTestId('sectioned-filters')).toHaveAttribute(
+                    'data-hidden-filters',
+                    hidden,
+                );
+            },
+        );
+
         it("has the editor's Default zoom in the shipped one's place", () => {
             renderEditor({ canDateZoom: true, areParametersEnabled: false });
             expect(
@@ -458,11 +518,13 @@ describe('EmbedDashboardFilterBar', () => {
             areParametersEnabled,
             shouldShowFilters,
             hasControls = true,
+            parameterInteractivity,
         }: {
             isControlsEnabled: boolean;
             areParametersEnabled: boolean;
             shouldShowFilters: boolean;
             hasControls?: boolean;
+            parameterInteractivity?: Parameters<typeof dashboard>[2];
         }) => {
             const store = createDashboardTestStore({
                 parameterDefinitions: { region: { label: 'Region' } },
@@ -478,7 +540,11 @@ describe('EmbedDashboardFilterBar', () => {
             return renderWithProviders(
                 <DashboardStoreTestProvider store={store}>
                     <EmbedDashboardFilterBar
-                        dashboard={dashboard(true, areParametersEnabled)}
+                        dashboard={dashboard(
+                            true,
+                            areParametersEnabled,
+                            parameterInteractivity,
+                        )}
                         shouldShowFilters={shouldShowFilters}
                         activeTiles={[{ uuid: 'tile-1' } as DashboardTile]}
                         isControlsEnabled={isControlsEnabled}
@@ -538,6 +604,44 @@ describe('EmbedDashboardFilterBar', () => {
             });
             expect(
                 screen.queryByTestId('parameter-pills'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('shows only the parameters the token lets the viewer change', () => {
+            renderParameters({
+                isControlsEnabled: false,
+                areParametersEnabled: true,
+                shouldShowFilters: true,
+                parameterInteractivity: { allowedParameters: ['currency'] },
+            });
+            expect(screen.getByTestId('shipped-parameters')).toHaveAttribute(
+                'data-names',
+                '',
+            );
+        });
+
+        it('shows the parameters the token allows', () => {
+            renderParameters({
+                isControlsEnabled: false,
+                areParametersEnabled: true,
+                shouldShowFilters: true,
+                parameterInteractivity: { allowedParameters: ['region'] },
+            });
+            expect(screen.getByTestId('shipped-parameters')).toHaveAttribute(
+                'data-names',
+                'region',
+            );
+        });
+
+        it('hides the parameters when the token hides them', () => {
+            renderParameters({
+                isControlsEnabled: false,
+                areParametersEnabled: true,
+                shouldShowFilters: true,
+                parameterInteractivity: { hidden: true },
+            });
+            expect(
+                screen.queryByTestId('shipped-parameters'),
             ).not.toBeInTheDocument();
         });
 

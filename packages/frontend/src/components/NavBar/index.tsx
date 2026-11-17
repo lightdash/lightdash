@@ -7,7 +7,6 @@ import {
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
 import { memo } from 'react';
-import { useDevelopmentView } from '../../features/semanticStudio/developmentView';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useOrganizationAccess } from '../../hooks/organization/useOrganizationAccess';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
@@ -22,7 +21,6 @@ import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
-import { DevelopmentViewIsland } from './DevelopmentViewIsland';
 import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
@@ -129,8 +127,6 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             }),
         ) === true;
 
-    const [isDevelopmentView] = useDevelopmentView();
-
     const hasBanner =
         isImpersonating ||
         (isCurrentProjectPreview && !isTrainingCopy) ||
@@ -146,68 +142,72 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     // limitations (see: https://github.com/orgs/mantinedev/discussions/4803).
     // The manual `data-mantine-color-scheme="dark"` attribute helps CSS selectors match correctly.
     return (
-        <Box
-            id="navbar-header"
-            data-mantine-color-scheme="dark"
-            data-has-visible-fixed-navbar={isFixed && !isFullscreen}
-            data-has-banner={hasBanner}
-        >
-            <MantineBaseProvider
-                forceColorScheme="dark"
-                cssVariablesSelector="#navbar-header"
-                getRootElement={getNavBarRootElement}
+        <>
+            <Box
+                id="navbar-header"
+                data-mantine-color-scheme="dark"
+                data-has-visible-fixed-navbar={isFixed && !isFullscreen}
+                data-has-banner={hasBanner}
             >
-                {isImpersonating ? (
-                    <ImpersonationBanner />
-                ) : isCurrentProjectPreview && !isTrainingCopy ? (
-                    <PreviewBanner
-                        expiresAt={project?.expiresAt ?? null}
-                        upstreamProject={
-                            upstreamProject
-                                ? {
-                                      projectUuid: upstreamProject.projectUuid,
-                                      slug: upstreamProject.slug,
-                                      name: upstreamProject.name,
-                                  }
-                                : null
-                        }
-                    />
-                ) : showSampleDataBanner ? (
-                    <SampleDataBanner />
-                ) : (
-                    organizationAccess && (
-                        <TrialWarningBanner access={organizationAccess} />
-                    )
-                )}
-                <Box
-                    component="header"
-                    h={NAVBAR_HEIGHT}
-                    className={clsx(
-                        classes.header,
-                        isFixed && classes.fixed,
-                        navBarMode === NavBarMode.EDITING_DASHBOARD_CHART &&
-                            classes.headerEditingDashboardChart,
-                    )}
-                    mt={hasBanner ? BANNER_HEIGHT : 0}
-                    display={isFullscreen ? 'none' : 'flex'}
-                    px="md"
+                <MantineBaseProvider
+                    forceColorScheme="dark"
+                    cssVariablesSelector="#navbar-header"
+                    getRootElement={getNavBarRootElement}
                 >
-                    <NavBarContent
-                        navBarMode={navBarMode}
-                        activeProjectUuid={activeProjectUuid}
-                        activeProjectUrlIdentifier={
-                            project
-                                ? getProjectUrlIdentifier(project)
-                                : activeProjectUuid
-                        }
-                        isLoadingActiveProject={isLoadingActiveProject}
-                    />
-                </Box>
-                {isDevelopmentView ? <DevelopmentViewIsland /> : null}
-                {/* Placeholder to reserve space when navbar is fixed */}
-                {isFixed && !isFullscreen && <Box h={headerContainerHeight} />}
-            </MantineBaseProvider>
-        </Box>
+                    {isImpersonating ? (
+                        <ImpersonationBanner />
+                    ) : isCurrentProjectPreview && !isTrainingCopy ? (
+                        <PreviewBanner
+                            expiresAt={project?.expiresAt ?? null}
+                            upstreamProject={
+                                upstreamProject
+                                    ? {
+                                          projectUuid:
+                                              upstreamProject.projectUuid,
+                                          slug: upstreamProject.slug,
+                                          name: upstreamProject.name,
+                                      }
+                                    : null
+                            }
+                        />
+                    ) : showSampleDataBanner ? (
+                        <SampleDataBanner />
+                    ) : (
+                        organizationAccess && (
+                            <TrialWarningBanner access={organizationAccess} />
+                        )
+                    )}
+                    <Box
+                        component="header"
+                        h={NAVBAR_HEIGHT}
+                        className={clsx(
+                            classes.header,
+                            isFixed && classes.fixed,
+                            navBarMode === NavBarMode.EDITING_DASHBOARD_CHART &&
+                                classes.headerEditingDashboardChart,
+                        )}
+                        mt={hasBanner ? BANNER_HEIGHT : 0}
+                        display={isFullscreen ? 'none' : 'flex'}
+                        px="md"
+                    >
+                        <NavBarContent
+                            navBarMode={navBarMode}
+                            activeProjectUuid={activeProjectUuid}
+                            activeProjectUrlIdentifier={
+                                project
+                                    ? getProjectUrlIdentifier(project)
+                                    : activeProjectUuid
+                            }
+                            isLoadingActiveProject={isLoadingActiveProject}
+                        />
+                    </Box>
+                    {/* Placeholder to reserve space when navbar is fixed */}
+                    {isFixed && !isFullscreen && (
+                        <Box h={headerContainerHeight} />
+                    )}
+                </MantineBaseProvider>
+            </Box>
+        </>
     );
 });
 

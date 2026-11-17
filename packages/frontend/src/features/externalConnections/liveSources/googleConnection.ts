@@ -1,4 +1,4 @@
-import { ApiConnectorType } from '@lightdash/common';
+import { ApiConnectorType, LIVE_INTEGRATION_CATALOG } from '@lightdash/common';
 import {
     setLiveSourceReturnTo,
     type LiveSourceReturnTo,
@@ -49,7 +49,7 @@ const GOOGLE_SOURCES: {
 export const isGoogleConnector = (
     connector: ApiConnectorType,
 ): connector is GoogleConnector =>
-    GOOGLE_SOURCES.some((source) => source.connector === connector);
+    LIVE_INTEGRATION_CATALOG[connector].setup === 'google';
 
 export const getGoogleSource = (connector: GoogleConnector) => {
     const source = GOOGLE_SOURCES.find(

@@ -46,6 +46,7 @@ import {
     getItemId,
     getModelsFromManifest,
     getPreAggregateExploreName,
+    getUserAbilityBuilder,
     isAiAccessQueryContext,
     JobStatusType,
     JobStepStatusType,
@@ -67,6 +68,7 @@ import {
     PersonSignInProvider,
     PreAggregateMissReason,
     PreviewWarehouseSignInExpiredError,
+    ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
     QuerySurface,
@@ -256,7 +258,7 @@ import {
 import { CatalogService } from '../CatalogService/CatalogService';
 import { DeployService } from '../DeployService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
-import { buildApiSourceExplores } from '../QuerySourceService/api/apiSourceExplores';
+import { buildLiveExplores } from '../QuerySourceService/live/explores/build';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import { buildAiServiceAccountCredentials } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
@@ -972,7 +974,6 @@ describe('ProjectService', () => {
                     results: {
                         ...lightdashConfigWithGoogleOAuthMock.results,
                         cacheEnabled: true,
-                        autocompleteEnabled: true,
                     },
                 });
                 vi.mocked(configured.featureFlagModel.get).mockImplementation(
@@ -4554,6 +4555,243 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('updatePreviewExpiresAt', () => {
+        const ORG_UUID = 'preview-org';
+        const CREATOR_UUID = 'preview-creator';
+        const OTHER_USER_UUID = 'other-user';
+        const UPSTREAM_UUID = 'upstream-project';
+        const PREVIEW_UUID = 'preview-project';
+        const SELF_ROLE_UUID = '55555555-5555-4555-a555-555555555555';
+        const selfPreviewScopes = [
+            'view:Project',
+            'create:Job',
+            'manage:CompileProject',
+            'create:Project@preview',
+            'update:Project@self',
+        ];
+        const previewSummary = (overrides: Partial<ProjectSummary> = {}) =>
+            ({
+                name: 'Preview',
+                projectUuid: PREVIEW_UUID,
+                slug: 'preview',
+                organizationUuid: ORG_UUID,
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: UPSTREAM_UUID,
+                createdByUserUuid: CREATOR_UUID,
+                provisioningSource: null,
+                ...overrides,
+            }) as ProjectSummary;
+        const sessionUserWith = ({
+            userUuid = CREATOR_UUID,
+            role = OrganizationMemberRole.MEMBER,
+            roleUuid,
+            projectProfiles = [],
+        }: {
+            userUuid?: string;
+            role?: OrganizationMemberRole;
+            roleUuid?: string;
+            projectProfiles?: {
+                projectUuid: string;
+                role: ProjectMemberRole;
+                roleUuid?: string;
+            }[];
+        }): SessionUser => ({
+            ...user,
+            userUuid,
+            role,
+            organizationUuid: ORG_UUID,
+            organizationName: 'Preview org',
+            organizationCreatedAt: new Date(),
+            ability: getUserAbilityBuilder({
+                user: { role, organizationUuid: ORG_UUID, userUuid, roleUuid },
+                projectProfiles: projectProfiles.map((profile) => ({
+                    ...profile,
+                    roleUuid: profile.roleUuid,
+                    userUuid,
+                })),
+                permissionsConfig: {
+                    pat: { enabled: false, allowedOrgRoles: [] },
+                },
+                customRoleScopes: { [SELF_ROLE_UUID]: selfPreviewScopes },
+                customRolesEnabled: true,
+            }).builder.build(),
+        });
+        const updateExpiresAt = vi.fn(async () => undefined);
+        const previewService = (summary: ProjectSummary) =>
+            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
+                projectModel: {
+                    ...projectModel,
+                    getSummary: vi.fn(async () => summary),
+                    getPreviewExpirationSettings: vi.fn(async () => ({
+                        defaultPreviewExpirationHours: 24,
+                        maxPreviewExpirationHours: null,
+                    })),
+                    updateExpiresAt,
+                } as unknown as ProjectModel,
+            });
+
+        beforeEach(() => {
+            updateExpiresAt.mockClear();
+        });
+
+        test.each([
+            ['an org-level custom role', { roleUuid: SELF_ROLE_UUID }],
+            [
+                'a custom role on the upstream project',
+                {
+                    projectProfiles: [
+                        {
+                            projectUuid: UPSTREAM_UUID,
+                            role: ProjectMemberRole.VIEWER,
+                            roleUuid: SELF_ROLE_UUID,
+                        },
+                    ],
+                },
+            ],
+        ])(
+            'lets a non-admin creator with update:Project@self refresh their preview via %s',
+            async (_, args) => {
+                await expect(
+                    previewService(previewSummary()).updatePreviewExpiresAt(
+                        sessionUserWith(args),
+                        PREVIEW_UUID,
+                    ),
+                ).resolves.toMatchObject({ projectUuid: PREVIEW_UUID });
+                expect(updateExpiresAt).toHaveBeenCalledWith(
+                    PREVIEW_UUID,
+                    expect.any(Date),
+                );
+            },
+        );
+
+        test('lets an org admin refresh a preview someone else created', async () => {
+            await expect(
+                previewService(previewSummary()).updatePreviewExpiresAt(
+                    sessionUserWith({
+                        userUuid: OTHER_USER_UUID,
+                        role: OrganizationMemberRole.ADMIN,
+                    }),
+                    PREVIEW_UUID,
+                ),
+            ).resolves.toMatchObject({ projectUuid: PREVIEW_UUID });
+        });
+
+        test.each([
+            [
+                'a non-creator with update:Project@self',
+                previewSummary({ createdByUserUuid: OTHER_USER_UUID }),
+                { roleUuid: SELF_ROLE_UUID },
+            ],
+            [
+                'a creator whose preview is in another organization',
+                previewSummary({ organizationUuid: 'other-org' }),
+                { roleUuid: SELF_ROLE_UUID },
+            ],
+            [
+                'a creator whose role is on a different upstream project',
+                previewSummary(),
+                {
+                    projectProfiles: [
+                        {
+                            projectUuid: 'other-upstream',
+                            role: ProjectMemberRole.VIEWER,
+                            roleUuid: SELF_ROLE_UUID,
+                        },
+                    ],
+                },
+            ],
+            [
+                'an org viewer who created the preview',
+                previewSummary(),
+                { role: OrganizationMemberRole.VIEWER },
+            ],
+            [
+                'an org member who created the preview',
+                previewSummary(),
+                { role: OrganizationMemberRole.MEMBER },
+            ],
+        ])('denies %s', async (_, summary, args) => {
+            await expect(
+                previewService(summary).updatePreviewExpiresAt(
+                    sessionUserWith(args),
+                    PREVIEW_UUID,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(updateExpiresAt).not.toHaveBeenCalled();
+        });
+
+        describe('PATCH project on the same preview', () => {
+            const postgres: CreateWarehouseCredentials = {
+                type: WarehouseTypes.POSTGRES,
+                host: 'localhost',
+                port: 5432,
+                user: 'postgres',
+                password: 'postgres',
+                dbname: 'analytics',
+                schema: 'public',
+            };
+            const savedPreview = (createdByUserUuid = CREATOR_UUID) => ({
+                ...projectWithSensitiveFields,
+                warehouseConnection: postgres,
+                organizationUuid: ORG_UUID,
+                projectUuid: PREVIEW_UUID,
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: UPSTREAM_UUID,
+                createdByUserUuid,
+            });
+            const updateData = (): UpdateProject => ({
+                name: projectWithSensitiveFields.name,
+                dbtVersion: projectWithSensitiveFields.dbtVersion,
+                dbtConnection: projectWithSensitiveFields.dbtConnection,
+                warehouseConnection: postgres,
+            });
+
+            beforeEach(() => {
+                projectModel.update.mockClear();
+                jobModel.create.mockClear();
+            });
+
+            test('lets a non-admin creator with update:Project@self start the refresh', async () => {
+                projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                    savedPreview(),
+                );
+                await expect(
+                    getMockedProjectService(
+                        lightdashConfigWithGoogleOAuthMock,
+                    ).updateAndScheduleAsyncWork(
+                        PREVIEW_UUID,
+                        fromSession(
+                            sessionUserWith({ roleUuid: SELF_ROLE_UUID }),
+                        ),
+                        updateData(),
+                        RequestMethod.WEB_APP,
+                    ),
+                ).resolves.toMatchObject({ jobUuid: expect.any(String) });
+                expect(jobModel.create).toHaveBeenCalledOnce();
+            });
+
+            test('denies a non-admin with update:Project@self on a preview someone else created', async () => {
+                projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                    savedPreview(OTHER_USER_UUID),
+                );
+                await expect(
+                    getMockedProjectService(
+                        lightdashConfigWithGoogleOAuthMock,
+                    ).updateAndScheduleAsyncWork(
+                        PREVIEW_UUID,
+                        fromSession(
+                            sessionUserWith({ roleUuid: SELF_ROLE_UUID }),
+                        ),
+                        updateData(),
+                        RequestMethod.WEB_APP,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(projectModel.update).not.toHaveBeenCalled();
+                expect(jobModel.create).not.toHaveBeenCalled();
+            });
+        });
+    });
+
     describe('training copy reuse', () => {
         const trainingProject = {
             ...projectWithSensitiveFields,
@@ -6195,7 +6433,6 @@ describe('ProjectService', () => {
                     results: {
                         ...lightdashConfigWithGoogleOAuthMock.results,
                         cacheEnabled: false,
-                        autocompleteEnabled: false,
                     },
                 },
                 {
@@ -6505,13 +6742,15 @@ describe('ProjectService', () => {
             async (_name, cached, results, queryCount) => {
                 const { configured, client } = setup();
                 Object.assign(configured, {
-                    lightdashConfig: {
-                        ...lightdashConfigWithGoogleOAuthMock,
-                        results: {
-                            ...lightdashConfigWithGoogleOAuthMock.results,
-                            autocompleteEnabled: true,
+                    projectModel: withResultsCacheConfig(
+                        projectModel as unknown as ProjectModel,
+                        {
+                            results: {
+                                ...lightdashConfigWithGoogleOAuthMock.results,
+                                cacheEnabled: true,
+                            },
                         },
-                    },
+                    ),
                     s3CacheClient: {
                         getIfFresh: vi.fn(async () => cached),
                         uploadResults: vi.fn(async () => undefined),
@@ -10571,7 +10810,7 @@ describe('ProjectService', () => {
                     ...lightdashConfigWithGoogleOAuthMock,
                     results: {
                         ...lightdashConfigWithGoogleOAuthMock.results,
-                        autocompleteEnabled: true,
+                        cacheEnabled: true,
                     },
                 });
                 flaggedService.warehouseClientFactory.warehouseClients = {};
@@ -10626,6 +10865,78 @@ describe('ProjectService', () => {
                     }),
                 );
                 expect(getIfFresh).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+                expect(uploadResults).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+            },
+        );
+
+        test.each([
+            [true, true],
+            [false, false],
+        ])(
+            'autocomplete cache with project results cache %s',
+            async (projectCacheEnabled, usesCache) => {
+                const configured = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                );
+                configured.warehouseClientFactory.warehouseClients = {};
+                vi.mocked(configured.featureFlagModel.get).mockImplementation(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    }),
+                );
+                const defaultSettings =
+                    await projectModel.getResultsCacheSettings(projectUuid);
+                const getResultsCacheSettings = vi
+                    .spyOn(projectModel, 'getResultsCacheSettings')
+                    .mockResolvedValue({
+                        ...defaultSettings,
+                        cacheEnabled: projectCacheEnabled,
+                    });
+                const getIfFresh = vi.fn(async () => undefined);
+                const uploadResults = vi.fn(async () => undefined);
+                Object.assign(configured, {
+                    s3CacheClient: { getIfFresh, uploadResults },
+                });
+                vi.spyOn(
+                    configured.warehouseClientFactory,
+                    'resolveLoadedCredentials',
+                ).mockResolvedValue({
+                    ...warehouseClientMock.credentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+                vi.mocked(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).mockImplementation(() => ({
+                    ...warehouseClientMock,
+                    runQuery: vi.fn(async () => resultsWith1Row),
+                }));
+
+                try {
+                    await configured.searchFieldUniqueValues(
+                        fromSession({
+                            ...user,
+                            organizationUuid: projectSummary.organizationUuid,
+                        }),
+                        projectUuid,
+                        'a',
+                        'a_dim1',
+                        'test',
+                        10,
+                        undefined,
+                        false,
+                    );
+                } finally {
+                    getResultsCacheSettings.mockRestore();
+                }
+
+                expect(getIfFresh).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+                if (usesCache) {
+                    expect(getIfFresh).toHaveBeenCalledWith(
+                        expect.any(String),
+                        86400,
+                    );
+                }
                 expect(uploadResults).toHaveBeenCalledTimes(usesCache ? 1 : 0);
             },
         );
@@ -10862,7 +11173,7 @@ describe('ProjectService', () => {
                 ...lightdashConfigWithGoogleOAuthMock,
                 results: {
                     ...lightdashConfigWithGoogleOAuthMock.results,
-                    autocompleteEnabled: true,
+                    cacheEnabled: true,
                     cacheStateTimeSeconds: 86400,
                 },
             });
@@ -10947,7 +11258,7 @@ describe('ProjectService', () => {
                 ...lightdashConfigWithGoogleOAuthMock,
                 results: {
                     ...lightdashConfigWithGoogleOAuthMock.results,
-                    autocompleteEnabled: true,
+                    cacheEnabled: true,
                     cacheStateTimeSeconds: 86400,
                 },
             });
@@ -19532,6 +19843,146 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
             }),
         ).rejects.toThrow(CustomSqlQueryForbiddenError);
     });
+
+    describe('getCustomMetricsNeedingPermission', () => {
+        const metricsNeedingPermission = (
+            caller: ReturnType<typeof buildAccount>,
+            sql: string,
+            savedAdditionalMetrics: ReturnType<typeof additionalMetric> = [],
+        ) =>
+            service.getCustomMetricsNeedingPermission({
+                account: caller,
+                projectUuid,
+                exploreName,
+                additionalMetrics: additionalMetric(sql),
+                savedAdditionalMetrics,
+            });
+        const savedOnViewableChart = (table = 'a') =>
+            savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+                tableCalculations: [],
+                customSqlDimensions: [],
+                additionalMetrics: [
+                    { sql: metricSubquerySql, table, spaceUuid },
+                ],
+            });
+
+        it('allows SQL the chart already saved, without loading the explore', async () => {
+            const getExplore = spyExplore();
+
+            await expect(
+                metricsNeedingPermission(
+                    noScopeAccount,
+                    metricSubquerySql,
+                    additionalMetric(metricSubquerySql),
+                ),
+            ).resolves.toEqual([]);
+            expect(getExplore).not.toHaveBeenCalled();
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('allows a metric whose SQL is a modelled field, without a saved chart lookup', async () => {
+            spyExplore();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, fieldRefSql),
+            ).resolves.toEqual([]);
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('allows SQL saved on a chart the user can view in the same explore', async () => {
+            spyExplore();
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual([]);
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).toHaveBeenCalledWith({
+                projectUuid,
+                exploreName,
+                tableCalculationSqls: [],
+                customSqlDimensions: [],
+                additionalMetrics: [{ sql: metricSubquerySql, table: 'a' }],
+            });
+        });
+
+        it('returns SQL that no chart holds', async () => {
+            spyExplore();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('returns SQL changed from what the chart saved', async () => {
+            spyExplore();
+
+            await expect(
+                metricsNeedingPermission(
+                    noScopeAccount,
+                    metricSubquerySql,
+                    additionalMetric('(SELECT 1)'),
+                ),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('returns SQL saved only on a chart the user cannot view', async () => {
+            spyExplore();
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(restrictedAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('returns SQL saved on a viewable chart under another table', async () => {
+            spyExplore();
+            savedOnViewableChart('b');
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('never looks up saved charts for an embed account', async () => {
+            spyExplore();
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(jwtAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('still allows SQL on a viewable chart when the explore is missing', async () => {
+            vi.spyOn(service, 'getExplore')
+                .mockClear()
+                .mockRejectedValue(new NotFoundError('Explore not found'));
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual([]);
+        });
+
+        it('fails when the saved chart lookup fails', async () => {
+            spyExplore();
+            savedChartModel.findCustomSqlProvenance.mockRejectedValue(
+                new Error('database unavailable'),
+            );
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).rejects.toThrow('database unavailable');
+        });
+    });
 });
 
 describe('available filter week boundaries', () => {
@@ -21904,7 +22355,7 @@ describe('ProjectService.compileQueryForResponse', () => {
     });
 
     describe('on a live data source explore', () => {
-        const [apiExplore] = buildApiSourceExplores({
+        const [apiExplore] = buildLiveExplores({
             connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
             sourceName: 'ga4_03386598',
             name: 'Marketing site',
@@ -21946,6 +22397,24 @@ describe('ProjectService.compileQueryForResponse', () => {
                 dimensions: [{ name: 'sessionDefaultChannelGroup' }],
                 metrics: [{ name: 'sessions' }],
             });
+        });
+
+        it('refuses a pivoted query, as running it does', async () => {
+            const args = liveArgs(developerAccount);
+            await expect(
+                service.compileQueryForResponse({
+                    ...args,
+                    body: {
+                        ...args.body,
+                        pivotConfiguration: {
+                            indexColumn: undefined,
+                            valuesColumns: [],
+                            groupByColumns: [],
+                            sortBy: undefined,
+                        } as never,
+                    },
+                }),
+            ).rejects.toThrow(ParameterError);
         });
 
         it('hides the request from embeds without the SQL scope', async () => {

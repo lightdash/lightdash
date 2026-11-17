@@ -216,6 +216,7 @@ import {
     assertAgentKeepsDocumentMerges,
 } from '../ai/utils/agentMergeGuard';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
+import { readWithContentTypeFallback } from '../ai/utils/contentTypeFallback';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
@@ -3656,14 +3657,24 @@ export class AiAgentToolsService extends BaseService {
                     });
                 }
 
-                const currentContent = await this.readContentAsCode(
-                    context,
-                    {
+                // Never edit another type in place; name it so the agent retries.
+                const { value: currentContent, type: foundType } =
+                    await readWithContentTypeFallback({
                         slug,
                         type,
-                    },
-                    'update',
-                );
+                        types: ['dashboard', 'chart', 'sql_chart'],
+                        read: (readType) =>
+                            this.readContentAsCode(
+                                context,
+                                { slug, type: readType },
+                                readType === type ? 'update' : 'read',
+                            ),
+                    });
+                if (foundType !== type) {
+                    throw new NotFoundError(
+                        `No ${type} "${slug}" could be edited; "${slug}" is a ${foundType}. Edit it with type ${foundType}.`,
+                    );
+                }
                 // Charts can be persisted with a null `chartConfig.config` (e.g.
                 // table charts with no viz settings). The chart-as-code schema
                 // accepts an object or an absent config but rejects null, so
@@ -4414,6 +4425,10 @@ export class AiAgentToolsService extends BaseService {
                         `Chart not found: ${args.chartUuid}`,
                         'read',
                     );
+                    await this.assertSavedChartFieldsInScope(
+                        context,
+                        args.chartUuid,
+                    );
 
                     await context.onWarehouseQuery?.();
                     return this.asyncQueryService.executeSavedChartQueryAndGetResults(
@@ -4460,6 +4475,10 @@ export class AiAgentToolsService extends BaseService {
                         `Chart ${args.chartUuid} not found on dashboard ${args.dashboardSlug}`,
                     );
                 }
+                await this.assertSavedChartFieldsInScope(
+                    context,
+                    args.chartUuid,
+                );
 
                 const { dateZoom, savedChart } =
                     await this.resolveDashboardTileDateZoom(
@@ -4494,6 +4513,29 @@ export class AiAgentToolsService extends BaseService {
                     args.onQueryPrepared,
                 );
             },
+        );
+    }
+
+    /** A tag-scoped agent may only run a saved chart whose explore and fields its tags expose. */
+    private async assertSavedChartFieldsInScope(
+        context: AiAgentToolsRuntimeContext,
+        chartUuid: string,
+    ) {
+        if (!context.tags || context.tags.length === 0) return;
+
+        const { metricQuery } = await this.savedChartService.get(
+            chartUuid,
+            context.account,
+            { projectUuid: context.projectUuid },
+        );
+        const explore = await this.getExploreForRuntime(context, {
+            table: metricQuery.exploreName,
+        });
+        AiAgentToolsService.assertSelectedFieldsExist(
+            explore,
+            [...metricQuery.dimensions, ...metricQuery.metrics],
+            metricQuery.additionalMetrics ?? [],
+            metricQuery.customDimensions ?? [],
         );
     }
 
@@ -5525,22 +5567,18 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.searchFieldValues`,
             args,
             async () => {
-                if (context.source === 'mcp') {
-                    const explore = await this.getExploreForRuntime(context, {
-                        table: args.table,
-                    });
-                    AiAgentToolsService.assertFieldInExplore(
-                        args.fieldId,
-                        explore,
-                    );
-                }
+                // Every source may only search fields of an explore in its scope.
+                const explore = await this.getExploreForRuntime(context, {
+                    table: args.table,
+                });
+                AiAgentToolsService.assertFieldInExplore(args.fieldId, explore);
 
                 const query = args.query ?? '';
                 const isEmptyQuery = query.trim() === '';
 
                 // Serve values known from field metadata before the warehouse guard.
-                const curatedResult = await this.getStaticFieldValues(
-                    context,
+                const curatedResult = AiAgentToolsService.getStaticFieldValues(
+                    explore,
                     args,
                     query,
                 );
@@ -5596,12 +5634,9 @@ export class AiAgentToolsService extends BaseService {
                     context.source === 'mcp'
                         ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
                         : QueryExecutionContext.AI;
-                const explore = await this.getExploreForRuntime(context, {
-                    table: args.table,
-                }).catch(() => null);
                 // Live sources answer through their API, which only the async query path reaches
                 const results =
-                    explore?.type === ExploreType.API_SOURCE
+                    explore.type === ExploreType.API_SOURCE
                         ? await this.asyncQueryService.searchFieldValuesAndWait(
                               {
                                   account: context.account,
@@ -5645,22 +5680,11 @@ export class AiAgentToolsService extends BaseService {
     }
 
     /** Serve values known from field metadata without querying the warehouse. */
-    private async getStaticFieldValues(
-        context: AiAgentToolsRuntimeContext,
+    private static getStaticFieldValues(
+        explore: Explore,
         args: Parameters<SearchFieldValuesFn>[0],
         query: string,
-    ): Promise<FieldValueSearchResult<string | boolean> | undefined> {
-        let explore: Explore;
-        try {
-            explore = await this.getExploreForRuntime(context, {
-                table: args.table,
-            });
-        } catch (e) {
-            Logger.warn(
-                `[ai-field-values] could not resolve explore "${args.table}" for curated values: ${getErrorMessage(e)}`,
-            );
-            return undefined;
-        }
+    ): FieldValueSearchResult<string | boolean> | undefined {
         const field = findFieldByIdInExplore(explore, args.fieldId);
         if (!field || !isDimension(field)) return undefined;
         if (

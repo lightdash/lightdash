@@ -757,6 +757,7 @@ export class PivotQueryBuilder {
         }
 
         const orderByParts: string[] = [];
+        const orderedIndexReferences = new Set<string>();
 
         // Process sortBy in order to maintain the specified sort priority
         for (const sort of sortBy) {
@@ -801,15 +802,15 @@ export class PivotQueryBuilder {
                     'g',
                 );
                 orderByParts.push(prefixedExpr);
+                orderedIndexReferences.add(sort.reference);
             }
             // Skip other column types (like groupBy columns) as they shouldn't affect row ordering
         }
 
-        // Ensure all index columns are included for proper dense_rank calculation
-        // Add any missing index columns that weren't in sortBy
-        const sortedReferences = new Set(sortBy.map((s) => s.reference));
+        // Ensure all index columns are included for proper dense_rank calculation,
+        // including one also sorted as a value column (composer x that is also a y)
         for (const indexCol of indexColumns) {
-            if (!sortedReferences.has(indexCol.reference)) {
+            if (!orderedIndexReferences.has(indexCol.reference)) {
                 const sortExpr = this.resolveSortField(
                     indexCol.reference,
                     false,

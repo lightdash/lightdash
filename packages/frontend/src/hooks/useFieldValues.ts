@@ -315,6 +315,7 @@ export const useFieldValues = (
         new Map(),
     );
     const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
+    const [hasCachedResults, setHasCachedResults] = useState(false);
 
     const filtersKey = useMemo(
         () => hashQueryKey([stripTileTargetsFromFilters(filters)?.and ?? []]),
@@ -346,6 +347,7 @@ export const useFieldValues = (
                 setResultCounts(new Map());
             }
             setRefreshedAt(new Date(data.refreshedAt));
+            if (data.cached) setHasCachedResults(true);
             setSearches((previousSearches) => {
                 const nextSearches = new Set(previousSearches);
                 nextSearches.add(data.search);
@@ -466,6 +468,7 @@ export const useFieldValues = (
     useEffect(() => {
         if (!!fieldName && field.name !== fieldName) {
             setFieldName(field.name);
+            setHasCachedResults(false);
             setSearches(new Set<string>());
             setResultValueMap(createAutocompleteValueMap(initialOptions));
             setResultCounts(new Map());
@@ -506,6 +509,7 @@ export const useFieldValues = (
         results,
         resultCounts,
         refreshedAt,
+        hasCachedResults,
         reset,
     };
 };

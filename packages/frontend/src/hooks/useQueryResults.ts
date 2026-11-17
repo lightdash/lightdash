@@ -157,6 +157,7 @@ export const scheduleDownloadQuery = async (
             attachmentDownloadName: options.attachmentDownloadName,
             conditionalFormattings: options.conditionalFormattings,
             showColumnTotals: options.showColumnTotals,
+            showSubtotals: options.showSubtotals,
         }),
         version: 'v2',
     });

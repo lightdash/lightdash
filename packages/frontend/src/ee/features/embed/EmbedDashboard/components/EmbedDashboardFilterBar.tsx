@@ -1,13 +1,16 @@
 import {
     canAddDashboardFiltersInEmbed,
-    isParameterInteractivityEnabled,
+    isParameterAllowedInEmbed,
+    isParameterControlLockedInEmbed,
+    isParameterInteractivityVisible,
     type Dashboard,
+    type DashboardFilterRule,
     type DashboardTile,
     type InteractivityOptions,
 } from '@lightdash/common';
 import { Box, Button, Divider, Group, Tooltip } from '@mantine/core';
 import { IconChevronUp } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     selectActiveTabUuid,
@@ -36,6 +39,7 @@ import { DateZoom } from '../../../../../features/dateZoom';
 import { DateZoomCrossTabFieldsLoader } from '../../../../../features/dateZoom/components/DateZoomCrossTabFieldsLoader';
 import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
 import { useActiveTabParameters } from '../../../../../hooks/dashboard/useActiveTabParameters';
+import { getEmbedHiddenFilters } from '../../../../../providers/Dashboard/embedFilterInteractivity';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 import styles from './EmbedDashboardFilterBar.module.css';
@@ -62,7 +66,14 @@ const ControlsFilterArea: FC<{
     isEditor: boolean;
     withParameters: boolean;
     withDateZooms: boolean;
-}> = ({ canAddFilters, isEditor, withParameters, withDateZooms }) => {
+    hiddenFilters: DashboardFilterRule[];
+}> = ({
+    canAddFilters,
+    isEditor,
+    withParameters,
+    withDateZooms,
+    hiddenFilters,
+}) => {
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     // Sections or a stored order: the bar the app's viewers get
     const isSectioned = useDashboardSelector(
@@ -91,6 +102,7 @@ const ControlsFilterArea: FC<{
                     triggerClassName={triggerClassName}
                     withParameters={withParameters}
                     withDateZooms={withDateZooms}
+                    hiddenFilters={hiddenFilters}
                 />
             </SettledFilterFields>
         );
@@ -152,7 +164,8 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     const parameterControls = useDashboardSelector(selectParameterControls);
     const useParameterControls =
         isControlsEnabled && parameterControls !== null;
-    const parametersEnabled = isParameterInteractivityEnabled(
+    // Hidden parameters still apply; the viewer just doesn't see them
+    const parametersEnabled = isParameterInteractivityVisible(
         dashboard.parameterInteractivity,
     );
     // `canAddFilters` governs viewers' temporary filters; an editor can always
@@ -169,12 +182,34 @@ const EmbedDashboardFilterBar: FC<Props> = ({
           dashboardTemporaryFilters.dimensions.length
         : 0;
     // Parameters follow the UI: only shown on tabs whose charts reference them
-    const activeTabParameters = useActiveTabParameters(activeTiles);
+    // and, in an embed, only those the token lets the viewer change
+    const tabParameters = useActiveTabParameters(activeTiles);
+    const activeTabParameters = useMemo(
+        () =>
+            isEditMode
+                ? tabParameters
+                : Object.fromEntries(
+                      Object.entries(tabParameters).filter(([name]) =>
+                          isParameterAllowedInEmbed(
+                              dashboard.parameterInteractivity,
+                              name,
+                          ),
+                      ),
+                  ),
+        [tabParameters, isEditMode, dashboard.parameterInteractivity],
+    );
     const parameterBar = useParameterBarControls();
     const totalParametersCount = parametersEnabled
         ? isControlsEnabled
-            ? parameterBar.entries.filter(({ control }) => !control.hidden)
-                  .length
+            ? parameterBar.entries.filter(
+                  ({ control }) =>
+                      !control.hidden &&
+                      (isEditMode ||
+                          !isParameterControlLockedInEmbed(
+                              dashboard.parameterInteractivity,
+                              control,
+                          )),
+              ).length
             : Object.keys(activeTabParameters).length
         : 0;
     const hasVisibleParameters = totalParametersCount > 0;
@@ -246,6 +281,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                                 parametersEnabled && useParameterControls
                             }
                             withDateZooms={withDateZoomPills}
+                            hiddenFilters={getEmbedHiddenFilters(dashboard)}
                         />
                     ) : (
                         <EmbedDashboardFilters

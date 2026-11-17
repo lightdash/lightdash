@@ -252,6 +252,7 @@ export type DownloadAsyncQueryResultsRequestParams = {
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
     showColumnTotals?: boolean;
+    showSubtotals?: boolean;
 };
 
 export type ExecuteAsyncFieldValueSearchRequestParams =

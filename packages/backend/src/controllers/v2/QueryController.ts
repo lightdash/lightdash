@@ -817,6 +817,11 @@ export class QueryController extends BaseController {
         this.setStatus(200);
         const context = body.context ?? getContextFromHeader(req);
 
+        // Embeds run SQL charts through the dashboard SQL chart route, which applies the token's rules
+        if (isJwtUser(req.account!)) {
+            throw new ForbiddenError('Feature not available for this JWT');
+        }
+
         const results = await this.services
             .getAsyncQueryService()
             .executeAsyncSqlChartQuery({
@@ -978,6 +983,7 @@ export class QueryController extends BaseController {
             attachmentDownloadName: body.attachmentDownloadName,
             conditionalFormattings: body.conditionalFormattings,
             showColumnTotals: body.showColumnTotals,
+            showSubtotals: body.showSubtotals,
         });
 
         return {
@@ -1033,6 +1039,7 @@ export class QueryController extends BaseController {
                 attachmentDownloadName: body.attachmentDownloadName,
                 conditionalFormattings: body.conditionalFormattings,
                 showColumnTotals: body.showColumnTotals,
+                showSubtotals: body.showSubtotals,
             });
 
         return {

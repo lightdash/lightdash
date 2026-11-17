@@ -548,14 +548,12 @@ type AgentSidebarProps = {
     agent: AiAgent;
     projectUuid: string;
     threadUuid?: string;
-    isAgentSidebarCollapsed: boolean;
 };
 
 export const AgentSidebar: FC<AgentSidebarProps> = ({
     agent,
     projectUuid,
     threadUuid,
-    isAgentSidebarCollapsed,
 }) => {
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const isTrial =
@@ -563,19 +561,15 @@ export const AgentSidebar: FC<AgentSidebarProps> = ({
         aiOrganizationSettingsQuery.data.isTrial;
 
     return (
-        <Stack
-            gap="sm"
-            className={classes.sidebarSurface}
-            data-collapsed={isAgentSidebarCollapsed ? 'true' : undefined}
-        >
-            {projectUuid && !isAgentSidebarCollapsed && (
+        <Stack gap="sm" className={classes.sidebarSurface}>
+            {projectUuid && (
                 <ThreadList
                     projectUuid={projectUuid}
                     threadUuid={threadUuid}
                     agentUuid={agent.uuid}
                 />
             )}
-            {isTrial && !isAgentSidebarCollapsed && <TrialAlert />}
+            {isTrial && <TrialAlert />}
         </Stack>
     );
 };
@@ -583,13 +577,11 @@ export const AgentSidebar: FC<AgentSidebarProps> = ({
 type AutoModeSidebarProps = {
     projectUuid: string;
     threadUuid?: string;
-    isAgentSidebarCollapsed: boolean;
 };
 
 export const AutoModeSidebar: FC<AutoModeSidebarProps> = ({
     projectUuid,
     threadUuid,
-    isAgentSidebarCollapsed,
 }) => {
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const isTrial =
@@ -597,12 +589,8 @@ export const AutoModeSidebar: FC<AutoModeSidebarProps> = ({
         aiOrganizationSettingsQuery.data.isTrial;
 
     return (
-        <Stack
-            gap="sm"
-            className={classes.sidebarSurface}
-            data-collapsed={isAgentSidebarCollapsed ? 'true' : undefined}
-        >
-            {projectUuid && !isAgentSidebarCollapsed && (
+        <Stack gap="sm" className={classes.sidebarSurface}>
+            {projectUuid && (
                 <ThreadList
                     projectUuid={projectUuid}
                     threadUuid={threadUuid}
@@ -610,7 +598,7 @@ export const AutoModeSidebar: FC<AutoModeSidebarProps> = ({
                 />
             )}
 
-            {isTrial && !isAgentSidebarCollapsed && <TrialAlert />}
+            {isTrial && <TrialAlert />}
         </Stack>
     );
 };

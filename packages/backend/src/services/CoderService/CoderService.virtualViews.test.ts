@@ -160,6 +160,8 @@ const buildService = (
                     : [],
             ),
         } as never,
+        composerChartModel: {} as never,
+        composerChartService: {} as never,
     });
     return { service, projectService };
 };

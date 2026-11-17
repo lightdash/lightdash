@@ -4347,6 +4347,10 @@ export class McpService extends BaseService {
                         ? {
                               projectUuid: activeProject.projectUuid,
                               projectName: activeProject.name,
+                              type: activeProject.type,
+                              isPinned: Boolean(
+                                  ctx.authInfo?.extra.headerProjectUuid,
+                              ),
                               selectedTags:
                                   metadata.projectUuid === activeProjectUuid
                                       ? metadata.tags

@@ -21,6 +21,7 @@ export * from './api';
 export * from './ui';
 export * from './cli';
 export * from './env';
+export * from './composer';
 
 type RequestOptions = Parameters<APIRequestContext['fetch']>[1];
 

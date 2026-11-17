@@ -38,32 +38,36 @@ const CI_POLL_INTERVAL_MS = 15_000;
  * Disabled until both a project and a PR URL are known; keeps polling while
  * checks are pending or the merge verdict is still unknown, then stops.
  */
+export const pullRequestCiChecksQuery = (
+    lightdashApi: LightdashApi,
+    projectUuid: string | undefined,
+    prUrl: string | null | undefined,
+    commitSha: string | null,
+) => ({
+    queryKey: ['pullRequestCiChecks', projectUuid, prUrl, commitSha],
+    queryFn: () =>
+        getPullRequestCiChecks(lightdashApi, projectUuid!, prUrl!, commitSha),
+    enabled: !!projectUuid && !!prUrl,
+    refetchInterval: (data: CiChecks | null | undefined) =>
+        // A merged PR is terminal — its mergeable_state often reads
+        // `unknown`, so without this guard the poll would never settle.
+        data &&
+        !data.merged &&
+        (data.overall === CiCheckState.PENDING ||
+            data.mergeState === CiMergeState.UNKNOWN)
+            ? CI_POLL_INTERVAL_MS
+            : (false as const),
+    refetchOnWindowFocus: false,
+    retry: false,
+});
+
 export const usePullRequestCiChecks = (
     projectUuid: string | undefined,
     prUrl: string | null | undefined,
     commitSha: string | null,
 ) => {
     const lightdashApi = useLightdashApi();
-    return useQuery<CiChecks | null, ApiError>({
-        queryKey: ['pullRequestCiChecks', projectUuid, prUrl, commitSha],
-        queryFn: () =>
-            getPullRequestCiChecks(
-                lightdashApi,
-                projectUuid!,
-                prUrl!,
-                commitSha,
-            ),
-        enabled: !!projectUuid && !!prUrl,
-        refetchInterval: (data) =>
-            // A merged PR is terminal — its mergeable_state often reads
-            // `unknown`, so without this guard the poll would never settle.
-            data &&
-            !data.merged &&
-            (data.overall === CiCheckState.PENDING ||
-                data.mergeState === CiMergeState.UNKNOWN)
-                ? CI_POLL_INTERVAL_MS
-                : false,
-        refetchOnWindowFocus: false,
-        retry: false,
-    });
+    return useQuery<CiChecks | null, ApiError>(
+        pullRequestCiChecksQuery(lightdashApi, projectUuid, prUrl, commitSha),
+    );
 };
