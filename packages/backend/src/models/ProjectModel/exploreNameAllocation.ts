@@ -589,6 +589,10 @@ export const allocateStagedExploreNames = async (
             ]);
         }
     });
+    const unresolvedTables = new Map<
+        Explore | ExploreError,
+        Map<string, { reference: string; sourceUuid: string; reason: string }>
+    >();
     const identityOfTable = (
         explore: Explore | ExploreError,
         name: string,
@@ -614,15 +618,27 @@ export const allocateStagedExploreNames = async (
         )
             return selectedIdentity(fallback);
         const reference = table.canonicalName ?? table.originalName ?? name;
-        const unresolved = () =>
+        const unresolved = (reason: string) =>
             new ConflictError(
-                `Cannot resolve joined model "${reference}" to an existing explore in this project. Refresh the project and compile again.`,
+                `Cannot resolve joined model "${reference}" in explore "${explore.name}": ${reason}`,
             );
+        const keepUnresolved = (sourceUuid: string, reason: string) => {
+            const tables = unresolvedTables.get(explore) ?? new Map();
+            tables.set(name, { reference, sourceUuid, reason });
+            unresolvedTables.set(explore, tables);
+            return fallback;
+        };
         if (
             table.dbtSourceUuid !== undefined &&
             !sourceNames.has(table.dbtSourceUuid)
-        )
-            throw unresolved();
+        ) {
+            const reason = `source id "${table.dbtSourceUuid}" is not a source of this project`;
+            if (table.dbtModelUniqueId)
+                throw unresolved(
+                    `${reason}. Project sources: ${[...sourceNames.values()].map((source) => `"${source}"`).join(', ')}. Compile against this project and deploy again.`,
+                );
+            return keepUnresolved(table.dbtSourceUuid, reason);
+        }
         const namedSource = [...sourceNames].find(
             ([, sourceName]) => sourceName === table.dbtSourceName,
         )?.[0];
@@ -662,8 +678,20 @@ export const allocateStagedExploreNames = async (
         if (
             keyForSource(sourceUuid) !== sourceKey(root) &&
             matching.length !== 1
-        )
-            throw unresolved();
+        ) {
+            if (matching.length > 1)
+                throw unresolved(
+                    `${matching.length} models match in source "${sourceName}": ${matching.map((model) => `"${model.uniqueId}"`).join(', ')}. Point the join at one model.`,
+                );
+            if (table.dbtModelUniqueId)
+                throw unresolved(
+                    `source "${sourceName}" has no model with unique id "${table.dbtModelUniqueId}". Deploy source "${sourceName}" with that model first, or remove the join.`,
+                );
+            return keepUnresolved(
+                sourceUuid,
+                `source "${sourceName}" has no model "${modelName}"`,
+            );
+        }
         if (matching.length === 0 && !table.dbtModelUniqueId) return fallback;
         const resolved = selectedIdentity(
             matching.length === 1
@@ -1008,6 +1036,35 @@ export const allocateStagedExploreNames = async (
                 referenceNames.set(reference, assigned),
             );
     });
+    const joinedWarnings = new Map<Explore | ExploreError, string[]>();
+    unresolvedTables.forEach((tables, explore) => {
+        const messages: string[] = [];
+        tables.forEach(({ reference, sourceUuid, reason }, name) => {
+            for (const usedName of new Set([name, reference])) {
+                const allocation =
+                    byName.get(usedName) ??
+                    existing.find((row) => row.name === usedName);
+                const provider = providersByReference.get(usedName)?.[0];
+                let usage: string | undefined;
+                if (allocation)
+                    usage = isOwnedExploreNameAllocation(allocation)
+                        ? `is owned by ${ownerDescription(allocation)}`
+                        : 'is reserved because of an unresolved collision';
+                else if (provider)
+                    usage = `refers to model "${provider.modelName}" from source "${provider.sourceName}" (${provider.uniqueId})`;
+                else if (referenceNames.has(usedName))
+                    usage = `refers to explore "${referenceNames.get(usedName)}"`;
+                if (usage)
+                    throw new ConflictError(
+                        `Cannot resolve joined model "${reference}" in explore "${explore.name}": name "${usedName}" ${usage}. Rename the join alias.`,
+                    );
+            }
+            const warning = `Joined table "${name}" in explore "${explore.name}" claims dbt source "${sourceNames.get(sourceUuid) ?? sourceUuid}", but ${reason}. The table keeps the name "${name}" and is not linked to a dbt model. If "${name}" is a dbt model, deploy the source that owns it and deploy again.`;
+            warnings.push(warning);
+            messages.push(warning);
+        });
+        joinedWarnings.set(explore, messages);
+    });
     const rewritten = staged.map((row) => {
         const explore = row.explore as Explore | ExploreError;
         const identity = identityOf(explore);
@@ -1020,6 +1077,7 @@ export const allocateStagedExploreNames = async (
             mapLineageNames(table, referenceNames, names);
             if (table.nestedFrom) return;
             const tableIdentity = identityOfTable(explore, name, table);
+            if (unresolvedTables.get(explore)?.has(name)) return;
             const tableOwnerKey = ownerKey(tableIdentity);
             conflict ??= blocked.get(tableOwnerKey);
             const allocation = byOwner.get(tableOwnerKey);
@@ -1032,6 +1090,10 @@ export const allocateStagedExploreNames = async (
                 names.set(name, allocation.name);
             if (table.canonicalName && allocation)
                 names.set(table.canonicalName, allocation.name);
+        });
+        unresolvedTables.get(explore)?.forEach(({ reference }, name) => {
+            names.set(name, name);
+            names.set(reference, reference);
         });
         allocatedReferences.set(explore.name, names);
         let result: Explore | ExploreError = conflict
@@ -1059,6 +1121,26 @@ export const allocateStagedExploreNames = async (
                     },
                 ],
             };
+        if (!isExploreError(result)) {
+            const { tables } = result;
+            unresolvedTables.get(explore)?.forEach((_, name) => {
+                const originalName = explore.tables?.[name].originalName;
+                if (originalName !== undefined)
+                    tables[name].originalName = originalName;
+            });
+            const messages = joinedWarnings.get(explore) ?? [];
+            if (messages.length > 0)
+                result = {
+                    ...result,
+                    warnings: [
+                        ...(result.warnings ?? []),
+                        ...messages.map((message) => ({
+                            type: InlineErrorType.MISSING_TABLE,
+                            message,
+                        })),
+                    ],
+                };
+        }
         return result;
     });
     const published = withGeneratedExplores(rewritten);
