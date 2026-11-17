@@ -409,6 +409,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                     projectUuid={projectUuid}
                     pipeline={chart.pipeline}
                     run={run ?? null}
+                    runError={runQuery.error?.error.message ?? null}
                 />
             )}
             {exportQueryUuid && projectUuid && run && (

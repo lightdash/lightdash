@@ -133,6 +133,7 @@ export const DEFAULT_UI_STRINGS = {
     'tileMenu.viewLineage': 'View lineage',
     'tile.composerChart.notAvailable': 'This chart is not available here',
     'tile.composerChart.lineageTitle': 'Lineage: {chart}',
+    'tile.composerChart.lineageRunFailed': 'The pipeline did not run',
     'tile.error.couldNotLoad': 'This chart could not load',
     'tile.error.showDetails': 'Show details',
     'tile.filters.dashboardApplied.singular': 'Dashboard filter applied:',
