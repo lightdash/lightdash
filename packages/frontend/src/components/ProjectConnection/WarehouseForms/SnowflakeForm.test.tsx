@@ -77,6 +77,7 @@ const TestForm = ({
     connection,
     extra = false,
     dbtSource = false,
+    primaryRequiresUserCredentials,
     values = {},
 }: {
     values?: {
@@ -88,6 +89,7 @@ const TestForm = ({
     connection?: string | null;
     extra?: boolean;
     dbtSource?: boolean;
+    primaryRequiresUserCredentials?: boolean;
 }) => {
     const form = useForm({
         initialValues: {
@@ -113,10 +115,19 @@ const TestForm = ({
                     }
                     projectUuid={extra ? 'project' : undefined}
                     isProjectExtraConnection={extra}
+                    inheritsPrimaryCredentialRequirement={extra}
+                    primaryRequiresUserCredentials={
+                        primaryRequiresUserCredentials
+                    }
                     isDbtSource={dbtSource}
                     warehouseConnectionUuid={connection}
                 >
                     <SnowflakeForm disabled={false} />
+                    <output data-testid="allowUserCredentials">
+                        {form.values.warehouse?.type ===
+                            WarehouseTypes.SNOWFLAKE &&
+                            String(form.values.warehouse.allowUserCredentials)}
+                    </output>
                 </ProjectFormProvider>
             </FormProvider>
         </MemoryRouter>
@@ -202,6 +213,8 @@ describe('SnowflakeForm optional personal credentials', () => {
             hidden: true,
         });
 
+    const submittedValue = () => screen.getByTestId('allowUserCredentials');
+
     it('is off and editable by default', () => {
         renderWithProviders(<TestForm />);
         expect(optionalCheckbox()).not.toBeChecked();
@@ -231,6 +244,33 @@ describe('SnowflakeForm optional personal credentials', () => {
             />,
         );
         expect(optionalCheckbox()).not.toBeChecked();
+        expect(optionalCheckbox()).toBeDisabled();
+        expect(submittedValue()).toHaveTextContent('false');
+    });
+    it('clears the opt-in when the requirement is turned off without shared credentials', async () => {
+        renderWithProviders(
+            <TestForm
+                values={{
+                    authenticationType: SnowflakeAuthenticationType.NONE,
+                    requireUserCredentials: true,
+                    allowUserCredentials: true,
+                }}
+            />,
+        );
+        expect(optionalCheckbox()).toBeChecked();
+        expect(submittedValue()).toHaveTextContent('true');
+        await userEvent.click(
+            document.querySelector(
+                'input[name="warehouse.requireUserCredentials"]',
+            )!,
+        );
+        expect(optionalCheckbox()).not.toBeChecked();
+        expect(optionalCheckbox()).toBeDisabled();
+        expect(submittedValue()).toHaveTextContent('false');
+    });
+    it('is checked and locked on an extra connection whose primary requires personal credentials', () => {
+        renderWithProviders(<TestForm extra primaryRequiresUserCredentials />);
+        expect(optionalCheckbox()).toBeChecked();
         expect(optionalCheckbox()).toBeDisabled();
     });
 });

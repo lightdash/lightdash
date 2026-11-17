@@ -3686,6 +3686,162 @@ describe('ProjectService', () => {
         );
     });
 
+    describe('optional Snowflake personal credentials on save', () => {
+        const refusal =
+            'Personal credentials can only be optional when the connection stores shared credentials.';
+        const savedConnection = {
+            type: WarehouseTypes.SNOWFLAKE as const,
+            account: 'account',
+            user: 'person',
+            privateKey: 'private-key',
+            database: 'analytics',
+            warehouse: 'warehouse',
+            schema: 'public',
+            authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+            allowUserCredentials: true,
+        };
+        const savedProject = {
+            ...projectWithSensitiveFields,
+            warehouseConnection: savedConnection,
+        };
+        const withoutSharedCredentials = {
+            type: WarehouseTypes.SNOWFLAKE as const,
+            account: 'account',
+            database: 'analytics',
+            warehouse: 'warehouse',
+            schema: 'public',
+            authenticationType: SnowflakeAuthenticationType.NONE,
+        };
+        const creator = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'all', action: 'manage' },
+            ]),
+        };
+        const newProject = {
+            name: 'New project',
+            type: ProjectType.DEFAULT,
+            dbtVersion: DefaultSupportedDbtVersion,
+            dbtConnection: { type: DbtProjectType.NONE as const },
+        };
+        const update = {
+            updateWarehouseCredentials: (
+                warehouseConnection: CreateWarehouseCredentials,
+            ) =>
+                service.updateWarehouseCredentials(
+                    savedProject.projectUuid,
+                    developerAccount,
+                    { warehouseConnection },
+                ),
+            updateAndScheduleAsyncWork: (
+                warehouseConnection: CreateWarehouseCredentials,
+            ) =>
+                service.updateAndScheduleAsyncWork(
+                    savedProject.projectUuid,
+                    developerAccount,
+                    {
+                        name: savedProject.name,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: savedProject.dbtVersion,
+                        warehouseConnection,
+                    },
+                    RequestMethod.WEB_APP,
+                ),
+        };
+
+        beforeEach(() => {
+            projectModel.update.mockClear();
+            projectModel.createWithOptionalCredentials.mockClear();
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                savedProject,
+            );
+        });
+        afterEach(() => {
+            projectModel.getWithSensitiveFields.mockReset();
+            projectModel.getWithSensitiveFields.mockImplementation(
+                async () => projectWithSensitiveFields,
+            );
+        });
+
+        describe.each([
+            'updateWarehouseCredentials',
+            'updateAndScheduleAsyncWork',
+        ] as const)('%s', (method) => {
+            test('rejects removing the shared credentials while the stored opt-in is kept', async () => {
+                const save = update[method](withoutSharedCredentials);
+                await expect(save).rejects.toThrow(ParameterError);
+                await expect(save).rejects.toThrow(refusal);
+                expect(projectModel.update).not.toHaveBeenCalled();
+            });
+
+            test('saves when the opt-in is turned off in the same request', async () => {
+                await update[method]({
+                    ...withoutSharedCredentials,
+                    allowUserCredentials: false,
+                });
+                expect(projectModel.update).toHaveBeenCalledWith(
+                    savedProject.projectUuid,
+                    expect.objectContaining({
+                        warehouseConnection: expect.objectContaining({
+                            authenticationType:
+                                SnowflakeAuthenticationType.NONE,
+                            allowUserCredentials: false,
+                        }),
+                    }),
+                    expect.anything(),
+                );
+            });
+        });
+
+        test('rejects creating a project with the opt-in and no shared credentials', async () => {
+            const creation = service.createWithoutCompile(
+                creator,
+                {
+                    ...newProject,
+                    warehouseConnection: {
+                        ...withoutSharedCredentials,
+                        allowUserCredentials: true,
+                    },
+                },
+                RequestMethod.WEB_APP,
+            );
+            await expect(creation).rejects.toThrow(ParameterError);
+            await expect(creation).rejects.toThrow(refusal);
+            expect(
+                projectModel.createWithOptionalCredentials,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects a preview that inherits the opt-in from its upstream project', async () => {
+            const upstream = vi
+                .spyOn(projectModel, 'getWarehouseCredentialsForBinding')
+                .mockResolvedValue(savedConnection);
+            try {
+                const creation = service.createWithoutCompile(
+                    creator,
+                    {
+                        ...newProject,
+                        type: ProjectType.PREVIEW,
+                        upstreamProjectUuid: savedProject.projectUuid,
+                        warehouseConnection: withoutSharedCredentials,
+                    },
+                    RequestMethod.CLI,
+                );
+                await expect(creation).rejects.toThrow(ParameterError);
+                await expect(creation).rejects.toThrow(refusal);
+                expect(upstream).toHaveBeenCalled();
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+            } finally {
+                upstream.mockRestore();
+            }
+        });
+    });
+
     describe('ensurePlaygroundProject', () => {
         const organizationUuid = 'organization-uuid';
         const ensureAs = async (ability: SessionUser['ability']) => {
@@ -8350,7 +8506,7 @@ describe('ProjectService', () => {
                 );
             });
 
-            test('uses the shared connection for service accounts', async () => {
+            test('uses the shared connection for service accounts without personal credentials', async () => {
                 expect(
                     await getCredentials({
                         isRegisteredUser: true,

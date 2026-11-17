@@ -1,6 +1,7 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -49,10 +50,20 @@ vi.mock(
     '../UserSettings/MyWarehouseConnectionsPanel/CreateCredentialsModal',
     () => ({
         CreateCredentialsModal: ({
+            title,
             description,
+            onClose,
         }: {
+            title?: string;
             description: ReactNode;
-        }) => <div role="dialog">{description}</div>,
+            onClose: () => void;
+        }) => (
+            <div role="dialog">
+                {title}
+                {description}
+                <button onClick={onClose}>Close</button>
+            </div>
+        ),
     }),
 );
 
@@ -138,16 +149,57 @@ describe('UserCredentialsSwitcher Snowflake sign-in expiry', () => {
         expect(screen.queryByRole('dialog')).toBeNull();
     });
 
-    it('does not open on page load without personal credentials in optional mode', async () => {
-        mocks.credentials = [];
+    it('does not open on page load with personal credentials in optional mode', async () => {
         mocks.warehouseConnection = {
             ...snowflake,
             allowUserCredentials: true,
         };
-        renderSwitcher('MissingWarehouseCredentialsError');
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/projects/project/sqlRunner']}>
+                <UserCredentialsSwitcher />
+            </MemoryRouter>,
+        );
+        expect(
+            screen.getByRole('button', { name: 'Warehouse credentials' }),
+        ).toBeInTheDocument();
         await new Promise((resolve) => {
             setTimeout(resolve, 50);
         });
         expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    const closeThenCreateNew = async () => {
+        const user = userEvent.setup();
+        await user.click(await screen.findByRole('button', { name: 'Close' }));
+        expect(screen.queryByRole('dialog')).toBeNull();
+        await user.click(
+            screen.getByRole('button', { name: 'Warehouse credentials' }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'Create new' }),
+        );
+        return waitFor(() => screen.getByRole('dialog'));
+    };
+
+    it('shows the normal create modal after the expired sign-in prompt was closed in optional mode', async () => {
+        mocks.warehouseConnection = {
+            ...snowflake,
+            allowUserCredentials: true,
+        };
+        renderSwitcher('SnowflakeTokenError');
+        const dialog = await closeThenCreateNew();
+        expect(dialog).not.toHaveTextContent('Login to Snowflake');
+        expect(dialog).not.toHaveTextContent('sign-in has expired');
+    });
+
+    it('keeps the login prompt after closing when personal credentials are required', async () => {
+        mocks.warehouseConnection = {
+            ...snowflake,
+            requireUserCredentials: true,
+        };
+        renderSwitcher('SnowflakeTokenError');
+        const dialog = await closeThenCreateNew();
+        expect(dialog).toHaveTextContent('Login to Snowflake');
+        expect(dialog).toHaveTextContent('requires that you login to');
     });
 });

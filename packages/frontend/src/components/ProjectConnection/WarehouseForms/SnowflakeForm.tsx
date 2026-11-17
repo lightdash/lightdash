@@ -243,6 +243,19 @@ const SnowflakeForm: FC<{
               true
             : !!form.values.warehouse.requireUserCredentials;
 
+    const allowUserCredentials = form.values.warehouse.allowUserCredentials;
+    // The checkbox is locked off here, so the submitted value must be off too
+    useEffect(() => {
+        if (
+            hasNoSharedCredentials &&
+            !requiresUserCredentials &&
+            allowUserCredentials
+        ) {
+            form.setFieldValue('warehouse.allowUserCredentials', false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasNoSharedCredentials, requiresUserCredentials, allowUserCredentials]);
+
     // Build base authentication options
     const baseAuthOptions = isSsoEnabled
         ? [
@@ -374,12 +387,6 @@ const SnowflakeForm: FC<{
                                 'warehouse.authenticationType',
                                 value as SnowflakeAuthenticationType,
                             );
-                            if (value === SnowflakeAuthenticationType.NONE) {
-                                form.setFieldValue(
-                                    'warehouse.allowUserCredentials',
-                                    false,
-                                );
-                            }
                         }}
                         label="Authentication Type"
                         description={
