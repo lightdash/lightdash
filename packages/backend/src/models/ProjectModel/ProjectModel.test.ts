@@ -3088,6 +3088,46 @@ describe('ProjectModel', () => {
                 });
             },
         );
+        test.each([
+            [true, undefined, true],
+            [false, undefined, false],
+            [undefined, undefined, undefined],
+            [true, false, false],
+            [false, true, true],
+        ])(
+            'preserves Snowflake opt-in unless explicitly changed (%s, %s -> %s)',
+            (savedValue, incomingValue, expectedValue) => {
+                const connection: CreateSnowflakeCredentials = {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    account: 'account',
+                    user: 'user',
+                    password: 'password',
+                    database: 'database',
+                    warehouse: 'warehouse',
+                    schema: 'schema',
+                };
+                const result = ProjectModel.mergeMissingProjectConfigSecrets(
+                    {
+                        ...expectedProject,
+                        warehouseConnection: {
+                            ...connection,
+                            allowUserCredentials: incomingValue,
+                        },
+                    },
+                    {
+                        ...expectedProject,
+                        warehouseConnection: {
+                            ...connection,
+                            allowUserCredentials: savedValue,
+                        },
+                    },
+                );
+
+                expect(result.warehouseConnection).toMatchObject({
+                    allowUserCredentials: expectedValue,
+                });
+            },
+        );
     });
 
     describe('mergeMissingWarehouseSecrets', () => {

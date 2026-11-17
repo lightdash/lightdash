@@ -212,6 +212,7 @@ export const aiServiceAccountFieldClassification = {
         organizationWarehouseCredentialsUuid: 'identity',
         authenticationType: 'identity',
         requireUserCredentials: 'identity',
+        allowUserCredentials: 'identity',
     },
 } as const satisfies {
     [W in SupportedWarehouseType]: Record<Keys<CredentialsFor<W>>, FieldClass>;
