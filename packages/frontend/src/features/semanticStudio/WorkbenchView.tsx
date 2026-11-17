@@ -1762,7 +1762,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                 ) : !stored ? null : (
                     <Text fz="sm" c="dimmed" ta="center" py="xl">
                         {modelled.length > 0
-                            ? 'These models were deployed from elsewhere, so their YAML is not here. Ask the agent for a new model and its YAML shows up here.'
+                            ? 'These models were deployed from outside this app, so their YAML is not here and they cannot be changed here yet.'
                             : 'No models yet. Ask the agent to build one and its YAML shows up here.'}
                     </Text>
                 );
