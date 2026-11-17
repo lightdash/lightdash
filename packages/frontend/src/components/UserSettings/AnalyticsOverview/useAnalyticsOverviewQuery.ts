@@ -29,7 +29,11 @@ export const useAnalyticsOverviewQueries = (
             const query = buildAnalyticsQuery(spec, filters);
             return {
                 queryKey: ['analytics-settings', projectUuid, query],
-                enabled,
+                enabled:
+                    enabled &&
+                    (spec.source !== 'inventory' ||
+                        filters.projectUuid !== null ||
+                        filters.excludePreviewContent !== null),
                 staleTime: 5 * 60 * 1000,
                 refetchOnWindowFocus: false,
                 retry: false,

@@ -50,7 +50,7 @@ export const PullRequestChanges: FC<{
     const { data, isInitialLoading, isError } = useWholePullRequestDiff(
         projectUuid,
         prUrl,
-        commitSha,
+        pullRequest.revision,
     );
     // A save moves the head: what each model now is gets read again, in place.
     const queryClient = useQueryClient();

@@ -10,23 +10,17 @@ import {
     SegmentedControl,
     Tabs,
     Text,
+    useComputedColorScheme,
 } from '@mantine/core';
-import { WorkerPoolContextProvider } from '@pierre/diffs/react';
+import { File, WorkerPoolContextProvider } from '@pierre/diffs/react';
 import dayjs from 'dayjs';
-import { useCallback, useState, type FC, type ReactNode } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
-import {
-    Editor,
-    type BeforeMount,
-    type OnMount,
-} from '../../components/MonacoEditor';
 import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
-import { useEditorTheme } from '../../hooks/useEditorTheme';
-import { getLightdashMonacoTheme } from '../sqlRunner/utils/monaco';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_VERBS,
@@ -45,36 +39,13 @@ import {
     useUndoSemanticLayerChanges,
 } from './useSemanticLayerModel';
 
-const EDITOR_OPTIONS = {
-    readOnly: true,
-    domReadOnly: true,
-    minimap: { enabled: false },
-    scrollBeyondLastLine: false,
-    automaticLayout: true,
-    wordWrap: 'on',
-    fontSize: 12,
-} as const;
-
-const defineThemes: BeforeMount = (monaco) => {
-    monaco.editor.defineTheme('lightdash-light', {
-        base: 'vs',
-        inherit: true,
-        ...getLightdashMonacoTheme('light'),
-    });
-    monaco.editor.defineTheme('lightdash-dark', {
-        base: 'vs-dark',
-        inherit: true,
-        ...getLightdashMonacoTheme('dark'),
-    });
-};
-
 /** A model's YAML, read only: its draft when it has one, or what is live. */
 export const ModelCodeView: FC<{
     projectUuid: string;
     modelName: string;
     fieldName: string | null;
 }> = ({ projectUuid, modelName, fieldName }) => {
-    const { monaco: theme } = useEditorTheme();
+    const colorScheme = useComputedColorScheme('light');
     const { data: model, isLoading } = useSemanticLayerModel(
         projectUuid,
         modelName,
@@ -86,16 +57,8 @@ export const ModelCodeView: FC<{
     const [version, setVersion] = useState<'draft' | 'live'>('draft');
     const isDraft = draftContent !== undefined && version === 'draft';
     const content = isDraft ? draftContent : (model?.content ?? null);
-    const onMount: OnMount = useCallback(
-        (editor) => {
-            const line =
-                fieldName && content ? findFieldLine(content, fieldName) : null;
-            if (line === null) return;
-            editor.revealLineInCenter(line);
-            editor.setPosition({ lineNumber: line, column: 1 });
-        },
-        [fieldName, content],
-    );
+    const line =
+        fieldName && content ? findFieldLine(content, fieldName) : null;
     if (isLoading) return null;
     if (!model && draftContent === undefined) {
         return (
@@ -140,15 +103,30 @@ export const ModelCodeView: FC<{
                         Your draft removes this model.
                     </Text>
                 ) : (
-                    <Editor
-                        height="100%"
-                        language="yaml"
-                        theme={theme}
-                        value={content}
-                        beforeMount={defineThemes}
-                        onMount={onMount}
-                        options={EDITOR_OPTIONS}
-                    />
+                    <WorkerPoolContextProvider
+                        poolOptions={PIERRE_POOL_OPTIONS}
+                        highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
+                    >
+                        <File
+                            file={{
+                                name: `${modelName}.yml`,
+                                contents: content,
+                            }}
+                            selectedLines={
+                                line === null
+                                    ? null
+                                    : { start: line, end: line }
+                            }
+                            options={{
+                                theme:
+                                    colorScheme === 'dark'
+                                        ? 'pierre-dark'
+                                        : 'pierre-light',
+                                overflow: 'wrap',
+                                disableFileHeader: true,
+                            }}
+                        />
+                    </WorkerPoolContextProvider>
                 )}
             </Box>
         </Box>

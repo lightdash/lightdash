@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const POLL_INTERVAL_MS = 3_000;
+const endedRuns = new Set<string>();
 
 /** The stage a background dbt change has reached; polled until the run ends or the read fails. */
 export const useWritebackRunStatus = (
@@ -37,11 +38,13 @@ export const useWritebackRunStatus = (
         !!query.data && !isAiWritebackRunInProgress(query.data.status);
     // The thread stops refetching on its own after a few minutes, so a long run would never show its result.
     useEffect(() => {
-        if (hasEnded) {
-            void queryClient.invalidateQueries({
-                queryKey: ['aiAgents', projectUuid],
-            });
-        }
-    }, [hasEnded, projectUuid, queryClient]);
+        if (!hasEnded || !aiWritebackRunUuid) return;
+        // Several components watch one run, and its end is acted on once.
+        if (endedRuns.has(aiWritebackRunUuid)) return;
+        endedRuns.add(aiWritebackRunUuid);
+        void queryClient.invalidateQueries({
+            queryKey: ['aiAgents', projectUuid],
+        });
+    }, [hasEnded, aiWritebackRunUuid, projectUuid, queryClient]);
     return query;
 };

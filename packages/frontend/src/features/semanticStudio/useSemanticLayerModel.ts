@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { isDevelopmentViewOn } from './developmentView';
 
 const DRAFT_KEY = 'semantic-layer-draft';
 const DRAFT_STATE_KEY = 'semantic-layer-draft-state';
@@ -248,7 +249,7 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
                     [DRAFT_KEY, projectUuid],
                     [DRAFT_STATE_KEY, projectUuid],
                     // Explores read the draft while the development view is on.
-                    ['tables'],
+                    ...(isDevelopmentViewOn() ? [['tables']] : []),
                     ...(changesLive ? [[MODEL_KEY, projectUuid]] : []),
                 ].map((queryKey) =>
                     queryClient.invalidateQueries({ queryKey }),

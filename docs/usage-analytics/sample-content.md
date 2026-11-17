@@ -6,6 +6,9 @@ and AI tokens and billing coverage. It is compiled with the backend. A backgroun
 job on the existing scheduler installs new model and dashboard definitions after nightly
 processing; see [automatic content updates](content-sync.md).
 
+For the PR workflow for dashboards, data apps, and Settings, see the
+[Managed Analytics contributor guide](contributor-guide.md).
+
 New built-in dashboards are created together in the **Default dashboards** space.
 Create and Sync content automatically apply the existing **Verified** badge after
 each dashboard's charts and layout are installed. Verification is attributed to
