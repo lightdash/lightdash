@@ -7,6 +7,7 @@ import type {
 import {
     assertUnreachable,
     getPatchedSql,
+    getSqlApprovalSql,
     isRunQueryArgsV1,
     migrateRunQueryArgsV1ToV2,
     type AiAgentToolResult,
@@ -78,7 +79,7 @@ type ToolReadContentArgs = {
 
 type ToolEditContentArgs = {
     slug?: string;
-    type?: 'dashboard' | 'chart' | 'sql_chart' | 'document';
+    type?: 'dashboard' | 'chart' | 'sql_chart' | 'composer_chart' | 'document';
     patch?: unknown;
 };
 
@@ -283,6 +284,25 @@ export const ToolCallDescription: FC<{
                                 undefined,
                         }}
                         approval={approval ?? null}
+                    />
+                );
+            }
+            if (
+                editContentToolArgs.type === 'composer_chart' &&
+                editContentToolArgs.slug &&
+                approval
+            ) {
+                return (
+                    <SqlChartToolCallDescription
+                        action="edit"
+                        slug={editContentToolArgs.slug}
+                        contentLabel="composer chart"
+                        chart={{
+                            sql:
+                                getSqlApprovalSql(editContentToolArgs) ??
+                                undefined,
+                        }}
+                        approval={approval}
                     />
                 );
             }
