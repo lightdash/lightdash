@@ -324,8 +324,7 @@ export type AiPromptContextItemInput =
           runtimeOverrides?: AiDashboardRuntimeOverrides;
       }
     | {
-          // A saved SQL chart, e.g. the dashboard tile the user asked about;
-          // the server snapshots its name and latest version.
+          // A saved SQL chart; the server snapshots its name and latest version.
           type: 'sql_chart';
           sqlChartUuid: string;
           sqlChartSlug: string | null;

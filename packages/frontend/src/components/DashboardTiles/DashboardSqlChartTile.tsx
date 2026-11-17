@@ -23,6 +23,7 @@ import {
 } from 'react';
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import { AskAiAgentMenuItem } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import {
     selectInvalidateCache,
     selectParameterValues,
@@ -102,6 +103,7 @@ const SqlChartTile: FC<Props> = ({
     ...rest
 }) => {
     const { user } = useApp();
+    const isEmbedded = useIsEmbedded();
     const projectUuid = useProjectUuid();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const effectiveProjectUuid = projectUuidOverride ?? projectUuid;
@@ -354,7 +356,7 @@ const SqlChartTile: FC<Props> = ({
         );
     }
 
-    const canAskAi = !minimal && !isEmbed;
+    const canAskAi = !minimal && !isEmbedded;
     const askAiProps = {
         projectUuid: effectiveProjectUuid,
         sqlChartUuid: chartData.savedSqlUuid,

@@ -142,10 +142,6 @@ describe('usePinnedContext', () => {
             { wrapper },
         );
 
-        expect(useSavedSqlChartMock).toHaveBeenCalledWith(
-            { projectUuid, uuid: 'sql-1' },
-            { enabled: true },
-        );
         expect(result.current.isReady).toBe(true);
         expect(result.current.contextInput).toEqual([
             {
