@@ -1,3 +1,10 @@
+## [3.290.2](https://github.com/lightdash/lightdash/compare/3.290.1...3.290.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **dashboards:** add a heading in the hovered space and snap the add-tile placeholder to drawn tiles ([#32736](https://github.com/lightdash/lightdash/issues/32736)) ([5052240](https://github.com/lightdash/lightdash/commit/5052240385c36dda0b1a7886030ff68c8f3698ee))
+
 ## [3.290.1](https://github.com/lightdash/lightdash/compare/3.290.0...3.290.1) (2026-11-17)
 
 
