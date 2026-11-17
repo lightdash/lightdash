@@ -55,13 +55,13 @@ export async function up(knex: Knex): Promise<void> {
                 table.timestamp('created_at', { useTz: true }).notNullable();
                 table.timestamp('uploaded_at', { useTz: true });
                 table.timestamp('cleanup_attempted_at', { useTz: true });
-                // Serves the per-user upload rate count.
-                table.index(
-                    ['created_by_user_uuid', 'created_at'],
-                    'ai_thread_image_object_uploader_created_at',
-                );
             });
         }
+        // Indexes are separate statements, so each is guarded on its own: a
+        // run interrupted after the table was created must still add them.
+        // This one serves the per-user upload rate count.
+        await run(`CREATE INDEX IF NOT EXISTS ai_thread_image_object_uploader_created_at
+            ON ai_thread_image_object (created_by_user_uuid, created_at)`);
         // Knex cannot order an index NULLS FIRST, which the cleanup query sorts by.
         await run(`CREATE INDEX IF NOT EXISTS ai_thread_image_object_cleanup_attempt
             ON ai_thread_image_object (cleanup_attempted_at ASC NULLS FIRST, created_at)`);
