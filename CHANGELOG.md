@@ -1,3 +1,10 @@
+# [3.292.0](https://github.com/lightdash/lightdash/compare/3.291.0...3.292.0) (2026-11-17)
+
+
+### Features
+
+* **dashboards:** scroll to and select a tile added from the edit toolbar ([#32765](https://github.com/lightdash/lightdash/issues/32765)) ([b9cfa46](https://github.com/lightdash/lightdash/commit/b9cfa466986d2bc9fc7a68288ac9d41533b3ec10))
+
 # [3.291.0](https://github.com/lightdash/lightdash/compare/3.290.2...3.291.0) (2026-11-17)
 
 
