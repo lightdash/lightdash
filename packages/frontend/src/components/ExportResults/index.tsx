@@ -34,6 +34,7 @@ import { Can } from '../../providers/Ability';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../common/MantineIcon';
 import { NumberInput } from '../common/NumberInput';
+import CellLimitNote from './CellLimitNote';
 import classes from './ExportResults.module.css';
 import LargeExportWarning from './LargeExportWarning';
 import { Limit } from './types';
@@ -235,11 +236,6 @@ const ExportResults: FC<ExportResultsProps> = memo(
         const maxColumnLimit = health.data?.pivotTable?.maxColumnLimit || 60;
         const isPivotTable = exportPivotedData && !!pivotConfig;
         const isDialog = !!renderDialogActions;
-        const showLimitNote =
-            isPivotTable ||
-            (fileType === DownloadFileType.XLSX &&
-                (limit === Limit.ALL || limit === Limit.CUSTOM) &&
-                !isPivotTable);
 
         const limitSelection = (
             <Stack gap="sm">
@@ -489,9 +485,38 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     </Stack>
                 </Paper>
 
-                {showLimitNote && (
-                    <Stack gap="xs">
-                        {isPivotTable && (
+                <Stack gap="xs">
+                    {!isPivotTable && (
+                        <CellLimitNote
+                            limit={limit}
+                            customLimit={customLimit}
+                            totalResults={totalResults}
+                            columnOrder={columnOrder}
+                            csvCellsLimit={csvCellsLimit}
+                        />
+                    )}
+
+                    {isPivotTable && (
+                        <Group gap="xs" wrap="nowrap" align="flex-start">
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                size="sm"
+                                color="dimmed"
+                            />
+                            <Text size="xs" c="dimmed">
+                                <Text span fw={500} c="foreground">
+                                    Pivot export limit.
+                                </Text>{' '}
+                                Pivot exports are limited to{' '}
+                                {csvCellsLimit.toLocaleString()} cells and{' '}
+                                {maxColumnLimit} columns.
+                            </Text>
+                        </Group>
+                    )}
+
+                    {fileType === DownloadFileType.XLSX &&
+                        (limit === Limit.ALL || limit === Limit.CUSTOM) &&
+                        !isPivotTable && (
                             <Group gap="xs" wrap="nowrap" align="flex-start">
                                 <MantineIcon
                                     icon={IconInfoCircle}
@@ -500,39 +525,13 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 />
                                 <Text size="xs" c="dimmed">
                                     <Text span fw={500} c="foreground">
-                                        Pivot export limit.
+                                        Excel row limit.
                                     </Text>{' '}
-                                    Pivot exports are limited to{' '}
-                                    {csvCellsLimit.toLocaleString()} cells and{' '}
-                                    {maxColumnLimit} columns.
+                                    Excel exports are limited to 1,000,000 rows.
                                 </Text>
                             </Group>
                         )}
-
-                        {fileType === DownloadFileType.XLSX &&
-                            (limit === Limit.ALL || limit === Limit.CUSTOM) &&
-                            !isPivotTable && (
-                                <Group
-                                    gap="xs"
-                                    wrap="nowrap"
-                                    align="flex-start"
-                                >
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        size="sm"
-                                        color="dimmed"
-                                    />
-                                    <Text size="xs" c="dimmed">
-                                        <Text span fw={500} c="foreground">
-                                            Excel row limit.
-                                        </Text>{' '}
-                                        Excel exports are limited to 1,000,000
-                                        rows.
-                                    </Text>
-                                </Group>
-                            )}
-                    </Stack>
-                )}
+                </Stack>
 
                 {!isPivotTable && (
                     <LargeExportWarning

@@ -346,3 +346,75 @@ describe('ExportResults large export warning', () => {
         ).not.toBeInTheDocument();
     });
 });
+
+describe('ExportResults cell limit note', () => {
+    afterEach(() => {
+        healthMock.query = undefined;
+    });
+
+    const renderWithCellLimit = (
+        props: Partial<Parameters<typeof ExportResults>[0]>,
+    ) => {
+        healthMock.query = { csvCellsLimit: 100_000, exportTimeoutMs: 600_000 };
+        return renderWithProviders(
+            <ExportResults
+                projectUuid={PROJECT_UUID}
+                totalResults={1_000}
+                getDownloadQueryUuid={vi.fn().mockResolvedValue(QUERY_UUID)}
+                columnOrder={['a', 'b', 'c', 'd', 'e']}
+                hideLimitSelection
+                {...props}
+            />,
+        );
+    };
+
+    it('shows the cell limit and the rows it allows', () => {
+        renderWithCellLimit({});
+
+        expect(screen.getByTestId('export-cell-limit-note')).toHaveTextContent(
+            'Export cell limit. Exports are limited to 100,000 cells (rows × columns), up to 20,000 rows with 5 columns.',
+        );
+        expect(
+            screen.queryByTestId('export-cell-limit-warning'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('counts hidden columns, like the backend limit does', () => {
+        renderWithCellLimit({ hiddenFields: ['a', 'b'] });
+
+        expect(screen.getByTestId('export-cell-limit-note')).toHaveTextContent(
+            'up to 20,000 rows with 5 columns.',
+        );
+    });
+
+    it('warns when the export will be truncated', () => {
+        renderWithCellLimit({ totalResults: 50_000 });
+
+        const warning = screen.getByTestId('export-cell-limit-warning');
+        expect(warning).toHaveTextContent('This export will be truncated');
+        expect(warning).toHaveTextContent(
+            'With 5 columns, only the first 20,000 of 50,000 rows will be included.',
+        );
+        expect(
+            screen.queryByTestId('export-cell-limit-note'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows only the cell limit when the columns are unknown', () => {
+        renderWithCellLimit({ columnOrder: undefined });
+
+        expect(screen.getByTestId('export-cell-limit-note')).toHaveTextContent(
+            'Export cell limit. Exports are limited to 100,000 cells (rows × columns).',
+        );
+    });
+
+    it('does not show for pivot table exports', () => {
+        renderWithCellLimit({
+            pivotConfig: { pivotDimensions: ['a'], metricsAsRows: false },
+        });
+
+        expect(
+            screen.queryByTestId('export-cell-limit-note'),
+        ).not.toBeInTheDocument();
+    });
+});

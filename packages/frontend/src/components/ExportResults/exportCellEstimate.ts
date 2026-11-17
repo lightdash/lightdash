@@ -14,7 +14,7 @@ type ExportCellEstimateArgs = {
     csvCellsLimit: number;
 };
 
-const getExportRowCount = (
+export const getExportRowCount = (
     limit: Limit,
     customLimit: number,
     totalResults: number,
@@ -46,6 +46,16 @@ export const getExportCellEstimate = ({
     const rowCount = getExportRowCount(limit, customLimit, totalResults);
     return Math.min(rowCount * columnCount, csvCellsLimit);
 };
+
+/**
+ * Rows an export keeps under the cell limit. Mirrors the backend's
+ * `getCellLimitedRowCount`, which counts every query column (hidden ones
+ * included), so pass the full column order here.
+ */
+export const getCellLimitedRowCount = (
+    csvCellsLimit: number,
+    columnCount: number,
+): number => Math.floor(csvCellsLimit / Math.max(columnCount, 1));
 
 export const isLargeExport = (
     cellEstimate: number | null,
