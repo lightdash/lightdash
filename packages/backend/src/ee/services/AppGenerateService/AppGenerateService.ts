@@ -162,7 +162,6 @@ import {
     type RegistryChartTypeListItem,
     type RegistryChartTypeState,
     type SavedChart,
-    type SavedChartDAO,
     type SdkFeatureTarget,
     type SessionUser,
     type TogglePinnedItemInfo,
@@ -250,7 +249,7 @@ import type { DocumentService } from '../../../services/DocumentService/Document
 import { omittedThemeFontGuidance } from '../../../services/OrganizationDesignService/restrictedAppleFonts';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
-import { mergeDraftIntoChart } from '../../../services/SavedChartsService/chartDraftOverlay';
+import { applyOpenChartDraft } from '../../../services/SavedChartsService/chartDraftOverlay';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
@@ -11403,8 +11402,8 @@ export class AppGenerateService extends BaseService {
     /**
      * Viewing a saved chart that renders this viz. Authorization follows the
      * chart, so space-private charts stay private, and the chart must actually
-     * reference the requested viz. With `includeUnpublishedDraft`, the
-     * requester's own open draft of the latest version counts as the chart.
+     * reference the requested viz, in its published config or, on request,
+     * in the requester's own open draft.
      */
     private async getAuthorizedDataAppVizForChart(
         user: SessionUser,
@@ -11435,7 +11434,16 @@ export class AppGenerateService extends BaseService {
         );
         const chart =
             includeUnpublishedDraft && !chartVersionUuid
-                ? await this.applyOpenChartDraft(user, publishedChart)
+                ? await applyOpenChartDraft(
+                      this.contentDraftModel,
+                      user.userUuid,
+                      publishedChart,
+                      (draftUuid, error) =>
+                          this.logger.warn(
+                              `Ignoring invalid chart draft ${draftUuid} while rendering its chart type`,
+                              error,
+                          ),
+                  )
                 : publishedChart;
         if (
             chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
@@ -11447,28 +11455,6 @@ export class AppGenerateService extends BaseService {
         }
 
         return { dataAppViz, chart };
-    }
-
-    private async applyOpenChartDraft(
-        user: SessionUser,
-        chart: SavedChartDAO,
-    ): Promise<SavedChartDAO> {
-        const draft = await this.contentDraftModel.findOpenDraft(
-            chart.projectUuid,
-            'chart',
-            chart.uuid,
-            user.userUuid,
-        );
-        if (!draft) return chart;
-        try {
-            return mergeDraftIntoChart(chart, draft.draft);
-        } catch (error) {
-            this.logger.warn(
-                `Ignoring invalid chart draft ${draft.uuid} while rendering its chart type`,
-                error,
-            );
-            return chart;
-        }
     }
 
     async assertCanAccessDataAppVisualization(

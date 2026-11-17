@@ -1468,10 +1468,7 @@ describe('AppGenerateService data app vizs', () => {
             });
 
             it('does not consult the draft when a chart version is requested', async () => {
-                const { deps, findOpenDraft } = draftDeps(
-                    boundDraft,
-                    vizConfig,
-                );
+                const { deps, findOpenDraft } = draftDeps(boundDraft);
                 const service = buildService(draftAppModel(), deps);
 
                 await expect(
@@ -1483,7 +1480,9 @@ describe('AppGenerateService data app vizs', () => {
                         'chart-version-7',
                         true,
                     ),
-                ).resolves.toMatchObject({ state: 'ready', version: 2 });
+                ).rejects.toThrow(
+                    'Not authorized to access this visualization',
+                );
                 expect(findOpenDraft).not.toHaveBeenCalled();
             });
 

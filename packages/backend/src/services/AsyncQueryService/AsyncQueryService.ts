@@ -424,7 +424,7 @@ import {
     buildResultsCacheTtlProjections,
     TTL_PROJECTION_MAX_RUNS,
 } from '../ResultsCacheStats/ttlProjections';
-import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
+import { applyOpenChartDraft } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import {
     auditAndFilterExplore,
@@ -9977,29 +9977,21 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    // Only the draft's author sees it; a corrupt draft falls back to the
-    // published chart, as the chart read path does
     private async applyOpenChartDraft(
         account: Account,
         chart: SavedChartDAO,
     ): Promise<SavedChartDAO> {
         if (isJwtUser(account)) return chart;
-        const draft = await this.contentDraftModel.findOpenDraft(
-            chart.projectUuid,
-            'chart',
-            chart.uuid,
+        return applyOpenChartDraft(
+            this.contentDraftModel,
             account.user.userUuid,
+            chart,
+            (draftUuid, error) =>
+                this.logger.warn(
+                    `Ignoring invalid chart draft ${draftUuid} while running dashboard tile`,
+                    error,
+                ),
         );
-        if (!draft) return chart;
-        try {
-            return mergeDraftIntoChart(chart, draft.draft);
-        } catch (error) {
-            this.logger.warn(
-                `Ignoring invalid chart draft ${draft.uuid} while running dashboard tile`,
-                error,
-            );
-            return chart;
-        }
     }
 
     /** Explores of every metric source, so filters can be resolved per side. */
