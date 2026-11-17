@@ -49,20 +49,21 @@ export const helmetForInternalHttpHost = (
 ): RequestHandler => {
     const standard = helmet(config);
     const csp = config.contentSecurityPolicy;
-    if (csp === false) {
-        return standard;
-    }
     const cspOptions = typeof csp === 'object' ? csp : {};
-    const internalHttp = helmet({
-        ...config,
-        contentSecurityPolicy: {
-            ...cspOptions,
-            directives: {
-                ...cspOptions.directives,
-                'upgrade-insecure-requests': null,
-            },
-        },
-    });
+    const internalHttp =
+        csp === false
+            ? standard
+            : helmet({
+                  ...config,
+                  contentSecurityPolicy: {
+                      ...cspOptions,
+                      directives: {
+                          ...cspOptions.directives,
+                          'upgrade-insecure-requests': null,
+                      },
+                  },
+              });
+    // Single return: the OAuth route inventory resolves middleware factories statically.
     return (req, res, next) =>
         isPlainHttpInternalHostRequest(req, internalLightdashHost)
             ? internalHttp(req, res, next)
