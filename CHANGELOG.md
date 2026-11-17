@@ -1,3 +1,10 @@
+## [3.280.2](https://github.com/lightdash/lightdash/compare/3.280.1...3.280.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **apps:** quieter AI analysis offer above composer ([#32702](https://github.com/lightdash/lightdash/issues/32702)) ([42f5f41](https://github.com/lightdash/lightdash/commit/42f5f41d7a5204efe3aee89ae8895b9c3535c481))
+
 ## [3.280.1](https://github.com/lightdash/lightdash/compare/3.280.0...3.280.1) (2026-11-17)
 
 
