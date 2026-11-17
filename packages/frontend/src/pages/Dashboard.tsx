@@ -1157,27 +1157,19 @@ const Dashboard: FC = () => {
         CREATE_SAVED_CHART_VERSION_SEARCH_PARAM,
     );
 
-    const editErgonomicsFlag = useServerFeatureFlag(
-        FeatureFlags.DashboardEditErgonomics,
-    );
     const [editFiltersVisibility, setEditFiltersVisibility] =
         useState<EditFiltersVisibility>('all');
     const effectiveEditFiltersVisibility: EditFiltersVisibility | null =
-        isEditMode && editErgonomicsFlag.data?.enabled === true
-            ? editFiltersVisibility
-            : null;
-    const isEditErgonomicsEnabled = editErgonomicsFlag.data?.enabled === true;
+        isEditMode ? editFiltersVisibility : null;
     const handleAddTilesFromToolbar = useCallback(
         async (tiles: IDashboard['tiles'][number][]) => {
             await handleAddTiles(tiles);
             const [first] = tiles;
             if (!first) return;
             scrollToDashboardTileWhenMounted(first.uuid);
-            if (isEditErgonomicsEnabled) {
-                dashboardDispatch(dashboardEditActions.selectTile(first.uuid));
-            }
+            dashboardDispatch(dashboardEditActions.selectTile(first.uuid));
         },
-        [handleAddTiles, isEditErgonomicsEnabled, dashboardDispatch],
+        [handleAddTiles, dashboardDispatch],
     );
 
     // With the flag on, dashboards always fit and viewers get no toggle
@@ -1598,10 +1590,7 @@ const Dashboard: FC = () => {
             fitToScreen.isAvailable && !isFitToScreenDefault,
         onToggleFitToScreen: handleToggleFitToScreen,
         editFiltersVisibility: effectiveEditFiltersVisibility,
-        pendingSettingsChanges:
-            isEditMode && editErgonomicsFlag.data?.enabled === true
-                ? settingsChanges
-                : null,
+        pendingSettingsChanges: isEditMode ? settingsChanges : null,
         onEditFiltersVisibilityChange: setEditFiltersVisibility,
         hasDashboardChanged,
         onAddTiles: handleAddTilesFromToolbar,

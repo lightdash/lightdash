@@ -56,14 +56,6 @@ export enum FeatureFlags {
     DashboardControls = 'dashboard-controls',
 
     /**
-     * Dashboard edit ergonomics: editing uses a grid twice as fine (72
-     * columns, half-height rows), so tiles can land on half-steps, saved as
-     * fractional positions. Rolled out per organization. Temporary: remove
-     * once it is the default.
-     */
-    DashboardEditErgonomics = 'dashboard-edit-ergonomics',
-
-    /**
      * Data apps availability, computed rather than rolled out: on for any org
      * with AI (the AI copilot flag or an AI trial) on an instance with a
      * configured sandbox runtime. Overrides and the flag default are ignored
