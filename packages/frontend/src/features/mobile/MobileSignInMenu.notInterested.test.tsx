@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,6 +6,7 @@ import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { MOBILE_PITCH_DISMISSED_KEY } from './mobilePitchDismissed';
 import { MobileSignInMenu } from './MobileSignInMenu';
+import { MOBILE_STRINGS } from './mobileStrings';
 import {
     MOBILE_PITCH_DISMISS_REASONS,
     MOBILE_PITCH_DISMISS_STRINGS,
@@ -28,15 +29,18 @@ vi.mock('../../providers/Tracking/useTracking', () => ({
 
 const api = mockedLightdashApi;
 
-const renderMenu = () =>
+const renderMenu = (withLabel = false) =>
     renderWithProviders(
         <MemoryRouter initialEntries={['/projects/p1/saved/c1']}>
-            <MobileSignInMenu />
+            <MobileSignInMenu withLabel={withLabel} />
         </MemoryRouter>,
     );
 
 const openButton = () =>
     screen.getByRole('button', { name: 'Sign in on your phone' });
+
+const phoneEntry = () =>
+    screen.queryByRole('button', { name: MOBILE_STRINGS.signInTitle });
 
 const notInterested = () =>
     screen.queryByRole('button', {
@@ -122,24 +126,6 @@ describe('MobileSignInMenu pitch dismiss', () => {
         );
     });
 
-    it('returns focus to the phone button after a reason is picked', async () => {
-        renderMenu();
-        await openMenu();
-        await userEvent.click(
-            await screen.findByRole('button', {
-                name: MOBILE_PITCH_DISMISS_STRINGS.action,
-            }),
-        );
-
-        await userEvent.click(
-            screen.getByRole('button', {
-                name: MOBILE_PITCH_DISMISS_STRINGS.reasons.not_now,
-            }),
-        );
-
-        await waitFor(() => expect(openButton()).toHaveFocus());
-    });
-
     it('swaps the card for the Help us improve the app prompt without tracking yet', async () => {
         renderMenu();
         await openMenu();
@@ -184,8 +170,8 @@ describe('MobileSignInMenu pitch dismiss', () => {
         },
     );
 
-    it('closes the card, persists the dismissal and drops the pitch on the next open', async () => {
-        renderMenu();
+    it('removes the phone entry once a reason is picked and keeps it gone after a reload', async () => {
+        const first = renderMenu();
         await openMenu();
         await userEvent.click(
             await screen.findByRole('button', {
@@ -195,37 +181,55 @@ describe('MobileSignInMenu pitch dismiss', () => {
 
         await userEvent.click(
             screen.getByRole('button', {
-                name: MOBILE_PITCH_DISMISS_STRINGS.reasons.not_needed,
+                name: MOBILE_PITCH_DISMISS_STRINGS.reasons.already_use,
             }),
         );
 
         await waitFor(() =>
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
         );
+        expect(phoneEntry()).not.toBeInTheDocument();
         expect(window.localStorage.getItem(MOBILE_PITCH_DISMISSED_KEY)).toBe(
             'true',
         );
-
-        await openMenu();
-        expect(
-            screen.queryByText(UPSELL_STRINGS[6].headline),
-        ).not.toBeInTheDocument();
-        expect(notInterested()).not.toBeInTheDocument();
         expect(track).toHaveBeenCalledTimes(1);
+        first.unmount();
+
+        renderMenu();
+        expect(phoneEntry()).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(MOBILE_STRINGS.signInTitle),
+        ).not.toBeInTheDocument();
     });
 
-    it('keeps the phone icon and sign-in reachable after a reload', async () => {
-        window.localStorage.setItem(MOBILE_PITCH_DISMISSED_KEY, 'true');
-        renderMenu();
+    it.each([false, true])(
+        'renders no phone entry when the dismissal is already stored (withLabel %s)',
+        (withLabel) => {
+            window.localStorage.setItem(MOBILE_PITCH_DISMISSED_KEY, 'true');
+            renderMenu(withLabel);
 
-        expect(openButton()).toBeInTheDocument();
-        expect(
-            openButton().querySelector('.mantine-Indicator-indicator'),
-        ).not.toBeInTheDocument();
-        await openMenu();
-        expect(
-            screen.queryByText(UPSELL_STRINGS[6].headline),
-        ).not.toBeInTheDocument();
-        expect(notInterested()).not.toBeInTheDocument();
+            expect(phoneEntry()).not.toBeInTheDocument();
+            expect(
+                screen.queryByText(MOBILE_STRINGS.signInTitle),
+            ).not.toBeInTheDocument();
+            expect(notInterested()).not.toBeInTheDocument();
+        },
+    );
+
+    it('removes the phone entry when another tab dismisses the pitch', async () => {
+        renderMenu();
+        expect(phoneEntry()).toBeInTheDocument();
+
+        window.localStorage.setItem(MOBILE_PITCH_DISMISSED_KEY, 'true');
+        act(() => {
+            window.dispatchEvent(
+                new StorageEvent('storage', {
+                    key: MOBILE_PITCH_DISMISSED_KEY,
+                    newValue: 'true',
+                }),
+            );
+        });
+
+        expect(phoneEntry()).not.toBeInTheDocument();
     });
 });
