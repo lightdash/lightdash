@@ -1,8 +1,12 @@
-import { AI_THREAD_IMAGE_MAX_BYTES } from '@lightdash/common';
+import {
+    AI_THREAD_IMAGE_MAX_BYTES,
+    AI_THREAD_IMAGES_MAX_THREAD_BYTES,
+} from '@lightdash/common';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { type LightdashApiProps } from '../../../../api';
 import {
     useThreadFileAttachment,
+    type SentThreadImages,
     type ThreadFileAttachment,
 } from './useThreadFileAttachment';
 
@@ -91,10 +95,15 @@ afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
 });
-const render = () => {
+const render = (sentImages: SentThreadImages = { count: 0, bytes: 0 }) => {
     const onReady = vi.fn<(attachment: ThreadFileAttachment) => void>();
     return {
-        ...renderHook(() => useThreadFileAttachment({ onReady })),
+        ...renderHook(() =>
+            useThreadFileAttachment({
+                onReady,
+                getSentImages: () => sentImages,
+            }),
+        ),
         onReady,
     };
 };
@@ -265,6 +274,25 @@ test('five slots are reserved across calls before preparation and decoding stays
     });
     expect(mocks.normalize).toHaveBeenCalledTimes(5);
     expect(mocks.toast).toHaveBeenCalled();
+});
+
+test('images earlier messages sent count toward the conversation limits', async () => {
+    const nearCount = render({ count: 9, bytes: 0 });
+    await act(async () => {
+        await nearCount.result.current.attachImages([image('10'), image('11')]);
+    });
+    expect(nearCount.onReady).toHaveBeenCalledTimes(1);
+    expect(mocks.toast).toHaveBeenCalledTimes(1);
+
+    const nearBytes = render({
+        count: 1,
+        bytes: AI_THREAD_IMAGES_MAX_THREAD_BYTES,
+    });
+    await act(async () => {
+        await nearBytes.result.current.attachImages([image('too-much')]);
+    });
+    expect(nearBytes.onReady).not.toHaveBeenCalled();
+    expect(mocks.api).toHaveBeenCalledTimes(1);
 });
 
 test('the byte budget settles on normalized images, not larger originals', async () => {
