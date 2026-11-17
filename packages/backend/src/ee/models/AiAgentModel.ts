@@ -636,6 +636,20 @@ const isPendingEditDbtProjectToolResult = (
 ): result is PendingEditDbtProjectToolResult =>
     isEditDbtProjectToolResult(result) && result.metadata.status === 'pending';
 
+/** A pull request recorded ahead of a preview that never settled reads as having no preview. */
+const settleAbandonedPreview = (result: AiAgentToolResult): AiAgentToolResult =>
+    isEditDbtProjectToolResult(result) &&
+    result.metadata.status === 'success' &&
+    result.metadata.previewPendingSince &&
+    Date.parse(result.metadata.previewPendingSince) +
+        AI_WRITEBACK_PENDING_GRACE_MS <=
+        Date.now()
+        ? {
+              ...result,
+              metadata: { ...result.metadata, previewPendingSince: null },
+          }
+        : result;
+
 type PendingDataAppBuildToolResult = AiAgentToolResult & {
     toolType: 'built-in';
     toolName: 'generateDataApp' | 'iterateDataApp';
@@ -9142,8 +9156,9 @@ export class AiAgentModel {
 
     private async resolvePendingWritebackToolResults(
         promptUuid: string,
-        results: AiAgentToolResult[],
+        stored: AiAgentToolResult[],
     ): Promise<AiAgentToolResult[]> {
+        const results = stored.map(settleAbandonedPreview);
         const pendingResults = results.filter(
             isPendingEditDbtProjectToolResult,
         );
