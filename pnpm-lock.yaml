@@ -246,7 +246,7 @@ importers:
         version: 0.10.3
       '@vitest/eslint-plugin':
         specifier: 1.6.23
-        version: 1.6.23(@typescript-eslint/eslint-plugin@8.43.0(@typescript-eslint/parser@8.43.0(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0)(typescript@7.0.2)(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(jsdom@26.1.0(canvas@3.2.1)(supports-color@9.1.0))(vite@7.3.7(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)))
+        version: 1.6.23(@typescript-eslint/eslint-plugin@8.43.0(@typescript-eslint/parser@8.43.0(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0)(typescript@7.0.2)(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(happy-dom@21.0.4)(jsdom@26.1.0(canvas@3.2.1)(supports-color@9.1.0))(vite@7.3.7(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)))
       ajv:
         specifier: 8.18.0
         version: 8.18.0
@@ -1748,13 +1748,16 @@ importers:
         version: 6.0.1(@rolldown/plugin-babel@0.2.3(@babel/core@8.0.1)(@babel/runtime@7.28.6)(rolldown@1.1.5)(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)))(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3))
       '@vitest/eslint-plugin':
         specifier: 1.6.23
-        version: 1.6.23(@typescript-eslint/eslint-plugin@8.43.0(@typescript-eslint/parser@8.43.0(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0)(typescript@7.0.2)(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(jsdom@24.0.0(canvas@3.2.1)(supports-color@9.1.0))(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)))
+        version: 1.6.23(@typescript-eslint/eslint-plugin@8.43.0(@typescript-eslint/parser@8.43.0(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0)(typescript@7.0.2)(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(happy-dom@21.0.4)(jsdom@24.0.0(canvas@3.2.1)(supports-color@9.1.0))(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)))
       csstype:
         specifier: 3.2.3
         version: 3.2.3
       eslint-plugin-jest-dom:
         specifier: 5.5.0
         version: 5.5.0(@testing-library/dom@10.4.1)(eslint@8.57.1(supports-color@9.1.0))
+      happy-dom:
+        specifier: 21.0.4
+        version: 21.0.4
       jsdom:
         specifier: 24.0.0
         version: 24.0.0(canvas@3.2.1)(supports-color@9.1.0)
@@ -1820,7 +1823,7 @@ importers:
         version: 4.5.0(rollup@4.60.2)(supports-color@9.1.0)(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3))
       vitest:
         specifier: 4.1.11
-        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(jsdom@24.0.0(canvas@3.2.1)(supports-color@9.1.0))(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3))
+        version: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(happy-dom@21.0.4)(jsdom@24.0.0(canvas@3.2.1)(supports-color@9.1.0))(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3))
 
   packages/frontend/sdk:
     dependencies:
@@ -7881,8 +7884,14 @@ packages:
   '@types/uuid@10.0.0':
     resolution: {integrity: sha512-7gqG38EyHgyP1S+7+xomFtL+ZNHcKv6DwNaCZmJmo1vgMugyF3TCnXVg4t1uk89mLNwnLtnY3TpOpCOyp1/xHQ==}
 
+  '@types/whatwg-mimetype@3.0.2':
+    resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
+
   '@types/ws@7.4.7':
     resolution: {integrity: sha512-JQbbmxZTZehdc2iszGKs5oC3NFnjeay7mtAWrdt7qNtAVK0g19muApzAy4bm9byz79xa2ZnO/BOBC2R8RC5Lww==}
+
+  '@types/ws@8.18.2':
+    resolution: {integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==}
 
   '@typesafe-ai/sdk@0.6.0':
     resolution: {integrity: sha512-IddX+Q0XM+VagOUZFeP7wZjaO4SHMdvnh2zEBdrZZnXedWI3BNK1lKhMx3ayrkFWvVLbVcUHJy6AVZlY+e6Jaw==}
@@ -8755,6 +8764,10 @@ packages:
 
   buffer-from@1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
+
+  buffer-image-size@0.6.4:
+    resolution: {integrity: sha512-nEh+kZOPY1w+gcCMobZ6ETUp9WfibndnosbpwB1iJk/8Gt5ZF2bhS6+B6bPYz424KtwsR6Rflc3tCz1/ghX2dQ==}
+    engines: {node: '>=4.0'}
 
   buffer-indexof-polyfill@1.0.2:
     resolution: {integrity: sha512-I7wzHwA3t1/lwXQh+A5PbNvJxgfo5r3xulgpYDB5zckTu/Z9oUK9biouBKQUjEqzaz3HnAT6TYoovmE+GqSf7A==}
@@ -9962,6 +9975,10 @@ packages:
     resolution: {integrity: sha512-aN97NXWF6AWBTahfVOIrB/NShkzi5H7F9r1s9mD3cDj4Ko5f2qhhVoYMibXF7GlLveb/D2ioWay8lxI97Ven3g==}
     engines: {node: '>=0.12'}
 
+  entities@7.0.1:
+    resolution: {integrity: sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==}
+    engines: {node: '>=0.12'}
+
   entities@8.1.0:
     resolution: {integrity: sha512-kxL7msIffSuh9aaFAMD7rxAIuTRMAHMeBtgHW2yUdWw732ZNh4MehkF2gdjvtdmikkaIP9bFDDJOPlsvm7avrA==}
     engines: {node: '>=20.19.0'}
@@ -10744,6 +10761,10 @@ packages:
     resolution: {integrity: sha512-P5VJMVM7qgBn6vjXMw8WG9uVI+ncf2pi72j4de4yz5ZULLj2RGqLYaKOYGsgyrViQ0tePOVlN1tDCCXXtFqXKg==}
     engines: {node: '>=0.4.7'}
     hasBin: true
+
+  happy-dom@21.0.4:
+    resolution: {integrity: sha512-tFm+GaLBgo6o0awHnvHaNoraVo27qJ+2tZEtZ+cIa08hXbeitrxAJajLI05hsUy/2/YTKcUjQYzHe5mCcraLBw==}
+    engines: {node: '>=20.0.0'}
 
   has-bigints@1.0.2:
     resolution: {integrity: sha512-tSvCKtBr9lkF0Ex0aQiP9N+OpV4zi2r/Nee5VkRDbaqv35RLYMzbwQfFSZZH0kR+Rd6302UJZ2p/bJCEoR3VoQ==}
@@ -16021,6 +16042,10 @@ packages:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
     engines: {node: '>=18'}
     deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+
+  whatwg-mimetype@3.0.0:
+    resolution: {integrity: sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==}
+    engines: {node: '>=12'}
 
   whatwg-mimetype@4.0.0:
     resolution: {integrity: sha512-QaKxh0eNIi2mE9p2vEdzfagOKHCcj1pJ56EEHGQOVxp8r9/iszLUUV7v89x9O1p/T+NlTM5W7jW6+cz4Fq1YVg==}
@@ -23182,9 +23207,15 @@ snapshots:
 
   '@types/uuid@10.0.0': {}
 
+  '@types/whatwg-mimetype@3.0.2': {}
+
   '@types/ws@7.4.7':
     dependencies:
       '@types/node': 24.13.2
+
+  '@types/ws@8.18.2':
+    dependencies:
+      '@types/node': 26.5.1
 
   '@typesafe-ai/sdk@0.6.0': {}
 
@@ -23605,7 +23636,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitest/eslint-plugin@1.6.23(@typescript-eslint/eslint-plugin@8.43.0(@typescript-eslint/parser@8.43.0(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0)(typescript@7.0.2)(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(jsdom@24.0.0(canvas@3.2.1)(supports-color@9.1.0))(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)))':
+  '@vitest/eslint-plugin@1.6.23(@typescript-eslint/eslint-plugin@8.43.0(@typescript-eslint/parser@8.43.0(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0)(typescript@7.0.2)(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(happy-dom@21.0.4)(jsdom@24.0.0(canvas@3.2.1)(supports-color@9.1.0))(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)))':
     dependencies:
       '@typescript-eslint/scope-manager': 8.63.0
       '@typescript-eslint/utils': 8.63.0(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0)
@@ -23613,11 +23644,11 @@ snapshots:
     optionalDependencies:
       '@typescript-eslint/eslint-plugin': 8.43.0(@typescript-eslint/parser@8.43.0(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0)
       typescript: 7.0.2
-      vitest: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(jsdom@24.0.0(canvas@3.2.1)(supports-color@9.1.0))(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3))
+      vitest: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(happy-dom@21.0.4)(jsdom@24.0.0(canvas@3.2.1)(supports-color@9.1.0))(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3))
     transitivePeerDependencies:
       - supports-color
 
-  '@vitest/eslint-plugin@1.6.23(@typescript-eslint/eslint-plugin@8.43.0(@typescript-eslint/parser@8.43.0(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0)(typescript@7.0.2)(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(jsdom@26.1.0(canvas@3.2.1)(supports-color@9.1.0))(vite@7.3.7(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)))':
+  '@vitest/eslint-plugin@1.6.23(@typescript-eslint/eslint-plugin@8.43.0(@typescript-eslint/parser@8.43.0(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0)(typescript@7.0.2)(vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(happy-dom@21.0.4)(jsdom@26.1.0(canvas@3.2.1)(supports-color@9.1.0))(vite@7.3.7(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)))':
     dependencies:
       '@typescript-eslint/scope-manager': 8.63.0
       '@typescript-eslint/utils': 8.63.0(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0)
@@ -23625,7 +23656,7 @@ snapshots:
     optionalDependencies:
       '@typescript-eslint/eslint-plugin': 8.43.0(@typescript-eslint/parser@8.43.0(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0))(eslint@8.57.1(supports-color@9.1.0))(supports-color@9.1.0)
       typescript: 7.0.2
-      vitest: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(jsdom@26.1.0(canvas@3.2.1)(supports-color@9.1.0))(vite@7.3.7(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3))
+      vitest: 4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(happy-dom@21.0.4)(jsdom@26.1.0(canvas@3.2.1)(supports-color@9.1.0))(vite@7.3.7(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3))
     transitivePeerDependencies:
       - supports-color
 
@@ -24380,6 +24411,10 @@ snapshots:
 
   buffer-from@1.1.2:
     optional: true
+
+  buffer-image-size@0.6.4:
+    dependencies:
+      '@types/node': 26.5.1
 
   buffer-indexof-polyfill@1.0.2: {}
 
@@ -25671,6 +25706,8 @@ snapshots:
   entities@4.5.0: {}
 
   entities@6.0.1: {}
+
+  entities@7.0.1: {}
 
   entities@8.1.0: {}
 
@@ -26966,6 +27003,19 @@ snapshots:
       wordwrap: 1.0.0
     optionalDependencies:
       uglify-js: 3.13.10
+
+  happy-dom@21.0.4:
+    dependencies:
+      '@types/node': 26.5.1
+      '@types/whatwg-mimetype': 3.0.2
+      '@types/ws': 8.18.2
+      buffer-image-size: 0.6.4
+      entities: 7.0.1
+      whatwg-mimetype: 3.0.0
+      ws: 8.22.1
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   has-bigints@1.0.2: {}
 
@@ -33223,6 +33273,66 @@ snapshots:
     transitivePeerDependencies:
       - msw
 
+  vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(happy-dom@21.0.4)(jsdom@24.0.0(canvas@3.2.1)(supports-color@9.1.0))(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)):
+    dependencies:
+      '@vitest/expect': 4.1.11
+      '@vitest/mocker': 4.1.11(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3))
+      '@vitest/pretty-format': 4.1.11
+      '@vitest/runner': 4.1.11
+      '@vitest/snapshot': 4.1.11
+      '@vitest/spy': 4.1.11
+      '@vitest/utils': 4.1.11
+      es-module-lexer: 2.0.0
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.1.1
+      pathe: 2.0.3
+      picomatch: 4.0.5
+      std-env: 4.0.0
+      tinybench: 2.9.0
+      tinyexec: 1.0.4
+      tinyglobby: 0.2.17
+      tinyrainbow: 3.1.0
+      vite: 8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+      '@types/node': 24.13.2
+      happy-dom: 21.0.4
+      jsdom: 24.0.0(canvas@3.2.1)(supports-color@9.1.0)
+    transitivePeerDependencies:
+      - msw
+
+  vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(happy-dom@21.0.4)(jsdom@26.1.0(canvas@3.2.1)(supports-color@9.1.0))(vite@7.3.7(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)):
+    dependencies:
+      '@vitest/expect': 4.1.11
+      '@vitest/mocker': 4.1.11(vite@7.3.7(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3))
+      '@vitest/pretty-format': 4.1.11
+      '@vitest/runner': 4.1.11
+      '@vitest/snapshot': 4.1.11
+      '@vitest/spy': 4.1.11
+      '@vitest/utils': 4.1.11
+      es-module-lexer: 2.0.0
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.1.1
+      pathe: 2.0.3
+      picomatch: 4.0.5
+      std-env: 4.0.0
+      tinybench: 2.9.0
+      tinyexec: 1.0.4
+      tinyglobby: 0.2.17
+      tinyrainbow: 3.1.0
+      vite: 7.3.7(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+      '@types/node': 24.13.2
+      happy-dom: 21.0.4
+      jsdom: 26.1.0(canvas@3.2.1)(supports-color@9.1.0)
+    transitivePeerDependencies:
+      - msw
+
   vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(jsdom@24.0.0(canvas@3.2.1)(supports-color@5.5.0))(vite@7.3.7(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)):
     dependencies:
       '@vitest/expect': 4.1.11
@@ -33249,35 +33359,6 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       '@types/node': 24.13.2
       jsdom: 24.0.0(canvas@3.2.1)(supports-color@5.5.0)
-    transitivePeerDependencies:
-      - msw
-
-  vitest@4.1.11(@opentelemetry/api@1.9.0)(@types/node@24.13.2)(jsdom@24.0.0(canvas@3.2.1)(supports-color@9.1.0))(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)):
-    dependencies:
-      '@vitest/expect': 4.1.11
-      '@vitest/mocker': 4.1.11(vite@8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3))
-      '@vitest/pretty-format': 4.1.11
-      '@vitest/runner': 4.1.11
-      '@vitest/snapshot': 4.1.11
-      '@vitest/spy': 4.1.11
-      '@vitest/utils': 4.1.11
-      es-module-lexer: 2.0.0
-      expect-type: 1.3.0
-      magic-string: 0.30.21
-      obug: 2.1.1
-      pathe: 2.0.3
-      picomatch: 4.0.5
-      std-env: 4.0.0
-      tinybench: 2.9.0
-      tinyexec: 1.0.4
-      tinyglobby: 0.2.17
-      tinyrainbow: 3.1.0
-      vite: 8.1.6(@types/node@24.13.2)(esbuild@0.28.2)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.23))(terser@5.46.1)(tsx@4.23.12)(yaml@2.8.3)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.0
-      '@types/node': 24.13.2
-      jsdom: 24.0.0(canvas@3.2.1)(supports-color@9.1.0)
     transitivePeerDependencies:
       - msw
 
@@ -33422,6 +33503,8 @@ snapshots:
   whatwg-encoding@3.1.1:
     dependencies:
       iconv-lite: 0.6.3
+
+  whatwg-mimetype@3.0.0: {}
 
   whatwg-mimetype@4.0.0: {}
 

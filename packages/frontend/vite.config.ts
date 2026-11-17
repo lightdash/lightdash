@@ -141,7 +141,7 @@ export default defineConfig({
     },
     test: {
         globals: true,
-        environment: 'jsdom',
+        environment: 'happy-dom',
         setupFiles: './src/testing/vitest.setup.ts',
         env: {
             VITE_REACT_QUERY_DEVTOOLS_ENABLED: 'false',
