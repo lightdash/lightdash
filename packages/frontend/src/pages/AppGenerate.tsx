@@ -112,6 +112,7 @@ import {
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { RestoreAppVersionModal } from '../features/apps/components/RestoreAppVersionModal';
 import { SampleDataButton } from '../features/apps/components/SampleDataButton';
+import StoppedDivider from '../features/apps/components/StoppedDivider';
 import ThreadDivider from '../features/apps/components/ThreadDivider';
 import UndoChangeButton from '../features/apps/components/UndoChangeButton';
 import { ViewingOlderVersionCard } from '../features/apps/components/ViewingOlderVersionCard';
@@ -1328,6 +1329,13 @@ const AppGenerate: FC = () => {
     };
 
     const renderFailedCard = (content: string, index: number) => {
+        if (content === APP_VERSION_CANCELLED_BY_USER) {
+            return (
+                <StoppedDivider
+                    fallbackVersion={latestReadyVersion?.version ?? null}
+                />
+            );
+        }
         const { onRetry, onEditPrompt } = failedTurnActions(index);
         return (
             <BuildFailedCard

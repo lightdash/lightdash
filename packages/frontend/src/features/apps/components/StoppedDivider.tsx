@@ -1,0 +1,41 @@
+import { Divider, Group, Text } from '@mantine/core';
+import { IconHandStop } from '@tabler/icons-react';
+import { type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
+
+type Props = {
+    /** Version the preview still shows; null when nothing was ever built. */
+    fallbackVersion: number | null;
+};
+
+/** Marks a build the user stopped in the builder chat. */
+const StoppedDivider: FC<Props> = ({ fallbackVersion }) => (
+    <Divider
+        my="md"
+        labelPosition="center"
+        role="status"
+        label={
+            <Group gap={6} wrap="nowrap">
+                <MantineIcon
+                    icon={IconHandStop}
+                    size={13}
+                    stroke={1.7}
+                    color="gray.6"
+                />
+                <Text fz="xs" lh={1.4} c="dimmed">
+                    Build stopped
+                    {fallbackVersion !== null && (
+                        <>
+                            , still on{' '}
+                            <Text span ff="monospace" fz="xs" c="gray.7">
+                                v{fallbackVersion}
+                            </Text>
+                        </>
+                    )}
+                </Text>
+            </Group>
+        }
+    />
+);
+
+export default StoppedDivider;

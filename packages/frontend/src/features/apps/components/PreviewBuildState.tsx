@@ -143,7 +143,7 @@ export const PreviewEmpty: FC<{
                         Retry it from the chat.
                     </Text>
                 ) : (
-                    'Retry it from the chat, or send a new prompt.'
+                    'Send a new prompt to try again.'
                 )}
             </Text>
         )}

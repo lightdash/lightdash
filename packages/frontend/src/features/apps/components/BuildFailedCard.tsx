@@ -1,9 +1,7 @@
-import { APP_VERSION_CANCELLED_BY_USER } from '@lightdash/common';
 import { Box, Button, Group, Text } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconPencil,
-    IconHandStop,
     IconRefresh,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -27,32 +25,25 @@ const BuildFailedCard: FC<Props> = ({
     onEditPrompt,
     disabled,
 }) => {
-    const stopped = message === APP_VERSION_CANCELLED_BY_USER;
     const consequence =
         fallbackVersion === null
             ? 'No version was created.'
             : `Nothing changed — the preview still shows v${fallbackVersion}.`;
 
     return (
-        <Box
-            className={classes.failedCard}
-            data-kind={stopped ? 'stopped' : 'failed'}
-            role="status"
-        >
+        <Box className={classes.failedCard} role="status">
             <Group gap="xs" wrap="nowrap" align="flex-start">
                 <MantineIcon
-                    icon={stopped ? IconHandStop : IconAlertTriangle}
+                    icon={IconAlertTriangle}
                     size={16}
                     className={classes.failedIcon}
                 />
                 <Box miw={0}>
                     <Text size="sm" fw={600}>
-                        {stopped ? 'Build stopped' : 'Build failed'}
+                        Build failed
                     </Text>
                     <Text size="xs" className={classes.failedBody}>
-                        {stopped
-                            ? `You stopped this build. ${consequence}`
-                            : `${message} ${consequence}`}
+                        {message} {consequence}
                     </Text>
                 </Box>
             </Group>
