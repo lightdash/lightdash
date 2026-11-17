@@ -2718,6 +2718,7 @@ describe('getAgentTools workstream tool gate', () => {
                     threadUuid: 'thread-1',
                     threadCreatedFrom: 'slack',
                     threadEmbedSpaceUuid: null,
+                    threadEmbedOwnerIdentifier: null,
                     externalUserId: null,
                     createdByUserUuid: 'user-1',
                     userUuid: 'user-1',

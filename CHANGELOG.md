@@ -1,3 +1,52 @@
+## [3.275.3](https://github.com/lightdash/lightdash/compare/3.275.2...3.275.3) (2026-11-16)
+
+
+### Bug Fixes
+
+* **ai-agent:** let owners read metadata-only agent chart results (PROD-13076) ([#32686](https://github.com/lightdash/lightdash/issues/32686)) ([15634e5](https://github.com/lightdash/lightdash/commit/15634e54c6c764a09e15df462b6d1c1a8db0ef84))
+
+## [3.275.2](https://github.com/lightdash/lightdash/compare/3.275.1...3.275.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **agents:** clearer agent scope and agent identity copy ([#32668](https://github.com/lightdash/lightdash/issues/32668)) ([e741d15](https://github.com/lightdash/lightdash/commit/e741d156af9e5413444b213e7836ccae0a319a46))
+
+## [3.275.1](https://github.com/lightdash/lightdash/compare/3.275.0...3.275.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **avatars:** respect the configured avatar shape ([#32607](https://github.com/lightdash/lightdash/issues/32607)) ([176f3f4](https://github.com/lightdash/lightdash/commit/176f3f4a27a195ea1e5c2c4eefcd01bb3abb5a55))
+
+# [3.275.0](https://github.com/lightdash/lightdash/compare/3.274.0...3.275.0) (2026-11-16)
+
+
+### Features
+
+* copy an entire column from the underlying values table ([#32673](https://github.com/lightdash/lightdash/issues/32673)) ([38c87b7](https://github.com/lightdash/lightdash/commit/38c87b73c73fe3ff96a5b40747c87fe4983699b0))
+
+# [3.274.0](https://github.com/lightdash/lightdash/compare/3.273.0...3.274.0) (2026-11-16)
+
+
+### Features
+
+* **composer:** filter and parameter icons on the composer tile ([#32636](https://github.com/lightdash/lightdash/issues/32636)) ([f9407f4](https://github.com/lightdash/lightdash/commit/f9407f4b37953abac16d263b58bebd0f54a3e3e5))
+
+# [3.273.0](https://github.com/lightdash/lightdash/compare/3.272.0...3.273.0) (2026-11-16)
+
+
+### Features
+
+* **embed:** share embedded AI agent threads with a thread ownership identifier ([#32671](https://github.com/lightdash/lightdash/issues/32671)) ([ff65b3f](https://github.com/lightdash/lightdash/commit/ff65b3fff40ffa37e924306c0c51f6b68b1dfc03))
+
+# [3.272.0](https://github.com/lightdash/lightdash/compare/3.271.1...3.272.0) (2026-11-16)
+
+
+### Features
+
+* filter autocomplete caching follows the project results cache setting ([#32669](https://github.com/lightdash/lightdash/issues/32669)) ([1f3bd9b](https://github.com/lightdash/lightdash/commit/1f3bd9b3ee85fc2198e22e6b37c5c0653fee8e0a))
+
 ## [3.271.1](https://github.com/lightdash/lightdash/compare/3.271.0...3.271.1) (2026-11-16)
 
 

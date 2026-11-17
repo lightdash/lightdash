@@ -74,12 +74,6 @@ vi.mock('../../../hooks/useFieldValues', () => ({
     })),
 }));
 
-vi.mock('../../../hooks/health/useHealth', () => ({
-    default: vi.fn(() => ({
-        data: { hasCacheAutocompleResults: false },
-    })),
-}));
-
 const mockField = {
     name: 'first_name',
     type: DimensionType.STRING,

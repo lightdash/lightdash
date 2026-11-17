@@ -974,7 +974,6 @@ describe('ProjectService', () => {
                     results: {
                         ...lightdashConfigWithGoogleOAuthMock.results,
                         cacheEnabled: true,
-                        autocompleteEnabled: true,
                     },
                 });
                 vi.mocked(configured.featureFlagModel.get).mockImplementation(
@@ -6434,7 +6433,6 @@ describe('ProjectService', () => {
                     results: {
                         ...lightdashConfigWithGoogleOAuthMock.results,
                         cacheEnabled: false,
-                        autocompleteEnabled: false,
                     },
                 },
                 {
@@ -6744,13 +6742,15 @@ describe('ProjectService', () => {
             async (_name, cached, results, queryCount) => {
                 const { configured, client } = setup();
                 Object.assign(configured, {
-                    lightdashConfig: {
-                        ...lightdashConfigWithGoogleOAuthMock,
-                        results: {
-                            ...lightdashConfigWithGoogleOAuthMock.results,
-                            autocompleteEnabled: true,
+                    projectModel: withResultsCacheConfig(
+                        projectModel as unknown as ProjectModel,
+                        {
+                            results: {
+                                ...lightdashConfigWithGoogleOAuthMock.results,
+                                cacheEnabled: true,
+                            },
                         },
-                    },
+                    ),
                     s3CacheClient: {
                         getIfFresh: vi.fn(async () => cached),
                         uploadResults: vi.fn(async () => undefined),
@@ -10810,7 +10810,7 @@ describe('ProjectService', () => {
                     ...lightdashConfigWithGoogleOAuthMock,
                     results: {
                         ...lightdashConfigWithGoogleOAuthMock.results,
-                        autocompleteEnabled: true,
+                        cacheEnabled: true,
                     },
                 });
                 flaggedService.warehouseClientFactory.warehouseClients = {};
@@ -10865,6 +10865,78 @@ describe('ProjectService', () => {
                     }),
                 );
                 expect(getIfFresh).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+                expect(uploadResults).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+            },
+        );
+
+        test.each([
+            [true, true],
+            [false, false],
+        ])(
+            'autocomplete cache with project results cache %s',
+            async (projectCacheEnabled, usesCache) => {
+                const configured = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                );
+                configured.warehouseClientFactory.warehouseClients = {};
+                vi.mocked(configured.featureFlagModel.get).mockImplementation(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    }),
+                );
+                const defaultSettings =
+                    await projectModel.getResultsCacheSettings(projectUuid);
+                const getResultsCacheSettings = vi
+                    .spyOn(projectModel, 'getResultsCacheSettings')
+                    .mockResolvedValue({
+                        ...defaultSettings,
+                        cacheEnabled: projectCacheEnabled,
+                    });
+                const getIfFresh = vi.fn(async () => undefined);
+                const uploadResults = vi.fn(async () => undefined);
+                Object.assign(configured, {
+                    s3CacheClient: { getIfFresh, uploadResults },
+                });
+                vi.spyOn(
+                    configured.warehouseClientFactory,
+                    'resolveLoadedCredentials',
+                ).mockResolvedValue({
+                    ...warehouseClientMock.credentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+                vi.mocked(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).mockImplementation(() => ({
+                    ...warehouseClientMock,
+                    runQuery: vi.fn(async () => resultsWith1Row),
+                }));
+
+                try {
+                    await configured.searchFieldUniqueValues(
+                        fromSession({
+                            ...user,
+                            organizationUuid: projectSummary.organizationUuid,
+                        }),
+                        projectUuid,
+                        'a',
+                        'a_dim1',
+                        'test',
+                        10,
+                        undefined,
+                        false,
+                    );
+                } finally {
+                    getResultsCacheSettings.mockRestore();
+                }
+
+                expect(getIfFresh).toHaveBeenCalledTimes(usesCache ? 1 : 0);
+                if (usesCache) {
+                    expect(getIfFresh).toHaveBeenCalledWith(
+                        expect.any(String),
+                        86400,
+                    );
+                }
                 expect(uploadResults).toHaveBeenCalledTimes(usesCache ? 1 : 0);
             },
         );
@@ -11101,7 +11173,7 @@ describe('ProjectService', () => {
                 ...lightdashConfigWithGoogleOAuthMock,
                 results: {
                     ...lightdashConfigWithGoogleOAuthMock.results,
-                    autocompleteEnabled: true,
+                    cacheEnabled: true,
                     cacheStateTimeSeconds: 86400,
                 },
             });
@@ -11186,7 +11258,7 @@ describe('ProjectService', () => {
                 ...lightdashConfigWithGoogleOAuthMock,
                 results: {
                     ...lightdashConfigWithGoogleOAuthMock.results,
-                    autocompleteEnabled: true,
+                    cacheEnabled: true,
                     cacheStateTimeSeconds: 86400,
                 },
             });

@@ -15,9 +15,9 @@ _Avoid_: AI principal, agent connections, execution identity (in copy)
 **Permissions**:
 What agents may do, whoever they run as. The second section of the org
 **Agents** page. The organization capability list limits every role, including
-custom roles. The page offers Same as the person, Read and query, and
-Custom, and uses the capability-policy API. The capability
-contract is in [agent-permissions.md](./agent-permissions.md).
+custom roles. The Agent scope permissions group offers Match the person, Read
+and query only, and Custom scope. The page uses the capability-policy API. The
+capability contract is in [agent-permissions.md](./agent-permissions.md).
 _Avoid_: ceiling, managed mode (in copy)
 
 **Who can use agents**:

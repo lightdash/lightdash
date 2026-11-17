@@ -219,6 +219,12 @@ const customChartBody = (
     };
 };
 
+// The values each node query's history row records; null for the rest
+const usedParametersByQuery: Record<string, ParametersValuesMap> = {
+    'orders-query': { region: 'EU' },
+    'other-query': { region: 'UK' },
+};
+
 const setup = ({ flagEnabled = true } = {}) => {
     const querySourceService = {
         submitComposerRun: vi.fn(
@@ -326,7 +332,9 @@ const setup = ({ flagEnabled = true } = {}) => {
         } as unknown as SpacePermissionService,
         queryHistoryModel: {
             getByQueryUuid: vi.fn(async (queryUuid: string) => ({
+                queryUuid,
                 fields: { [`${queryUuid}_field`]: {} },
+                usedParameters: usedParametersByQuery[queryUuid] ?? null,
             })),
         } as unknown as QueryHistoryModel,
         getQuerySourceService: () => querySourceService,
@@ -668,6 +676,21 @@ describe('ComposerChartService.run', () => {
         });
         expect(result.chartStageQueryUuid).toBe('chart_stage-query');
         expect(result.fields).toEqual({ 'result-query_field': {} });
+    });
+
+    test('returns the parameter values each node query ran with', async () => {
+        const { service } = setupRun();
+        const result = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            runRequest,
+        );
+        expect(result.usedParameterValuesByNodeId).toEqual({
+            orders: { region: 'EU' },
+            other: { region: 'UK' },
+            result: {},
+        });
     });
 
     test('writes the dashboard parameter onto the nodes and the shared map', async () => {

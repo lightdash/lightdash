@@ -68,17 +68,21 @@ const UnderlyingDataResultsTable: FC<{
         [columns, columnOrder],
     );
 
+    // All fetched rows, not the table's current page, so the whole column copies
+    const rows = useMemo(() => resultsData?.rows ?? [], [resultsData]);
+
     const headerContextMenu = useCallback<
         FC<React.PropsWithChildren<HeaderProps>>
     >(
         (props) => (
             <UnderlyingDataHeaderContextMenu
                 {...props}
+                rows={rows}
                 sorts={sorts}
                 onSortChange={onSortChange}
             />
         ),
-        [sorts, onSortChange],
+        [rows, sorts, onSortChange],
     );
 
     if (isLoading) {
