@@ -21,6 +21,7 @@ import {
     parseComposerChartRunRequest,
     parseComposerPipeline,
     parseComposerStoredChart,
+    QueryExecutionContext,
     QuerySourceType,
     type Account,
     type CaslSubjectNames,
@@ -75,6 +76,12 @@ type ComposerChartServiceArguments = {
         'getExplore' | 'getComposerTileContext'
     >;
 };
+
+/** Where a bound run is recorded in query history: a dashboard view, a scheduled delivery or a dashboard CSV export. */
+export type ComposerChartRunContext =
+    | QueryExecutionContext.DASHBOARD
+    | QueryExecutionContext.SCHEDULED_DELIVERY
+    | QueryExecutionContext.CSV;
 
 type ProjectSubject = { organizationUuid: string; projectUuid: string };
 
@@ -645,6 +652,7 @@ export class ComposerChartService extends BaseService {
         projectUuid: UUID,
         composerChartUuid: UUID,
         body: ComposerChartRunRequest,
+        context: ComposerChartRunContext,
     ): Promise<ComposerChartRunResults> {
         Sentry.setTag('lightdash.chartKind', 'composer');
         const request = parseComposerChartRunRequest(body);
@@ -734,6 +742,7 @@ export class ComposerChartService extends BaseService {
                     account,
                     projectUuid,
                     binding,
+                    context,
                     invalidateCache: request.invalidateCache,
                 }),
         );

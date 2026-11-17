@@ -174,6 +174,7 @@ const PartialFailureText: FC<{
     switch (failure.type) {
         case PartialFailureType.DASHBOARD_CHART:
         case PartialFailureType.DASHBOARD_SQL_CHART:
+        case PartialFailureType.DASHBOARD_COMPOSER_CHART:
             return (
                 <Stack gap={4} p="xs" className={classes.failureCard}>
                     <Text fz="xs" fw={500} c="orange.9">
@@ -285,6 +286,7 @@ const JobRow: FC<{
         (f) =>
             f.type === PartialFailureType.DASHBOARD_CHART ||
             f.type === PartialFailureType.DASHBOARD_SQL_CHART ||
+            f.type === PartialFailureType.DASHBOARD_COMPOSER_CHART ||
             f.type === PartialFailureType.APP_QUERY ||
             f.type === PartialFailureType.APP_QUERY_MISSING,
     );
@@ -297,7 +299,8 @@ const JobRow: FC<{
         const chartFailureCount = contentFailures.filter(
             (f) =>
                 f.type === PartialFailureType.DASHBOARD_CHART ||
-                f.type === PartialFailureType.DASHBOARD_SQL_CHART,
+                f.type === PartialFailureType.DASHBOARD_SQL_CHART ||
+                f.type === PartialFailureType.DASHBOARD_COMPOSER_CHART,
         ).length;
         const queryFailureCount = contentFailures.filter(
             (f) =>

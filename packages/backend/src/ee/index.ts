@@ -1974,6 +1974,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
                 learnSandboxService:
                     context.serviceRepository.getLearnSandboxService(),
+                composerChartService:
+                    context.serviceRepository.getComposerChartService(),
                 managedAgentService:
                     context.serviceRepository.getManagedAgentService<ManagedAgentService>(),
                 appGenerateService:
