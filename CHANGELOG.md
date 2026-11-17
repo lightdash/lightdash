@@ -1,3 +1,10 @@
+## [3.280.1](https://github.com/lightdash/lightdash/compare/3.280.0...3.280.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **embed:** only prompt for required filters on the tabs they apply to ([#32697](https://github.com/lightdash/lightdash/issues/32697)) ([b48553d](https://github.com/lightdash/lightdash/commit/b48553da41bd12e6909dc06680395d7d8c3328c5))
+
 # [3.280.0](https://github.com/lightdash/lightdash/compare/3.279.0...3.280.0) (2026-11-17)
 
 
