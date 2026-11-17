@@ -490,6 +490,19 @@ describe('DashboardModel', () => {
         );
     });
 
+    test('should read only the latest version of dashboards for validation', async () => {
+        tracker.on.select(DashboardsTableName).response([]);
+
+        await model.findDashboardsForValidation(projectUuid);
+
+        const [query] = tracker.history.select;
+        expect(query.sql.replace(/\s+/g, ' ')).toContain(
+            `LEFT JOIN LATERAL ( SELECT * FROM "${DashboardVersionsTableName}" AS latest_version WHERE latest_version.dashboard_id = "${DashboardsTableName}"."dashboard_id" ORDER BY latest_version.created_at DESC, latest_version.dashboard_version_id DESC LIMIT 1 ) AS "${DashboardVersionsTableName}" ON TRUE`,
+        );
+        expect(query.sql).not.toContain(`join "${DashboardVersionsTableName}"`);
+        expect(query.sql).not.toContain('MAX(');
+    });
+
     test('should get dashboard parameters using the dashboard project uuid', async () => {
         const dashboardUuid = '11111111-1111-4111-8111-111111111111';
         const parameters = {

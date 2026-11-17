@@ -791,13 +791,11 @@ export class DashboardModel {
             this.database
                 // cte to get the last version of each dashboard in the project
                 .with(cteName, (qb) => {
-                    let cteQuery = qb
+                    const cteQuery = qb
                         .select({
                             dashboard_uuid: `${DashboardsTableName}.dashboard_uuid`,
                             name: `${DashboardsTableName}.name`,
-                            dashboard_version_id: this.database.raw(
-                                'MAX(dashboard_versions.dashboard_version_id)',
-                            ),
+                            dashboard_version_id: `${DashboardVersionsTableName}.dashboard_version_id`,
                         })
                         .from(DashboardsTableName)
                         .leftJoin(
@@ -810,26 +808,17 @@ export class DashboardModel {
                             `${SpaceTableName}.project_id`,
                             'projects.project_id',
                         )
-                        .leftJoin(
-                            DashboardVersionsTableName,
-                            `${DashboardsTableName}.dashboard_id`,
-                            `${DashboardVersionsTableName}.dashboard_id`,
-                        )
+                        .modify(leftJoinLatestDashboardVersion)
                         .where('projects.project_uuid', projectUuid)
                         .whereNull(`${DashboardsTableName}.deleted_at`);
 
                     // Filter by specific dashboard UUID if provided
                     if (dashboardUuid) {
-                        cteQuery = cteQuery.where(
+                        void cteQuery.where(
                             `${DashboardsTableName}.dashboard_uuid`,
                             dashboardUuid,
                         );
                     }
-
-                    void cteQuery.groupBy(
-                        `${DashboardsTableName}.dashboard_uuid`,
-                        `${DashboardsTableName}.name`,
-                    );
                 })
                 .select({
                     dashboardUuid: `${cteName}.dashboard_uuid`,

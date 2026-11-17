@@ -58,6 +58,7 @@ import {
 } from '../../logging/omnibarSearchTiming';
 import { AppModel } from '../AppModel';
 import { ContentVerificationModel } from '../ContentVerificationModel';
+import { leftJoinLatestDashboardVersion } from '../DashboardModel/latestDashboardVersion';
 import {
     filterByCreatedAt,
     filterByCreatedByUuid,
@@ -491,11 +492,7 @@ export class SearchModel {
 
         const tileChartsQuery = this.database(DashboardsTableName)
             .whereNull(`${DashboardsTableName}.deleted_at`)
-            .join(
-                'dashboard_versions',
-                `${DashboardsTableName}.dashboard_id`,
-                'dashboard_versions.dashboard_id',
-            )
+            .modify(leftJoinLatestDashboardVersion)
             .join(
                 'dashboard_tiles',
                 'dashboard_versions.dashboard_version_id',
@@ -529,14 +526,7 @@ export class SearchModel {
                 },
                 `${SavedChartsTableName}.views_count`,
             )
-            .whereIn(`${DashboardsTableName}.dashboard_uuid`, dashboardUuids)
-            .whereRaw(
-                `dashboard_versions.dashboard_version_id = (
-                        SELECT MAX(dashboard_version_id)
-                        FROM dashboard_versions dv2
-                        WHERE dv2.dashboard_id = ${DashboardsTableName}.dashboard_id
-                    )`,
-            );
+            .whereIn(`${DashboardsTableName}.dashboard_uuid`, dashboardUuids);
 
         const [directCharts, tileCharts] =
             dashboardUuids.length > 0
@@ -683,11 +673,7 @@ export class SearchModel {
 
         const tileCharts = this.database(DashboardsTableName)
             .whereNull(`${DashboardsTableName}.deleted_at`)
-            .join(
-                'dashboard_versions',
-                `${DashboardsTableName}.dashboard_id`,
-                'dashboard_versions.dashboard_id',
-            )
+            .modify(leftJoinLatestDashboardVersion)
             .join(
                 'dashboard_tiles',
                 'dashboard_versions.dashboard_version_id',
@@ -747,14 +733,7 @@ export class SearchModel {
                         );
                     })
                     .orWhere('chart_project.project_uuid', projectUuid);
-            })
-            .whereRaw(
-                `dashboard_versions.dashboard_version_id = (
-                    SELECT MAX(dashboard_version_id)
-                    FROM dashboard_versions dv2
-                    WHERE dv2.dashboard_id = ${DashboardsTableName}.dashboard_id
-                )`,
-            );
+            });
 
         type ChartRow = {
             uuid: string;
