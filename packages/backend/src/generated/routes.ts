@@ -17579,6 +17579,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                includeUnpublishedDraft: { dataType: 'boolean' },
                 chartVersionUuid: { ref: 'UUID' },
                 savedChartUuid: { ref: 'UUID', required: true },
             },
@@ -29913,6 +29914,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        includeUnpublishedDraft: { dataType: 'boolean' },
                         dashboardFilters: { ref: 'DashboardFilters' },
                         filters: { ref: 'Filters' },
                         pivotConfiguration: { ref: 'PivotConfiguration' },
@@ -100812,6 +100814,11 @@ export function RegisterRoutes(app: Router) {
             name: 'chartVersionUuid',
             ref: 'UUID',
         },
+        includeUnpublishedDraft: {
+            in: 'query',
+            name: 'includeUnpublishedDraft',
+            dataType: 'boolean',
+        },
     };
     app.get(
         '/api/v1/ee/projects/:projectUuid/apps/visualizations/:dataAppVizUuid/charts/:savedChartUuid/render-metadata',
@@ -100895,6 +100902,11 @@ export function RegisterRoutes(app: Router) {
             in: 'query',
             name: 'chartVersionUuid',
             ref: 'UUID',
+        },
+        includeUnpublishedDraft: {
+            in: 'query',
+            name: 'includeUnpublishedDraft',
+            dataType: 'boolean',
         },
     };
     app.get(

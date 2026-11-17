@@ -1,3 +1,11 @@
+## [3.293.1](https://github.com/lightdash/lightdash/compare/3.293.0...3.293.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **chart-types:** render custom chart type from an unpublished chart draft ([#32733](https://github.com/lightdash/lightdash/issues/32733)) ([52f4bbe](https://github.com/lightdash/lightdash/commit/52f4bbe1dde5e27a3d4849f3ae0321e5fc8142e8))
+* **charts:** run unpublished chart changes on the chart page in view mode ([#32737](https://github.com/lightdash/lightdash/issues/32737)) ([e38f19d](https://github.com/lightdash/lightdash/commit/e38f19d5fdf4b58434369f03709b9f4da535a3ce))
+
 # [3.293.0](https://github.com/lightdash/lightdash/compare/3.292.0...3.293.0) (2026-11-17)
 
 
