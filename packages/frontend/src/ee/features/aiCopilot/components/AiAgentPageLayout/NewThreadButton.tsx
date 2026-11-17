@@ -11,7 +11,7 @@ type Props = {
 };
 
 export const NewThreadButton: FC<Props> = ({ to, isCollapsed }) => (
-    <Tooltip label="New thread" disabled={!isCollapsed} position="right">
+    <Tooltip label="New thread" disabled={!isCollapsed} position="bottom">
         <SidebarButton
             aria-label="New thread"
             leftSection={<MantineIcon icon={IconCirclePlus} />}

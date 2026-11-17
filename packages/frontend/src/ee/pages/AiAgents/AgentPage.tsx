@@ -254,7 +254,6 @@ const AgentPage = () => {
                         agent={agent}
                         projectUuid={projectUuid!}
                         threadUuid={threadUuid}
-                        isAgentSidebarCollapsed={isAgentSidebarCollapsed}
                     />
                 )
             }

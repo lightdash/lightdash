@@ -345,12 +345,7 @@ const AgentsRouterPage = () => {
                     isCollapsed={isSidebarCollapsed}
                 />
             }
-            Sidebar={
-                <AutoModeSidebar
-                    projectUuid={projectUuid!}
-                    isAgentSidebarCollapsed={isSidebarCollapsed}
-                />
-            }
+            Sidebar={<AutoModeSidebar projectUuid={projectUuid!} />}
         >
             <Box className={classes.routerView}>
                 <Group gap={4} className={classes.routerActions}>
