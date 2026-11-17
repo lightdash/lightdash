@@ -40,6 +40,7 @@ import {
     combineManifestSources,
     CompilationSource,
     CompiledDimension,
+    ComposerAvailableFilterSource,
     ConflictError,
     ContentType,
     convertCustomMetricToDbt,
@@ -63,6 +64,7 @@ import {
     CustomFormatType,
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
+    DashboardAvailableFiltersTile,
     DashboardBasicDetails,
     DashboardFilters,
     DatabricksAuthenticationType,
@@ -118,6 +120,7 @@ import {
     getErrorMessage,
     getExecutableFilterFieldIds,
     getFieldFormatOverrideProps,
+    getHandWrittenAdditionalMetrics,
     getHiddenFilterableFieldIds,
     getIntrinsicUserAttributes,
     getItemId,
@@ -127,6 +130,7 @@ import {
     getMetrics,
     getModelInventoryFromManifest,
     getModelsFromManifest,
+    getNewHandWrittenAdditionalMetrics,
     getNextResultsCacheClearAt,
     getParameterReferences,
     getPersonSignIn,
@@ -141,6 +145,7 @@ import {
     isAiAccessQueryContext,
     isAwsIamRoleArn,
     isCartesianChartConfig,
+    isComposerChartTileRequest,
     isCustomDimension,
     isCustomSqlDimension,
     isDateItem,
@@ -245,7 +250,6 @@ import {
     ResultsCacheProjectSettings,
     ResultsCacheStatus,
     SavedChartDAO,
-    SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     SignInSubjectBasis,
     SingleConnectionProjectError,
@@ -448,6 +452,7 @@ import {
     type CompilableDbtSource,
 } from '../../projectAdapters/CompileGroup';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import { DbtGitProjectAdapter } from '../../projectAdapters/dbtGitProjectAdapter';
 import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
@@ -485,11 +490,7 @@ import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoC
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
-import {
-    redactExploreSql,
-    redactFieldSql,
-    resolveAdditionalMetricsSql,
-} from '../../utils/embedCompiledSql';
+import { redactExploreSql, redactFieldSql } from '../../utils/embedCompiledSql';
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
@@ -520,6 +521,10 @@ import {
     getContentWriteAgentIdentity,
 } from '../AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
+import {
+    REQUEST_AUTHORITY,
+    type QueryRunAuthority,
+} from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import {
     NO_CLI_DEPLOY_SELECTION,
@@ -528,7 +533,6 @@ import {
     type CliDeploySelection,
 } from '../cliDeploy';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
-import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import { inferCliDeploySource } from '../inferCliDeploySource';
 import {
     MultiConnectionCompiler,
@@ -538,7 +542,8 @@ import {
 } from '../MultiConnectionCompiler/MultiConnectionCompiler';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
-import { compileApiSourceMetricQuery } from '../QuerySourceService/api/apiSourceExplores';
+import { compileLiveMetricQuery } from '../QuerySourceService/live/explores/build';
+import { assertLiveQuery } from '../QuerySourceService/live/explores/definition';
 import { resolveCliPreviewDeploy } from '../resolveCliPreviewDeploy';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
@@ -593,6 +598,7 @@ import type {
     WarehouseCredentialResolutionContext,
     WarehouseCredentialSource,
 } from '../WarehouseClientFactory/WarehouseCredentialSource';
+import { assertOptionalUserCredentialsHaveSharedCredentials } from '../WarehouseConnectionService/extraConnectionAuthentication';
 import {
     EXTRA_CONNECTION_SELECT_CREDENTIALS_MESSAGE,
     getExtraConnectionRequireUserCredentials,
@@ -607,6 +613,7 @@ import {
 } from './analyticsProject/analyticsProjectClient';
 import { createAnalyticsExplores } from './analyticsProject/createAnalyticsExplores';
 import { classifyConnectionTestError } from './classifyConnectionTestError';
+import { saveCompiledDbtManifest } from './compiledDbtManifest';
 import {
     credentialsForListedDatabase,
     findListedCatalogDatabase,
@@ -5218,13 +5225,25 @@ export class ProjectService
                     { kind: 'original' },
                 );
             if (upstreamCredentials) {
-                newProjectData.warehouseConnection = mergeWarehouseCredentials(
-                    upstreamCredentials,
-                    data.warehouseConnection,
-                    await this.getPreviewCredentialMergeOptions(
-                        user.organizationUuid,
-                    ),
-                );
+                const inherited =
+                    await this.inheritTrustedUpstreamSshTunnelPrivateKey(
+                        {
+                            warehouseConnection: mergeWarehouseCredentials(
+                                upstreamCredentials,
+                                data.warehouseConnection,
+                                await this.getPreviewCredentialMergeOptions(
+                                    user.organizationUuid,
+                                ),
+                            ),
+                        },
+                        {
+                            organizationUuid: user.organizationUuid,
+                            upstreamProjectUuid: data.upstreamProjectUuid,
+                        },
+                        upstreamCredentials,
+                    );
+                newProjectData.warehouseConnection =
+                    inherited.warehouseConnection;
             }
         }
 
@@ -5235,6 +5254,11 @@ export class ProjectService
             newProjectData.warehouseConnection,
             internalProvisioning,
         );
+        if (newProjectData.warehouseConnection) {
+            assertOptionalUserCredentialsHaveSharedCredentials(
+                newProjectData.warehouseConnection,
+            );
+        }
         const createProject: CreateProjectOptionalCredentials =
             hasWarehouseCredentials(newProjectData)
                 ? await this._resolveWarehouseClientCredentials(
@@ -6448,6 +6472,7 @@ export class ProjectService
                 'Snowflake external browser authentication is only supported in the CLI and cannot be saved on a project',
             );
         }
+        assertOptionalUserCredentialsHaveSharedCredentials(credentials);
     }
 
     /*
@@ -7135,6 +7160,11 @@ export class ProjectService
                                     true, // allowPartialCompilation
                                     exploreNaming !== undefined,
                                 ));
+                            await this.saveCompiledDbtManifestBestEffort(
+                                projectUuid,
+                                user.organizationUuid,
+                                compileAdapter,
+                            );
                             timings.compileExplores.end = performance.now();
                             timings.getConfig.start = performance.now();
                             const lightdashProjectConfig =
@@ -8402,6 +8432,8 @@ export class ProjectService
         projectUuid: string,
         manifest: DbtManifest,
         lightdashConfigYaml: string | null,
+        /** The models to compile by unique id; null compiles them all. */
+        selectedModelIds: string[] | null = null,
     ): Promise<(Explore | ExploreError)[]> {
         const {
             project,
@@ -8449,6 +8481,9 @@ export class ProjectService
                         },
                         dbtVersion: resolveDbtVersion(dbtVersionOption),
                         analytics: this.analytics,
+                        ...(selectedModelIds === null
+                            ? {}
+                            : { selectedModelIds }),
                     });
                     try {
                         return await adapter.compileAllExplores(
@@ -8668,6 +8703,38 @@ export class ProjectService
         } catch (error) {
             this.logger.warn(
                 `Failed to persist merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    /** Keeps what a single-source dbt compile parsed, so Semantic Studio's code mode can change its YAML without running dbt. */
+    private async saveCompiledDbtManifestBestEffort(
+        projectUuid: string,
+        organizationUuid: string,
+        adapter: ProjectAdapter,
+    ): Promise<void> {
+        if (
+            !(adapter instanceof DbtGitProjectAdapter) ||
+            adapter.lastManifest === null ||
+            !this.fileStorageClient.isEnabled()
+        ) {
+            return;
+        }
+        try {
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.SemanticStudioEditing,
+            });
+            if (!enabled) return;
+            const commitSha = await adapter.findHeadCommit();
+            if (commitSha === null) return;
+            await saveCompiledDbtManifest(this.fileStorageClient, projectUuid, {
+                commitSha,
+                manifest: projectMergedManifest(adapter.lastManifest),
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to keep the compiled dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
             );
         }
     }
@@ -9477,51 +9544,22 @@ export class ProjectService
         return getAvailableParameterDefinitions(projectParameters, explore);
     }
 
-    /**
-     * The set of raw SQL definitions of every modelled dimension and metric in an
-     * explore. A custom metric whose SQL equals one of these is the ordinary
-     * (viewer-available) custom-metric feature, not injected SQL.
-     */
-    private async getExploreFieldSqlKeys(
+    /** Custom metrics whose SQL is not a modelled field of the explore as `account` sees it. */
+    private async getHandWrittenAdditionalMetricsForExplore(
         account: Account,
         projectUuid: string,
         exploreName: string,
-    ): Promise<{ explore: Explore; fieldSqlKeys: Set<string> }> {
+        additionalMetrics: AdditionalMetric[],
+    ): Promise<AdditionalMetric[]> {
         const explore = await this.getExplore(
             account,
             projectUuid,
             exploreName,
         );
-        const fieldSqlKeys = new Set<string>();
-        for (const table of Object.values(explore.tables)) {
-            for (const dimension of Object.values(table.dimensions)) {
-                fieldSqlKeys.add(
-                    getCustomSqlFieldKey({
-                        table: table.name,
-                        sql: `\${${table.name}.${dimension.name}}`,
-                    }),
-                );
-                if (dimension.sql) {
-                    fieldSqlKeys.add(
-                        getCustomSqlFieldKey({
-                            table: table.name,
-                            sql: dimension.sql,
-                        }),
-                    );
-                }
-            }
-            for (const metric of Object.values(table.metrics)) {
-                if (metric.sql) {
-                    fieldSqlKeys.add(
-                        getCustomSqlFieldKey({
-                            table: table.name,
-                            sql: metric.sql,
-                        }),
-                    );
-                }
-            }
-        }
-        return { explore, fieldSqlKeys };
+        return getHandWrittenAdditionalMetrics(
+            additionalMetrics,
+            explore.tables,
+        );
     }
 
     public async assertAgentCustomSqlAuthorizedForQuery({
@@ -9559,18 +9597,13 @@ export class ProjectService
         let unmodelledAdditionalMetrics: typeof additionalMetrics | null = null;
         if (needsGrantSqlCheck) {
             if (additionalMetrics.length > 0) {
-                const { explore, fieldSqlKeys } =
-                    await this.getExploreFieldSqlKeys(
+                unmodelledAdditionalMetrics =
+                    await this.getHandWrittenAdditionalMetricsForExplore(
                         account,
                         projectUuid,
                         exploreName,
+                        additionalMetrics,
                     );
-                unmodelledAdditionalMetrics = resolveAdditionalMetricsSql(
-                    additionalMetrics,
-                    explore.tables,
-                ).filter(
-                    (metric) => !fieldSqlKeys.has(getCustomSqlFieldKey(metric)),
-                );
             }
             if (
                 sqlTableCalculations.length > 0 ||
@@ -9583,6 +9616,161 @@ export class ProjectService
         }
 
         return unmodelledAdditionalMetrics;
+    }
+
+    /**
+     * Custom SQL already saved on a chart `account` can view, in the same project
+     * and explore. Matches any version of a chart that is not deleted; a
+     * dashboard-owned chart counts through its dashboard's space.
+     */
+    private async findViewableCustomSqlProvenance({
+        account,
+        auditedAbility,
+        projectUuid,
+        exploreName,
+        tableCalculationSqls,
+        customSqlDimensions,
+        additionalMetrics,
+    }: {
+        account: Account;
+        auditedAbility: ReturnType<ProjectService['createAuditedAbility']>;
+        projectUuid: string;
+        exploreName: string;
+        tableCalculationSqls: string[];
+        customSqlDimensions: { sql: string; table: string }[];
+        additionalMetrics: { sql: string; table: string }[];
+    }): Promise<{
+        tableCalculationSqls: Set<string>;
+        customDimensionKeys: Set<string>;
+        additionalMetricKeys: Set<string>;
+    }> {
+        const provenance = await this.savedChartModel.findCustomSqlProvenance({
+            projectUuid,
+            exploreName,
+            tableCalculationSqls,
+            customSqlDimensions: customSqlDimensions.map((cd) => ({
+                sql: cd.sql,
+                table: cd.table,
+            })),
+            additionalMetrics: additionalMetrics.map((metric) => ({
+                sql: metric.sql,
+                table: metric.table,
+            })),
+        });
+
+        const candidateSpaceUuids = [
+            ...new Set([
+                ...provenance.tableCalculations.map((r) => r.spaceUuid),
+                ...provenance.customSqlDimensions.map((r) => r.spaceUuid),
+                ...provenance.additionalMetrics.map((r) => r.spaceUuid),
+            ]),
+        ];
+        const viewableSpaceUuids = new Set<string>();
+        if (candidateSpaceUuids.length > 0) {
+            const resolvedSpaceContexts =
+                await this.spacePermissionService.resolveAccessBatch(
+                    account.user.id,
+                    candidateSpaceUuids.map((spaceUuid) => ({
+                        type: 'space',
+                        spaceUuid,
+                    })),
+                );
+            const spaceContexts = resolvedSpaceContexts.flatMap(
+                ({ target, context }) =>
+                    context ? [[target.spaceUuid, context] as const] : [],
+            );
+            const accessResults = auditedAbility.canBulk(
+                'view',
+                spaceContexts.map(([spaceUuid, context]) =>
+                    subject('Space', {
+                        ...context,
+                        metadata: { spaceUuid },
+                    }),
+                ),
+            );
+            spaceContexts.forEach(([spaceUuid], index) => {
+                if (accessResults[index]) viewableSpaceUuids.add(spaceUuid);
+            });
+        }
+
+        return {
+            tableCalculationSqls: new Set(
+                provenance.tableCalculations
+                    .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
+                    .map((r) => r.sql),
+            ),
+            customDimensionKeys: new Set(
+                provenance.customSqlDimensions
+                    .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
+                    .map(getCustomSqlFieldKey),
+            ),
+            additionalMetricKeys: new Set(
+                provenance.additionalMetrics
+                    .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
+                    .map(getCustomSqlFieldKey),
+            ),
+        };
+    }
+
+    /**
+     * Custom metrics a user without manage:CustomFields may not save: SQL that is
+     * not a modelled field, not already saved on this chart, and not saved on a
+     * chart `account` can view in the same project and explore.
+     */
+    public async getCustomMetricsNeedingPermission({
+        account,
+        projectUuid,
+        exploreName,
+        additionalMetrics,
+        savedAdditionalMetrics,
+    }: {
+        account: Account;
+        projectUuid: string;
+        exploreName: string;
+        additionalMetrics: AdditionalMetric[];
+        savedAdditionalMetrics: AdditionalMetric[];
+    }): Promise<AdditionalMetric[]> {
+        const savedKeys = new Set(
+            savedAdditionalMetrics.map(getCustomSqlFieldKey),
+        );
+        if (
+            additionalMetrics.every((metric) =>
+                savedKeys.has(getCustomSqlFieldKey(metric)),
+            )
+        ) {
+            return [];
+        }
+        let tables: Explore['tables'] = {};
+        try {
+            ({ tables } = await this.getExplore(
+                account,
+                projectUuid,
+                exploreName,
+            ));
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) throw error;
+        }
+        const handWritten = getNewHandWrittenAdditionalMetrics(
+            additionalMetrics,
+            savedAdditionalMetrics,
+            tables,
+        );
+        if (handWritten.length === 0 || !account.isRegisteredUser()) {
+            return handWritten;
+        }
+        const { additionalMetricKeys } =
+            await this.findViewableCustomSqlProvenance({
+                account,
+                auditedAbility: this.createAuditedAbility(account),
+                projectUuid,
+                exploreName,
+                tableCalculationSqls: [],
+                customSqlDimensions: [],
+                additionalMetrics: handWritten,
+            });
+        return handWritten.filter(
+            (metric) => !additionalMetricKeys.has(getCustomSqlFieldKey(metric)),
+        );
     }
 
     /**
@@ -9678,18 +9866,13 @@ export class ProjectService
             if (unmodelledAdditionalMetrics !== null) {
                 additionalMetricsToAuthorize = unmodelledAdditionalMetrics;
             } else {
-                const { explore, fieldSqlKeys } =
-                    await this.getExploreFieldSqlKeys(
+                additionalMetricsToAuthorize =
+                    await this.getHandWrittenAdditionalMetricsForExplore(
                         account,
                         projectUuid,
                         exploreName,
+                        additionalMetrics,
                     );
-                additionalMetricsToAuthorize = resolveAdditionalMetricsSql(
-                    additionalMetrics,
-                    explore.tables,
-                ).filter(
-                    (metric) => !fieldSqlKeys.has(getCustomSqlFieldKey(metric)),
-                );
             }
         }
         if (
@@ -9705,77 +9888,21 @@ export class ProjectService
         let viewableAdditionalMetricKeys = new Set<string>();
         // The provenance exemption trusts saved-chart SQL the caller can view.
         if (account.isRegisteredUser()) {
-            const provenance =
-                await this.savedChartModel.findCustomSqlProvenance({
-                    projectUuid,
-                    exploreName,
-                    tableCalculationSqls: tableCalculationsToAuthorize.map(
-                        (tc) => tc.sql,
-                    ),
-                    customSqlDimensions: customDimensionsToAuthorize.map(
-                        (cd) => ({
-                            sql: cd.sql,
-                            table: cd.table,
-                        }),
-                    ),
-                    additionalMetrics: additionalMetricsToAuthorize.map(
-                        (metric) => ({
-                            sql: metric.sql,
-                            table: metric.table,
-                        }),
-                    ),
-                });
-
-            const candidateSpaceUuids = [
-                ...new Set([
-                    ...provenance.tableCalculations.map((r) => r.spaceUuid),
-                    ...provenance.customSqlDimensions.map((r) => r.spaceUuid),
-                    ...provenance.additionalMetrics.map((r) => r.spaceUuid),
-                ]),
-            ];
-            const viewableSpaceUuids = new Set<string>();
-            if (candidateSpaceUuids.length > 0) {
-                const resolvedSpaceContexts =
-                    await this.spacePermissionService.resolveAccessBatch(
-                        account.user.id,
-                        candidateSpaceUuids.map((spaceUuid) => ({
-                            type: 'space',
-                            spaceUuid,
-                        })),
-                    );
-                const spaceContexts = resolvedSpaceContexts.flatMap(
-                    ({ target, context }) =>
-                        context ? [[target.spaceUuid, context] as const] : [],
-                );
-                const accessResults = auditedAbility.canBulk(
-                    'view',
-                    spaceContexts.map(([spaceUuid, context]) =>
-                        subject('Space', {
-                            ...context,
-                            metadata: { spaceUuid },
-                        }),
-                    ),
-                );
-                spaceContexts.forEach(([spaceUuid], index) => {
-                    if (accessResults[index]) viewableSpaceUuids.add(spaceUuid);
-                });
-            }
-
-            viewableTableCalculationSqls = new Set(
-                provenance.tableCalculations
-                    .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
-                    .map((r) => r.sql),
-            );
-            viewableCustomDimensionKeys = new Set(
-                provenance.customSqlDimensions
-                    .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
-                    .map(getCustomSqlFieldKey),
-            );
-            viewableAdditionalMetricKeys = new Set(
-                provenance.additionalMetrics
-                    .filter((r) => viewableSpaceUuids.has(r.spaceUuid))
-                    .map(getCustomSqlFieldKey),
-            );
+            ({
+                tableCalculationSqls: viewableTableCalculationSqls,
+                customDimensionKeys: viewableCustomDimensionKeys,
+                additionalMetricKeys: viewableAdditionalMetricKeys,
+            } = await this.findViewableCustomSqlProvenance({
+                account,
+                auditedAbility,
+                projectUuid,
+                exploreName,
+                tableCalculationSqls: tableCalculationsToAuthorize.map(
+                    (tc) => tc.sql,
+                ),
+                customSqlDimensions: customDimensionsToAuthorize,
+                additionalMetrics: additionalMetricsToAuthorize,
+            }));
 
             const appProvenance = dataAppPreviewToken
                 ? await this.getDataAppCustomSqlProvenance({
@@ -9900,7 +10027,11 @@ export class ProjectService
             projectTimezone: await this.getQueryTimezoneForProject(projectUuid),
             userTimezone: getAccountUserTimezone(account),
         });
-        const { query } = compileApiSourceMetricQuery({
+        // The same refusals the query itself gets
+        assertLiveQuery(explore, metricQuery, {
+            isPivoted: !!pivotConfiguration,
+        });
+        const { query } = compileLiveMetricQuery({
             explore,
             metricQuery,
             timezone,
@@ -9914,7 +10045,7 @@ export class ProjectService
 
     async compileQuery(
         args: {
-            documentQueryContext?: DocumentQueryContext;
+            authority?: QueryRunAuthority;
             account: Account;
             // ! TODO: we need to fix this type
             body: MetricQuery & {
@@ -9977,22 +10108,33 @@ export class ProjectService
         // Authorize custom SQL against the explore the query actually runs on
         // (the resolved source explore), not the client-supplied
         // metricQuery.exploreName, which may differ.
-        if (args.documentQueryContext) {
-            args.documentQueryContext.assertMetricQuery(
-                account,
-                projectUuid,
-                metricQuery,
-                parameters,
-            );
-        } else {
-            await this.assertCustomSqlAuthorizedForQuery({
-                account,
-                projectUuid,
-                organizationUuid,
-                exploreName: sourceExplore.name,
-                metricQuery,
-                customSqlProvenanceChartUuid: args.customSqlProvenanceChartUuid,
-            });
+        const authority = args.authority ?? REQUEST_AUTHORITY;
+        switch (authority.kind) {
+            case 'composer':
+                // The author's custom SQL rights were checked at save
+                authority.binding.assertExecution(account, projectUuid);
+                break;
+            case 'document':
+                authority.context.assertMetricQuery(
+                    account,
+                    projectUuid,
+                    metricQuery,
+                    parameters,
+                );
+                break;
+            case 'request':
+                await this.assertCustomSqlAuthorizedForQuery({
+                    account,
+                    projectUuid,
+                    organizationUuid,
+                    exploreName: sourceExplore.name,
+                    metricQuery,
+                    customSqlProvenanceChartUuid:
+                        args.customSqlProvenanceChartUuid,
+                });
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
         }
 
         // Pre-aggregate routing: compile against the pre-agg explore when cache is enabled and there's a match
@@ -10264,7 +10406,7 @@ export class ProjectService
      * explorer shows them against the offending query row.
      */
     async compileMergeQuery(args: {
-        documentQueryContext?: DocumentQueryContext;
+        authority?: QueryRunAuthority;
         account: Account;
         projectUuid: string;
         mergeQuery: MergeQuery;
@@ -10282,12 +10424,24 @@ export class ProjectService
             userAttributeOverrides,
         } = args;
 
-        args.documentQueryContext?.assertMergeQuery(
-            account,
-            projectUuid,
-            mergeQuery,
-            parameters,
-        );
+        const authority = args.authority ?? REQUEST_AUTHORITY;
+        switch (authority.kind) {
+            case 'document':
+                authority.context.assertMergeQuery(
+                    account,
+                    projectUuid,
+                    mergeQuery,
+                    parameters,
+                );
+                break;
+            case 'composer':
+                authority.binding.assertExecution(account, projectUuid);
+                break;
+            case 'request':
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
+        }
 
         // One metadata load feeds validation, output typing and display
         // labels. Metric sources resolve through their explore (query-defined
@@ -10449,23 +10603,30 @@ export class ProjectService
         const mergeSqlTableCalculations = mergeQuery.tableCalculations.filter(
             (calculation) => !calculation.formula,
         );
-        if (
-            mergeSqlTableCalculations.length > 0 &&
-            !args.documentQueryContext
-        ) {
-            const { organizationUuid } =
-                await this.projectModel.getSummary(projectUuid);
-            await this.assertCustomSqlAuthorizedForQuery({
-                account,
-                projectUuid,
-                organizationUuid,
-                exploreName: resolvedSources[0].metricQuery.exploreName,
-                metricQuery: {
-                    tableCalculations: mergeSqlTableCalculations,
-                    customDimensions: [],
-                    additionalMetrics: [],
-                },
-            });
+        switch (authority.kind) {
+            case 'document':
+            case 'composer':
+                // Checked as the author at save: a document compiles its merge, a composer chart runs its write check
+                break;
+            case 'request':
+                if (mergeSqlTableCalculations.length > 0) {
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(projectUuid);
+                    await this.assertCustomSqlAuthorizedForQuery({
+                        account,
+                        projectUuid,
+                        organizationUuid,
+                        exploreName: resolvedSources[0].metricQuery.exploreName,
+                        metricQuery: {
+                            tableCalculations: mergeSqlTableCalculations,
+                            customDimensions: [],
+                            additionalMetrics: [],
+                        },
+                    });
+                }
+                break;
+            default:
+                return assertUnreachable(authority, 'Unknown query authority');
         }
 
         // Each leg runs whole: the merged statement sorts and limits, and a
@@ -10514,7 +10675,7 @@ export class ProjectService
                 // from. This is the statement the leg runs: whole, at the
                 // source row cap, unsorted.
                 const compiled = await this.compileQuery({
-                    documentQueryContext: args.documentQueryContext,
+                    authority,
                     account,
                     projectUuid,
                     exploreName: resolvedMetricQuery.exploreName,
@@ -13274,26 +13435,27 @@ export class ProjectService
                     ),
                     account.authentication.type,
                 );
-                const isUserCacheEnabled =
-                    this.lightdashConfig.results.autocompleteEnabled &&
+                const canUseCache =
                     !!user.userUuid &&
                     !skipAiAccessCache &&
                     (!identityEnabled ||
                         resultProducer.agentIdentity === null) &&
                     getAiExecutionCredentialUuid(aiPlan ?? null) === null;
+                const cacheState = canUseCache
+                    ? await this.projectModel.getResultsCacheState(projectUuid)
+                    : null;
+                // Autocomplete caching follows the project's results cache setting
+                const autocompleteCache = cacheState?.enabled
+                    ? cacheState
+                    : null;
+                const isUserCacheEnabled = autocompleteCache !== null;
 
                 const userUuid = getCacheUserUuid(
                     warehouseCredentials,
                     user.userUuid,
                 );
 
-                const cacheGeneration = isUserCacheEnabled
-                    ? (
-                          await this.projectModel.getResultsCacheSettings(
-                              projectUuid,
-                          )
-                      ).cacheGeneration
-                    : 0;
+                const cacheGeneration = autocompleteCache?.cacheGeneration ?? 0;
                 const hashParts = [
                     projectUuid,
                     userUuid,
@@ -13309,12 +13471,9 @@ export class ProjectService
                         : null,
                 );
 
-                if (!forceRefresh && isUserCacheEnabled) {
+                if (!forceRefresh && autocompleteCache !== null) {
                     const stringResults = await this.s3CacheClient
-                        .getIfFresh(
-                            queryHash,
-                            this.lightdashConfig.results.cacheStateTimeSeconds,
-                        )
+                        .getIfFresh(queryHash, autocompleteCache.ttlSeconds)
                         .catch(() => undefined);
                     if (stringResults) {
                         try {
@@ -13629,6 +13788,11 @@ export class ProjectService
                                 true, // allowPartialCompilation
                                 exploreNaming !== undefined,
                             ));
+                        await this.saveCompiledDbtManifestBestEffort(
+                            projectUuid,
+                            project.organizationUuid,
+                            adapter,
+                        );
                         const lightdashProjectConfig =
                             await adapter.getLightdashProjectConfig(
                                 trackingParams,
@@ -16275,6 +16439,9 @@ export class ProjectService
                 subject('Project', {
                     organizationUuid: project.organizationUuid,
                     projectUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
                 }),
             )
         ) {
@@ -16405,9 +16572,11 @@ export class ProjectService
         );
     }
 
+    /** `composerSources` are composer charts the caller already authorized, each with its semantic-layer nodes' explores. */
     async getAvailableFiltersForSavedQueries(
         account: Account,
-        savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
+        tiles: DashboardAvailableFiltersTile[],
+        composerSources: ComposerAvailableFilterSource[] = [],
     ): Promise<DashboardAvailableFilters> {
         type ChartFilters = {
             uuid: string;
@@ -16424,16 +16593,23 @@ export class ProjectService
                 name: 'ProjectService.getAvailableFiltersForSavedQueries',
             },
             async () => {
-                const savedQueryUuids = savedChartUuidsAndTileUuids.map(
-                    ({ savedChartUuid }) => savedChartUuid,
+                const savedQueryUuids = tiles.flatMap((tile) =>
+                    isComposerChartTileRequest(tile)
+                        ? []
+                        : [tile.savedChartUuid],
                 );
 
                 const savedCharts =
-                    await this.savedChartModel.getInfoForAvailableFilters(
-                        savedQueryUuids,
-                    );
+                    savedQueryUuids.length > 0
+                        ? await this.savedChartModel.getInfoForAvailableFilters(
+                              savedQueryUuids,
+                          )
+                        : [];
 
-                if (savedCharts.length === 0) {
+                const projectUuid =
+                    savedCharts[0]?.projectUuid ??
+                    composerSources[0]?.projectUuid;
+                if (projectUuid === undefined) {
                     return [];
                 }
 
@@ -16453,9 +16629,11 @@ export class ProjectService
                     ),
                     this.findExplores({
                         account,
-                        projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
+                        projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
                         exploreNames: uniq(
-                            savedCharts.flatMap((chart) => chart.exploreNames),
+                            [...savedCharts, ...composerSources].flatMap(
+                                (chart) => chart.exploreNames,
+                            ),
                         ),
                         organizationUuid: account.organization.organizationUuid,
                     }),
@@ -16489,23 +16667,25 @@ export class ProjectService
                         }),
                     ),
                 );
-                const chartAccess = new Map(
-                    chartsWithSpaceContext.map(({ savedChart }, index) => [
-                        savedChart.uuid,
-                        accessResults[index],
-                    ]),
-                );
+                const chartAccess = new Map([
+                    ...chartsWithSpaceContext.map(
+                        ({ savedChart }, index) =>
+                            [savedChart.uuid, accessResults[index]] as const,
+                    ),
+                    ...composerSources.map(({ uuid }) => [uuid, true] as const),
+                ]);
                 const shouldRedactSql = this.cannotViewEmbedCompiledSql(
                     account,
-                    savedCharts[0].projectUuid,
+                    projectUuid,
                 );
 
+                const filterSources = [...savedCharts, ...composerSources];
                 const filtersByExplore = new Map<
                     string,
                     Promise<FilterableDimension[]>
                 >();
                 return Promise.all(
-                    savedCharts.map(async (savedChart) => {
+                    filterSources.map(async (savedChart) => {
                         if (!chartAccess.get(savedChart.uuid)) {
                             return {
                                 uuid: savedChart.uuid,
@@ -16575,6 +16755,10 @@ export class ProjectService
                 );
             },
         );
+        const chartUuidOf = (tile: DashboardAvailableFiltersTile) =>
+            isComposerChartTileRequest(tile)
+                ? tile.composerChartUuid
+                : tile.savedChartUuid;
 
         // Explores that relabel a shared join alias keep their own entries
         const allFilterableFields: FilterableDimension[] = [];
@@ -16603,12 +16787,11 @@ export class ProjectService
             });
         });
 
-        const savedQueryFilters = savedChartUuidsAndTileUuids.reduce<
+        const savedQueryFilters = tiles.reduce<
             DashboardAvailableFilters['savedQueryFilters']
-        >((acc, savedChartUuidAndTileUuid) => {
+        >((acc, tile) => {
             const filterResult = allFilters.find(
-                (result) =>
-                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
+                (result) => result.uuid === chartUuidOf(tile),
             );
             if (!filterResult || !filterResult.filters.length) return acc;
 
@@ -16618,16 +16801,15 @@ export class ProjectService
             );
             return {
                 ...acc,
-                [savedChartUuidAndTileUuid.tileUuid]: filterIndexes,
+                [tile.tileUuid]: filterIndexes,
             };
         }, {});
 
-        const savedQueryMetricFilters = savedChartUuidsAndTileUuids.reduce<
+        const savedQueryMetricFilters = tiles.reduce<
             DashboardAvailableFilters['savedQueryMetricFilters']
-        >((acc, savedChartUuidAndTileUuid) => {
+        >((acc, tile) => {
             const filterResult = allFilters.find(
-                (result) =>
-                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
+                (result) => result.uuid === chartUuidOf(tile),
             );
             if (!filterResult || !filterResult.metricFilters.length) return acc;
 
@@ -16637,7 +16819,7 @@ export class ProjectService
             );
             return {
                 ...acc,
-                [savedChartUuidAndTileUuid.tileUuid]: metricIndexes,
+                [tile.tileUuid]: metricIndexes,
             };
         }, {});
 

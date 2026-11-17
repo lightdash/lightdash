@@ -14,9 +14,13 @@ import {
     type ApiSemanticLayerStatusResponse,
     type ApiSemanticLayerStoredModelsResponse,
     type ApiSemanticLayerUndoResponse,
+    type ApiSemanticStudioSourceFileResponse,
+    type ApiSemanticStudioSourceSaveResponse,
+    type ApiSemanticStudioSourcesResponse,
     type ApiSemanticStudioWorkspaceResponse,
     type ApiSemanticStudioWorkspacesResponse,
     type ApiSuccessEmpty,
+    type SaveSemanticStudioSourceRequest,
     type SemanticLayerFieldUsageBody,
     type SemanticLayerUndoRequest,
     type SemanticStudioWorkspaceRenameBody,
@@ -164,6 +168,80 @@ export class SemanticStudioController extends BaseController {
             projectUuid,
         );
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * The project's YAML and SQL files, at a change's open pull request or the branch it deploys from.
+     * @summary List Semantic Studio source files
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/sources')
+    @OperationId('listSemanticStudioSources')
+    async listSources(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Query() prUrl?: string,
+    ): Promise<ApiSemanticStudioSourcesResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().listSources(
+                toSessionUser(req.account),
+                projectUuid,
+                prUrl ?? null,
+            ),
+        };
+    }
+
+    /**
+     * One source file's contents.
+     * @summary Read a Semantic Studio source file
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/sources/file')
+    @OperationId('readSemanticStudioSource')
+    async readSource(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Query() path: string,
+        @Query() prUrl?: string,
+    ): Promise<ApiSemanticStudioSourceFileResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().readSource(
+                toSessionUser(req.account),
+                projectUuid,
+                prUrl ?? null,
+                path,
+            ),
+        };
+    }
+
+    /**
+     * Saves an edit to one source file as a commit on a change's pull request, or opens one.
+     * @summary Save a Semantic Studio source file
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/sources/file')
+    @OperationId('saveSemanticStudioSource')
+    async saveSource(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: SaveSemanticStudioSourceRequest,
+    ): Promise<ApiSemanticStudioSourceSaveResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().saveSource(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            ),
+        };
     }
 
     /**

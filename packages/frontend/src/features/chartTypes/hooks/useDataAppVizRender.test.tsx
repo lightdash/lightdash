@@ -71,6 +71,7 @@ describe('useDataAppVizRender', () => {
             undefined,
             undefined,
             undefined,
+            undefined,
         ]);
         expect(query.enabled).toBe(true);
         await query.queryFn();
@@ -115,6 +116,32 @@ describe('useDataAppVizRender', () => {
         expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/ee/projects/project-1/apps/visualizations/viz-1/documents/document-1/charts/c4/versions/3/preview-token?documentVersionUuid=document-version-2',
+        });
+    });
+
+    it('authorizes a composer chart tile through the composer chart routes, which serve its pin', async () => {
+        const target = {
+            isEmbedded: false,
+            savedChartUuid: undefined,
+            composerChartUuid: 'composer-1',
+        };
+        const { result } = renderHook(() =>
+            useDataAppVizRenderMetadata('project-1', 'viz-1', target, 3),
+        );
+        await (result.current as unknown as CapturedQuery).queryFn();
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/ee/projects/project-1/apps/visualizations/viz-1/composer-charts/composer-1/render-metadata',
+        });
+
+        mockedLightdashApi.mockResolvedValue({ token: 'token-3' });
+        const { result: tokenResult } = renderHook(() =>
+            useDataAppVizPreviewToken('project-1', 'viz-1', 3, target, 3),
+        );
+        await (tokenResult.current as unknown as CapturedQuery).queryFn();
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
+            method: 'GET',
+            url: '/ee/projects/project-1/apps/visualizations/viz-1/composer-charts/composer-1/versions/3/preview-token',
         });
     });
 
@@ -274,6 +301,7 @@ describe('useDataAppVizRender', () => {
             7,
             'embed',
             'chart-1',
+            undefined,
             undefined,
             undefined,
         ]);

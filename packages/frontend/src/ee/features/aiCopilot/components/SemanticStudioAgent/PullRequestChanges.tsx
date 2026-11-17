@@ -1,20 +1,15 @@
-import { Button, Center, Group, Loader, Stack, Text } from '@mantine/core';
-import {
-    IconArrowUpRight,
-    IconFile,
-    IconFileCode,
-    IconTable,
-} from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { Center, Group, Loader, Stack, Text } from '@mantine/core';
+import { IconFile, IconFileCode, IconTable } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     ModelFieldChanges,
-    ModelTotals,
     PullRequestUsage,
 } from '../../../../../features/semanticStudio/ModelFieldChanges';
-import { useTryInExplore } from '../../../../../features/semanticStudio/useTryInExplore';
-import { usePullRequestDiff } from '../../hooks/usePullRequestDiff';
+import { useWholePullRequestDiff } from '../../hooks/usePullRequestDiff';
 import {
+    getModelOfFile,
     splitPatchIntoFiles,
     type DiffFile,
 } from '../ChatElements/ToolCalls/splitPatch';
@@ -24,10 +19,6 @@ import {
 } from '../ChatElements/ToolCalls/WritebackDiffModal';
 import classes from './SemanticStudioAgent.module.css';
 import { type StudioPullRequest } from './useStudioPullRequest';
-
-/** `models/customers.yml` belongs to the model `customers`. */
-const getModelOfFile = ({ path }: DiffFile): string =>
-    (path.split('/').pop() ?? path).replace(/\.[^.]+$/, '');
 
 const LineCounts: FC<{ files: DiffFile[] }> = ({ files }) => {
     const additions = files.reduce((sum, file) => sum + file.additions, 0);
@@ -56,13 +47,21 @@ export const PullRequestChanges: FC<{
     pullRequest: StudioPullRequest;
 }> = ({ projectUuid, pullRequest }) => {
     const { prUrl, commitSha, changedModels, previewProjectUuid } = pullRequest;
-    const { data, isInitialLoading, isError } = usePullRequestDiff(
+    const { data, isInitialLoading, isError } = useWholePullRequestDiff(
         projectUuid,
         prUrl,
         commitSha,
-        true,
     );
-    const tryInExplore = useTryInExplore(projectUuid);
+    // A save moves the head: what each model now is gets read again, in place.
+    const queryClient = useQueryClient();
+    const seenSha = useRef(commitSha);
+    useEffect(() => {
+        if (seenSha.current === commitSha) return;
+        seenSha.current = commitSha;
+        void queryClient.invalidateQueries({
+            queryKey: ['semantic-studio-model-version', projectUuid],
+        });
+    }, [commitSha, projectUuid, queryClient]);
     const files = useMemo(
         () => (data?.diff ? splitPatchIntoFiles(data.diff) : []),
         [data],
@@ -87,100 +86,87 @@ export const PullRequestChanges: FC<{
     return (
         <DiffWorkers>
             <>
-                {changedModels.map((model) => {
-                    const modelFiles = files.filter(
-                        (file) => getModelOfFile(file) === model,
-                    );
-                    return (
-                        <section
-                            key={model}
-                            className={`${classes.modelCard} ${classes.arrives}`}
-                        >
-                            <Group
-                                gap="sm"
-                                wrap="nowrap"
-                                className={classes.modelHead}
+                <div className={classes.modelStack}>
+                    {changedModels.map((model) => {
+                        const modelFiles = files.filter(
+                            (file) => getModelOfFile(file) === model,
+                        );
+                        return (
+                            <section
+                                key={model}
+                                className={`${classes.modelCard} ${classes.arrives}`}
                             >
-                                <span className={classes.modelTile}>
-                                    <MantineIcon icon={IconTable} size={16} />
-                                </span>
-                                <Text
-                                    component="h3"
-                                    className={classes.modelName}
+                                <Group
+                                    gap={6}
+                                    wrap="nowrap"
+                                    className={classes.modelHead}
                                 >
-                                    {model}
-                                </Text>
-                                <LineCounts files={modelFiles} />
-                                <Button
-                                    size="compact-xs"
-                                    variant="subtle"
-                                    color="gray"
-                                    ml="auto"
-                                    rightSection={
+                                    <span className={classes.modelTile}>
                                         <MantineIcon
-                                            icon={IconArrowUpRight}
-                                            size={12}
+                                            icon={IconTable}
+                                            size={16}
                                         />
-                                    }
-                                    onClick={() =>
-                                        tryInExplore(model, previewProjectUuid)
-                                    }
-                                >
-                                    Try in Explore
-                                </Button>
-                            </Group>
-                            <Stack gap="sm" className={classes.modelBody}>
-                                <ModelFieldChanges
-                                    projectUuid={projectUuid}
-                                    model={model}
-                                    previewProjectUuid={previewProjectUuid}
-                                />
-                                <div className={classes.totals}>
-                                    <ModelTotals
+                                    </span>
+                                    <Text
+                                        component="h3"
+                                        className={classes.modelName}
+                                    >
+                                        {model}
+                                    </Text>
+                                    <LineCounts files={modelFiles} />
+                                </Group>
+                                <Stack gap="sm" className={classes.modelBody}>
+                                    <ModelFieldChanges
                                         projectUuid={projectUuid}
                                         model={model}
                                         previewProjectUuid={previewProjectUuid}
                                         cacheKey={commitSha ?? prUrl}
                                     />
-                                </div>
-                                {modelFiles.map((file) => (
+                                    {modelFiles.map((file) => (
+                                        <FileBlock key={file.key} file={file} />
+                                    ))}
+                                </Stack>
+                            </section>
+                        );
+                    })}
+                    {others.length > 0 ? (
+                        <section
+                            className={`${classes.modelCard} ${classes.arrives}`}
+                        >
+                            <Group
+                                gap={6}
+                                wrap="nowrap"
+                                className={classes.modelHead}
+                            >
+                                <span className={classes.modelTile}>
+                                    <MantineIcon
+                                        icon={IconFileCode}
+                                        size={16}
+                                    />
+                                </span>
+                                <Text
+                                    component="h3"
+                                    className={classes.modelName}
+                                >
+                                    {changedModels.length > 0
+                                        ? 'Other files'
+                                        : 'Files'}
+                                </Text>
+                                <LineCounts files={others} />
+                            </Group>
+                            <Stack gap="sm" className={classes.modelBody}>
+                                {others.map((file) => (
                                     <FileBlock key={file.key} file={file} />
                                 ))}
                             </Stack>
                         </section>
-                    );
-                })}
+                    ) : null}
+                </div>
                 <PullRequestUsage
                     projectUuid={projectUuid}
                     models={changedModels}
                     previewProjectUuid={previewProjectUuid}
                 />
-                {others.length > 0 ? (
-                    <section
-                        className={`${classes.modelCard} ${classes.arrives}`}
-                    >
-                        <Group
-                            gap="sm"
-                            wrap="nowrap"
-                            className={classes.modelHead}
-                        >
-                            <span className={classes.modelTile}>
-                                <MantineIcon icon={IconFileCode} size={16} />
-                            </span>
-                            <Text component="h3" className={classes.modelName}>
-                                {changedModels.length > 0
-                                    ? 'Other files'
-                                    : 'Files'}
-                            </Text>
-                            <LineCounts files={others} />
-                        </Group>
-                        <Stack gap="sm" className={classes.modelBody}>
-                            {others.map((file) => (
-                                <FileBlock key={file.key} file={file} />
-                            ))}
-                        </Stack>
-                    </section>
-                ) : null}
             </>
         </DiffWorkers>
     );

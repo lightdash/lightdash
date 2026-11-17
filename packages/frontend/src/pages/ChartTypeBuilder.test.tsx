@@ -1757,9 +1757,8 @@ describe('ChartTypeBuilder', () => {
             screen.getAllByText('Choosing a horizontal layout').length,
         ).toBeGreaterThan(0);
         expect(screen.getByText('Activity')).toBeInTheDocument();
-        expect(
-            screen.getAllByText('Updating Chart.tsx').length,
-        ).toBeGreaterThan(0);
+        // Steps render the verb and its target as separate elements.
+        expect(screen.getAllByText('Chart.tsx').length).toBeGreaterThan(0);
     });
 
     it('renders the current version and lists its history on demand', () => {

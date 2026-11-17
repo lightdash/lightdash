@@ -11,7 +11,6 @@ import {
 } from '@mantine/core';
 import {
     PatchDiff,
-    Virtualizer,
     WorkerPoolContextProvider,
     type WorkerInitializationRenderOptions,
     type WorkerPoolOptions,
@@ -23,7 +22,7 @@ import { IconFileDiff } from '@tabler/icons-react';
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import MantineModal from '../../../../../../components/common/MantineModal';
 import { usePullRequestDiff } from '../../../hooks/usePullRequestDiff';
-import { splitPatchIntoFiles } from './splitPatch';
+import { recountHunks, splitPatchIntoFiles } from './splitPatch';
 import classes from './WritebackDiffModal.module.css';
 
 // Tokenize with both Pierre themes; the diff renders via CSS `light-dark()`.
@@ -202,7 +201,7 @@ export const DiffWorkers: FC<{ children: ReactNode }> = ({ children }) => (
     </WorkerPoolContextProvider>
 );
 
-/** One file's diff at its natural height; needs `DiffWorkers` above it. */
+/** One file's diff, scrolling past a cap; needs `DiffWorkers` above it. */
 export const FileDiff: FC<{ patch: string }> = ({ patch }) => {
     const colorScheme = useComputedColorScheme('light');
     return (
@@ -210,23 +209,23 @@ export const FileDiff: FC<{ patch: string }> = ({ patch }) => {
             className={classes.stackFile}
             style={{ '--diff-color-scheme': colorScheme }}
         >
-            {/* Without its header the diff only draws inside a virtualizer. */}
-            <Virtualizer>
-                <PatchDiff
-                    patch={patch}
-                    className={classes.diffHost}
-                    options={{
-                        diffStyle: 'unified',
-                        disableFileHeader: true,
-                        // A thin rule between hunks; the count of lines left out adds nothing here.
-                        hunkSeparators: 'simple',
-                        theme:
-                            colorScheme === 'dark'
-                                ? 'pierre-dark'
-                                : 'pierre-light',
-                    }}
-                />
-            </Virtualizer>
+            {/* A virtualizer draws no rows inside a scrolling box, so the diff draws whole and hides its header instead. */}
+            <PatchDiff
+                key={patch}
+                patch={recountHunks(patch)}
+                className={classes.diffHost}
+                options={{
+                    diffStyle: 'unified',
+                    unsafeCSS: '[data-diffs-header] { display: none; }',
+                    // A thin rule between hunks; the count of lines left out adds nothing here.
+                    hunkSeparators: 'simple',
+                    // Quiet like the draft diffs: a bar marks a changed line, and only the changed words light up.
+                    diffIndicators: 'bars',
+                    lineDiffType: 'word',
+                    theme:
+                        colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light',
+                }}
+            />
         </Box>
     );
 };

@@ -4,13 +4,20 @@ import {
     getDateGroupLabel,
     getDateGroupLabelWithGranularity,
     getGranularityMapFromItems,
+    getItemId,
     getItemLabelWithoutTableName,
     getXAxisSort,
+    isDimension,
+    isField,
+    isMetric,
     isNumericItem,
     XAxisSort,
+    type Dimension,
     type ItemsMap,
+    type Metric,
 } from '@lightdash/common';
 import {
+    Button,
     Checkbox,
     Group,
     SegmentedControl,
@@ -28,6 +35,10 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import {
+    explorerActions,
+    useExplorerDispatch,
+} from '../../../../features/explorer/store';
 import {
     selectCartesianDirtyChartType,
     selectCartesianEchartsConfig,
@@ -59,6 +70,31 @@ const XAxisSortSelectItem: FC<{
         <Text fz="xs">{label}</Text>
     </Group>
 );
+
+type FormattableField = Metric | Dimension;
+
+/** Opens the field's own format settings, where its axis numbers come from. */
+const AxisNumberFormat: FC<{
+    fields: FormattableField[];
+    onEdit: (field: FormattableField) => void;
+}> = ({ fields, onEdit }) =>
+    fields.length > 0 ? (
+        <Group gap="xs">
+            <Config.Label>Number format</Config.Label>
+            {fields.map((field) => (
+                <Button
+                    key={getItemId(field)}
+                    size="compact-xs"
+                    variant="default"
+                    onClick={() => onEdit(field)}
+                >
+                    {fields.length > 1
+                        ? `Edit ${getItemLabelWithoutTableName(field)}`
+                        : 'Edit format'}
+                </Button>
+            ))}
+        </Group>
+    ) : null;
 
 const DEFAULT_OFFSET_VALUE_FOR_MANUAL_RANGE_PERCENTAGE = '5';
 
@@ -126,6 +162,30 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
         },
         [false, false],
     );
+
+    // Numeric fields on each value axis, whose format drives that axis's numbers
+    const formatFieldsByAxis = (series || []).reduce<
+        [FormattableField[], FormattableField[]]
+    >(
+        (acc, serie) => {
+            const field = itemsMap?.[serie.encode.yRef.field];
+            const axis = acc[serie.yAxisIndex === 1 ? 1 : 0];
+            if (
+                field &&
+                isField(field) &&
+                (isMetric(field) || isDimension(field)) &&
+                isNumericItem(field) &&
+                !axis.includes(field)
+            ) {
+                axis.push(field);
+            }
+            return acc;
+        },
+        [[], []],
+    );
+    const explorerDispatch = useExplorerDispatch();
+    const openFormatModal = (item: FormattableField) =>
+        explorerDispatch(explorerActions.toggleFormatModal({ item }));
 
     // A numeric x-axis can be rendered as discrete categories, so bars get band
     // spacing instead of overlapping the y-axis at the ends of the range.
@@ -277,7 +337,7 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                         </Group>
                         {!dirtyLayout?.flipAxes && (
                             <Group wrap="nowrap" gap="xs" align="baseline">
-                                <Config.Label>Rotation</Config.Label>
+                                <Config.Label>Label rotation</Config.Label>
                                 <NumberInput
                                     size="xs"
                                     defaultValue={xAxes?.[0].rotate || 0}
@@ -379,6 +439,10 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                         fields={granularityFields}
                         onChange={(value) => setYAxisName(0, value)}
                     />
+                    <AxisNumberFormat
+                        fields={formatFieldsByAxis[0]}
+                        onEdit={openFormatModal}
+                    />
                     {showFirstAxisRange && (
                         <AxisMinMax
                             label={`Auto ${dirtyLayout?.flipAxes ? 'x' : 'y'}-axis range`}
@@ -420,6 +484,11 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
                         }
                         fields={granularityFields}
                         onChange={(value) => setYAxisName(1, value)}
+                    />
+
+                    <AxisNumberFormat
+                        fields={formatFieldsByAxis[1]}
+                        onEdit={openFormatModal}
                     />
 
                     {showSecondAxisRange && (

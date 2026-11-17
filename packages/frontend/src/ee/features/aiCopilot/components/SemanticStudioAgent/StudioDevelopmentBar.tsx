@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Button, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { IconDots, IconExternalLink } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -14,8 +15,7 @@ import {
     getDevelopmentPreview,
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
-import { ChangesSwitch } from '../../../../../features/semanticStudio/SemanticLayerDraft';
-import { useTryInExplore } from '../../../../../features/semanticStudio/useTryInExplore';
+import { rememberGoingLive } from '../../../../../features/semanticStudio/useGoingLive';
 import { useProject } from '../../../../../hooks/useProject';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../hooks/useMergePullRequest';
@@ -26,6 +26,7 @@ import {
 import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
 import { WRITEBACK_STEPS } from '../ChatElements/ToolCalls/writebackProgress';
 import { WritebackSegments } from '../ChatElements/ToolCalls/WritebackProgressCard';
+import { TryItButton } from './TryItButton';
 import { useFinishDiscardedWork } from './useSemanticStudioChat';
 import {
     type StudioPendingChange,
@@ -59,9 +60,9 @@ export const StudioDevelopmentBar: FC<{
     projectUuid: string;
     pullRequest: StudioPullRequest;
 }> = ({ projectUuid, pullRequest }) => {
-    const { prUrl, commitSha, changedModels, previewProjectUuid, ciChecks } =
-        pullRequest;
+    const { prUrl, previewProjectUuid, ciChecks, isMine } = pullRequest;
     const { data: project } = useProject(projectUuid);
+    const queryClient = useQueryClient();
     const { mutate: merge, isLoading: isMerging } =
         useMergePullRequest(projectUuid);
     const { mutate: close, isLoading: isClosing } =
@@ -70,7 +71,6 @@ export const StudioDevelopmentBar: FC<{
     const [discarding, setDiscarding] = useState(false);
     const [isTrying, setIsTrying] = useDevelopmentView();
     const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
-    const tryInExplore = useTryInExplore(projectUuid);
     const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
     const name = number ? `pull request #${number}` : 'the pull request';
     // The preview is the truer source once it is built, so a view switched on before then moves to it.
@@ -91,33 +91,34 @@ export const StudioDevelopmentBar: FC<{
     const destination = `${name}${branch ? ` into ${branch}` : ''}`;
     return (
         <DevelopmentBar summary={null}>
-            {/* Once on, the dock says so on every page and holds the way back. */}
-            {isTrying ? null : (
-                <ChangesSwitch
-                    isOnMyChanges={false}
-                    onChange={(next) => setIsTrying(next, previewProjectUuid)}
-                />
-            )}
-            <Tooltip
-                multiline
-                w={240}
-                label={
-                    canMerge
-                        ? `Merges ${destination}.`
-                        : getBlockedReason(ciChecks)
-                }
-            >
-                <Button
-                    size="xs"
-                    data-disabled={!canMerge || undefined}
-                    aria-disabled={!canMerge}
-                    onClick={() => {
-                        if (canMerge) setMerging(true);
-                    }}
+            <TryItButton
+                projectUuid={projectUuid}
+                pullRequest={pullRequest}
+                look="primary"
+            />
+            {isMine ? (
+                <Tooltip
+                    multiline
+                    w={240}
+                    label={
+                        canMerge
+                            ? `Merges ${destination}.`
+                            : getBlockedReason(ciChecks)
+                    }
                 >
-                    Merge
-                </Button>
-            </Tooltip>
+                    <Button
+                        size="xs"
+                        variant="default"
+                        data-disabled={!canMerge || undefined}
+                        aria-disabled={!canMerge}
+                        onClick={() => {
+                            if (canMerge) setMerging(true);
+                        }}
+                    >
+                        Merge
+                    </Button>
+                </Tooltip>
+            ) : null}
             <Menu position="bottom-end">
                 <Menu.Target>
                     <ActionIcon
@@ -129,18 +130,6 @@ export const StudioDevelopmentBar: FC<{
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
-                    {changedModels.length > 0 ? (
-                        <Menu.Item
-                            onClick={() =>
-                                tryInExplore(
-                                    changedModels[0],
-                                    previewProjectUuid,
-                                )
-                            }
-                        >
-                            Try in Explore
-                        </Menu.Item>
-                    ) : null}
                     {previewProjectUuid ? (
                         <Menu.Item
                             component={Link}
@@ -162,10 +151,17 @@ export const StudioDevelopmentBar: FC<{
                     >
                         Open {name}
                     </Menu.Item>
-                    <Menu.Divider />
-                    <Menu.Item color="red" onClick={() => setDiscarding(true)}>
-                        Discard changes
-                    </Menu.Item>
+                    {isMine ? (
+                        <>
+                            <Menu.Divider />
+                            <Menu.Item
+                                color="red"
+                                onClick={() => setDiscarding(true)}
+                            >
+                                Discard changes
+                            </Menu.Item>
+                        </>
+                    ) : null}
                 </Menu.Dropdown>
             </Menu>
             {merging ? (
@@ -178,8 +174,17 @@ export const StudioDevelopmentBar: FC<{
                     onClose={() => setMerging(false)}
                     onConfirm={() =>
                         merge(
-                            { prUrl, sha: commitSha },
-                            { onSettled: () => setMerging(false) },
+                            { prUrl, sha: null },
+                            {
+                                onSuccess: ({ compileJobUuid }) =>
+                                    rememberGoingLive(
+                                        queryClient,
+                                        projectUuid,
+                                        prUrl,
+                                        compileJobUuid,
+                                    ),
+                                onSettled: () => setMerging(false),
+                            },
                         )
                     }
                 />
@@ -225,7 +230,6 @@ export const StudioSavingBar: FC<{
     );
     const { step, state } = progress;
     const elapsed = useElapsed(change.startedAt);
-    const [isOnMyChanges, setIsOnMyChanges] = useDevelopmentView();
     return (
         <DevelopmentBar
             summary={
@@ -241,21 +245,14 @@ export const StudioSavingBar: FC<{
                 </Group>
             }
         >
-            {/* An earlier save can still be tried, and left, while this one runs. */}
-            <ChangesSwitch
-                isOnMyChanges={isOnMyChanges}
-                onChange={(next) =>
-                    setIsOnMyChanges(
-                        next,
-                        pullRequest?.previewProjectUuid ?? null,
-                    )
-                }
-                unavailableReason={
-                    pullRequest
-                        ? undefined
-                        : 'Available when the pull request opens.'
-                }
-            />
+            {/* An earlier save can still be tried while this one runs. */}
+            {pullRequest ? (
+                <TryItButton
+                    projectUuid={projectUuid}
+                    pullRequest={pullRequest}
+                    look="primary"
+                />
+            ) : null}
             <Tooltip label="Usually takes 2 to 3 minutes. The pull request shows up here when it is ready.">
                 <Text fz="xs" c="dimmed" ff="monospace">
                     {elapsed}

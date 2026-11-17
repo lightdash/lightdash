@@ -1,10 +1,12 @@
 /**
  * Names the `/dbt` mount as the governed dbt project and, for a sub-path root, which
- * repository subdirectory it is. `root` is the normalized `project_sub_path`; `.` is the repository root.
+ * repository subdirectory it is. `root` is the normalized `project_sub_path`; `.` is the repository root;
+ * null means no `/dbt` mount.
  */
 const repoFsRootHint = (root: string | null): string => {
+    if (root === null) return '';
     const provenance =
-        root && root !== '.'
+        root !== '.'
             ? ` (it is the \`${root}/\` subdirectory of the underlying repository, re-rooted at \`/dbt\`)`
             : '';
     return `The \`/dbt\` mount is this project's governed dbt repository${provenance}.`;

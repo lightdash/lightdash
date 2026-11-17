@@ -149,6 +149,7 @@ import { hasOpenLayer } from './useEditorDismiss';
 import { useIsControlEdited } from './useIsControlEdited';
 import {
     getParameterEntryName,
+    useIsParameterControlLockedInEmbed,
     useParameterBarControls,
 } from './useParameterBarControls';
 import { useParameterEditorSelector } from './useParameterEditor';
@@ -728,11 +729,13 @@ export const SectionedFilters: FC<Props> = ({
     const { getTabsUsingFilter } = useFilterTabPlacement();
     const parameterBar = useParameterBarControls();
     const parameterControls = useDashboardSelector(selectParameterControls);
-    // A hidden control is an editor's: a viewer's section of only hidden ones has no pill, so no capsule
+    const isLockedInEmbed = useIsParameterControlLockedInEmbed();
+    // A viewer's section of only hidden or token-locked controls has no pill, so no capsule
     const parameterEntries = withParameters
         ? parameterBar.entries.filter(
               ({ isNeedsValue, control }) =>
-                  !isNeedsValue && !(isViewer && control.hidden),
+                  !isNeedsValue &&
+                  !(isViewer && (control.hidden || isLockedInEmbed(control))),
           )
         : [];
     const parameterCountOf = (sectionId: string | null) =>

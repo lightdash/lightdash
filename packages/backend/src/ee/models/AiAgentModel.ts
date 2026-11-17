@@ -164,7 +164,10 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
-import { SavedSqlTableName } from '../../database/entities/savedSql';
+import {
+    SavedSqlTableName,
+    SavedSqlVersionsTableName,
+} from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
@@ -318,14 +321,14 @@ const sqlApprovalToolCallSql = (alias: string): string =>
         queries: [{ sourceType: QuerySourceType.SQL }],
     })}'::jsonb))`;
 
-/** Which embedded threads a token can see: by its write spaces and viewer, or by its viewer alone when it has no write spaces. */
+/** Which embedded threads a token can see: by its write spaces and thread owner, or by its thread owner alone when it has no write spaces. */
 export type EmbedThreadScope =
     | {
           type: 'writeSpaces';
           writeSpaceUuids: string[];
-          externalUserId: string | null;
+          ownerIdentifier: string | null;
       }
-    | { type: 'externalUser'; externalUserId: string };
+    | { type: 'owner'; ownerIdentifier: string };
 
 export type AiPromptResponseState = {
     respondedAt: string | null;
@@ -7174,6 +7177,7 @@ export class AiAgentModel {
                 threadUuid: `${AiPromptTableName}.ai_thread_uuid`,
                 threadCreatedFrom: `${AiThreadTableName}.created_from`,
                 threadEmbedSpaceUuid: `${AiWebAppThreadTableName}.embed_space_uuid`,
+                threadEmbedOwnerIdentifier: `${AiWebAppThreadTableName}.embed_external_user_id`,
                 agentUuid: `${AiThreadTableName}.agent_uuid`,
                 createdByUserUuid: `${AiPromptTableName}.created_by_user_uuid`,
                 userUuid: `${AiWebAppPromptTableName}.user_uuid`,
@@ -7228,7 +7232,7 @@ export class AiAgentModel {
                 embed_space_uuids: data.embedSpaceUuids?.length
                     ? data.embedSpaceUuids
                     : null,
-                embed_external_user_id: data.embedExternalUserId ?? null,
+                embed_external_user_id: data.embedOwnerIdentifier ?? null,
             });
 
             return row.ai_thread_uuid;
@@ -7247,7 +7251,7 @@ export class AiAgentModel {
             .select({
                 createdFrom: `${AiThreadTableName}.created_from`,
                 embedSpaceUuid: `${AiWebAppThreadTableName}.embed_space_uuid`,
-                embedExternalUserId: `${AiWebAppThreadTableName}.embed_external_user_id`,
+                embedOwnerIdentifier: `${AiWebAppThreadTableName}.embed_external_user_id`,
             })
             .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
             .first();
@@ -7360,16 +7364,16 @@ export class AiAgentModel {
             case 'writeSpaces': {
                 // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
                 const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
-                // A token without a viewer only sees threads started without one.
+                // A token without an owner only sees threads started without one.
                 return this.database.raw(
                     `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0 AND ${AiWebAppThreadTableName}.embed_external_user_id IS NOT DISTINCT FROM ?::text)`,
-                    [scope.writeSpaceUuids, scope.externalUserId],
+                    [scope.writeSpaceUuids, scope.ownerIdentifier],
                 );
             }
-            case 'externalUser':
+            case 'owner':
                 return this.database.raw(
                     `(${AiWebAppThreadTableName}.embed_space_uuid IS NULL AND ${AiWebAppThreadTableName}.embed_space_uuids IS NULL AND ${AiWebAppThreadTableName}.embed_external_user_id = ?)`,
-                    [scope.externalUserId],
+                    [scope.ownerIdentifier],
                 );
             default:
                 return assertUnreachable(scope, 'Unknown embed thread scope');
@@ -7692,6 +7696,46 @@ export class AiAgentModel {
             ).map((r) => [r.document_uuid, r] as const),
         );
 
+        const sqlChartUuids = context.flatMap((c) =>
+            c.type === 'sql_chart' ? [c.sqlChartUuid] : [],
+        );
+        const sqlChartLookup = new Map(
+            (sqlChartUuids.length === 0
+                ? []
+                : await trx(SavedSqlTableName)
+                      .leftJoin(
+                          SavedSqlVersionsTableName,
+                          `${SavedSqlTableName}.saved_sql_uuid`,
+                          `${SavedSqlVersionsTableName}.saved_sql_uuid`,
+                      )
+                      .whereIn(
+                          `${SavedSqlTableName}.saved_sql_uuid`,
+                          sqlChartUuids,
+                      )
+                      .whereNull(`${SavedSqlTableName}.deleted_at`)
+                      .distinctOn(`${SavedSqlTableName}.saved_sql_uuid`)
+                      .orderBy([
+                          { column: `${SavedSqlTableName}.saved_sql_uuid` },
+                          {
+                              column: `${SavedSqlVersionsTableName}.created_at`,
+                              order: 'desc',
+                              nulls: 'last',
+                          },
+                      ])
+                      .select<
+                          {
+                              saved_sql_uuid: string;
+                              name: string;
+                              saved_sql_version_uuid: string | null;
+                          }[]
+                      >({
+                          saved_sql_uuid: `${SavedSqlTableName}.saved_sql_uuid`,
+                          name: `${SavedSqlTableName}.name`,
+                          saved_sql_version_uuid: `${SavedSqlVersionsTableName}.saved_sql_version_uuid`,
+                      })
+            ).map((r) => [r.saved_sql_uuid, r] as const),
+        );
+
         const threadUuids = context.flatMap((c) =>
             c.type === 'thread' ? [c.threadUuid] : [],
         );
@@ -7829,6 +7873,17 @@ export class AiAgentModel {
                             dashboard?.dashboard_version_uuid ?? null,
                         display_name: dashboard?.name ?? null,
                         runtime_overrides: ctx.runtimeOverrides ?? null,
+                    };
+                }
+                case 'sql_chart': {
+                    const sqlChart = sqlChartLookup.get(ctx.sqlChartUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'sql_chart' as AiPromptContextEntityType,
+                        entity_uuid: ctx.sqlChartUuid,
+                        pinned_version_uuid:
+                            sqlChart?.saved_sql_version_uuid ?? null,
+                        display_name: sqlChart?.name ?? null,
                     };
                 }
                 case 'document': {
@@ -8198,6 +8253,23 @@ export class AiAgentModel {
             ).map((r) => [r.document_uuid, r.slug] as const),
         );
 
+        const sqlChartUuids = rows
+            .filter((r) => r.entity_type === 'sql_chart')
+            .map((r) => r.entity_uuid)
+            .filter((u): u is string => u !== null);
+        const sqlChartSlugByUuid = new Map(
+            (sqlChartUuids.length === 0
+                ? []
+                : await this.database(SavedSqlTableName)
+                      .whereIn('saved_sql_uuid', sqlChartUuids)
+                      .whereNull('deleted_at')
+                      .select<{ saved_sql_uuid: string; slug: string }[]>(
+                          'saved_sql_uuid',
+                          'slug',
+                      )
+            ).map((r) => [r.saved_sql_uuid, r.slug] as const),
+        );
+
         // review_finding / proposed_change pins resolve live finding data,
         // scoped by the org of the prompt they hang off. Only worth the extra
         // prompt -> thread -> org lookup when such a pin is actually present.
@@ -8356,6 +8428,7 @@ export class AiAgentModel {
                     chartDataByUuid,
                     dashboardSlugByUuid,
                     documentSlugByUuid,
+                    sqlChartSlugByUuid,
                     reviewItem,
                     projectNameByUuid,
                     appDataByUuid,
@@ -8403,6 +8476,7 @@ export class AiAgentModel {
         >,
         dashboardSlugByUuid: Map<string, string>,
         documentSlugByUuid: Map<string, string>,
+        sqlChartSlugByUuid: Map<string, string>,
         reviewItem: AiAgentReviewItemSummary | null,
         projectNameByUuid: Map<string, string>,
         appDataByUuid: Map<
@@ -8448,6 +8522,16 @@ export class AiAgentModel {
                     displayName: row.display_name,
                     runtimeOverrides:
                         row.runtime_overrides as AiDashboardRuntimeOverrides | null,
+                };
+            }
+            case 'sql_chart': {
+                const entityUuid = requireEntityUuid();
+                return {
+                    type: 'sql_chart',
+                    sqlChartUuid: entityUuid,
+                    sqlChartSlug: sqlChartSlugByUuid.get(entityUuid) ?? null,
+                    pinnedVersionUuid: row.pinned_version_uuid,
+                    displayName: row.display_name,
                 };
             }
             case 'document': {
@@ -9934,44 +10018,40 @@ export class AiAgentModel {
         title?: string;
         description?: string;
         vizConfig: Record<string, unknown>;
-        retry?: boolean;
     }): Promise<AiArtifact> {
-        try {
-            return await this.database.transaction(async (trx) => {
-                const existingArtifacts = await this.findArtifactsByThreadUuid(
-                    data.threadUuid,
-                    data.artifactType,
-                    { db: trx },
+        return this.database.transaction(async (trx) => {
+            // Parallel tool calls in one agent step write to the same thread artifact
+            await trx(AiThreadTableName)
+                .where('ai_thread_uuid', data.threadUuid)
+                .forNoKeyUpdate()
+                .first('ai_thread_uuid');
+
+            const existingArtifacts = await this.findArtifactsByThreadUuid(
+                data.threadUuid,
+                data.artifactType,
+                { db: trx },
+            );
+
+            if (existingArtifacts.length > 0) {
+                // TODO: Currently assuming first artifact in array since we only support one artifact per thread per artifact type
+                // In the future, we may support multiple artifacts per thread
+                const existingArtifact = existingArtifacts[0];
+                return this.createArtifactVersion(
+                    {
+                        artifactUuid: existingArtifact.artifactUuid,
+                        promptUuid: data.promptUuid,
+                        title: data.title,
+                        description: data.description,
+                        vizConfig: data.vizConfig,
+                    },
+                    {
+                        db: trx,
+                    },
                 );
-
-                if (existingArtifacts.length > 0) {
-                    // TODO: Currently assuming first artifact in array since we only support one artifact per thread per artifact type
-                    // In the future, we may support multiple artifacts per thread
-                    const existingArtifact = existingArtifacts[0];
-                    return this.createArtifactVersion(
-                        {
-                            artifactUuid: existingArtifact.artifactUuid,
-                            promptUuid: data.promptUuid,
-                            title: data.title,
-                            description: data.description,
-                            vizConfig: data.vizConfig,
-                        },
-                        {
-                            db: trx,
-                        },
-                    );
-                }
-
-                return this.createArtifact({ ...data }, { db: trx });
-            });
-        } catch (e) {
-            if (!data.retry) {
-                // TODO fix the race condition for version number
-                // this temporarily fixes the issue by retrying the operation
-                return this.createOrUpdateArtifact({ ...data, retry: true });
             }
-            throw e;
-        }
+
+            return this.createArtifact({ ...data }, { db: trx });
+        });
     }
 
     async findArtifactUuidByVersionUuid(

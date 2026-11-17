@@ -1,10 +1,6 @@
 import { type SemanticStudioWorkspace } from '@lightdash/common';
 import { Avatar, Box, Button, Text, UnstyledButton } from '@mantine/core';
-import {
-    IconCheck,
-    IconChevronRight,
-    IconExternalLink,
-} from '@tabler/icons-react';
+import { IconCheck, IconChevronRight } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { type FC, type ReactNode } from 'react';
@@ -79,6 +75,7 @@ const MineRow: FC<{
     <UnstyledButton
         className={classes.row}
         data-current={workspace.isActive || undefined}
+        aria-current={workspace.isActive || undefined}
         onClick={onOpen}
     >
         <RunRing run={run} size={40} />
@@ -87,9 +84,6 @@ const MineRow: FC<{
                 <Text component="span" className={classes.name}>
                     {workspace.name}
                 </Text>
-                {workspace.isActive ? (
-                    <span className={classes.here}>You're here</span>
-                ) : null}
             </span>
             <span className={classes.meta} data-kind={run.kind}>
                 <RunMeta
@@ -151,7 +145,11 @@ export const StudioWorkspacesList: FC<{
             </Text>
         );
     }
-    const { others, recent } = data;
+    const { others } = data;
+    // Only merged work went live; discarded work is not listed.
+    const recent = data.recent.filter(
+        ({ pullRequest }) => pullRequest?.state === 'merged',
+    );
     const waiting = rows.filter(({ run }) => needsYou(run));
     const going = rows.filter(({ run }) => !needsYou(run));
     const mineRow = (row: StudioRunRow) => (
@@ -167,7 +165,9 @@ export const StudioWorkspacesList: FC<{
             <header className={classes.hero}>
                 <Text className={classes.title}>Changes</Text>
                 <Text className={classes.lede}>
-                    Each change runs from its first proposal until it is live.
+                    {rows.length === 0
+                        ? 'Nothing in flight yet. Ask for a change to get started.'
+                        : 'Pick up where you and your team left off.'}
                 </Text>
             </header>
             {rows.length === 0 ? (
@@ -202,16 +202,7 @@ export const StudioWorkspacesList: FC<{
                             <UnstyledButton
                                 key={workspace.workspaceUuid}
                                 className={classes.row}
-                                disabled={!workspace.pullRequest}
-                                onClick={() => {
-                                    if (workspace.pullRequest) {
-                                        window.open(
-                                            workspace.pullRequest.url,
-                                            '_blank',
-                                            'noopener,noreferrer',
-                                        );
-                                    }
-                                }}
+                                onClick={() => onOpen(workspace)}
                             >
                                 <Avatar
                                     size={40}
@@ -232,15 +223,11 @@ export const StudioWorkspacesList: FC<{
                                     </span>
                                 </span>
                                 <StageTrack run={run} />
-                                {workspace.pullRequest ? (
-                                    <MantineIcon
-                                        icon={IconExternalLink}
-                                        size={16}
-                                        className={classes.chevron}
-                                    />
-                                ) : (
-                                    <span />
-                                )}
+                                <MantineIcon
+                                    icon={IconChevronRight}
+                                    size={16}
+                                    className={classes.chevron}
+                                />
                             </UnstyledButton>
                         );
                     })}
@@ -268,6 +255,9 @@ export const StudioWorkspacesList: FC<{
                                         {workspace.name}
                                     </Text>
                                     <span className={classes.when}>
+                                        {workspace.isMine
+                                            ? ''
+                                            : `${workspace.owner.name} · `}
                                         {whereItStands(workspace)} ·{' '}
                                         {dayjs(
                                             workspace.finishedAt ??

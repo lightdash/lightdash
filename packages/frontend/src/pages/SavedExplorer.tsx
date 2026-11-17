@@ -70,7 +70,7 @@ const SavedExplorerContent = memo(() => {
             sidebarTitle="Fields"
             {...rightSidebarProps}
             withFullHeight
-            withPaddedContent
+            noContentPadding
         >
             <Explorer />
         </Page>

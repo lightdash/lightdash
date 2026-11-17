@@ -27,6 +27,7 @@ import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SidebarPosition } from '../../../../../components/common/Page/types';
 import {
+    withStudioChatCode,
     isStudioChatRefDrag,
     readStudioChatRefDrop,
     type StudioChatRef,
@@ -37,7 +38,6 @@ import useSidebarResize from '../../../../../hooks/useSidebarResize';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
-    useAiAgentThread,
     useCreateAgentThreadMessageMutation,
     useCreateAgentThreadMutation,
 } from '../../hooks/useProjectAiAgents';
@@ -49,13 +49,17 @@ import { QuietCardsContext } from '../ChatElements/ToolCalls/quietCards';
 import classes from './SemanticStudioAgent.module.css';
 import { StudioChatEmptyState } from './StudioChatEmptyState';
 import { StudioChatRefChips } from './StudioChatRefChips';
-import { getOpenProposal } from './studioProposal';
 import {
     useChatOpen,
     useStudioAgent,
+    useStudioThread,
     type StoredThread,
 } from './useSemanticStudioChat';
-import { useStudioPullRequest } from './useStudioPullRequest';
+import {
+    useStudioPendingChange,
+    useStudioProposal,
+    useStudioPullRequest,
+} from './useStudioPullRequest';
 
 type OpenModel = { modelName: string | null; fieldName: string | null };
 
@@ -80,17 +84,20 @@ const withOpenModel = (
 ) => {
     const refs = [
         ...(modelName ? [{ modelName, fieldName }] : []),
-        ...attached.map((ref) => ({
-            modelName: ref.modelName,
-            fieldName: ref.fieldName,
-        })),
+        ...attached
+            .filter(({ code }) => code === null)
+            .map((ref) => ({
+                modelName: ref.modelName,
+                fieldName: ref.fieldName,
+            })),
     ];
     const items = uniqBy(
         refs,
         (ref) => `${ref.modelName}:${ref.fieldName ?? ''}`,
     ).map((ref) => ({ type: 'semantic_model' as const, ...ref }));
+    const code = attached.flatMap((ref) => (ref.code ? [ref.code] : []));
     return {
-        prompt: message,
+        prompt: withStudioChatCode(message, code),
         context: [...items, ...(context ?? [])],
         optimisticContext: [...items, ...(optimisticContext ?? [])],
     };
@@ -263,7 +270,7 @@ const ExistingThread: FC<
         data: thread,
         isLoading,
         refetch,
-    } = useAiAgentThread(projectUuid, agent.uuid, threadUuid);
+    } = useStudioThread(projectUuid, agent.uuid, threadUuid);
     const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadUuid,
@@ -285,6 +292,9 @@ const ExistingThread: FC<
     useAskedPrompt({ prompt, onPromptTaken }, (message) => send({ message }));
     const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     const pullRequest = useStudioPullRequest(projectUuid);
+    // A save under way already has the proposal, so it is not offered twice.
+    const pendingChange = useStudioPendingChange(projectUuid);
+    const proposal = useStudioProposal(projectUuid);
     // Unknown counts as open, so a slow or unavailable status check never offers a second pull request.
     const isClosed = !!pullRequest?.ciChecks && !pullRequest.isOpen;
     const isRequestingPullRequest = useRef(false);
@@ -305,9 +315,7 @@ const ExistingThread: FC<
             agentUuid={agent.uuid}
             renderArtifactsInline
         >
-            {!keepsDraft &&
-            !isBusy &&
-            getOpenProposal(thread.messages).length > 0 ? (
+            {!keepsDraft && !isBusy && !pendingChange && proposal.length > 0 ? (
                 <div className={classes.pullRequestPrompt}>
                     <Stack className={classes.pullRequestCard} gap="sm">
                         <Group gap="sm" wrap="nowrap">
@@ -361,6 +369,12 @@ const ExistingThread: FC<
                     </Stack>
                 </div>
             ) : null}
+            {thread.messages.length === 0 && !isBusy ? (
+                <Text fz="xs" c="dimmed" ta="center" px="md" pb="xs">
+                    You edited this change by hand. Ask for more here, or merge
+                    it when it is ready.
+                </Text>
+            ) : null}
             <StudioChatRefChips refs={attached} onRemove={onDetach} />
             <AgentChatInput
                 allowAttachments={false}
@@ -409,7 +423,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
         previousThread,
         returnToPreviousThread,
     } = useStudioAgent(projectUuid);
-    const [isOpen, setIsOpen] = useChatOpen();
+    const [isOpen, setIsOpen] = useChatOpen(projectUuid);
 
     const { sidebarRef, sidebarWidth, isResizing, startResizing } =
         useSidebarResize({

@@ -120,6 +120,7 @@ import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRe
 import DashboardTabs from '../features/dashboardTabs';
 import { ACTUAL_SIZE_ZOOM } from '../features/dashboardTabs/canvasZoomUtils';
 import { useFitToScreen } from '../features/dashboardTabs/useFitToScreen';
+import { MERGE_URL_PARAM } from '../features/mergeQuery/context/mergeUrlState';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
 import {
     appendNewTilesToBottom,
@@ -1117,6 +1118,7 @@ const Dashboard: FC = () => {
                 (params) => {
                     params.set(EDIT_CHART_SEARCH_PARAM, chartUuid);
                     params.delete(CREATE_SAVED_CHART_VERSION_SEARCH_PARAM);
+                    params.delete(MERGE_URL_PARAM);
                     return params;
                 },
                 { replace: true },
@@ -1129,6 +1131,7 @@ const Dashboard: FC = () => {
             (params) => {
                 params.delete(EDIT_CHART_SEARCH_PARAM);
                 params.delete(CREATE_SAVED_CHART_VERSION_SEARCH_PARAM);
+                params.delete(MERGE_URL_PARAM);
                 return params;
             },
             { replace: true },

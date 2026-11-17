@@ -8,12 +8,15 @@ type opts = {
     forbiddenToastTitle?: string;
     forceToastOnForbidden?: boolean;
     chartName?: string;
+    /** False when the caller shows the error itself */
+    toastErrors?: boolean;
 };
 
 const useQueryError = ({
     forbiddenToastTitle,
     forceToastOnForbidden,
     chartName,
+    toastErrors = true,
 }: opts = {}): Dispatch<SetStateAction<ApiError | undefined>> => {
     const queryClient = useQueryClient();
     const [errorResponse, setErrorResponse] = useState<ApiError | undefined>();
@@ -30,7 +33,7 @@ const useQueryError = ({
                     // So don't show the error popup there,
                     // we will handle this on pages showing a nice message
 
-                    if (forceToastOnForbidden) {
+                    if (forceToastOnForbidden && toastErrors) {
                         addToastError({
                             title: forbiddenToastTitle ?? 'Forbidden',
                             apiError: error,
@@ -72,7 +75,7 @@ const useQueryError = ({
                     if (window.location.pathname !== '/login') {
                         window.location.href = '/login';
                     }
-                } else {
+                } else if (toastErrors) {
                     addToastError({
                         title: chartName
                             ? `Chart '${chartName}': Error`
@@ -87,6 +90,7 @@ const useQueryError = ({
         forbiddenToastTitle,
         forceToastOnForbidden,
         chartName,
+        toastErrors,
         queryClient,
         showToastError,
         addToastError,

@@ -580,6 +580,62 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * @summary Get data app visualization render metadata for a composer chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/visualizations/{dataAppVizUuid}/composer-charts/{composerChartUuid}/render-metadata',
+    )
+    @OperationId('getComposerChartDataAppVizRenderMetadata')
+    async getComposerChartDataAppVizRenderMetadata(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() dataAppVizUuid: UUID,
+        @Path() composerChartUuid: UUID,
+    ): Promise<ApiDataAppVizRenderMetadataResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results:
+                await this.getAppGenerateService().getComposerChartDataAppVizRenderMetadata(
+                    req.account,
+                    projectUuid,
+                    composerChartUuid,
+                    dataAppVizUuid,
+                ),
+        };
+    }
+
+    /**
+     * @summary Get a data app visualization preview token for a composer chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/visualizations/{dataAppVizUuid}/composer-charts/{composerChartUuid}/versions/{version}/preview-token',
+    )
+    @OperationId('getComposerChartDataAppVizPreviewToken')
+    async getComposerChartDataAppVizPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() dataAppVizUuid: UUID,
+        @Path() composerChartUuid: UUID,
+        @Path() version: number,
+    ): Promise<ApiDataAppVizPreviewTokenResponse> {
+        assertRegisteredAccount(req.account);
+        const token =
+            await this.getAppGenerateService().getComposerChartDataAppVizPreviewToken(
+                req.account,
+                projectUuid,
+                composerChartUuid,
+                dataAppVizUuid,
+                version,
+            );
+        return { status: 'ok', results: { token } };
+    }
+
+    /**
      * Pre-build clarifying questions. Returns 0–4 short questions whose
      * answers will materially refine the prompt before the (slow) build
      * pipeline starts. Stateless — answers are sent back as

@@ -29,15 +29,15 @@ import {
 } from '../../database/entities/apps';
 import { SpaceTableName } from '../../database/entities/spaces';
 import {
-    getApiSourceIntegration,
-    parseStoredApiSource,
-} from '../../services/QuerySourceService/api/apiSourceIntegrations';
-import {
     parseLiveSourceFieldState,
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
     type LiveSourceScan,
-} from '../../services/QuerySourceService/api/liveSourceFields';
+} from '../../services/QuerySourceService/live/explores/fields';
+import {
+    getLiveIntegration,
+    parseStoredApiSource,
+} from '../../services/QuerySourceService/live/registry';
 import {
     normalizeCredentialUrlHref,
     normalizeCredentialUrlOrigin,
@@ -134,9 +134,7 @@ const readSourceDetails = (value: unknown) => {
 /** Connector settings only: drops any server-owned key a caller sent. */
 const toApiSourceSettingsJson = (apiSource: ExternalConnectionApiSource) =>
     JSON.stringify(
-        getApiSourceIntegration(apiSource.connector).settingsSchema.parse(
-            apiSource,
-        ),
+        getLiveIntegration(apiSource.connector).settings.parse(apiSource),
     );
 
 /** A deleted live source, kept so a new one can reattach to its name. */
@@ -1280,6 +1278,13 @@ export class ExternalConnectionModel {
             // deleted_at filter in listAppLinks/resolveAppAlias, while
             // linkToApp's onConflict(...).ignore() silently no-ops a re-link.
             await trx(AppExternalConnectionsTableName)
+                .where('external_connection_uuid', uuid)
+                .delete();
+            // There is no restore, so the credentials and the call log go now.
+            // The row stays only to keep its slug and, for a live source, its
+            // name and field edits for reattach.
+            await ExternalConnectionModel.deleteSecret(trx, uuid);
+            await trx(ApiSourceCallsTableName)
                 .where('external_connection_uuid', uuid)
                 .delete();
         });

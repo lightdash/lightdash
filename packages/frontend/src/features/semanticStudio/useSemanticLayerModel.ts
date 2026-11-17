@@ -69,7 +69,7 @@ const useStatus = (projectUuid: string) =>
         ['semantic-layer-status', projectUuid],
         projectUuid,
         '/status',
-        true,
+        projectUuid !== '',
     ).data;
 
 /** Whether this person can change this project's models here. */

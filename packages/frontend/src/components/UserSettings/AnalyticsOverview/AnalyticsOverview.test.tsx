@@ -220,7 +220,7 @@ describe('Analytics settings overview', () => {
         ).toBe(true);
     });
 
-    it('waits for the tab summary before loading previous-period comparisons', async () => {
+    it('loads only the tab own queries away from Overview, with no headline comparisons', async () => {
         const finishSummary = Promise.withResolvers<ReturnType<typeof ready>>();
         const launched = mockQueries((query) => {
             const days =
@@ -243,7 +243,8 @@ describe('Analytics settings overview', () => {
                             Date.parse(String(filterValue(query, 'start'))) ===
                         30 * 86_400_000,
                 );
-        await waitFor(() => expect(monthlyQueries()).toHaveLength(6));
+        // The headline numbers and their previous-period comparisons belong to Overview alone
+        await waitFor(() => expect(monthlyQueries()).toHaveLength(3));
         expect(
             monthlyQueries().filter((query) =>
                 query.metrics.includes('ai_usage_unique_users'),
@@ -261,12 +262,32 @@ describe('Analytics settings overview', () => {
                 ]),
             ),
         );
-        await waitFor(() => expect(monthlyQueries()).toHaveLength(9));
+        await waitFor(() =>
+            expect(
+                within(
+                    screen.getByRole('region', { name: 'AI calls' }),
+                ).getByText('13,575'),
+            ).toBeVisible(),
+        );
+        expect(monthlyQueries()).toHaveLength(3);
+    });
+
+    it('falls back to the Adoption charts and filters where the app cannot be opened', async () => {
+        // The app lookup fails here, as it does on an instance with data apps switched off
+        const launched = mockQueries();
+        renderOverview();
+        await userEvent.click(screen.getByRole('tab', { name: 'Adoption' }));
         expect(
-            within(screen.getByRole('region', { name: 'AI calls' })).getByText(
-                '13,575',
-            ),
+            await screen.findByRole('region', { name: 'Dashboard audiences' }),
         ).toBeVisible();
+        expect(screen.getByText('Last 30 days')).toBeVisible();
+        expect(
+            screen.queryByRole('status', { name: 'Loading Adoption app' }),
+        ).not.toBeInTheDocument();
+        // The tab's four charts are queried, on top of what Overview had already asked for
+        const before = launched.length;
+        await waitFor(() => expect(launched.length).toBeGreaterThanOrEqual(4));
+        expect(before).toBeGreaterThan(0);
     });
 
     it('cancels a superseded query even when its creation response arrives after the project switch', async () => {

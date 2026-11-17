@@ -2,8 +2,6 @@
     position: relative;
     overflow: hidden;
     isolation: isolate;
-    border-radius: 50%;
-    clip-path: circle(50%);
     color: var(--mantine-color-white);
     background-repeat: no-repeat;
     background-position: center;

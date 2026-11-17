@@ -155,6 +155,9 @@ describe('Document runtime access', () => {
                 aiCreditService: {
                     assertAiCreditsAvailable: async () => undefined,
                 },
+                aiAgentModel: {
+                    findPinnedThreadContextUuids: vi.fn().mockResolvedValue([]),
+                },
                 aiThreadFileModel: {
                     findForThread: vi.fn().mockResolvedValue([]),
                     findClaimableByUser: vi.fn().mockResolvedValue([]),
@@ -192,6 +195,9 @@ describe('Document runtime access', () => {
                 },
                 featureFlagService: {
                     get: vi.fn().mockResolvedValue({ enabled: false }),
+                },
+                aiWritebackService: {
+                    canReadSourceCode: vi.fn().mockResolvedValue(false),
                 },
                 aiAgentToolsService: {
                     canGenerateDataApp: vi.fn().mockResolvedValue(false),

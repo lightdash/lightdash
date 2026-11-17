@@ -157,6 +157,7 @@ export const scheduleDownloadQuery = async (
             attachmentDownloadName: options.attachmentDownloadName,
             conditionalFormattings: options.conditionalFormattings,
             showColumnTotals: options.showColumnTotals,
+            showSubtotals: options.showSubtotals,
         }),
         version: 'v2',
     });
@@ -376,6 +377,7 @@ export const useInfiniteQueryResults = (
     queryUuid?: string,
     chartName?: string,
     resultsUrl: string | null = null,
+    { toastErrors = true }: { toastErrors?: boolean } = {},
 ): InfiniteQueryResults => {
     const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError({
@@ -384,6 +386,7 @@ export const useInfiniteQueryResults = (
             ? `Error running query for chart '${chartName}'`
             : 'Error running query',
         chartName,
+        toastErrors,
     });
     const [fetchArgs, setFetchArgs] = useState<{
         queryUuid?: string;

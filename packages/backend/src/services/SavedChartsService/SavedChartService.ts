@@ -68,6 +68,7 @@ import {
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
+    type AdditionalMetric,
     type ChartFieldUpdates,
     type ContentDraftStaleness,
     type ContentVerificationInfo,
@@ -121,7 +122,9 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
+import { getCustomMetricSqlPermissionMessage } from '../ProjectService/customMetricSqlPermission';
 import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -146,6 +149,10 @@ type SavedChartServiceArguments = {
     analytics: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
+    getProjectService: () => Pick<
+        ProjectService,
+        'getCustomMetricsNeedingPermission'
+    >;
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
@@ -196,6 +203,8 @@ export class SavedChartService
 
     private readonly projectModel: ProjectModel;
 
+    private readonly getProjectService: SavedChartServiceArguments['getProjectService'];
+
     private readonly savedChartModel: SavedChartModel;
 
     private readonly spaceModel: SpaceModel;
@@ -242,6 +251,7 @@ export class SavedChartService
         this.analytics = args.analytics;
         this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
+        this.getProjectService = args.getProjectService;
         this.savedChartModel = args.savedChartModel;
         this.spaceModel = args.spaceModel;
         this.analyticsModel = args.analyticsModel;
@@ -1046,6 +1056,40 @@ export class SavedChartService
         }
     }
 
+    private async assertCanSaveCustomMetricSql(
+        account: Account,
+        auditedAbility: ReturnType<SavedChartService['createAuditedAbility']>,
+        projectContext: {
+            organizationUuid: string;
+            projectUuid: string;
+            metadata?: { savedChartUuid: string };
+        },
+        metricQuery: Pick<MetricQuery, 'exploreName' | 'additionalMetrics'>,
+        savedAdditionalMetrics: AdditionalMetric[],
+    ): Promise<void> {
+        if (
+            auditedAbility.can(
+                'manage',
+                subject('CustomFields', projectContext),
+            )
+        ) {
+            return;
+        }
+        const newHandWritten =
+            await this.getProjectService().getCustomMetricsNeedingPermission({
+                account,
+                projectUuid: projectContext.projectUuid,
+                exploreName: metricQuery.exploreName,
+                additionalMetrics: metricQuery.additionalMetrics ?? [],
+                savedAdditionalMetrics,
+            });
+        if (newHandWritten.length > 0) {
+            throw new ForbiddenError(
+                getCustomMetricSqlPermissionMessage(newHandWritten),
+            );
+        }
+    }
+
     async createVersion(
         account: Account,
         savedChartUuid: string,
@@ -1066,6 +1110,7 @@ export class SavedChartService
                 dimensions: oldChartDimensions,
                 customDimensions: oldCustomDimensions,
                 tableCalculations: oldTableCalculations,
+                additionalMetrics: oldAdditionalMetrics,
             },
         } = existingChart;
 
@@ -1210,6 +1255,14 @@ export class SavedChartService
         await this.validateMetricReferences(
             projectUuid,
             chartVersion.metricQuery,
+        );
+
+        await this.assertCanSaveCustomMetricSql(
+            account,
+            auditedAbility,
+            { organizationUuid, projectUuid, metadata: { savedChartUuid } },
+            chartVersion.metricQuery,
+            oldAdditionalMetrics ?? [],
         );
 
         const verificationAfterUpdate =
@@ -2491,6 +2544,14 @@ export class SavedChartService
         await this.validateMetricReferences(
             projectUuid,
             chartToSave.metricQuery,
+        );
+
+        await this.assertCanSaveCustomMetricSql(
+            account,
+            auditedAbility,
+            { organizationUuid, projectUuid },
+            chartToSave.metricQuery,
+            [],
         );
 
         const newSavedChart = await this.savedChartModel.create(

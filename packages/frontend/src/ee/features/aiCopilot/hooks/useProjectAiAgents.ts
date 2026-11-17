@@ -1101,6 +1101,14 @@ const toOptimisticContextItem = (
                 builtIn: false,
                 displayName: null,
             };
+        case 'sql_chart':
+            return {
+                type: 'sql_chart',
+                sqlChartUuid: item.sqlChartUuid,
+                sqlChartSlug: item.sqlChartSlug,
+                displayName: null,
+                pinnedVersionUuid: null,
+            };
         // System-only pins are seeded by the remediation flow or the thread
         // restore endpoint, never optimistically attached from the UI.
         case 'proposed_change':

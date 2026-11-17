@@ -252,6 +252,40 @@ export class DraftChecker {
         }
     }
 
+    /** Why an explore compiled elsewhere cannot be used, checked as a draft model is; the warehouse is skipped without SQL access. */
+    async findExploreError(
+        user: SessionUser,
+        projectUuid: string,
+        explore: Explore,
+        { warehouse }: { warehouse: boolean },
+    ): Promise<string | null> {
+        if (!warehouse) {
+            const queryError = await this.findQueryError(
+                user,
+                projectUuid,
+                explore,
+            );
+            return queryError
+                ? `This model does not work in a query: ${queryError}`
+                : null;
+        }
+        const settings =
+            await this.projectService.getWarehouseSqlBuilderSettings(
+                projectUuid,
+                { kind: 'original' },
+            );
+        return this.findModelError(
+            user,
+            projectUuid,
+            explore,
+            warehouseSqlBuilderFromType(
+                settings.type,
+                settings.startOfWeek,
+            ).getFieldQuoteChar(),
+            new Set(),
+        );
+    }
+
     /** Why a model cannot be used: first by the query builder, then planned on the warehouse over no rows. */
     private async findModelError(
         user: SessionUser,

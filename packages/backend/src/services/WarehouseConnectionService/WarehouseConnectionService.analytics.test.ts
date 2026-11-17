@@ -8,6 +8,7 @@ import {
     ProjectType,
     RedshiftAuthenticationType,
     RequestMethod,
+    SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateBigqueryCredentials,
     type CreatePostgresCredentials,
@@ -462,6 +463,50 @@ describe('WarehouseConnectionService mixed warehouse types', () => {
                         FeatureFlags.MixedWarehouseConnections,
                 ),
             ).toHaveLength(operation === 'create' ? 2 : 1);
+        },
+    );
+
+    it.each(['create', 'update'] as const)(
+        'refuses optional personal credentials without shared Snowflake credentials on %s',
+        async (operation) => {
+            const { service, model, projectModel, credentialPolicy } =
+                buildService();
+            const snowflake = warehouseConnectionCredentials[
+                WarehouseTypes.SNOWFLAKE
+            ] as CreateSnowflakeCredentials;
+            model.getProject.mockResolvedValue({
+                ...project,
+                originalWarehouseType: WarehouseTypes.SNOWFLAKE,
+            });
+            model.get.mockResolvedValue({
+                ...connection(extraUuid, false),
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+            });
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValue({
+                ...snowflake,
+                requireUserCredentials: false,
+            });
+            const request = {
+                name: 'Extra',
+                warehouseConnection: {
+                    ...snowflake,
+                    authenticationType: SnowflakeAuthenticationType.NONE,
+                    allowUserCredentials: true,
+                },
+            };
+            const save =
+                operation === 'create'
+                    ? service.create(account, projectUuid, request)
+                    : service.update(account, projectUuid, extraUuid, request);
+            await expect(save).rejects.toThrow(ParameterError);
+            await expect(save).rejects.toThrow(
+                'Personal credentials can only be optional when the connection stores shared credentials.',
+            );
+            expect(model.createExtra).not.toHaveBeenCalled();
+            expect(model.updateExtraCredentials).not.toHaveBeenCalled();
+            expect(
+                credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).not.toHaveBeenCalled();
         },
     );
 

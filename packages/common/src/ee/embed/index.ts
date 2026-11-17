@@ -1,7 +1,15 @@
 import { z } from 'zod';
 import type { EmbedContent, OssEmbed } from '../../types/auth';
-import type { Dashboard } from '../../types/dashboard';
+import type {
+    Dashboard,
+    DashboardParameterControl,
+} from '../../types/dashboard';
+import { ForbiddenError } from '../../types/errors';
 import type { OrganizationColorPalette } from '../../types/organization';
+import type {
+    ParametersValuesMap,
+    ParameterValue,
+} from '../../types/parameters';
 import assertUnreachable from '../../utils/assertUnreachable';
 
 /** @deprecated Use OssEmbed instead */
@@ -60,8 +68,22 @@ export type DashboardFilterInteractivityOptions = z.infer<
     typeof DashboardFilterInteractivityOptionsSchema
 >;
 
+const EmbedParameterValueSchema: z.ZodType<ParameterValue> = z.union([
+    z.string(),
+    z.number(),
+    z.array(z.string()),
+    z.array(z.number()),
+]);
+
 export const ParameterInteractivityOptionsSchema = z.object({
     enabled: z.boolean(),
+    // Parameters the viewer may change. Nullish (all) because python clients serialize None to null
+    allowedParameters: z.array(z.string()).nullish(),
+    // Apply the parameters but don't show them to the viewer
+    hidden: z.boolean().nullish(),
+    // Values applied on render, over the dashboard's saved values. They apply even when
+    // `enabled` is false; a viewer can change one only when it is allowed.
+    values: z.record(z.string(), EmbedParameterValueSchema).nullish(),
 });
 
 export type ParameterInteractivityOptions = z.infer<
@@ -146,31 +168,47 @@ export type EmbedWriteActions = {
     permissionsMode?: 'default' | 'roles';
 };
 
-export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
-    .object({
-        serviceAccountUserUuid: z.string().uuid().optional(),
-        userUuid: z.string().uuid().optional(),
-        spaceUuid: z.string().uuid().optional(),
-        writeSpaceUuids: EmbedWriteSpaceUuidsSchema.optional(),
-        sourceSpaceUuids: EmbedSourceSpaceUuidsSchema.optional(),
-        permissionsMode: z.enum(['default', 'roles']).optional(),
-    })
-    .refine(
-        ({ serviceAccountUserUuid, userUuid }) =>
-            serviceAccountUserUuid !== undefined || userUuid !== undefined,
-        {
-            message:
-                'Either serviceAccountUserUuid or userUuid is required for write actions',
-        },
-    )
-    .refine(
-        ({ spaceUuid, writeSpaceUuids }) =>
-            spaceUuid === undefined || writeSpaceUuids === undefined,
-        {
-            message:
-                'Use either writeSpaceUuids or the deprecated spaceUuid, not both',
-        },
-    );
+const EmbedWriteActionsObjectSchema = z.object({
+    serviceAccountUserUuid: z.string().uuid().optional(),
+    userUuid: z.string().uuid().optional(),
+    spaceUuid: z.string().uuid().optional(),
+    writeSpaceUuids: EmbedWriteSpaceUuidsSchema.optional(),
+    sourceSpaceUuids: EmbedSourceSpaceUuidsSchema.optional(),
+    permissionsMode: z.enum(['default', 'roles']).optional(),
+});
+
+export const EmbedWriteActionsSchema = EmbedWriteActionsObjectSchema.refine(
+    ({ serviceAccountUserUuid, userUuid }) =>
+        serviceAccountUserUuid !== undefined || userUuid !== undefined,
+    {
+        message:
+            'Either serviceAccountUserUuid or userUuid is required for write actions',
+    },
+).refine(
+    ({ spaceUuid, writeSpaceUuids }) =>
+        spaceUuid === undefined || writeSpaceUuids === undefined,
+    {
+        message:
+            'Use either writeSpaceUuids or the deprecated spaceUuid, not both',
+    },
+);
+
+export type EmbedActor = EmbedWriteActions;
+
+export const EmbedActorSchema: z.ZodType<EmbedActor> =
+    EmbedWriteActionsSchema.strict();
+
+export const normalizeEmbedJwt = (token: CreateEmbedJwt): CreateEmbedJwt => {
+    if (token.actor !== undefined && token.writeActions !== undefined) {
+        throw new ForbiddenError('Use either actor or writeActions, not both');
+    }
+    if (token.actor === undefined) return token;
+    const { actor, ...rest } = token;
+    return {
+        ...rest,
+        writeActions: EmbedActorSchema.parse(actor),
+    };
+};
 
 /** Write spaces in token order; the first is the default save target. */
 export const getEmbedWriteSpaceUuids = (
@@ -193,13 +231,24 @@ export const getEmbedDefaultWriteSpaceUuid = (
 ): string | undefined => getEmbedWriteSpaceUuids(writeActions)[0];
 
 /** AI agent tokens that declare source spaces and no write spaces can only read. */
-export const isEmbedReadOnlyAiAgentToken = (
-    token: Pick<CreateEmbedJwt, 'content' | 'writeActions'>,
-): boolean =>
-    token.content.type === 'aiAgent' &&
-    token.writeActions !== undefined &&
-    getEmbedWriteSpaceUuids(token.writeActions).length === 0 &&
-    token.writeActions.sourceSpaceUuids !== undefined;
+export const isEmbedReadOnlyAiAgentToken = (token: CreateEmbedJwt): boolean => {
+    const { content, writeActions } = normalizeEmbedJwt(token);
+    return (
+        content.type === 'aiAgent' &&
+        writeActions !== undefined &&
+        getEmbedWriteSpaceUuids(writeActions).length === 0 &&
+        writeActions.sourceSpaceUuids !== undefined
+    );
+};
+
+/** Who owns the threads of an AI agent token: its shared owner id, else its viewer. */
+export const getEmbedThreadOwnerIdentifier = (
+    token: Pick<CreateEmbedJwt, 'content' | 'user'>,
+): string | null =>
+    (token.content.type === 'aiAgent' &&
+        token.content.threadOwnershipIdentifier) ||
+    token.user?.externalId ||
+    null;
 
 export const EmbedJwtSchema = z
     .object({
@@ -247,6 +296,7 @@ export const EmbedJwtSchema = z
                 agentUuid: z.string(),
                 canExplore: z.boolean().optional(),
                 canViewDebugInfo: z.boolean().optional(),
+                threadOwnershipIdentifier: z.string().optional(),
             }),
             z.object({
                 type: z.literal('metricsCatalog'),
@@ -259,10 +309,18 @@ export const EmbedJwtSchema = z
                 serviceAccountUserUuid: z.string().uuid(),
             }),
         ]),
+        actor: EmbedActorSchema.optional(),
         writeActions: EmbedWriteActionsSchema.optional(),
         iat: z.number().optional(),
         exp: z.number(),
     })
+    .refine(
+        ({ actor, writeActions }) =>
+            actor === undefined || writeActions === undefined,
+        {
+            message: 'Use either actor or writeActions, not both',
+        },
+    )
     .describe(
         'Configuration file for generating a CSV file from a query with metrics and dimensions',
     );
@@ -285,6 +343,12 @@ export type CommonEmbedJwtContent = {
     };
     parameterInteractivity?: {
         enabled: boolean;
+        // Parameters the viewer may change; omitted or null allows all
+        allowedParameters?: string[] | null;
+        // Apply the parameters but don't show them to the viewer
+        hidden?: boolean | null;
+        // Values applied on render, over the dashboard's saved values
+        values?: ParametersValuesMap | null;
     };
     canExportCsv?: boolean;
     canExportDashboardCsv?: boolean;
@@ -344,6 +408,8 @@ export type EmbedJwtContentAiAgent = {
     canExplore?: boolean;
     /** Shows agent debug information. Ignored in roles mode, where view:EmbedAiAgentDebug decides. */
     canViewDebugInfo?: boolean;
+    /** Owns the threads started with this token instead of user.externalId. Tokens that share it share those threads. */
+    threadOwnershipIdentifier?: string;
 };
 
 export type EmbedJwtContentMetricsCatalog = {
@@ -367,11 +433,12 @@ export type CreateEmbedJwt = {
         | EmbedJwtContentAiAgent
         | EmbedJwtContentMetricsCatalog
         | EmbedJwtContentApiAccess;
+    actor?: EmbedActor;
     writeActions?: EmbedWriteActions;
     userAttributes?: { [key: string]: string };
     user?: {
         email?: string;
-        /** Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts. */
+        /** Must be unique per viewer within the organization: it owns the embedded AI agent threads that viewer starts, unless the token sets content.threadOwnershipIdentifier. */
         externalId?: string;
     };
     expiresIn?: string;
@@ -466,4 +533,87 @@ export function isParameterInteractivityEnabled(
     parameterInteractivityOptions?: ParameterInteractivityOptions,
 ): boolean {
     return parameterInteractivityOptions?.enabled ?? false;
+}
+
+/** Whether the embed viewer sees the parameters (they may still apply while hidden) */
+export function isParameterInteractivityVisible(
+    parameterInteractivityOptions?: ParameterInteractivityOptions,
+): boolean {
+    return (
+        isParameterInteractivityEnabled(parameterInteractivityOptions) &&
+        parameterInteractivityOptions?.hidden !== true
+    );
+}
+
+/** Whether the embed viewer may change this parameter */
+export function isParameterAllowedInEmbed(
+    parameterInteractivityOptions: ParameterInteractivityOptions | undefined,
+    parameterName: string,
+): boolean {
+    if (!isParameterInteractivityEnabled(parameterInteractivityOptions)) {
+        return false;
+    }
+    // No list means every parameter
+    return (
+        parameterInteractivityOptions?.allowedParameters?.includes(
+            parameterName,
+        ) ?? true
+    );
+}
+
+/** Whether an embed viewer is kept from a parameter control: it sets a parameter they may not change */
+export function isParameterControlLockedInEmbed(
+    parameterInteractivityOptions: ParameterInteractivityOptions | undefined,
+    control: Pick<DashboardParameterControl, 'parameters'>,
+): boolean {
+    return Object.keys(control.parameters).some(
+        (name) =>
+            !isParameterAllowedInEmbed(parameterInteractivityOptions, name),
+    );
+}
+
+/**
+ * The parameters an embed request runs with: the token's values, then the
+ * viewer's values for the parameters they may change.
+ */
+export function getEmbedParameterValues(
+    parameterInteractivityOptions: ParameterInteractivityOptions | undefined,
+    viewerParameters: ParametersValuesMap | undefined,
+): ParametersValuesMap {
+    const viewerValues = Object.entries(viewerParameters ?? {}).filter(
+        ([name]) =>
+            isParameterAllowedInEmbed(parameterInteractivityOptions, name),
+    );
+    return {
+        ...parameterInteractivityOptions?.values,
+        ...Object.fromEntries(viewerValues),
+    };
+}
+
+/**
+ * Whether an embed viewer's own per-tile parameter resolution can be trusted:
+ * only when they may change every parameter.
+ */
+export function canEmbedViewerResolveTileParameters(
+    parameterInteractivityOptions: ParameterInteractivityOptions | undefined,
+): boolean {
+    const allowed = parameterInteractivityOptions?.allowedParameters;
+    return (
+        isParameterInteractivityEnabled(parameterInteractivityOptions) &&
+        (allowed === undefined || allowed === null)
+    );
+}
+
+/**
+ * The viewer's per-tile exclusions, trusted only when they may change every
+ * parameter. Otherwise the server resolves each tile from the saved controls,
+ * so a viewer can't drop a value the token fixes.
+ */
+export function getEmbedExcludedParameterKeys(
+    parameterInteractivityOptions: ParameterInteractivityOptions | undefined,
+    excludedParameterKeys: string[] | undefined,
+): string[] | undefined {
+    return canEmbedViewerResolveTileParameters(parameterInteractivityOptions)
+        ? excludedParameterKeys
+        : undefined;
 }

@@ -18,6 +18,7 @@ support/test.ts        `test` and `expect`; re-exports every helper below
 support/api.ts         login/logout, seed users, create/delete content, tokens, embed JWTs
 support/ui.ts          selectMantine, scrollTreeToItem, getMonacoEditorText, dragAndDrop
 support/cli.ts         runCli: shell out to `lightdash` from packages/e2e
+support/composer.ts    createComposerDashboard: a new dashboard with a composer chart tile
 support/cleanup.ts     records created content and deletes it when the worker exits
 tests/app/**           UI specs            (CI job "E2E: App", 5 shards)
 tests/api/**           request-only specs  (run with the app shards)

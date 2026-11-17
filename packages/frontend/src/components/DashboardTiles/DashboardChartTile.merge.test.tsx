@@ -810,3 +810,72 @@ describe('DashboardChartTile parameters popover', () => {
         ).toHaveTextContent('status: Shipped (from dashboard)');
     });
 });
+
+describe('DashboardChartTile filters popover', () => {
+    afterEach(() => {
+        cleanup();
+    });
+
+    it('lists the dashboard filters each merge source ran with', async () => {
+        renderTile();
+        fireEvent.click(await screen.findByLabelText('Chart filters'));
+
+        expect(
+            await screen.findByText('Dashboard filters applied:'),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/^Orders ·/).parentElement).toHaveTextContent(
+            'Orders · Status: is completed',
+        );
+        // The payments explore is not loaded, so its field cannot be labelled
+        expect(
+            screen.getByText(
+                'Tried to reference field with unknown id: payments_status',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('strikes through a chart filter the dashboard overrides', async () => {
+        renderTile({
+            ...dashboardChartReadyQuery,
+            chart: {
+                ...chart,
+                merge: undefined,
+                metricQuery: {
+                    ...primaryMetricQuery,
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: 'chart-status',
+                                    target: { fieldId: 'orders_status' },
+                                    operator: FilterOperator.EQUALS,
+                                    values: ['shipped'],
+                                },
+                            ],
+                        },
+                    },
+                },
+            },
+            executeQueryResponse: {
+                ...dashboardChartReadyQuery.executeQueryResponse,
+                metricQuery: primaryMetricQuery,
+                appliedDashboardFilters: {
+                    dimensions: [statusFilter('orders')],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                appliedDashboardFiltersBySourceId: undefined,
+            },
+        });
+        fireEvent.click(await screen.findByLabelText('Chart filters'));
+
+        expect(
+            await screen.findByText('Dashboard filter applied:'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Chart filter:')).toBeInTheDocument();
+        expect(
+            screen.getByText('(overridden by dashboard)').parentElement,
+        ).toHaveTextContent('Status: is shipped (overridden by dashboard)');
+    });
+});

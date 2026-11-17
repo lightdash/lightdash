@@ -5,6 +5,7 @@ import {
     computeContentDraftStaleness,
     ConflictError,
     ContentAsCodeType,
+    DashboardTileTypes,
     DbtProjectType,
     DEFAULT_CONTENT_AS_CODE_PATH,
     describeContentDraftStaleness,
@@ -802,7 +803,9 @@ export class ContentAsCodeWritebackService extends BaseService {
             }
         }
         for (const { file, document } of dashboards) {
+            // Composer tiles name composer charts, never classic ones
             const blockedBy = document.tiles.flatMap((tile) =>
+                tile.type !== DashboardTileTypes.COMPOSER_CHART &&
                 'chartSlug' in tile.properties &&
                 typeof tile.properties.chartSlug === 'string' &&
                 failedChartSlugs.has(tile.properties.chartSlug)
@@ -1802,6 +1805,7 @@ export class ContentAsCodeWritebackService extends BaseService {
         const chartSlugs = Array.from(
             new Set(
                 dashboardAsCode.tiles.flatMap((tile) =>
+                    tile.type !== DashboardTileTypes.COMPOSER_CHART &&
                     'chartSlug' in tile.properties &&
                     typeof tile.properties.chartSlug === 'string'
                         ? [tile.properties.chartSlug]

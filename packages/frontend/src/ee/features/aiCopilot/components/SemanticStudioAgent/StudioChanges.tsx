@@ -44,9 +44,7 @@ export const StudioChanges: FC<{
             </Stack>
         ) : null}
         {pullRequest ? (
-            // Keyed by its commit, so a save arrives as new.
             <PullRequestChanges
-                key={pullRequest.commitSha}
                 projectUuid={projectUuid}
                 pullRequest={pullRequest}
             />

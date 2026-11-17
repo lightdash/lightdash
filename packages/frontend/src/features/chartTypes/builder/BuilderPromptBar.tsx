@@ -709,6 +709,7 @@ const PromptPill = forwardRef<BuilderPromptBarHandle, Props>(
                         )}
                         {isBuilding && hasNarration && (
                             <AppVersionNarration
+                                summary={null}
                                 narration={narration}
                                 isLive
                                 className={classes.liveNarration}

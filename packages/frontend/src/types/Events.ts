@@ -69,6 +69,7 @@ export enum PageName {
     FUNNEL_BUILDER = 'funnel_builder',
     SEMANTIC_STUDIO = 'semantic_studio',
     ROADMAP = 'roadmap',
+    BILLING = 'billing',
     LEARN = 'learn',
     LEARN_WORKSPACE = 'learn_workspace',
 }
@@ -261,6 +262,7 @@ export enum EventName {
     HOMEPAGE_RECOMMENDED_ACTION_RESTORED = 'homepage_recommended_action.restored',
     HOMEPAGE_STARS_MEDIA_CARD_CLICKED = 'homepage_stars_media_card.clicked',
     AGENT_SETUP_PROMPT_COPIED = 'agent_setup_prompt.copied',
+    MOBILE_PITCH_DISMISSED = 'mobile_pitch.dismissed',
     ONBOARDING_DONE_ACTION_CLICKED = 'onboarding_done.action_clicked',
     CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED = 'create_project_columns_defined_button.click',
 

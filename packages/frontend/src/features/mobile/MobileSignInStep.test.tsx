@@ -8,7 +8,6 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
-import { maskEmail } from './mobileFormat';
 import MobileSignInLandingPage from './MobileSignInLandingPage';
 import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_SIGN_IN_LANDING_STRINGS } from './mobileStrings';
@@ -68,20 +67,7 @@ const mockSignIn = (
 };
 
 const renderStep = () =>
-    renderWithProviders(
-        <MobileSignInStep
-            signIn={current}
-            host="app.example.com"
-            email="jo@example.com"
-        />,
-    );
-
-describe('maskEmail', () => {
-    it('keeps the first letter and the domain', () => {
-        expect(maskEmail('jo@example.com')).toBe('j••••@example.com');
-        expect(maskEmail(undefined)).toBeNull();
-    });
-});
+    renderWithProviders(<MobileSignInStep signIn={current} />);
 
 describe('MobileSignInStep', () => {
     it('offers Show sign-in code when the code is hidden', async () => {
@@ -133,18 +119,20 @@ describe('MobileSignInStep', () => {
         expect(screen.getByText('New code')).toBeInTheDocument();
     });
 
-    it('asks the user to confirm with the account, site, device and number', async () => {
+    it('asks the user to confirm with the device and no account email', async () => {
         const signIn = mockSignIn({
             phase: 'claimed',
             code,
             state: claimedState,
         });
         renderStep();
-        const dialog = await screen.findByRole('dialog', {
+        const dialog = await screen.findByRole('group', {
             name: 'A phone wants to sign in as you',
         });
-        expect(within(dialog).getByText('j••••@example.com')).toBeVisible();
-        expect(within(dialog).getByText('app.example.com')).toBeVisible();
+        expect(within(dialog).getByText('Device')).toBeVisible();
+        expect(within(dialog).getByText('iOS')).toBeVisible();
+        expect(within(dialog).queryByText('Account')).not.toBeInTheDocument();
+        expect(within(dialog).queryByText(/@/)).not.toBeInTheDocument();
         expect(within(dialog).getByText('iOS')).toBeVisible();
         expect(within(dialog).queryByText('4 7')).not.toBeInTheDocument();
         expect(
@@ -240,7 +228,8 @@ describe('MobileSignInStep', () => {
         });
         renderStep();
         expect(screen.getByText('Signed in on a phone')).toBeVisible();
-        expect(screen.getByText('iOS · j••••@example.com')).toBeVisible();
+        expect(screen.getByText('iOS')).toBeVisible();
+        expect(screen.queryByText(/@/)).not.toBeInTheDocument();
         await userEvent.click(
             screen.getByRole('button', { name: 'Sign in another phone' }),
         );
@@ -277,10 +266,30 @@ describe('MobileSignInStep', () => {
         expect(screen.getByText(message)).toBeVisible();
     });
 
-    it('shows a waiting line beside the QR code', () => {
+    it('keeps the waiting status for screen readers only', () => {
         mockSignIn({ phase: 'showing', code });
         renderStep();
-        expect(screen.getByText('Waiting for scan')).toBeVisible();
+        expect(screen.getByText('Waiting for scan')).toHaveAttribute(
+            'aria-live',
+            'polite',
+        );
+    });
+
+    it('confirms inline with no dialog and focuses Decline first', async () => {
+        mockSignIn({ phase: 'claimed', code, state: claimedState });
+        renderStep();
+        const group = await screen.findByRole('group', {
+            name: 'A phone wants to sign in as you',
+        });
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(
+            within(group).getByRole('button', { name: 'Decline' }),
+        ).toHaveFocus();
+        expect(
+            screen.getByText('A phone wants to sign in as you', {
+                selector: '[aria-live]',
+            }),
+        ).toBeInTheDocument();
     });
 
     it('announces the number after confirming, with no control to hide it', () => {
@@ -305,7 +314,7 @@ describe('MobileSignInStep', () => {
             state: { ...claimedState, device: null },
         });
         renderStep();
-        const dialog = await screen.findByRole('dialog', {
+        const dialog = await screen.findByRole('group', {
             name: 'A phone wants to sign in as you',
         });
         expect(within(dialog).queryByText('Device')).not.toBeInTheDocument();

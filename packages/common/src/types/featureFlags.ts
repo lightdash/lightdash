@@ -191,7 +191,8 @@ export enum FeatureFlags {
     /**
      * Keeps the models of a project that has no dbt connection on the server,
      * and lets the Semantic Studio agent draft changes to them for a person to
-     * apply. Off by default; organization-scoped.
+     * apply. On a GitHub dbt project it also saves changes with a script
+     * committed through the GitHub API. Off by default; organization-scoped.
      */
     SemanticStudioEditing = 'semantic-studio-editing',
 
@@ -250,6 +251,12 @@ export enum FeatureFlags {
      */
     MobileSettings = 'mobile-settings',
     /**
+     * Organization-scoped: the Billing page under Organization settings, which
+     * opens the customer billing portal. Cloud and development modes only.
+     * Off by default.
+     */
+    BillingPortal = 'billing-portal',
+    /**
      * Organization-scoped: the sign-in step on the Mobile page and its
      * endpoints. Off by default until an app release supports QR sign-in.
      */
@@ -275,7 +282,7 @@ export enum FeatureFlags {
     DashboardFitToScreenDefault = 'dashboard-fit-to-screen-default',
     /**
      * Org-scoped, off: composer charts as dashboard tiles. Not for orgs embedding with
-     * @lightdash/sdk < TBD (first with PR #32548): older SDKs crash the whole embed.
+     * @lightdash/sdk < 3.245.0 (first with PR #32548): older SDKs crash the whole embed.
      */
     ComposerCharts = 'composer-charts',
 }

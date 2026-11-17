@@ -1,4 +1,8 @@
-import { SEED_ORG_1_ADMIN, SEED_PROJECT } from '@lightdash/common';
+import {
+    SEED_ORG_1_ADMIN,
+    SEED_ORG_1_EDITOR,
+    SEED_PROJECT,
+} from '@lightdash/common';
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import {
@@ -123,6 +127,28 @@ describe('AppModel threads PostgreSQL integration', () => {
         expect(stored?.thread_number).toBe(2);
         const firstVersion = await model.getVersion(app.app_id, 1);
         expect(firstVersion?.app_thread_uuid).toBe(first.app_thread_uuid);
+    });
+
+    it('lists each version under its own author, not the app creator', async () => {
+        const { app } = await createApp();
+        await model.createVersion(
+            app.app_id,
+            { version: 2, prompt: 'from a teammate' },
+            'ready',
+            SEED_ORG_1_EDITOR.user_uuid,
+        );
+
+        const { createdByUserUuid, versions } = await model.getAppWithVersions(
+            app.app_id,
+            projectUuid,
+        );
+        expect(createdByUserUuid).toBe(userUuid);
+        expect(
+            versions.map((v) => [v.version, v.created_by_user_uuid]),
+        ).toEqual([
+            [2, SEED_ORG_1_EDITOR.user_uuid],
+            [1, userUuid],
+        ]);
     });
 
     it('puts a restore made while thread 3 is current under thread 3', async () => {

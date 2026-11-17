@@ -11,6 +11,7 @@ import BuildSkewRefresher from './features/buildHashHandshake/BuildSkewRefresher
 import { installChunkLoadErrorHandler } from './features/chunkErrorHandler/chunkErrorHandler';
 import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBoundary';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
+import { observeMobileUpsellNavigation } from './features/mobile/upsell/getMobileUpsell';
 import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import AbilityProvider from './providers/Ability/AbilityProvider';
 import ActiveJobProvider from './providers/ActiveJob/ActiveJobProvider';
@@ -70,6 +71,9 @@ const router = sentryCreateBrowserRouter([
         children: APP_ROUTES,
     },
 ]);
+
+observeMobileUpsellNavigation(router.state.location);
+router.subscribe(({ location }) => observeMobileUpsellNavigation(location));
 
 const flushRouterUpdate = (callback: () => unknown) => {
     flushSync(callback);

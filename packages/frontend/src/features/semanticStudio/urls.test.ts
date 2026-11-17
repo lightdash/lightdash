@@ -7,7 +7,9 @@ import {
     getLiveDataSourcesRedirectUrl,
     getSemanticStudioSourceUrl,
     getSemanticStudioUrl,
+    getSemanticStudioWorkspaceUrl,
     parseSemanticStudioPath,
+    parseSemanticStudioWorkspaceUuid,
 } from './urls';
 
 const roundTrip = (ref: NodeRef | null) =>
@@ -49,6 +51,25 @@ describe('Semantic Layer URLs', () => {
         expect(getSemanticStudioSourceUrl('p', 'abc')).toBe(
             '/projects/p/semantic-layer/sources/abc',
         );
+    });
+
+    it('gives each change its own path and still reads old /workspaces/ links', () => {
+        expect(getSemanticStudioWorkspaceUrl('p', 'w1')).toBe(
+            '/projects/p/semantic-layer/changes/w1',
+        );
+        expect(
+            parseSemanticStudioWorkspaceUuid(
+                '/projects/p/semantic-layer/changes/w1',
+            ),
+        ).toBe('w1');
+        expect(
+            parseSemanticStudioWorkspaceUuid(
+                '/projects/p/semantic-layer/workspaces/w1',
+            ),
+        ).toBe('w1');
+        expect(
+            parseSemanticStudioWorkspaceUuid('/projects/p/semantic-layer'),
+        ).toBeNull();
     });
 
     it('still reads the old /folders/ links', () => {
