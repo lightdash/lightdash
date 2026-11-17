@@ -1,3 +1,10 @@
+# [3.297.0](https://github.com/lightdash/lightdash/compare/3.296.0...3.297.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** add the Attio live integration ([#32742](https://github.com/lightdash/lightdash/issues/32742)) ([071b76d](https://github.com/lightdash/lightdash/commit/071b76d8c2d9793e9dd25d37e4ca946134f06b0c))
+
 # [3.296.0](https://github.com/lightdash/lightdash/compare/3.295.1...3.296.0) (2026-11-17)
 
 

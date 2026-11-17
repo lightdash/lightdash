@@ -16035,6 +16035,7 @@ const models: TsoaRoute.Models = {
             'linkedin_ads',
             'github',
             'pylon',
+            'attio',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -16263,6 +16264,23 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.ATTIO': {
+        dataType: 'refEnum',
+        enums: ['attio'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AttioApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                object: { dataType: 'string', required: true },
+                connector: { ref: 'ApiConnectorType.ATTIO', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnectionApiSource: {
         dataType: 'refAlias',
         type: {
@@ -16277,6 +16295,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'LinkedInAdsApiSource' },
                 { ref: 'GithubApiSource' },
                 { ref: 'PylonApiSource' },
+                { ref: 'AttioApiSource' },
             ],
             validators: {},
         },
