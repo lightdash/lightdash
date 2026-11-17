@@ -1,3 +1,10 @@
+## [3.294.1](https://github.com/lightdash/lightdash/compare/3.294.0...3.294.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **dashboards:** read only the latest dashboard version in list queries ([#32763](https://github.com/lightdash/lightdash/issues/32763)) ([2c7cf23](https://github.com/lightdash/lightdash/commit/2c7cf23e502af4abb3061ed69b797085e79683d4))
+
 # [3.294.0](https://github.com/lightdash/lightdash/compare/3.293.1...3.294.0) (2026-11-17)
 
 
