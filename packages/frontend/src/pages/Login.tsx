@@ -3,10 +3,13 @@ import { Box, Card, Stack, Title } from '@mantine/core';
 import { type FC } from 'react';
 import AuthLayout from '../components/common/AuthLayout';
 import AuthBrandLogo from '../components/common/AuthLayout/AuthBrandLogo';
+import AuthTermsFooter from '../components/common/AuthLayout/AuthTermsFooter';
+import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import LoginLanding from '../features/users/components/LoginLanding';
 
 const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
+    const { isNewLayout } = useAuthLayoutVariant();
     if (minimal) {
         return (
             <Stack m="xl">
@@ -30,6 +33,12 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
             legacyTitle="Sign in"
             cardId={LOGIN_PAGE_ID}
             withCustomerLogos
+            footer={
+                <AuthTermsFooter
+                    isNewLayout={isNewLayout}
+                    legacyLead="By signing in, you agree to"
+                />
+            }
         >
             <LoginLanding />
         </AuthLayout>
