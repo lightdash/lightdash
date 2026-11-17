@@ -212,7 +212,7 @@ const buildService = ({
         getChartCountPerField: vi.fn().mockResolvedValue([]),
         getChartCountForExplores: vi.fn().mockResolvedValue(chartCount),
     };
-    const analytics = { track: vi.fn() };
+    const analytics = { track: vi.fn(), trackAccount: vi.fn() };
     const schedulerClient = {
         scanApiSourceSchema: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
     };
@@ -352,7 +352,7 @@ describe('ExternalConnectionService api sources', () => {
     });
 
     it('logs a finished query with what its calls cost', async () => {
-        const { service, externalConnectionModel } = buildService();
+        const { service, externalConnectionModel, analytics } = buildService();
         const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
         await runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 });
         const { bodyText } = await mockSecureFetch.mock.results[0].value;
@@ -390,6 +390,24 @@ describe('ExternalConnectionService api sources', () => {
             truncated: false,
             response_bytes: Buffer.byteLength(bodyText, 'utf8'),
         });
+        const [, trackedEvent] = analytics.trackAccount.mock.calls[0];
+        expect(trackedEvent).toMatchObject({
+            event: 'live_source.api_call',
+            properties: {
+                externalConnectionUuid: 'conn-1',
+                projectId: 'proj-1',
+                context: QueryExecutionContext.AI,
+                outcome: 'ok',
+                apiCalls: 1,
+                providerStatus: 200,
+                durationMs: 120,
+                rowCount: 1,
+                truncated: false,
+                responseBytes: Buffer.byteLength(bodyText, 'utf8'),
+            },
+        });
+        // The query text can hold filter values, so it stays out of analytics.
+        expect(JSON.stringify(trackedEvent)).not.toContain('SELECT 1 AS a');
     });
 
     it('counts a call that never got a response, and never fails on logging', async () => {

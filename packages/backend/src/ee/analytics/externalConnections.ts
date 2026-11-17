@@ -56,6 +56,23 @@ export type ExternalConnectionEvent = BaseTrack &
               };
           }
         | {
+              /** One live data source query: how many upstream API calls it made and how it ended. */
+              event: 'live_source.api_call';
+              properties: ExternalConnectionBaseProperties & {
+                  connector: ApiConnectorType | null;
+                  context: string;
+                  outcome: string;
+                  /** Upstream API calls made; 0 when the result was reused. */
+                  apiCalls: number;
+                  providerStatus: number | null;
+                  durationMs: number;
+                  rowCount: number | null;
+                  columnCount: number | null;
+                  truncated: boolean | null;
+                  responseBytes: number;
+              };
+          }
+        | {
               event: 'external_connection.fetch';
               properties: {
                   organizationId: string;
