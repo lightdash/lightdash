@@ -1,3 +1,10 @@
+# [3.276.0](https://github.com/lightdash/lightdash/compare/3.275.3...3.276.0) (2026-11-17)
+
+
+### Features
+
+* **ai-agent:** remove collapsed sidebar rail from Ask AI chat ([#32691](https://github.com/lightdash/lightdash/issues/32691)) ([db7d600](https://github.com/lightdash/lightdash/commit/db7d60041fdbb9f92c6e48c01a2f7c9fa1430fd5))
+
 ## [3.275.3](https://github.com/lightdash/lightdash/compare/3.275.2...3.275.3) (2026-11-16)
 
 
