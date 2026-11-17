@@ -50,6 +50,7 @@ import {
     type SemanticStudioWorkspaceStartBody,
     type SessionUser,
 } from '@lightdash/common';
+import { type Knex } from 'knex';
 import { createHash } from 'node:crypto';
 import { text } from 'node:stream/consumers';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
@@ -96,6 +97,7 @@ import {
     type DraftCheckerProjectService,
 } from './DraftChecker';
 import { foldDraft, toModelPath, withWrites } from './draftFold';
+import { saveMaterializationPolicies } from './materializationPublish';
 import {
     findDraftedPaths,
     findRefusedPaths,
@@ -136,11 +138,13 @@ export type SemanticStudioServiceArguments = {
         deleteCachedExplores: (
             projectUuid: string,
             names: string[],
+            connection?: Knex.Transaction,
         ) => Promise<void>;
     };
     projectModelDocumentModel: Pick<
         ProjectModelDocumentModel,
         | 'findDocuments'
+        | 'publishWithExplores'
         | 'createChangeSet'
         | 'findChangeSets'
         | 'findModelHistory'
@@ -2026,19 +2030,64 @@ export class SemanticStudioService extends BaseService {
                 ? [name]
                 : [],
         );
+        const changeSet = {
+            ...owner,
+            source,
+            readVersions: new Map(
+                stored.map(({ name, version }) => [name, version]),
+            ),
+            documents: [...writes].map(([name, content]) => ({
+                name,
+                content,
+            })),
+        };
+        const affectsCopy = (name: string, content: string | null) =>
+            content !== null &&
+            !!parseModelDocument(content, toModelPath(name)).materialize;
+        if (
+            explores.length &&
+            (changeSet.documents.some(({ name, content }) =>
+                affectsCopy(name, content),
+            ) ||
+                stored.some(
+                    ({ name, content }) =>
+                        writes.has(name) && affectsCopy(name, content),
+                ))
+        ) {
+            const { exploreCount } =
+                await this.projectModelDocumentModel.publishWithExplores(
+                    changeSet,
+                    (write) =>
+                        this.projectService.setExplores(
+                            user,
+                            owner.projectUuid,
+                            explores,
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            write,
+                        ),
+                    async (trx, changeSetUuid) => {
+                        if (removed.length)
+                            await this.projectModel.deleteCachedExplores(
+                                owner.projectUuid,
+                                removed,
+                                trx,
+                            );
+                        await saveMaterializationPolicies(
+                            trx,
+                            owner.projectUuid,
+                            changeSetUuid,
+                            user.userUuid,
+                        );
+                    },
+                );
+            return exploreCount;
+        }
         const { deployed } =
             await this.projectModelDocumentModel.createChangeSet(
-                {
-                    ...owner,
-                    source,
-                    readVersions: new Map(
-                        stored.map(({ name, version }) => [name, version]),
-                    ),
-                    documents: [...writes].map(([name, content]) => ({
-                        name,
-                        content,
-                    })),
-                },
+                changeSet,
                 async () => {
                     const { exploreCount } =
                         explores.length > 0

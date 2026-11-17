@@ -36,6 +36,7 @@ import type { UsageProcessingModel } from '../models/UsageProcessingModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { LEARN_SANDBOX_COMMAND_TIMEOUT_MS } from '../services/LearnSandboxService/runtime';
+import { runModelMaterialization } from '../services/ModelMaterializationService/runModelMaterialization';
 import type { SchedulerProjectContext } from '../services/SchedulerService/SchedulerService';
 import {
     CompileInterruptedError,
@@ -1626,6 +1627,23 @@ export class SchedulerWorker extends SchedulerTask {
                             );
                         },
                     ),
+                );
+            },
+            [SCHEDULER_TASKS.MATERIALIZE_MODEL]: async (payload, helpers) => {
+                await SchedulerClient.processJob(
+                    SCHEDULER_TASKS.MATERIALIZE_MODEL,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    () =>
+                        runModelMaterialization(payload, {
+                            model: this.modelMaterializationModel,
+                            featureFlags: this.featureFlagModel,
+                            projectModel: this.projectService.projectModel,
+                            warehouseClientFactory:
+                                this.projectService.warehouseClientFactory,
+                            lightdashConfig: this.lightdashConfig,
+                        }),
                 );
             },
             [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: async (

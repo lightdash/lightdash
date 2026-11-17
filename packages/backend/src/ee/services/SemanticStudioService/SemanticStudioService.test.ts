@@ -480,6 +480,10 @@ const setup = ({
                 return true;
             },
             createChangeSet: commit,
+            publishWithExplores: async (change, deploy) => {
+                await commit(change, async () => undefined);
+                return deploy(async () => undefined);
+            },
             findChangeSets: async (_projectUuid, uuids) =>
                 changeSets.filter(({ changeSetUuid }) =>
                     uuids.includes(changeSetUuid),

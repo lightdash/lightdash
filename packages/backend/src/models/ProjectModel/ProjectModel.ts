@@ -8965,8 +8965,9 @@ export class ProjectModel {
     async deleteCachedExplores(
         projectUuid: string,
         names: string[],
+        connection: Knex = this.database,
     ): Promise<void> {
-        await this.database.transaction(async (trx) => {
+        await connection.transaction(async (trx) => {
             await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
             await trx(CachedExploreTableName)
                 .where('project_uuid', projectUuid)
