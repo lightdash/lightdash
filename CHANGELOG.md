@@ -1,3 +1,10 @@
+# [3.280.0](https://github.com/lightdash/lightdash/compare/3.279.0...3.280.0) (2026-11-17)
+
+
+### Features
+
+* **explorer:** redesign the explorer layout, field tree and loading states ([#32566](https://github.com/lightdash/lightdash/issues/32566)) ([30fada1](https://github.com/lightdash/lightdash/commit/30fada14b43e86bd3cbd748a56d7c18d359903fc))
+
 # [3.279.0](https://github.com/lightdash/lightdash/compare/3.278.1...3.279.0) (2026-11-17)
 
 
