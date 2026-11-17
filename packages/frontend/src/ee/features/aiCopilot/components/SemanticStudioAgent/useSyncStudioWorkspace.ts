@@ -1,5 +1,6 @@
 import { type AiAgentMessageUser } from '@lightdash/common';
 import { useEffect, useRef } from 'react';
+import { splitStudioChatCode } from '../../../../../features/semanticStudio/studioChatRefs';
 import {
     useStudioWorkspaceAction,
     useStudioWorkspaces,
@@ -11,9 +12,14 @@ import {
 
 const NAME_LENGTH = 60;
 
-/** A workspace is named after what was first asked in it. */
-const nameFromRequest = (request: string | undefined): string => {
-    const line = (request ?? '').trim().split('\n')[0].trim();
+/** A workspace is first named after what was asked in it, skipping any picked lines. */
+export const nameFromRequest = (request: string | undefined): string => {
+    const line =
+        splitStudioChatCode(request ?? '')
+            .text.replace(/```[\s\S]*?```/g, '')
+            .split('\n')
+            .map((text) => text.trim())
+            .find((text) => text && !/, lines \d+ to \d+:$/.test(text)) ?? '';
     if (!line) return 'Untitled change';
     const named = line.charAt(0).toUpperCase() + line.slice(1);
     return named.length > NAME_LENGTH
@@ -74,6 +80,25 @@ export const useSyncStudioWorkspace = (
             },
         });
     }, [stored, hasChanges, workspaces, isLoading, mutate, firstRequest]);
+
+    // The generated title says what the change is better than the first message, unless someone renamed it.
+    const title = thread?.title?.trim() ?? '';
+    const retitled = useRef<string | null>(null);
+    useEffect(() => {
+        if (!stored || !title || !workspaces || isLoading) return;
+        const own = workspaces.mine.find(
+            ({ threadUuid }) => threadUuid === stored.threadUuid,
+        );
+        if (!own || own.name === title) return;
+        if (own.name !== nameFromRequest(firstRequest?.message)) return;
+        if (retitled.current === `${own.workspaceUuid}:${title}`) return;
+        retitled.current = `${own.workspaceUuid}:${title}`;
+        mutate({
+            kind: 'rename',
+            workspaceUuid: own.workspaceUuid,
+            name: title,
+        });
+    }, [stored, title, workspaces, isLoading, mutate, firstRequest]);
 
     return active;
 };

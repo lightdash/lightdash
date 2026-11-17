@@ -7,7 +7,6 @@ import {
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
 import { memo } from 'react';
-import { useDevelopmentView } from '../../features/semanticStudio/developmentView';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useOrganizationAccess } from '../../hooks/organization/useOrganizationAccess';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
@@ -22,7 +21,6 @@ import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
-import { DevelopmentViewIsland } from './DevelopmentViewIsland';
 import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
@@ -129,8 +127,6 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             }),
         ) === true;
 
-    const [isDevelopmentView] = useDevelopmentView();
-
     const hasBanner =
         isImpersonating ||
         (isCurrentProjectPreview && !isTrainingCopy) ||
@@ -211,8 +207,6 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                     )}
                 </MantineBaseProvider>
             </Box>
-            {/* Outside the navbar's forced dark theme, so it takes the page's, like the dashboard's bars. */}
-            {isDevelopmentView ? <DevelopmentViewIsland /> : null}
         </>
     );
 });

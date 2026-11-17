@@ -1785,6 +1785,10 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.spyOn(
+            GithubProvider.prototype,
+            'syncSandboxWithPullRequest',
+        ).mockResolvedValue([]);
         fakeSandboxProvider.destroy.mockResolvedValue(undefined);
         // Wrap the fake provider in a real SandboxManager, threading the
         // service's own fake registry model through.
@@ -4440,7 +4444,11 @@ describe('AiWritebackService.mergePullRequest', () => {
     it('schedules a recompile after a successful merge of a git project', async () => {
         const { service, scheduleCompileProject } = setup();
         const result = await service.mergePullRequest(mergeArgs);
-        expect(result).toEqual({ merged: true, sha: 'sha-7' });
+        expect(result).toEqual({
+            merged: true,
+            sha: 'sha-7',
+            compileJobUuid: 'job-1',
+        });
         expect(scheduleCompileProject).toHaveBeenCalledTimes(1);
         expect(scheduleCompileProject).toHaveBeenCalledWith(
             mergeArgs.user,
@@ -4459,7 +4467,11 @@ describe('AiWritebackService.mergePullRequest', () => {
             } as AnyType,
         });
         const result = await service.mergePullRequest(mergeArgs);
-        expect(result).toEqual({ merged: false, sha: null });
+        expect(result).toEqual({
+            merged: false,
+            sha: null,
+            compileJobUuid: null,
+        });
         expect(get).not.toHaveBeenCalled();
         expect(scheduleCompileProject).not.toHaveBeenCalled();
     });
@@ -4471,7 +4483,11 @@ describe('AiWritebackService.mergePullRequest', () => {
             } as AnyType,
         });
         const result = await service.mergePullRequest(mergeArgs);
-        expect(result).toEqual({ merged: true, sha: 'sha-7' });
+        expect(result).toEqual({
+            merged: true,
+            sha: 'sha-7',
+            compileJobUuid: null,
+        });
         expect(scheduleCompileProject).not.toHaveBeenCalled();
     });
 
@@ -4486,6 +4502,7 @@ describe('AiWritebackService.mergePullRequest', () => {
         await expect(service.mergePullRequest(mergeArgs)).resolves.toEqual({
             merged: true,
             sha: 'sha-7',
+            compileJobUuid: null,
         });
     });
 

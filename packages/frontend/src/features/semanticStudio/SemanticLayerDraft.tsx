@@ -35,6 +35,7 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
+import { TryIt } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/TryItButton';
 import { useFinishDiscardedWork } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import useToaster from '../../hooks/toaster/useToaster';
 import { ChangeDiff } from './ChangeDiff';
@@ -67,7 +68,6 @@ import {
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
 } from './useSemanticLayerModel';
-import { useTryInExplore } from './useTryInExplore';
 
 const KIND_NOUNS: [ChangeKind, string][] = [
     ['new', 'new model'],
@@ -471,7 +471,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
-    const tryInExplore = useTryInExplore(projectUuid);
+    const [isTrying, setIsTrying] = useState(false);
     const discard = useDiscardSemanticLayerDraft(projectUuid);
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const finishDiscardedWork = useFinishDiscardedWork(projectUuid);
@@ -492,129 +492,147 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
         draft.models.find((entry) => getChangeKind(entry) !== 'removed')
             ?.model ?? null;
     return (
-        <DevelopmentBar
-            summary={
-                draft.models.length > 0 ? null : (
-                    <Text fz="xs" c="dimmed" truncate>
-                        Nothing new to publish
-                    </Text>
-                )
-            }
-        >
-            {isPreviewing ? null : (
-                <ChangesSwitch
-                    isOnMyChanges={false}
-                    onChange={setIsPreviewing}
-                />
-            )}
-            {conflicts > 0 ? (
-                <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
-                    <Button
-                        size="xs"
-                        variant="default"
-                        leftSection={
-                            <MantineIcon
-                                icon={IconAlertTriangle}
-                                size={14}
-                                color="yellow"
-                            />
-                        }
-                        onClick={() => {
-                            if (!reviewing) {
+        <>
+            <DevelopmentBar
+                summary={
+                    draft.models.length > 0 ? null : (
+                        <Text fz="xs" c="dimmed" truncate>
+                            Nothing new to publish
+                        </Text>
+                    )
+                }
+            >
+                {isPreviewing ? null : (
+                    <ChangesSwitch
+                        isOnMyChanges={false}
+                        onChange={setIsPreviewing}
+                    />
+                )}
+                {conflicts > 0 ? (
+                    <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
+                        <Button
+                            size="xs"
+                            variant="default"
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconAlertTriangle}
+                                    size={14}
+                                    color="yellow"
+                                />
+                            }
+                            onClick={() => {
+                                if (!reviewing) {
+                                    setSearchParams({
+                                        [DRAFT_PARAM]: DRAFT_REVIEW,
+                                    });
+                                    return;
+                                }
+                                document
+                                    .querySelector('[data-conflict]')
+                                    ?.scrollIntoView({
+                                        behavior: 'smooth',
+                                        block: 'center',
+                                    });
+                            }}
+                        >
+                            Resolve {count(conflicts, 'conflict')}
+                        </Button>
+                    </Tooltip>
+                ) : draft.models.length > 0 ? (
+                    <Tooltip
+                        label="Some changes no longer pass their checks."
+                        disabled={!blocked}
+                    >
+                        <Button
+                            size="xs"
+                            data-disabled={blocked || undefined}
+                            onClick={() => {
+                                if (!blocked) setPublishing(true);
+                            }}
+                        >
+                            {asPullRequest ? 'Open pull request' : 'Publish'}
+                        </Button>
+                    </Tooltip>
+                ) : null}
+                <Menu position="bottom-end" withinPortal>
+                    <Menu.Target>
+                        <ActionIcon
+                            size="md"
+                            aria-label="More actions"
+                            variant="default"
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        {tryModel ? (
+                            <Menu.Item onClick={() => setIsTrying(true)}>
+                                Try in Explore
+                            </Menu.Item>
+                        ) : null}
+                        <Menu.Item
+                            disabled={
+                                check.isLoading ||
+                                impact.data?.status === 'checking'
+                            }
+                            onClick={() => {
+                                check.mutate(undefined);
                                 setSearchParams({
                                     [DRAFT_PARAM]: DRAFT_REVIEW,
                                 });
-                                return;
-                            }
-                            document
-                                .querySelector('[data-conflict]')
-                                ?.scrollIntoView({
-                                    behavior: 'smooth',
-                                    block: 'center',
-                                });
-                        }}
-                    >
-                        Resolve {count(conflicts, 'conflict')}
-                    </Button>
-                </Tooltip>
-            ) : draft.models.length > 0 ? (
-                <Tooltip
-                    label="Some changes no longer pass their checks."
-                    disabled={!blocked}
-                >
-                    <Button
-                        size="xs"
-                        data-disabled={blocked || undefined}
-                        onClick={() => {
-                            if (!blocked) setPublishing(true);
-                        }}
-                    >
-                        {asPullRequest ? 'Open pull request' : 'Publish'}
-                    </Button>
-                </Tooltip>
-            ) : null}
-            <Menu position="bottom-end" withinPortal>
-                <Menu.Target>
-                    <ActionIcon
-                        size="md"
-                        aria-label="More actions"
-                        variant="default"
-                    >
-                        <MantineIcon icon={IconDots} />
-                    </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
-                    {tryModel ? (
-                        <Menu.Item onClick={() => tryInExplore(tryModel, null)}>
-                            Try in Explore
+                            }}
+                        >
+                            Check saved charts and dashboards
                         </Menu.Item>
-                    ) : null}
-                    <Menu.Item
-                        disabled={
-                            check.isLoading ||
-                            impact.data?.status === 'checking'
+                        <Menu.Divider />
+                        <Menu.Item
+                            color="red"
+                            onClick={() => setDiscarding(true)}
+                        >
+                            Discard draft
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
+                {discarding ? (
+                    <MantineModal
+                        opened
+                        variant="delete"
+                        title="Discard draft"
+                        description={`${count(draft.changes.length, 'change')} in development will be removed. Nothing live changes, and this cannot be undone.`}
+                        confirmLabel="Discard"
+                        confirmLoading={discard.isLoading}
+                        onClose={() => setDiscarding(false)}
+                        onConfirm={() =>
+                            discard.mutate(null, {
+                                onSuccess: () => {
+                                    setDiscarding(false);
+                                    finishDiscardedWork();
+                                },
+                            })
                         }
-                        onClick={() => {
-                            check.mutate(undefined);
-                            setSearchParams({ [DRAFT_PARAM]: DRAFT_REVIEW });
-                        }}
-                    >
-                        Check saved charts and dashboards
-                    </Menu.Item>
-                    <Menu.Divider />
-                    <Menu.Item color="red" onClick={() => setDiscarding(true)}>
-                        Discard draft
-                    </Menu.Item>
-                </Menu.Dropdown>
-            </Menu>
-            {discarding ? (
-                <MantineModal
-                    opened
-                    variant="delete"
-                    title="Discard draft"
-                    description={`${count(draft.changes.length, 'change')} in development will be removed. Nothing live changes, and this cannot be undone.`}
-                    confirmLabel="Discard"
-                    confirmLoading={discard.isLoading}
-                    onClose={() => setDiscarding(false)}
-                    onConfirm={() =>
-                        discard.mutate(null, {
-                            onSuccess: () => {
-                                setDiscarding(false);
-                                finishDiscardedWork();
-                            },
-                        })
-                    }
-                />
-            ) : null}
-            {publishing ? (
-                <ApplyModal
+                    />
+                ) : null}
+                {publishing ? (
+                    <ApplyModal
+                        projectUuid={projectUuid}
+                        draft={draft}
+                        model={null}
+                        onClose={() => setPublishing(false)}
+                    />
+                ) : null}
+            </DevelopmentBar>
+            {isTrying ? (
+                <TryIt
                     projectUuid={projectUuid}
-                    draft={draft}
-                    model={null}
-                    onClose={() => setPublishing(false)}
+                    models={draft.models
+                        .filter((entry) => getChangeKind(entry) !== 'removed')
+                        .map(({ model }) => model)}
+                    previewProjectUuid={null}
+                    prUrl={null}
+                    onClose={() => setIsTrying(false)}
                 />
             ) : null}
-        </DevelopmentBar>
+        </>
     );
 };
 

@@ -9,6 +9,7 @@ import {
 } from '../../../../../features/semanticStudio/ModelFieldChanges';
 import { useWholePullRequestDiff } from '../../hooks/usePullRequestDiff';
 import {
+    getModelOfFile,
     splitPatchIntoFiles,
     type DiffFile,
 } from '../ChatElements/ToolCalls/splitPatch';
@@ -18,10 +19,6 @@ import {
 } from '../ChatElements/ToolCalls/WritebackDiffModal';
 import classes from './SemanticStudioAgent.module.css';
 import { type StudioPullRequest } from './useStudioPullRequest';
-
-/** `models/customers.yml` belongs to the model `customers`. */
-const getModelOfFile = ({ path }: DiffFile): string =>
-    (path.split('/').pop() ?? path).replace(/\.[^.]+$/, '');
 
 const LineCounts: FC<{ files: DiffFile[] }> = ({ files }) => {
     const additions = files.reduce((sum, file) => sum + file.additions, 0);

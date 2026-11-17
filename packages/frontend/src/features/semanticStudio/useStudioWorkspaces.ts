@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
-const WORKSPACES_KEY = 'semantic-studio-workspaces';
+export const WORKSPACES_KEY = 'semantic-studio-workspaces';
 const toUrl = (projectUuid: string, path: string) =>
     `/projects/${projectUuid}/semantic-studio/workspaces${path}`;
 

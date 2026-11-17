@@ -170,7 +170,7 @@ export class SemanticStudioWorkspaceModel {
                     is_active: true,
                 })
                 .whereNot('ai_thread_uuid', thread.threadUuid)
-                .update({ is_active: false, updated_at: trx.fn.now() });
+                .update({ is_active: false });
             const [row] = await trx(SemanticStudioWorkspacesTableName)
                 .insert({
                     organization_uuid: thread.organizationUuid,
@@ -192,6 +192,7 @@ export class SemanticStudioWorkspaceModel {
         });
     }
 
+    /** Switching changes is not an update to either, so it leaves updated_at alone. */
     async activate(owner: Owner, workspaceUuid: string): Promise<void> {
         await this.database.transaction(async (trx) => {
             await lockOwner(trx, owner);
@@ -201,14 +202,14 @@ export class SemanticStudioWorkspaceModel {
                     created_by_user_uuid: owner.userUuid,
                     is_active: true,
                 })
-                .update({ is_active: false, updated_at: trx.fn.now() });
+                .update({ is_active: false });
             await trx(SemanticStudioWorkspacesTableName)
                 .where({
                     semantic_studio_workspace_uuid: workspaceUuid,
                     project_uuid: owner.projectUuid,
                     created_by_user_uuid: owner.userUuid,
                 })
-                .update({ is_active: true, updated_at: trx.fn.now() });
+                .update({ is_active: true });
         });
     }
 
@@ -219,7 +220,7 @@ export class SemanticStudioWorkspaceModel {
                 created_by_user_uuid: userUuid,
                 is_active: true,
             })
-            .update({ is_active: false, updated_at: this.database.fn.now() });
+            .update({ is_active: false });
     }
 
     async rename(
@@ -233,7 +234,7 @@ export class SemanticStudioWorkspaceModel {
                 project_uuid: owner.projectUuid,
                 created_by_user_uuid: owner.userUuid,
             })
-            .update({ name, updated_at: this.database.fn.now() });
+            .update({ name });
     }
 
     /** Ends a workspace: it leaves the person's list and stays as history. */
@@ -270,6 +271,26 @@ export class SemanticStudioWorkspaceModel {
             });
     }
 
+    /** Points a person's conversation at the pull request a hand save opened for it. */
+    async attachThreadPullRequest(
+        owner: Owner,
+        aiThreadUuid: string,
+        url: string,
+    ): Promise<void> {
+        await this.database(SemanticStudioWorkspacesTableName)
+            .where({
+                project_uuid: owner.projectUuid,
+                created_by_user_uuid: owner.userUuid,
+                ai_thread_uuid: aiThreadUuid,
+            })
+            .whereNull('finished_at')
+            .update({
+                pull_request_url: url,
+                pull_request_state: 'open',
+                updated_at: this.database.fn.now(),
+            });
+    }
+
     /** Records what a workspace's current pull request's provider said about it; a merge finishes the workspace. */
     async recordPullRequestState(
         projectUuid: string,
@@ -285,6 +306,11 @@ export class SemanticStudioWorkspaceModel {
                 [url],
             )
             .whereNull('finished_at')
+            // Checks load often; only a new state is an update.
+            .andWhereRaw(
+                '(pull_request_url IS DISTINCT FROM ? OR pull_request_state IS DISTINCT FROM ?)',
+                [url, state],
+            )
             .update({
                 pull_request_url: url,
                 pull_request_state: state,
