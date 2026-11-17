@@ -5,6 +5,8 @@ import {
     REQUESTABLE_LIVE_INTEGRATIONS,
     type LiveIntegrationCatalogEntry,
 } from '@lightdash/common';
+import { GITHUB_TOKEN_FORM } from './githubConnection';
+import githubIcon from './icons/github.svg';
 import googleAdsIcon from './icons/google-ads.svg';
 import googleAnalyticsIcon from './icons/google-analytics.svg';
 import googleSearchConsoleIcon from './icons/google-search-console.svg';
@@ -55,6 +57,7 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.GOOGLE_ADS]: googleAdsIcon,
     [ApiConnectorType.LINKEDIN_ADS]: linkedinAdsIcon,
     [ApiConnectorType.YOUTUBE_ANALYTICS]: youtubeAnalyticsIcon,
+    [ApiConnectorType.GITHUB]: githubIcon,
     shopify: shopifyIcon,
     stripe: stripeIcon,
     salesforce: salesforceIcon,
@@ -71,11 +74,13 @@ const DISPLAY_ORDER = [
     ApiConnectorType.GOOGLE_ADS,
     ApiConnectorType.LINKEDIN_ADS,
     ApiConnectorType.YOUTUBE_ANALYTICS,
+    ApiConnectorType.GITHUB,
 ] as const satisfies readonly ApiConnectorType[];
 
 /** The form of each integration connected with an account id and a token. */
 const TOKEN_FORMS: Partial<Record<ApiConnectorType, TokenLiveSourceForm>> = {
     [ApiConnectorType.META_ADS]: META_ADS_TOKEN_FORM,
+    [ApiConnectorType.GITHUB]: GITHUB_TOKEN_FORM,
 };
 
 const toSetup = (entry: LiveIntegrationCatalogEntry): LiveSourceSetup => {
