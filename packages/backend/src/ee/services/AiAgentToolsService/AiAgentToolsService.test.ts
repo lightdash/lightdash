@@ -3724,11 +3724,13 @@ describe('AiAgentToolsService', () => {
             preflightPipeline = vi.fn().mockResolvedValue(undefined),
             threadBinding = null,
             boundDashboardSlug = 'ops',
+            readOnlySpaceUuids = [],
         }: {
             flagEnabled?: boolean;
             preflightPipeline?: import('vitest').Mock;
             threadBinding?: AiAgentToolsRuntimeContext['threadBinding'];
             boundDashboardSlug?: string;
+            readOnlySpaceUuids?: string[];
         } = {}) => {
             let version = 1;
             const upsertComposerChart = vi.fn(async () => {
@@ -3770,9 +3772,17 @@ describe('AiAgentToolsService', () => {
                 aiAgentContentValidation: new AiAgentContentValidation(),
             });
             const runtime = service.createRuntime(
-                makeRuntimeContext({ threadBinding }),
+                makeRuntimeContext({
+                    threadBinding,
+                    readOnlySpaceUuids,
+                    spaceAccess:
+                        readOnlySpaceUuids.length > 0 ? ['jaffle-uuid'] : null,
+                }),
             );
-            return { runtime, upsertComposerChart, upsertChart };
+            const editElsewhere = () => {
+                version += 1;
+            };
+            return { runtime, upsertComposerChart, upsertChart, editElsewhere };
         };
 
         it('saves an edit without SQL changes in place as a new version, asking for no approval', async () => {
@@ -3890,6 +3900,37 @@ describe('AiAgentToolsService', () => {
                 }),
             ).rejects.toThrow(ForbiddenError);
             expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('saves nothing when the chart changed while approval waited', async () => {
+            const { runtime, upsertComposerChart, editElsewhere } =
+                makeEditService();
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: changeSql,
+                    approveSql: vi.fn(async () => editElsewhere()),
+                }),
+            ).rejects.toThrow('changed while this edit waited');
+            expect(upsertComposerChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses a chart whose dashboard is in a read-only agent space', async () => {
+            const { runtime, upsertComposerChart } = makeEditService({
+                readOnlySpaceUuids: ['jaffle-uuid'],
+            });
+
+            await expect(
+                runtime.editContent({
+                    type: 'composer_chart',
+                    slug: 'orders-by-status',
+                    patch: renameChart,
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(ForbiddenError);
             expect(upsertComposerChart).not.toHaveBeenCalled();
         });
 

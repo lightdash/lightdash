@@ -125,7 +125,7 @@ export const createSqlChartGate = (
             );
         };
         try {
-            // A composer chart edit asks only when it adds SQL; the service decides.
+            // For a composer chart, the service asks only when the edit adds warehouse SQL.
             const call =
                 (isSqlChart || isComposerChartContentArgs(args)) && approvalGate
                     ? await approvalGate.forToolCall(toolCallId, {

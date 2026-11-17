@@ -181,7 +181,7 @@ describe('CoderService composer chart upsert for the agent', () => {
         expect(writeFromCode).not.toHaveBeenCalled();
     });
 
-    it('skips only the content as code permission with space access, leaving the write checks to the composer chart service', async () => {
+    it('writes without the content as code permission with space access', async () => {
         const { service, writeFromCode } = makeUpsertService();
         await service.upsertComposerChart(
             viewer,

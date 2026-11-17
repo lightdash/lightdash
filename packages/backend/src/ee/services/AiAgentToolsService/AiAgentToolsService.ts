@@ -4099,11 +4099,7 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /**
-     * Saves a composer chart in place as a new version. Warehouse SQL the
-     * chart did not have waits for approval; every write check reruns for the
-     * user at save.
-     */
+    /** Saved in place as a new version; only new warehouse SQL waits for approval. */
     private async editComposerChart(
         context: AiAgentToolsRuntimeContext,
         {
@@ -4117,6 +4113,8 @@ export class AiAgentToolsService extends BaseService {
         if (!Array.isArray(patch)) {
             throw new ParameterError('Patch must be an RFC6902 patch array');
         }
+        const { account } = context;
+        assertRegisteredAccount(account);
         this.aiAgentContentValidation.validatePatch('composer_chart', patch);
         const bound = await this.getBoundResource(context);
         if (bound?.type === 'chart') {
@@ -4153,6 +4151,13 @@ export class AiAgentToolsService extends BaseService {
             patched,
         );
         const edited = patched as ComposerChartAsCode;
+        const versionBefore =
+            await this.coderService.getCurrentContentVersionBySlug(
+                context.user,
+                context.projectUuid,
+                'composer_chart',
+                slug,
+            );
 
         const newSqlNodes = AiAgentToolsService.getNewWarehouseSqlNodes(
             current.content.pipeline,
@@ -4183,8 +4188,6 @@ export class AiAgentToolsService extends BaseService {
             if (!approveSql) {
                 throw new ForbiddenError(COMPOSER_CHART_SQL_DISABLED_MESSAGE);
             }
-            const { account } = context;
-            assertRegisteredAccount(account);
             await this.composerChartService.preflightPipeline(
                 account,
                 {
@@ -4208,15 +4211,19 @@ export class AiAgentToolsService extends BaseService {
             });
         }
 
-        const versionBefore =
+        // Approval can wait minutes; never save over a version the agent did not read.
+        const versionBeforeSave =
             await this.coderService.getCurrentContentVersionBySlug(
                 context.user,
                 context.projectUuid,
                 'composer_chart',
                 slug,
             );
-        const { account } = context;
-        assertRegisteredAccount(account);
+        if (versionBeforeSave.versionUuid !== versionBefore.versionUuid) {
+            throw new ParameterError(
+                `Composer chart "${slug}" changed while this edit waited, so it was not saved. Read it again and reapply the change.`,
+            );
+        }
         const { composerChartUuid } =
             await this.coderService.upsertComposerChart(
                 context.user,

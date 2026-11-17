@@ -44,10 +44,7 @@ const getWarehouseNodeSql = (value: unknown): string[] => {
     ];
 };
 
-/**
- * The SQL a composer chart patch writes as literal values: a string at a
- * node's /sql, or the sql of a warehouse SQL node it writes whole.
- */
+// Literal SQL a composer chart patch writes; a node's /sql may be DuckDB, so this can over-ask.
 export const getComposerChartPatchSql = (patch: unknown): string[] =>
     Array.isArray(patch)
         ? patch.flatMap((operation) => {
