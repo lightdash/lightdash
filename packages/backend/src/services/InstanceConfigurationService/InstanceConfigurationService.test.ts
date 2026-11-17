@@ -367,6 +367,56 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
         });
     });
 
+    describe('service account reuse across restarts', () => {
+        test('should replace the token of the service account from a previous restart instead of recreating it', async () => {
+            service = createMockService({
+                organizationModel: {
+                    getOrgUuids: vi.fn().mockResolvedValue([mockOrgUuid]),
+                },
+                projectModel: {
+                    getDefaultProjectUuids: vi
+                        .fn()
+                        .mockResolvedValue([mockProjectUuid]),
+                },
+                serviceAccountModel: {
+                    getAllForOrganization: vi.fn().mockResolvedValue([
+                        { uuid: 'sa-1', description: 'Old service account' },
+                        {
+                            uuid: 'sa-2',
+                            description: 'Updated service account',
+                        },
+                    ]),
+                    delete: vi.fn().mockResolvedValue(undefined),
+                    save: vi.fn().mockResolvedValue(undefined),
+                    replaceToken: vi.fn().mockResolvedValue(undefined),
+                },
+                updateSetup: {
+                    serviceAccount: {
+                        token: 'new-service-account-token',
+                        expirationTime: new Date('2025-12-31'),
+                    },
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(
+                service['serviceAccountModel']?.replaceToken,
+            ).toHaveBeenCalledWith({
+                serviceAccountUuid: 'sa-2',
+                token: 'new-service-account-token',
+                expiresAt: new Date('2025-12-31'),
+            });
+            expect(
+                service['serviceAccountModel']?.delete,
+            ).toHaveBeenCalledTimes(1);
+            expect(service['serviceAccountModel']?.delete).toHaveBeenCalledWith(
+                'sa-1',
+            );
+            expect(service['serviceAccountModel']?.save).not.toHaveBeenCalled();
+        });
+    });
+
     describe('project configuration update scenarios', () => {
         test('should update dbt personal access token only', async () => {
             service = createMockService({
