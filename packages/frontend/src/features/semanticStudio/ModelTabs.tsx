@@ -14,7 +14,7 @@ import {
 } from '@mantine/core';
 import { File, WorkerPoolContextProvider } from '@pierre/diffs/react';
 import dayjs from 'dayjs';
-import { useState, type FC, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FC, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import {
@@ -61,6 +61,25 @@ export const ModelCodeView: FC<{
     const content = isDraft ? draftContent : (model?.content ?? null);
     const line =
         fieldName && content ? findFieldLine(content, fieldName) : null;
+    const editor = useRef<HTMLDivElement>(null);
+    // The viewer marks the line but does not bring it into view, and it renders after this does.
+    useEffect(() => {
+        if (line === null) return undefined;
+        let frame = 0;
+        let tries = 0;
+        const reveal = () => {
+            const target = editor.current
+                ?.querySelector('diffs-container')
+                ?.shadowRoot?.querySelector(`[data-line="${line}"]`);
+            if (target) target.scrollIntoView({ block: 'center' });
+            else if (tries < 60) {
+                tries += 1;
+                frame = requestAnimationFrame(reveal);
+            }
+        };
+        reveal();
+        return () => cancelAnimationFrame(frame);
+    }, [line, modelName]);
     if (isLoading) return null;
     if (!model && draftContent === undefined) {
         return (
@@ -99,7 +118,7 @@ export const ModelCodeView: FC<{
                     ) : null}
                 </Group>
             </Group>
-            <Box className={classes.codeEditor}>
+            <Box className={classes.codeEditor} ref={editor}>
                 {content === null ? (
                     <Text fz="sm" c="dimmed" p="md">
                         Your draft removes this model.
