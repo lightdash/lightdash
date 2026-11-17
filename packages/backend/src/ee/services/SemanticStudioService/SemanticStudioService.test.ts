@@ -574,6 +574,8 @@ const setup = ({
         workspaces,
         getPullRequestState,
         recordPullRequestState,
+        aiWritebackService: args.aiWritebackService,
+        workspaceModel: args.workspaceModel,
         setActiveWorkspace: (next: typeof activeWorkspace) => {
             activeWorkspace = next;
         },
@@ -2636,10 +2638,97 @@ dimensions:
 
 describe('saving a hand edit', () => {
     const edit = (prUrl: string | null) => ({
+        revision: null,
         path: 'models/orders.yml',
         content: 'version: 2',
         prUrl,
         threadUuid: null,
+    });
+
+    it('passes the loaded revision to both save attempts and permits continuation', async () => {
+        const context = setup();
+        const save = vi
+            .spyOn(context.aiWritebackService, 'saveWithScript')
+            .mockResolvedValueOnce({ status: 'checked' })
+            .mockResolvedValueOnce({
+                status: 'script_failed',
+                error: 'changed',
+                logs: [],
+            });
+        await expect(
+            context.service.saveSource(deployer, PROJECT_UUID, {
+                ...edit(null),
+                revision: 'original',
+            }),
+        ).resolves.toEqual({ status: 'failed', error: 'changed' });
+        expect(save).toHaveBeenCalledTimes(2);
+        for (const [args, , options] of save.mock.calls) {
+            expect(args.startNewPullRequest).toBe(false);
+            expect(options.expectedSource).toEqual({
+                path: 'models/orders.yml',
+                revision: 'original',
+            });
+        }
+    });
+
+    it('refuses to continue a thread owned by someone else', async () => {
+        const context = setup();
+        vi.spyOn(context.workspaceModel, 'findStudioThread').mockResolvedValue(
+            null,
+        );
+        const save = vi.spyOn(context.aiWritebackService, 'saveWithScript');
+        await expect(
+            context.service.saveSource(deployer, PROJECT_UUID, {
+                ...edit(null),
+                threadUuid: 'other-thread',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(save).not.toHaveBeenCalled();
+    });
+
+    it('returns a null revision for a missing file and a content hash for an existing file', async () => {
+        const context = setup();
+        const readFile = vi
+            .fn()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce('select 1');
+        vi.spyOn(
+            context.aiWritebackService,
+            'openStudioCheckout',
+        ).mockResolvedValue({
+            root: 'dbt/',
+            checkout: {
+                prUrl: null,
+                branch: 'main',
+                baseBranch: 'main',
+                headSha: 'head',
+                listFiles: async () => [],
+                readFile,
+                readFileAt: async () => null,
+                listFilesChangedSince: async () => [],
+            },
+        });
+        await expect(
+            context.service.readSource(
+                deployer,
+                PROJECT_UUID,
+                null,
+                'models/orders.sql',
+            ),
+        ).resolves.toEqual({
+            path: 'models/orders.sql',
+            content: null,
+            revision: null,
+        });
+        const file = await context.service.readSource(
+            deployer,
+            PROJECT_UUID,
+            null,
+            'models/orders.sql',
+        );
+        expect(file.revision).toMatch(/^[a-f0-9]{64}$/);
+        expect(file.content).toBe('select 1');
+        expect(readFile).toHaveBeenCalledWith('dbt/models/orders.sql');
     });
 
     it('refuses a pull request that is not your own change', async () => {

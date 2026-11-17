@@ -2166,17 +2166,42 @@ export class SemanticStudioService extends BaseService {
                 projectUuid,
                 prUrl,
             );
-        return { path, content: await checkout.readFile(`${root}${path}`) };
+        const content = await checkout.readFile(`${root}${path}`);
+        return {
+            path,
+            content,
+            revision:
+                content === null
+                    ? null
+                    : createHash('sha256').update(content).digest('hex'),
+        };
     }
 
     /** Commits a hand edit to your own change's pull request, or opens one; YAML is compiled first, SQL is left to dbt. */
     async saveSource(
         user: SessionUser,
         projectUuid: string,
-        { path, content, prUrl, threadUuid }: SaveSemanticStudioSourceRequest,
+        {
+            path,
+            content,
+            revision,
+            prUrl,
+            threadUuid,
+        }: SaveSemanticStudioSourceRequest,
     ): Promise<SemanticStudioSourceSave> {
         assertSourcePath(path);
         await this.assertCanUseStudio(user, projectUuid);
+        if (
+            threadUuid !== null &&
+            !(await this.workspaceModel.findStudioThread(
+                { projectUuid, userUuid: user.userUuid },
+                threadUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                'Only the person who started this change can edit it here.',
+            );
+        }
         if (prUrl !== null) {
             const workspaces = await this.workspaceModel.findInProject(
                 projectUuid,
@@ -2199,7 +2224,7 @@ export class SemanticStudioService extends BaseService {
             projectUuid,
             prompt: `Edit ${path}`,
             prUrl,
-            startNewPullRequest: prUrl === null,
+            startNewPullRequest: false,
             aiThreadUuid: threadUuid ?? undefined,
             source: 'web' as const,
         };
@@ -2212,6 +2237,7 @@ export class SemanticStudioService extends BaseService {
                 dryRun,
                 assertPublishAllowed: null,
                 checkDbt: checked ? compile : null,
+                expectedSource: { path, revision },
             });
         // Null means only dbt can check the change, so it is committed unchecked.
         const dryRun = await save(true, true);

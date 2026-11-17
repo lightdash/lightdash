@@ -24,6 +24,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { createHash } from 'node:crypto';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import * as BitbucketClient from '../../../clients/bitbucket/Bitbucket';
 import {
@@ -6369,6 +6370,135 @@ describe('AiWritebackService.saveWithScript compile check', () => {
             );
         return { save, provider, checkout, service };
     };
+
+    it.each([true, false])(
+        'rejects a stale source before writing (dry run: %s)',
+        async (dryRun) => {
+            const { service, checkout, provider } = setUp();
+            checkout.readFile.mockResolvedValue('notes: 2');
+            await expect(
+                service.saveWithScript(
+                    {
+                        agentPermissionsApply: true,
+                        user: defaultSessionUser,
+                        projectUuid: 'project-1',
+                        prompt: 'Edit notes',
+                        prUrl: null,
+                        source: 'web',
+                    },
+                    script,
+                    {
+                        dryRun,
+                        assertPublishAllowed: null,
+                        checkDbt: null,
+                        expectedSource: {
+                            path: 'models/notes.yml',
+                            revision: null,
+                        },
+                    },
+                ),
+            ).rejects.toThrow(
+                'This file changed since you opened it. Reload it to see the latest version, then make your edit again.',
+            );
+            expect(checkout.readFile).toHaveBeenCalledWith(
+                'dbt/models/notes.yml',
+            );
+            expect(provider.commitApiChanges).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['notes: 1', 'notes: 2', null])(
+        'compares the loaded content revision against %s',
+        async (current) => {
+            const { service, checkout, provider } = setUp();
+            checkout.readFile.mockResolvedValue(current);
+            const saving = service.saveWithScript(
+                {
+                    agentPermissionsApply: true,
+                    user: defaultSessionUser,
+                    projectUuid: 'project-1',
+                    prompt: 'Edit notes',
+                    prUrl: null,
+                    source: 'web',
+                },
+                script,
+                {
+                    dryRun: false,
+                    assertPublishAllowed: null,
+                    checkDbt: null,
+                    expectedSource: {
+                        path: 'models/notes.yml',
+                        revision: createHash('sha256')
+                            .update('notes: 1')
+                            .digest('hex'),
+                    },
+                },
+            );
+            if (current === 'notes: 1') {
+                await expect(saving).resolves.toMatchObject({
+                    status: 'saved',
+                });
+                expect(provider.commitApiChanges).toHaveBeenCalledOnce();
+            } else {
+                await expect(saving).rejects.toThrow(
+                    'This file changed since you opened it.',
+                );
+                expect(provider.commitApiChanges).not.toHaveBeenCalled();
+            }
+        },
+    );
+
+    it('creates a missing source with a null revision', async () => {
+        const { service, provider } = setUp();
+        await expect(
+            service.saveWithScript(
+                {
+                    agentPermissionsApply: true,
+                    user: defaultSessionUser,
+                    projectUuid: 'project-1',
+                    prompt: 'Edit notes',
+                    prUrl: null,
+                    source: 'web',
+                },
+                script,
+                {
+                    dryRun: false,
+                    assertPublishAllowed: null,
+                    checkDbt: null,
+                    expectedSource: {
+                        path: 'models/notes.yml',
+                        revision: null,
+                    },
+                },
+            ),
+        ).resolves.toMatchObject({ status: 'saved' });
+        expect(provider.commitApiChanges).toHaveBeenCalledOnce();
+    });
+
+    it('continues the thread pull request on a hand save retry without a URL', async () => {
+        const { service, provider } = setUp();
+        const findLatestPrUrlByThread = vi.fn().mockResolvedValue(PR_7);
+        Object.assign(service, {
+            aiWritebackRunModel: { findLatestPrUrlByThread },
+        });
+        await service.saveWithScript(
+            {
+                agentPermissionsApply: true,
+                user: defaultSessionUser,
+                projectUuid: 'project-1',
+                prompt: 'Edit notes',
+                prUrl: null,
+                source: 'web',
+                aiThreadUuid: 'thread-1',
+                startNewPullRequest: false,
+            },
+            script,
+            { dryRun: false, assertPublishAllowed: null, checkDbt: null },
+        );
+        expect(provider.openApiCheckout).toHaveBeenCalledWith(
+            expect.objectContaining({ prUrl: PR_7 }),
+        );
+    });
 
     it('sends what does not compile back to the model and commits nothing', async () => {
         const { save, provider } = setUp();

@@ -74,6 +74,7 @@ export type ApiSemanticStudioSourcesResponse =
     ApiSuccess<SemanticStudioSources>;
 
 export type SemanticStudioSourceFile = {
+    revision: string | null;
     path: string;
     content: string | null;
 };
@@ -82,6 +83,7 @@ export type ApiSemanticStudioSourceFileResponse =
     ApiSuccess<SemanticStudioSourceFile>;
 
 export type SaveSemanticStudioSourceRequest = {
+    revision: string | null;
     path: string;
     content: string;
     /** The change's open pull request to add the commit to, or null to open one. */

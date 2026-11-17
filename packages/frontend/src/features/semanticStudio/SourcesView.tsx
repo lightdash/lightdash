@@ -67,10 +67,13 @@ import {
 import classes from './WorkbenchView.module.css';
 
 // Unsaved edits live for the tab only; leaving the page warns while any are kept.
-const unsavedEdits = new Map<string, string>();
+const unsavedEdits = new Map<
+    string,
+    { text: string; revision: string | null }
+>();
 let warnsOnLeave = false;
-const keepUnsaved = (key: string, text: string) => {
-    unsavedEdits.set(key, text);
+const keepUnsaved = (key: string, text: string, revision: string | null) => {
+    unsavedEdits.set(key, { text, revision });
     if (warnsOnLeave) return;
     warnsOnLeave = true;
     window.addEventListener('beforeunload', (event) => {
@@ -509,6 +512,8 @@ export const SourcePane: FC<{
     const loaded =
         file?.content ??
         (justSaved?.key === editKey ? justSaved.content : null);
+    const sourceRevision = useRef<string | null>(null);
+    if (text === null) sourceRevision.current = file?.revision ?? null;
     const value = text ?? loaded ?? '';
     const isDirty = text !== null && text !== loaded;
     // A proposal shown in the editor is the agent's until the person types over it.
@@ -519,14 +524,16 @@ export const SourcePane: FC<{
     const shownKey = useRef<string | null>(null);
     useEffect(() => {
         if (shownKey.current === editKey) {
-            if (hasOwnEdits && text !== null) keepUnsaved(editKey, text);
+            if (hasOwnEdits && text !== null)
+                keepUnsaved(editKey, text, sourceRevision.current);
             else unsavedEdits.delete(editKey);
             return;
         }
         shownKey.current = editKey;
         const kept = unsavedEdits.get(editKey) ?? null;
-        setBase(kept);
-        setText(kept);
+        setBase(kept?.text ?? null);
+        setText(kept?.text ?? null);
+        if (kept) sourceRevision.current = kept.revision;
         setNotice(null);
         setProposedFrom(null);
         setOffered(null);
@@ -586,6 +593,7 @@ export const SourcePane: FC<{
             {
                 path,
                 content: value,
+                revision: sourceRevision.current,
                 prUrl: target.prUrl,
                 threadUuid: target.threadUuid,
                 newChangeAgentUuid: target.newChangeAgentUuid,
@@ -613,7 +621,8 @@ export const SourcePane: FC<{
                         unsavedEdits.delete(open.current.key);
                         keepUnsaved(
                             `${target.projectUuid}\n${result.prUrl}\n${open.current.path ?? ''}`,
-                            typed,
+                            typed.text,
+                            typed.revision,
                         );
                     }
                     if (isStillOpen()) {

@@ -10,6 +10,10 @@ import {
     AiWritebackRunTableName,
     DbAiWritebackRun,
 } from '../database/entities/ai';
+import {
+    SemanticStudioWorkspacesTableName,
+    type SemanticStudioWorkspacesTable,
+} from '../database/entities/semanticStudioWorkspaces';
 
 type Dependencies = {
     database: Knex;
@@ -51,7 +55,14 @@ export class AiWritebackRunModel {
             .whereNotNull('pr_url')
             .orderBy('created_at', 'desc')
             .first('pr_url');
-        return row?.pr_url ?? null;
+        if (row?.pr_url) return row.pr_url;
+        const workspace = await this.database<SemanticStudioWorkspacesTable>(
+            SemanticStudioWorkspacesTableName,
+        )
+            .where('ai_thread_uuid', aiThreadUuid)
+            .whereNull('finished_at')
+            .first('pull_request_url');
+        return workspace?.pull_request_url ?? null;
     }
 
     async create(data: {
