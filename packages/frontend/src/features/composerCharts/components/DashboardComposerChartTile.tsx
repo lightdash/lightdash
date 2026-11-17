@@ -13,7 +13,11 @@ import {
 import { Menu } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import * as Sentry from '@sentry/react';
-import { IconChartDots3, IconTableExport } from '@tabler/icons-react';
+import {
+    IconChartDots3,
+    IconHierarchy2,
+    IconTableExport,
+} from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -56,6 +60,7 @@ import { getComposerTileFilterItems } from '../utils/composerTileFilterItems';
 import { getComposerTileParameterItems } from '../utils/composerTileParameterItems';
 import { ComposerChartVisualization } from './ComposerChartVisualization';
 import { ComposerTileErrorState } from './ComposerTileErrorState';
+import { ComposerTileLineagePanel } from './ComposerTileLineagePanel';
 
 type Props = Pick<
     ComponentProps<typeof TileBase>,
@@ -293,6 +298,9 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
     const downloadData = useUiString('tileMenu.downloadData');
     const [exportOpened, { open: openExport, close: closeExport }] =
         useDisclosure(false);
+    const viewLineage = useUiString('tileMenu.viewLineage');
+    const [lineageOpened, { open: openLineage, close: closeLineage }] =
+        useDisclosure(false);
     const exportQueryUuid =
         errorMessage === null && results.hasFetchedAllRows
             ? displayedQueryUuid
@@ -323,15 +331,24 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             }
             fullWidth={readyDraw?.chartConfig.type === ChartType.TABLE}
             extraMenuItems={
-                canExportData && (
+                <>
                     <Menu.Item
-                        leftSection={<MantineIcon icon={IconTableExport} />}
-                        disabled={props.isEditMode || !exportQueryUuid}
-                        onClick={openExport}
+                        leftSection={<MantineIcon icon={IconHierarchy2} />}
+                        disabled={!chart}
+                        onClick={openLineage}
                     >
-                        {downloadData}
+                        {viewLineage}
                     </Menu.Item>
-                )
+                    {canExportData && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTableExport} />}
+                            disabled={props.isEditMode || !exportQueryUuid}
+                            onClick={openExport}
+                        >
+                            {downloadData}
+                        </Menu.Item>
+                    )}
+                </>
             }
             extraHeaderElement={
                 <>
@@ -383,6 +400,16 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                         />
                     </Sentry.ErrorBoundary>
                 )
+            )}
+            {chart && projectUuid && (
+                <ComposerTileLineagePanel
+                    opened={lineageOpened}
+                    onClose={closeLineage}
+                    chartTitle={title}
+                    projectUuid={projectUuid}
+                    pipeline={chart.pipeline}
+                    run={run ?? null}
+                />
             )}
             {exportQueryUuid && projectUuid && run && (
                 <ExportDataModal
