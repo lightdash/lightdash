@@ -56,10 +56,16 @@ const shared = {
     },
 };
 
+// Base for the other backend configs, which spread it and set their own include.
+export const baseConfig = {
+    resolve,
+    test: { ...shared, maxWorkers: '50%' },
+};
+
 export default defineConfig({
     test: {
         clearMocks: false,
-        maxWorkers: '50%',
+        maxWorkers: baseConfig.test.maxWorkers,
         projects: [
             {
                 extends: false,
