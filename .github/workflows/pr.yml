@@ -182,11 +182,11 @@ jobs:
             # Frontend tests scale with vitest workers, so 8 vCPU halves the shard time.
             runner: depot-ubuntu-24.04-8
             filter: --filter=@lightdash/frontend
-            args: -- --shard=1/2 --maxWorkers=100%
+            args: -- --shard=1/2 --maxWorkers=75%
           - name: frontend 2/2
             runner: depot-ubuntu-24.04-8
             filter: --filter=@lightdash/frontend
-            args: -- --shard=2/2 --maxWorkers=100%
+            args: -- --shard=2/2 --maxWorkers=75%
           - name: cli
             runner: depot-ubuntu-24.04-4
             filter: --filter=@lightdash/cli
