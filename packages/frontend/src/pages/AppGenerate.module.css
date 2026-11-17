@@ -99,12 +99,6 @@
     background-color: var(--mantine-color-body);
 }
 
-/* Split view: a tinted conversation column so the preview reads as the
-   canvas and chat cards (bubbles, builds, versions) sit on top of it. */
-.chatPanel:not(.chatPanelCompose) {
-    background-color: var(--mantine-color-ldGray-0);
-}
-
 /* Cute springy expand when the centered composer morphs into the split
    sidebar (and the preview panel slides in). */
 :global(::view-transition-group(app-composer)) {
