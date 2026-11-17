@@ -3519,6 +3519,7 @@ export class McpService extends BaseService {
                 );
 
                 const editContentTool = getEditContent({
+                    prepareComposerChartEdit: null,
                     editContent: toolsRuntime.editContent,
                     siteUrl: this.lightdashConfig.siteUrl,
                     sqlChartSaving: { mode: 'client_approved' },

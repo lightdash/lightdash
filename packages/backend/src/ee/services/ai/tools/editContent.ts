@@ -10,7 +10,10 @@ import {
 } from '@lightdash/common';
 import { tool, type FlexibleSchema } from 'ai';
 import { z } from 'zod';
-import type { EditContentFn } from '../types/aiAgentDependencies';
+import type {
+    EditContentFn,
+    PrepareComposerChartEditFn,
+} from '../types/aiAgentDependencies';
 import { toAbsoluteHref } from '../utils/absoluteHref';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
@@ -217,17 +220,36 @@ export const executeEditContent = async (
 
 export const getEditContent = ({
     editContent,
+    prepareComposerChartEdit,
     siteUrl,
     sqlChartSaving = { mode: 'disabled' },
     documentsEnabled = false,
     chartsEnabled = true,
     artifacts,
-}: Dependencies) => {
+}: Dependencies & {
+    // Null where no thread approval runs (MCP clients approve their own calls).
+    prepareComposerChartEdit: PrepareComposerChartEditFn | null;
+}) => {
     const { definition } = getToolVariant(documentsEnabled, chartsEnabled);
     const inputSchema: FlexibleSchema<
         z.infer<typeof mcpEditContentArgsSchema>
     > = definition.inputSchema;
-    const sqlChartGate = createSqlChartGate(sqlChartSaving, 'editContent');
+    const sqlChartGate = createSqlChartGate(
+        sqlChartSaving,
+        'editContent',
+        prepareComposerChartEdit
+            ? async (args) => {
+                  const { slug, patch } = toolEditContentArgsSchema
+                      .pick({ slug: true, patch: true })
+                      .parse(args);
+                  const { approvalSql } = await prepareComposerChartEdit({
+                      slug,
+                      patch,
+                  });
+                  return approvalSql;
+              }
+            : null,
+    );
 
     return tool({
         ...definition,

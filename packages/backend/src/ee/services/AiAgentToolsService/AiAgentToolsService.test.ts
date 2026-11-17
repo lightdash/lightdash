@@ -3812,6 +3812,45 @@ describe('AiAgentToolsService', () => {
             });
         });
 
+        it('asks no approval for a DuckDB node, which never reaches the warehouse', async () => {
+            const { runtime, upsertComposerChart } = makeEditService();
+            const approveSql = vi.fn();
+            const addDuckdbNode = [
+                {
+                    op: 'add',
+                    path: '/pipeline/nodes/-',
+                    value: {
+                        sourceType: 'duckdb',
+                        nodeId: 'top',
+                        title: 'Top orders',
+                        sql: 'select * from orders limit 5',
+                        references: ['orders'],
+                    },
+                },
+                {
+                    op: 'replace',
+                    path: '/pipeline/terminalNodeId',
+                    value: 'top',
+                },
+            ];
+
+            await expect(
+                runtime.prepareComposerChartEdit({
+                    slug: 'orders-by-status',
+                    patch: addDuckdbNode,
+                }),
+            ).resolves.toEqual({ approvalSql: null });
+            await runtime.editContent({
+                type: 'composer_chart',
+                slug: 'orders-by-status',
+                patch: addDuckdbNode,
+                approveSql,
+            });
+
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertComposerChart).toHaveBeenCalledOnce();
+        });
+
         it('waits for approval of new warehouse SQL before saving', async () => {
             const { runtime, upsertComposerChart } = makeEditService();
             const approveSql = vi.fn(async () => {

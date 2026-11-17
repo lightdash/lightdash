@@ -68,12 +68,18 @@ const getSqlChartApproveSql =
 
 type SqlChartToolName = 'createContent' | 'editContent';
 
+export type GetComposerChartEditSqlFn = (
+    args: unknown,
+) => Promise<string | null>;
+
 type ToolOutput = { result: string; metadata?: Record<string, unknown> };
 
 /** The SQL chart gate the content tools share: refuses saves without SQL mode, approves gated calls. */
 export const createSqlChartGate = (
     sqlChartSaving: SqlChartSaving,
     toolName: SqlChartToolName,
+    // A composer chart edit's new SQL depends on the stored chart, so the server works it out.
+    getComposerChartEditSql: GetComposerChartEditSqlFn | null = null,
 ) => {
     const approvalGate =
         sqlChartSaving.mode === 'thread_approval'
@@ -85,8 +91,17 @@ export const createSqlChartGate = (
             : null;
 
     /** The SQL a call asks to save; null when the call does not gate on it. */
-    const getGatedSql = (args: unknown): string | null =>
-        isSqlApprovalToolCall(toolName, args) ? getSqlApprovalSql(args) : null;
+    const getGatedSql = async (args: unknown): Promise<string | null> => {
+        if (isComposerChartContentArgs(args)) {
+            // A refused edit asks nothing; running it reports the refusal.
+            return getComposerChartEditSql
+                ? getComposerChartEditSql(args).catch(() => null)
+                : null;
+        }
+        return isSqlApprovalToolCall(toolName, args)
+            ? getSqlApprovalSql(args)
+            : null;
+    };
 
     /** For the AI SDK: a gated call on Slack suspends until the user decides. */
     const needsApproval = async (
@@ -96,7 +111,7 @@ export const createSqlChartGate = (
         approvalGate !== null &&
         approvalGate.needsNativeApproval({
             toolCallId,
-            sql: getGatedSql(args),
+            sql: await getGatedSql(args),
         });
 
     // `approveSql` is null when the thread does not gate the call.
@@ -129,7 +144,7 @@ export const createSqlChartGate = (
             const call =
                 (isSqlChart || isComposerChartContentArgs(args)) && approvalGate
                     ? await approvalGate.forToolCall(toolCallId, {
-                          sql: getGatedSql(args),
+                          sql: await getGatedSql(args),
                       })
                     : null;
             const approveSql = call ? getSqlChartApproveSql(call) : null;

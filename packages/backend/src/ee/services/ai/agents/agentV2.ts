@@ -2085,6 +2085,7 @@ export const getAgentTools = (
         editContent: () =>
             getEditContent({
                 editContent: dependencies.editContent,
+                prepareComposerChartEdit: dependencies.prepareComposerChartEdit,
                 siteUrl: args.siteUrl,
                 documentsEnabled,
                 chartsEnabled: args.enableContentTools,

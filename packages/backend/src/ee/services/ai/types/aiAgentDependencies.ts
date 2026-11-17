@@ -459,6 +459,12 @@ export type EditContentFn = (
       }
 >;
 
+/** Runs a composer chart edit's checks without saving; `approvalSql` is the new warehouse SQL, or null. */
+export type PrepareComposerChartEditFn = (args: {
+    slug: string;
+    patch: unknown;
+}) => Promise<{ approvalSql: string | null }>;
+
 type CreateContentArgs =
     | {
           type: 'dashboard';

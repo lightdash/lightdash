@@ -87,6 +87,7 @@ import {
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
+    PrepareComposerChartEditFn,
     ProposeSemanticLayerChangeFn,
     ReadAttachmentsFn,
     ReadContentFn,
@@ -434,6 +435,7 @@ export type AiAgentDependencies = {
     readContent: ReadContentFn;
     resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
+    prepareComposerChartEdit: PrepareComposerChartEditFn;
     recordSqlChartRefusal?: (
         action: 'create' | 'update',
         reasonCode: string,
