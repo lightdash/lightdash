@@ -1,3 +1,9 @@
+import {
+    NotFoundError,
+    ParameterError,
+    parseModelDocument,
+    type ModelMaterializationPin,
+} from '@lightdash/common';
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 
@@ -58,11 +64,112 @@ type VerifiedCopy = {
     sourceReadAt: Date;
 };
 
+type ServingCopy =
+    | { status: 'pending' }
+    | {
+          status: 'ready';
+          content: string;
+          objectKey: string;
+          pin: ModelMaterializationPin;
+      };
+
 export class ModelMaterializationModel {
     private readonly database: Knex;
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
+    }
+
+    async getServingCopy(
+        projectUuid: string,
+        modelName: string,
+    ): Promise<ServingCopy | null> {
+        const {
+            rows: [copy],
+        } = await this.database.raw<{
+            rows: {
+                config_uuid: string;
+                generation_uuid: string | null;
+                policy_epoch: number;
+                content: string;
+                object_key: string | null;
+                revision_matches: boolean;
+                generation_matches: boolean | null;
+            }[];
+        }>(
+            `
+            SELECT c.config_uuid, c.active_generation_uuid AS generation_uuid, c.policy_epoch,
+                   d.content, g.object_key,
+                   (r.name = d.name AND s.project_uuid = d.project_uuid AND
+                    r.document_version = d.document_version AND r.content_after IS NOT DISTINCT FROM d.content) AS revision_matches,
+                   (g.status = 'ready' AND g.revision_uuid = c.desired_revision_uuid AND
+                    g.build_fingerprint = c.build_fingerprint AND g.compatibility_fingerprint = c.compatibility_fingerprint AND
+                    g.policy_epoch = c.policy_epoch) AS generation_matches
+            FROM project_model_documents d
+            JOIN model_materialization_configs c ON c.document_uuid = d.project_model_document_uuid
+            JOIN project_model_revisions r ON r.project_model_revision_uuid = c.desired_revision_uuid
+            JOIN project_model_change_sets s ON s.project_model_change_set_uuid = r.project_model_change_set_uuid
+            LEFT JOIN model_materialization_generations g ON g.config_uuid = c.config_uuid AND g.generation_uuid = c.active_generation_uuid
+            WHERE d.project_uuid = ? AND d.name = ?`,
+            [projectUuid, modelName],
+        );
+        if (!copy) return null;
+        if (!copy.revision_matches)
+            throw new ParameterError(
+                'Published materialization revision has changed.',
+            );
+        if (copy.generation_uuid === null) return { status: 'pending' };
+        if (!copy.generation_matches || !copy.object_key)
+            throw new ParameterError(
+                'The active materialization is incompatible with the published model.',
+            );
+        return {
+            status: 'ready',
+            content: copy.content,
+            objectKey: copy.object_key,
+            pin: {
+                configUuid: copy.config_uuid,
+                generationUuid: copy.generation_uuid,
+                policyEpoch: copy.policy_epoch,
+            },
+        };
+    }
+
+    async getPinnedObjectKey(
+        projectUuid: string,
+        exploreName: string,
+        pin: ModelMaterializationPin,
+    ): Promise<string> {
+        const {
+            rows: [copy],
+        } = await this.database.raw<{
+            rows: { name: string; content_after: string; object_key: string }[];
+        }>(
+            `
+            SELECT r.name, r.content_after, g.object_key
+            FROM model_materialization_generations g
+            JOIN model_materialization_configs c ON c.config_uuid = g.config_uuid AND c.policy_epoch = g.policy_epoch
+            JOIN project_model_documents d ON d.project_model_document_uuid = c.document_uuid
+            JOIN project_model_revisions r ON r.project_model_revision_uuid = g.revision_uuid AND r.name = d.name
+            JOIN project_model_change_sets s ON s.project_model_change_set_uuid = r.project_model_change_set_uuid AND s.project_uuid = d.project_uuid
+            WHERE d.project_uuid = ? AND g.config_uuid = ? AND g.generation_uuid = ? AND g.policy_epoch = ?
+              AND g.status = 'ready' AND r.content_after IS NOT NULL`,
+            [projectUuid, pin.configUuid, pin.generationUuid, pin.policyEpoch],
+        );
+        if (copy) {
+            const model = parseModelDocument(
+                copy.content_after,
+                `models/${copy.name}.yml`,
+            );
+            if (
+                model.materialize &&
+                model.name === copy.name &&
+                ((model.name === exploreName && !model.hidden) ||
+                    Object.hasOwn(model.explores ?? {}, exploreName))
+            )
+                return copy.object_key;
+        }
+        throw new NotFoundError('Pinned model materialization is unavailable.');
     }
 
     static async recordIntent(

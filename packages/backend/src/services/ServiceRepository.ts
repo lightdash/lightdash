@@ -1390,6 +1390,8 @@ export class ServiceRepository
             'asyncQueryService',
             () =>
                 new AsyncQueryService({
+                    modelMaterializationModel:
+                        this.models.getModelMaterializationModel(),
                     isAnalyticsProjectEnabled: () =>
                         isAnalyticsProjectAvailable(
                             this.context.lightdashConfig,

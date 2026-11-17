@@ -389,6 +389,7 @@ export type WarehouseClientOverride = {
     executionSource:
         | 'pre_aggregate_duckdb'
         | 'external_source_duckdb'
+        | 'model_materialization_duckdb'
         | 'composer_duckdb';
 };
 

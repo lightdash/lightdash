@@ -748,6 +748,7 @@ type QueryExecutionSource =
     | 'pre_aggregate_duckdb'
     | 'pre_aggregate_warehouse'
     | 'external_source_duckdb'
+    | 'model_materialization_duckdb'
     | 'composer_duckdb'
     | 'live_source';
 

@@ -1548,6 +1548,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 prometheusMetrics,
             }) =>
                 new AsyncQueryService({
+                    modelMaterializationModel:
+                        models.getModelMaterializationModel(),
                     isAnalyticsProjectEnabled: () =>
                         isAnalyticsProjectAvailable(
                             context.lightdashConfig,
