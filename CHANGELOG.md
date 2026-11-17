@@ -1,3 +1,10 @@
+# [3.300.0](https://github.com/lightdash/lightdash/compare/3.299.0...3.300.0) (2026-11-17)
+
+
+### Features
+
+* **semantic-studio:** give each Studio workspace its own draft ([#32800](https://github.com/lightdash/lightdash/issues/32800)) ([7cabbfb](https://github.com/lightdash/lightdash/commit/7cabbfb2f849a7f1d645c4e4984ac77b86d3b837))
+
 # [3.299.0](https://github.com/lightdash/lightdash/compare/3.298.1...3.299.0) (2026-11-17)
 
 
