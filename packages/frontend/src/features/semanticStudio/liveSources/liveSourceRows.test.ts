@@ -23,6 +23,7 @@ const usage = (
 ): ExternalConnectionApiUsage => ({
     externalConnectionUuid,
     apiCalls: 1234,
+    cacheHits: 56,
     responseBytes: 361_113,
     medianDurationMs: 600,
     ...overrides,
@@ -73,11 +74,13 @@ describe('toLiveSourceRows', () => {
         expect(used.usage).toEqual({
             dataRead: expect.stringMatching(/KB|kB/),
             apiCalls: (1234).toLocaleString(),
+            cacheHits: '56',
             medianLatency: '600ms',
         });
         expect(unused.usage).toEqual({
             dataRead: expect.any(String),
             apiCalls: '0',
+            cacheHits: '0',
             medianLatency: null,
         });
     });
@@ -87,6 +90,7 @@ describe('toLiveSourceRows', () => {
         expect(row.usage).toEqual({
             dataRead: '—',
             apiCalls: '—',
+            cacheHits: '—',
             medianLatency: null,
         });
     });

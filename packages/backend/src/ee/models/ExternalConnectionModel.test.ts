@@ -406,12 +406,14 @@ describe('ExternalConnectionModel', () => {
                 {
                     external_connection_uuid: CONNECTION_UUID,
                     api_calls: '12',
+                    cache_hits: '3',
                     response_bytes: '4096',
                     median_duration_ms: 842.5,
                 },
                 {
                     external_connection_uuid: 'conn-reused-only',
                     api_calls: '0',
+                    cache_hits: '5',
                     response_bytes: null,
                     median_duration_ms: null,
                 },
@@ -422,16 +424,21 @@ describe('ExternalConnectionModel', () => {
             expect(tracker.history.select[0].sql).toContain(
                 'percentile_cont(0.5) within group (order by duration_ms) filter (where api_calls > 0)',
             );
+            expect(tracker.history.select[0].sql).toContain(
+                'count(*) filter (where cache_hit) as cache_hits',
+            );
             expect(usage).toEqual([
                 {
                     externalConnectionUuid: CONNECTION_UUID,
                     apiCalls: 12,
+                    cacheHits: 3,
                     responseBytes: 4096,
                     medianDurationMs: 843,
                 },
                 {
                     externalConnectionUuid: 'conn-reused-only',
                     apiCalls: 0,
+                    cacheHits: 5,
                     responseBytes: 0,
                     medianDurationMs: null,
                 },

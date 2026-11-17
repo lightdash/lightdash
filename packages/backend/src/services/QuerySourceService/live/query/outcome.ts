@@ -1,11 +1,13 @@
 import {
     assertUnreachable,
+    getLiveSourceErrorOrigin,
     ParameterError,
     TimeoutError,
     TooManyRequestsError,
     UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
+    type LiveSourceInternalErrorCode,
     type LiveSourceUpstreamErrorCode,
 } from '@lightdash/common';
 
@@ -34,14 +36,18 @@ export const getLiveQueryOutcome = (error: unknown): LiveQueryOutcome => {
 };
 
 /** The stable code of a failed api query, from its outcome; null when it succeeded. */
-export const getLiveSourceUpstreamErrorCode = (
+export const getLiveSourceQueryErrorCode = (
     outcome: LiveQueryOutcome,
-): LiveSourceUpstreamErrorCode | null => {
+): LiveSourceInternalErrorCode | LiveSourceUpstreamErrorCode | null => {
     switch (outcome) {
         case 'ok':
             return null;
-        // Our request failed validation, or the API rejected it
+        // Our own validation rejected the request before it was sent
         case 'invalid_request':
+            return 'live_source.internal.invalid_request';
+        case 'internal_error':
+            return 'live_source.internal.error';
+        // The API rejected the request, or failed
         case 'query_error':
             return 'live_source.upstream.invalid_request';
         case 'connection_error':
@@ -51,7 +57,6 @@ export const getLiveSourceUpstreamErrorCode = (
         case 'timeout':
             return 'live_source.upstream.timeout';
         case 'upstream_error':
-        case 'internal_error':
             return 'live_source.upstream.unknown';
         default:
             return assertUnreachable(outcome, 'Unknown api query outcome');
@@ -59,12 +64,13 @@ export const getLiveSourceUpstreamErrorCode = (
 };
 
 /**
- * Codes that usually mean our compiler built a request the API rejects, or
- * something we don't understand: worth a Sentry issue, unlike auth, rate
- * limits and timeouts, which are the source's state.
+ * Codes worth a Sentry issue: every failure of ours, and the API rejecting a
+ * request our compiler built or failing in a way we don't understand. Auth,
+ * rate limits and timeouts are the source's state.
  */
 export const isLiveSourceErrorReportable = (
-    code: LiveSourceUpstreamErrorCode,
+    code: LiveSourceInternalErrorCode | LiveSourceUpstreamErrorCode,
 ) =>
+    getLiveSourceErrorOrigin(code) === 'internal' ||
     code === 'live_source.upstream.invalid_request' ||
     code === 'live_source.upstream.unknown';

@@ -27,6 +27,8 @@ import {
     LightdashPage,
     LightdashRequestMethodHeader,
     LightdashUser,
+    LiveSourceErrorOrigin,
+    LiveSourceInternalErrorCode,
     LiveSourceRefusalCode,
     LiveSourceUpstreamErrorCode,
     MergeJoinType,
@@ -103,6 +105,7 @@ import type { ExecutionContextInfo } from '../logging/winston';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import type { LiveQueryOutcome } from '../services/QuerySourceService/live/query/outcome';
+import type { LiveQueryShape } from '../services/QuerySourceService/live/query/queryShape';
 import { VERSION } from '../version';
 import {
     isAiUsageEvent,
@@ -826,7 +829,8 @@ export type QueryCompletedEvent = BaseTrack & {
         integration?: ApiConnectorType;
         apiQueryOutcome?: LiveQueryOutcome;
         /** Set only when a live_source query failed. */
-        liveSourceErrorCode?: LiveSourceUpstreamErrorCode;
+        errorCode?: LiveSourceInternalErrorCode | LiveSourceUpstreamErrorCode;
+        errorOrigin?: LiveSourceErrorOrigin;
         truncated?: boolean;
     };
 };
@@ -840,8 +844,11 @@ export type LiveSourceQueryRefusedEvent = BaseTrack & {
         externalConnectionUuid: string;
         integration: ApiConnectorType;
         exploreName: string;
-        code: LiveSourceRefusalCode;
+        errorOrigin: 'refused';
+        errorCode: LiveSourceRefusalCode;
         fieldId: string | null;
+        /** What the query asked for, with no filter values or custom SQL. */
+        queryShape: LiveQueryShape;
         querySurface: QuerySurface | null;
         context: QueryExecutionContext;
     };

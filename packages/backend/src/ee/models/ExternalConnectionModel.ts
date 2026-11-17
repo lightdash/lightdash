@@ -1814,12 +1814,16 @@ export class ExternalConnectionModel {
                 {
                     external_connection_uuid: string;
                     api_calls: string | null;
+                    cache_hits: string | null;
                     response_bytes: string | null;
                     median_duration_ms: number | null;
                 }[]
             >(
                 'external_connection_uuid',
                 this.database.raw('sum(api_calls) as api_calls'),
+                this.database.raw(
+                    'count(*) filter (where cache_hit) as cache_hits',
+                ),
                 this.database.raw('sum(response_bytes) as response_bytes'),
                 // Reused results never reach the integration, so they'd drag the median to 0.
                 this.database.raw(
@@ -1829,6 +1833,7 @@ export class ExternalConnectionModel {
         return rows.map((row) => ({
             externalConnectionUuid: row.external_connection_uuid,
             apiCalls: Number(row.api_calls ?? 0),
+            cacheHits: Number(row.cache_hits ?? 0),
             responseBytes: Number(row.response_bytes ?? 0),
             medianDurationMs:
                 row.median_duration_ms === null

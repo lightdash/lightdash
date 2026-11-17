@@ -100,6 +100,11 @@ const SOURCES = [
         date: 'created_at',
         selectsDimension: false,
     },
+    {
+        apiSource: { connector: ApiConnectorType.PYLON },
+        fields: { dimension: 'state', other: 'source', metric: 'count' },
+        date: 'created_at',
+    },
 ] as const;
 
 const CONNECTORS: ApiConnectorType[] = SOURCES.map(
