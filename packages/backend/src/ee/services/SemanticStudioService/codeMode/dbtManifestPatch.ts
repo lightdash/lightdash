@@ -171,7 +171,7 @@ const assertOnlyMetaChanges = (
  * Applies what the YAML changed to the parsed meta, key by key, as dbt layers it:
  * a key the YAML sets replaces the one below, so meta set in dbt_project.yml stays.
  */
-// ponytail: a key the YAML drops is dropped even when dbt_project.yml also sets it; rare, the preview project corrects it.
+// A key the YAML drops is dropped even when dbt_project.yml also sets it; rare, the preview project corrects it.
 const patchMeta = (
     label: string,
     parsed: Meta,

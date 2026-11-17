@@ -41,7 +41,7 @@ type Props = {
  * metric becomes a series, a dimension the x-axis, or the grouping when the
  * x-axis is taken.
  */
-// ponytail: placement is cartesian only; other types just gain the field in results
+// Placement is cartesian only; other types just gain the field in results
 const DroppedFieldPlacer: FC<Props> = ({ field, pickChartType, onPlaced }) => {
     const { itemsMap, pivotDimensions, resultsData } = useVisualizationInputs();
     const { options } = useChartTypeOptions();

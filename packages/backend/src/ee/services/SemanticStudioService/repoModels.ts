@@ -52,7 +52,7 @@ const MODEL_TYPES = new Set(['model', 'model/v1beta', 'model/v1']);
 // The same two places, in the same order, that a native project is loaded from.
 const MODEL_DIRECTORIES = ['models', 'lightdash/models'];
 const YAML_FILE = /\.ya?ml$/;
-// ponytail: every file is one API call the first time a commit is read; read the tree's blobs in one request if a repo outgrows this.
+// Every file is one API call the first time a commit is read; read the tree's blobs in one request if a repo outgrows this.
 const MAX_MODEL_FILES = 500;
 const READ_CONCURRENCY = 10;
 const MAX_KEPT_COMMITS = 4;
@@ -147,7 +147,7 @@ export class RepoModelSource {
 
     private readonly commits = new Map<string, Promise<RepoModels>>();
 
-    // ponytail: per-process token cache keyed by installation, never pruned; fine for one installation per organization.
+    // Per-process token cache keyed by installation, never pruned; fine for one installation per organization.
     private readonly tokens = new Map<
         string,
         { token: string; expiresAt: number }
