@@ -173,11 +173,11 @@ jobs:
             # Backend test time is almost all per-file module imports, which scale with workers.
             runner: depot-ubuntu-24.04-4
             filter: --filter=backend
-            args: -- --shard=1/2 --maxWorkers=100%
+            args: -- --shard=1/2 --maxWorkers=75%
           - name: backend 2/2
             runner: depot-ubuntu-24.04-4
             filter: --filter=backend
-            args: -- --shard=2/2 --maxWorkers=100%
+            args: -- --shard=2/2 --maxWorkers=75%
           - name: frontend 1/2
             # Frontend tests scale with vitest workers, so 8 vCPU halves the shard time.
             runner: depot-ubuntu-24.04-8
