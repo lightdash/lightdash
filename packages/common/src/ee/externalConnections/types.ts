@@ -257,6 +257,10 @@ export type ExternalConnection = {
     aiHint?: string | null;
     /** The name the connection picker showed for the source's target. */
     targetLabel?: string | null;
+    /** Live sources: the admin's freshness window; null uses the integration's default. */
+    cacheTtlSeconds?: number | null;
+    /** Live sources: results fetched before this are never reused. */
+    cachePurgedAt?: Date | null;
     hasSecret: boolean;
     createdByUserUuid: string | null;
     updatedByUserUuid: string | null;
