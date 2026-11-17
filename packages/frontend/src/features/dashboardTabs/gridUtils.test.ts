@@ -1470,7 +1470,7 @@ describe('add tile slot', () => {
             items,
             cell: { x, y },
             cols: 36,
-            minWidth: 4,
+            minSize: { w: 4, h: 2 },
             defaultSize,
         });
 
@@ -1502,9 +1502,23 @@ describe('add tile slot', () => {
         expect(slotAt(items, 35, 12)).toEqual({ x: 21, y: 9, w: 15, h: 9 });
     });
 
-    it('leaves gaps above the last row alone', () => {
+    it('takes a gap above the last row, bounded by the tiles around it', () => {
         const items = [tile(0, 0, 12, 4), tile(0, 4, 36, 6)];
-        expect(slotAt(items, 20, 2)).toBeNull();
+        expect(slotAt(items, 20, 2)).toEqual({ x: 12, y: 0, w: 24, h: 4 });
+    });
+
+    it('keeps to the last row when the pointer is under it', () => {
+        const items = [tile(0, 0, 12, 4), tile(0, 4, 36, 6)];
+        expect(slotAt(items, 20, 12)).toEqual({ x: 13, y: 10, w: 15, h: 9 });
+    });
+
+    it('skips a gap too short for a tile', () => {
+        const items = [
+            tile(0, 0, 12, 4),
+            tile(12, 0, 24, 3),
+            tile(0, 4, 36, 6),
+        ];
+        expect(slotAt(items, 20, 3)).toBeNull();
     });
 
     it('offers nothing over a tile or on an empty canvas', () => {

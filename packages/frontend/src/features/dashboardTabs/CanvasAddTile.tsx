@@ -73,11 +73,16 @@ const getTargetUnderPointer = ({
     const { tile } = measured;
     const tileRect = measured.node.getBoundingClientRect();
 
+    const cellWidth = tileRect.width / tile.w;
+    const cellHeight = tileRect.height / tile.h;
     const slot = getAddTileSlot({
         items: layout,
         cell: getPointerCell({ pointer: event, tile, tileRect }),
         cols: GRID_DESKTOP_COLS * gridScale,
-        minWidth: MIN_TILE_COLS * gridScale,
+        minSize: {
+            w: MIN_TILE_COLS * gridScale,
+            h: Math.ceil(MIN_PLACEHOLDER_HEIGHT / cellHeight),
+        },
         defaultSize: {
             w: defaultTileSize.w * gridScale,
             h: defaultTileSize.h * gridScale,
@@ -86,8 +91,6 @@ const getTargetUnderPointer = ({
     if (!slot) return null;
 
     const canvasRect = canvas.getBoundingClientRect();
-    const cellWidth = tileRect.width / tile.w;
-    const cellHeight = tileRect.height / tile.h;
     const top = tileRect.top - canvasRect.top + (slot.y - tile.y) * cellHeight;
     return {
         rect: {

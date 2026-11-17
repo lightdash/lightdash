@@ -614,32 +614,32 @@ export const getGapFill = ({
 
 /**
  * Where a tile added from the empty canvas under the pointer would land: the
- * space left in the last row, as tall as the tiles beside it, else a tile of
- * the default size under the last row, centred on the pointer.
+ * gap between tiles under the pointer, else, under the last row, the space left
+ * in that row or a tile of the default size centred on the pointer.
  */
 export const getAddTileSlot = ({
     items,
     cell,
     cols,
-    minWidth,
+    minSize,
     defaultSize,
 }: {
     items: GridSlot[];
     cell: GridCell;
     cols: number;
-    minWidth: number;
+    minSize: Pick<GridSlot, 'w' | 'h'>;
     defaultSize: Pick<GridSlot, 'w' | 'h'>;
 }): GridSlot | null => {
     if (items.length === 0 || cell.x < 0 || cell.x >= cols || cell.y < 0)
         return null;
     const bottom = Math.max(...items.map((item) => item.y + item.h));
     const lastRow = bottom - 1;
-    const isLastRowGap = (space: GridSlot | null): space is GridSlot =>
-        space !== null && space.y + space.h === bottom && space.w >= minWidth;
+    const fitsTile = (space: GridSlot | null): space is GridSlot =>
+        space !== null && space.w >= minSize.w && space.h >= minSize.h;
 
     if (cell.y < bottom) {
         const space = getEmptySpaceAtCell({ items, cell, cols });
-        return isLastRowGap(space) ? space : null;
+        return fitsTile(space) ? space : null;
     }
 
     const lastRowEdges = items
@@ -649,7 +649,7 @@ export const getAddTileSlot = ({
         .map((x) =>
             getEmptySpaceAtCell({ items, cell: { x, y: lastRow }, cols }),
         )
-        .filter(isLastRowGap)
+        .filter(fitsTile)
         .reduce<GridSlot | null>(
             (widest, space) =>
                 widest === null || space.w > widest.w ? space : widest,
