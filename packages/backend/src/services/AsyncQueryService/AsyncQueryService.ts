@@ -13140,7 +13140,7 @@ export class AsyncQueryService extends ProjectService {
             'lightdash.queryUuid': queryUuid,
             'lightdash.projectUuid': projectUuid,
             'lightdash.queryContext': context,
-            'lightdash.apiConnector': connectorType,
+            'lightdash.integration': connectorType,
             'lightdash.limit': limit,
         };
         await this.traceComposerQueryStage(
@@ -13305,7 +13305,7 @@ export class AsyncQueryService extends ProjectService {
                     ) {
                         Sentry.withScope((scope) => {
                             scope.setTag(
-                                'lightdash.apiConnector',
+                                'lightdash.integration',
                                 connectorType,
                             );
                             scope.setTag(
