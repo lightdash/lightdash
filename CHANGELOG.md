@@ -1,3 +1,10 @@
+## [3.276.1](https://github.com/lightdash/lightdash/compare/3.276.0...3.276.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* accept legacy ownership fields in dashboard lint ([#32690](https://github.com/lightdash/lightdash/issues/32690)) ([2a68889](https://github.com/lightdash/lightdash/commit/2a68889ddcfe888a220c285fbb6f593a02d4195f))
+
 # [3.276.0](https://github.com/lightdash/lightdash/compare/3.275.3...3.276.0) (2026-11-17)
 
 
