@@ -585,6 +585,11 @@ const compositeFixtures = [
     ],
     [
         'rest',
+        'SemanticStudioController.sampleMaterialization',
+        [AgentCapability.Query, AgentCapability.RawSql],
+    ],
+    [
+        'rest',
         'SqlRunnerController.getSavedSqlResultsJob',
         [AgentCapability.Query, AgentCapability.RawSql],
     ],

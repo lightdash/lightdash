@@ -1069,6 +1069,20 @@ export const REST_OPERATION_CAPABILITIES = {
     'SemanticStudioController.getDraftImpact': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getDraftUsage': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getFieldUsage': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.draftMaterialization': [
+        AgentCapability.DbtWriteback,
+    ],
+    'SemanticStudioController.getMaterialization': [
+        AgentCapability.ReadDiscover,
+    ],
+    'SemanticStudioController.listMaterializations': [
+        AgentCapability.ReadDiscover,
+    ],
+    'SemanticStudioController.refreshMaterialization': [AgentCapability.Query],
+    'SemanticStudioController.sampleMaterialization': [
+        AgentCapability.Query,
+        AgentCapability.RawSql,
+    ],
     'SemanticStudioController.getModel': [AgentCapability.DbtWriteback],
     'SemanticStudioController.getStoredModels': [AgentCapability.DbtWriteback],
     'SemanticStudioController.listSources': [AgentCapability.DbtWriteback],

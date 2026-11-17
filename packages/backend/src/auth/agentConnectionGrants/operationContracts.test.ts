@@ -17,6 +17,7 @@ import {
 } from './cliOperationInventory';
 import { grantFixture } from './grant.mock';
 import {
+    getGrantOperationContract,
     GRANT_MCP_TOOL_CONTRACTS,
     GRANT_OPERATION_CONTRACTS,
     supportsAgentConnectionCapability,
@@ -120,6 +121,18 @@ it('accounts for every CLI API and fetch call', () => {
         }
     }
 });
+it.each([
+    'listMaterializations',
+    'getMaterialization',
+    'sampleMaterialization',
+    'refreshMaterialization',
+    'draftMaterialization',
+])('keeps Studio %s outside the CLI project grant', (operation) => {
+    expect(
+        getGrantOperationContract(`SemanticStudioController.${operation}`),
+    ).toBeNull();
+});
+
 it('starts with no consented MCP tools', () => {
     expect(Object.keys(GRANT_MCP_TOOL_CONTRACTS)).toEqual([]);
 });
