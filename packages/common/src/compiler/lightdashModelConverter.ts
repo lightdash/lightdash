@@ -98,6 +98,15 @@ export function convertLightdashModelToDbtModel(
         ai_hint: model.ai_hint,
         parameters: model.parameters,
         primary_key: model.primary_key,
+        ...(model.materialize && {
+            materialize: {
+                ...model.materialize,
+                refresh: {
+                    ...model.materialize.refresh,
+                    on_change: model.materialize.refresh?.on_change ?? true,
+                },
+            },
+        }),
         pre_aggregates: model.pre_aggregates,
     };
 

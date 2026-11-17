@@ -14,6 +14,7 @@ describe('getSemanticStudioSystemPrompt', () => {
     it('explains the draft tools on a project that keeps a draft', () => {
         const prompt = getSemanticStudioSystemPrompt({ ...base, dbt: null });
         expect(prompt).toContain('proposeSemanticLayerChange');
+        expect(prompt).toContain('top-level materialize block');
         expect(prompt).not.toContain('editDbtProject');
     });
 

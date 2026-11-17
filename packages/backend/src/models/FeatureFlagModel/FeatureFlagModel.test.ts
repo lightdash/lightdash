@@ -160,6 +160,7 @@ describe('FeatureFlagModel', () => {
         FeatureFlags.DbtPartialParse,
         FeatureFlags.AgentIdentity,
         FeatureFlags.BigqueryWorkloadIdentityAuth,
+        FeatureFlags.SemanticStudioEditing,
     ])('%s production rollout', (featureFlagId) => {
         const config = {
             previewFeatureFlags: { enabled: false },
@@ -220,6 +221,27 @@ describe('FeatureFlagModel', () => {
             },
         );
     });
+    it.each([false, true])(
+        'resolves Studio editing from the organization when its override is %s',
+        async (enabled) => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({
+                    flag: { default_enabled: false },
+                    orgOverride: { enabled },
+                    userOverride: { enabled: !enabled },
+                }),
+            );
+            expect(
+                (
+                    await model.get({
+                        featureFlagId: FeatureFlags.SemanticStudioEditing,
+                        user: dbUser,
+                    })
+                ).enabled,
+            ).toBe(enabled);
+        },
+    );
     describe('check telemetry', () => {
         beforeEach(() => {
             vi.mocked(record).mockReset();

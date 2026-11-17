@@ -82,6 +82,11 @@ the resolver consults stored user/org overrides first so QA can turn it off.
 An ENV-disable without an ENV-enable still takes precedence. Keep tests with
 `previewFeatureFlags.enabled = false` for production behavior.
 
+Semantic Studio editing and app-held model materialization share
+`semantic-studio-editing`. Its database rollout uses the organization override
+and instance default. Personal overrides are ignored. It defaults off, and
+Console changes take effect on the next flag check.
+
 ## Console: Cloud organization rollouts
 
 Lightdash staff manage database flags at [Console](https://console.lightdash.com).
