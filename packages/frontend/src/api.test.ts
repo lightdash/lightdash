@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import {
     EMBED_DASHBOARD_HEADER_NAME,
     JWT_HEADER_NAME,

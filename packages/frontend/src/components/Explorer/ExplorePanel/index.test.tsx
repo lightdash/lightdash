@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { ExploreType, type ApiExploreResults } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

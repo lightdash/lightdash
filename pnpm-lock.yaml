@@ -1755,6 +1755,9 @@ importers:
       eslint-plugin-jest-dom:
         specifier: 5.10.2
         version: 5.10.2(@testing-library/dom@10.4.2)(eslint@8.57.1(supports-color@9.1.0))
+      happy-dom:
+        specifier: 21.0.4
+        version: 21.0.4
       jsdom:
         specifier: 26.1.0
         version: 26.1.0(canvas@3.2.3)(supports-color@9.1.0)
@@ -23499,8 +23502,7 @@ snapshots:
 
   '@types/uuid@10.0.0': {}
 
-  '@types/whatwg-mimetype@3.0.2':
-    optional: true
+  '@types/whatwg-mimetype@3.0.2': {}
 
   '@types/ws@7.4.7':
     dependencies:
@@ -23508,8 +23510,7 @@ snapshots:
 
   '@types/ws@8.18.2':
     dependencies:
-      '@types/node': 24.13.2
-    optional: true
+      '@types/node': 26.5.1
 
   '@typesafe-ai/sdk@0.6.0': {}
 
@@ -24767,8 +24768,7 @@ snapshots:
 
   buffer-image-size@0.6.4:
     dependencies:
-      '@types/node': 24.13.2
-    optional: true
+      '@types/node': 26.5.1
 
   buffer-indexof-polyfill@1.0.2: {}
 
@@ -26061,8 +26061,7 @@ snapshots:
 
   entities@6.0.1: {}
 
-  entities@7.0.1:
-    optional: true
+  entities@7.0.1: {}
 
   entities@8.1.0: {}
 
@@ -27360,7 +27359,7 @@ snapshots:
 
   happy-dom@21.0.4:
     dependencies:
-      '@types/node': 24.13.2
+      '@types/node': 26.5.1
       '@types/whatwg-mimetype': 3.0.2
       '@types/ws': 8.18.2
       buffer-image-size: 0.6.4
@@ -27370,7 +27369,6 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
-    optional: true
 
   has-bigints@1.0.2: {}
 
@@ -33772,8 +33770,7 @@ snapshots:
     dependencies:
       iconv-lite: 0.6.3
 
-  whatwg-mimetype@3.0.0:
-    optional: true
+  whatwg-mimetype@3.0.0: {}
 
   whatwg-mimetype@4.0.0: {}
 
