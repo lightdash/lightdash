@@ -1,6 +1,7 @@
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
+    ConflictError,
     DATA_APP_NEWER_VERSION_CODE,
     DATA_REFERENCE_EXTRACTOR_VERSION,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
@@ -2792,6 +2793,53 @@ describe('importAppCode slug identity', () => {
             'my-app',
         );
         expect(appModel.findApp).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { slug: EXISTING_APP_SLUG, expectedAppUuid: null },
+        { slug: 'historical-alias', expectedAppUuid: EXISTING_APP_UUID },
+    ])(
+        'protects a managed import from a collision or alias: %j',
+        async ({ slug, expectedAppUuid }) => {
+            const { service, appModel, schedulerClient } = buildService();
+            appModel.findAppBySlug.mockResolvedValue(existingAppRow);
+
+            await expect(
+                service.importAppCode(
+                    makeUser(),
+                    PROJECT_UUID,
+                    { code: makeCode(undefined, { slug }) },
+                    { expectedAppUuid },
+                ),
+            ).rejects.toThrow(ConflictError);
+
+            expect(appModel.createVersion).not.toHaveBeenCalled();
+            expect(appModel.updateApp).not.toHaveBeenCalled();
+            expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+        },
+    );
+
+    it('creates a managed app with a transactional ownership hook and no user upload event', async () => {
+        const { service, appModel, analytics } = buildService();
+        const recordOwnership = vi.fn();
+
+        await service.importAppCode(
+            makeUser(),
+            PROJECT_UUID,
+            { code: makeCode(undefined, { slug: NEW_APP_SLUG }) },
+            {
+                expectedAppUuid: null,
+                onNewAppVersionCreated: recordOwnership,
+            },
+        );
+
+        expect(appModel.createWithVersion.mock.calls[0].slice(-2)).toEqual([
+            null,
+            recordOwnership,
+        ]);
+        expect(analytics.track).not.toHaveBeenCalledWith(
+            expect.objectContaining({ event: 'data_app.uploaded' }),
+        );
     });
 
     it('creates with the exact manifest slug when no app has it', async () => {
