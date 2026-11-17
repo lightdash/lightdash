@@ -5,6 +5,7 @@ import {
     type PreAggregateMaterializationSummary,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
+import dayjs from 'dayjs';
 
 // Read in one page; a project with more pre-aggregates than this shows only the first ones.
 export const PRE_AGGREGATES_PAGE_SIZE = 500;
@@ -139,6 +140,34 @@ export const summariseUsage = (
             .slice(0, 5),
     };
 };
+
+/** One model's queries per day over the last `days` days, oldest first, including days with none. */
+export const usageByDay = (
+    stats: {
+        exploreName: string;
+        date: string;
+        hitCount: number;
+        missCount: number;
+    }[],
+    exploreName: string,
+    today: string,
+    days: number,
+) =>
+    Array.from({ length: days }, (_, index) => {
+        const date = dayjs(today)
+            .subtract(days - 1 - index, 'day')
+            .format('YYYY-MM-DD');
+        const ofDay = stats.filter(
+            (stat) =>
+                stat.exploreName === exploreName &&
+                dayjs(stat.date).format('YYYY-MM-DD') === date,
+        );
+        return {
+            date,
+            hits: ofDay.reduce((total, stat) => total + stat.hitCount, 0),
+            misses: ofDay.reduce((total, stat) => total + stat.missCount, 0),
+        };
+    });
 
 /** The widest query a pre-aggregate answers, as a table in Explore, to see it served. */
 export const getPreAggregateQuery = (

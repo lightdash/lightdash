@@ -9,6 +9,7 @@ import {
     getPreAggregateQuery,
     getPreAggregateStatus,
     summariseUsage,
+    usageByDay,
     type LabelledExplore,
 } from './preAggregateSummary';
 
@@ -186,6 +187,40 @@ describe('summariseUsage', () => {
                 count: 2,
                 reason: 'metric_not_in_pre_aggregate',
             },
+        ]);
+    });
+});
+
+describe('usageByDay', () => {
+    it('fills every day of the period for one model, oldest first', () => {
+        const day = (
+            date: string,
+            exploreName: string,
+            hits: number,
+            misses: number,
+        ) => ({
+            exploreName,
+            date,
+            hitCount: hits,
+            missCount: misses,
+        });
+        expect(
+            usageByDay(
+                [
+                    day('2026-11-17', 'orders', 2, 1),
+                    day('2026-11-17', 'orders', 1, 0),
+                    day('2026-11-15', 'orders', 0, 4),
+                    day('2026-11-17', 'customers', 9, 9),
+                    day('2026-11-10', 'orders', 5, 5),
+                ],
+                'orders',
+                '2026-11-17',
+                3,
+            ),
+        ).toEqual([
+            { date: '2026-11-15', hits: 0, misses: 4 },
+            { date: '2026-11-16', hits: 0, misses: 0 },
+            { date: '2026-11-17', hits: 3, misses: 1 },
         ]);
     });
 });

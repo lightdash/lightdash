@@ -16,6 +16,7 @@ import {
     Text,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import dayjs from 'dayjs';
 import { Fragment, type FC } from 'react';
 import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -29,6 +30,7 @@ import { usePreAggregateStats } from '../../hooks/usePreAggregateStats';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import { formatDuration, formatFileSize } from '../../utils/formatters';
 import { VIEW_PARAM } from './modelCode';
+import { PreAggregateSample, UsageByDayChart } from './PreAggregateInsights';
 import {
     describeRefresh,
     getFieldLabel,
@@ -36,6 +38,7 @@ import {
     getPreAggregateStatus,
     PRE_AGGREGATES_PAGE_SIZE as PAGE_SIZE,
     summariseUsage,
+    usageByDay,
 } from './preAggregateSummary';
 
 const STATS_DAYS = 7;
@@ -173,6 +176,13 @@ const PreAggregateCard: FC<{
                         </Text>
                     ) : null}
                 </Box>
+                {explore && status.label === 'Ready' ? (
+                    <PreAggregateSample
+                        projectUuid={projectUuid}
+                        summary={summary}
+                        baseTable={explore.baseTable}
+                    />
+                ) : null}
                 <Box>
                     <Text
                         fz="xs"
@@ -244,10 +254,10 @@ export const ModelPreAggregates: FC<{
     const summaries = (materializations.data?.pages ?? [])
         .flatMap((page) => page.data.materializations)
         .filter((summary) => summary.sourceExploreName === exploreName);
-    const usage = summariseUsage(
-        (stats.data?.pages ?? []).flatMap((page) => page.data.stats),
-        exploreName,
+    const allStats = (stats.data?.pages ?? []).flatMap(
+        (page) => page.data.stats,
     );
+    const usage = summariseUsage(allStats, exploreName);
     const total = usage.hits + usage.misses;
     return (
         <Stack gap="md">
@@ -268,6 +278,16 @@ export const ModelPreAggregates: FC<{
                                     %)
                                 </Text>
                             </Text>
+                            <Box mt="sm">
+                                <UsageByDayChart
+                                    days={usageByDay(
+                                        allStats,
+                                        exploreName,
+                                        dayjs().format('YYYY-MM-DD'),
+                                        STATS_DAYS,
+                                    )}
+                                />
+                            </Box>
                         </Box>
                         {usage.topMisses.length > 0 ? (
                             <Box>
