@@ -173,6 +173,25 @@ describe('GuidedFilterSetupOverlay', () => {
         expectMetricColor();
     });
 
+    it('leaves out the rules that do not apply', () => {
+        storeValues.dashboardFilters!.dimensions = [
+            unmetRule,
+            { ...unmetRule, id: 'filter-2', label: 'Other tab filter' },
+        ];
+
+        renderWithProviders(
+            <GuidedFilterSetupOverlay
+                doesRuleApply={(members) =>
+                    members.some((member) => member.id === 'filter-1')
+                }
+                onDismiss={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByText('0 of 1 set')).not.toBeNull();
+        expect(screen.queryByText('Other tab filter')).toBeNull();
+    });
+
     it('renders the guided setup with the unmet rule and requirement progress', () => {
         renderWithProviders(<GuidedFilterSetupOverlay onDismiss={vi.fn()} />);
 
