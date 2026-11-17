@@ -968,23 +968,48 @@ describe('DataAppVizRenderer', () => {
         );
     });
 
-    it.each([
-        ['a chart version', { chartVersionUuid: 'chart-version-uuid' }],
-        ['an embed', { embedToken: 'embed-token' }],
+    it.each<{
+        label: string;
+        chartVersionUuid: string | undefined;
+        embedToken: string | undefined;
+    }>([
+        {
+            label: 'a chart version',
+            chartVersionUuid: 'chart-version-uuid',
+            embedToken: undefined,
+        },
+        {
+            label: 'an embed',
+            chartVersionUuid: undefined,
+            embedToken: 'embed-token',
+        },
     ])(
-        'never asks external fetches for the draft from %s',
-        (_label, target) => {
+        'never asks external fetches for the draft from $label',
+        ({ chartVersionUuid, embedToken }) => {
             mocks.vizContextOverrides.current = {
                 hasUnpublishedChanges: true,
             };
-            mocks.chartVersionUuid.current = target.chartVersionUuid;
-            mocks.embedToken.current = target.embedToken;
+            mocks.chartVersionUuid.current = chartVersionUuid;
+            mocks.embedToken.current = embedToken;
 
             renderRenderer();
 
-            expect(
-                mocks.iframePreview.mock.lastCall?.[0].chartContext,
-            ).not.toHaveProperty('includeUnpublishedDraft');
+            expect(mocks.iframePreview).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    chartContext: expect.objectContaining({
+                        savedChartUuid: 'saved-chart-uuid',
+                    }),
+                }),
+                undefined,
+            );
+            expect(mocks.iframePreview).not.toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    chartContext: expect.objectContaining({
+                        includeUnpublishedDraft: true,
+                    }),
+                }),
+                undefined,
+            );
         },
     );
 
