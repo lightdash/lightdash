@@ -186,6 +186,17 @@ export const withAnswerEvidence = (
             });
             return result;
         },
+        runComposerChartQuery: async (args) => {
+            const result = await dependencies.runComposerChartQuery(args);
+            evidence.record({
+                ...result,
+                fields: {},
+                maxContextRows: 50,
+                limit: result.rowCount,
+                scope: args,
+            });
+            return result;
+        },
         runSqlJob: async (args) => {
             const result = await dependencies.runSqlJob(args);
             evidence.record({

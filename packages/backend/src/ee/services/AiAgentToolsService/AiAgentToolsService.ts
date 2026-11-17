@@ -38,6 +38,7 @@ import {
     getTileControl,
     getValidAiQueryLimit,
     isDashboardChartTileType,
+    isDashboardComposerChartTile,
     isDashboardSqlChartTile,
     isDimension,
     isExploreError,
@@ -127,6 +128,7 @@ import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQuer
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import type { ComposerChartService } from '../../../services/ComposerChartService/ComposerChartService';
 import { ContentService } from '../../../services/ContentService/ContentService';
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
 import {
@@ -159,6 +161,7 @@ import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import type { ApproveSqlFn } from '../ai/tools/sqlApprovals';
 import {
     AnalyzeFieldImpactFn,
+    ComposerChartSummary,
     ComposerNodeStatus,
     ComposerNodeStatusUpdate,
     ComposerRunningOutcome,
@@ -177,6 +180,7 @@ import {
     FindFieldFn,
     FindFieldsFn,
     GenerateDataAppFn,
+    GetComposerChartFn,
     GetDashboardChartsFn,
     GetDataAppBuildStatusFn,
     GetExploreFn,
@@ -198,6 +202,7 @@ import {
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
     RunAsyncQueryFn,
+    RunComposerChartQueryFn,
     RunComposerQueriesFn,
     RunComposerQueriesUntilDeadlineFn,
     RunSavedChartQueryFn,
@@ -360,6 +365,7 @@ export type AiAgentToolsRuntime = {
     runAsyncQuery: RunAsyncQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlChartQuery: RunSqlChartQueryFn;
+    runComposerChartQuery: RunComposerChartQueryFn;
     runSqlJob: RunSqlJobFn;
     runComposerQueries: RunComposerQueriesFn;
     runComposerQueriesUntilDeadline: RunComposerQueriesUntilDeadlineFn;
@@ -386,6 +392,7 @@ export type AiAgentToolsRuntime = {
     >;
     getSavedChart: GetSavedChartFn;
     getSqlChart: GetSqlChartFn;
+    getComposerChart: GetComposerChartFn;
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
     loadSkill: LoadAgentSkillFn;
@@ -410,6 +417,7 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     runAsyncQuery: 'runQuery',
     runSavedChartQuery: 'runSavedChart',
     runSqlChartQuery: 'runSql',
+    runComposerChartQuery: 'runContentQuery',
     runSqlJob: 'runSql',
     runComposerQueries: 'query',
     runComposerQueriesUntilDeadline: 'query',
@@ -432,6 +440,7 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     getKnowledgeDocumentContent: 'getKnowledgeDocumentContent',
     getSavedChart: 'readContent',
     getSqlChart: 'readContent',
+    getComposerChart: 'readContent',
     listProjects: 'listProjects',
     getProjectInfo: 'getProjectInfo',
     loadSkill: 'loadSkill',
@@ -527,6 +536,7 @@ type AiAgentToolsServiceDependencies = {
     dashboardModel: DashboardModel;
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
+    composerChartService: Pick<ComposerChartService, 'get' | 'run'>;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
     contentService: ContentService;
@@ -602,6 +612,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly savedChartService: SavedChartService;
 
     private readonly savedSqlService: SavedSqlService;
+
+    private readonly composerChartService: AiAgentToolsServiceDependencies['composerChartService'];
 
     private readonly savedChartModel: SavedChartModel;
 
@@ -713,6 +725,7 @@ export class AiAgentToolsService extends BaseService {
         dashboardModel,
         savedChartService,
         savedSqlService,
+        composerChartService,
         savedChartModel,
         coderService,
         contentService,
@@ -752,6 +765,7 @@ export class AiAgentToolsService extends BaseService {
         this.dashboardModel = dashboardModel;
         this.savedChartService = savedChartService;
         this.savedSqlService = savedSqlService;
+        this.composerChartService = composerChartService;
         this.savedChartModel = savedChartModel;
         this.coderService = coderService;
         this.contentService = contentService;
@@ -1029,6 +1043,8 @@ export class AiAgentToolsService extends BaseService {
                 this.runSavedChartQuery(context, args),
             runSqlJob: (args) => this.runSqlJob(context, args),
             runSqlChartQuery: (args) => this.runSqlChartQuery(context, args),
+            runComposerChartQuery: (args) =>
+                this.runComposerChartQuery(context, args),
             runComposerQueries: async (args) => {
                 const run = await this.runComposerQueries(context, {
                     ...args,
@@ -1072,6 +1088,10 @@ export class AiAgentToolsService extends BaseService {
             getSavedChart: (chartUuid) =>
                 this.getSavedChartForRuntime(context, chartUuid),
             getSqlChart: (slug) => this.getSqlChartForRuntime(context, slug),
+            getComposerChart: (args) =>
+                this.getComposerChartForRuntime(context, args).then(
+                    ({ summary }) => summary,
+                ),
             listProjects: () => this.listProjects(context),
             getProjectInfo: () => this.getProjectInfo(context),
             loadSkill: (name) => this.loadAgentSkill(name),
@@ -3193,6 +3213,8 @@ export class AiAgentToolsService extends BaseService {
                     case 'chart':
                     case 'sql_chart':
                         return this.readContentAsCode(context, { slug, type });
+                    case 'composer_chart':
+                        return this.readComposerChartAsCode(context, slug);
                     case 'data_app': {
                         const source =
                             await this.appGenerateService.readDataApp(
@@ -3221,6 +3243,49 @@ export class AiAgentToolsService extends BaseService {
                 }
             },
         );
+    }
+
+    /** Viewing follows the chart's dashboard; the agent's spaces scope the dashboard's space. */
+    private async readComposerChartAsCode(
+        context: AiAgentToolsRuntimeContext,
+        slug: string,
+        action: 'read' | 'update' = 'read',
+    ): Promise<
+        Extract<Awaited<ReturnType<ReadContentFn>>, { type: 'composer_chart' }>
+    > {
+        const notFound = `Composer chart "${slug}" was not found`;
+        const { account } = context;
+        assertRegisteredAccount(account);
+        const { composerCharts } =
+            await this.coderService.getComposerChartsForRead(
+                account,
+                context.projectUuid,
+                [slug],
+            );
+        const composerChart = composerCharts[0];
+        if (!composerChart) {
+            throw new NotFoundError(notFound);
+        }
+        await this.assertContentSpaceInScope(
+            context,
+            composerChart.spaceSlug,
+            notFound,
+            action,
+        );
+        const dashboard = await this.dashboardService.getByIdOrSlug(
+            context.user,
+            composerChart.dashboardSlug,
+            { projectUuid: context.projectUuid },
+        );
+        return {
+            type: 'composer_chart',
+            content: composerChart,
+            href: AiAgentToolsService.getContentUrl(
+                context,
+                'dashboard',
+                dashboard.uuid,
+            ),
+        };
     }
 
     private async readContentAsCode(
@@ -4753,6 +4818,102 @@ export class AiAgentToolsService extends BaseService {
                     )),
                     sqlChart: summary,
                     limit: effectiveLimit,
+                };
+            },
+        );
+    }
+
+    /** The composer chart on that dashboard's tile, checked as its tile is: dashboard in the agent's spaces, view through the dashboard. */
+    private getComposerChartForRuntime(
+        context: AiAgentToolsRuntimeContext,
+        { chartSlug, dashboardSlug }: Parameters<GetComposerChartFn>[0],
+    ) {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.getComposerChart`,
+            { chartSlug, dashboardSlug },
+            async () => {
+                const dashboard = await this.dashboardService.getByIdOrSlug(
+                    context.user,
+                    dashboardSlug,
+                    { projectUuid: context.projectUuid },
+                );
+                AiAgentToolsService.assertSpaceInAgentScope(
+                    context,
+                    dashboard.spaceUuid,
+                    `Dashboard not found: ${dashboardSlug}`,
+                );
+                const tile = dashboard.tiles
+                    .filter(isDashboardComposerChartTile)
+                    .find(
+                        (composerTile) =>
+                            composerTile.properties.chartSlug === chartSlug,
+                    );
+                const composerChartUuid = tile?.properties.composerChartUuid;
+                if (!tile || !composerChartUuid) {
+                    throw new NotFoundError(
+                        `Composer chart ${chartSlug} not found on dashboard ${dashboardSlug}`,
+                    );
+                }
+                const { account } = context;
+                assertRegisteredAccount(account);
+                const chart = await this.composerChartService.get(
+                    account,
+                    context.projectUuid,
+                    composerChartUuid,
+                );
+                const summary: ComposerChartSummary = {
+                    uuid: chart.uuid,
+                    slug: chart.slug,
+                    name: chart.name,
+                    terminalNodeId: chart.pipeline.terminalNodeId,
+                };
+                return { summary, dashboard, tileUuid: tile.uuid };
+            },
+        );
+    }
+
+    /** A bound run, as the dashboard tile runs it, with the dashboard's saved filters. */
+    private runComposerChartQuery(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<RunComposerChartQueryFn>[0],
+    ): ReturnType<RunComposerChartQueryFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.runComposerChartQuery`,
+            args,
+            async () => {
+                const { summary, dashboard, tileUuid } =
+                    await this.getComposerChartForRuntime(context, args);
+                const { account } = context;
+                assertRegisteredAccount(account);
+                await context.onWarehouseQuery?.();
+                const { queries } = await this.composerChartService.run(
+                    account,
+                    context.projectUuid,
+                    summary.uuid,
+                    {
+                        dashboardUuid: dashboard.uuid,
+                        tileUuid,
+                        dashboardFilters: dashboard.filters,
+                        parameters: {},
+                        excludedParameterKeys: [],
+                        invalidateCache: context.invalidateQueryCache ?? false,
+                    },
+                );
+                const terminal = queries.find(
+                    ({ nodeId }) => nodeId === summary.terminalNodeId,
+                );
+                if (!terminal) {
+                    throw new UnexpectedServerError(
+                        `Composer chart "${summary.slug}" ran without its final node`,
+                    );
+                }
+                return {
+                    ...(await this.waitForSqlResults(
+                        context,
+                        terminal.queryUuid,
+                        this.lightdashConfig.ai.copilot.maxQueryLimit,
+                    )),
+                    composerChart: summary,
                 };
             },
         );

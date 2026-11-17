@@ -147,6 +147,7 @@ const makeService = ({
     dashboardService = {},
     savedChartService = {},
     savedSqlService = {},
+    composerChartService = {},
     asyncQueryService = {},
     coderService = {},
     aiAgentContentValidation = {},
@@ -188,6 +189,7 @@ const makeService = ({
     dashboardService?: Record<string, unknown>;
     savedChartService?: Record<string, unknown>;
     savedSqlService?: Record<string, unknown> | SavedSqlService;
+    composerChartService?: Record<string, unknown>;
     asyncQueryService?: Record<string, unknown>;
     coderService?: Record<string, unknown>;
     aiAgentContentValidation?:
@@ -276,6 +278,7 @@ const makeService = ({
         dashboardService,
         savedChartService,
         savedSqlService,
+        composerChartService,
         coderService,
         contentService,
         aiAgentContentValidation,
@@ -3444,6 +3447,204 @@ describe('AiAgentToolsService', () => {
             expect(upsertChart.mock.calls[0][3]).toMatchObject({
                 merge: { join: 'inner' },
             });
+        });
+    });
+
+    describe('composer charts', () => {
+        const composerChartAsCode = {
+            contentType: 'composer_chart',
+            version: 1,
+            slug: 'revenue-vs-target',
+            name: 'Revenue vs target',
+            description: null,
+            dashboardSlug: 'sales',
+            spaceSlug: 'allowed-space',
+            pipeline: { schemaVersion: 1, terminalNodeId: 'joined', nodes: [] },
+            chart: { schemaVersion: 1, columns: [] },
+        };
+        const composerTile = {
+            uuid: 'tile-uuid',
+            type: 'composer_chart',
+            properties: {
+                composerChartUuid: 'composer-chart-uuid',
+                chartName: 'Revenue vs target',
+                chartSlug: 'revenue-vs-target',
+            },
+        };
+        const salesDashboard = {
+            uuid: 'dashboard-uuid',
+            slug: 'sales',
+            spaceUuid: 'allowed-space-uuid',
+            filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [composerTile],
+        };
+        const storedComposerChart = {
+            uuid: 'composer-chart-uuid',
+            slug: 'revenue-vs-target',
+            name: 'Revenue vs target',
+            pipeline: { terminalNodeId: 'joined', nodes: [] },
+        };
+        const makeComposerService = ({
+            spaceModel,
+            getComposerChartsForRead = vi.fn().mockResolvedValue({
+                composerCharts: [composerChartAsCode],
+            }),
+        }: {
+            spaceModel?: Record<string, unknown>;
+            getComposerChartsForRead?: import('vitest').Mock;
+        } = {}) => {
+            const run = vi.fn().mockResolvedValue({
+                queries: [
+                    {
+                        nodeId: 'orders',
+                        sourceType: 'semantic_layer',
+                        queryUuid: 'orders-query',
+                    },
+                    {
+                        nodeId: 'joined',
+                        sourceType: 'sql',
+                        queryUuid: 'joined-query',
+                    },
+                ],
+            });
+            const getAsyncQueryResults = vi.fn().mockResolvedValue({
+                status: QueryHistoryStatus.READY,
+                columns: { month: {}, revenue: {} },
+                rows: [{ month: '2026-01', revenue: 120 }],
+            });
+            const service = makeService({
+                spaceModel,
+                coderService: { getComposerChartsForRead },
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(salesDashboard),
+                },
+                composerChartService: {
+                    get: vi.fn().mockResolvedValue(storedComposerChart),
+                    run,
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults,
+                    getQueryExecutionStats: vi.fn().mockResolvedValue(null),
+                },
+            });
+            return { service, run, getAsyncQueryResults };
+        };
+
+        it('reads a composer chart as code, linked to its dashboard', async () => {
+            const { service } = makeComposerService();
+
+            const read = await service
+                .createRuntime(makeRuntimeContext())
+                .readContent({
+                    type: 'composer_chart',
+                    slug: 'revenue-vs-target',
+                });
+
+            expect(read).toEqual({
+                type: 'composer_chart',
+                content: composerChartAsCode,
+                href: `/projects/${projectUuid}/dashboards/dashboard-uuid/view#dashboard-link`,
+            });
+        });
+
+        it('hides a composer chart whose dashboard is outside the agent spaces', async () => {
+            const { service } = makeComposerService({
+                spaceModel: {
+                    hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(false),
+                },
+            });
+
+            await expect(
+                service
+                    .createRuntime(
+                        makeRuntimeContext({ spaceAccess: ['other-space'] }),
+                    )
+                    .readContent({
+                        type: 'composer_chart',
+                        slug: 'revenue-vs-target',
+                    }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('reports a slug no composer chart has as not found', async () => {
+            const { service } = makeComposerService({
+                getComposerChartsForRead: vi
+                    .fn()
+                    .mockResolvedValue({ composerCharts: [] }),
+            });
+
+            await expect(
+                service
+                    .createRuntime(makeRuntimeContext())
+                    .readContent({ type: 'composer_chart', slug: 'orders' }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('runs a composer chart on its dashboard tile with the dashboard filters and returns its final node rows', async () => {
+            const { service, run, getAsyncQueryResults } =
+                makeComposerService();
+
+            const result = await service
+                .createRuntime(makeRuntimeContext())
+                .runComposerChartQuery({
+                    chartSlug: 'revenue-vs-target',
+                    dashboardSlug: 'sales',
+                });
+
+            expect(run).toHaveBeenCalledExactlyOnceWith(
+                account,
+                projectUuid,
+                'composer-chart-uuid',
+                {
+                    dashboardUuid: 'dashboard-uuid',
+                    tileUuid: 'tile-uuid',
+                    dashboardFilters: salesDashboard.filters,
+                    parameters: {},
+                    excludedParameterKeys: [],
+                    invalidateCache: false,
+                },
+            );
+            expect(getAsyncQueryResults).toHaveBeenCalledWith(
+                expect.objectContaining({ queryUuid: 'joined-query' }),
+            );
+            expect(result).toMatchObject({
+                rows: [{ month: '2026-01', revenue: 120 }],
+                columns: ['month', 'revenue'],
+                composerChart: {
+                    uuid: 'composer-chart-uuid',
+                    terminalNodeId: 'joined',
+                },
+            });
+        });
+
+        it('refuses to run a composer chart its dashboard does not show', async () => {
+            const { service, run } = makeComposerService();
+
+            await expect(
+                service
+                    .createRuntime(makeRuntimeContext())
+                    .runComposerChartQuery({
+                        chartSlug: 'another-chart',
+                        dashboardSlug: 'sales',
+                    }),
+            ).rejects.toThrow(NotFoundError);
+            expect(run).not.toHaveBeenCalled();
+        });
+
+        it('refuses to run a composer chart on a dashboard outside the agent spaces', async () => {
+            const { service, run } = makeComposerService();
+
+            await expect(
+                service
+                    .createRuntime(
+                        makeRuntimeContext({ spaceAccess: ['other-space'] }),
+                    )
+                    .runComposerChartQuery({
+                        chartSlug: 'revenue-vs-target',
+                        dashboardSlug: 'sales',
+                    }),
+            ).rejects.toThrow(NotFoundError);
+            expect(run).not.toHaveBeenCalled();
         });
     });
 

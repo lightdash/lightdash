@@ -3573,6 +3573,34 @@ export class CoderService extends BaseService {
             projectUuid,
             'You are not allowed to download composer charts',
         );
+        return this.findComposerChartsAsCode(
+            account,
+            projectUuid,
+            slugs,
+            offset,
+        );
+    }
+
+    /** Slug-list read for AI/MCP read_content: no export gate; view through the chart's dashboard still applies. */
+    async getComposerChartsForRead(
+        account: RegisteredAccount,
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
+        return this.findComposerChartsAsCode(
+            account,
+            projectUuid,
+            slugs,
+            undefined,
+        );
+    }
+
+    private async findComposerChartsAsCode(
+        account: RegisteredAccount,
+        projectUuid: string,
+        slugs: string[] | undefined,
+        offset: number | undefined,
+    ): Promise<ApiComposerChartAsCodeListResponse['results']> {
         const charts = await this.composerChartModel.findForCode(
             projectUuid,
             slugs,

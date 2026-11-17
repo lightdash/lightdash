@@ -2119,6 +2119,8 @@ export const getAgentTools = (
                 getSavedChart: dependencies.getSavedChart,
                 runSqlChartQuery: queryDependencies.runSqlChartQuery,
                 getSqlChart: dependencies.getSqlChart,
+                runComposerChartQuery: queryDependencies.runComposerChartQuery,
+                getComposerChart: dependencies.getComposerChart,
                 validateContent: dependencies.validateContent,
                 maxLimit: args.maxQueryLimit,
                 maxContextRows: args.maxContextRows,

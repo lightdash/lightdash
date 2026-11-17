@@ -175,6 +175,8 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             getSavedChart: noop,
             getSqlChart: noop,
             runSqlChartQuery: noop,
+            getComposerChart: noop,
+            runComposerChartQuery: noop,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
             runAsyncQuery: noop,

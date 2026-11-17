@@ -50,39 +50,41 @@ const storedChart = (uuid: string): AnyType => ({
     updatedAt: new Date(),
 });
 
+const makeService = () => {
+    const assertCanView = vi.fn(
+        async (_account: unknown, _project: string, uuid: string) => {
+            if (uuid === 'hidden') throw new ForbiddenError();
+            return { organizationUuid: ORG_UUID, dashboardUuid: uuid };
+        },
+    );
+    return new CoderService({
+        lightdashConfig: { contentAsCode: { maxDownloads: 100 } },
+        projectModel: {
+            getSummary: vi.fn(async () => ({ organizationUuid: ORG_UUID })),
+        },
+        spaceModel: {
+            find: vi.fn(async () => [{ uuid: 'space-uuid', path: 'jaffle' }]),
+        },
+        appModel: { findAppsByUuids: vi.fn(async () => []) },
+        composerChartModel: {
+            findForCode: vi.fn(
+                async (): Promise<ComposerChart[]> => [
+                    storedChart('visible'),
+                    storedChart('hidden'),
+                ],
+            ),
+        },
+        composerChartService: { assertCanView },
+    } as AnyType);
+};
+
+const account = { user: { userUuid: user.userUuid } } as RegisteredAccount;
+
 describe('CoderService composer chart download', () => {
     it('leaves out a chart whose dashboard the caller cannot view', async () => {
-        const assertCanView = vi.fn(
-            async (_account: unknown, _project: string, uuid: string) => {
-                if (uuid === 'hidden') throw new ForbiddenError();
-                return { organizationUuid: ORG_UUID, dashboardUuid: uuid };
-            },
-        );
-        const service = new CoderService({
-            lightdashConfig: { contentAsCode: { maxDownloads: 100 } },
-            projectModel: {
-                getSummary: vi.fn(async () => ({ organizationUuid: ORG_UUID })),
-            },
-            spaceModel: {
-                find: vi.fn(async () => [
-                    { uuid: 'space-uuid', path: 'jaffle' },
-                ]),
-            },
-            appModel: { findAppsByUuids: vi.fn(async () => []) },
-            composerChartModel: {
-                findForCode: vi.fn(
-                    async (): Promise<ComposerChart[]> => [
-                        storedChart('visible'),
-                        storedChart('hidden'),
-                    ],
-                ),
-            },
-            composerChartService: { assertCanView },
-        } as AnyType);
-
-        const result = await service.getComposerCharts(
+        const result = await makeService().getComposerCharts(
             user,
-            { user: { userUuid: user.userUuid } } as RegisteredAccount,
+            account,
             PROJECT_UUID,
             undefined,
             undefined,
@@ -92,5 +94,37 @@ describe('CoderService composer chart download', () => {
             'visible',
         ]);
         expect(result.total).toBe(1);
+    });
+
+    it('refuses a download without the content as code permission', async () => {
+        const viewer = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([]),
+        } as unknown as SessionUser;
+
+        await expect(
+            makeService().getComposerCharts(
+                viewer,
+                account,
+                PROJECT_UUID,
+                undefined,
+                undefined,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('CoderService composer chart read for the agent', () => {
+    it('reads without the content as code permission and still hides charts on dashboards the caller cannot view', async () => {
+        const result = await makeService().getComposerChartsForRead(
+            account,
+            PROJECT_UUID,
+            ['visible', 'hidden'],
+        );
+
+        expect(result.composerCharts.map(({ slug }) => slug)).toEqual([
+            'visible',
+        ]);
+        expect(result.missingIds).toEqual(['hidden']);
     });
 });
