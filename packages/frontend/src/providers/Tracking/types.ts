@@ -604,6 +604,7 @@ type AiAgentChartExploredEvent = {
 export type AiAgentAskClickedSource =
     | 'dashboard_header'
     | 'dashboard_chart_tile'
+    | 'dashboard_sql_chart_tile'
     | 'saved_chart_header'
     | 'resource_action_menu'
     | 'data_app_header'

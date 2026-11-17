@@ -387,6 +387,7 @@ import {
 } from '../../../services/QuerySourceService/live/explores/build';
 import { type QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
+import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
@@ -1068,6 +1069,7 @@ type AiAgentServiceDependencies = {
     dashboardService: DashboardService;
     documentService: DocumentService;
     savedChartService: SavedChartService;
+    savedSqlService: SavedSqlService;
     contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     aiCreditService: Pick<AiCreditService, 'assertAiCreditsAvailable'>;
@@ -1437,6 +1439,8 @@ export class AiAgentService extends BaseService {
 
     private readonly documentService: DocumentService;
 
+    private readonly savedSqlService: SavedSqlService;
+
     private readonly savedChartService: SavedChartService;
 
     private readonly contentService: ContentService;
@@ -1694,6 +1698,9 @@ export class AiAgentService extends BaseService {
                 case 'document':
                     key = `document:${item.documentUuid}`;
                     break;
+                case 'sql_chart':
+                    key = `sql_chart:${item.sqlChartUuid}`;
+                    break;
                 case 'design':
                     key = designContextKey(item.designUuid);
                     break;
@@ -1938,6 +1945,24 @@ export class AiAgentService extends BaseService {
                     );
                 }
 
+                if (item.type === 'sql_chart') {
+                    // Checks project and space access for this user.
+                    const sqlChart = await this.savedSqlService.getSqlChart(
+                        user,
+                        agent.projectUuid,
+                        item.sqlChartUuid,
+                    );
+                    if (
+                        allowedSpaces &&
+                        !allowedSpaces.has(sqlChart.space.uuid)
+                    ) {
+                        throw new ForbiddenError(
+                            'Pinned SQL chart is outside the embedded space',
+                        );
+                    }
+                    return;
+                }
+
                 if (item.type === 'document') {
                     // Checks project and space access for this user.
                     const document = await this.documentService.get(
@@ -2140,6 +2165,7 @@ export class AiAgentService extends BaseService {
         this.coderService = dependencies.coderService;
         this.dashboardService = dependencies.dashboardService;
         this.documentService = dependencies.documentService;
+        this.savedSqlService = dependencies.savedSqlService;
         this.savedChartService = dependencies.savedChartService;
         this.contentService = dependencies.contentService;
         this.prometheusMetrics = dependencies.prometheusMetrics;
@@ -13211,6 +13237,11 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.appSlug ?? '(slug unavailable)';
                     return `- Data app "${name}" (dataAppSlug: ${slugText})`;
+                }
+                case 'sql_chart': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText = item.sqlChartSlug ?? '(slug unavailable)';
+                    return `- SQL chart "${name}" (sqlChartSlug: ${slugText}) — the SQL chart the user asked about. When the user says "this" or asks for a change without naming content, they mean this chart. Read it with readContent (type sql_chart, slug) before answering or editing, and save changes with editContent (type sql_chart).`;
                 }
                 case 'document': {
                     const name = item.displayName ?? '(name unavailable)';

@@ -365,6 +365,34 @@ describe('AI context compaction helpers', () => {
         );
     });
 
+    it('serializes a pinned SQL chart so the summary keeps its slug', () => {
+        const serialized = Compaction.serializeConversation([
+            {
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'Make this a bar chart.',
+                createdAt: new Date().toISOString(),
+                user: { uuid: 'user-1', name: 'Test User' },
+                context: [
+                    {
+                        type: 'sql_chart',
+                        sqlChartUuid: 'sql-1',
+                        sqlChartSlug: 'revenue-sql',
+                        displayName: 'Revenue SQL',
+                        pinnedVersionUuid: null,
+                    },
+                ],
+                steers: [],
+                hidden: false,
+            },
+        ]);
+
+        expect(serialized).toContain(
+            'SQL chart Revenue SQL (revenue-sql; read it with readContent type sql_chart)',
+        );
+    });
+
     it('filters raw prompt rows after the latest compaction boundary', () => {
         const filtered = Compaction.filterThreadMessagesAfterCompaction(
             [

@@ -21,6 +21,9 @@ import {
     useState,
     type FC,
 } from 'react';
+import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
+import { AskAiAgentMenuItem } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import {
     selectInvalidateCache,
     selectParameterValues,
@@ -54,6 +57,7 @@ interface Props extends Pick<
     'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
 > {
     tile: DashboardSqlChartTile;
+    /** Hides the Ask AI action; the tile chrome itself stays unchanged. */
     minimal?: boolean;
     /**
      * Render via the embed-only API surface (JWT-authorized via dashboard
@@ -94,11 +98,13 @@ const SqlChartTile: FC<Props> = ({
     tile,
     isEditMode,
     isEmbed,
+    minimal,
     projectUuidOverride,
     dashboardUuidOverride,
     ...rest
 }) => {
     const { user } = useApp();
+    const isEmbedded = useIsEmbedded();
     const projectUuid = useProjectUuid();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const effectiveProjectUuid = projectUuidOverride ?? projectUuid;
@@ -350,6 +356,20 @@ const SqlChartTile: FC<Props> = ({
         );
     }
 
+    const canAskAi = !minimal && !isEmbedded;
+    const askAiProps = {
+        projectUuid: effectiveProjectUuid,
+        sqlChartUuid: chartData.savedSqlUuid,
+        dashboardUuid: effectiveDashboardUuid,
+        clickedFrom: 'dashboard_sql_chart_tile',
+    } as const;
+    const askAiTileActions = canAskAi
+        ? {
+              titleLeftIcon: <AskAiAgentButton {...askAiProps} />,
+              mobileMenuItems: <AskAiAgentMenuItem {...askAiProps} />,
+          }
+        : {};
+
     // Chart data but no results
     if (chartResultsData === undefined) {
         return (
@@ -365,6 +385,7 @@ const SqlChartTile: FC<Props> = ({
                     connections,
                     chartData.warehouseConnectionUuid,
                 )}
+                {...askAiTileActions}
                 {...rest}
                 titleHref={`/projects/${effectiveProjectUuid}/sql-runner/${chartData.slug}`}
                 extraMenuItems={
@@ -411,6 +432,7 @@ const SqlChartTile: FC<Props> = ({
                 chartData.warehouseConnectionUuid,
             )}
             fullWidth={chartData.config.type === ChartKind.TABLE}
+            {...askAiTileActions}
             {...rest}
             extraMenuItems={
                 effectiveProjectUuid &&

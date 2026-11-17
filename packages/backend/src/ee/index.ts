@@ -877,6 +877,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardService: repository.getDashboardService(),
                     documentService: repository.getDocumentService(),
                     savedChartService: repository.getSavedChartService(),
+                    savedSqlService: repository.getSavedSqlService(),
                     contentService: repository.getContentService(),
                     aiCreditService:
                         repository.getAiCreditService<AiCreditService>(),

@@ -12,6 +12,7 @@ export type LauncherDockItem = {
 
 export type LauncherPendingContext = {
     chartUuid?: string;
+    sqlChartUuid?: string;
     dashboardUuid?: string;
     dataAppUuid?: string;
     documentUuid?: string;

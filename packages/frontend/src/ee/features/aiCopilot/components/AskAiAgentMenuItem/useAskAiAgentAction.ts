@@ -20,6 +20,7 @@ export type AskAiAgentMode = 'panel' | 'navigate';
 type Args = {
     projectUuid: string | undefined;
     chartUuid?: string;
+    sqlChartUuid?: string;
     dashboardUuid?: string;
     dataAppUuid?: string;
     clickedFrom: AiAgentAskClickedSource;
@@ -36,6 +37,7 @@ type Args = {
 export const useAskAiAgentAction = ({
     projectUuid,
     chartUuid,
+    sqlChartUuid,
     dashboardUuid,
     dataAppUuid,
     clickedFrom,
@@ -69,8 +71,8 @@ export const useAskAiAgentAction = ({
             },
         });
         const pendingContext =
-            chartUuid || dashboardUuid || dataAppUuid
-                ? { chartUuid, dashboardUuid, dataAppUuid }
+            chartUuid || sqlChartUuid || dashboardUuid || dataAppUuid
+                ? { chartUuid, sqlChartUuid, dashboardUuid, dataAppUuid }
                 : null;
         switch (mode) {
             case 'panel':

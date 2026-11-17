@@ -85,6 +85,7 @@ const AgentsRouterPage = () => {
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
+    const sqlChartUuid = searchParams.get('sqlChartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
     const dataAppUuid = searchParams.get('dataAppUuid');
     const documentUuid = searchParams.get('documentUuid');
@@ -100,6 +101,7 @@ const AgentsRouterPage = () => {
         dashboardUuidOrSlug: dashboardUuid,
         dataAppUuidOrSlug: dataAppUuid,
         documentUuid,
+        sqlChartUuid,
     });
 
     const {
