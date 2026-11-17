@@ -1,4 +1,4 @@
-import { FocusTrap, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { useDocumentVisibility } from '@mantine/hooks';
 import { useState, type ReactNode } from 'react';
 import { MOBILE_SIGN_IN_STRINGS } from '../mobileStrings';
@@ -89,13 +89,6 @@ const Pitch = ({
             data-mobile-upsell={variation}
             data-paused={visibility === 'hidden'}
         >
-            {/* The popover traps focus and would otherwise focus the first
-                button, Not interested, so one Enter would dismiss the pitch
-                and record a reason the user never chose. The trap prefers the
-                first autofocus element, so render this only while Not
-                interested is shown: when a phone is confirming, focus must go
-                to Decline. */}
-            {canDismiss && <FocusTrap.InitialFocus />}
             <div className={classes.pitch}>
                 <Title order={3} className={classes.headline}>
                     {copy.headline}
@@ -139,6 +132,11 @@ const Pitch = ({
                     <UnstyledButton
                         type="button"
                         className={classes.dismiss}
+                        // The popover traps focus and focuses the first
+                        // autofocus element. This is the named, visible first
+                        // stop, so Enter works. One Enter only opens the
+                        // Why not? prompt; it records nothing.
+                        data-autofocus
                         onClick={() => setAskingWhy(true)}
                     >
                         <Text component="span" fz="xs" c="dimmed">
