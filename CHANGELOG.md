@@ -1,3 +1,12 @@
+## [3.289.4](https://github.com/lightdash/lightdash/compare/3.289.3...3.289.4) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** flatten the agent question card ([#32688](https://github.com/lightdash/lightdash/issues/32688)) ([f0367fb](https://github.com/lightdash/lightdash/commit/f0367fb80ee2d1390b7a67654250c0cd9c9bbcef))
+* **ai:** keep line breaks in agent chat user messages ([#32748](https://github.com/lightdash/lightdash/issues/32748)) ([cd0251d](https://github.com/lightdash/lightdash/commit/cd0251d4bdec47813ca3f1488cb9e0b8d0b89fc5))
+* **explorer:** stop results columns shrinking until their names are cut off ([#32752](https://github.com/lightdash/lightdash/issues/32752)) ([930b638](https://github.com/lightdash/lightdash/commit/930b638d97cfaca7c243b03ffc1ef09f774403bc))
+
 ## [3.289.3](https://github.com/lightdash/lightdash/compare/3.289.2...3.289.3) (2026-11-17)
 
 
