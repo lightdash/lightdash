@@ -321,19 +321,21 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
         [markTileScreenshotErrored, tile.uuid],
     );
 
-    const askAiProps = {
-        projectUuid,
-        composerChartUuid: composerChartUuid ?? undefined,
-        dashboardUuid,
-        clickedFrom: 'dashboard_composer_chart_tile',
-    } as const;
-    const askAiTileActions =
-        !minimal && !isEmbedded
-            ? {
-                  titleLeftIcon: <AskAiAgentButton {...askAiProps} />,
-                  mobileMenuItems: <AskAiAgentMenuItem {...askAiProps} />,
-              }
-            : {};
+    const askAiProps =
+        !minimal && !isEmbedded && composerChartUuid
+            ? ({
+                  projectUuid,
+                  composerChartUuid,
+                  dashboardUuid,
+                  clickedFrom: 'dashboard_composer_chart_tile',
+              } as const)
+            : null;
+    const askAiTileActions = askAiProps
+        ? {
+              titleLeftIcon: <AskAiAgentButton {...askAiProps} />,
+              mobileMenuItems: <AskAiAgentMenuItem {...askAiProps} />,
+          }
+        : {};
 
     return (
         <TileBase
