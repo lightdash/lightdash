@@ -4,6 +4,7 @@ import {
     describeModelChange,
     findPeekStart,
     changeTitle,
+    findFieldBlock,
     findFieldLine,
     summarizeModelChanges,
 } from './modelCode';
@@ -30,6 +31,16 @@ describe('findFieldLine', () => {
         ['nothing for an unknown field', 'missing', null],
     ])('finds %s', (_case, field, line) => {
         expect(findFieldLine(YAML, field)).toBe(line);
+    });
+});
+
+describe('findFieldBlock', () => {
+    it.each([
+        ['a field with nested lines', 'amount', { start: 4, end: 8 }],
+        ['a nested field', 'p90_amount', { start: 7, end: 8 }],
+        ['nothing for an unknown field', 'missing', null],
+    ])('covers %s', (_case, field, block) => {
+        expect(findFieldBlock(YAML, field)).toEqual(block);
     });
 });
 
