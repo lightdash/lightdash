@@ -134,6 +134,7 @@ const AiAgentNewThreadPage: FC = () => {
     const emitEmbedAiAgentThreadChange = useEmitEmbedAiAgentThreadChange();
     const [searchParams] = useSearchParams();
     const chartUuid = searchParams.get('chartUuid');
+    const sqlChartUuid = searchParams.get('sqlChartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
     const dataAppUuid = searchParams.get('dataAppUuid');
     const documentUuid = searchParams.get('documentUuid');
@@ -149,6 +150,7 @@ const AiAgentNewThreadPage: FC = () => {
         dashboardUuidOrSlug: dashboardUuid,
         dataAppUuidOrSlug: dataAppUuid,
         documentUuid,
+        sqlChartUuid,
     });
     const boundDashboardUuid =
         aiAgentThreadSetup?.binding?.type === 'dashboard'

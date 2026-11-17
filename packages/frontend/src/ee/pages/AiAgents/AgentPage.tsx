@@ -136,13 +136,19 @@ const AgentPage = () => {
                 );
             } else {
                 const chartUuid = searchParams.get('chartUuid');
+                const sqlChartUuid = searchParams.get('sqlChartUuid');
                 const dashboardUuid = searchParams.get('dashboardUuid');
                 const dataAppUuid = searchParams.get('dataAppUuid');
                 const documentUuid = searchParams.get('documentUuid');
                 const pendingContext =
-                    chartUuid || dashboardUuid || dataAppUuid || documentUuid
+                    chartUuid ||
+                    sqlChartUuid ||
+                    dashboardUuid ||
+                    dataAppUuid ||
+                    documentUuid
                         ? {
                               chartUuid: chartUuid ?? undefined,
+                              sqlChartUuid: sqlChartUuid ?? undefined,
                               dashboardUuid: dashboardUuid ?? undefined,
                               dataAppUuid: dataAppUuid ?? undefined,
                               documentUuid: documentUuid ?? undefined,

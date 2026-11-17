@@ -21,6 +21,8 @@ import {
     useState,
     type FC,
 } from 'react';
+import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
+import { AskAiAgentMenuItem } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import {
     selectInvalidateCache,
     selectParameterValues,
@@ -94,6 +96,7 @@ const SqlChartTile: FC<Props> = ({
     tile,
     isEditMode,
     isEmbed,
+    minimal,
     projectUuidOverride,
     dashboardUuidOverride,
     ...rest
@@ -337,6 +340,7 @@ const SqlChartTile: FC<Props> = ({
                 hasError
                 title={tileTitle}
                 chartKind={null}
+                minimal={minimal}
                 {...rest}
             >
                 {(!savedSqlUuid || !isChartLoading) && (
@@ -349,6 +353,20 @@ const SqlChartTile: FC<Props> = ({
             </TileBase>
         );
     }
+
+    const canAskAi = !minimal && !isEmbed;
+    const askAiProps = {
+        projectUuid: effectiveProjectUuid,
+        sqlChartUuid: chartData.savedSqlUuid,
+        dashboardUuid: effectiveDashboardUuid,
+        clickedFrom: 'dashboard_sql_chart_tile',
+    } as const;
+    const askAiTileActions = canAskAi
+        ? {
+              titleLeftIcon: <AskAiAgentButton {...askAiProps} />,
+              mobileMenuItems: <AskAiAgentMenuItem {...askAiProps} />,
+          }
+        : {};
 
     // Chart data but no results
     if (chartResultsData === undefined) {
@@ -365,6 +383,8 @@ const SqlChartTile: FC<Props> = ({
                     connections,
                     chartData.warehouseConnectionUuid,
                 )}
+                minimal={minimal}
+                {...askAiTileActions}
                 {...rest}
                 titleHref={`/projects/${effectiveProjectUuid}/sql-runner/${chartData.slug}`}
                 extraMenuItems={
@@ -411,6 +431,8 @@ const SqlChartTile: FC<Props> = ({
                 chartData.warehouseConnectionUuid,
             )}
             fullWidth={chartData.config.type === ChartKind.TABLE}
+            minimal={minimal}
+            {...askAiTileActions}
             {...rest}
             extraMenuItems={
                 effectiveProjectUuid &&

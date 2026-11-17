@@ -4,13 +4,17 @@ import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePinnedContext } from './usePinnedContext';
 
-const { useGetAppMock, useSavedQueryMock, useDashboardQueryMock } = vi.hoisted(
-    () => ({
-        useGetAppMock: vi.fn(),
-        useSavedQueryMock: vi.fn(),
-        useDashboardQueryMock: vi.fn(),
-    }),
-);
+const {
+    useGetAppMock,
+    useSavedQueryMock,
+    useDashboardQueryMock,
+    useSavedSqlChartMock,
+} = vi.hoisted(() => ({
+    useGetAppMock: vi.fn(),
+    useSavedQueryMock: vi.fn(),
+    useDashboardQueryMock: vi.fn(),
+    useSavedSqlChartMock: vi.fn(),
+}));
 
 vi.mock('../../../../features/apps/hooks/useGetApp', () => ({
     useGetApp: useGetAppMock,
@@ -20,6 +24,9 @@ vi.mock('../../../../hooks/useSavedQuery', () => ({
 }));
 vi.mock('../../../../hooks/dashboard/useDashboard', () => ({
     useDashboardQuery: useDashboardQueryMock,
+}));
+vi.mock('../../../../features/sqlRunner/hooks/useSavedSqlCharts', () => ({
+    useSavedSqlChart: useSavedSqlChartMock,
 }));
 
 const projectUuid = 'project-1';
@@ -51,6 +58,7 @@ describe('usePinnedContext', () => {
         useGetAppMock.mockReset();
         useSavedQueryMock.mockReset().mockReturnValue({ data: undefined });
         useDashboardQueryMock.mockReset().mockReturnValue({ data: undefined });
+        useSavedSqlChartMock.mockReset().mockReturnValue({ data: undefined });
         useGetAppMock.mockReturnValue({ data: { pages: [app] } });
     });
 
@@ -111,6 +119,65 @@ describe('usePinnedContext', () => {
         expect(result.current.isReady).toBe(false);
         expect(result.current.contextInput).toEqual([]);
         expect(result.current.previewItems).toEqual([]);
+    });
+
+    it('pins a SQL chart with its dashboard, dashboard first', () => {
+        useGetAppMock.mockReturnValue({ data: undefined });
+        useDashboardQueryMock.mockReturnValue({ data: dashboard });
+        useSavedSqlChartMock.mockReturnValue({
+            data: {
+                savedSqlUuid: 'sql-1',
+                slug: 'revenue-sql',
+                name: 'Revenue',
+            },
+        });
+
+        const { result } = renderHook(
+            () =>
+                usePinnedContext({
+                    projectUuid,
+                    sqlChartUuid: 'sql-1',
+                    dashboardUuidOrSlug: 'dashboard-1',
+                }),
+            { wrapper },
+        );
+
+        expect(useSavedSqlChartMock).toHaveBeenCalledWith(
+            { projectUuid, uuid: 'sql-1' },
+            { enabled: true },
+        );
+        expect(result.current.isReady).toBe(true);
+        expect(result.current.contextInput).toEqual([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'orders',
+            },
+            {
+                type: 'sql_chart',
+                sqlChartUuid: 'sql-1',
+                sqlChartSlug: 'revenue-sql',
+            },
+        ]);
+        expect(result.current.previewItems[1]).toEqual({
+            type: 'sql_chart',
+            sqlChartUuid: 'sql-1',
+            sqlChartSlug: 'revenue-sql',
+            displayName: 'Revenue',
+            pinnedVersionUuid: null,
+        });
+    });
+
+    it('is not ready until the SQL chart resolves', () => {
+        useGetAppMock.mockReturnValue({ data: undefined });
+
+        const { result } = renderHook(
+            () => usePinnedContext({ projectUuid, sqlChartUuid: 'sql-1' }),
+            { wrapper },
+        );
+
+        expect(result.current.isReady).toBe(false);
+        expect(result.current.contextInput).toEqual([]);
     });
 
     it('sorts a pinned dashboard before the data app', () => {

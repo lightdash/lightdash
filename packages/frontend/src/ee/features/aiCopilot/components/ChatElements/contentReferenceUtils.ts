@@ -83,6 +83,8 @@ export const getPromptContextItemKey = (
             return dataAppContextKey(item.appUuid);
         case 'document':
             return `document:${item.documentUuid}`;
+        case 'sql_chart':
+            return `sql_chart:${item.sqlChartUuid}`;
         case 'design':
             return designContextKey(item.designUuid);
         case 'skill':
@@ -95,6 +97,10 @@ export const getPromptContextItemKey = (
 export const getThemeContextItemLabel = (
     item: Extract<AiPromptContextItem, { type: 'design' }>,
 ): string => `Theme: ${item.displayName ?? item.designSlug ?? 'unavailable'}`;
+
+export const getSqlChartContextItemLabel = (
+    item: Extract<AiPromptContextItem, { type: 'sql_chart' }>,
+): string => item.displayName ?? item.sqlChartSlug ?? 'SQL chart';
 
 export const getDataAppContextItemName = (
     item: Pick<
@@ -151,6 +157,8 @@ const getPromptContextItemLabel = (item: InlineReferenceItem) => {
             return getDataAppContextItemName(item);
         case 'document':
             return item.displayName ?? item.documentSlug ?? 'Document';
+        case 'sql_chart':
+            return getSqlChartContextItemLabel(item);
         case 'skill':
             return `/${item.name}`;
         default:
@@ -204,6 +212,10 @@ export const getPromptContextItemHref = (
                 item.documentUuid,
                 item.documentSlug ?? undefined,
             );
+        case 'sql_chart':
+            return item.sqlChartSlug
+                ? `/projects/${projectUuid}/sql-runner/${item.sqlChartSlug}`
+                : null;
         // A theme is an organization setting with no in-thread destination.
         case 'design':
             return null;

@@ -324,6 +324,13 @@ export type AiPromptContextItemInput =
           runtimeOverrides?: AiDashboardRuntimeOverrides;
       }
     | {
+          // A saved SQL chart, e.g. the dashboard tile the user asked about;
+          // the server snapshots its name and latest version.
+          type: 'sql_chart';
+          sqlChartUuid: string;
+          sqlChartSlug: string | null;
+      }
+    | {
           type: 'thread';
           threadUuid: string;
           // The turn the reference points at (e.g. a flagged prompt).
@@ -490,6 +497,13 @@ export type AiPromptContextItem =
           pinnedVersionUuid: string | null;
           displayName: string | null;
           runtimeOverrides: AiDashboardRuntimeOverrides | null;
+      }
+    | {
+          type: 'sql_chart';
+          sqlChartUuid: string;
+          sqlChartSlug: string | null;
+          pinnedVersionUuid: string | null;
+          displayName: string | null;
       }
     | {
           type: 'thread';

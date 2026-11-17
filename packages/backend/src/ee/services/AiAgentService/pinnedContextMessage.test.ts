@@ -612,6 +612,26 @@ describe('AiAgentService.createPinnedContextMessage Document pins', () => {
     });
 });
 
+describe('AiAgentService.createPinnedContextMessage SQL charts', () => {
+    it('names the SQL chart and how to read and edit it', () => {
+        const content = buildMessage([
+            {
+                type: 'sql_chart',
+                sqlChartUuid: 'sql-1',
+                sqlChartSlug: 'revenue-sql',
+                displayName: 'Revenue SQL',
+                pinnedVersionUuid: 'version-1',
+            },
+        ]);
+
+        expect(content).toContain(
+            '- SQL chart "Revenue SQL" (sqlChartSlug: revenue-sql)',
+        );
+        expect(content).toContain('readContent (type sql_chart, slug)');
+        expect(content).toContain('editContent (type sql_chart)');
+    });
+});
+
 describe('AiAgentService.createPinnedContextMessage attached documents', () => {
     const file = {
         type: 'thread_file' as const,

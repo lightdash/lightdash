@@ -25,6 +25,9 @@ export const buildNewThreadUrl = ({
     if (pendingContext?.chartUuid) {
         params.set('chartUuid', pendingContext.chartUuid);
     }
+    if (pendingContext?.sqlChartUuid) {
+        params.set('sqlChartUuid', pendingContext.sqlChartUuid);
+    }
     if (pendingContext?.dashboardUuid) {
         params.set('dashboardUuid', pendingContext.dashboardUuid);
     }
