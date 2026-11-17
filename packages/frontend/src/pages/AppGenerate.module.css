@@ -181,7 +181,9 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: var(--mantine-spacing-md);
+    /* Same inline padding and gutter as the composer, so their edges line up. */
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-sm);
+    scrollbar-gutter: stable;
     display: flex;
     flex-direction: column;
     gap: var(--mantine-spacing-lg);
@@ -262,6 +264,7 @@
     max-height: 46%;
     overflow-y: auto;
     padding: var(--mantine-spacing-sm);
+    scrollbar-gutter: stable;
     container: composer / inline-size;
 }
 
