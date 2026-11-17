@@ -1,3 +1,10 @@
+# [3.288.0](https://github.com/lightdash/lightdash/compare/3.287.0...3.288.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** track live data source API calls in product analytics ([#32729](https://github.com/lightdash/lightdash/issues/32729)) ([5ef74e5](https://github.com/lightdash/lightdash/commit/5ef74e5ff7a39cee581eacba3389884fdf8b999c)), closes [#32728](https://github.com/lightdash/lightdash/issues/32728)
+
 # [3.287.0](https://github.com/lightdash/lightdash/compare/3.286.0...3.287.0) (2026-11-17)
 
 
