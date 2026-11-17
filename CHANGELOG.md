@@ -1,3 +1,12 @@
+## [3.278.1](https://github.com/lightdash/lightdash/compare/3.278.0...3.278.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** show Semantic Studio changes only to those who can make them ([#32667](https://github.com/lightdash/lightdash/issues/32667)) ([10e8fbf](https://github.com/lightdash/lightdash/commit/10e8fbf1fc74de693013d2afadd7bec8b9623d2c))
+* **explorer:** show merge another query in dashboard and embed chart editors ([#32694](https://github.com/lightdash/lightdash/issues/32694)) ([274a3fd](https://github.com/lightdash/lightdash/commit/274a3fd4dac130b9cad15d185ec07fd115a2a526))
+* **favorites:** show the favorite star change immediately ([#32693](https://github.com/lightdash/lightdash/issues/32693)) ([e614f8a](https://github.com/lightdash/lightdash/commit/e614f8a084e1b6122abcd36c75ba16852552b05d))
+
 # [3.278.0](https://github.com/lightdash/lightdash/compare/3.277.0...3.278.0) (2026-11-17)
 
 
