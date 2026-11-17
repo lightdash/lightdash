@@ -16923,6 +16923,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 responseBytes: { dataType: 'double', required: true },
+                cacheHits: { dataType: 'double', required: true },
                 apiCalls: { dataType: 'double', required: true },
                 externalConnectionUuid: { dataType: 'string', required: true },
             },

@@ -1,3 +1,10 @@
+# [3.291.0](https://github.com/lightdash/lightdash/compare/3.290.2...3.291.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** count cache hits and tell refused, internal and integration errors apart ([#32745](https://github.com/lightdash/lightdash/issues/32745)) ([3e76a58](https://github.com/lightdash/lightdash/commit/3e76a581bc5fec929225986e80ab977dd41eb375))
+
 ## [3.290.2](https://github.com/lightdash/lightdash/compare/3.290.1...3.290.2) (2026-11-17)
 
 
