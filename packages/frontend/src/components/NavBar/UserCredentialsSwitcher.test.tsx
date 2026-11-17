@@ -56,20 +56,31 @@ vi.mock(
     }),
 );
 
-const FailingQuery = ({ errorName }: { errorName: string }) => {
+const personalExpiry = { requiresUserReauthentication: true };
+
+const FailingQuery = ({
+    errorName,
+    data,
+}: {
+    errorName: string;
+    data: Record<string, unknown>;
+}) => {
     useQuery({
-        queryKey: ['failing', errorName],
-        queryFn: () => Promise.reject({ error: { name: errorName } }),
+        queryKey: ['failing', errorName, data],
+        queryFn: () => Promise.reject({ error: { name: errorName, data } }),
         retry: false,
     });
     return null;
 };
 
-const renderSwitcher = (errorName: string) =>
+const renderSwitcher = (
+    errorName: string,
+    data: Record<string, unknown> = personalExpiry,
+) =>
     renderWithProviders(
         <MemoryRouter>
             <UserCredentialsSwitcher />
-            <FailingQuery errorName={errorName} />
+            <FailingQuery errorName={errorName} data={data} />
         </MemoryRouter>,
     );
 
@@ -104,6 +115,18 @@ describe('UserCredentialsSwitcher Snowflake sign-in expiry', () => {
         expect(
             await screen.findByText(/requires that you login to/),
         ).toBeInTheDocument();
+    });
+
+    it('stays closed when the shared sign-in expired on an optional project', async () => {
+        mocks.warehouseConnection = {
+            ...snowflake,
+            allowUserCredentials: true,
+        };
+        renderSwitcher('SnowflakeTokenError', { sharedSignIn: {} });
+        await new Promise((resolve) => {
+            setTimeout(resolve, 50);
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('stays closed on a shared-only project', async () => {

@@ -5254,6 +5254,11 @@ export class ProjectService
             newProjectData.warehouseConnection,
             internalProvisioning,
         );
+        if (newProjectData.warehouseConnection) {
+            assertOptionalUserCredentialsHaveSharedCredentials(
+                newProjectData.warehouseConnection,
+            );
+        }
         const createProject: CreateProjectOptionalCredentials =
             hasWarehouseCredentials(newProjectData)
                 ? await this._resolveWarehouseClientCredentials(

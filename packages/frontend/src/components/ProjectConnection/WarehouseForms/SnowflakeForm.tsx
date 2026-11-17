@@ -237,7 +237,11 @@ const SnowflakeForm: FC<{
         isNoneAuth ||
         authenticationType === SnowflakeAuthenticationType.EXTERNAL_BROWSER;
     const requiresUserCredentials =
-        !!form.values.warehouse.requireUserCredentials;
+        isProjectExtraConnection && inheritsPrimaryCredentialRequirement
+            ? (primaryRequiresUserCredentials ??
+                  savedProject?.warehouseConnection?.requireUserCredentials) ===
+              true
+            : !!form.values.warehouse.requireUserCredentials;
 
     // Build base authentication options
     const baseAuthOptions = isSsoEnabled

@@ -88,7 +88,10 @@ const UserCredentialsSwitcher = () => {
                         error?.error?.name === 'SnowflakeTokenError' &&
                         activeProject?.warehouseConnection?.type ===
                             'snowflake' &&
-                        (requiresUserCredentials || allowsOptionalCredentials)
+                        (requiresUserCredentials ||
+                            (allowsOptionalCredentials &&
+                                error?.error?.data
+                                    ?.requiresUserReauthentication === true))
                     ) {
                         console.info('Triggering reauth modal for Snowflake');
                         setShowCreateModalOnPageLoad(true);
