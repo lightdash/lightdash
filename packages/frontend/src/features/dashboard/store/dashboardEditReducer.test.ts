@@ -527,6 +527,40 @@ describe('tile layout undo and redo', () => {
         expect(reducer(tidy, actions.tidyTiles())).toBe(tidy);
     });
 
+    it('sets a tile width as one undo step and keeps the tile selected', () => {
+        const widths = (state: typeof initialDashboardEditState) =>
+            state.tiles?.map(({ w }) => w);
+        const start = reducer(
+            editing([tile('a'), { ...tile('b'), y: 12 }]),
+            actions.selectTile('a'),
+        );
+
+        const widened = reducer(
+            start,
+            actions.setTileWidth({ uuid: 'a', w: 36 }),
+        );
+        expect(widths(widened)).toEqual([36, widths(start)?.[1]]);
+        expect(widened.selectedTileUuid).toBe('a');
+        expect(widths(reducer(widened, actions.undoTileLayout()))).toEqual(
+            widths(start),
+        );
+    });
+
+    it('drops the selection when the selected tile is removed', () => {
+        const selected = reducer(
+            editing([tile('a'), tile('b', 6)]),
+            actions.selectTile('a'),
+        );
+        expect(
+            reducer(selected, actions.setTiles([tile('b', 6)]))
+                .selectedTileUuid,
+        ).toBeNull();
+        expect(
+            reducer(selected, actions.setTiles([tile('a'), tile('b', 6)]))
+                .selectedTileUuid,
+        ).toBe('a');
+    });
+
     it('tidies gaps and row widths in one undo step', () => {
         const start = editing([tile('a'), { ...tile('b', 6), y: 12 }]);
         const placement = (state: typeof initialDashboardEditState) =>

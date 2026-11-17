@@ -4,13 +4,13 @@ import {
     Button,
     Checkbox,
     Group,
-    Kbd,
     Paper,
     Radio,
     Stack,
     Text,
     Textarea,
 } from '@mantine/core';
+import { IconPencil } from '@tabler/icons-react';
 import {
     useEffect,
     useRef,
@@ -18,6 +18,7 @@ import {
     type FC,
     type KeyboardEvent,
 } from 'react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './AskUserQuestionCard.module.css';
 
 const isTypingTarget = (target: EventTarget) =>
@@ -97,16 +98,15 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
         });
     };
 
+    // Picking a picked option again unpicks it, for pick-one too.
     const pick = (label: string) => {
-        if (!question.multiSelect) {
-            setSelected([label]);
+        const others = current.selected.filter((value) => value !== label);
+        const wasPicked = others.length < current.selected.length;
+        if (wasPicked) {
+            setSelected(others);
             return;
         }
-        setSelected(
-            current.selected.includes(label)
-                ? current.selected.filter((value) => value !== label)
-                : [...current.selected, label],
-        );
+        setSelected(question.multiSelect ? [...others, label] : [label]);
     };
 
     const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -140,27 +140,54 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
             <OptionCard
                 key={option.label}
                 value={option.label}
-                className={styles.option}
+                withBorder={false}
+                className={styles.optionRow}
             >
-                <Group wrap="nowrap" align="flex-start">
-                    <Indicator />
-                    <Stack gap={0} flex={1}>
-                        <Text fz="sm" fw={500}>
-                            {option.label}
+                <Box component="span" className={styles.optionMark}>
+                    <Indicator size="xs" />
+                </Box>
+                <Box>
+                    <Text size="sm" fw={500}>
+                        {option.label}
+                    </Text>
+                    {option.description && (
+                        <Text fz="xs" c="dimmed">
+                            {option.description}
                         </Text>
-                        {option.description && (
-                            <Text fz="xs" c="dimmed">
-                                {option.description}
-                            </Text>
-                        )}
-                    </Stack>
-                    <Kbd size="xs" aria-hidden>
-                        {i + 1}
-                    </Kbd>
-                </Group>
+                    )}
+                </Box>
+                <Box component="span" className={styles.optionKey} aria-hidden>
+                    {i + 1}
+                </Box>
             </OptionCard>
         );
     });
+    const optionList = <Stack gap="xxs">{options}</Stack>;
+    // A label, so a click anywhere on the row focuses the input.
+    const ownAnswer = (
+        <Box component="label" className={styles.ownAnswerRow}>
+            <Box component="span" className={styles.optionMark} aria-hidden>
+                <MantineIcon icon={IconPencil} size={14} color="dimmed" />
+            </Box>
+            <Textarea
+                autosize
+                minRows={1}
+                maxRows={4}
+                variant="unstyled"
+                classNames={{ input: styles.ownAnswerInput }}
+                aria-label="Your own answer"
+                placeholder="Something else…"
+                value={current.custom}
+                onChange={(event) => setCustom(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        advance();
+                    }
+                }}
+            />
+        </Box>
+    );
 
     return (
         <Paper
@@ -169,8 +196,8 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
             onKeyDown={onKeyDown}
             className={styles.card}
         >
-            <Stack gap="sm" p="sm">
-                <Group justify="space-between" wrap="nowrap">
+            <Stack gap="xs" p="xs">
+                <Group justify="space-between" wrap="nowrap" px="xs" pt="xxs">
                     <Text fz="xs" fw={500} c="dimmed">
                         {question.header}
                     </Text>
@@ -180,64 +207,67 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                         </Text>
                     )}
                 </Group>
-                <Box>
-                    <Text fw={500}>{question.question}</Text>
+                <Box px="xs">
+                    <Text fz="sm" fw={500}>
+                        {question.question}
+                    </Text>
                     {question.multiSelect && (
                         <Text fz="xs" c="dimmed">
                             Select all that apply
                         </Text>
                     )}
                 </Box>
-                {question.multiSelect ? (
-                    <Checkbox.Group
-                        value={current.selected}
-                        onChange={setSelected}
-                        aria-label={question.question}
-                    >
-                        <Stack gap="xs">{options}</Stack>
-                    </Checkbox.Group>
-                ) : (
-                    <Radio.Group
-                        name={groupName}
-                        value={current.selected[0] ?? null}
-                        onChange={(label) => setSelected([label])}
-                        aria-label={question.question}
-                    >
-                        <Stack gap="xs">{options}</Stack>
-                    </Radio.Group>
-                )}
-                <Textarea
-                    autosize
-                    minRows={1}
-                    maxRows={4}
-                    aria-label="Your own answer"
-                    placeholder="Or type your own answer…"
-                    value={current.custom}
-                    onChange={(event) => setCustom(event.currentTarget.value)}
-                    onKeyDown={(event) => {
-                        if (event.key === 'Enter' && !event.shiftKey) {
-                            event.preventDefault();
-                            advance();
-                        }
-                    }}
-                />
-                <Group gap="xs" justify="flex-end" wrap="nowrap">
-                    {index > 0 && (
+                <Stack gap="xxs">
+                    {question.multiSelect ? (
+                        <Checkbox.Group
+                            value={current.selected}
+                            onChange={setSelected}
+                            aria-label={question.question}
+                        >
+                            {optionList}
+                        </Checkbox.Group>
+                    ) : (
+                        <Radio.Group
+                            name={groupName}
+                            value={current.selected[0] ?? null}
+                            onChange={pick}
+                            aria-label={question.question}
+                        >
+                            {optionList}
+                        </Radio.Group>
+                    )}
+                    {ownAnswer}
+                </Stack>
+                <Group
+                    justify="space-between"
+                    wrap="nowrap"
+                    className={styles.footer}
+                >
+                    <Text fz="xs" c="dimmed" className={styles.keyHint}>
+                        1–{question.options.length} to pick, Enter to continue
+                    </Text>
+                    <Group gap="xs" wrap="nowrap" ml="auto">
+                        {index > 0 && (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                onClick={() => setIndex(index - 1)}
+                            >
+                                Back
+                            </Button>
+                        )}
                         <Button
                             size="xs"
-                            variant="default"
-                            onClick={() => setIndex(index - 1)}
+                            disabled={!canAdvance}
+                            onClick={advance}
                         >
-                            Back
+                            {isLast
+                                ? questions.length > 1
+                                    ? 'Submit answers'
+                                    : 'Submit answer'
+                                : 'Next'}
                         </Button>
-                    )}
-                    <Button size="xs" disabled={!canAdvance} onClick={advance}>
-                        {isLast
-                            ? questions.length > 1
-                                ? 'Submit answers'
-                                : 'Submit answer'
-                            : 'Next'}
-                    </Button>
+                    </Group>
                 </Group>
             </Stack>
         </Paper>

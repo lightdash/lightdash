@@ -36,7 +36,7 @@ import {
     IconUsers,
 } from '@tabler/icons-react';
 import { upperFirst } from 'es-toolkit/compat';
-import { useState, type FC, type ReactNode } from 'react';
+import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -789,24 +789,32 @@ export const MetricComparison: FC<{
     draft: SemanticLayerDraft;
     model: SemanticLayerDraftModel;
 }> = ({ projectUuid, draft, model }) => {
-    const metrics = findComparedMetrics(draft, model);
-    // A metric the draft adds does not exist live.
-    const added = diffModelDocuments(model.contentBefore, model.contentAfter)
-        .filter(({ kind }) => kind === 'added')
-        .map(({ path }) => path);
-    const liveMetricIds = metrics
-        .filter(
-            ({ name }) =>
-                !added.some(
-                    (path) =>
-                        path.endsWith(`metrics.${name}`) ||
-                        readModelPart(
-                            model.contentAfter,
-                            `${path}.metrics.${name}`,
-                        ) !== null,
-                ),
+    const metrics = useMemo(
+        () => findComparedMetrics(draft, model),
+        [draft, model],
+    );
+    const liveMetricIds = useMemo(() => {
+        // A metric the draft adds does not exist live.
+        const added = diffModelDocuments(
+            model.contentBefore,
+            model.contentAfter,
         )
-        .map((metric) => getItemId(metric));
+            .filter(({ kind }) => kind === 'added')
+            .map(({ path }) => path);
+        return metrics
+            .filter(
+                ({ name }) =>
+                    !added.some(
+                        (path) =>
+                            path.endsWith(`metrics.${name}`) ||
+                            readModelPart(
+                                model.contentAfter,
+                                `${path}.metrics.${name}`,
+                            ) !== null,
+                    ),
+            )
+            .map((metric) => getItemId(metric));
+    }, [metrics, model]);
     return (
         <CompareTotals
             projectUuid={projectUuid}

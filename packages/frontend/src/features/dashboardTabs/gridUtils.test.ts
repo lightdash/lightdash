@@ -43,6 +43,10 @@ import {
     keepResizedTileCorner,
     matchesSavedLayout,
     settleLayoutAfterEdit,
+    getCarriedTileCell,
+    getTilesWithTileAt,
+    getTilesWithTileWidth,
+    isClick,
 } from './gridUtils';
 
 const chart = (uuid: string, x: number, y: number, h = 6): DashboardTile => ({
@@ -1593,5 +1597,98 @@ describe('add tile slot', () => {
     it('offers nothing over a tile or on an empty canvas', () => {
         expect(slotAt([tile(0, 0, 18, 9)], 3, 3)).toBeNull();
         expect(slotAt([], 3, 3)).toBeNull();
+    });
+});
+
+describe('getTilesWithTileWidth', () => {
+    const tile = (uuid: string, x: number, y: number, w: number) => ({
+        uuid,
+        x,
+        y,
+        w,
+        h: 4,
+    });
+
+    it('widens a tile from its left edge and moves the tiles it covers down', () => {
+        expect(
+            getTilesWithTileWidth(
+                [
+                    tile('a', 0, 0, 12),
+                    tile('b', 12, 0, 12),
+                    tile('c', 0, 4, 36),
+                ],
+                'a',
+                18,
+            ),
+        ).toEqual([
+            tile('a', 0, 0, 18),
+            tile('b', 12, 4, 12),
+            tile('c', 0, 8, 36),
+        ]);
+    });
+
+    it('pulls a tile left when its new width would leave the grid', () => {
+        expect(getTilesWithTileWidth([tile('a', 27, 0, 9)], 'a', 18)).toEqual([
+            tile('a', 18, 0, 18),
+        ]);
+    });
+
+    it('leaves the other tiles alone when a tile narrows', () => {
+        const tiles = [tile('a', 0, 0, 36), tile('b', 0, 4, 36)];
+        expect(getTilesWithTileWidth(tiles, 'a', 9)).toEqual([
+            tile('a', 0, 0, 9),
+            tiles[1],
+        ]);
+    });
+});
+
+describe('isClick', () => {
+    it('tells a press released in place from one that travelled', () => {
+        const pressed = { clientX: 100, clientY: 100 };
+        expect(isClick(pressed, { clientX: 102, clientY: 101 })).toBe(true);
+        expect(isClick(pressed, { clientX: 100, clientY: 112 })).toBe(false);
+    });
+});
+
+describe('placing a copied tile', () => {
+    const tile = (uuid: string, x: number, y: number, w: number) => ({
+        uuid,
+        x,
+        y,
+        w,
+        h: 4,
+    });
+
+    it('holds the tile by the middle of its top row and keeps it on the grid', () => {
+        expect(getCarriedTileCell({ x: 20, y: 7 }, { w: 12 })).toEqual({
+            x: 14,
+            y: 7,
+        });
+        expect(getCarriedTileCell({ x: 2, y: -3 }, { w: 12 })).toEqual({
+            x: 0,
+            y: 0,
+        });
+        expect(getCarriedTileCell({ x: 35, y: 0 }, { w: 12 })).toEqual({
+            x: 24,
+            y: 0,
+        });
+    });
+
+    it('puts the tile down and moves the tiles it covers below it', () => {
+        expect(
+            getTilesWithTileAt(
+                [
+                    tile('a', 0, 0, 18),
+                    tile('b', 18, 0, 18),
+                    tile('copy', 0, 4, 18),
+                ],
+                'copy',
+                { x: 18, y: 0 },
+            ),
+        ).toEqual([
+            tile('a', 0, 0, 18),
+            tile('b', 18, 4, 18),
+            tile('copy', 18, 0, 18),
+        ]);
     });
 });

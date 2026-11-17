@@ -120,6 +120,8 @@ import {
     selectDashboardParameterDefinitions,
     selectInvalidateCache,
     selectIsDateZoomAppliedToTile,
+    dashboardEditActions,
+    useDashboardDispatch,
     useDashboardSelector,
     useTileDashboardParameterInputs,
 } from '../../features/dashboard/store';
@@ -843,8 +845,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         } = useDuplicateChartMutation({
             showRedirectButton: false,
             autoRedirect: false,
-            successMessage: `Chart duplicated and added at the bottom of this dashboard`,
+            successMessage: `Chart duplicated and added to this dashboard`,
         });
+        const dashboardDispatch = useDashboardDispatch();
+        // Where the copy goes once the chart exists; the bottom when unset
+        const copyCellRef = useRef<{ x: number; y: number } | null>(null);
 
         useEffect(() => {
             if (duplicatedChart && props.onAddTiles) {
@@ -867,9 +872,19 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     ],
                     { [newTileUuid]: props.tile.uuid },
                 );
+                const cell = copyCellRef.current;
+                copyCellRef.current = null;
+                if (cell) {
+                    dashboardDispatch(
+                        dashboardEditActions.placeTile({
+                            uuid: newTileUuid,
+                            ...cell,
+                        }),
+                    );
+                }
                 resetDuplicatedChart(); // Reset duplicated chart to avoid adding it multiple times
             }
-        }, [props, duplicatedChart, resetDuplicatedChart]);
+        }, [props, duplicatedChart, resetDuplicatedChart, dashboardDispatch]);
         const handleAddFilter = useCallback(
             (filter: DashboardFilterRule) => {
                 track({
@@ -1534,6 +1549,20 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 )}
                             </>
                         )
+                    }
+                    onDuplicate={
+                        userCanManageChart &&
+                        isEditMode &&
+                        savedChartUuid !== null
+                            ? (cell) => {
+                                  copyCellRef.current = cell;
+                                  void duplicateChart({
+                                      uuid: savedChartUuid,
+                                      name: `Copy of ${chart.name}`,
+                                      description: chart.description,
+                                  });
+                              }
+                            : undefined
                     }
                     fullWidth={
                         chart.chartConfig.type === ChartType.TABLE ||

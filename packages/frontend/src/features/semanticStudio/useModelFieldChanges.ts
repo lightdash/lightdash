@@ -103,13 +103,25 @@ export const useChangeSet = (
             ),
         ]),
     });
-    if (sides.some(({ isLoading }) => isLoading)) return null;
-    return new Map(
-        models.map((model, index) => {
-            const mine = sides[index * 2 + 1].data;
-            // A model that is new has no live version to read.
-            const live = sides[index * 2].data ?? null;
-            return [model, mine ? describeChangedFields(live, mine) : []];
-        }),
+    const isLoading = sides.some((side) => side.isLoading);
+    // Worked out again only when a version is read again, not on every render of what shows it.
+    const versions = sides.map(({ dataUpdatedAt }) => dataUpdatedAt).join(',');
+    return useMemo(
+        () =>
+            isLoading
+                ? null
+                : new Map(
+                      models.map((model, index) => {
+                          const mine = sides[index * 2 + 1].data;
+                          // A model that is new has no live version to read.
+                          const live = sides[index * 2].data ?? null;
+                          return [
+                              model,
+                              mine ? describeChangedFields(live, mine) : [],
+                          ];
+                      }),
+                  ),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [isLoading, versions, models.join(',')],
     );
 };

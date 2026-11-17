@@ -236,8 +236,9 @@ export const SourcesRail: FC<{
         if (!hasOverview && !selected && firstChange) open(firstChange);
     }, [hasOverview, selected, firstChange, open]);
     // The tree keeps its first options, so its listener reads the latest through a ref.
-    const latest = useRef({ open, selected, files: new Set<string>() });
-    latest.current = { open, selected, files: new Set(all) };
+    const fileSet = useMemo(() => new Set(all), [all]);
+    const latest = useRef({ open, selected, files: fileSet });
+    latest.current = { open, selected, files: fileSet };
     const { model } = useFileTree({
         paths: [],
         icons: SOURCE_ICONS,
@@ -264,11 +265,11 @@ export const SourcesRail: FC<{
     // The open file can change from outside the tree, and a reset drops what was selected.
     useEffect(() => {
         const shown = model.getSelectedPaths();
-        if (!selected || !all.includes(selected) || shown.includes(selected))
+        if (!selected || !fileSet.has(selected) || shown.includes(selected))
             return;
         shown.forEach((path) => model.getItem(path)?.deselect());
         model.getItem(selected)?.select();
-    }, [model, all, selected]);
+    }, [model, fileSet, selected]);
     useEffect(
         () =>
             model.setGitStatus(
@@ -541,8 +542,13 @@ export const SourcePane: FC<{
         if (codeRef.current?.getEditState())
             codeRef.current.setMarkers(markers);
     }, [markers]);
-    const proposed =
-        path && loaded !== null ? applyProposal(proposal, path, loaded) : null;
+    const proposed = useMemo(
+        () =>
+            path && loaded !== null
+                ? applyProposal(proposal, path, loaded)
+                : null,
+        [proposal, path, loaded],
+    );
     // Like an editor's agent: a proposal for the open file lands in it as an unsaved edit, once.
     useEffect(() => {
         if (hasOwnEdits || proposed === offered) return;

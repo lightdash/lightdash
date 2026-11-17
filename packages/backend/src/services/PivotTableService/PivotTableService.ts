@@ -309,6 +309,8 @@ export class PivotTableService extends BaseService {
                 {
                     delimiter: ',',
                     quoted: true,
+                    // Default casting writes true as 1 and false as blank
+                    cast: { boolean: (value) => String(value) },
                 },
                 (err, output) => {
                     if (err) {

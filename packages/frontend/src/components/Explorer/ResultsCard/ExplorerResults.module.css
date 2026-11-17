@@ -25,7 +25,8 @@
 .results:not([data-grouped]) table thead th,
 .results:not([data-grouped]) table thead th:not(:first-child) {
     padding: 7px 8.5px;
-    vertical-align: middle;
+    /* Names of different lengths all start on the same top line */
+    vertical-align: top;
     box-shadow: none;
 }
 
@@ -36,13 +37,13 @@
 }
 
 .results:not([data-grouped]) [class*='thContainer'] {
-    align-items: center;
+    align-items: flex-start;
 }
 
 /* Header label: the field name in ink, led by its type icon in the field
-   kind's colour, with its table in grey underneath. Long names wrap inside
-   the column, so it stays as wide as its values, and every line starts at
-   the column's left edge. */
+   kind's colour, with its table in grey underneath. A long name wraps between
+   words, so a column is never narrower than its longest word and a wide
+   table scrolls sideways. */
 .results:not([data-grouped]) [class*='tableHeaderLabelContainer'] {
     display: flex;
     flex-direction: column;
@@ -55,12 +56,6 @@
 .results:not([data-grouped]) [class*='tableHeaderBoldLabel'] {
     color: var(--mantine-color-text);
     font-weight: 500;
-    /* Two lines at most; the header tooltip has the full name */
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
-    overflow-wrap: anywhere;
 }
 
 /* The icon flows with the name's first word */
@@ -77,10 +72,75 @@
     opacity: 1;
 }
 
-/* The column menu stays out of the way until the header is in use */
+/* The column menu floats over the header's top-right corner, so it takes no
+   width from the column, and stays out of the way until the header is in use */
 .results:not([data-grouped]) table thead th [class*='thActionsContainer'] {
+    position: absolute;
+    top: 5px;
+    right: 4px;
+    margin: 0;
     opacity: 0;
     transition: opacity 120ms ease;
+}
+
+/* A small outlined chip, so it reads as a control over the name beneath it */
+.results:not([data-grouped])
+    table
+    thead
+    th
+    [class*='thActionsContainer']
+    :global(.mantine-ActionIcon-root) {
+    width: 20px;
+    min-width: 20px;
+    height: 20px;
+    min-height: 20px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 6px;
+    color: var(--mantine-color-dimmed);
+    background: var(--mantine-color-body);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
+}
+
+.results:not([data-grouped])
+    table
+    thead
+    th
+    [class*='thActionsContainer']
+    :global(.mantine-ActionIcon-root):hover,
+.results:not([data-grouped])
+    table
+    thead
+    th
+    [class*='thActionsContainer']
+    :global(.mantine-ActionIcon-root[aria-expanded='true']) {
+    border-color: var(--mantine-color-ldGray-4);
+    color: var(--mantine-color-text);
+    background: var(--mantine-color-default-hover);
+}
+
+.results:not([data-grouped])
+    table
+    thead
+    th
+    [class*='thActionsContainer']
+    :global(.mantine-ActionIcon-root)
+    svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* It stays up while its menu is open */
+.results:not([data-grouped])
+    table
+    thead
+    th
+    [class*='thActionsContainer']:has([aria-expanded='true']) {
+    opacity: 1;
+}
+
+/* A floor on column width, so most names fit in two or three lines */
+.results:not([data-grouped]) [class*='tableHeaderLabelContainer'] {
+    min-width: 88px;
 }
 
 .results:not([data-grouped]) table thead th:hover [class*='thActionsContainer'],
@@ -97,6 +157,12 @@
     .results:not([data-grouped]) table thead th [class*='thActionsContainer'] {
         opacity: 1;
     }
+}
+
+/* A total stays on one line, like the values above it */
+.results:not([data-grouped]) table tfoot td,
+.results:not([data-grouped]) table tfoot th {
+    white-space: nowrap;
 }
 
 /* Every results column aligns to the left, labels over their values */

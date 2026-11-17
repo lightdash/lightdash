@@ -178,9 +178,16 @@ const countMetrics = (part: unknown): number => {
     return isRecord(part.metrics) ? Object.keys(part.metrics).length : 0;
 };
 
-const parseModel = (
-    content: string,
-): { label: string | null; dimensions: number; metrics: number } | null => {
+type ModelSummary = {
+    label: string | null;
+    dimensions: number;
+    metrics: number;
+} | null;
+
+// ponytail: the review asks for the same documents on every render; cleared when it grows, an LRU if drafts get large.
+const summaries = new Map<string, ModelSummary>();
+
+const readModelSummary = (content: string): ModelSummary => {
     try {
         const parsed: unknown = load(content);
         if (!isRecord(parsed)) return null;
@@ -198,6 +205,15 @@ const parseModel = (
     } catch {
         return null;
     }
+};
+
+const parseModel = (content: string): ModelSummary => {
+    const known = summaries.get(content);
+    if (known !== undefined) return known;
+    if (summaries.size > 200) summaries.clear();
+    const summary = readModelSummary(content);
+    summaries.set(content, summary);
+    return summary;
 };
 
 export const count = (amount: number, noun: string) =>

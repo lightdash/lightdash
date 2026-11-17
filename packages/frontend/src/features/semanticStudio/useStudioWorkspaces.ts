@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
+import { isDevelopmentViewOn } from './developmentView';
 import { useCanEditSemanticLayer } from './useSemanticLayerModel';
 
 export const WORKSPACES_KEY = 'semantic-studio-workspaces';
@@ -99,7 +100,9 @@ export const useStudioWorkspaceAction = (projectUuid: string) => {
             Promise.all([
                 queryClient.invalidateQueries([WORKSPACES_KEY, projectUuid]),
                 // Explores read the active workspace's changes while the development view is on.
-                queryClient.invalidateQueries(['tables']),
+                ...(isDevelopmentViewOn()
+                    ? [queryClient.invalidateQueries(['tables'])]
+                    : []),
             ]),
     });
 };

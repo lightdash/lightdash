@@ -1,3 +1,45 @@
+## [3.290.1](https://github.com/lightdash/lightdash/compare/3.290.0...3.290.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **headless-browser:** keep asset requests on http for a plain http internal host ([#32725](https://github.com/lightdash/lightdash/issues/32725)) ([40a6707](https://github.com/lightdash/lightdash/commit/40a6707da739a46f43e6cd8159a428c9bba6800f))
+
+# [3.290.0](https://github.com/lightdash/lightdash/compare/3.289.4...3.290.0) (2026-11-17)
+
+
+### Features
+
+* **dashboards:** select a tile while editing to resize, duplicate or delete it ([#32750](https://github.com/lightdash/lightdash/issues/32750)) ([9d03af7](https://github.com/lightdash/lightdash/commit/9d03af74e8a5f90eae90d90ff855d26a6cce6c5d))
+
+## [3.289.4](https://github.com/lightdash/lightdash/compare/3.289.3...3.289.4) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** flatten the agent question card ([#32688](https://github.com/lightdash/lightdash/issues/32688)) ([f0367fb](https://github.com/lightdash/lightdash/commit/f0367fb80ee2d1390b7a67654250c0cd9c9bbcef))
+* **ai:** keep line breaks in agent chat user messages ([#32748](https://github.com/lightdash/lightdash/issues/32748)) ([cd0251d](https://github.com/lightdash/lightdash/commit/cd0251d4bdec47813ca3f1488cb9e0b8d0b89fc5))
+* **explorer:** stop results columns shrinking until their names are cut off ([#32752](https://github.com/lightdash/lightdash/issues/32752)) ([930b638](https://github.com/lightdash/lightdash/commit/930b638d97cfaca7c243b03ffc1ef09f774403bc))
+
+## [3.289.3](https://github.com/lightdash/lightdash/compare/3.289.2...3.289.3) (2026-11-17)
+
+
+### Bug Fixes
+
+* **pivot:** write raw booleans and zeros correctly in pivot CSV exports ([#32720](https://github.com/lightdash/lightdash/issues/32720)) ([0b11bf3](https://github.com/lightdash/lightdash/commit/0b11bf3cea9d2c55aae10253539f47317d76d1f9))
+
+## [3.289.2](https://github.com/lightdash/lightdash/compare/3.289.1...3.289.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **ai:** smooth Semantic Studio's path from proposal to merge ([#32727](https://github.com/lightdash/lightdash/issues/32727)) ([2128f25](https://github.com/lightdash/lightdash/commit/2128f25ba2e7f2e974cd69fd95a3625a00950c08))
+
+
+### Performance Improvements
+
+* **ai:** cut wasted requests and renders in Semantic Studio ([#32734](https://github.com/lightdash/lightdash/issues/32734)) ([9c7db33](https://github.com/lightdash/lightdash/commit/9c7db335da0ce7312e313e7f48c3ec67e6ef0dd7))
+
 ## [3.289.1](https://github.com/lightdash/lightdash/compare/3.289.0...3.289.1) (2026-11-17)
 
 
