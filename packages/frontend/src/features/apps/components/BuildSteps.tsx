@@ -17,7 +17,7 @@ type Props = {
     reasoning: string[];
     /** Marks the latest work as in progress. */
     isLive: boolean;
-    /** Leaves out the running step, which the live header already shows. */
+    /** Live header mode: hides the running step it already shows, and nothing shimmers. */
     omitCurrent: boolean;
 };
 
@@ -173,15 +173,17 @@ const BuildSteps: FC<Props> = ({ steps, reasoning, isLive, omitCurrent }) => {
                 <ThinkingStep
                     texts={reasoning}
                     isLive={isLive}
-                    isCurrent={isLive && groups.length === 0}
+                    isCurrent={isLive && !omitCurrent && groups.length === 0}
                 />
             )}
             {groups.map((group, i) =>
-                omitCurrent && i === currentIndex ? null : (
+                omitCurrent &&
+                i === currentIndex &&
+                group.targets.length <= 1 ? null : (
                     <GroupStep
                         key={`${group.kind}-${group.label}`}
                         group={group}
-                        isCurrent={i === currentIndex}
+                        isCurrent={!omitCurrent && i === currentIndex}
                     />
                 ),
             )}

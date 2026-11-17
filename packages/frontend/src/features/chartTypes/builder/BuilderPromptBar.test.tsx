@@ -1917,9 +1917,9 @@ describe('BuilderPromptBar', () => {
         expect(answer).toHaveBeenCalledWith(0, 'Over time');
         await userEvent.type(
             screen.getByPlaceholderText('Or type your own answer'),
-            'monthly',
+            'm',
         );
-        expect(answer).toHaveBeenCalledWith(0, 'm');
+        expect(answer).toHaveBeenLastCalledWith(0, 'm');
 
         await userEvent.click(screen.getByRole('button', { name: 'Build' }));
 

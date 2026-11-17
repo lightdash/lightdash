@@ -36,7 +36,7 @@ const BuildProgressCard: FC<Props> = ({
     const current = currentIndex === null ? null : groups[currentIndex];
     const earlierCount =
         groups.length -
-        (current ? 1 : 0) +
+        (current && current.targets.length <= 1 ? 1 : 0) +
         (narration.reasoning.length > 0 ? 1 : 0);
     const canExpand = earlierCount > 0;
     const stageLabel =

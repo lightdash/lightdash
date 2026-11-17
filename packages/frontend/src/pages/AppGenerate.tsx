@@ -3427,7 +3427,7 @@ const AppGenerate: FC = () => {
                                                     <>
                                                         {elementPicker.available && (
                                                             <ElementPickerButton
-                                                                iconOnly
+                                                                inHeader
                                                                 enabled={
                                                                     elementPicker.enabled
                                                                 }

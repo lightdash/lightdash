@@ -176,36 +176,6 @@
     padding: 0 12px 6px 12px;
 }
 
-/* Failed build */
-.failedCard {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid;
-    border-radius: var(--mantine-radius-md);
-    border-color: light-dark(
-        var(--mantine-color-red-2),
-        alpha(var(--mantine-color-red-8), 0.5)
-    );
-    background-color: light-dark(
-        var(--mantine-color-red-0),
-        alpha(var(--mantine-color-red-9), 0.15)
-    );
-}
-
-.failedIcon {
-    flex-shrink: 0;
-    margin-top: 2px;
-    color: var(--mantine-color-red-text);
-}
-
-.failedBody {
-    color: var(--mantine-color-ldGray-8);
-}
-
-.failedActions {
-    padding-left: 24px;
-}
-
 /* Preview pane states */
 .previewBuilding {
     position: relative;

@@ -220,7 +220,7 @@ describe('AppHeaderActions — Google Sheets Sync entry point', () => {
     });
 });
 
-describe('AppHeaderActions — Share', () => {
+describe('AppHeaderActions: Share', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockedCanEdit.mockReturnValue(true);

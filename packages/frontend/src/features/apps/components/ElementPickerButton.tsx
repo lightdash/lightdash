@@ -1,4 +1,4 @@
-import { ActionIcon, Button, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Tooltip } from '@mantine/core';
 import { IconClick } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -11,54 +11,28 @@ export const ElementPickerButton: FC<{
     enabled: boolean;
     onToggle: () => void;
     disabled?: boolean;
-    /** Icon-only, for the preview header. */
-    iconOnly?: boolean;
-}> = ({ enabled, onToggle, disabled, iconOnly = false }) => (
+    /** Styled for the app builder's preview header. */
+    inHeader?: boolean;
+}> = ({ enabled, onToggle, disabled, inHeader = false }) => (
     <Tooltip
         label={
             enabled
                 ? 'Element picker on – click an element in the preview'
                 : 'Pick an element in the preview to reference it'
         }
-        position={iconOnly ? 'bottom' : 'top'}
+        position={inHeader ? 'bottom' : 'top'}
     >
-        {iconOnly ? (
-            <ActionIcon
-                variant={enabled ? 'default' : 'subtle'}
-                size="md"
-                onClick={onToggle}
-                disabled={disabled}
-                aria-label="Toggle element picker"
-                aria-pressed={enabled}
-            >
-                <MantineIcon icon={IconClick} />
-            </ActionIcon>
-        ) : (
-            <Button
-                variant={enabled ? 'default' : 'subtle'}
-                color="gray"
-                size="xs"
-                radius="xl"
-                h="auto"
-                px={8}
-                py={6}
-                onClick={onToggle}
-                disabled={disabled}
-                aria-label="Toggle element picker"
-                aria-pressed={enabled}
-                leftSection={<MantineIcon icon={IconClick} size={14} />}
-            >
-                <Text
-                    span
-                    size="xs"
-                    fw={600}
-                    lh={1.2}
-                    c="inherit"
-                    data-composer-label
-                >
-                    Select element
-                </Text>
-            </Button>
-        )}
+        <ActionIcon
+            variant={enabled ? (inHeader ? 'default' : 'light') : 'subtle'}
+            color={enabled && !inHeader ? 'indigo' : 'gray'}
+            size="md"
+            radius={inHeader ? undefined : 'xl'}
+            onClick={onToggle}
+            disabled={disabled}
+            aria-label="Toggle element picker"
+            aria-pressed={enabled}
+        >
+            <MantineIcon icon={IconClick} size={16} />
+        </ActionIcon>
     </Tooltip>
 );

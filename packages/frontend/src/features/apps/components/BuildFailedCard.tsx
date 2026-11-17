@@ -1,12 +1,8 @@
-import { Box, Button, Group, Text } from '@mantine/core';
-import {
-    IconAlertTriangle,
-    IconPencil,
-    IconRefresh,
-} from '@tabler/icons-react';
+import { Button, Group, Text } from '@mantine/core';
+import { IconPencil, IconRefresh } from '@tabler/icons-react';
 import { type FC } from 'react';
+import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
-import classes from './BuildCards.module.css';
 
 type Props = {
     message: string;
@@ -28,27 +24,15 @@ const BuildFailedCard: FC<Props> = ({
     const consequence =
         fallbackVersion === null
             ? 'No version was created.'
-            : `Nothing changed — the preview still shows v${fallbackVersion}.`;
+            : `Nothing changed. The preview still shows v${fallbackVersion}.`;
 
     return (
-        <Box className={classes.failedCard} role="status">
-            <Group gap="xs" wrap="nowrap" align="flex-start">
-                <MantineIcon
-                    icon={IconAlertTriangle}
-                    size={16}
-                    className={classes.failedIcon}
-                />
-                <Box miw={0}>
-                    <Text size="sm" fw={600}>
-                        Build failed
-                    </Text>
-                    <Text size="xs" className={classes.failedBody}>
-                        {message} {consequence}
-                    </Text>
-                </Box>
-            </Group>
+        <Callout variant="danger" title="Build failed" role="status" w="100%">
+            <Text size="xs">
+                {message} {consequence}
+            </Text>
             {(onRetry || onEditPrompt) && (
-                <Group gap="xs" mt="sm" className={classes.failedActions}>
+                <Group gap="xs" mt="sm">
                     {onRetry && (
                         <Button
                             size="xs"
@@ -76,7 +60,7 @@ const BuildFailedCard: FC<Props> = ({
                     )}
                 </Group>
             )}
-        </Box>
+        </Callout>
     );
 };
 

@@ -7447,10 +7447,10 @@ export class AppGenerateService extends BaseService {
                     }),
                 )
                 .describe(
-                    // Deliberately says "what gets built", not "the app" — this
+                    // Deliberately says "what gets built", not "the app": this
                     // description reaches the model alongside a system prompt
                     // that may be insisting it is building a viz, not an app.
-                    '0–4 short clarifying questions. Default to empty — only include questions whose answers would materially change what gets built.',
+                    '0–4 short clarifying questions. Default to empty. Only include questions whose answers would materially change what gets built.',
                 ),
         });
 

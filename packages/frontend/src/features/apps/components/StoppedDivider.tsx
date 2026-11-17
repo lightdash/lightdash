@@ -15,7 +15,7 @@ const StoppedDivider: FC = () => (
                     icon={IconHandStop}
                     size={13}
                     stroke={1.7}
-                    color="gray.6"
+                    color="dimmed"
                 />
                 <Text fz="xs" lh={1.4} c="dimmed">
                     Build stopped
