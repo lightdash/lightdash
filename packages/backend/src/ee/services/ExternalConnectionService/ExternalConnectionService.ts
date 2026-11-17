@@ -658,7 +658,7 @@ export class ExternalConnectionService extends BaseService {
     ) {
         return {
             connectionKind: connection.kind ?? 'data_app',
-            connector: connection.apiSource?.connector ?? null,
+            integration: connection.apiSource?.connector ?? null,
         };
     }
 
@@ -2063,6 +2063,26 @@ export class ExternalConnectionService extends BaseService {
                         `Failed to log api query ${call.queryUuid} for connection ${connection.externalConnectionUuid}: ${getErrorMessage(error)}`,
                     );
                 }
+                // The query text stays out of analytics; it can hold filter values.
+                this.analytics.trackAccount(account, {
+                    event: 'live_source.api_call',
+                    properties: {
+                        organizationId: connection.organizationUuid,
+                        projectId: projectUuid,
+                        externalConnectionUuid:
+                            connection.externalConnectionUuid,
+                        integration: connection.apiSource?.connector ?? null,
+                        context: call.context,
+                        outcome: call.outcome,
+                        apiCalls: usage.apiCalls,
+                        providerStatus: usage.providerStatus,
+                        durationMs: call.durationMs,
+                        rowCount: call.rowCount,
+                        columnCount: call.columnCount,
+                        truncated: call.truncated,
+                        responseBytes: usage.responseBytes,
+                    },
+                });
             },
         };
     }

@@ -24,7 +24,7 @@ import {
     toPeriodStart,
     toScannedLiveSourceFields,
 } from './build';
-import { assertLiveQuery } from './definition';
+import { assertLiveQuery, getLiveDefinitionName } from './definition';
 import { getInitialLiveSourceFieldEdits } from './fields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
@@ -122,6 +122,14 @@ describe('live source names', () => {
 });
 
 describe('buildLiveExplores', () => {
+    test('reads back which definition an explore was built from', () => {
+        expect(
+            [ga4(), searchConsole()].map((explore) =>
+                getLiveDefinitionName(explore),
+            ),
+        ).toEqual(['report', 'performance']);
+    });
+
     test('names each explore after its integration and connection', () => {
         expect(
             [ga4(), searchConsole(), posthog()].map(

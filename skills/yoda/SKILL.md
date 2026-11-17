@@ -1,6 +1,7 @@
 ---
 name: yoda
-description: Only when the user explicitly invokes /yoda or asks for "yoda" by name, or another skill (such as ld-dev) calls it to review a change — never for other artifacts, pages or explanations. Reviews a PR, branch, stack or local diff through Lightdash-specific lenses picked by triage, or describes its changes as json; also explains a system or investigates a bug. Output as text (default, Markdown), json, an HTML page shown inline or published, or a GitHub PR description kept in sync. Invoke as /yoda [review|json|explain|triage] [text|json|html|github] [quick|deep] [lens names] <PR(s), topic or question>, words in any order.
+description: Review a Lightdash PR, branch or diff through lenses, or explain a system, bug or change. /yoda [review|json|explain|triage] [text|json|html|github] [quick|deep] [lens names] <PR(s), topic or question>
+disable-model-invocation: true
 ---
 
 # yoda
@@ -38,8 +39,8 @@ Yoda sets neither model nor effort.
 ## Copy
 
 - State claims as facts with an actor and action (“Editors curate source fields”).
-  Use numbers, plain words and user-visible effects before internals; avoid vague benefits and filename headlines.
+  Lead with numbers, plain words and the user-visible effect; headlines name the behaviour, not the file.
 - Findings show concrete input/output, a changed cell or causal branch, not best-practice advice.
   Compare the same scenario in Before/After.
 - Refs and identifiers follow [lenses/README.md](lenses/README.md), Evidence and Public by default.
-- Findings never link to each other; don't mark untouched areas.
+- Each finding stands alone, and the review covers only what the change touched.

@@ -14,6 +14,8 @@ import { useIsAiAgentNavigationDisabled } from '../../hooks/useIsAiAgentNavigati
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
 import {
     getDataAppContextItemLabel,
+    getPromptContextItemHref,
+    getSqlChartContextItemLabel,
     getThemeContextItemLabel,
 } from '../ChatElements/contentReferenceUtils';
 import {
@@ -278,6 +280,20 @@ export const PinnedContextCard: FC<Props> = ({
                     {item.displayName ?? item.documentSlug ?? 'Document'}
                 </ContentReferenceLink>
             );
+        case 'sql_chart': {
+            const href = getPromptContextItemHref(item, projectUuid);
+            return (
+                <ContentReferenceLink
+                    kind="sql_chart"
+                    rel="noreferrer"
+                    to={href ?? undefined}
+                    target={href ? '_blank' : undefined}
+                    showArrow={href !== null}
+                >
+                    {getSqlChartContextItemLabel(item)}
+                </ContentReferenceLink>
+            );
+        }
         case 'pull_request':
         case 'proposed_change':
         case 'review_finding':

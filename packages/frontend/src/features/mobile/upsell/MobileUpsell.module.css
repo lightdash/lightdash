@@ -16,6 +16,7 @@
     max-height: calc(100dvh - 96px);
     overflow-y: auto;
     overscroll-behavior: contain;
+    position: relative;
     margin: -12px;
     padding: 12px;
 }
@@ -23,6 +24,7 @@
 .pitch {
     display: grid;
     gap: 4px;
+    padding-inline-end: 32px;
 }
 
 .headline {
@@ -78,6 +80,63 @@
 
 .rescanHint {
     text-wrap: balance;
+}
+
+.dismiss {
+    position: absolute;
+    z-index: 1;
+    inset-block-start: 4px;
+    inset-inline-end: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+    padding-inline: 9px;
+    border-radius: var(--mantine-radius-xl);
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+    line-height: 1;
+    white-space: nowrap;
+    transition:
+        background-color 0.2s var(--ld-ease),
+        color 0.2s var(--ld-ease);
+}
+
+.dismissLabel {
+    display: inline-block;
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+        max-width 0.2s var(--ld-ease),
+        margin 0.2s var(--ld-ease),
+        opacity 0.2s var(--ld-ease);
+}
+
+.dismiss:hover,
+.dismiss:focus-visible {
+    background-color: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+}
+
+.dismiss:hover .dismissLabel,
+.dismiss:focus-visible .dismissLabel {
+    max-width: 120px;
+    margin-inline-end: 4px;
+    opacity: 1;
+}
+
+.dismiss:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+    .dismiss {
+        min-width: 44px;
+        min-height: 44px;
+    }
 }
 
 .qrColumn [data-used='true'] {

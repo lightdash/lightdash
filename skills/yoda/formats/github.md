@@ -2,9 +2,7 @@
 
 Render [canonical JSON](json.md) as a PR description: what the change does, its diff and how it was verified.
 It describes the change and never judges it: no verdict, findings, gaps, rating or impact signal.
-The description is public, so everything follows [lenses/README.md](../lenses/README.md), Public by default.
-
-**No PII:** no customer, org or person names, emails, account or user ids, internal URLs, keys or tokens, real query results, screenshots showing customer data, or quoted Slack or Pylon messages. Say "a customer" or use a placeholder (`acme-corp`, `user-1234`); the ticket carries the context. Check the block for these before writing it.
+The description is public: check the block against [lenses/README.md](../lenses/README.md), Public by default, before writing it.
 
 ## Block
 

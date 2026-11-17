@@ -27,6 +27,10 @@ import {
     resolveDropOverlaps,
     getRowInsertion,
     getGapFill,
+    getSnapDwellRemaining,
+    getSnapRest,
+    SNAP_DWELL_MS,
+    getAddTileSlot,
     getPointerCell,
     getPointerPosition,
     hasLayoutChanged,
@@ -614,6 +618,72 @@ describe('dropping a tile on empty space', () => {
             item('dragged', 0, 20),
         ];
         expect(fill(layout, 17, 1)).toBeNull();
+    });
+});
+
+describe('resting over a slot before snapping to it', () => {
+    const slot = { x: 0, y: 4, w: 12, h: 6 };
+    const resting = getSnapRest({
+        previous: null,
+        slot,
+        pointer: { clientX: 100, clientY: 100 },
+        now: 1000,
+    });
+
+    it('does not snap a tile that has just reached a slot', () => {
+        expect(getSnapDwellRemaining(resting, 1000)).toBe(SNAP_DWELL_MS);
+    });
+
+    it('snaps once the pointer has stayed put long enough', () => {
+        const later = getSnapRest({
+            previous: resting,
+            slot,
+            pointer: { clientX: 103, clientY: 98 },
+            now: 1000 + SNAP_DWELL_MS,
+        });
+        expect(getSnapDwellRemaining(later, 1000 + SNAP_DWELL_MS)).toBe(0);
+    });
+
+    it('starts waiting again when the pointer keeps moving', () => {
+        const later = getSnapRest({
+            previous: resting,
+            slot,
+            pointer: { clientX: 160, clientY: 100 },
+            now: 1000 + SNAP_DWELL_MS,
+        });
+        expect(getSnapDwellRemaining(later, 1000 + SNAP_DWELL_MS)).toBe(
+            SNAP_DWELL_MS,
+        );
+    });
+
+    it('starts waiting again over another slot', () => {
+        const later = getSnapRest({
+            previous: resting,
+            slot: { ...slot, x: 12 },
+            pointer: { clientX: 100, clientY: 100 },
+            now: 1000 + SNAP_DWELL_MS,
+        });
+        expect(getSnapDwellRemaining(later, 1000 + SNAP_DWELL_MS)).toBe(
+            SNAP_DWELL_MS,
+        );
+    });
+
+    it('lets go of a snap once the pointer moves on', () => {
+        const snapped = getSnapRest({
+            previous: resting,
+            slot,
+            pointer: { clientX: 100, clientY: 100 },
+            now: 1000 + SNAP_DWELL_MS,
+        });
+        const movedOn = getSnapRest({
+            previous: snapped,
+            slot,
+            pointer: { clientX: 100, clientY: 140 },
+            now: 1100 + SNAP_DWELL_MS,
+        });
+        expect(
+            getSnapDwellRemaining(movedOn, 1100 + SNAP_DWELL_MS),
+        ).toBeGreaterThan(0);
     });
 });
 
@@ -1453,5 +1523,75 @@ describe('tidying tiles', () => {
             at('a', 0, 0, 18),
             at('b', 18, 0, 18),
         ]);
+    });
+});
+
+describe('add tile slot', () => {
+    const tile = (x: number, y: number, w: number, h: number) => ({
+        x,
+        y,
+        w,
+        h,
+    });
+    const defaultSize = { w: 15, h: 9 };
+    const slotAt = (items: ReturnType<typeof tile>[], x: number, y: number) =>
+        getAddTileSlot({
+            items,
+            cell: { x, y },
+            cols: 36,
+            minSize: { w: 4, h: 2 },
+            defaultSize,
+        });
+
+    it('takes the space left in the last row, as tall as the tiles beside it', () => {
+        const items = [tile(0, 0, 36, 4), tile(0, 4, 18, 9)];
+        expect(slotAt(items, 30, 8)).toEqual({ x: 18, y: 4, w: 18, h: 9 });
+    });
+
+    it('offers the last row gap when the pointer is under the last row', () => {
+        const items = [tile(0, 0, 36, 4), tile(0, 4, 18, 9)];
+        expect(slotAt(items, 2, 20)).toEqual({ x: 18, y: 4, w: 18, h: 9 });
+    });
+
+    it('offers the widest gap when the last row has more than one', () => {
+        const items = [tile(6, 0, 10, 6)];
+        expect(slotAt(items, 0, 12)).toEqual({ x: 16, y: 0, w: 20, h: 6 });
+    });
+
+    it('lands a default tile under a full last row, centred on the pointer and kept on the grid', () => {
+        const items = [tile(0, 0, 18, 9), tile(18, 0, 18, 9)];
+        expect(slotAt(items, 20, 12)).toEqual({ x: 13, y: 9, w: 15, h: 9 });
+        expect(slotAt(items, 2, 12)).toEqual({ x: 0, y: 9, w: 15, h: 9 });
+        expect(slotAt(items, 35, 12)).toEqual({ x: 21, y: 9, w: 15, h: 9 });
+    });
+
+    it('skips a last row gap too narrow for a tile', () => {
+        const items = [tile(0, 0, 34, 9)];
+        expect(slotAt(items, 35, 3)).toBeNull();
+        expect(slotAt(items, 35, 12)).toEqual({ x: 21, y: 9, w: 15, h: 9 });
+    });
+
+    it('takes a gap above the last row, bounded by the tiles around it', () => {
+        const items = [tile(0, 0, 12, 4), tile(0, 4, 36, 6)];
+        expect(slotAt(items, 20, 2)).toEqual({ x: 12, y: 0, w: 24, h: 4 });
+    });
+
+    it('keeps to the last row when the pointer is under it', () => {
+        const items = [tile(0, 0, 12, 4), tile(0, 4, 36, 6)];
+        expect(slotAt(items, 20, 12)).toEqual({ x: 13, y: 10, w: 15, h: 9 });
+    });
+
+    it('skips a gap too short for a tile', () => {
+        const items = [
+            tile(0, 0, 12, 4),
+            tile(12, 0, 24, 3),
+            tile(0, 4, 36, 6),
+        ];
+        expect(slotAt(items, 20, 3)).toBeNull();
+    });
+
+    it('offers nothing over a tile or on an empty canvas', () => {
+        expect(slotAt([tile(0, 0, 18, 9)], 3, 3)).toBeNull();
+        expect(slotAt([], 3, 3)).toBeNull();
     });
 });

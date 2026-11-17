@@ -84,6 +84,8 @@ export type ProviderProps = {
     columnOrder?: string[];
     onColumnOrderChange?: (value: string[]) => void;
     onColumnWidthChange?: (fieldId: string, width: number) => void;
+    /** Called when a header is dragged out past the table's left edge */
+    onColumnRemove?: (fieldId: string) => void;
 };
 
 export type TableContext = ProviderProps & {

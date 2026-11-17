@@ -599,6 +599,7 @@ export type AiPromptContextEntityType =
     | 'data_app_restore'
     | 'data_app'
     | 'document'
+    | 'sql_chart'
     | 'design'
     | 'skill';
 

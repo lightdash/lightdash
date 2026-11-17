@@ -9,10 +9,10 @@ type Props = {
     onClick: () => void;
 };
 
-/** Starts a fresh thread; sits top-right of the builder's chat box. */
+/** Starts a fresh thread; sits in the builder's chat header. */
 const ClearAgentContextButton: FC<Props> = ({ disabled, onClick }) => (
     <Tooltip
-        position="top"
+        position="bottom"
         openDelay={200}
         transitionProps={{ transition: 'fade', duration: 150 }}
         label={
@@ -28,6 +28,9 @@ const ClearAgentContextButton: FC<Props> = ({ disabled, onClick }) => (
     >
         {/* data-disabled keeps the tooltip reachable while disabled. */}
         <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="md"
             aria-label="Clear agent context"
             aria-disabled={disabled || undefined}
             data-disabled={disabled || undefined}

@@ -304,6 +304,7 @@ it.each([null, 'log', 'enforce'] as const)(
         const exchangeClient = {
             ...client,
             grants: [TOKEN_EXCHANGE_GRANT_TYPE],
+            redirectUris: ['com.lightdash.mobile://oauth/callback'],
         };
         vi.mocked(model.getClient).mockResolvedValue(exchangeClient);
         const getManagedSignInService = () =>
@@ -552,7 +553,9 @@ describe('strict refresh token families', () => {
                     featureFlagId,
                 }: Parameters<FeatureFlagModel['get']>[0]) => ({
                     id: featureFlagId,
-                    enabled: strict,
+                    enabled:
+                        featureFlagId === FeatureFlags.MobileAppAccess ||
+                        strict,
                 }),
             ),
         };
@@ -903,6 +906,7 @@ describe('strict refresh token families', () => {
             vi.mocked(rotationModel.getClient).mockResolvedValue({
                 ...client,
                 grants: [TOKEN_EXCHANGE_GRANT_TYPE, 'refresh_token'],
+                redirectUris: ['com.lightdash.mobile://oauth/callback'],
             });
             const exchangeService = new OAuthService({
                 oauthModel: rotationModel,

@@ -1,5 +1,6 @@
 import {
     assertRegisteredAccount,
+    QueryExecutionContext,
     type ApiComposerChartResponse,
     type ApiComposerChartRunResponse,
     type ApiErrorPayload,
@@ -100,7 +101,13 @@ export class ComposerChartController extends BaseController {
         assertRegisteredAccount(req.account);
         const results = await this.services
             .getComposerChartService()
-            .run(req.account, projectUuid, composerChartUuid, body);
+            .run(
+                req.account,
+                projectUuid,
+                composerChartUuid,
+                body,
+                QueryExecutionContext.DASHBOARD,
+            );
         this.setStatus(200);
         return { status: 'ok', results };
     }

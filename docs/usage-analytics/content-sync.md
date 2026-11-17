@@ -30,5 +30,10 @@ installation leaves the previous marker so retries can use the existing installe
 There is no new table, migration, user type or credential. Managed dashboard edits
 are replaced on shipped updates; custom copies and existing access are preserved.
 
+When data apps are enabled, sync also installs the Adoption data app in the
+managed Analytics space. A shipped source change queues a new version in the
+standard data app build pipeline. Find the app in the managed Analytics space.
+It shows adoption across the organization by team and feature using rolling windows.
+
 Content sync updates definitions. Data freshness still depends on successful
 compaction and metadata refresh; it is not a data backfill.

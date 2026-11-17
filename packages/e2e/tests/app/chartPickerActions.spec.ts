@@ -34,11 +34,12 @@ test.describe('Chart picker actions', () => {
         await page
             .getByRole('button', { name: 'Configure', exact: true })
             .click();
+        // On a new chart Configure opens the gallery; this button appears
+        // once a type is being configured
         const changeChartType = page.getByRole('button', {
             name: 'Change chart type',
             exact: true,
         });
-        await changeChartType.click();
 
         const pieButton = page
             .locator('button')

@@ -164,7 +164,10 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
-import { SavedSqlTableName } from '../../database/entities/savedSql';
+import {
+    SavedSqlTableName,
+    SavedSqlVersionsTableName,
+} from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
@@ -7693,6 +7696,46 @@ export class AiAgentModel {
             ).map((r) => [r.document_uuid, r] as const),
         );
 
+        const sqlChartUuids = context.flatMap((c) =>
+            c.type === 'sql_chart' ? [c.sqlChartUuid] : [],
+        );
+        const sqlChartLookup = new Map(
+            (sqlChartUuids.length === 0
+                ? []
+                : await trx(SavedSqlTableName)
+                      .leftJoin(
+                          SavedSqlVersionsTableName,
+                          `${SavedSqlTableName}.saved_sql_uuid`,
+                          `${SavedSqlVersionsTableName}.saved_sql_uuid`,
+                      )
+                      .whereIn(
+                          `${SavedSqlTableName}.saved_sql_uuid`,
+                          sqlChartUuids,
+                      )
+                      .whereNull(`${SavedSqlTableName}.deleted_at`)
+                      .distinctOn(`${SavedSqlTableName}.saved_sql_uuid`)
+                      .orderBy([
+                          { column: `${SavedSqlTableName}.saved_sql_uuid` },
+                          {
+                              column: `${SavedSqlVersionsTableName}.created_at`,
+                              order: 'desc',
+                              nulls: 'last',
+                          },
+                      ])
+                      .select<
+                          {
+                              saved_sql_uuid: string;
+                              name: string;
+                              saved_sql_version_uuid: string | null;
+                          }[]
+                      >({
+                          saved_sql_uuid: `${SavedSqlTableName}.saved_sql_uuid`,
+                          name: `${SavedSqlTableName}.name`,
+                          saved_sql_version_uuid: `${SavedSqlVersionsTableName}.saved_sql_version_uuid`,
+                      })
+            ).map((r) => [r.saved_sql_uuid, r] as const),
+        );
+
         const threadUuids = context.flatMap((c) =>
             c.type === 'thread' ? [c.threadUuid] : [],
         );
@@ -7830,6 +7873,17 @@ export class AiAgentModel {
                             dashboard?.dashboard_version_uuid ?? null,
                         display_name: dashboard?.name ?? null,
                         runtime_overrides: ctx.runtimeOverrides ?? null,
+                    };
+                }
+                case 'sql_chart': {
+                    const sqlChart = sqlChartLookup.get(ctx.sqlChartUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'sql_chart' as AiPromptContextEntityType,
+                        entity_uuid: ctx.sqlChartUuid,
+                        pinned_version_uuid:
+                            sqlChart?.saved_sql_version_uuid ?? null,
+                        display_name: sqlChart?.name ?? null,
                     };
                 }
                 case 'document': {
@@ -8199,6 +8253,23 @@ export class AiAgentModel {
             ).map((r) => [r.document_uuid, r.slug] as const),
         );
 
+        const sqlChartUuids = rows
+            .filter((r) => r.entity_type === 'sql_chart')
+            .map((r) => r.entity_uuid)
+            .filter((u): u is string => u !== null);
+        const sqlChartSlugByUuid = new Map(
+            (sqlChartUuids.length === 0
+                ? []
+                : await this.database(SavedSqlTableName)
+                      .whereIn('saved_sql_uuid', sqlChartUuids)
+                      .whereNull('deleted_at')
+                      .select<{ saved_sql_uuid: string; slug: string }[]>(
+                          'saved_sql_uuid',
+                          'slug',
+                      )
+            ).map((r) => [r.saved_sql_uuid, r.slug] as const),
+        );
+
         // review_finding / proposed_change pins resolve live finding data,
         // scoped by the org of the prompt they hang off. Only worth the extra
         // prompt -> thread -> org lookup when such a pin is actually present.
@@ -8357,6 +8428,7 @@ export class AiAgentModel {
                     chartDataByUuid,
                     dashboardSlugByUuid,
                     documentSlugByUuid,
+                    sqlChartSlugByUuid,
                     reviewItem,
                     projectNameByUuid,
                     appDataByUuid,
@@ -8404,6 +8476,7 @@ export class AiAgentModel {
         >,
         dashboardSlugByUuid: Map<string, string>,
         documentSlugByUuid: Map<string, string>,
+        sqlChartSlugByUuid: Map<string, string>,
         reviewItem: AiAgentReviewItemSummary | null,
         projectNameByUuid: Map<string, string>,
         appDataByUuid: Map<
@@ -8449,6 +8522,16 @@ export class AiAgentModel {
                     displayName: row.display_name,
                     runtimeOverrides:
                         row.runtime_overrides as AiDashboardRuntimeOverrides | null,
+                };
+            }
+            case 'sql_chart': {
+                const entityUuid = requireEntityUuid();
+                return {
+                    type: 'sql_chart',
+                    sqlChartUuid: entityUuid,
+                    sqlChartSlug: sqlChartSlugByUuid.get(entityUuid) ?? null,
+                    pinnedVersionUuid: row.pinned_version_uuid,
+                    displayName: row.display_name,
                 };
             }
             case 'document': {

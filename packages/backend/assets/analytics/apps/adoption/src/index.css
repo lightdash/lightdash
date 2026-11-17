@@ -1,0 +1,178 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base {
+  :root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.141 0.005 285.823);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.141 0.005 285.823);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.141 0.005 285.823);
+    --primary: oklch(0.21 0.006 285.885);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.967 0.001 286.375);
+    --secondary-foreground: oklch(0.21 0.006 285.885);
+    --muted: oklch(0.967 0.001 286.375);
+    --muted-foreground: oklch(0.552 0.016 285.938);
+    --accent: oklch(0.967 0.001 286.375);
+    --accent-foreground: oklch(0.21 0.006 285.885);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.92 0.004 286.32);
+    --input: oklch(0.92 0.004 286.32);
+    --ring: oklch(0.705 0.015 286.067);
+    --chart-1: oklch(0.871 0.006 286.286);
+    --chart-2: oklch(0.552 0.016 285.938);
+    --chart-3: oklch(0.442 0.017 285.786);
+    --chart-4: oklch(0.37 0.013 285.805);
+    --chart-5: oklch(0.274 0.006 286.033);
+    --radius: 0.5rem;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.141 0.005 285.823);
+    --sidebar-primary: oklch(0.21 0.006 285.885);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.967 0.001 286.375);
+    --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+    --sidebar-border: oklch(0.92 0.004 286.32);
+    --sidebar-ring: oklch(0.705 0.015 286.067)}
+  .dark {
+    --background: oklch(0.141 0.005 285.823);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.21 0.006 285.885);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.21 0.006 285.885);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.92 0.004 286.32);
+    --primary-foreground: oklch(0.21 0.006 285.885);
+    --secondary: oklch(0.274 0.006 286.033);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.274 0.006 286.033);
+    --muted-foreground: oklch(0.705 0.015 286.067);
+    --accent: oklch(0.274 0.006 286.033);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.552 0.016 285.938);
+    --chart-1: oklch(0.871 0.006 286.286);
+    --chart-2: oklch(0.552 0.016 285.938);
+    --chart-3: oklch(0.442 0.017 285.786);
+    --chart-4: oklch(0.37 0.013 285.805);
+    --chart-5: oklch(0.274 0.006 286.033);
+    --sidebar: oklch(0.21 0.006 285.885);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.274 0.006 286.033);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.552 0.016 285.938)}
+}
+@layer base {
+  * {
+    @apply border-border;
+  }
+  /* Apply to <html> too so the area below <body> (when the iframe is taller
+     than the rendered content) doesn't reveal the iframe's default white
+     canvas as a strip at the bottom. */
+  html, body {
+    @apply bg-background text-foreground;
+  }
+  /* Safety net for pages that theme a content-sized wrapper instead of a
+     full-height shell (see skill.md) — otherwise the iframe area below the
+     content paints the template default as a hard edge. Wrapped in :where() so
+     anything the app sets itself still wins. */
+  :where(#root > :first-child:not([data-screenshot-bounds])) {
+    min-height: 100vh;
+  }
+  /* The crop marker defines the delivery-screenshot height, so it can't be
+     stretched — repaint its background behind the whole viewport instead.
+     `fixed` on both layers keeps a gradient from seaming at the content edge. */
+  :where(#root > [data-screenshot-bounds]:first-child) {
+    background-attachment: fixed;
+  }
+  #root > [data-screenshot-bounds]:first-child::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: inherit;
+  }
+  /* Chart types (see VizFrame in main.jsx): the frame is the container. It
+     scrolls when the content is taller than the tile, and rem sizes shrink in
+     a narrow tile. */
+  html[data-viz-frame] {
+    font-size: clamp(12px, calc(4px + 2.5vw), 16px);
+  }
+  html[data-viz-frame] #root {
+    height: 100vh;
+    overflow-y: auto;
+  }
+  /* `dark` on the shell re-points the theme variables but not the color already
+     inherited from <body>, which would leave bare text in light-theme ink. */
+  :where(#root > .dark:first-child) {
+    color: var(--foreground);
+  }
+}
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Adoption app: the colours of people's marks, defined once and read by the map, the waffle, both legends and the
+   panel's bars. Values are the October adoption map's, light and dark. */
+@layer base {
+  :root {
+    /* How much they use: one purple, opaque for the most features and fading to nothing for none */
+    --ad-most: #7950f2;
+    --ad-most-edge: #7950f2;
+    --ad-some: color-mix(in srgb, #7950f2 60%, transparent);
+    --ad-some-edge: color-mix(in srgb, #7950f2 60%, transparent);
+    --ad-left: color-mix(in srgb, #7950f2 30%, transparent);
+    --ad-none: color-mix(in srgb, #7950f2 45%, transparent);
+    /* Activity: one blue, opaque for the most recent and fading to nothing for never */
+    --ad-recent: #1c7ed6;
+    --ad-month: color-mix(in srgb, #1c7ed6 60%, transparent);
+    --ad-older: color-mix(in srgb, #1c7ed6 30%, transparent);
+    --ad-older-edge: color-mix(in srgb, #1c7ed6 30%, transparent);
+    --ad-recent-none: color-mix(in srgb, #1c7ed6 45%, transparent);
+    /* Role: a colour each */
+    --ad-admin: #e8590c;
+    --ad-editor: #2f9e44;
+    --ad-interactive: #7048e8;
+    --ad-viewer: #868e96;
+    --ad-shared-ring: #71717a;
+    --ad-circle-fill: #fafafa;
+    --ad-circle-stroke: #dcdce0;
+    --ad-circle-hover: #71717a;
+    --ad-empty-stroke: #a1a1aa;
+    --ad-heat: #7950f2;
+  }
+  .dark {
+    --ad-most: #9775fa;
+    --ad-most-edge: #9775fa;
+    --ad-some: color-mix(in srgb, #9775fa 60%, transparent);
+    --ad-some-edge: color-mix(in srgb, #9775fa 60%, transparent);
+    --ad-left: color-mix(in srgb, #9775fa 30%, transparent);
+    --ad-none: color-mix(in srgb, #9775fa 50%, transparent);
+    --ad-recent: #4dabf7;
+    --ad-month: color-mix(in srgb, #4dabf7 60%, transparent);
+    --ad-older: color-mix(in srgb, #4dabf7 30%, transparent);
+    --ad-older-edge: color-mix(in srgb, #4dabf7 30%, transparent);
+    --ad-recent-none: color-mix(in srgb, #4dabf7 50%, transparent);
+    --ad-admin: #ff922b;
+    --ad-editor: #51cf66;
+    --ad-interactive: #b197fc;
+    --ad-viewer: #adb5bd;
+    --ad-shared-ring: #9a9aa3;
+    --ad-circle-fill: color-mix(in srgb, var(--foreground) 3%, var(--background));
+    --ad-circle-stroke: #3d3d42;
+    --ad-circle-hover: #9a9aa3;
+    --ad-empty-stroke: #55555c;
+    --ad-heat: #9775fa;
+  }
+}

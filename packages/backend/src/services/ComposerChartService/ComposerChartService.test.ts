@@ -9,6 +9,7 @@ import {
     ForbiddenError,
     MergeJoinType,
     MetricType,
+    QueryExecutionContext,
     QuerySourceType,
     TableCalculationType,
     type ComposerChartPipelineNode,
@@ -228,7 +229,12 @@ const usedParametersByQuery: Record<string, ParametersValuesMap> = {
 const setup = ({ flagEnabled = true } = {}) => {
     const querySourceService = {
         submitComposerRun: vi.fn(
-            async ({ binding }: { binding: ComposerRunBinding }) => ({
+            async ({
+                binding,
+            }: {
+                binding: ComposerRunBinding;
+                context: QueryExecutionContext;
+            }) => ({
                 queries: binding.nodes.map(({ nodeId, sourceType }) => ({
                     nodeId,
                     sourceType,
@@ -610,6 +616,7 @@ describe('ComposerChartService.run', () => {
             projectUuid,
             'chart-uuid',
             runRequest,
+            QueryExecutionContext.DASHBOARD,
         );
         expect(result.queries.map(({ nodeId }) => nodeId)).toEqual(
             stored.nodes.map(({ nodeId }) => nodeId),
@@ -637,6 +644,7 @@ describe('ComposerChartService.run', () => {
             projectUuid,
             'chart-uuid',
             runRequest,
+            QueryExecutionContext.DASHBOARD,
         );
         expect(result.fields).toEqual({ 'result-query_field': {} });
     });
@@ -666,6 +674,7 @@ describe('ComposerChartService.run', () => {
             projectUuid,
             'chart-uuid',
             runRequest,
+            QueryExecutionContext.DASHBOARD,
         );
         const { binding } = submitComposerRun.mock.calls[0][0];
         expect(binding.nodes.slice(0, -1)).toEqual(resolvedNodes);
@@ -685,6 +694,7 @@ describe('ComposerChartService.run', () => {
             projectUuid,
             'chart-uuid',
             runRequest,
+            QueryExecutionContext.DASHBOARD,
         );
         expect(result.usedParameterValuesByNodeId).toEqual({
             orders: { region: 'EU' },
@@ -695,10 +705,16 @@ describe('ComposerChartService.run', () => {
 
     test('writes the dashboard parameter onto the nodes and the shared map', async () => {
         const { service, submitComposerRun } = setupRun();
-        const result = await service.run(viewer(), projectUuid, 'chart-uuid', {
-            ...runRequest,
-            parameters: { region: 'EU' },
-        });
+        const result = await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            {
+                ...runRequest,
+                parameters: { region: 'EU' },
+            },
+            QueryExecutionContext.DASHBOARD,
+        );
         const { binding } = submitComposerRun.mock.calls[0][0];
         expect(binding.parameters).toEqual({ region: 'EU' });
         expect(binding.nodes[0]).toMatchObject({
@@ -718,6 +734,7 @@ describe('ComposerChartService.run', () => {
                 projectUuid,
                 'chart-uuid',
                 runRequest,
+                QueryExecutionContext.DASHBOARD,
             ),
         ).rejects.toThrow(ForbiddenError);
         expect(submitComposerRun).not.toHaveBeenCalled();
@@ -726,10 +743,16 @@ describe('ComposerChartService.run', () => {
     test('refuses a run naming a dashboard that does not own the chart', async () => {
         const { service, submitComposerRun } = setupRun();
         await expect(
-            service.run(viewer(), projectUuid, 'chart-uuid', {
-                ...runRequest,
-                dashboardUuid: 'another-dashboard',
-            }),
+            service.run(
+                viewer(),
+                projectUuid,
+                'chart-uuid',
+                {
+                    ...runRequest,
+                    dashboardUuid: 'another-dashboard',
+                },
+                QueryExecutionContext.DASHBOARD,
+            ),
         ).rejects.toThrow(ForbiddenError);
         expect(submitComposerRun).not.toHaveBeenCalled();
     });
@@ -737,10 +760,16 @@ describe('ComposerChartService.run', () => {
     test('refuses a run naming a tile that does not show this chart', async () => {
         const { service, submitComposerRun } = setupRun();
         await expect(
-            service.run(viewer(), projectUuid, 'chart-uuid', {
-                ...runRequest,
-                tileUuid: 'another-tile',
-            }),
+            service.run(
+                viewer(),
+                projectUuid,
+                'chart-uuid',
+                {
+                    ...runRequest,
+                    tileUuid: 'another-tile',
+                },
+                QueryExecutionContext.DASHBOARD,
+            ),
         ).rejects.toThrow(ForbiddenError);
         expect(submitComposerRun).not.toHaveBeenCalled();
     });
@@ -748,9 +777,31 @@ describe('ComposerChartService.run', () => {
     test('is refused with the composer-charts flag off', async () => {
         const { service, submitComposerRun } = setupRun({ flagEnabled: false });
         await expect(
-            service.run(viewer(), projectUuid, 'chart-uuid', runRequest),
+            service.run(
+                viewer(),
+                projectUuid,
+                'chart-uuid',
+                runRequest,
+                QueryExecutionContext.DASHBOARD,
+            ),
         ).rejects.toThrow(FeatureNotEnabledError);
         expect(submitComposerRun).not.toHaveBeenCalled();
+    });
+
+    test.each([
+        QueryExecutionContext.DASHBOARD,
+        QueryExecutionContext.SCHEDULED_DELIVERY,
+        QueryExecutionContext.CSV,
+    ] as const)('records the run under the %s context', async (context) => {
+        const { service, submitComposerRun } = setupRun();
+        await service.run(
+            viewer(),
+            projectUuid,
+            'chart-uuid',
+            runRequest,
+            context,
+        );
+        expect(submitComposerRun.mock.calls[0][0].context).toBe(context);
     });
 });
 

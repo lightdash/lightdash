@@ -823,7 +823,7 @@ export type QueryCompletedEvent = BaseTrack & {
         totalRowCount: number | null;
         columnsCount: number | null;
         // Set only when executionSource is 'live_source'.
-        apiConnector?: ApiConnectorType;
+        integration?: ApiConnectorType;
         apiQueryOutcome?: LiveQueryOutcome;
         /** Set only when a live_source query failed. */
         liveSourceErrorCode?: LiveSourceUpstreamErrorCode;
@@ -2035,6 +2035,7 @@ export type DashboardView = BaseTrack & {
     userId: string;
     properties: {
         dashboardId: string;
+        dashboardSlug?: string;
         projectId: string;
         organizationId: string;
         parametersCount: number;
@@ -2594,6 +2595,7 @@ export type DataAppViewedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         appUuid: string;
+        appSlug?: string;
         viewContext?: DataAppViewContext | 'embed' | 'mcp';
         version?: number;
         navigationId?: string | null;

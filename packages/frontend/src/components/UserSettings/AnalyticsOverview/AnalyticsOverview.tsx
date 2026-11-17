@@ -7,6 +7,8 @@ import {
     Button,
     ActionIcon,
     Box,
+    Center,
+    Loader,
     Badge,
     Group,
     ScrollArea,
@@ -26,11 +28,22 @@ import {
     IconExternalLink,
     IconHome,
 } from '@tabler/icons-react';
-import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import {
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
+import { Link, useSearchParams } from 'react-router';
+import { useExploreByProjectUuid } from '../../../hooks/useExplore';
 import { useProjects } from '../../../hooks/useProjects';
 import MantineIcon from '../../common/MantineIcon';
 import { PolymorphicPaperButton } from '../../common/PolymorphicPaperButton';
+import {
+    AnalyticsAdoptionLink,
+    AnalyticsAdoptionPreview,
+} from './AnalyticsAdoptionPreview';
 import classes from './AnalyticsOverview.module.css';
 import AnalyticsOverviewChart from './AnalyticsOverviewChart';
 import {
@@ -43,6 +56,7 @@ import {
     type AnalyticsFilters,
 } from './analyticsOverviewConfig';
 import AnalyticsTabSummary from './AnalyticsTabSummary';
+import { useAnalyticsAdoptionApp } from './useAnalyticsAdoptionApp';
 import {
     useAnalyticsOverviewQueries,
     type AnalyticsOverviewQueryResult,
@@ -156,18 +170,37 @@ const AnalyticsOverview = ({
     projectUrlIdentifier,
     dashboards,
     heading,
+    status,
     actions,
 }: {
     projectUuid: string;
     projectUrlIdentifier: string;
     dashboards: DashboardBasicDetails[];
     heading: ReactNode;
+    status?: ReactNode;
     actions: ReactNode;
 }) => {
     const [days, setDays] = useState('7');
     const [selectedProject, setSelectedProject] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState('overview');
+    const [searchParams] = useSearchParams();
+    const [activeTab, setActiveTab] = useState(() =>
+        searchParams.get('tab') === 'adoption' ? 'adoption' : 'overview',
+    );
     const tabsViewport = useRef<HTMLDivElement>(null);
+    // The arrows only help when the tabs do not all fit
+    const [doTabsOverflow, setDoTabsOverflow] = useState(false);
+    useLayoutEffect(() => {
+        const viewport = tabsViewport.current;
+        if (!viewport) return undefined;
+        const measure = () =>
+            setDoTabsOverflow(viewport.scrollWidth - viewport.clientWidth > 1);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(viewport);
+        if (viewport.firstElementChild)
+            observer.observe(viewport.firstElementChild);
+        return () => observer.disconnect();
+    }, []);
     const projects = useProjects();
     const projectNames = useMemo(
         () =>
@@ -185,18 +218,45 @@ const AnalyticsOverview = ({
             value: project.projectUuid,
             label: project.name,
         }));
+    const inventoryExplore = useExploreByProjectUuid(
+        selectedProject === null ? 'content_inventory' : undefined,
+        projectUuid,
+    );
     const filters: AnalyticsFilters = {
         ...analyticsDateRange(Number(days), new Date()),
         projectUuid: selectedProject,
+        // Existing managed models gain the field on their next content sync.
+        excludePreviewContent: inventoryExplore.isLoading
+            ? null
+            : Boolean(
+                  inventoryExplore.data?.tables.content_health?.dimensions
+                      .project_type,
+              ),
     };
     const tab =
         analyticsTabs.find(({ id }) => id === activeTab) ?? analyticsTabs[0];
-    const headlineSpecs = analyticsHeadlineMetrics.map(({ query }) => query);
+    // The Adoption app has its own controls and reads no dates or project
+    const onAdoptionTab = tab.id === 'adoption';
+    const [hasOpenedAdoption, setHasOpenedAdoption] = useState(onAdoptionTab);
+    if (onAdoptionTab && !hasOpenedAdoption) setHasOpenedAdoption(true);
+    // Where the app cannot be shown (data apps switched off, or no finished build) the tab is an ordinary one,
+    // with its charts, filters and dashboard link
+    const adoptionApp = useAnalyticsAdoptionApp(
+        projectUuid,
+        onAdoptionTab || hasOpenedAdoption,
+    );
+    const isAdoption = onAdoptionTab && adoptionApp.status !== 'unavailable';
+    const charts = isAdoption ? [] : tab.charts;
+    // The headline numbers summarise the whole instance, so they sit on the first tab only
+    const showHeadlines = tab.id === 'overview';
+    const headlineSpecs = showHeadlines
+        ? analyticsHeadlineMetrics.map(({ query }) => query)
+        : [];
     const currentQueries = useAnalyticsOverviewQueries(
         projectUuid,
         [
             ...headlineSpecs,
-            ...tab.charts.map(({ query }) => query),
+            ...charts.map(({ query }) => query),
             ...(tab.summary ? [tab.summary.query] : []),
         ],
         filters,
@@ -219,89 +279,28 @@ const AnalyticsOverview = ({
     const dateLabel = `${new Date(`${filters.start}T00:00:00Z`).toLocaleDateString(undefined, { dateStyle: 'medium', timeZone: 'UTC' })} – ${lastDay.toLocaleDateString(undefined, { dateStyle: 'medium', timeZone: 'UTC' })} (UTC)`;
 
     return (
-        <Stack gap="xl" className={classes.overview}>
-            <Box className={classes.header}>
+        <Stack gap="md" className={classes.overview}>
+            <Group justify="space-between" align="center" gap="md">
                 <Box className={classes.heading}>{heading}</Box>
-                <Button
-                    component={Link}
-                    variant="default"
-                    size="sm"
-                    to={`/projects/${projectUrlIdentifier}/home`}
-                    leftSection={<MantineIcon icon={IconHome} />}
-                    className={classes.homepageLink}
-                >
-                    Project homepage
-                </Button>
-                <Stack gap="xs" className={classes.filters}>
-                    <Group gap="md" className={classes.filterControls}>
-                        <Tooltip
-                            label={
-                                selectedProject
-                                    ? projectNames[selectedProject]
-                                    : ''
-                            }
-                            disabled={!selectedProject}
-                            multiline
-                            maw={360}
-                            events={{ hover: true, focus: true, touch: true }}
-                        >
-                            <Select
-                                aria-label="Project"
-                                placeholder="All projects"
-                                clearable
-                                searchable
-                                data={projectOptions}
-                                value={selectedProject}
-                                onChange={setSelectedProject}
-                                disabled={
-                                    projects.isLoading || projects.isError
-                                }
-                                className={classes.projectFilter}
-                                classNames={{ input: classes.projectInput }}
-                            />
-                        </Tooltip>
-                        <SegmentedControl
-                            size="xs"
-                            withItemsBorders={false}
-                            classNames={{
-                                label: classes.dateOption,
-                                root: classes.dateControl,
-                                indicator: classes.dateIndicator,
-                            }}
-                            aria-label="Date range"
-                            value={days}
-                            onChange={setDays}
-                            data={analyticsDateRangeDays.map((range) => ({
-                                value: String(range),
-                                label: `Last ${range} days`,
-                            }))}
-                        />
-                    </Group>
-                    <Tooltip label="Excludes today so every day in the range is complete.">
-                        <Text fz="xs" c="dimmed" ta="right" tabIndex={0}>
-                            {dateLabel}
-                        </Text>
-                    </Tooltip>
-                </Stack>
-            </Box>
+                <Group gap="md" wrap="nowrap">
+                    {status}
+                    <Button
+                        component={Link}
+                        variant="default"
+                        size="sm"
+                        to={`/projects/${projectUrlIdentifier}/home`}
+                        leftSection={<MantineIcon icon={IconHome} />}
+                        className={classes.homepageLink}
+                    >
+                        Project homepage
+                    </Button>
+                </Group>
+            </Group>
             {projects.isError && (
                 <Text fz="xs" c="dimmed">
                     Project filters are unavailable. Showing all projects.
                 </Text>
             )}
-            <SimpleGrid cols={{ base: 1, sm: 2, xl: 4 }} spacing="md">
-                {analyticsHeadlineMetrics.map((metric, index) => (
-                    <HeadlineMetric
-                        key={metric.title}
-                        metric={metric}
-                        query={currentQueries[index]}
-                        previousQuery={previousQueries[index]}
-                        previousFilters={previousFilters}
-                        selected={metric.tab === activeTab}
-                        onSelect={() => setActiveTab(metric.tab)}
-                    />
-                ))}
-            </SimpleGrid>
             <Tabs
                 value={activeTab}
                 onChange={(value) => setActiveTab(value ?? 'overview')}
@@ -313,25 +312,28 @@ const AnalyticsOverview = ({
                         wrap="nowrap"
                         className={classes.tabNavigation}
                     >
-                        <Tooltip label="Previous tabs">
-                            <ActionIcon
-                                variant="default"
-                                size="xs"
-                                aria-label="Previous tabs"
-                                onClick={() =>
-                                    tabsViewport.current?.scrollBy({
-                                        left: -240,
-                                        behavior: 'smooth',
-                                    })
-                                }
-                            >
-                                <MantineIcon icon={IconChevronLeft} />
-                            </ActionIcon>
-                        </Tooltip>
+                        {doTabsOverflow && (
+                            <Tooltip label="Previous tabs">
+                                <ActionIcon
+                                    variant="default"
+                                    size="xs"
+                                    aria-label="Previous tabs"
+                                    onClick={() =>
+                                        tabsViewport.current?.scrollBy({
+                                            left: -240,
+                                            behavior: 'smooth',
+                                        })
+                                    }
+                                >
+                                    <MantineIcon icon={IconChevronLeft} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                         <ScrollArea
                             type="never"
                             viewportRef={tabsViewport}
                             className={classes.tabsViewport}
+                            data-overflow={doTabsOverflow || undefined}
                         >
                             <Tabs.List className={classes.tabs}>
                                 {analyticsTabs.map(
@@ -360,21 +362,23 @@ const AnalyticsOverview = ({
                                 )}
                             </Tabs.List>
                         </ScrollArea>
-                        <Tooltip label="More tabs">
-                            <ActionIcon
-                                variant="default"
-                                size="xs"
-                                aria-label="More tabs"
-                                onClick={() =>
-                                    tabsViewport.current?.scrollBy({
-                                        left: 240,
-                                        behavior: 'smooth',
-                                    })
-                                }
-                            >
-                                <MantineIcon icon={IconChevronRight} />
-                            </ActionIcon>
-                        </Tooltip>
+                        {doTabsOverflow && (
+                            <Tooltip label="More tabs">
+                                <ActionIcon
+                                    variant="default"
+                                    size="xs"
+                                    aria-label="More tabs"
+                                    onClick={() =>
+                                        tabsViewport.current?.scrollBy({
+                                            left: 240,
+                                            behavior: 'smooth',
+                                        })
+                                    }
+                                >
+                                    <MantineIcon icon={IconChevronRight} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                     </Group>
                     <Group
                         gap="sm"
@@ -382,73 +386,212 @@ const AnalyticsOverview = ({
                         className={classes.tabActions}
                     >
                         {actions}
-                        <Tooltip
-                            label={
-                                dashboard
-                                    ? 'Open full dashboard'
-                                    : 'No full dashboard for this tab'
-                            }
-                        >
-                            <Box component="span" display="inline-flex">
-                                {dashboard ? (
-                                    <ActionIcon
-                                        component={Link}
-                                        to={`/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/view`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        variant="default"
-                                        size="sm"
-                                        aria-label="Open full dashboard"
-                                    >
-                                        <MantineIcon icon={IconExternalLink} />
-                                    </ActionIcon>
-                                ) : (
-                                    <ActionIcon
-                                        variant="default"
-                                        size="sm"
-                                        aria-label="Open full dashboard"
-                                        disabled
-                                    >
-                                        <MantineIcon icon={IconExternalLink} />
-                                    </ActionIcon>
-                                )}
-                            </Box>
-                        </Tooltip>
+                        {isAdoption ? (
+                            adoptionApp.status === 'ready' && (
+                                <AnalyticsAdoptionLink
+                                    projectUuid={projectUuid}
+                                    appUuid={adoptionApp.appUuid}
+                                />
+                            )
+                        ) : (
+                            <Tooltip
+                                label={
+                                    dashboard
+                                        ? 'Open full dashboard'
+                                        : 'No full dashboard for this tab'
+                                }
+                            >
+                                <Box component="span" display="inline-flex">
+                                    {dashboard ? (
+                                        <ActionIcon
+                                            component={Link}
+                                            to={`/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/view`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            variant="default"
+                                            size="sm"
+                                            aria-label="Open full dashboard"
+                                        >
+                                            <MantineIcon
+                                                icon={IconExternalLink}
+                                            />
+                                        </ActionIcon>
+                                    ) : (
+                                        <ActionIcon
+                                            variant="default"
+                                            size="sm"
+                                            aria-label="Open full dashboard"
+                                            disabled
+                                        >
+                                            <MantineIcon
+                                                icon={IconExternalLink}
+                                            />
+                                        </ActionIcon>
+                                    )}
+                                </Box>
+                            </Tooltip>
+                        )}
                     </Group>
                 </Group>
-                <Tabs.Panel value={activeTab} pt="lg">
-                    <Stack gap="md">
-                        {tab.summary && (
-                            <AnalyticsTabSummary
-                                key={tab.id}
-                                summary={tab.summary}
-                                result={
-                                    currentQueries[
-                                        headlineSpecs.length + tab.charts.length
-                                    ]
-                                }
-                            />
-                        )}
-                        <SimpleGrid
-                            cols={{ base: 1, md: 2 }}
-                            spacing="md"
-                            className={classes.charts}
-                            data-overview={activeTab === 'overview'}
-                        >
-                            {tab.charts.map((chart, index) => (
-                                <AnalyticsOverviewChart
-                                    key={`${tab.id}-${chart.title}`}
-                                    chart={chart}
+                {/* Once opened, the Adoption app stays loaded behind the other tabs, so coming back to it is instant */}
+                {hasOpenedAdoption && adoptionApp.status === 'ready' && (
+                    // Hidden by clipping, not by removing it from the layout: the app keeps its size behind the
+                    // other tabs, so nothing in it is measured or drawn again on the way back
+                    <Box
+                        pt={isAdoption ? 'sm' : 0}
+                        className={
+                            isAdoption ? undefined : classes.adoptionHidden
+                        }
+                        aria-hidden={!isAdoption || undefined}
+                    >
+                        <AnalyticsAdoptionPreview
+                            projectUuid={projectUuid}
+                            app={adoptionApp}
+                            active={isAdoption}
+                        />
+                    </Box>
+                )}
+                <Tabs.Panel value={activeTab} pt={isAdoption ? 0 : 'lg'}>
+                    {isAdoption ? (
+                        adoptionApp.status === 'loading' && (
+                            <Center
+                                h={480}
+                                role="status"
+                                aria-label="Loading Adoption app"
+                            >
+                                <Loader size="sm" />
+                            </Center>
+                        )
+                    ) : (
+                        <Stack gap="md">
+                            <Group gap="md" justify="flex-end" align="center">
+                                <Tooltip label="Excludes today so every day in the range is complete.">
+                                    <Text
+                                        fz="xs"
+                                        c="dimmed"
+                                        ta="right"
+                                        tabIndex={0}
+                                    >
+                                        {dateLabel}
+                                    </Text>
+                                </Tooltip>
+                                <Group
+                                    gap="md"
+                                    className={classes.filterControls}
+                                >
+                                    <Tooltip
+                                        label={
+                                            selectedProject
+                                                ? projectNames[selectedProject]
+                                                : ''
+                                        }
+                                        disabled={!selectedProject}
+                                        multiline
+                                        maw={360}
+                                        events={{
+                                            hover: true,
+                                            focus: true,
+                                            touch: true,
+                                        }}
+                                    >
+                                        <Select
+                                            aria-label="Project"
+                                            placeholder="All projects"
+                                            clearable
+                                            searchable
+                                            data={projectOptions}
+                                            value={selectedProject}
+                                            onChange={setSelectedProject}
+                                            disabled={
+                                                projects.isLoading ||
+                                                projects.isError
+                                            }
+                                            className={classes.projectFilter}
+                                            classNames={{
+                                                input: classes.projectInput,
+                                            }}
+                                        />
+                                    </Tooltip>
+                                    <SegmentedControl
+                                        size="xs"
+                                        withItemsBorders={false}
+                                        classNames={{
+                                            label: classes.dateOption,
+                                            root: classes.dateControl,
+                                            indicator: classes.dateIndicator,
+                                        }}
+                                        aria-label="Date range"
+                                        value={days}
+                                        onChange={setDays}
+                                        data={analyticsDateRangeDays.map(
+                                            (range) => ({
+                                                value: String(range),
+                                                label: `Last ${range} days`,
+                                            }),
+                                        )}
+                                    />
+                                </Group>
+                            </Group>
+                            {showHeadlines && (
+                                <SimpleGrid
+                                    cols={{ base: 1, sm: 2, xl: 4 }}
+                                    spacing="md"
+                                >
+                                    {analyticsHeadlineMetrics.map(
+                                        (metric, index) => (
+                                            <HeadlineMetric
+                                                key={metric.title}
+                                                metric={metric}
+                                                query={currentQueries[index]}
+                                                previousQuery={
+                                                    previousQueries[index]
+                                                }
+                                                previousFilters={
+                                                    previousFilters
+                                                }
+                                                selected={
+                                                    metric.tab === activeTab
+                                                }
+                                                onSelect={() =>
+                                                    setActiveTab(metric.tab)
+                                                }
+                                            />
+                                        ),
+                                    )}
+                                </SimpleGrid>
+                            )}
+                            {tab.summary && (
+                                <AnalyticsTabSummary
+                                    key={tab.id}
+                                    summary={tab.summary}
                                     result={
                                         currentQueries[
-                                            headlineSpecs.length + index
+                                            headlineSpecs.length + charts.length
                                         ]
                                     }
-                                    projectNames={projectNames}
                                 />
-                            ))}
-                        </SimpleGrid>
-                    </Stack>
+                            )}
+                            <SimpleGrid
+                                cols={{ base: 1, md: 2 }}
+                                spacing="md"
+                                className={classes.charts}
+                                data-overview={activeTab === 'overview'}
+                            >
+                                {charts.map((chart, index) => (
+                                    <AnalyticsOverviewChart
+                                        key={`${tab.id}-${chart.title}`}
+                                        chart={chart}
+                                        result={
+                                            currentQueries[
+                                                headlineSpecs.length + index
+                                            ]
+                                        }
+                                        projectNames={projectNames}
+                                    />
+                                ))}
+                            </SimpleGrid>
+                        </Stack>
+                    )}
                 </Tabs.Panel>
             </Tabs>
         </Stack>

@@ -1,16 +1,11 @@
-import { Button, Group, Text } from '@mantine/core';
-import { IconSparkles } from '@tabler/icons-react';
+import { Alert, Button, Stack, Text } from '@mantine/core';
+import { IconReportAnalytics } from '@tabler/icons-react';
 import { type FC } from 'react';
-import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 /**
- * Builder-side offer for apps built before the AI-analysis SDK surface:
- * one click asks the build agent for the default analysis build. Rendered
- * only when analysis is actually available to the org — availability gating
- * is the caller's job. On an older SDK the shipped insight components are
- * missing from the sandbox, so the offer routes through the app upgrade
- * first; the rebuilt version then re-offers the analysis step itself.
+ * Builder-side offer for apps built before the AI-analysis SDK surface. The
+ * caller gates on availability; an older SDK routes through the app upgrade.
  */
 const AddAnalysisOffer: FC<{
     sdkNeedsUpgrade: boolean;
@@ -19,33 +14,33 @@ const AddAnalysisOffer: FC<{
     onUpgradeApp: () => void;
     onDismiss: () => void;
 }> = ({ sdkNeedsUpgrade, busy, onAddAnalysis, onUpgradeApp, onDismiss }) => (
-    <Callout
-        variant="info"
-        icon={<MantineIcon icon={IconSparkles} />}
-        title="This app doesn't surface AI analysis yet"
+    <Alert
+        variant="outline"
+        color="blue"
+        icon={<MantineIcon icon={IconReportAnalytics} />}
+        title="AI analysis is available"
         withCloseButton
         closeButtonLabel="Dismiss"
         onClose={onDismiss}
         mb="xs"
         data-testid="add-analysis-offer"
     >
-        <Group justify="space-between" align="flex-end" gap="xs">
-            <Text size="sm" flex={1} miw={200}>
+        <Stack gap="xs" align="flex-start">
+            <Text size="sm">
                 {sdkNeedsUpgrade
-                    ? 'The build agent can add an executive summary and anomaly markers to this app. It was built before those components shipped, so upgrade the app first.'
-                    : 'The build agent can add the default analysis surface: an executive summary, anomaly markers on charts and Investigate in data-point menus.'}
+                    ? 'Upgrade the app first, then add an AI summary and highlights on unusual values.'
+                    : 'Give viewers an AI summary and highlights on unusual values.'}
             </Text>
-            {sdkNeedsUpgrade ? (
-                <Button size="xs" disabled={busy} onClick={onUpgradeApp}>
-                    Upgrade app
-                </Button>
-            ) : (
-                <Button size="xs" disabled={busy} onClick={onAddAnalysis}>
-                    Add AI analysis
-                </Button>
-            )}
-        </Group>
-    </Callout>
+            <Button
+                size="compact-xs"
+                variant="default"
+                disabled={busy}
+                onClick={sdkNeedsUpgrade ? onUpgradeApp : onAddAnalysis}
+            >
+                {sdkNeedsUpgrade ? 'Upgrade app' : 'Add AI analysis'}
+            </Button>
+        </Stack>
+    </Alert>
 );
 
 export default AddAnalysisOffer;

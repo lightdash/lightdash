@@ -20,6 +20,10 @@ const UUID_REGEX =
 const ORG_OVERRIDE_CONFLICT_TARGET =
     '(flag_id, organization_uuid) WHERE organization_uuid IS NOT NULL AND user_uuid IS NULL';
 
+const ORGANIZATION_ONLY_FLAGS: ReadonlySet<string> = new Set([
+    FeatureFlags.MobileAppAccess,
+]);
+
 export type FeatureFlagLogicArgs = {
     user?: Pick<LightdashUser, 'organizationUuid'> &
         Partial<Pick<LightdashUser, 'userUuid'>>;
@@ -57,13 +61,27 @@ export class FeatureFlagModel {
         this.featureFlagHandlers = {
             [FeatureFlags.EnableTimezoneSupport]:
                 this.getEnableTimezoneSupportEnabled.bind(this),
+            [FeatureFlags.MobileAppAccess]:
+                this.getMobileAppAccessEnabled.bind(this),
+        };
+    }
+
+    private static withFlagScope(
+        args: FeatureFlagLogicArgs,
+    ): FeatureFlagLogicArgs {
+        if (!ORGANIZATION_ONLY_FLAGS.has(args.featureFlagId) || !args.user)
+            return args;
+        return {
+            ...args,
+            user: { organizationUuid: args.user.organizationUuid },
         };
     }
 
     public async get(
-        args: FeatureFlagLogicArgs,
+        requestedArgs: FeatureFlagLogicArgs,
         options: FeatureFlagQueryOptions = {},
     ): Promise<FeatureFlag> {
+        const args = FeatureFlagModel.withFlagScope(requestedArgs);
         const result = await this.resolve(args, options);
 
         if (options.recordCheck !== false) {
@@ -145,6 +163,13 @@ export class FeatureFlagModel {
                 enabled: this.lightdashConfig.query.enableTimezoneSupport,
             };
         }
+        return this.getWithEnvFallback(args, true, options);
+    }
+
+    private async getMobileAppAccessEnabled(
+        args: FeatureFlagLogicArgs,
+        options: FeatureFlagQueryOptions = {},
+    ): Promise<FeatureFlag> {
         return this.getWithEnvFallback(args, true, options);
     }
 

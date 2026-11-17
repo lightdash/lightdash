@@ -99,12 +99,37 @@ const createDependencies = () => {
         fcmClient,
         scheduler,
         analytics,
+        isMobileAppAccessEnabled: vi.fn(async () => true),
         completionAlert,
         now: () => now,
     };
 };
 
 describe('MobilePushNotificationReconciler.reconcileLiveActivity', () => {
+    it('sends nothing and drops the activity when the organization has mobile access off', async () => {
+        const dependencies = createDependencies();
+        dependencies.isMobileAppAccessEnabled.mockResolvedValue(false);
+        const reconciler = new MobilePushNotificationReconciler(dependencies);
+
+        await reconciler.reconcileLiveActivity(activity.liveActivityUuid);
+
+        expect(dependencies.isMobileAppAccessEnabled).toHaveBeenCalledWith(
+            'organization-uuid',
+        );
+        expect(dependencies.apnsClient.sendLiveActivity).not.toHaveBeenCalled();
+        expect(dependencies.apnsClient.sendAlert).not.toHaveBeenCalled();
+        expect(
+            dependencies.fcmClient.sendAgentRunUpdate,
+        ).not.toHaveBeenCalled();
+        expect(dependencies.fcmClient.sendAgentRunAlert).not.toHaveBeenCalled();
+        expect(
+            dependencies.notificationStore.deleteLiveActivity,
+        ).toHaveBeenCalledWith({ liveActivityUuid: 'activity-uuid' });
+        expect(
+            dependencies.notificationStore.deleteInstallation,
+        ).not.toHaveBeenCalled();
+    });
+
     it('delivers the canonical working state with a five-minute stale date', async () => {
         const dependencies = createDependencies();
         const reconciler = new MobilePushNotificationReconciler(dependencies);

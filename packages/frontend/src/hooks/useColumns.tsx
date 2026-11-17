@@ -34,6 +34,7 @@ import { IconExclamationCircle, IconKey } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
 import { omit } from 'es-toolkit/compat';
 import { useMemo } from 'react';
+import FieldIcon from '../components/common/Filters/FieldIcon';
 import { JsonCellPreview } from '../components/common/JsonViewer/JsonCellViewer';
 import {
     getJsonCellValue,
@@ -713,6 +714,15 @@ export const useColumns = (): TableColumn[] => {
                 item.table === MERGE_TABLE_NAME &&
                 isDimension(item);
             const showTablePrefix = hasJoins || !!mergeResults;
+            // Inline with the name, so it wraps with it and never drifts away
+            const typeIcon = (
+                <FieldIcon
+                    item={item}
+                    size={12}
+                    stroke={2}
+                    color={fieldColors.color}
+                />
+            );
             const column: TableColumn = columnHelper.accessor(
                 (row) => row[fieldId],
                 {
@@ -752,15 +762,18 @@ export const useColumns = (): TableColumn[] => {
                                     )}
 
                                     <TableHeaderBoldLabel>
+                                        {typeIcon}
                                         {item.label}
                                     </TableHeaderBoldLabel>
                                 </>
                             ) : isCustomDimension(item) ? (
                                 <TableHeaderBoldLabel>
+                                    {typeIcon}
                                     {item.name}
                                 </TableHeaderBoldLabel>
                             ) : (
                                 <TableHeaderBoldLabel>
+                                    {typeIcon}
                                     {item && 'displayName' in item
                                         ? item.displayName
                                         : 'Undefined'}
@@ -842,7 +855,6 @@ export const useColumns = (): TableColumn[] => {
                         item,
                         draggable: true,
                         frozen: false,
-                        bgColor: fieldColors.bg,
                         headerContext: mergeOrigin
                             ? getMergeFieldProvenance(
                                   mergeOrigin,

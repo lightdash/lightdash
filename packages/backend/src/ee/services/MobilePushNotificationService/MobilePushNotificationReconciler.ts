@@ -133,6 +133,7 @@ type ReconcilerDependencies = {
         ): Promise<unknown>;
     };
     analytics: Pick<LightdashAnalytics, 'track'>;
+    isMobileAppAccessEnabled: (organizationUuid: string) => Promise<boolean>;
     completionAlert?: AlertPayload['aps']['alert'];
     now?: () => Date;
 };
@@ -154,6 +155,8 @@ export class MobilePushNotificationReconciler {
 
     private readonly analytics: ReconcilerDependencies['analytics'];
 
+    private readonly isMobileAppAccessEnabled: ReconcilerDependencies['isMobileAppAccessEnabled'];
+
     private readonly completionAlert: ReconcilerDependencies['completionAlert'];
 
     private readonly now: () => Date;
@@ -165,6 +168,7 @@ export class MobilePushNotificationReconciler {
         this.fcmClient = dependencies.fcmClient;
         this.scheduler = dependencies.scheduler;
         this.analytics = dependencies.analytics;
+        this.isMobileAppAccessEnabled = dependencies.isMobileAppAccessEnabled;
         this.completionAlert = dependencies.completionAlert;
         this.now = dependencies.now ?? (() => new Date());
     }
@@ -290,6 +294,13 @@ export class MobilePushNotificationReconciler {
                     userUuid: activity.userUuid,
                 },
             );
+            return;
+        }
+
+        if (!(await this.isMobileAppAccessEnabled(activity.organizationUuid))) {
+            await this.notificationStore.deleteLiveActivity({
+                liveActivityUuid,
+            });
             return;
         }
 

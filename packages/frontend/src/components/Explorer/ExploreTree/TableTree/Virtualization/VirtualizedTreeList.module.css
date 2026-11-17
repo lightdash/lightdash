@@ -1,14 +1,23 @@
+/* Bleeds to the sidebar edges so table hairlines run the full width; rows
+   keep their inset through the item padding */
 .scrollContainer {
     height: 100%;
+    margin-inline: -8px;
     overflow: auto;
 }
 
-/* The virtualizer allocates 32px per tree row. Keep v8 NavLinks inside that
+/* The virtualizer allocates 26px per tree row. Keep v8 NavLinks inside that
    contract; the old v6 provider override no longer reaches migrated links. */
 .scrollContainer :global(.mantine-NavLink-root) {
-    height: var(--mantine-spacing-xxl);
+    height: 26px;
     padding-block: 0;
+    padding-inline-end: 6px;
+    border-radius: var(--mantine-radius-sm);
     flex-grow: 0;
+}
+
+.scrollContainer :global(.mantine-NavLink-section[data-position='left']) {
+    margin-inline-end: 6px;
 }
 
 .scrollContainer :global(.mantine-NavLink-section[data-position='right']) {
@@ -36,6 +45,7 @@
     top: 0;
     left: 0;
     width: 100%;
+    padding-inline: 8px;
     transform: translateY(var(--item-start));
 
     &[data-active-sticky] {
@@ -46,4 +56,75 @@
 
 .item[data-sticky-header] {
     z-index: 1;
+}
+
+/* Tables are plain rows split by a hairline, not filled bands */
+.item[data-sticky-header] :global(.mantine-NavLink-root) {
+    height: 30px;
+    border-radius: 0;
+}
+
+.item[data-sticky-header]:not([data-index='0']) :global(.mantine-NavLink-root) {
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+}
+
+/* Continues that hairline through the row's inset */
+.item[data-sticky-header]:not([data-index='0']) {
+    box-shadow: inset 0 1px 0 var(--mantine-color-ldGray-2);
+}
+
+/* Type icons render at exactly half their 24px grid so strokes land on whole
+   device pixels; the margin keeps them in the 14px icon column. */
+.scrollContainer
+    :global(.mantine-NavLink-section[data-position='left'])
+    svg:not([class*='chevron']) {
+    margin-inline: 1px;
+}
+
+/* Each row knows its field kind, so a section can use its kind colour */
+.item[data-kind='dimension'] {
+    --kind: var(--ld-field-dimension-color);
+}
+
+.item[data-kind='metric'] {
+    --kind: var(--ld-field-metric-color);
+}
+
+/* A section is its kind-coloured label and a hairline that runs out the row */
+.item[data-item-type='section-header'][data-kind] > div > div:first-child {
+    flex: 1;
+    flex-wrap: nowrap;
+}
+
+.item[data-item-type='section-header'][data-kind]
+    > div
+    > div:first-child::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background-color: color-mix(in srgb, var(--kind) 22%, transparent);
+}
+
+/* Rows are quiet until hovered, then they take the kind colour */
+.item[data-kind] :global(.mantine-NavLink-section[data-position='left']) {
+    color: var(--mantine-color-ldGray-6);
+    transition: color 120ms ease;
+}
+
+.item[data-kind] :global(.mantine-NavLink-label) p {
+    transition: color 120ms ease;
+}
+
+.item[data-kind] :global(.mantine-NavLink-root):hover {
+    background-color: color-mix(in srgb, var(--kind) 7%, transparent);
+}
+
+.item[data-kind]
+    :global(.mantine-NavLink-root):hover
+    :global(.mantine-NavLink-label)
+    p,
+.item[data-kind]
+    :global(.mantine-NavLink-root):hover
+    :global(.mantine-NavLink-section[data-position='left']) {
+    color: var(--kind);
 }

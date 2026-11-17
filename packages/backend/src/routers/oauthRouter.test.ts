@@ -38,6 +38,7 @@ type OAuthServiceStub = Pick<
     | 'getSiteUrl'
     | 'token'
     | 'isSecurityStrict'
+    | 'isMobileAppAccessDenied'
     | 'getAuthorizationResource'
     | 'registerClient'
 >;
@@ -61,6 +62,9 @@ const getRedirectUrl = (body: string): string => {
 const createOAuthService = () => ({
     isSecurityStrict: vi
         .fn<OAuthServiceStub['isSecurityStrict']>()
+        .mockResolvedValue(false),
+    isMobileAppAccessDenied: vi
+        .fn<OAuthServiceStub['isMobileAppAccessDenied']>()
         .mockResolvedValue(false),
     getAuthorizationResource: vi
         .fn<OAuthServiceStub['getAuthorizationResource']>()
@@ -577,6 +581,94 @@ const requestAuthorizePage = async ({
         });
     }
 };
+
+describe('OAuth authorize for an organization with mobile access off', () => {
+    const mobileRedirect = 'com.lightdash.mobile://oauth/callback';
+    const deniedRedirect = `${mobileRedirect}?error=access_denied&error_description=mobile_org_disabled&organization_uuid=organization-uuid&state=request-state`;
+
+    it('sends the consent page request back to the app with the code and the organization', async () => {
+        const oauthService = createOAuthService();
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+        oauthService.isMobileAppAccessDenied.mockResolvedValue(true);
+
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'mobile-client',
+                redirect_uri: mobileRedirect,
+                state: 'request-state',
+            },
+            oauthService,
+        });
+
+        expect(response.status).toBe(200);
+        expect(getRedirectUrl(response.body)).toBe(deniedRedirect);
+        expect(oauthService.isMobileAppAccessDenied).toHaveBeenCalledWith(
+            'mobile-client',
+            'organization-uuid',
+        );
+        expect(response.body).not.toContain('Test organization');
+        expect(oauthService.getAuthorizationResource).not.toHaveBeenCalled();
+    });
+
+    it('issues no authorization code when the consent form is posted', async () => {
+        const oauthService = createOAuthService();
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+        oauthService.isMobileAppAccessDenied.mockResolvedValue(true);
+
+        const response = await requestAuthorize({
+            body: {
+                approve: 'true',
+                client_id: 'mobile-client',
+                redirect_uri: mobileRedirect,
+                state: 'request-state',
+            },
+            oauthService,
+        });
+
+        expect(response.status).toBe(200);
+        expect(getRedirectUrl(response.body)).toBe(deniedRedirect);
+        expect(oauthService.authorize).not.toHaveBeenCalled();
+    });
+
+    it('keeps the organization out of a redirect that does not go to the app', async () => {
+        const oauthService = createOAuthService();
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+        oauthService.isMobileAppAccessDenied.mockResolvedValue(true);
+
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'mixed-client',
+                redirect_uri: 'https://registered.example/callback',
+                state: 'request-state',
+            },
+            oauthService,
+        });
+
+        expect(getRedirectUrl(response.body)).toBe(
+            'https://registered.example/callback?error=access_denied&error_description=mobile_org_disabled&state=request-state',
+        );
+        expect(response.body).not.toContain('organization-uuid');
+    });
+
+    it('does not redirect to an unregistered URI', async () => {
+        const oauthService = createOAuthService();
+        oauthService.validateRedirectUri.mockResolvedValue(false);
+        oauthService.isMobileAppAccessDenied.mockResolvedValue(true);
+
+        const response = await requestAuthorize({
+            body: {
+                approve: 'true',
+                client_id: 'mobile-client',
+                redirect_uri: 'https://unregistered.example/callback',
+            },
+            oauthService,
+        });
+
+        expect(response.status).toBe(400);
+        expect(response.body).not.toContain('unregistered.example');
+        expect(oauthService.authorize).not.toHaveBeenCalled();
+    });
+});
 
 describe('OAuth authorize redirects', () => {
     it('refuses a strict invalid redirect before rendering consent', async () => {

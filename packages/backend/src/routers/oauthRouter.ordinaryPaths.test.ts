@@ -70,6 +70,7 @@ it.each(clients)(
         const oauth = {
             getSiteUrl: () => 'https://instance.example/subpath',
             isSecurityStrict: vi.fn().mockResolvedValue(true),
+            isMobileAppAccessDenied: vi.fn().mockResolvedValue(false),
             getClientDisplayName: vi.fn().mockResolvedValue(client.name),
             validateRedirectUri: vi
                 .fn()

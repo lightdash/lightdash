@@ -15,7 +15,7 @@ type ExternalConnectionBaseProperties = {
 
 type ExternalConnectionKindProperties = {
     connectionKind: ExternalConnectionKind;
-    connector: ApiConnectorType | null;
+    integration: ApiConnectorType | null;
 };
 
 export type ExternalConnectionEvent = BaseTrack &
@@ -53,6 +53,23 @@ export type ExternalConnectionEvent = BaseTrack &
               properties: ExternalConnectionBaseProperties & {
                   appUuid: string;
                   alias: string;
+              };
+          }
+        | {
+              /** One live data source query: how many upstream API calls it made and how it ended. */
+              event: 'live_source.api_call';
+              properties: ExternalConnectionBaseProperties & {
+                  integration: ApiConnectorType | null;
+                  context: string;
+                  outcome: string;
+                  /** Upstream API calls made; 0 when the result was reused. */
+                  apiCalls: number;
+                  providerStatus: number | null;
+                  durationMs: number;
+                  rowCount: number | null;
+                  columnCount: number | null;
+                  truncated: boolean | null;
+                  responseBytes: number;
               };
           }
         | {

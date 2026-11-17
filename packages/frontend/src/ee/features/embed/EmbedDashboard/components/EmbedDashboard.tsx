@@ -9,10 +9,12 @@ import {
     assertUnreachable,
     canAddDashboardFiltersInEmbed,
     getDefaultChartTileSize,
+    isDashboardChartTileType,
     isFilterInteractivityEnabled,
     isParameterInteractivityVisible,
     isTileInEmbedExport,
     translateDashboardControlNames,
+    type DashboardFilterRule,
     type DashboardFilters,
     type DashboardTile,
     type EmbedDashboard as EmbedDashboardType,
@@ -81,6 +83,10 @@ import { TileOverlays } from '../../../../../features/dashboardControls/TileOver
 import { useControlDraftResets } from '../../../../../features/dashboardControls/useControlDraftResets';
 import { useIsControlEdited } from '../../../../../features/dashboardControls/useIsControlEdited';
 import GuidedFilterSetupOverlay from '../../../../../features/dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
+import {
+    doesFilterRequirementApplyToTiles,
+    getUnmetFilterRequirementMembers,
+} from '../../../../../features/dashboardFilters/FilterRequirements/utils';
 import {
     convertLayoutToBaseCoordinates,
     getDashboardLayouts,
@@ -706,17 +712,8 @@ const EmbedDashboard: FC<{
         }
     }, [translatedDashboard, setEmbedDashboard]);
     const unmetFilterRequirements = useDashboardUnmetFilterRequirements();
-
-    const hasUnmetFilterRequirements = unmetFilterRequirements.length > 0;
-
-    // Guided setup card over the locked grid; dismissal lasts until reload
-    const [isGuidedSetupDismissed, setIsGuidedSetupDismissed] = useState(false);
-    const showGuidedSetup = useMemo(
-        () =>
-            !isEditMode &&
-            !isGuidedSetupDismissed &&
-            hasUnmetFilterRequirements,
-        [isEditMode, isGuidedSetupDismissed, hasUnmetFilterRequirements],
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
     );
 
     const currentDashboardTiles = useMemo(
@@ -790,6 +787,56 @@ const EmbedDashboard: FC<{
 
     // Check if tabs should be enabled (more than one visible tab)
     const tabsEnabled = visibleTabs.length > 1;
+
+    // A filter's tabs are unknown until the tile fields load, so until then
+    // every requirement applies and no tile queries without its filter
+    const isRequirementScopeKnown =
+        filterableFieldsByTileUuid !== undefined ||
+        !currentDashboardTiles.some(
+            (tile) =>
+                isDashboardChartTileType(tile) &&
+                !!tile.properties.savedChartUuid,
+        );
+    const doesRequirementApplyToTiles = useCallback(
+        (members: DashboardFilterRule[], tiles: DashboardTile[]) =>
+            !tabsEnabled ||
+            !isRequirementScopeKnown ||
+            doesFilterRequirementApplyToTiles(
+                members,
+                tiles,
+                filterableFieldsByTileUuid,
+            ),
+        [tabsEnabled, isRequirementScopeKnown, filterableFieldsByTileUuid],
+    );
+    const hasUnmetFilterRequirementsForTiles = useCallback(
+        (tiles: DashboardTile[]) =>
+            unmetFilterRequirements.some((requirement) =>
+                doesRequirementApplyToTiles(
+                    getUnmetFilterRequirementMembers(requirement),
+                    tiles,
+                ),
+            ),
+        [unmetFilterRequirements, doesRequirementApplyToTiles],
+    );
+    const doesRequirementApplyToActiveTab = useCallback(
+        (members: DashboardFilterRule[]) =>
+            doesRequirementApplyToTiles(members, filteredTiles),
+        [doesRequirementApplyToTiles, filteredTiles],
+    );
+    const hasUnmetFilterRequirements = useMemo(
+        () => hasUnmetFilterRequirementsForTiles(filteredTiles),
+        [hasUnmetFilterRequirementsForTiles, filteredTiles],
+    );
+
+    // Guided setup card over the locked grid; dismissal lasts until reload
+    const [isGuidedSetupDismissed, setIsGuidedSetupDismissed] = useState(false);
+    const showGuidedSetup = useMemo(
+        () =>
+            !isEditMode &&
+            !isGuidedSetupDismissed &&
+            hasUnmetFilterRequirements,
+        [isEditMode, isGuidedSetupDismissed, hasUnmetFilterRequirements],
+    );
 
     // Sync tabs with the URL for direct iframes and emit user-triggered changes
     // for both direct iframe and SDK embeds.
@@ -1165,11 +1212,16 @@ const EmbedDashboard: FC<{
     }, [dashboardUpdate, updateDashboard]);
 
     // Readiness resets when tiles or the active tab change, so render after both settle.
+    // Also waits for the tile fields that scope requirements to tabs, so a tab
+    // is never captured while it is still locked by another tab's filter.
     const isMinimalLayoutSettled =
         !!dashboardTiles &&
         (dashboardTabs.length > 0
             ? !!activeTab || visibleTabs.length === 0
-            : !dashboard?.tabs.length);
+            : !dashboard?.tabs.length) &&
+        (isRequirementScopeKnown ||
+            !tabsEnabled ||
+            unmetFilterRequirements.length === 0);
     // Like scheduled deliveries: every exported tab stacked, one grid per tab
     // so tiles from different tabs never compact into each other.
     const exportTabGroups = useMemo(() => {
@@ -1201,23 +1253,34 @@ const EmbedDashboard: FC<{
             .map((group) => ({
                 ...group,
                 layouts: getDashboardLayouts(group.tiles, false),
+                hasUnmetFilterRequirements: hasUnmetFilterRequirementsForTiles(
+                    group.tiles,
+                ),
             }));
-    }, [currentDashboardTiles, exportSelectedTabs, isMinimal, visibleTabs]);
+    }, [
+        currentDashboardTiles,
+        exportSelectedTabs,
+        isMinimal,
+        visibleTabs,
+        hasUnmetFilterRequirementsForTiles,
+    ]);
     // Locked chart tiles render a placeholder and never report readiness.
     const exportAwaitedTileUuids = useMemo(
         () =>
             exportTabGroups
-                .flatMap((group) => group.tiles)
-                .filter(
-                    (tile) =>
-                        tile.type === DashboardTileTypes.DATA_APP ||
-                        tile.type === DashboardTileTypes.COMPOSER_CHART ||
-                        (!hasUnmetFilterRequirements &&
-                            (tile.type === DashboardTileTypes.SAVED_CHART ||
-                                tile.type === DashboardTileTypes.SQL_CHART)),
+                .flatMap((group) =>
+                    group.tiles.filter(
+                        (tile) =>
+                            tile.type === DashboardTileTypes.DATA_APP ||
+                            tile.type === DashboardTileTypes.COMPOSER_CHART ||
+                            (!group.hasUnmetFilterRequirements &&
+                                (tile.type === DashboardTileTypes.SAVED_CHART ||
+                                    tile.type ===
+                                        DashboardTileTypes.SQL_CHART)),
+                    ),
                 )
                 .map((tile) => tile.uuid),
-        [exportTabGroups, hasUnmetFilterRequirements],
+        [exportTabGroups],
     );
 
     if (!projectUuid) {
@@ -1354,6 +1417,7 @@ const EmbedDashboard: FC<{
             {showGuidedSetup && (
                 <GuidedFilterSetupOverlay
                     className={embedContractClass('ld-dashboard-guided-setup')}
+                    doesRuleApply={doesRequirementApplyToActiveTab}
                     onDismiss={() => setIsGuidedSetupDismissed(true)}
                 />
             )}
@@ -1403,7 +1467,7 @@ const EmbedDashboard: FC<{
                                 dashboard.selectedPalette?.darkColors
                             }
                             hasUnmetFilterRequirements={
-                                hasUnmetFilterRequirements
+                                group.hasUnmetFilterRequirements
                             }
                             gridProps={gridProps}
                             isEditMode={false}

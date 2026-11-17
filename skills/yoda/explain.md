@@ -79,10 +79,9 @@ Typical picks: a system takes What happens when and What surprises people; a cha
   An identifier appears in the body only when the reader will type or search for it (a role, a status code, a setting); everything else waits for Go deeper.
 - Define a term inline the first time it is used, in a few words; no glossary.
 - Every sentence is a fact a newcomer couldn't guess.
-  No inventories, no "this is handled by".
 - A behaviour inferred from code but not seen says so when it matters ("from code, not run").
 - At most 7 blocks in all, one idea each.
-- Name only files, functions and identifiers you opened; refs follow `lenses/README.md`, Public by default (the Linear ticket, never a GitHub issue or internal source).
+- Name only files, functions and identifiers you opened; refs follow `lenses/README.md`, Public by default.
 
 ## Formats
 

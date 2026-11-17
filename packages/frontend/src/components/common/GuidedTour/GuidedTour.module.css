@@ -34,6 +34,24 @@
     background: light-dark(rgba(17, 24, 39, 0.62), rgba(0, 0, 0, 0.75));
 }
 
+/* the dim of a centered step that rings several controls at once */
+.dimCutout {
+    clip-path: var(--tour-cutout);
+}
+
+.highlight {
+    position: fixed;
+    top: var(--tour-top);
+    left: var(--tour-left);
+    width: var(--tour-width);
+    height: var(--tour-height);
+    border-radius: var(--mantine-radius-md);
+    box-shadow:
+        0 0 0 2px var(--mantine-color-indigo-4),
+        0 0 0 6px light-dark(rgba(76, 87, 217, 0.25), rgba(129, 140, 248, 0.22));
+    pointer-events: none;
+}
+
 /* the cutout: its huge box-shadow darkens the rest of the screen, and a ring
    marks the showcased feature so it reads as highlighted, not just un-dimmed */
 .spotlight {

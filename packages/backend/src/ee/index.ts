@@ -1,5 +1,6 @@
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
+import { isMobileAppAccessEnabled } from '../auth/mobileAppAccess';
 import {
     createPullRequestComment,
     getInstallationToken,
@@ -203,6 +204,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AnalyticsProjectService({
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
+                    appModel: models.getAppModel(),
+                    getAppGenerateService: () =>
+                        repository.getAppGenerateService<AppGenerateService>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),
@@ -241,6 +245,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 const scheduler =
                     clients.getSchedulerClient() as CommercialSchedulerClient;
                 const apnsClient = clients.getApnsClient();
+                const isMobileAccessEnabled = (organizationUuid: string) =>
+                    isMobileAppAccessEnabled(
+                        models.getFeatureFlagModel(),
+                        organizationUuid,
+                    );
                 const reconciler = new MobilePushNotificationReconciler({
                     notificationStore,
                     threadStore,
@@ -248,6 +257,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     fcmClient: clients.getFcmClient(),
                     scheduler,
                     analytics: context.lightdashAnalytics,
+                    isMobileAppAccessEnabled: isMobileAccessEnabled,
                     completionAlert: undefined,
                 });
                 return new MobilePushNotificationService({
@@ -260,6 +270,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     reconciler,
                     analytics: context.lightdashAnalytics,
                     apnsClient,
+                    isMobileAppAccessEnabled: isMobileAccessEnabled,
                 });
             },
             oauthService: ({ models, context, repository }) =>
@@ -874,6 +885,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardService: repository.getDashboardService(),
                     documentService: repository.getDocumentService(),
                     savedChartService: repository.getSavedChartService(),
+                    savedSqlService: repository.getSavedSqlService(),
                     contentService: repository.getContentService(),
                     aiCreditService:
                         repository.getAiCreditService<AiCreditService>(),
@@ -1970,6 +1982,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
                 learnSandboxService:
                     context.serviceRepository.getLearnSandboxService(),
+                composerChartService:
+                    context.serviceRepository.getComposerChartService(),
                 managedAgentService:
                     context.serviceRepository.getManagedAgentService<ManagedAgentService>(),
                 appGenerateService:
