@@ -1,3 +1,16 @@
+# [3.289.0](https://github.com/lightdash/lightdash/compare/3.288.0...3.289.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* skip unnested tables during deploy name allocation ([#32730](https://github.com/lightdash/lightdash/issues/32730)) ([4ab43f7](https://github.com/lightdash/lightdash/commit/4ab43f7807edd42ad597366de6d5909c6292500e))
+
+
+### Features
+
+* **dashboards:** introduce the new edit toolbar with a first-visit tour ([#32701](https://github.com/lightdash/lightdash/issues/32701)) ([6094ffa](https://github.com/lightdash/lightdash/commit/6094ffa1e0fb2a9a3f5a013455495bf695002d3a))
+* **dashboards:** snap a dragged tile only once the pointer rests over a slot ([#32731](https://github.com/lightdash/lightdash/issues/32731)) ([e2828e9](https://github.com/lightdash/lightdash/commit/e2828e9f2f117fda66b3d843a637d20ee4efa25c))
+
 # [3.288.0](https://github.com/lightdash/lightdash/compare/3.287.0...3.288.0) (2026-11-17)
 
 

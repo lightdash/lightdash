@@ -62941,6 +62941,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 memoryTour: { dataType: 'boolean', required: true },
+                dashboardEditTour: { dataType: 'boolean', required: true },
             },
             validators: {},
         },
@@ -62974,7 +62975,14 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UserOnboardingTour: {
         dataType: 'refAlias',
-        type: { dataType: 'enum', enums: ['memoryTour'], validators: {} },
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['memoryTour'] },
+                { dataType: 'enum', enums: ['dashboardEditTour'] },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiCompleteUserOnboardingTourRequest: {
