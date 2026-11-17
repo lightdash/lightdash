@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -78,26 +78,25 @@ describe('MobileSignInMenu pitch dismiss', () => {
         expect(track).not.toHaveBeenCalled();
     });
 
-    it('puts the first focus on the named Not interested control when the menu opens by keyboard', async () => {
-        const user = userEvent.setup();
+    it('does not put the first focus on Not interested when the popover opens', async () => {
         renderMenu();
-        act(() => openButton().focus());
-        await user.keyboard('{Enter}');
-        const dialog = await screen.findByRole('dialog', {
-            name: 'Sign in on your phone',
-        });
+        const dialog = await openMenu();
         const control = await screen.findByRole('button', {
             name: MOBILE_PITCH_DISMISS_STRINGS.action,
         });
 
-        await waitFor(() => expect(control).toHaveFocus());
-        expect(dialog).toContainElement(control);
+        await waitFor(() =>
+            expect(dialog).toContainElement(
+                document.activeElement as HTMLElement,
+            ),
+        );
+        expect(control).not.toHaveFocus();
 
-        await user.keyboard('{Enter}');
+        await userEvent.keyboard('{Enter}');
 
         expect(
-            await screen.findByRole('group', { name: 'Why not?' }),
-        ).toBeInTheDocument();
+            screen.queryByRole('group', { name: 'Why not?' }),
+        ).not.toBeInTheDocument();
         expect(track).not.toHaveBeenCalled();
         expect(window.localStorage.getItem(MOBILE_PITCH_DISMISSED_KEY)).toBe(
             null,
