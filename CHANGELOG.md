@@ -1,3 +1,10 @@
+# [3.281.0](https://github.com/lightdash/lightdash/compare/3.280.3...3.281.0) (2026-11-17)
+
+
+### Features
+
+* **dashboards:** add tiles from empty space on the dashboard canvas ([#32585](https://github.com/lightdash/lightdash/issues/32585)) ([4ea5a16](https://github.com/lightdash/lightdash/commit/4ea5a16b601849bfb9e3ac448d210652c2103557))
+
 ## [3.280.3](https://github.com/lightdash/lightdash/compare/3.280.2...3.280.3) (2026-11-17)
 
 
