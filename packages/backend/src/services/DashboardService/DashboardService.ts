@@ -156,10 +156,7 @@ import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionC
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import type { ComposerChartService } from '../ComposerChartService/ComposerChartService';
-import {
-    getCustomMetricExploreTables,
-    getCustomMetricSqlPermissionMessage,
-} from '../ProjectService/customMetricSqlPermission';
+import { getCustomMetricSqlPermissionMessage } from '../ProjectService/customMetricSqlPermission';
 import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
 import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import type { ProjectService } from '../ProjectService/ProjectService';
@@ -216,7 +213,7 @@ type DashboardServiceArguments = {
         | 'findExplores'
         | 'projectParametersModel'
         | 'getQueryTimezoneForProject'
-        | 'getExplore'
+        | 'getCustomMetricsNeedingPermission'
     >;
     getComposerChartService: () => Pick<
         ComposerChartService,
@@ -3754,37 +3751,33 @@ export class DashboardService
                 }),
             )
         ) {
-            // A metric no chart uses has no explore to compare against
             const account = fromSession(user);
             const savedMetric = registry[existingIndex];
-            const tablesPerChart =
+            // A metric no chart uses has no explore: changed SQL needs the permission
+            const needsPermission =
                 affected.length > 0
-                    ? await Promise.all(
-                          affected.map((chart) =>
-                              getCustomMetricExploreTables(
-                                  () => this.projectService,
-                                  account,
-                                  chart.projectUuid,
-                                  {
-                                      exploreName:
-                                          chart.metricQuery.exploreName,
-                                      additionalMetrics: [metric],
-                                  },
-                                  [savedMetric],
+                    ? (
+                          await Promise.all(
+                              affected.map((chart) =>
+                                  this.projectService.getCustomMetricsNeedingPermission(
+                                      {
+                                          account,
+                                          projectUuid: chart.projectUuid,
+                                          exploreName:
+                                              chart.metricQuery.exploreName,
+                                          additionalMetrics: [metric],
+                                          savedAdditionalMetrics: [savedMetric],
+                                      },
+                                  ),
                               ),
-                          ),
-                      )
-                    : [{}];
-            if (
-                tablesPerChart.some(
-                    (tables) =>
-                        getNewHandWrittenAdditionalMetrics(
-                            [metric],
-                            [savedMetric],
-                            tables,
-                        ).length > 0,
-                )
-            ) {
+                          )
+                      ).some((metrics) => metrics.length > 0)
+                    : getNewHandWrittenAdditionalMetrics(
+                          [metric],
+                          [savedMetric],
+                          {},
+                      ).length > 0;
+            if (needsPermission) {
                 throw new ForbiddenError(
                     getCustomMetricSqlPermissionMessage([metric]),
                 );

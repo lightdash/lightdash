@@ -1,11 +1,9 @@
 import {
-    getNewHandWrittenAdditionalMetrics,
     isCustomSqlDimension,
     isSqlTableCalculation,
     type AdditionalMetric,
     type ChartAsCode,
     type CustomDimension,
-    type Explore,
     type TableCalculation,
 } from '@lightdash/common';
 import { getCustomMetricSqlPermissionMessage } from '../ProjectService/customMetricSqlPermission';
@@ -19,14 +17,13 @@ export type CurrentChartSqlItems = {
     metricQuery: {
         customDimensions?: CustomDimension[];
         tableCalculations?: TableCalculation[];
-        additionalMetrics?: AdditionalMetric[];
     };
 };
 
 export const getChartContentAsCodePermissionChecks = (
     nextChart: ChartAsCode,
     currentChart: CurrentChartSqlItems | null,
-    exploreTables: Explore['tables'],
+    customMetricsNeedingPermission: AdditionalMetric[],
 ): ContentAsCodeSqlPermissionCheckResult[] => {
     const checks: ContentAsCodeSqlPermissionCheckResult[] = [];
     const currentMetricQuery = currentChart?.metricQuery;
@@ -72,15 +69,10 @@ export const getChartContentAsCodePermissionChecks = (
         });
     }
 
-    const changedMetrics = getNewHandWrittenAdditionalMetrics(
-        nextChart.metricQuery.additionalMetrics ?? [],
-        currentMetricQuery?.additionalMetrics ?? [],
-        exploreTables,
-    );
-    if (changedMetrics.length > 0) {
+    if (customMetricsNeedingPermission.length > 0) {
         checks.push({
             check: 'customMetricSql',
-            message: `${getCustomMetricSqlPermissionMessage(changedMetrics)} (chart slug "${nextChart.slug}")`,
+            message: `${getCustomMetricSqlPermissionMessage(customMetricsNeedingPermission)} (chart slug "${nextChart.slug}")`,
         });
     }
     return checks;

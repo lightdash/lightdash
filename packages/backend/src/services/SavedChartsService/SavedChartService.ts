@@ -31,7 +31,6 @@ import {
     getDimensionMapFromTables,
     getItemId,
     getMissingAdditionalMetricReferences,
-    getNewHandWrittenAdditionalMetrics,
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     GoogleSheetsTransientError,
@@ -123,10 +122,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
-import {
-    getCustomMetricExploreTables,
-    getCustomMetricSqlPermissionMessage,
-} from '../ProjectService/customMetricSqlPermission';
+import { getCustomMetricSqlPermissionMessage } from '../ProjectService/customMetricSqlPermission';
 import { assertCanSaveInDevelopmentView } from '../ProjectService/developmentView';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
@@ -153,7 +149,10 @@ type SavedChartServiceArguments = {
     analytics: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
-    getProjectService: () => Pick<ProjectService, 'getExplore'>;
+    getProjectService: () => Pick<
+        ProjectService,
+        'getCustomMetricsNeedingPermission'
+    >;
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
     analyticsModel: AnalyticsModel;
@@ -1076,17 +1075,14 @@ export class SavedChartService
         ) {
             return;
         }
-        const newHandWritten = getNewHandWrittenAdditionalMetrics(
-            metricQuery.additionalMetrics ?? [],
-            savedAdditionalMetrics,
-            await getCustomMetricExploreTables(
-                this.getProjectService,
+        const newHandWritten =
+            await this.getProjectService().getCustomMetricsNeedingPermission({
                 account,
-                projectContext.projectUuid,
-                metricQuery,
+                projectUuid: projectContext.projectUuid,
+                exploreName: metricQuery.exploreName,
+                additionalMetrics: metricQuery.additionalMetrics ?? [],
                 savedAdditionalMetrics,
-            ),
-        );
+            });
         if (newHandWritten.length > 0) {
             throw new ForbiddenError(
                 getCustomMetricSqlPermissionMessage(newHandWritten),

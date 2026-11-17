@@ -183,7 +183,9 @@ function buildService({
         get: vi.fn().mockResolvedValue({ enabled: flagsEnabled }),
     };
     const savedChartService = new SavedChartService({
-        getProjectService: () => ({ getExplore: vi.fn() }),
+        getProjectService: () => ({
+            getCustomMetricsNeedingPermission: vi.fn(async () => []),
+        }),
         savedChartModel,
         dashboardModel,
         spacePermissionService,

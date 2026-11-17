@@ -19843,6 +19843,146 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
             }),
         ).rejects.toThrow(CustomSqlQueryForbiddenError);
     });
+
+    describe('getCustomMetricsNeedingPermission', () => {
+        const metricsNeedingPermission = (
+            caller: ReturnType<typeof buildAccount>,
+            sql: string,
+            savedAdditionalMetrics: ReturnType<typeof additionalMetric> = [],
+        ) =>
+            service.getCustomMetricsNeedingPermission({
+                account: caller,
+                projectUuid,
+                exploreName,
+                additionalMetrics: additionalMetric(sql),
+                savedAdditionalMetrics,
+            });
+        const savedOnViewableChart = (table = 'a') =>
+            savedChartModel.findCustomSqlProvenance.mockResolvedValue({
+                tableCalculations: [],
+                customSqlDimensions: [],
+                additionalMetrics: [
+                    { sql: metricSubquerySql, table, spaceUuid },
+                ],
+            });
+
+        it('allows SQL the chart already saved, without loading the explore', async () => {
+            const getExplore = spyExplore();
+
+            await expect(
+                metricsNeedingPermission(
+                    noScopeAccount,
+                    metricSubquerySql,
+                    additionalMetric(metricSubquerySql),
+                ),
+            ).resolves.toEqual([]);
+            expect(getExplore).not.toHaveBeenCalled();
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('allows a metric whose SQL is a modelled field, without a saved chart lookup', async () => {
+            spyExplore();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, fieldRefSql),
+            ).resolves.toEqual([]);
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('allows SQL saved on a chart the user can view in the same explore', async () => {
+            spyExplore();
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual([]);
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).toHaveBeenCalledWith({
+                projectUuid,
+                exploreName,
+                tableCalculationSqls: [],
+                customSqlDimensions: [],
+                additionalMetrics: [{ sql: metricSubquerySql, table: 'a' }],
+            });
+        });
+
+        it('returns SQL that no chart holds', async () => {
+            spyExplore();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('returns SQL changed from what the chart saved', async () => {
+            spyExplore();
+
+            await expect(
+                metricsNeedingPermission(
+                    noScopeAccount,
+                    metricSubquerySql,
+                    additionalMetric('(SELECT 1)'),
+                ),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('returns SQL saved only on a chart the user cannot view', async () => {
+            spyExplore();
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(restrictedAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('returns SQL saved on a viewable chart under another table', async () => {
+            spyExplore();
+            savedOnViewableChart('b');
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+        });
+
+        it('never looks up saved charts for an embed account', async () => {
+            spyExplore();
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(jwtAccount, metricSubquerySql),
+            ).resolves.toEqual(additionalMetric(metricSubquerySql));
+            expect(
+                savedChartModel.findCustomSqlProvenance,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('still allows SQL on a viewable chart when the explore is missing', async () => {
+            vi.spyOn(service, 'getExplore')
+                .mockClear()
+                .mockRejectedValue(new NotFoundError('Explore not found'));
+            savedOnViewableChart();
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).resolves.toEqual([]);
+        });
+
+        it('fails when the saved chart lookup fails', async () => {
+            spyExplore();
+            savedChartModel.findCustomSqlProvenance.mockRejectedValue(
+                new Error('database unavailable'),
+            );
+
+            await expect(
+                metricsNeedingPermission(noScopeAccount, metricSubquerySql),
+            ).rejects.toThrow('database unavailable');
+        });
+    });
 });
 
 describe('available filter week boundaries', () => {
