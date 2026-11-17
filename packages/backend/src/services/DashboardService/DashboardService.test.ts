@@ -479,6 +479,9 @@ describe('DashboardService', () => {
             expect.objectContaining({
                 event: 'dashboard.view',
                 userId: user.userUuid,
+                properties: expect.objectContaining({
+                    dashboardSlug: dashboard.slug,
+                }),
             }),
             expect.objectContaining({
                 contentId: dashboard.uuid,

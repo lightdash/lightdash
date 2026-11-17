@@ -2035,6 +2035,7 @@ export type DashboardView = BaseTrack & {
     userId: string;
     properties: {
         dashboardId: string;
+        dashboardSlug?: string;
         projectId: string;
         organizationId: string;
         parametersCount: number;
@@ -2594,6 +2595,7 @@ export type DataAppViewedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         appUuid: string;
+        appSlug?: string;
         viewContext?: DataAppViewContext | 'embed' | 'mcp';
         version?: number;
         navigationId?: string | null;
