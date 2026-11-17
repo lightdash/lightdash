@@ -1,3 +1,15 @@
+# [3.287.0](https://github.com/lightdash/lightdash/compare/3.286.0...3.287.0) (2026-11-17)
+
+
+### Bug Fixes
+
+* **cli:** allow uppercase letters and digits in rename names ([#32611](https://github.com/lightdash/lightdash/issues/32611)) ([2aae2a9](https://github.com/lightdash/lightdash/commit/2aae2a93dbc7ae8bf77544b1d48c77d334dbc052))
+
+
+### Features
+
+* **mobile:** let staff turn off mobile app access for one org ([#32705](https://github.com/lightdash/lightdash/issues/32705)) ([b50bd20](https://github.com/lightdash/lightdash/commit/b50bd202f5a7e436a441e0b5594007d47dffbcce))
+
 # [3.286.0](https://github.com/lightdash/lightdash/compare/3.285.1...3.286.0) (2026-11-17)
 
 

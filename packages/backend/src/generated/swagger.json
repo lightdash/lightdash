@@ -69448,6 +69448,34 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "MobileAppAccess": {
+                "properties": {
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "enabled": {
+                        "type": "boolean",
+                        "enum": [true],
+                        "nullable": false
+                    }
+                },
+                "required": ["organizationUuid", "enabled"],
+                "type": "object"
+            },
+            "ApiMobileAppAccessResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MobileAppAccess"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "MetricWithAssociatedTimeDimension": {
                 "allOf": [
                     {
@@ -79996,7 +80024,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.286.0",
+        "version": "3.287.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -114291,6 +114319,38 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/mobile/access": {
+            "get": {
+                "operationId": "getMobileAppAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobileAppAccessResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Tells a mobile app whether the organization of the current sign-in can\nuse the mobile apps. A disabled organization gets a 401 with the code\nmobile_org_disabled",
+                "summary": "Get mobile app access",
+                "tags": ["Mobile"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/runMetricTotal": {
