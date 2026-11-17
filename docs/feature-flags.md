@@ -208,9 +208,8 @@ the composer needs a flag refetch or page reload. ENV changes need a process res
 
 Images additionally require a private, durable `UPLOADS_S3_BUCKET`: without one the
 flag resolves off everywhere, whatever enables it, and the purgeable exports-bucket
-fallback is refused. `UPLOADS_S3_ENDPOINT`, `UPLOADS_S3_REGION`, `UPLOADS_S3_ACCESS_KEY`
-and `UPLOADS_S3_SECRET_KEY` override the base S3 settings for that bucket. The scheduler must run even while the flag is
-off. Images are kept for as long as their thread exists. Deleting the thread,
+fallback is refused. The bucket uses the base S3 endpoint and credentials. The
+scheduler must run even while the flag is off. Images are kept for as long as their thread exists. Deleting the thread,
 by hand or through thread retention, removes its images; physical deletion is
 asynchronous and retried in bounded batches. Unsent uploads expire after 24 hours.
 An independent cleanup ledger survives thread, prompt and organization deletion.
