@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MCP tool contracts > matches the 'filter-expression' MCP server instructions snapshot 1`] = `
+exports[`MCP tool contracts > matches the filter-expression MCP server instructions snapshot 1`] = `
 "## Query Building Workflow
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
@@ -25,7 +25,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 "
 `;
 
-exports[`MCP tool contracts > matches the 'structured-filter' MCP server instructions snapshot 1`] = `
+exports[`MCP tool contracts > matches the structured-filter MCP server instructions snapshot 1`] = `
 "## Query Building Workflow
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.

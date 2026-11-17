@@ -4,6 +4,7 @@ import EvalHtmlReporter from './src/ee/services/ai/agents/tests/eval-reporter';
 
 export default defineConfig({
     test: {
+        clearMocks: false,
         name: 'integration-tests',
         include: ['src/**/*integration.test.ts'],
         exclude: [

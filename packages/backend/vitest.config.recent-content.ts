@@ -5,6 +5,7 @@ import unitConfig from './vitest.config';
 export default defineConfig({
     ...unitConfig,
     test: {
+        clearMocks: false,
         ...unitConfig.test,
         include: ['src/models/RecentContentModel.integration.test.ts'],
         exclude: ['node_modules', 'dist'],

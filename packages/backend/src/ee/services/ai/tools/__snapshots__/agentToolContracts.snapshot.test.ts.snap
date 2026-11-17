@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`AI agent tool contracts > matches the 'data-app' Agent system prompt snapshot 1`] = `
+exports[`AI agent tool contracts > matches the data-app Agent system prompt snapshot 1`] = `
 "You are Lightdash AI Analyst, a data analytics assistant that helps users retrieve, visualize and find data in their Lightdash project.
 
 Today is 2026-08-27. Resolve every relative time expression ("last month", "this quarter", "past year") against this date, not against dates seen in the data or your own sense of the current date. When a resolved time window returns no data, say so and keep the window rather than shifting it to a period where data exists.
@@ -225,7 +225,7 @@ Category labels are values, not comparisons: "Low Cost" does not prove a group i
 For a definition or reference-only question, give the shortest complete answer: the definition with every required condition and exception, date scope only when asked, each rule once, without implementation caveats, unasked conventions or offers to run queries."
 `;
 
-exports[`AI agent tool contracts > matches the 'filter-expression' Agent system prompt snapshot 1`] = `
+exports[`AI agent tool contracts > matches the filter-expression Agent system prompt snapshot 1`] = `
 "You are Lightdash AI Analyst, a data analytics assistant that helps users retrieve, visualize and find data in their Lightdash project.
 
 Today is 2026-08-27. Resolve every relative time expression ("last month", "this quarter", "past year") against this date, not against dates seen in the data or your own sense of the current date. When a resolved time window returns no data, say so and keep the window rather than shifting it to a period where data exists.
@@ -431,7 +431,7 @@ Category labels are values, not comparisons: "Low Cost" does not prove a group i
 For a definition or reference-only question, give the shortest complete answer: the definition with every required condition and exception, date scope only when asked, each rule once, without implementation caveats, unasked conventions or offers to run queries."
 `;
 
-exports[`AI agent tool contracts > matches the 'structured-filter' Agent system prompt snapshot 1`] = `
+exports[`AI agent tool contracts > matches the structured-filter Agent system prompt snapshot 1`] = `
 "You are Lightdash AI Analyst, a data analytics assistant that helps users retrieve, visualize and find data in their Lightdash project.
 
 Today is 2026-08-27. Resolve every relative time expression ("last month", "this quarter", "past year") against this date, not against dates seen in the data or your own sense of the current date. When a resolved time window returns no data, say so and keep the window rather than shifting it to a period where data exists.
@@ -558,7 +558,7 @@ Category labels are values, not comparisons: "Low Cost" does not prove a group i
 For a definition or reference-only question, give the shortest complete answer: the definition with every required condition and exception, date scope only when asked, each rule once, without implementation caveats, unasked conventions or offers to run queries."
 `;
 
-exports[`AI agent tool contracts > matches the 'structured-filter-with-composer' Agent system prompt snapshot 1`] = `
+exports[`AI agent tool contracts > matches the structured-filter-with-composer Agent system prompt snapshot 1`] = `
 "You are Lightdash AI Analyst, a data analytics assistant that helps users retrieve, visualize and find data in their Lightdash project.
 
 Today is 2026-08-27. Resolve every relative time expression ("last month", "this quarter", "past year") against this date, not against dates seen in the data or your own sense of the current date. When a resolved time window returns no data, say so and keep the window rather than shifting it to a period where data exists.

@@ -2,12 +2,12 @@ import { FeatureFlags } from '@lightdash/common';
 
 let restoreFetch = () => {};
 
-beforeAll(async () => {
+beforeEach(async () => {
     const { installStoryFetch } = await import('./storyApi');
     restoreFetch = installStoryFetch();
 });
 
-afterAll(() => restoreFetch());
+afterEach(() => restoreFetch());
 
 describe('onboarding story API', () => {
     it('leaves window.fetch assignable and restores the previous fetch', async () => {

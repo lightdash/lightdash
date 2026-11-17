@@ -4,6 +4,7 @@ import unitConfig from './vitest.config';
 export default defineConfig({
     ...unitConfig,
     test: {
+        clearMocks: false,
         ...unitConfig.test,
         include: [
             'src/models/SavedChartModel.chartTypeImpact.integration.test.ts',
