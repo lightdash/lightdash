@@ -207,8 +207,10 @@ not the pre-feature version. Console changes affect subsequent backend resolutio
 the composer needs a flag refetch or page reload. ENV changes need a process restart.
 
 Images additionally require a private, durable `UPLOADS_S3_BUCKET`: without one the
-flag resolves off everywhere, whatever enables it, and the purgeable exports-bucket
-fallback is refused. The bucket uses the base S3 endpoint and credentials. The
+flag's handler resolves it off, whatever is stored for the organization, and the
+purgeable exports-bucket fallback is refused. Forcing the flag on with
+`LIGHTDASH_ENABLE_FEATURE_FLAGS` skips the handler, so the composer offers images
+and the server refuses the upload. The bucket uses the base S3 endpoint and credentials. The
 scheduler must run even while the flag is off. Images are kept for as long as their thread exists. Deleting the thread,
 by hand or through thread retention, removes its images; physical deletion is
 asynchronous and retried in bounded batches. Unsent uploads expire after 24 hours.
