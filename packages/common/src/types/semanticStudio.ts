@@ -83,7 +83,8 @@ export type ApiSemanticStudioSourceFileResponse =
     ApiSuccess<SemanticStudioSourceFile>;
 
 export type SaveSemanticStudioSourceRequest = {
-    revision: string | null;
+    /** The revision the edit was based on, null for a new file; older clients omit it and skip the check. */
+    revision?: string | null;
     path: string;
     content: string;
     /** The change's open pull request to add the commit to, or null to open one. */

@@ -58,11 +58,9 @@ describe('AiWritebackRunModel', () => {
             const qb = buildQueryBuilder({
                 whereNotNull: vi.fn().mockReturnThis(),
                 orderBy: vi.fn().mockReturnThis(),
-                first: vi
-                    .fn()
-                    .mockResolvedValue({
-                        pr_url: 'https://github.com/acme/analytics/pull/2',
-                    }),
+                first: vi.fn().mockResolvedValue({
+                    pr_url: 'https://github.com/acme/analytics/pull/2',
+                }),
             });
             const { model, database } = buildModel(qb);
             await expect(

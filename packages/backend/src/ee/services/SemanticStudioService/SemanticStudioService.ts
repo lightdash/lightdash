@@ -2237,7 +2237,8 @@ export class SemanticStudioService extends BaseService {
                 dryRun,
                 assertPublishAllowed: null,
                 checkDbt: checked ? compile : null,
-                expectedSource: { path, revision },
+                expectedSource:
+                    revision === undefined ? null : { path, revision },
             });
         // Null means only dbt can check the change, so it is committed unchecked.
         const dryRun = await save(true, true);
