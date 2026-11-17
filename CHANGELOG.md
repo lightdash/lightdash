@@ -1,3 +1,10 @@
+## [3.289.3](https://github.com/lightdash/lightdash/compare/3.289.2...3.289.3) (2026-11-17)
+
+
+### Bug Fixes
+
+* **pivot:** write raw booleans and zeros correctly in pivot CSV exports ([#32720](https://github.com/lightdash/lightdash/issues/32720)) ([0b11bf3](https://github.com/lightdash/lightdash/commit/0b11bf3cea9d2c55aae10253539f47317d76d1f9))
+
 ## [3.289.2](https://github.com/lightdash/lightdash/compare/3.289.1...3.289.2) (2026-11-17)
 
 
