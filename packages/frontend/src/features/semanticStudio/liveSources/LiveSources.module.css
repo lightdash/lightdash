@@ -14,7 +14,7 @@
 .row {
     display: grid;
     grid-template-columns:
-        minmax(160px, 220px) minmax(0, 1fr) 96px 88px 112px
+        minmax(160px, 220px) minmax(0, 1fr) 96px 88px 88px 112px
         28px;
     align-items: center;
     gap: 12px;
@@ -65,8 +65,8 @@
 
 .summary {
     display: grid;
-    /* Two rows of four: what it reads, then how it is used. */
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    /* Three rows of three: what it reads, how it is used, then its fields. */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1px;
     flex: none;
     background: light-dark(

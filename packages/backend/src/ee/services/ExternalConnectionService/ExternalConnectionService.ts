@@ -2057,6 +2057,7 @@ export class ExternalConnectionService extends BaseService {
                         column_count: call.columnCount,
                         truncated: call.truncated,
                         response_bytes: usage.responseBytes,
+                        cache_hit: call.cacheHit,
                     });
                 } catch (error) {
                     this.logger.error(
@@ -2074,6 +2075,7 @@ export class ExternalConnectionService extends BaseService {
                         integration: connection.apiSource?.connector ?? null,
                         context: call.context,
                         outcome: call.outcome,
+                        cacheHit: call.cacheHit,
                         apiCalls: usage.apiCalls,
                         providerStatus: usage.providerStatus,
                         durationMs: call.durationMs,

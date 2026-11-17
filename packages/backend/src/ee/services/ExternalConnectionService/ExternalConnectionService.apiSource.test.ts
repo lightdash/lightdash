@@ -368,6 +368,7 @@ describe('ExternalConnectionService api sources', () => {
             rowCount: 1,
             columnCount: 2,
             truncated: false,
+            cacheHit: false,
         });
 
         expect(
@@ -389,6 +390,7 @@ describe('ExternalConnectionService api sources', () => {
             column_count: 2,
             truncated: false,
             response_bytes: Buffer.byteLength(bodyText, 'utf8'),
+            cache_hit: false,
         });
         const [, trackedEvent] = analytics.trackAccount.mock.calls[0];
         expect(trackedEvent).toMatchObject({
@@ -398,6 +400,7 @@ describe('ExternalConnectionService api sources', () => {
                 projectId: 'proj-1',
                 context: QueryExecutionContext.AI,
                 outcome: 'ok',
+                cacheHit: false,
                 apiCalls: 1,
                 providerStatus: 200,
                 durationMs: 120,
@@ -440,8 +443,39 @@ describe('ExternalConnectionService api sources', () => {
                 rowCount: null,
                 columnCount: null,
                 truncated: null,
+                cacheHit: false,
             }),
         ).resolves.toBeUndefined();
+    });
+
+    it('logs a reused result as a cache hit that made no API calls', async () => {
+        const { service, externalConnectionModel, analytics } = buildService();
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+
+        await source.logCall({
+            queryUuid: 'query-2',
+            context: QueryExecutionContext.AI,
+            query: 'SELECT 1 AS a',
+            rowLimit: 10,
+            outcome: 'ok',
+            errorMessage: null,
+            durationMs: 8,
+            rowCount: 1,
+            columnCount: 2,
+            truncated: null,
+            cacheHit: true,
+        });
+
+        expect(
+            externalConnectionModel.insertApiSourceCall,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ cache_hit: true, api_calls: 0 }),
+        );
+        const [, trackedEvent] = analytics.trackAccount.mock.calls[0];
+        expect(trackedEvent).toMatchObject({
+            event: 'live_source.api_call',
+            properties: { cacheHit: true, apiCalls: 0 },
+        });
     });
 
     it('shows usage only to accounts that manage connections', async () => {

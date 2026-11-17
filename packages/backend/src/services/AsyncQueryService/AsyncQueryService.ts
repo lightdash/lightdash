@@ -13076,7 +13076,11 @@ export class AsyncQueryService extends ProjectService {
                     ? Object.keys(reusable.columns).length
                     : null,
                 truncated: null,
+                cacheHit: true,
             });
+            this.prometheusMetrics?.incrementLiveSourceCacheHit(
+                source.integration.connector,
+            );
             return { queryUuid, reusable };
         }
 
@@ -13167,6 +13171,7 @@ export class AsyncQueryService extends ProjectService {
                         query: payload.query,
                         rowLimit: limit,
                         durationMs: executeMs ?? Date.now() - startedAt,
+                        cacheHit: false,
                         ...call,
                     });
                 try {

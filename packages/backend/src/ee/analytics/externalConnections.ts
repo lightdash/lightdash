@@ -62,6 +62,8 @@ export type ExternalConnectionEvent = BaseTrack &
                   integration: ApiConnectorType | null;
                   context: string;
                   outcome: string;
+                  /** True when a stored result answered the query and the integration wasn't called. */
+                  cacheHit: boolean;
                   /** Upstream API calls made; 0 when the result was reused. */
                   apiCalls: number;
                   providerStatus: number | null;

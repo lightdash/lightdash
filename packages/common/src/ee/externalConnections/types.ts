@@ -513,6 +513,8 @@ export type ApiListExternalConnectionSamplesResponse = {
 export type ExternalConnectionApiUsage = {
     externalConnectionUuid: string;
     apiCalls: number;
+    /** Queries a stored result answered without calling the integration. */
+    cacheHits: number;
     responseBytes: number;
     /** Median time to fetch from the integration; null until it has been called. */
     medianDurationMs: number | null;
