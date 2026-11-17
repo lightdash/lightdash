@@ -14,6 +14,7 @@ import {
     getErrorMessage,
     getExplorePrefixError,
     getItemId,
+    getLiveSourceErrorOrigin,
     isJwtUser,
     LIVE_SOURCE_AI_HINT_MAX_LENGTH,
     MissingConfigError,
@@ -99,6 +100,7 @@ import {
     toFailedScan,
     toPostHogSchemaTable,
 } from '../../../services/QuerySourceService/live/integrations/postHog/scan';
+import { getLiveSourceQueryErrorCode } from '../../../services/QuerySourceService/live/query/outcome';
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
@@ -2065,8 +2067,9 @@ export class ExternalConnectionService extends BaseService {
                     );
                 }
                 // The query text stays out of analytics; it can hold filter values.
+                const errorCode = getLiveSourceQueryErrorCode(call.outcome);
                 this.analytics.trackAccount(account, {
-                    event: 'live_source.api_call',
+                    event: 'live_source.query_finished',
                     properties: {
                         organizationId: connection.organizationUuid,
                         projectId: projectUuid,
@@ -2075,6 +2078,10 @@ export class ExternalConnectionService extends BaseService {
                         integration: connection.apiSource?.connector ?? null,
                         context: call.context,
                         outcome: call.outcome,
+                        errorOrigin: errorCode
+                            ? getLiveSourceErrorOrigin(errorCode)
+                            : null,
+                        errorCode,
                         cacheHit: call.cacheHit,
                         apiCalls: usage.apiCalls,
                         providerStatus: usage.providerStatus,

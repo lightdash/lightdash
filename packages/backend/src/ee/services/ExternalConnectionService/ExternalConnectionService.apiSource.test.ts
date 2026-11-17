@@ -394,12 +394,14 @@ describe('ExternalConnectionService api sources', () => {
         });
         const [, trackedEvent] = analytics.trackAccount.mock.calls[0];
         expect(trackedEvent).toMatchObject({
-            event: 'live_source.api_call',
+            event: 'live_source.query_finished',
             properties: {
                 externalConnectionUuid: 'conn-1',
                 projectId: 'proj-1',
                 context: QueryExecutionContext.AI,
                 outcome: 'ok',
+                errorOrigin: null,
+                errorCode: null,
                 cacheHit: false,
                 apiCalls: 1,
                 providerStatus: 200,
@@ -448,6 +450,40 @@ describe('ExternalConnectionService api sources', () => {
         ).resolves.toBeUndefined();
     });
 
+    it('tells a failure of ours from the integration failing', async () => {
+        const { service, analytics } = buildService();
+        const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+        const call = {
+            queryUuid: 'query-3',
+            context: QueryExecutionContext.AI,
+            query: 'SELECT 1 AS a',
+            rowLimit: 10,
+            errorMessage: 'failed',
+            durationMs: 10,
+            rowCount: null,
+            columnCount: null,
+            truncated: null,
+            cacheHit: false,
+        };
+
+        await source.logCall({ ...call, outcome: 'timeout' });
+        await source.logCall({ ...call, outcome: 'invalid_request' });
+
+        const tracked = analytics.trackAccount.mock.calls.map(
+            ([, event]) => event.properties,
+        );
+        expect(tracked).toEqual([
+            expect.objectContaining({
+                errorOrigin: 'integration',
+                errorCode: 'live_source.upstream.timeout',
+            }),
+            expect.objectContaining({
+                errorOrigin: 'internal',
+                errorCode: 'live_source.internal.invalid_request',
+            }),
+        ]);
+    });
+
     it('logs a reused result as a cache hit that made no API calls', async () => {
         const { service, externalConnectionModel, analytics } = buildService();
         const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
@@ -473,7 +509,7 @@ describe('ExternalConnectionService api sources', () => {
         );
         const [, trackedEvent] = analytics.trackAccount.mock.calls[0];
         expect(trackedEvent).toMatchObject({
-            event: 'live_source.api_call',
+            event: 'live_source.query_finished',
             properties: { cacheHit: true, apiCalls: 0 },
         });
     });
