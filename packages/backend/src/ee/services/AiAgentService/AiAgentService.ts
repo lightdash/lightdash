@@ -381,10 +381,10 @@ import { GithubAppService } from '../../../services/GithubAppService/GithubAppSe
 import { PersistentDownloadFileService } from '../../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
-    describeApiSourceTarget,
-    getApiSourceExploreNames,
+    describeLiveTarget,
     getLegacyLiveSourceName,
-} from '../../../services/QuerySourceService/api/apiSourceExplores';
+    getLiveExploreNames,
+} from '../../../services/QuerySourceService/live/explores/build';
 import { type QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { SearchService } from '../../../services/SearchService/SearchService';
@@ -12377,7 +12377,7 @@ export class AiAgentService extends BaseService {
                               connectionUuid: externalConnectionUuid,
                               name,
                               connector: apiSource.connector,
-                              exploreNames: getApiSourceExploreNames(
+                              exploreNames: getLiveExploreNames(
                                   apiSource.connector,
                                   liveSourceName ??
                                       getLegacyLiveSourceName(
@@ -12385,7 +12385,7 @@ export class AiAgentService extends BaseService {
                                           externalConnectionUuid,
                                       ),
                               ),
-                              target: describeApiSourceTarget(
+                              target: describeLiveTarget(
                                   apiSource,
                                   origin,
                                   targetLabel ?? null,

@@ -62,45 +62,46 @@ import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureF
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { SavedChartModel } from '../../../models/SavedChartModel';
 import { BaseService } from '../../../services/BaseService';
-import type {
-    ApiConnector,
-    ApiConnectorTransport,
-    ApiConnectorUsage,
-    MeteredApiConnector,
-} from '../../../services/QuerySourceService/api/ApiConnector';
 import {
-    buildApiSourceExplores,
-    describeApiSourceTarget,
-    getApiSourceDefinitionHashes,
-    getApiSourceExploreName,
-    getApiSourceExploreNames,
-    getApiSourceReservedExploreNames,
-    getApiSourceWideDefinition,
+    createLiveCalls,
+    type LiveCallUsage,
+    type LiveTransport,
+    type MeteredLiveSource,
+} from '../../../services/QuerySourceService/live/calls';
+import {
+    buildLiveExplores,
+    describeLiveTarget,
     getLegacyLiveSourceName,
-    getLostApiSourceFieldIds,
+    getLiveDefinitionHashes,
+    getLiveExploreName,
+    getLiveExploreNames,
+    getLiveReservedExploreNames,
+    getLiveWideDefinition,
+    getLostLiveFieldIds,
     toScannedLiveSourceFields,
-} from '../../../services/QuerySourceService/api/apiSourceExplores';
-import { type ApiSourceScan } from '../../../services/QuerySourceService/api/ApiSourceIntegration';
-import { getApiSourceIntegration } from '../../../services/QuerySourceService/api/apiSourceIntegrations';
-import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/api/google/googleSignIn';
-import {
-    getLinkedInAdsAccountPath,
-    LINKEDIN_ADS_ORIGIN,
-    LINKEDIN_ADS_REQUEST_HEADERS,
-    LINKEDIN_ADS_TOKEN_URL,
-} from '../../../services/QuerySourceService/api/linkedin/LinkedInAdsConnector';
+} from '../../../services/QuerySourceService/live/explores/build';
 import {
     applyLiveSourceFieldChanges,
     getInitialLiveSourceFieldEdits,
     getRequiredFieldNames,
     listLiveSourceFields,
-} from '../../../services/QuerySourceService/api/liveSourceFields';
-import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
+} from '../../../services/QuerySourceService/live/explores/fields';
+import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/live/integrations/google/signIn';
+import {
+    getLinkedInAdsAccountPath,
+    LINKEDIN_ADS_ORIGIN,
+    LINKEDIN_ADS_REQUEST_HEADERS,
+    LINKEDIN_ADS_TOKEN_URL,
+} from '../../../services/QuerySourceService/live/integrations/linkedInAds/run';
+import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/live/integrations/postHog/run';
 import {
     scanPostHogSchema,
     toFailedScan,
     toPostHogSchemaTable,
-} from '../../../services/QuerySourceService/api/posthog/postHogSchemaScan';
+} from '../../../services/QuerySourceService/live/integrations/postHog/scan';
+import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
+import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
+import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
     normalizeCredentialUrlHref,
@@ -1207,37 +1208,37 @@ export class ExternalConnectionService extends BaseService {
     }
 
     /**
-     * A connector for a live api query. The stored secret never leaves this
+     * A source for one live api query. The stored secret never leaves this
      * service: requests go through the same guarded fetch as the app proxy.
      */
-    async getApiConnector(
+    async getLiveSource(
         account: RegisteredAccount,
         projectUuid: string,
         connectionUuid: string,
-    ): Promise<MeteredApiConnector> {
+    ): Promise<MeteredLiveSource> {
         const connection = await this.getViewableConnection(
             account,
             projectUuid,
             connectionUuid,
         );
-        return this.getMeteredApiConnector(account, projectUuid, connection);
+        return this.getMeteredLiveSource(account, projectUuid, connection);
     }
 
     /**
-     * A connector for metric queries on a live data source's explores.
+     * A source for one metric query on a live data source's explores.
      * Explore access grants them, as it does for warehouse explores, so
      * callers MUST authorize the account for the explore first.
      */
-    async getApiSourceConnector(
+    async getLiveSourceForExplore(
         account: RegisteredAccount,
         projectUuid: string,
         connectionUuid: string,
-    ): Promise<MeteredApiConnector> {
+    ): Promise<MeteredLiveSource> {
         const connection = await this.loadConnection(
             projectUuid,
             connectionUuid,
         );
-        return this.getMeteredApiConnector(account, projectUuid, connection);
+        return this.getMeteredLiveSource(account, projectUuid, connection);
     }
 
     /** Rebuilds the explores a live data source answers metric queries with. */
@@ -1275,11 +1276,16 @@ export class ExternalConnectionService extends BaseService {
         if (connection.kind !== 'live_source' || !apiSource) {
             return;
         }
-        const getScan = async (): Promise<ApiSourceScan | null> => {
+        const getScan = async (): Promise<LiveScanResult | null> => {
             try {
-                return await this.createApiConnector(account, connection, {
-                    isPerQuery: false,
-                }).scan();
+                const { integration, settings, calls } = this.createLiveSource(
+                    account,
+                    connection,
+                    { isPerQuery: false },
+                );
+                return (
+                    (await integration.scan?.read({ settings, calls })) ?? {}
+                );
             } catch (error) {
                 if (onScanError === 'throw') {
                     throw error;
@@ -1350,7 +1356,7 @@ export class ExternalConnectionService extends BaseService {
                         scannedFields,
                         isExistingSource: true,
                     });
-                const explores = buildApiSourceExplores({
+                const explores = buildLiveExplores({
                     connectionUuid: externalConnectionUuid,
                     sourceName,
                     name: connection.name,
@@ -1358,7 +1364,7 @@ export class ExternalConnectionService extends BaseService {
                     scannedFields,
                     edits,
                     aiHint: [
-                        describeApiSourceTarget(
+                        describeLiveTarget(
                             apiSource,
                             connection.origin,
                             state.targetLabel,
@@ -1367,7 +1373,7 @@ export class ExternalConnectionService extends BaseService {
                     ],
                 });
                 if (keepFields) {
-                    const lost = getLostApiSourceFieldIds({
+                    const lost = getLostLiveFieldIds({
                         storedFieldIds:
                             await this.projectModel.getApiSourceFieldIds(
                                 projectUuid,
@@ -1419,7 +1425,7 @@ export class ExternalConnectionService extends BaseService {
                 const isCurrent = isEqual(
                     [...hashes].sort(),
                     Object.values(
-                        getApiSourceDefinitionHashes(source.connector),
+                        getLiveDefinitionHashes(source.connector),
                     ).sort(),
                 );
                 // A source with no explores was never built, so leave it to its own flow
@@ -1490,7 +1496,7 @@ export class ExternalConnectionService extends BaseService {
         if (changes.length === 0) {
             return this.readLiveSourceFields(connection, apiSource);
         }
-        const definition = getApiSourceWideDefinition(apiSource.connector);
+        const definition = getLiveWideDefinition(apiSource.connector);
         const state =
             await this.externalConnectionModel.getLiveSourceFieldState(
                 connectionUuid,
@@ -1550,7 +1556,7 @@ export class ExternalConnectionService extends BaseService {
         apiSource: ExternalConnectionApiSource,
     ): Promise<LiveSourceFields> {
         const { externalConnectionUuid, projectUuid } = connection;
-        const definition = getApiSourceWideDefinition(apiSource.connector);
+        const definition = getLiveWideDefinition(apiSource.connector);
         const [sourceName, state] = await Promise.all([
             this.resolveLiveSourceName(connection, apiSource),
             this.externalConnectionModel.getLiveSourceFieldState(
@@ -1560,12 +1566,9 @@ export class ExternalConnectionService extends BaseService {
         const usedByChartCount =
             await this.savedChartModel.getChartCountForExplores(
                 projectUuid,
-                getApiSourceExploreNames(apiSource.connector, sourceName),
+                getLiveExploreNames(apiSource.connector, sourceName),
             );
-        const exploreName = getApiSourceExploreName(
-            sourceName,
-            definition.name,
-        );
+        const exploreName = getLiveExploreName(sourceName, definition.name);
         const scannedFields = state.lastScan?.fields ?? [];
         const fieldNames = [
             ...definition.dimensions.map(({ name }) => name),
@@ -1656,8 +1659,8 @@ export class ExternalConnectionService extends BaseService {
         connectionUuid: string | null,
     ): Promise<Set<string>> {
         const getNames = (prefix: string) => [
-            ...getApiSourceExploreNames(connector, prefix),
-            ...getApiSourceReservedExploreNames(connector, prefix),
+            ...getLiveExploreNames(connector, prefix),
+            ...getLiveReservedExploreNames(connector, prefix),
         ];
         const [held, taken] = await Promise.all([
             this.externalConnectionModel.listHeldLiveSourceNames(
@@ -1711,7 +1714,7 @@ export class ExternalConnectionService extends BaseService {
             candidates,
             null,
         );
-        const exploreNames = getApiSourceExploreNames(connector, prefix);
+        const exploreNames = getLiveExploreNames(connector, prefix);
         const suggestion =
             candidates.find((candidate) => !unavailable.has(candidate)) ?? null;
         return unavailable.has(prefix)
@@ -1721,7 +1724,7 @@ export class ExternalConnectionService extends BaseService {
                   error: `"${prefix}" is already used by another source or explore in this project`,
                   suggestion,
                   suggestionExploreNames: suggestion
-                      ? getApiSourceExploreNames(connector, suggestion)
+                      ? getLiveExploreNames(connector, suggestion)
                       : [],
               }
             : {
@@ -1866,7 +1869,7 @@ export class ExternalConnectionService extends BaseService {
         );
         const sources = await Promise.all(
             deleted.map(async (source): Promise<ReattachableLiveSource[]> => {
-                const exploreNames = getApiSourceExploreNames(
+                const exploreNames = getLiveExploreNames(
                     apiSource.connector,
                     source.explorePrefix,
                 );
@@ -1936,7 +1939,7 @@ export class ExternalConnectionService extends BaseService {
         );
         const chartCount = await this.savedChartModel.getChartCountForExplores(
             projectUuid,
-            getApiSourceExploreNames(connector, currentPrefix),
+            getLiveExploreNames(connector, currentPrefix),
         );
         if (chartCount > 0) {
             throw new ParameterError(
@@ -1947,7 +1950,7 @@ export class ExternalConnectionService extends BaseService {
         const [clash] = await this.projectModel.findExploreNamesTakenByOthers(
             projectUuid,
             connectionUuid,
-            getApiSourceExploreNames(connector, explorePrefix),
+            getLiveExploreNames(connector, explorePrefix),
         );
         if (clash) {
             throw new AlreadyExistsError(`Explore "${clash}" already exists`);
@@ -2021,19 +2024,18 @@ export class ExternalConnectionService extends BaseService {
         }
     }
 
-    private getMeteredApiConnector(
+    private getMeteredLiveSource(
         account: RegisteredAccount,
         projectUuid: string,
         connection: ExternalConnection,
-    ): MeteredApiConnector {
-        const { connector, usage } = this.createApiConnector(
+    ): MeteredLiveSource {
+        const { usage, ...source } = this.createLiveSource(
             account,
             connection,
             { isPerQuery: true },
         );
         return {
-            describe: () => connector.describe(),
-            execute: (args) => connector.execute(args),
+            ...source,
             usage: () => ({ ...usage }),
             logCall: async (call) => {
                 try {
@@ -2109,8 +2111,15 @@ export class ExternalConnectionService extends BaseService {
     ): Promise<ApiSourceSchemaScan> {
         let scan: ApiSourceSchemaScan;
         try {
-            scan = await scanPostHogSchema(() =>
-                this.getApiConnector(account, projectUuid, connectionUuid),
+            scan = await scanPostHogSchema(async (args) =>
+                runLiveRequest(
+                    await this.getLiveSource(
+                        account,
+                        projectUuid,
+                        connectionUuid,
+                    ),
+                    args,
+                ),
             );
         } catch (error) {
             scan = toFailedScan(error);
@@ -2183,17 +2192,15 @@ export class ExternalConnectionService extends BaseService {
     }
 
     /**
-     * The integration's connector over the guarded fetch. Per-query
-     * connectors refuse to make more calls than one query may.
+     * The source's integration with calls over the guarded fetch. A
+     * per-query source refuses to make more calls than one query may.
      */
-    private createApiConnector(
+    private createLiveSource(
         account: RegisteredAccount,
         storedConnection: ExternalConnection,
         { isPerQuery }: { isPerQuery: boolean },
-    ): {
-        connector: ApiConnector;
-        usage: ApiConnectorUsage;
-        scan: () => Promise<ApiSourceScan>;
+    ): Pick<MeteredLiveSource, 'integration' | 'settings' | 'calls'> & {
+        usage: LiveCallUsage;
     } {
         const { apiSource } = storedConnection;
         if (storedConnection.kind !== 'live_source' || !apiSource) {
@@ -2205,12 +2212,14 @@ export class ExternalConnectionService extends BaseService {
         // saved before a rule changed get the current rules.
         const connection = withApiSourceAccessRules(storedConnection);
         let callsThisQuery = 0;
-        const usage: ApiConnectorUsage = {
+        const integration = getLiveIntegration(apiSource.connector);
+        const { label, limits } = integration;
+        const usage: LiveCallUsage = {
             apiCalls: 0,
             responseBytes: 0,
             providerStatus: null,
         };
-        const sendOnce: ApiConnectorTransport = async (request) => {
+        const sendOnce: LiveTransport = async (request) => {
             const secret =
                 await this.externalConnectionModel.getDecryptedSecret(
                     connection.externalConnectionUuid,
@@ -2253,9 +2262,7 @@ export class ExternalConnectionService extends BaseService {
                 throw error;
             }
         };
-        const send: ApiConnectorTransport = async (request) => {
-            // eslint-disable-next-line no-use-before-define -- connectors only send once created
-            const { label, limits } = connector.describe();
+        const send: LiveTransport = async (request) => {
             callsThisQuery += 1;
             if (isPerQuery && callsThisQuery > limits.callsPerQuery) {
                 throw new ParameterError(
@@ -2266,10 +2273,12 @@ export class ExternalConnectionService extends BaseService {
                 sendOnce(request),
             );
         };
-        const { connector, scan = async () => ({}) } = getApiSourceIntegration(
-            apiSource.connector,
-        ).createConnector(apiSource, send);
-        return { connector, usage, scan };
+        return {
+            integration,
+            settings: apiSource,
+            calls: createLiveCalls(integration, apiSource, send),
+            usage,
+        };
     }
 
     private static isPostHogRegion(region: string): region is PostHogRegion {

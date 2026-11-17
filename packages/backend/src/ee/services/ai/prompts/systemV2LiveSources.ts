@@ -1,4 +1,4 @@
-import { LIVE_SOURCE_INTEGRATION_PROFILES } from '@lightdash/common';
+import { LIVE_INTEGRATION_CATALOG } from '@lightdash/common';
 import type { AgentLiveSource } from '../types/aiAgent';
 import { xmlBuilder } from '../xmlBuilder';
 
@@ -24,8 +24,7 @@ export const getLiveSourcesSection = (
                     xmlBuilder('live_data_source', {
                         name,
                         integration:
-                            LIVE_SOURCE_INTEGRATION_PROFILES[connector]
-                                .agentLabel,
+                            LIVE_INTEGRATION_CATALOG[connector].agentLabel,
                         explores: exploreNames.join(','),
                         target,
                         ...(hint ? { hint } : {}),

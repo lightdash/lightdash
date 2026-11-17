@@ -3,7 +3,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account';
-import { toFailedScan } from '../../../services/QuerySourceService/api/posthog/postHogSchemaScan';
+import { toFailedScan } from '../../../services/QuerySourceService/live/integrations/postHog/scan';
 import { type UserService } from '../../../services/UserService';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { type ExternalConnectionService } from '../../services/ExternalConnectionService/ExternalConnectionService';

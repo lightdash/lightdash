@@ -102,7 +102,7 @@ import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
-import type { ApiQueryOutcome } from '../services/QuerySourceService/api/apiQueryOutcome';
+import type { LiveQueryOutcome } from '../services/QuerySourceService/live/query/outcome';
 import { VERSION } from '../version';
 import {
     isAiUsageEvent,
@@ -824,7 +824,7 @@ export type QueryCompletedEvent = BaseTrack & {
         columnsCount: number | null;
         // Set only when executionSource is 'live_source'.
         apiConnector?: ApiConnectorType;
-        apiQueryOutcome?: ApiQueryOutcome;
+        apiQueryOutcome?: LiveQueryOutcome;
         /** Set only when a live_source query failed. */
         liveSourceErrorCode?: LiveSourceUpstreamErrorCode;
         truncated?: boolean;

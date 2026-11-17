@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
 import { buildAccount } from '../../../auth/account/account.mock';
+import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import {
     ExternalConnectionService,
@@ -158,15 +159,8 @@ const buildService = ({
 };
 
 const runQuery = async (service: ExternalConnectionService) => {
-    const connector = await service.getApiConnector(
-        account,
-        'proj-1',
-        'conn-1',
-    );
-    return connector.execute({
-        payload: { kind: 'query', query: 'SELECT 1 AS a' },
-        limit: 10,
-    });
+    const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
+    return runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 });
 };
 
 beforeEach(() => {

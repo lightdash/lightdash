@@ -54,7 +54,7 @@ import type {
 } from '../../utils/QueryBuilder/QueryComposer';
 import type { ComposerRunBinding } from '../ComposerChartService/ComposerRunBinding';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
-import type { MeteredApiConnector } from '../QuerySourceService/api/ApiConnector';
+import type { MeteredLiveSource } from '../QuerySourceService/live/calls';
 import type { QueryPollingSource } from './queryPollingSource';
 
 /** Who vouches for a query's content: the caller, or a stored chart the caller may view. */
@@ -290,7 +290,7 @@ export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncApiQueryArgs = CommonAsyncQueryArgs & {
     connectionUuid: string;
     /** Resolved through the connection, which checks the caller may use it. */
-    connector: MeteredApiConnector;
+    source: MeteredLiveSource;
     payload: ApiSourcePayload;
     limit?: number;
 };
