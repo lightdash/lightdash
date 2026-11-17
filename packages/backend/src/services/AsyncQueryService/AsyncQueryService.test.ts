@@ -16017,9 +16017,17 @@ describe('AsyncQueryService', () => {
                 draft: {
                     metricQuery: draftMetricQuery,
                     chartConfig: draftChartConfig,
+                    spaceUuid: 'draftedSpaceUuid',
                 },
             }));
+            const resolveAccess = vi.fn(async () => ({
+                access: [],
+                inheritsFromOrgOrProject: true,
+            }));
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                spacePermissionService: {
+                    resolveAccess,
+                } as unknown as SpacePermissionService,
                 savedChartModel: {
                     get: vi.fn(async () => publishedChart),
                 } as unknown as SavedChartModel,
@@ -16070,7 +16078,7 @@ describe('AsyncQueryService', () => {
                 context: QueryExecutionContext.CHART,
                 ...args,
             });
-            return { result, prepareSpy, findOpenDraft };
+            return { result, prepareSpy, findOpenDraft, resolveAccess };
         };
 
         test("runs the requester's draft when asked for it", async () => {
@@ -16089,6 +16097,19 @@ describe('AsyncQueryService', () => {
             );
             expect(result.chartVisualization?.chartConfig).toEqual(
                 draftChartConfig,
+            );
+        });
+
+        test("authorizes against the published chart's space, not a drafted move", async () => {
+            const { resolveAccess } = await runWithDraft({
+                includeUnpublishedDraft: true,
+            });
+
+            expect(resolveAccess).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({
+                    spaceUuid: publishedChart.spaceUuid,
+                }),
             );
         });
 

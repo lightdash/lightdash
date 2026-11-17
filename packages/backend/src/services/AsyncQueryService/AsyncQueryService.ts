@@ -9464,10 +9464,17 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
             },
         );
-        // A chart version is a fixed point in history, never the draft
+        // A chart version is a fixed point in history, never the draft.
+        // Access follows the published space, not a move the draft holds
         const storedChart =
             includeUnpublishedDraft && !versionUuid
-                ? await this.applyOpenChartDraft(account, publishedChart)
+                ? {
+                      ...(await this.applyOpenChartDraft(
+                          account,
+                          publishedChart,
+                      )),
+                      spaceUuid: publishedChart.spaceUuid,
+                  }
                 : publishedChart;
         // Applied to the stored chart so merge queries built from it see the
         // delivery's filters too. The delivery runs as its creator, so this is
