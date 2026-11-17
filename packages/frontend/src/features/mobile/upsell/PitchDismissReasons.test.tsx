@@ -55,6 +55,23 @@ describe('PitchDismissReasons', () => {
         },
     );
 
+    it('centres the heading and the reason pills', () => {
+        renderReasons();
+
+        expect(
+            screen.getByRole('heading', {
+                name: MOBILE_PITCH_DISMISS_STRINGS.title,
+            }),
+        ).toHaveStyle({ textAlign: 'center' });
+        expect(
+            screen
+                .getByRole('group', {
+                    name: MOBILE_PITCH_DISMISS_STRINGS.title,
+                })
+                .style.getPropertyValue('--group-justify'),
+        ).toBe('center');
+    });
+
     it('focuses the first pill so the keyboard can pick straight away', () => {
         renderReasons();
 
