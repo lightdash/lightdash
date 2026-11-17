@@ -134,6 +134,7 @@ export async function finalizeNativePublication(
 ) {
     const context = nativeModelPublication.getStore();
     if (!context || projectUuid !== context.projectUuid) return;
+    // Older deploy clients omit model documents even when replacing an existing materialized model.
     const prior = await trx('model_materialization_configs')
         .join(
             'project_model_documents',

@@ -67,6 +67,7 @@ export const mainDeploySql = [
     'select "explore" from "cached_explore" where "project_uuid" = $1 and explore->>\'type\' = ANY($2)',
     'delete from "cached_explore" where "project_uuid" = $1 and "name" not in ($2, $3)',
     'insert into "cached_explore" ("explore", "name", "project_uuid", "table_names") values ($1, $2, $3, $4), ($5, $6, $7, $8) on conflict ("name", "project_uuid") do update set "table_names" = excluded."table_names", "explore" = excluded."explore", "warehouse_connection_uuid" = excluded."warehouse_connection_uuid" returning "cached_explore_uuid"',
+    'select "document_uuid", "name" from "model_materialization_configs" inner join "project_model_documents" on "document_uuid" = "project_model_document_uuid" where "project_uuid" = $1',
     'COMMIT;',
     'select "projects"."name", "projects"."project_uuid", "projects"."slug", "organizations"."organization_uuid", "projects"."copied_from_project_uuid", "projects"."project_type", "projects"."created_by_user_uuid", "projects"."provisioning_source" from "projects" left join "organizations" on "projects"."organization_id" = "organizations"."organization_id" where "projects"."project_uuid" = $1 limit $2',
     'select "name" from "cached_explore" where "project_uuid" = $1',
