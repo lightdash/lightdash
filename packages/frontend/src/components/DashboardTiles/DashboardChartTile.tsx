@@ -2376,6 +2376,9 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         readyQuery.data?.chart.projectUuid,
         readyQuery.data?.executeQueryResponse.queryUuid,
         readyQuery.data?.chart.name,
+        null,
+        // The screenshot view shows the error in the tile, not a toast
+        { toastErrors: !props.minimal },
     );
 
     const isLoading = useMemo(() => {
