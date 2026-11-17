@@ -92,6 +92,7 @@ import {
     resolveDropOverlaps,
     getRowInsertion,
     getGapFill,
+    getLayoutOnScreen,
     getPointerCell,
     getPointerPosition,
     isClick,
@@ -908,15 +909,24 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             : allTilesLayouts
         )?.lg ?? EMPTY_LAYOUTS.lg;
 
+    const activeLayoutOnScreen = useMemo(
+        () => getLayoutOnScreen(activeLayout),
+        [activeLayout],
+    );
+
     const handleAddTilesToSlot = useCallback(
         (tiles: IDashboard['tiles'][number][], slot: GridSlot) => {
             void handleAddTiles(tiles);
             const [first] = tiles;
-            // A heading keeps its full width, so it goes under the last row
-            if (!first || first.type === DashboardTileTypes.HEADING) return;
+            if (!first) return;
+            // A heading stays one line tall at the top of the space it lands in
+            const placement =
+                first.type === DashboardTileTypes.HEADING
+                    ? { ...slot, h: Math.min(first.h, slot.h) }
+                    : slot;
             setDashboardTiles((current) =>
                 current?.map((tile) =>
-                    tile.uuid === first.uuid ? { ...tile, ...slot } : tile,
+                    tile.uuid === first.uuid ? { ...tile, ...placement } : tile,
                 ),
             );
         },
@@ -1731,7 +1741,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             {isCanvasFilled && (
                                 <CanvasAddTile
                                     canvasRef={gridWrapperRef}
-                                    layout={activeLayout}
+                                    layout={activeLayoutOnScreen}
                                     gridScale={gridScale}
                                     isEnabled={
                                         !isInteracting && settleMode === null
