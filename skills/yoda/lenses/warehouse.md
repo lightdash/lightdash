@@ -9,7 +9,6 @@
 - **quoting and types:** identifiers, string literals, dates and timestamps are quoted and cast the adapter's way, never built by hand.
 - **dbt versions:** every supported dbt version still parses the project (`scripts/setup-dbt-venvs.sh` covers them).
 - **tenant variance:** settings that differ per customer (regions, execution projects, roles, SSH tunnels, key-pair auth) keep working, and existing connections still connect.
-- **credentials:** secrets stay out of logs, errors and responses.
 
 ## Impact
 

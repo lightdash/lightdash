@@ -23,7 +23,7 @@ Keep skipped lenses' Diff instructions when their rows are needed.
 
 ## Assess
 
-Run the lenses' applicable checks under lenses/README.md.
+Run every applicable check of every selected lens under lenses/README.md; the step is done when each check has passed silently, become a finding or been marked n/a.
 Open changed files and callers in execution order; trace saves through persistence.
 
 - **quick:** one agent, one pass; no subagents, browser or second pass.
@@ -43,11 +43,10 @@ omit unsettled fields rather than guess.
 Keep [coverage-drop diffs](testing.md#coverage-drop-diff) in standalone json mode too.
 
 Build the canonical [review JSON](formats/json.md), then render with [text](formats/text.md), [HTML](formats/html.md) or [GitHub](formats/github.md) if requested.
-A PR body with a yoda block is synced per [github.md](formats/github.md#sync).
 The schema defines all review fields and ordering.
 
 Each finding is one small paragraph (~70 words).
-Leave evidence out rather than cram it in.
+Keep the strongest evidence and drop the rest.
 
 ```md
 The Joins tab shows the published model, not the editor's draft. Fields renders the draft, but `JoinDiagram` builds from the published explore, so a drafted join appears in Fields and not in Joins. Pass the draft's explore, or label the tab as published.
@@ -62,4 +61,4 @@ Name the reviewed head sha.
 ## Re-review
 
 A code change invalidates the verdict.
-Review changed areas, callers and seams again with the touched lenses and issue a fresh verdict for that content; a yoda-written PR description syncs to it.
+Review changed areas, callers and seams again with the touched lenses and issue a fresh verdict for that content.

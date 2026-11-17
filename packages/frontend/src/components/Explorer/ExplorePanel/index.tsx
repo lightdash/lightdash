@@ -30,6 +30,7 @@ import VirtualViewAsCodeModal from '../../../features/contentAsCode/components/V
 import {
     explorerActions,
     selectAdditionalMetrics,
+    selectIsEditMode,
     selectMetricQuery,
     selectSavedChart,
     selectTableName,
@@ -87,6 +88,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     // Onboarding stays out of embeds, automated browsers, and the chart
     // editors that open this panel over a dashboard or document
     const isEmbedded = useIsEmbedded();
+    const isEditMode = useExplorerSelector(selectIsEditMode);
     const tour = useGuidedTour({
         storageKey: EXPLORER_TOUR_STORAGE_KEY,
         autoStartOnFirstVisit:
@@ -247,7 +249,11 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     return (
         <>
-            <ExplorerTour opened={tour.isOpen} onClose={tour.closeTour} />
+            {/* A saved chart keeps this panel mounted, hidden, while viewing */}
+            <ExplorerTour
+                opened={tour.isOpen && isEditMode}
+                onClose={tour.closeTour}
+            />
             <Stack
                 h="100%"
                 gap="xs"

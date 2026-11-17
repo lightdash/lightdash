@@ -8,7 +8,7 @@
 - **mapping right:** source fields map to the right Lightdash names and types, nulls and dates included, and the capabilities a connector declares match what its compiler does.
 - **complete:** pagination, rate limits and partial responses return every row or say they didn't.
 - **bounded:** calls have timeouts and row limits; a slow source never blocks other queries, and a provider quota shared by every customer can't be used up by one.
-- **credentials:** connection secrets stay out of logs, errors and responses, and are scoped to the project.
+- **credentials:** connection secrets are scoped to the project; Security covers keeping them out of logs and responses.
 - **naming:** product copy says "live data source" and "integration", never "connection".
 
 ## Impact
