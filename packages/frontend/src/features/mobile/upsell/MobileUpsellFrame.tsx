@@ -91,8 +91,11 @@ const Pitch = ({
         >
             {/* The popover traps focus and would otherwise focus the first
                 button, Not interested, so one Enter would dismiss the pitch
-                and record a reason the user never chose. */}
-            <FocusTrap.InitialFocus />
+                and record a reason the user never chose. The trap prefers the
+                first autofocus element, so render this only while Not
+                interested is shown: when a phone is confirming, focus must go
+                to Decline. */}
+            {canDismiss && <FocusTrap.InitialFocus />}
             <div className={classes.pitch}>
                 <Title order={3} className={classes.headline}>
                     {copy.headline}
