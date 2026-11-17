@@ -192,7 +192,7 @@ export const withAnswerEvidence = (
                 ...result,
                 fields: {},
                 maxContextRows: 50,
-                limit: result.rowCount,
+                limit: result.limit,
                 scope: args,
             });
             return result;

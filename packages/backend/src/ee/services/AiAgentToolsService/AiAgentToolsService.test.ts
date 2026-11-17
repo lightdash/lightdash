@@ -3476,6 +3476,7 @@ describe('AiAgentToolsService', () => {
             slug: 'sales',
             spaceUuid: 'allowed-space-uuid',
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            parameters: { region: { parameterName: 'region', value: 'EMEA' } },
             tiles: [composerTile],
         };
         const storedComposerChart = {
@@ -3486,11 +3487,13 @@ describe('AiAgentToolsService', () => {
         };
         const makeComposerService = ({
             spaceModel,
+            flagEnabled = true,
             getComposerChartsForRead = vi.fn().mockResolvedValue({
                 composerCharts: [composerChartAsCode],
             }),
         }: {
             spaceModel?: Record<string, unknown>;
+            flagEnabled?: boolean;
             getComposerChartsForRead?: import('vitest').Mock;
         } = {}) => {
             const run = vi.fn().mockResolvedValue({
@@ -3520,6 +3523,7 @@ describe('AiAgentToolsService', () => {
                 },
                 composerChartService: {
                     get: vi.fn().mockResolvedValue(storedComposerChart),
+                    isEnabled: vi.fn().mockResolvedValue(flagEnabled),
                     run,
                 },
                 asyncQueryService: {
@@ -3566,6 +3570,27 @@ describe('AiAgentToolsService', () => {
             ).rejects.toThrow(NotFoundError);
         });
 
+        it('reports composer charts as not found with the composer charts flag off', async () => {
+            const { service, run } = makeComposerService({
+                flagEnabled: false,
+            });
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.readContent({
+                    type: 'composer_chart',
+                    slug: 'revenue-vs-target',
+                }),
+            ).rejects.toThrow(NotFoundError);
+            await expect(
+                runtime.runComposerChartQuery({
+                    chartSlug: 'revenue-vs-target',
+                    dashboardSlug: 'sales',
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(run).not.toHaveBeenCalled();
+        });
+
         it('reports a slug no composer chart has as not found', async () => {
             const { service } = makeComposerService({
                 getComposerChartsForRead: vi
@@ -3599,7 +3624,7 @@ describe('AiAgentToolsService', () => {
                     dashboardUuid: 'dashboard-uuid',
                     tileUuid: 'tile-uuid',
                     dashboardFilters: salesDashboard.filters,
-                    parameters: {},
+                    parameters: { region: 'EMEA' },
                     excludedParameterKeys: [],
                     invalidateCache: false,
                 },

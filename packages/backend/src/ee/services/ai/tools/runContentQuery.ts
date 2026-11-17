@@ -17,6 +17,7 @@ import { type QueryReviewer } from '../decisions/queryReview';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     ComposerChartSummary,
+    ComposerChartTileRef,
     GetComposerChartFn,
     GetSavedChartFn,
     GetSqlChartFn,
@@ -444,10 +445,9 @@ export const getRunContentQuery = ({
     };
 
     // Stored pipelines were approved when saved, so a run asks for nothing.
-    const runComposerChart = async (args: {
-        chartSlug: string;
-        dashboardSlug: string;
-    }): Promise<RunContentQueryResult> => {
+    const runComposerChart = async (
+        args: ComposerChartTileRef,
+    ): Promise<RunContentQueryResult> => {
         try {
             await updateProgress('Running composer chart...');
 

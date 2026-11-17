@@ -586,17 +586,21 @@ export type ComposerChartSummary = {
     terminalNodeId: string;
 };
 
-/** A composer chart on that dashboard's tile, checked as runComposerChartQuery checks it, without running. */
-export type GetComposerChartFn = (args: {
+export type ComposerChartTileRef = {
     chartSlug: string;
     dashboardSlug: string;
-}) => Promise<ComposerChartSummary>;
+};
 
-/** Runs a composer chart as its dashboard tile does, with the dashboard's filters; returns its terminal node's rows. */
-export type RunComposerChartQueryFn = (args: {
-    chartSlug: string;
-    dashboardSlug: string;
-}) => Promise<SqlQueryRows & { composerChart: ComposerChartSummary }>;
+export type GetComposerChartFn = (
+    tile: ComposerChartTileRef,
+) => Promise<ComposerChartSummary>;
+
+/** Runs a composer chart as its dashboard tile does; returns its terminal node's rows, not a series-split stage. */
+export type RunComposerChartQueryFn = (
+    tile: ComposerChartTileRef,
+) => Promise<
+    SqlQueryRows & { composerChart: ComposerChartSummary; limit: number }
+>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
 

@@ -536,7 +536,10 @@ type AiAgentToolsServiceDependencies = {
     dashboardModel: DashboardModel;
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
-    composerChartService: Pick<ComposerChartService, 'get' | 'run'>;
+    composerChartService: Pick<
+        ComposerChartService,
+        'get' | 'run' | 'isEnabled'
+    >;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
     contentService: ContentService;
@@ -3245,15 +3248,29 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** Viewing follows the chart's dashboard; the agent's spaces scope the dashboard's space. */
+    // Not found with the flag off, so a chart read that misses never falls back to one.
+    private async assertComposerChartsEnabled(
+        context: AiAgentToolsRuntimeContext,
+        notFoundMessage: string,
+    ) {
+        if (
+            !(await this.composerChartService.isEnabled({
+                userUuid: context.user.userUuid,
+                organizationUuid: context.organizationUuid,
+            }))
+        ) {
+            throw new NotFoundError(notFoundMessage);
+        }
+    }
+
     private async readComposerChartAsCode(
         context: AiAgentToolsRuntimeContext,
         slug: string,
-        action: 'read' | 'update' = 'read',
     ): Promise<
         Extract<Awaited<ReturnType<ReadContentFn>>, { type: 'composer_chart' }>
     > {
         const notFound = `Composer chart "${slug}" was not found`;
+        await this.assertComposerChartsEnabled(context, notFound);
         const { account } = context;
         assertRegisteredAccount(account);
         const { composerCharts } =
@@ -3270,7 +3287,7 @@ export class AiAgentToolsService extends BaseService {
             context,
             composerChart.spaceSlug,
             notFound,
-            action,
+            'read',
         );
         const dashboard = await this.dashboardService.getByIdOrSlug(
             context.user,
@@ -4823,7 +4840,6 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** The composer chart on that dashboard's tile, checked as its tile is: dashboard in the agent's spaces, view through the dashboard. */
     private getComposerChartForRuntime(
         context: AiAgentToolsRuntimeContext,
         { chartSlug, dashboardSlug }: Parameters<GetComposerChartFn>[0],
@@ -4832,6 +4848,8 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.getComposerChart`,
             { chartSlug, dashboardSlug },
             async () => {
+                const notFound = `Composer chart ${chartSlug} not found on dashboard ${dashboardSlug}`;
+                await this.assertComposerChartsEnabled(context, notFound);
                 const dashboard = await this.dashboardService.getByIdOrSlug(
                     context.user,
                     dashboardSlug,
@@ -4850,9 +4868,7 @@ export class AiAgentToolsService extends BaseService {
                     );
                 const composerChartUuid = tile?.properties.composerChartUuid;
                 if (!tile || !composerChartUuid) {
-                    throw new NotFoundError(
-                        `Composer chart ${chartSlug} not found on dashboard ${dashboardSlug}`,
-                    );
+                    throw new NotFoundError(notFound);
                 }
                 const { account } = context;
                 assertRegisteredAccount(account);
@@ -4872,7 +4888,7 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** A bound run, as the dashboard tile runs it, with the dashboard's saved filters. */
+    /** A bound run, as the tile runs it on a dashboard opened with its saved filters and parameters. */
     private runComposerChartQuery(
         context: AiAgentToolsRuntimeContext,
         args: Parameters<RunComposerChartQueryFn>[0],
@@ -4894,7 +4910,11 @@ export class AiAgentToolsService extends BaseService {
                         dashboardUuid: dashboard.uuid,
                         tileUuid,
                         dashboardFilters: dashboard.filters,
-                        parameters: {},
+                        parameters: Object.fromEntries(
+                            Object.entries(dashboard.parameters ?? {}).map(
+                                ([key, { value }]) => [key, value],
+                            ),
+                        ),
                         excludedParameterKeys: [],
                         invalidateCache: context.invalidateQueryCache ?? false,
                     },
@@ -4907,13 +4927,15 @@ export class AiAgentToolsService extends BaseService {
                         `Composer chart "${summary.slug}" ran without its final node`,
                     );
                 }
+                const limit = this.lightdashConfig.ai.copilot.maxQueryLimit;
                 return {
                     ...(await this.waitForSqlResults(
                         context,
                         terminal.queryUuid,
-                        this.lightdashConfig.ai.copilot.maxQueryLimit,
+                        limit,
                     )),
                     composerChart: summary,
+                    limit,
                 };
             },
         );
