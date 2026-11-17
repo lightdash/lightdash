@@ -3686,6 +3686,163 @@ describe('ProjectService', () => {
         );
     });
 
+    describe('optional Snowflake personal credentials on save', () => {
+        const refusal =
+            'Personal credentials can only be optional when the connection stores shared credentials.';
+        const savedConnection = {
+            type: WarehouseTypes.SNOWFLAKE as const,
+            account: 'account',
+            user: 'person',
+            privateKey: 'private-key',
+            database: 'analytics',
+            warehouse: 'warehouse',
+            schema: 'public',
+            authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+            allowUserCredentials: true,
+        };
+        const savedProject = {
+            ...projectWithSensitiveFields,
+            warehouseConnection: savedConnection,
+        };
+        const withoutSharedCredentials = {
+            type: WarehouseTypes.SNOWFLAKE as const,
+            account: 'account',
+            user: '',
+            database: 'analytics',
+            warehouse: 'warehouse',
+            schema: 'public',
+            authenticationType: SnowflakeAuthenticationType.NONE,
+        };
+        const creator = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'all', action: 'manage' },
+            ]),
+        };
+        const newProject = {
+            name: 'New project',
+            type: ProjectType.DEFAULT,
+            dbtVersion: DefaultSupportedDbtVersion,
+            dbtConnection: { type: DbtProjectType.NONE as const },
+        };
+        const update = {
+            updateWarehouseCredentials: (
+                warehouseConnection: CreateWarehouseCredentials,
+            ) =>
+                service.updateWarehouseCredentials(
+                    savedProject.projectUuid,
+                    developerAccount,
+                    { warehouseConnection },
+                ),
+            updateAndScheduleAsyncWork: (
+                warehouseConnection: CreateWarehouseCredentials,
+            ) =>
+                service.updateAndScheduleAsyncWork(
+                    savedProject.projectUuid,
+                    developerAccount,
+                    {
+                        name: savedProject.name,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: savedProject.dbtVersion,
+                        warehouseConnection,
+                    },
+                    RequestMethod.WEB_APP,
+                ),
+        };
+
+        beforeEach(() => {
+            projectModel.update.mockClear();
+            projectModel.createWithOptionalCredentials.mockClear();
+            projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                savedProject,
+            );
+        });
+        afterEach(() => {
+            projectModel.getWithSensitiveFields.mockReset();
+            projectModel.getWithSensitiveFields.mockImplementation(
+                async () => projectWithSensitiveFields,
+            );
+        });
+
+        describe.each([
+            'updateWarehouseCredentials',
+            'updateAndScheduleAsyncWork',
+        ] as const)('%s', (method) => {
+            test('rejects removing the shared credentials while the stored opt-in is kept', async () => {
+                const save = update[method](withoutSharedCredentials);
+                await expect(save).rejects.toThrow(ParameterError);
+                await expect(save).rejects.toThrow(refusal);
+                expect(projectModel.update).not.toHaveBeenCalled();
+            });
+
+            test('saves when the opt-in is turned off in the same request', async () => {
+                await update[method]({
+                    ...withoutSharedCredentials,
+                    allowUserCredentials: false,
+                });
+                expect(projectModel.update).toHaveBeenCalledWith(
+                    savedProject.projectUuid,
+                    expect.objectContaining({
+                        warehouseConnection: expect.objectContaining({
+                            authenticationType:
+                                SnowflakeAuthenticationType.NONE,
+                            allowUserCredentials: false,
+                        }),
+                    }),
+                    expect.anything(),
+                );
+            });
+        });
+
+        test('rejects creating a project with the opt-in and no shared credentials', async () => {
+            const creation = service.createWithoutCompile(
+                creator,
+                {
+                    ...newProject,
+                    warehouseConnection: {
+                        ...withoutSharedCredentials,
+                        allowUserCredentials: true,
+                    },
+                },
+                RequestMethod.WEB_APP,
+            );
+            await expect(creation).rejects.toThrow(ParameterError);
+            await expect(creation).rejects.toThrow(refusal);
+            expect(
+                projectModel.createWithOptionalCredentials,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects a preview that inherits the opt-in from its upstream project', async () => {
+            const upstream = vi
+                .spyOn(projectModel, 'getWarehouseCredentialsForBinding')
+                .mockResolvedValue(savedConnection);
+            try {
+                const creation = service.createWithoutCompile(
+                    creator,
+                    {
+                        ...newProject,
+                        type: ProjectType.PREVIEW,
+                        upstreamProjectUuid: savedProject.projectUuid,
+                        warehouseConnection: withoutSharedCredentials,
+                    },
+                    RequestMethod.CLI,
+                );
+                await expect(creation).rejects.toThrow(ParameterError);
+                await expect(creation).rejects.toThrow(refusal);
+                expect(upstream).toHaveBeenCalled();
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+            } finally {
+                upstream.mockRestore();
+            }
+        });
+    });
+
     describe('ensurePlaygroundProject', () => {
         const organizationUuid = 'organization-uuid';
         const ensureAs = async (ability: SessionUser['ability']) => {
@@ -8221,6 +8378,156 @@ describe('ProjectService', () => {
 
             test('uses the shared connection for embedded users', async () => {
                 expect(await getCredentials(false)).toEqual({
+                    ...projectCredentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+                expect(findPersonalCredentials).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('optional Snowflake user credentials', () => {
+            const projectCredentials: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                account: 'shared-account',
+                user: 'shared_user',
+                password: 'shared-password',
+                database: 'analytics',
+                warehouse: 'shared-warehouse',
+                schema: 'public',
+                requireUserCredentials: false,
+                allowUserCredentials: true,
+            };
+            const personalCredentials = {
+                uuid: 'personal-snowflake-credentials',
+                expiresAt: null,
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'personal_user',
+                    password: 'personal-password',
+                },
+            } satisfies UserWarehouseCredentialsWithSecrets;
+            const findPersonalCredentials =
+                vi.fn<
+                    UserWarehouseCredentialsModel['findForProjectWithSecrets']
+                >();
+            const getCredentials = (
+                person: {
+                    isRegisteredUser: boolean;
+                    isServiceAccount: boolean;
+                } = { isRegisteredUser: true, isServiceAccount: false },
+            ) =>
+                (
+                    service as unknown as {
+                        getWarehouseCredentials: (args: {
+                            projectUuid: string;
+                            userId: string;
+                            isRegisteredUser: boolean;
+                            isServiceAccount: boolean;
+                            binding: { kind: 'original' };
+                        }) => Promise<CreateWarehouseCredentials>;
+                    }
+                ).getWarehouseCredentials({
+                    projectUuid,
+                    userId: sessionAccount.user.id,
+                    ...person,
+                    binding: { kind: 'original' },
+                });
+
+            beforeEach(() => {
+                findPersonalCredentials.mockReset();
+                findPersonalCredentials.mockResolvedValue(undefined);
+                vi.mocked(
+                    projectModel.getWarehouseCredentialsForProject,
+                ).mockResolvedValue(projectCredentials);
+                (
+                    service as unknown as {
+                        userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
+                    }
+                ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                    findPersonalCredentials;
+            });
+
+            test.each([undefined, false])(
+                'uses the shared connection when personal credentials are not enabled (%s)',
+                async (allowUserCredentials) => {
+                    const sharedCredentials = {
+                        ...projectCredentials,
+                        allowUserCredentials,
+                    };
+                    vi.mocked(
+                        projectModel.getWarehouseCredentialsForProject,
+                    ).mockResolvedValueOnce(sharedCredentials);
+                    findPersonalCredentials.mockResolvedValue(
+                        personalCredentials,
+                    );
+
+                    expect(await getCredentials()).toEqual({
+                        ...sharedCredentials,
+                        userWarehouseCredentialsUuid: undefined,
+                    });
+                    expect(findPersonalCredentials).not.toHaveBeenCalled();
+                },
+            );
+
+            test('uses the shared connection when no personal credentials exist', async () => {
+                expect(await getCredentials()).toEqual({
+                    ...projectCredentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+                expect(findPersonalCredentials).toHaveBeenCalledWith(
+                    projectUuid,
+                    sessionAccount.user.id,
+                    WarehouseTypes.SNOWFLAKE,
+                    { strictPersonalOverlay: false },
+                );
+            });
+
+            test('uses personal credentials when they exist', async () => {
+                findPersonalCredentials.mockResolvedValue(personalCredentials);
+
+                expect(await getCredentials()).toEqual(
+                    expect.objectContaining({
+                        account: 'shared-account',
+                        warehouse: 'shared-warehouse',
+                        user: 'personal_user',
+                        password: 'personal-password',
+                        userWarehouseCredentialsUuid: personalCredentials.uuid,
+                    }),
+                );
+            });
+
+            test('does not silently fall back when personal credentials are invalid', async () => {
+                findPersonalCredentials.mockRejectedValue(
+                    new SnowflakeTokenError('Please reauthenticate'),
+                );
+
+                await expect(getCredentials()).rejects.toThrow(
+                    SnowflakeTokenError,
+                );
+            });
+
+            test('uses the shared connection for service accounts without personal credentials', async () => {
+                expect(
+                    await getCredentials({
+                        isRegisteredUser: true,
+                        isServiceAccount: true,
+                    }),
+                ).toEqual({
+                    ...projectCredentials,
+                    userWarehouseCredentialsUuid: undefined,
+                });
+            });
+
+            test('uses the shared connection for embedded users', async () => {
+                findPersonalCredentials.mockResolvedValue(personalCredentials);
+
+                expect(
+                    await getCredentials({
+                        isRegisteredUser: false,
+                        isServiceAccount: false,
+                    }),
+                ).toEqual({
                     ...projectCredentials,
                     userWarehouseCredentialsUuid: undefined,
                 });
@@ -15105,6 +15412,7 @@ describe('ProjectService', () => {
         const projectWithSnowflakeAuth = (
             authenticationType: SnowflakeAuthenticationType,
             requireUserCredentials?: boolean,
+            allowUserCredentials?: boolean,
         ): UpdateProject => ({
             name: 'test-project',
             dbtConnection: { type: DbtProjectType.NONE },
@@ -15118,6 +15426,7 @@ describe('ProjectService', () => {
                 schema: 'test-schema',
                 authenticationType,
                 requireUserCredentials,
+                allowUserCredentials,
             },
         });
 
@@ -15146,6 +15455,32 @@ describe('ProjectService', () => {
                 service.validateConfigSecrets(
                     projectWithSnowflakeAuth(
                         SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                        true,
+                    ),
+                ),
+            ).not.toThrowError();
+        });
+
+        it('rejects optional personal credentials without shared Snowflake credentials', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.NONE,
+                        false,
+                        true,
+                    ),
+                ),
+            ).toThrowError(
+                'Personal credentials can only be optional when the connection stores shared credentials.',
+            );
+        });
+
+        it('allows optional personal credentials without shared Snowflake credentials when user credentials are required', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.NONE,
+                        true,
                         true,
                     ),
                 ),

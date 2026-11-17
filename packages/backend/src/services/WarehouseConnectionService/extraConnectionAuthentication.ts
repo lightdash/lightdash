@@ -8,6 +8,25 @@ import {
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 
+// Optional personal credentials fall back to the shared ones, so the
+// connection must store some unless personal credentials are required.
+export const assertOptionalUserCredentialsHaveSharedCredentials = (
+    credentials: CreateWarehouseCredentials,
+): void => {
+    if (
+        credentials.type === WarehouseTypes.SNOWFLAKE &&
+        credentials.allowUserCredentials === true &&
+        credentials.requireUserCredentials !== true &&
+        (credentials.authenticationType === SnowflakeAuthenticationType.NONE ||
+            credentials.authenticationType ===
+                SnowflakeAuthenticationType.EXTERNAL_BROWSER)
+    ) {
+        throw new ParameterError(
+            'Personal credentials can only be optional when the connection stores shared credentials. Choose password, key pair or SSO authentication, or require personal credentials.',
+        );
+    }
+};
+
 export const assertExtraConnectionAuthentication = (
     credentials: CreateWarehouseCredentials,
     mixedTypesEnabled: boolean,
@@ -22,7 +41,10 @@ export const assertExtraConnectionAuthentication = (
             'External browser authentication is not supported for an extra Snowflake connection.',
         );
     }
-    if (!mixedTypesEnabled) return;
+    if (!mixedTypesEnabled) {
+        assertOptionalUserCredentialsHaveSharedCredentials(credentials);
+        return;
+    }
     if (
         credentials.type === WarehouseTypes.BIGQUERY &&
         credentials.authenticationType === BigqueryAuthenticationType.SSO
@@ -51,6 +73,7 @@ export const assertExtraConnectionAuthentication = (
             'External browser authentication is not supported for an extra Snowflake connection.',
         );
     }
+    assertOptionalUserCredentialsHaveSharedCredentials(credentials);
 };
 
 export const shouldTestExtraCredentials = (

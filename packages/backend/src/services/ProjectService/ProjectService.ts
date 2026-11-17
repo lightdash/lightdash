@@ -598,6 +598,7 @@ import type {
     WarehouseCredentialResolutionContext,
     WarehouseCredentialSource,
 } from '../WarehouseClientFactory/WarehouseCredentialSource';
+import { assertOptionalUserCredentialsHaveSharedCredentials } from '../WarehouseConnectionService/extraConnectionAuthentication';
 import {
     EXTRA_CONNECTION_SELECT_CREDENTIALS_MESSAGE,
     getExtraConnectionRequireUserCredentials,
@@ -5253,6 +5254,11 @@ export class ProjectService
             newProjectData.warehouseConnection,
             internalProvisioning,
         );
+        if (newProjectData.warehouseConnection) {
+            assertOptionalUserCredentialsHaveSharedCredentials(
+                newProjectData.warehouseConnection,
+            );
+        }
         const createProject: CreateProjectOptionalCredentials =
             hasWarehouseCredentials(newProjectData)
                 ? await this._resolveWarehouseClientCredentials(
@@ -6466,6 +6472,7 @@ export class ProjectService
                 'Snowflake external browser authentication is only supported in the CLI and cannot be saved on a project',
             );
         }
+        assertOptionalUserCredentialsHaveSharedCredentials(credentials);
     }
 
     /*
