@@ -1,3 +1,10 @@
+# [3.278.0](https://github.com/lightdash/lightdash/compare/3.277.0...3.278.0) (2026-11-17)
+
+
+### Features
+
+* **semantic-studio:** read and edit every change in Sources ([#32687](https://github.com/lightdash/lightdash/issues/32687)) ([3dbd29f](https://github.com/lightdash/lightdash/commit/3dbd29f18baf8b717e3952ed5f996de0962c6722))
+
 # [3.277.0](https://github.com/lightdash/lightdash/compare/3.276.2...3.277.0) (2026-11-17)
 
 
