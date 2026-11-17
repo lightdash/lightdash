@@ -137,6 +137,7 @@ export const SnowflakeDefaultValues: CreateSnowflakeCredentials = {
     warehouse: '',
     override: false,
     requireUserCredentials: false,
+    allowUserCredentials: false,
     clientSessionKeepAlive: false,
     queryTag: '',
     accessUrl: '',

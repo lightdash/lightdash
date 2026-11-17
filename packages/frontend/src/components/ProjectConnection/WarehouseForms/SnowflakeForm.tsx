@@ -8,6 +8,7 @@ import {
     TextInput,
     Anchor,
     Button,
+    Checkbox,
     FileInput,
     Group,
     Stack,
@@ -232,6 +233,11 @@ const SnowflakeForm: FC<{
         form.values.warehouse.authenticationType ?? defaultAuthType;
 
     const isNoneAuth = authenticationType === SnowflakeAuthenticationType.NONE;
+    const hasNoSharedCredentials =
+        isNoneAuth ||
+        authenticationType === SnowflakeAuthenticationType.EXTERNAL_BROWSER;
+    const requiresUserCredentials =
+        !!form.values.warehouse.requireUserCredentials;
 
     // Build base authentication options
     const baseAuthOptions = isSsoEnabled
@@ -364,6 +370,12 @@ const SnowflakeForm: FC<{
                                 'warehouse.authenticationType',
                                 value as SnowflakeAuthenticationType,
                             );
+                            if (value === SnowflakeAuthenticationType.NONE) {
+                                form.setFieldValue(
+                                    'warehouse.allowUserCredentials',
+                                    false,
+                                );
+                            }
                         }}
                         label="Authentication Type"
                         description={
@@ -618,6 +630,26 @@ const SnowflakeForm: FC<{
                                         disabled={disabled}
                                     />
                                 )}
+                                <Checkbox
+                                    name="warehouse.allowUserCredentials"
+                                    {...form.getInputProps(
+                                        'warehouse.allowUserCredentials',
+                                        { type: 'checkbox' },
+                                    )}
+                                    label="Use personal credentials when available"
+                                    description="Signed-in users with personal Snowflake credentials use them instead of the project connection. Other users use the project connection."
+                                    checked={
+                                        requiresUserCredentials ||
+                                        (!hasNoSharedCredentials &&
+                                            !!form.values.warehouse
+                                                .allowUserCredentials)
+                                    }
+                                    disabled={
+                                        disabled ||
+                                        requiresUserCredentials ||
+                                        hasNoSharedCredentials
+                                    }
+                                />
 
                                 <BooleanSwitch
                                     name="warehouse.clientSessionKeepAlive"

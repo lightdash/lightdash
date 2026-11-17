@@ -58,6 +58,12 @@ const UserCredentialsSwitcher = () => {
         );
     }, [userWarehouseCredentials, activeProject]);
 
+    const requiresUserCredentials =
+        !!activeProject?.warehouseConnection?.requireUserCredentials;
+    const allowsOptionalCredentials = allowsOptionalUserCredentials(
+        activeProject?.warehouseConnection,
+    );
+
     // Listen for SnowflakeTokenError in query client
     useEffect(() => {
         const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
@@ -82,8 +88,7 @@ const UserCredentialsSwitcher = () => {
                         error?.error?.name === 'SnowflakeTokenError' &&
                         activeProject?.warehouseConnection?.type ===
                             'snowflake' &&
-                        activeProject?.warehouseConnection
-                            ?.requireUserCredentials
+                        (requiresUserCredentials || allowsOptionalCredentials)
                     ) {
                         console.info('Triggering reauth modal for Snowflake');
                         setShowCreateModalOnPageLoad(true);
@@ -131,6 +136,8 @@ const UserCredentialsSwitcher = () => {
         queryClient,
         activeProject?.warehouseConnection?.type,
         activeProject?.warehouseConnection?.requireUserCredentials,
+        requiresUserCredentials,
+        allowsOptionalCredentials,
     ]);
 
     useEffect(() => {
@@ -160,9 +167,8 @@ const UserCredentialsSwitcher = () => {
     // Show the switcher when personal credentials are mandatory, or when they
     // are optional for this warehouse type and the user already has some
     const isSwitcherVisible =
-        activeProject?.warehouseConnection?.requireUserCredentials ||
-        (allowsOptionalUserCredentials(activeProject?.warehouseConnection) &&
-            !!compatibleCredentials?.length);
+        requiresUserCredentials ||
+        (allowsOptionalCredentials && !!compatibleCredentials?.length);
 
     if (
         isLoadingCredentials ||
@@ -240,7 +246,12 @@ const UserCredentialsSwitcher = () => {
                                 : undefined
                         }
                         description={
-                            showCreateModalOnPageLoad ? (
+                            !showCreateModalOnPageLoad ? undefined : !requiresUserCredentials ? (
+                                <Text>
+                                    Your Snowflake sign-in has expired. Sign in
+                                    again to continue.
+                                </Text>
+                            ) : (
                                 <Text>
                                     The admin of your organization "
                                     {user.data?.organizationName}" requires that
@@ -250,7 +261,7 @@ const UserCredentialsSwitcher = () => {
                                     )}{' '}
                                     to continue.
                                 </Text>
-                            ) : undefined
+                            )
                         }
                         nameValue={
                             showCreateModalOnPageLoad ? 'Default' : undefined
