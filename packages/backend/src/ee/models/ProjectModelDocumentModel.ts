@@ -58,7 +58,10 @@ export type ChangeSet = {
     }[];
 };
 
-type DraftOwner = { projectUuid: string; userUuid: string };
+type DraftPerson = { projectUuid: string; userUuid: string };
+
+/** A person's draft is the one of their active Studio workspace; null when they have none. */
+export type DraftOwner = DraftPerson & { workspaceUuid: string | null };
 
 export type DraftImpactCheck = {
     draftHash: string;
@@ -90,18 +93,29 @@ export class ProjectModelDocumentModel {
 
     private static openDraftChanges(
         database: Knex,
-        { projectUuid, userUuid }: DraftOwner,
+        { projectUuid, userUuid, workspaceUuid }: DraftOwner,
     ) {
-        return database(ProjectModelDraftChangesTableName)
-            .where(
-                `${ProjectModelDraftChangesTableName}.project_uuid`,
-                projectUuid,
-            )
-            .where(
-                `${ProjectModelDraftChangesTableName}.created_by_user_uuid`,
-                userUuid,
-            )
-            .where(`${ProjectModelDraftChangesTableName}.status`, 'draft');
+        const workspaceColumn = `${ProjectModelDraftChangesTableName}.workspace_uuid`;
+        return (
+            database(ProjectModelDraftChangesTableName)
+                // Changes from before drafts had workspaces belong to whichever workspace is active.
+                .where((builder) =>
+                    workspaceUuid === null
+                        ? builder.whereNull(workspaceColumn)
+                        : builder
+                              .whereNull(workspaceColumn)
+                              .orWhere(workspaceColumn, workspaceUuid),
+                )
+                .where(
+                    `${ProjectModelDraftChangesTableName}.project_uuid`,
+                    projectUuid,
+                )
+                .where(
+                    `${ProjectModelDraftChangesTableName}.created_by_user_uuid`,
+                    userUuid,
+                )
+                .where(`${ProjectModelDraftChangesTableName}.status`, 'draft')
+        );
     }
 
     async findDocuments(projectUuid: string): Promise<ProjectModelDocument[]> {
@@ -222,14 +236,8 @@ export class ProjectModelDocumentModel {
     }
 
     /** A person's draft on a project, oldest first. */
-    async findDraftChanges(
-        projectUuid: string,
-        userUuid: string,
-    ): Promise<StoredDraftChange[]> {
-        return ProjectModelDocumentModel.openDraftChanges(this.database, {
-            projectUuid,
-            userUuid,
-        })
+    async findDraftChanges(owner: DraftOwner): Promise<StoredDraftChange[]> {
+        return ProjectModelDocumentModel.openDraftChanges(this.database, owner)
             .leftJoin(
                 AiPromptTableName,
                 `${AiPromptTableName}.ai_prompt_uuid`,
@@ -281,7 +289,7 @@ export class ProjectModelDocumentModel {
 
     /** Runs one publish at a time for a person on a project, on whichever server it lands; a second one waits its turn. */
     async withPublishLock<T>(
-        { projectUuid, userUuid }: DraftOwner,
+        { projectUuid, userUuid }: DraftPerson,
         publish: () => Promise<T>,
     ): Promise<T> {
         // ponytail: holds one pooled connection per concurrent publish; move to a lock row with a timestamp if publishes pile up.
@@ -572,6 +580,7 @@ export class ProjectModelDocumentModel {
     async createDraftChange({
         projectUuid,
         userUuid,
+        workspaceUuid,
         promptUuid,
         models,
         baseVersions,
@@ -585,6 +594,7 @@ export class ProjectModelDocumentModel {
                 .insert({
                     project_uuid: projectUuid,
                     created_by_user_uuid: userUuid,
+                    workspace_uuid: workspaceUuid,
                     prompt_uuid: promptUuid,
                     models: JSON.stringify(models),
                     base_versions:
@@ -600,7 +610,7 @@ export class ProjectModelDocumentModel {
     async findDraftImpactCheck({
         projectUuid,
         userUuid,
-    }: DraftOwner): Promise<DraftImpactCheck | null> {
+    }: DraftPerson): Promise<DraftImpactCheck | null> {
         const row = await this.database(ProjectModelDraftImpactsTableName)
             .where({
                 project_uuid: projectUuid,
@@ -622,7 +632,7 @@ export class ProjectModelDocumentModel {
         projectUuid,
         userUuid,
         draftHash,
-    }: DraftOwner & { draftHash: string }): Promise<void> {
+    }: DraftPerson & { draftHash: string }): Promise<void> {
         await this.database(ProjectModelDraftImpactsTableName)
             .insert({
                 project_uuid: projectUuid,
@@ -642,7 +652,7 @@ export class ProjectModelDocumentModel {
         userUuid,
         draftHash,
         outcome,
-    }: DraftOwner & {
+    }: DraftPerson & {
         draftHash: string;
         outcome: DraftImpactOutcome;
     }): Promise<void> {
@@ -711,6 +721,7 @@ export class ProjectModelDocumentModel {
             .insert({
                 project_uuid: owner.projectUuid,
                 created_by_user_uuid: owner.userUuid,
+                workspace_uuid: owner.workspaceUuid,
                 prompt_uuid: mixed[mixed.length - 1].prompt_uuid,
                 // Where the first of them was, so later changes still build on it.
                 created_at: mixed[0].created_at,

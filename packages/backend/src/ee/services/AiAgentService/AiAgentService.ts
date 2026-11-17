@@ -15496,7 +15496,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 user,
                 projectUuid,
                 models,
-                prompt.promptUuid,
+                {
+                    promptUuid: prompt.promptUuid,
+                    threadUuid: prompt.threadUuid,
+                },
             );
 
         const readSemanticModel: ReadSemanticModelFn = (name) =>
