@@ -8,7 +8,7 @@ import {
     type DashboardComposerChartTile as ComposerChartTile,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/react';
-import { IconAlertCircle, IconChartDots3 } from '@tabler/icons-react';
+import { IconChartDots3 } from '@tabler/icons-react';
 import {
     useCallback,
     useEffect,
@@ -47,6 +47,7 @@ import {
 import { getComposerTileFilterItems } from '../utils/composerTileFilterItems';
 import { getComposerTileParameterItems } from '../utils/composerTileParameterItems';
 import { ComposerChartVisualization } from './ComposerChartVisualization';
+import { ComposerTileErrorState } from './ComposerTileErrorState';
 
 type Props = Pick<
     ComponentProps<typeof TileBase>,
@@ -91,24 +92,18 @@ export const ComposerChartNotAvailableTile: FC<Props> = (props) => {
     );
 };
 
-const TileError: FC<{ tileUuid: string; message: string }> = ({
-    tileUuid,
-    message,
-}) => {
+const TileError: FC<{
+    tileUuid: string;
+    message: string;
+    minimal: boolean;
+}> = ({ tileUuid, message, minimal }) => {
     const markTileScreenshotErrored = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotErrored,
     );
     useEffect(() => {
         markTileScreenshotErrored(tileUuid);
     }, [markTileScreenshotErrored, tileUuid]);
-    return (
-        <SuboptimalState
-            adaptive
-            icon={IconAlertCircle}
-            description={message}
-            data-testid="composer-chart-error"
-        />
-    );
+    return <ComposerTileErrorState message={message} minimal={minimal} />;
 };
 
 const DrawnComposerChartTile: FC<Props> = (props) => {
@@ -211,11 +206,15 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             ({ nodeId }) => nodeId === chart?.pipeline.terminalNodeId,
         )?.queryUuid,
         title,
+        null,
+        { toastErrors: false },
     );
     const stage = useInfiniteQueryResults(
         projectUuid,
         run?.chartStageQueryUuid ?? undefined,
         title,
+        null,
+        { toastErrors: false },
     );
     const drawsFromStage = !!run?.chartStageQueryUuid;
     const results = drawsFromStage ? stage : terminal;
@@ -264,14 +263,6 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
           terminal.error?.error.message ??
           stage.error?.error.message ??
           (drawState.status === 'error' ? drawState.message : null));
-    useEffect(() => {
-        // Draw errors are captured where they are thrown
-        if (errorMessage && drawState.status !== 'error') {
-            Sentry.captureException(new Error(errorMessage), {
-                tags: SENTRY_TAGS,
-            });
-        }
-    }, [errorMessage, drawState.status]);
     const isLoading =
         !errorMessage && (!readyDraw || !results.hasFetchedAllRows);
     const handleScreenshotReady = useCallback(
@@ -310,7 +301,11 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
             }
         >
             {errorMessage ? (
-                <TileError tileUuid={tile.uuid} message={errorMessage} />
+                <TileError
+                    tileUuid={tile.uuid}
+                    message={errorMessage}
+                    minimal={minimal}
+                />
             ) : (
                 readyDraw &&
                 results.hasFetchedAllRows &&
@@ -320,6 +315,7 @@ const DrawnComposerChartTile: FC<Props> = (props) => {
                         fallback={({ error }) => (
                             <TileError
                                 tileUuid={tile.uuid}
+                                minimal={minimal}
                                 message={
                                     error instanceof Error
                                         ? error.message
