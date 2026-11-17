@@ -1,3 +1,11 @@
+# [3.301.0](https://github.com/lightdash/lightdash/compare/3.300.1...3.301.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** add cache settings, purge and freshness to live data sources ([#32778](https://github.com/lightdash/lightdash/issues/32778)) ([dce8e19](https://github.com/lightdash/lightdash/commit/dce8e193e7c26f1ff3172ae1f86a3f0de77f0b79))
+* **live-sources:** share live data source results across viewers with a freshness window per source ([#32777](https://github.com/lightdash/lightdash/issues/32777)) ([a05d332](https://github.com/lightdash/lightdash/commit/a05d332c11c384d3e04425cb224cee6aab1e2d4a))
+
 ## [3.300.1](https://github.com/lightdash/lightdash/compare/3.300.0...3.300.1) (2026-11-17)
 
 

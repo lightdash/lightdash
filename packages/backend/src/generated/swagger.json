@@ -16717,6 +16717,18 @@
                     "hasSecret": {
                         "type": "boolean"
                     },
+                    "cachePurgedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "Live sources: results fetched before this are never reused."
+                    },
+                    "cacheTtlSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Live sources: the admin's freshness window; null uses the integration's default."
+                    },
                     "targetLabel": {
                         "type": "string",
                         "nullable": true,
@@ -17785,6 +17797,18 @@
                         "type": "object"
                     }
                 ]
+            },
+            "ApiUpdateLiveSourceCacheRequest": {
+                "properties": {
+                    "ttlSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": ["ttlSeconds"],
+                "type": "object",
+                "description": "Null puts the source back on its integration's default."
             },
             "LiveSourceFieldEditor": {
                 "properties": {
@@ -80153,7 +80177,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.300.1",
+        "version": "3.301.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
