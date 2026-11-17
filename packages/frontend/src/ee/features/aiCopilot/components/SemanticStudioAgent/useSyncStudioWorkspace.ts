@@ -90,7 +90,13 @@ export const useSyncStudioWorkspace = (
             ({ threadUuid }) => threadUuid === stored.threadUuid,
         );
         if (!own || own.name === title) return;
-        if (own.name !== nameFromRequest(firstRequest?.message)) return;
+        // A workspace the server started before the chat had a title is named for no request.
+        if (
+            own.name !== nameFromRequest(firstRequest?.message) &&
+            own.name !== nameFromRequest(undefined)
+        ) {
+            return;
+        }
         if (retitled.current === `${own.workspaceUuid}:${title}`) return;
         retitled.current = `${own.workspaceUuid}:${title}`;
         mutate({

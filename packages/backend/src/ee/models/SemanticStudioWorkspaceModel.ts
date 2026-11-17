@@ -24,6 +24,7 @@ type WorkspaceRow = DbSemanticStudioWorkspace & {
 export type StudioThread = {
     organizationUuid: string;
     agentUuid: string | null;
+    title: string | null;
 };
 
 type Owner = { projectUuid: string; userUuid: string };
@@ -115,11 +116,12 @@ export class SemanticStudioWorkspaceModel {
             .andWhere('t.project_uuid', projectUuid)
             .andWhere('t.created_from', 'semantic_studio')
             .andWhere('wt.user_uuid', userUuid)
-            .first('t.organization_uuid', 't.agent_uuid');
+            .first('t.organization_uuid', 't.agent_uuid', 't.title');
         return row
             ? {
                   organizationUuid: row.organization_uuid,
                   agentUuid: row.agent_uuid,
+                  title: row.title,
               }
             : null;
     }

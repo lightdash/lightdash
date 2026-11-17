@@ -21,7 +21,7 @@ import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { isDevelopmentViewOn } from './developmentView';
 
-const DRAFT_KEY = 'semantic-layer-draft';
+export const DRAFT_KEY = 'semantic-layer-draft';
 const DRAFT_STATE_KEY = 'semantic-layer-draft-state';
 const MODEL_KEY = 'semantic-layer-model';
 const PENDING_POLL_MS = 2000;
