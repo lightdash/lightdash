@@ -62,7 +62,7 @@ export const CanvasZoomControls = memo(() => {
     ]);
 
     return (
-        <Group gap="xxs" wrap="nowrap">
+        <Group gap="xxs" wrap="nowrap" data-tour="dashboard-edit-zoom">
             <ShortcutHint shortcut={EDIT_SHORTCUTS.zoomOut} position="top">
                 <Tooltip
                     label={

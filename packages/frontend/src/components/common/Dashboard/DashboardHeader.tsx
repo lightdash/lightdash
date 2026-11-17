@@ -136,6 +136,7 @@ import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { EDIT_BAR_POSITION } from './editBarPosition';
 import { EDIT_SHORTCUTS, toHotkeyItems } from './editShortcuts';
+import { DashboardEditTour } from './onboarding';
 import { PendingChangesButton } from './PendingChangesButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
 import { ShortcutHint } from './ShortcutHint';
@@ -762,25 +763,32 @@ const DashboardHeader = memo(
                                 aria-label="Dashboard editing tools"
                                 position={EDIT_BAR_POSITION}
                                 className={headerClasses.editBar}
+                                data-tour="dashboard-edit-bar"
                             >
                                 <TileLayoutHistoryButtons />
                                 <ActionBar.Divider />
-                                <ShortcutHint
-                                    shortcut={EDIT_SHORTCUTS.addTile}
-                                    position="top"
+                                <Group
+                                    gap="xs"
+                                    wrap="nowrap"
+                                    data-tour="dashboard-edit-tiles"
                                 >
-                                    <AddTileButton
-                                        onAddTiles={onAddTiles}
-                                        disabled={isSaving}
-                                        setAddingTab={setAddingTab}
-                                        activeTabUuid={activeTabUuid}
-                                        dashboardTabs={dashboardTabs}
-                                        onNewChart={onNewChart}
-                                        radius="md"
+                                    <ShortcutHint
                                         shortcut={EDIT_SHORTCUTS.addTile}
-                                    />
-                                </ShortcutHint>
-                                <TidyTilesButton />
+                                        position="top"
+                                    >
+                                        <AddTileButton
+                                            onAddTiles={onAddTiles}
+                                            disabled={isSaving}
+                                            setAddingTab={setAddingTab}
+                                            activeTabUuid={activeTabUuid}
+                                            dashboardTabs={dashboardTabs}
+                                            onNewChart={onNewChart}
+                                            radius="md"
+                                            shortcut={EDIT_SHORTCUTS.addTile}
+                                        />
+                                    </ShortcutHint>
+                                    <TidyTilesButton />
+                                </Group>
                                 <ActionBar.Divider />
                                 <CanvasZoomControls />
                                 <CanvasBackgroundControl />
@@ -788,6 +796,7 @@ const DashboardHeader = memo(
                                     value={editFiltersVisibility}
                                     onChange={onEditFiltersVisibilityChange}
                                 />
+                                <DashboardEditTour />
                             </ActionBar>
                         )}
 

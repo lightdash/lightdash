@@ -53,6 +53,7 @@ export const CanvasBackgroundControl = memo(() => {
             <SegmentedControl
                 size="xs"
                 aria-label="Canvas background while editing"
+                data-tour="dashboard-edit-guides"
                 value={background}
                 onChange={(next) => {
                     if (isCanvasBackground(next))

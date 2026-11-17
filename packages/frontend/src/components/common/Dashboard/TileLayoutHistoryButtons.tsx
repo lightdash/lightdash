@@ -73,7 +73,7 @@ export const TileLayoutHistoryButtons = memo(() => {
     ]);
 
     return (
-        <Group gap="xxs" wrap="nowrap">
+        <Group gap="xxs" wrap="nowrap" data-tour="dashboard-edit-history">
             <HistoryButton
                 label="Undo"
                 shortcut={EDIT_SHORTCUTS.undo}

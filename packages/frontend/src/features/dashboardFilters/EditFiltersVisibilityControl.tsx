@@ -53,7 +53,7 @@ export const EditFiltersVisibilityControl: FC<Props> = ({
 
     return (
         <ShortcutHint shortcut={EDIT_SHORTCUTS.filters} position="top">
-            <Group gap="xs" wrap="nowrap">
+            <Group gap="xs" wrap="nowrap" data-tour="dashboard-edit-filters">
                 <Group gap="xxs" wrap="nowrap">
                     <MantineIcon icon={IconFilter} color="dimmed" />
                     <Text fz="xs" c="dimmed" fw={500}>

@@ -1,0 +1,1 @@
+export { DashboardEditTour } from './DashboardEditTour';
