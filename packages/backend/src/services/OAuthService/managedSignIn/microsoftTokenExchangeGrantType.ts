@@ -26,12 +26,15 @@ const {
 export class MobileSignInGrantError extends OAuthError {
     readonly retryAfterSeconds: number | undefined;
 
+    readonly organizationUuid: string | undefined;
+
     constructor(error: MobileSignInOAuthError) {
         super(error.description ?? error.error, {
             code: error.statusCode,
             name: error.error,
         });
         this.retryAfterSeconds = error.retryAfterSeconds;
+        this.organizationUuid = error.organizationUuid;
     }
 }
 

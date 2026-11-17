@@ -167,6 +167,7 @@ const createDependencies = () => {
                 async () => ({ status: 'sent' }),
             ),
         },
+        isMobileAppAccessEnabled: vi.fn(async () => true),
         now: vi.fn(() => new Date('2026-08-31T12:00:00.000Z')),
     };
 };
@@ -852,6 +853,36 @@ describe('MobilePushNotificationService.deliverLiveActivityStart', () => {
             pushTokenFingerprint: 'token-fingerprint',
             completedAt: new Date('2026-08-31T12:00:00.000Z'),
         });
+    });
+
+    it('sends no start push when the organization has mobile access off', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.claimLiveActivityStartAttempt.mockResolvedValue(
+            claimedStartAttempt,
+        );
+        dependencies.isMobileAppAccessEnabled.mockResolvedValue(false);
+        const service = new MobilePushNotificationService(dependencies);
+
+        await service.deliverLiveActivityStart(liveActivityStartAttemptUuid);
+
+        expect(dependencies.isMobileAppAccessEnabled).toHaveBeenCalledWith(
+            organizationUuid,
+        );
+        expect(
+            dependencies.apnsClient.sendLiveActivityStart,
+        ).not.toHaveBeenCalled();
+        expect(
+            dependencies.mobilePushNotificationStore
+                .markLiveActivityStartAttempt,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                liveActivityStartAttemptUuid,
+                status: 'failed',
+            }),
+        );
+        expect(
+            dependencies.mobilePushNotificationStore.deleteInstallation,
+        ).not.toHaveBeenCalled();
     });
 
     it('sends the exact owned prompt identifiers and five-minute stale date', async () => {

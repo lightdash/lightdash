@@ -1103,6 +1103,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'MetricsExplorerController.runMetricSeries': [AgentCapability.Query],
     'MetricsExplorerController.runMetricTotal': [AgentCapability.Query],
+    'MobileAppAccessController.getMobileAppAccess': [
+        AgentCapability.ReadDiscover,
+    ],
     'MobilePushNotificationController.getMobilePushNotificationStatus': [
         AgentCapability.ReadDiscover,
     ],
