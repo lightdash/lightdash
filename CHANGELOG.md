@@ -1,3 +1,10 @@
+## [3.280.3](https://github.com/lightdash/lightdash/compare/3.280.2...3.280.3) (2026-11-17)
+
+
+### Bug Fixes
+
+* include dashboard and data app slugs in view events ([#32698](https://github.com/lightdash/lightdash/issues/32698)) ([0187adc](https://github.com/lightdash/lightdash/commit/0187adc33b71ba494c52b0b52865ef8e2c7a9a04))
+
 ## [3.280.2](https://github.com/lightdash/lightdash/compare/3.280.1...3.280.2) (2026-11-17)
 
 
