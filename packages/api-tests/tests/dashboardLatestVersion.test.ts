@@ -2,10 +2,10 @@ import {
     Dashboard,
     DashboardBasicDetailsWithTileTypes,
     DashboardTileTypes,
-    MostPopularAndRecentlyUpdated,
     SEED_ORG_1_EDITOR,
     SEED_PROJECT,
     SEED_SPACE,
+    Space,
     SpaceQuery,
     SpaceSummary,
 } from '@lightdash/common';
@@ -33,6 +33,7 @@ describe('Dashboard lists read the latest dashboard version', () => {
     let admin: ApiClient;
     let editor: ApiClient;
     let dashboardUuid: string;
+    let spaceUuid: string;
     let chartX: string;
     let chartY: string;
 
@@ -56,6 +57,7 @@ describe('Dashboard lists read the latest dashboard version', () => {
             (s) => s.name === SEED_SPACE.name && !s.parentSpaceUuid,
         );
         expect(seedSpace).toBeDefined();
+        spaceUuid = seedSpace!.uuid;
 
         // Seeded space charts only: names from uniqueName() belong to other test files.
         const charts = await admin.get<Body<SpaceQuery[]>>(
@@ -139,25 +141,23 @@ describe('Dashboard lists read the latest dashboard version', () => {
     );
 
     it(
-        'never duplicates the dashboard in recently updated content',
+        'lists the dashboard once in its space, with its latest version',
         async () => {
-            const resp = await admin.get<Body<MostPopularAndRecentlyUpdated>>(
-                `${apiUrl}/projects/${projectUuid}/most-popular-and-recently-updated`,
+            const latest = await admin.get<Body<Dashboard>>(
+                `${apiUrl}/dashboards/${dashboardUuid}`,
+            );
+            const resp = await admin.get<Body<Space>>(
+                `${apiUrl}/projects/${projectUuid}/spaces/${spaceUuid}`,
             );
             expect(resp.status).toBe(200);
-            // The rail is capped at 10 items across files running in parallel,
-            // so presence is not guaranteed; duplicates and stale updaters are.
-            const matches = resp.body.results.recentlyUpdated.filter(
-                (item) => item.uuid === dashboardUuid,
+            const matches = resp.body.results.dashboards.filter(
+                (d) => d.uuid === dashboardUuid,
             );
-            expect(matches.length).toBeLessThanOrEqual(1);
-            expect(
-                matches.every(
-                    (d) =>
-                        d.updatedByUser?.userUuid ===
-                        SEED_ORG_1_EDITOR.user_uuid,
-                ),
-            ).toBe(true);
+            expect(matches).toHaveLength(1);
+            expect(matches[0].updatedByUser?.userUuid).toBe(
+                SEED_ORG_1_EDITOR.user_uuid,
+            );
+            expect(matches[0].updatedAt).toBe(latest.body.results.updatedAt);
         },
         REQUEST_TIMEOUT,
     );
