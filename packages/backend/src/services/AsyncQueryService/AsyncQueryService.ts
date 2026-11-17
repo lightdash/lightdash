@@ -9464,17 +9464,10 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
             },
         );
-        // A chart version is a fixed point in history, never the draft.
-        // Access follows the published space, not a move the draft holds
+        // A chart version is a fixed point in history, never the draft
         const storedChart =
             includeUnpublishedDraft && !versionUuid
-                ? {
-                      ...(await this.applyOpenChartDraft(
-                          account,
-                          publishedChart,
-                      )),
-                      spaceUuid: publishedChart.spaceUuid,
-                  }
+                ? await this.applyOpenChartDraft(account, publishedChart)
                 : publishedChart;
         // Applied to the stored chart so merge queries built from it see the
         // delivery's filters too. The delivery runs as its creator, so this is
@@ -9995,7 +9988,7 @@ export class AsyncQueryService extends ProjectService {
         chart: SavedChartDAO,
     ): Promise<SavedChartDAO> {
         if (isJwtUser(account)) return chart;
-        return applyOpenChartDraft(
+        const withDraft = await applyOpenChartDraft(
             this.contentDraftModel,
             account.user.userUuid,
             chart,
@@ -10005,6 +9998,8 @@ export class AsyncQueryService extends ProjectService {
                     error,
                 ),
         );
+        // Access follows the published space, not a move the draft holds
+        return { ...withDraft, spaceUuid: chart.spaceUuid };
     }
 
     /** Explores of every metric source, so filters can be resolved per side. */

@@ -16853,6 +16853,42 @@ describe('AsyncQueryService', () => {
             label: undefined,
         };
 
+        test("authorizes a tile against the published chart's space, not a drafted move", async () => {
+            const { service } = buildService();
+            const findOpenDraft = vi.fn(async () => ({
+                uuid: 'draft-uuid',
+                draft: { spaceUuid: 'draftedSpaceUuid' },
+            }));
+            (service as AnyType).contentDraftModel = { findOpenDraft };
+
+            await service.executeAsyncDashboardChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                tileUuid: 'tile-1',
+                chartUuid: mergedChart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+                includeUnpublishedDraft: true,
+            });
+
+            expect(findOpenDraft).toHaveBeenCalledOnce();
+            const { getSpaceSummary } = (service as AnyType).spaceModel;
+            expect(getSpaceSummary).toHaveBeenCalledWith('spaceUuid');
+            expect(getSpaceSummary).not.toHaveBeenCalledWith(
+                'draftedSpaceUuid',
+            );
+        });
+
         test('runs the merge with the tile filter pushed into both sources', async () => {
             const { service, mergeSpy, prepareSpy } = buildService();
 
