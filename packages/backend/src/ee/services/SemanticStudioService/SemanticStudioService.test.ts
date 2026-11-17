@@ -22,6 +22,8 @@ import {
     type PossibleAbilities,
     type Project,
     type SemanticLayerModelChange,
+    type SemanticStudioWorkspace,
+    type SemanticStudioWorkspacePullRequestState,
     type SessionUser,
 } from '@lightdash/common';
 import { Readable } from 'node:stream';
@@ -342,6 +344,26 @@ const setup = ({
             updatedAt: new Date(),
             finishedAt: null,
         };
+    const workspaces: SemanticStudioWorkspace[] = [];
+    const getPullRequestState = vi.fn(
+        async (): Promise<SemanticStudioWorkspacePullRequestState | null> =>
+            null,
+    );
+    const recordPullRequestState = vi.fn(
+        async (
+            _projectUuid: string,
+            url: string,
+            state: SemanticStudioWorkspacePullRequestState,
+        ) => {
+            for (const workspace of workspaces) {
+                if (workspace.pullRequest?.url === url) {
+                    workspace.pullRequest.state = state;
+                    workspace.finishedAt = new Date();
+                    workspace.isActive = false;
+                }
+            }
+        },
+    );
     const args: SemanticStudioServiceArguments = {
         aiWritebackService: {
             openStudioCheckout: unused,
@@ -352,7 +374,7 @@ const setup = ({
             findStudioThread: unused,
             findInProject: async () => {
                 const workspace = await findActive();
-                return workspace ? [workspace] : [];
+                return [...workspaces, ...(workspace ? [workspace] : [])];
             },
             find: unused,
             start: unused,
@@ -362,7 +384,7 @@ const setup = ({
             finish: async () => 0,
             attachPullRequest: async () => undefined,
             attachThreadPullRequest: async () => undefined,
-            recordPullRequestState: unused,
+            recordPullRequestState,
         },
         featureFlagModel: {
             get: async () => ({ id: 'semantic-studio-editing', enabled }),
@@ -496,6 +518,7 @@ const setup = ({
         validationService: { generateValidation },
         savedChartModel: { analyzeFieldImpact },
         repoModels: {
+            getPullRequestState,
             isInstalled: async () => appInstalled,
             load: async (_organizationUuid, connection) => ({
                 connection,
@@ -548,6 +571,9 @@ const setup = ({
     const service = new SemanticStudioService(args);
     return {
         service,
+        workspaces,
+        getPullRequestState,
+        recordPullRequestState,
         setActiveWorkspace: (next: typeof activeWorkspace) => {
             activeWorkspace = next;
         },
@@ -2659,5 +2685,86 @@ describe('isSourcePath', () => {
         expect(isSourcePath('models//orders.yml')).toBe(false);
         expect(isSourcePath('profiles.yml')).toBe(false);
         expect(isSourcePath('/etc/models/x.yml')).toBe(false);
+    });
+});
+
+describe('workspace pull request reconciliation', () => {
+    const workspace = (index: number): SemanticStudioWorkspace => ({
+        workspaceUuid: String(index),
+        projectUuid: PROJECT_UUID,
+        name: 'Update orders',
+        threadUuid: String(index),
+        agentUuid: null,
+        owner: { userUuid: USER_UUID, name: 'Owner' },
+        isMine: true,
+        isActive: false,
+        pullRequest: {
+            url: `https://github.com/acme/orders/pull/${index}`,
+            state: 'open',
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        finishedAt: null,
+    });
+
+    it.each(['merged', 'closed'] as const)(
+        'returns externally %s changes as finished',
+        async (state) => {
+            const context = setup();
+            context.workspaces.push(workspace(1));
+            context.getPullRequestState.mockResolvedValue(state);
+            const result = await context.service.listWorkspaces(
+                deployer,
+                PROJECT_UUID,
+            );
+            expect(result.mine).toEqual([]);
+            expect(result.recent[0].pullRequest?.state).toBe(state);
+            expect(result.recent[0].isActive).toBe(false);
+            expect(context.recordPullRequestState).toHaveBeenCalledWith(
+                PROJECT_UUID,
+                workspace(1).pullRequest?.url,
+                state,
+            );
+        },
+    );
+
+    it('only checks five own unfinished pull requests, active first', async () => {
+        const context = setup();
+        context.workspaces.push(
+            { ...workspace(0), isMine: false },
+            { ...workspace(1), finishedAt: new Date() },
+            { ...workspace(2), pullRequest: null },
+            ...Array.from({ length: 7 }, (_, i) => workspace(i + 3)),
+            { ...workspace(10), isActive: true },
+        );
+        await context.service.listWorkspaces(deployer, PROJECT_UUID);
+        expect(context.getPullRequestState).toHaveBeenCalledTimes(5);
+        expect(context.getPullRequestState.mock.calls[0]).toEqual([
+            ORGANIZATION_UUID,
+            { type: DbtProjectType.NONE },
+            workspace(10).pullRequest?.url,
+        ]);
+    });
+
+    it('keeps stored state on provider failure or unavailable state', async () => {
+        const context = setup();
+        context.workspaces.push(workspace(1), workspace(2));
+        context.getPullRequestState.mockRejectedValueOnce(
+            new Error('Unavailable'),
+        );
+        const result = await context.service.listWorkspaces(
+            deployer,
+            PROJECT_UUID,
+        );
+        expect(result.mine).toHaveLength(2);
+        expect(context.recordPullRequestState).not.toHaveBeenCalled();
+    });
+
+    it('does not write an unchanged open state', async () => {
+        const context = setup();
+        context.workspaces.push(workspace(1));
+        context.getPullRequestState.mockResolvedValue('open');
+        await context.service.listWorkspaces(deployer, PROJECT_UUID);
+        expect(context.recordPullRequestState).not.toHaveBeenCalled();
     });
 });

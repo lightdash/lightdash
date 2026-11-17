@@ -5,6 +5,7 @@ import {
     ParseError,
     type Project,
     type SemanticLayerDraftItemResult,
+    type SemanticStudioWorkspacePullRequestState,
 } from '@lightdash/common';
 import { randomBytes } from 'node:crypto';
 import { parseDocument } from 'yaml';
@@ -15,6 +16,7 @@ import {
     getFileContent,
     getInstallationAccessToken,
     getLastCommit,
+    getPullRequest,
     getRepoTree,
 } from '../../../clients/github/Github';
 import { type GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -188,6 +190,41 @@ export class RepoModelSource {
             expiresAt: Date.parse(expiresAt),
         });
         return { installationId, token };
+    }
+
+    async getPullRequestState(
+        organizationUuid: string,
+        dbtConnection: Project['dbtConnection'],
+        prUrl: string,
+    ): Promise<SemanticStudioWorkspacePullRequestState | null> {
+        if (
+            dbtConnection.type !== DbtProjectType.GITHUB ||
+            dbtConnection.authorization_method !== 'installation_id' ||
+            normalizeCredentialHost(
+                dbtConnection.host_domain || DEFAULT_GITHUB_HOST_DOMAIN,
+            ) !== DEFAULT_GITHUB_HOST_DOMAIN
+        ) {
+            return null;
+        }
+        const match =
+            /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)$/.exec(
+                prUrl,
+            );
+        if (
+            !match ||
+            `${match[1]}/${match[2]}`.toLowerCase() !==
+                dbtConnection.repository.toLowerCase()
+        ) {
+            return null;
+        }
+        const { token } = await this.getAccess(organizationUuid);
+        const pullRequest = await getPullRequest({
+            owner: match[1],
+            repo: match[2],
+            pullNumber: Number(match[3]),
+            token,
+        });
+        return pullRequest.merged ? 'merged' : pullRequest.state;
     }
 
     /** The repository's models at the head of the project's branch; one commit is read once. */

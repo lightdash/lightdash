@@ -173,7 +173,7 @@ export type SemanticStudioServiceArguments = {
     >;
     repoModels: Pick<
         RepoModelSource,
-        'isInstalled' | 'load' | 'openPullRequest'
+        'isInstalled' | 'load' | 'openPullRequest' | 'getPullRequestState'
     >;
     savedChartModel: Pick<SavedChartModel, 'analyzeFieldImpact'>;
     jobModel: Pick<JobModel, 'findLatestCompileStatus'>;
@@ -289,6 +289,8 @@ const assertSourcePath = (path: string) => {
     }
 };
 
+const MAX_PULL_REQUEST_REFRESHES = 5;
+const PULL_REQUEST_REFRESH_MS = 55_000;
 const RECENT_WORKSPACE_MS = 14 * 24 * 60 * 60 * 1000;
 
 export class SemanticStudioService extends BaseService {
@@ -325,6 +327,9 @@ export class SemanticStudioService extends BaseService {
         string,
         Promise<SemanticLayerDraftApplyResult>
     >();
+
+    // ponytail: per process, so several API processes each ask once a minute; share it if provider limits bite.
+    private readonly pullRequestRefreshedAt = new Map<string, number>();
 
     constructor(args: SemanticStudioServiceArguments) {
         super();
@@ -2291,10 +2296,64 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
     ): Promise<SemanticStudioWorkspaces> {
         await this.assertCanUseStudio(user, projectUuid);
-        const all = await this.workspaceModel.findInProject(
+        let all = await this.workspaceModel.findInProject(
             projectUuid,
             user.userUuid,
         );
+        const pending = all
+            .filter(
+                (workspace) =>
+                    workspace.isMine &&
+                    !workspace.finishedAt &&
+                    workspace.pullRequest,
+            )
+            .sort((a, b) => Number(b.isActive) - Number(a.isActive))
+            // The list is read on every save and by every open tab; the provider is asked once a minute per pull request.
+            .filter(
+                (workspace) =>
+                    Date.now() -
+                        (this.pullRequestRefreshedAt.get(
+                            workspace.pullRequest?.url ?? '',
+                        ) ?? 0) >
+                    PULL_REQUEST_REFRESH_MS,
+            )
+            .slice(0, MAX_PULL_REQUEST_REFRESHES);
+        let changed = false;
+        const project =
+            pending.length > 0
+                ? await this.projectModel.get(projectUuid)
+                : null;
+        await runWithConcurrency(pending, 1, async (workspace) => {
+            if (!workspace.pullRequest || !project) return;
+            try {
+                const prUrl = workspace.pullRequest.url;
+                this.pullRequestRefreshedAt.set(prUrl, Date.now());
+                const state = await this.repoModels.getPullRequestState(
+                    project.organizationUuid,
+                    project.dbtConnection,
+                    prUrl,
+                );
+                if (state && state !== 'open') {
+                    await this.recordPullRequestState(
+                        projectUuid,
+                        prUrl,
+                        state,
+                    );
+                    changed = true;
+                    await this.retireDbtTryOut(user, projectUuid, prUrl);
+                }
+            } catch (error) {
+                this.logger.warn(
+                    `SemanticStudio: failed to refresh pull request state: ${getErrorMessage(error)}`,
+                );
+            }
+        });
+        if (changed) {
+            all = await this.workspaceModel.findInProject(
+                projectUuid,
+                user.userUuid,
+            );
+        }
         const recentSince = Date.now() - RECENT_WORKSPACE_MS;
         return {
             mine: all
