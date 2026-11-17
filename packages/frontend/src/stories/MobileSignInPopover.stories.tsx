@@ -20,7 +20,6 @@ const WaitingForScan = ({ width }: Props) => (
             isWaitingForScan
             isSignedIn={false}
             title={<Title order={6}>{MOBILE_STRINGS.signInTitle}</Title>}
-            step={null}
             qr={
                 <Box className={popoverClasses.qrFrame}>
                     <PreviewQrPattern />

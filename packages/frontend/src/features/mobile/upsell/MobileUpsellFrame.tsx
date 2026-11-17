@@ -1,4 +1,4 @@
-import { FocusTrap, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { FocusTrap, Text, Title, UnstyledButton } from '@mantine/core';
 import { useDocumentVisibility } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
@@ -24,7 +24,6 @@ type SignInParts = {
     isWaitingForScan: boolean;
     isSignedIn: boolean;
     title: ReactNode;
-    step: ReactNode;
     qr: ReactNode;
     details: ReactNode;
     status: ReactNode;
@@ -32,21 +31,6 @@ type SignInParts = {
 
 type PitchDismiss = {
     onDismiss?: (reason: MobilePitchDismissReason) => void;
-};
-
-export const MobileUpsellFrame = ({
-    variation,
-    ...parts
-}: SignInParts & PitchDismiss & { variation: MobileUpsellChoice | null }) => {
-    if (!variation) {
-        return (
-            <Stack gap="sm">
-                {parts.title}
-                {parts.step}
-            </Stack>
-        );
-    }
-    return <Pitch variation={variation} {...parts} />;
 };
 
 const GRAPHICS = {
@@ -58,7 +42,7 @@ const GRAPHICS = {
     6: PlatformsUpsell,
 };
 
-const Pitch = ({
+export const MobileUpsellFrame = ({
     variation,
     isIdle,
     isWaitingForScan,
