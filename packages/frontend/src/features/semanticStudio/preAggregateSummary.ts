@@ -6,6 +6,9 @@ import {
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 
+// ponytail: one page of the project's pre-aggregates; filter on the server if a project outgrows it.
+export const PRE_AGGREGATES_PAGE_SIZE = 500;
+
 type Status = { label: string; color: string | undefined };
 
 export const getPreAggregateStatus = (

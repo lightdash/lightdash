@@ -24,12 +24,11 @@ import {
     getFieldLabel,
     getPreAggregateQuery,
     getPreAggregateStatus,
+    PRE_AGGREGATES_PAGE_SIZE as PAGE_SIZE,
     summariseUsage,
 } from './preAggregateSummary';
 
 const STATS_DAYS = 7;
-// ponytail: one page of the project's pre-aggregates; filter on the server if a project outgrows it.
-const PAGE_SIZE = 500;
 
 const isMissReason = (reason: string): reason is PreAggregateMissReason =>
     reason in preAggregateMissReasonLabels;
