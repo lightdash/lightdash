@@ -1,0 +1,172 @@
+/* A soft stage for the scene */
+.stage {
+    display: flex;
+    justify-content: center;
+    padding: var(--mantine-spacing-md);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.scene {
+    --loop: 7s;
+
+    width: 100%;
+    max-width: 340px;
+    height: auto;
+    overflow: visible;
+    stroke: var(--mantine-color-ldGray-4);
+    stroke-width: 1;
+    stroke-linejoin: round;
+}
+
+/* The pointer that picks the fields; resting state is out of sight */
+.pointer {
+    fill: var(--mantine-color-body);
+    stroke: var(--mantine-color-text);
+    stroke-width: 2;
+    opacity: 0;
+}
+
+/* One loop: pick a metric, pick a dimension, results arrive, columns rise.
+   Each piece's resting style is where the loop ends, so reduced motion shows
+   the finished scene. */
+@media (prefers-reduced-motion: no-preference) {
+    .scene .piece {
+        animation: none;
+        transition: none;
+    }
+
+    .scene .piece[data-role='pick-first'] {
+        animation: demo-pick-first var(--loop) ease infinite;
+    }
+
+    .scene .piece[data-role='pick-second'] {
+        animation: demo-pick-second var(--loop) ease infinite;
+    }
+
+    .scene .piece[data-role='result'] {
+        animation: demo-result var(--loop) ease infinite;
+        animation-delay: calc(var(--i) * 25ms);
+    }
+
+    .scene .piece[data-role='column'] {
+        transform-box: fill-box;
+        transform-origin: 50% 100%;
+        animation: demo-column var(--loop) cubic-bezier(0.16, 1, 0.3, 1)
+            infinite;
+        animation-delay: calc(var(--i) * 25ms);
+    }
+
+    .pointer {
+        animation: demo-pointer var(--loop) ease infinite;
+    }
+}
+
+@keyframes demo-pointer {
+    0%,
+    5% {
+        opacity: 0;
+        transform: translate(var(--first-x), calc(var(--first-y) + 40px));
+    }
+
+    11%,
+    21% {
+        opacity: 1;
+        transform: translate(var(--first-x), var(--first-y));
+    }
+
+    27%,
+    37% {
+        opacity: 1;
+        transform: translate(var(--second-x), var(--second-y));
+    }
+
+    44%,
+    100% {
+        opacity: 0;
+        transform: translate(var(--second-x), var(--second-y));
+    }
+}
+
+/* A picked field lifts off the list and stays lifted */
+@keyframes demo-pick-first {
+    0%,
+    13% {
+        transform: translateY(0);
+    }
+
+    17% {
+        transform: translateY(-9px);
+    }
+
+    22%,
+    94% {
+        transform: translateY(-5px);
+    }
+
+    100% {
+        transform: translateY(0);
+    }
+}
+
+@keyframes demo-pick-second {
+    0%,
+    29% {
+        transform: translateY(0);
+    }
+
+    33% {
+        transform: translateY(-9px);
+    }
+
+    38%,
+    94% {
+        transform: translateY(-5px);
+    }
+
+    100% {
+        transform: translateY(0);
+    }
+}
+
+@keyframes demo-result {
+    0%,
+    40% {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    50%,
+    94% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(0);
+    }
+}
+
+@keyframes demo-column {
+    0%,
+    58% {
+        opacity: 0;
+        transform: scaleY(0.05);
+    }
+
+    60% {
+        opacity: 1;
+    }
+
+    74%,
+    94% {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scaleY(1);
+    }
+}

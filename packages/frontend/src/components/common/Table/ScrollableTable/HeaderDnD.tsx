@@ -2,13 +2,15 @@ import {
     closestCenter,
     DndContext,
     DragOverlay,
+    type DragEndEvent,
+    type DragMoveEvent,
     type DragOverEvent,
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { SortableContext } from '@dnd-kit/sortable';
 import { type ResultRow } from '@lightdash/common';
 import { flexRender, type HeaderGroup } from '@tanstack/react-table';
-import { useState, type FC, type ReactNode } from 'react';
+import { useRef, useState, type FC, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
 import {
@@ -31,8 +33,12 @@ type HeaderDndProps = {
     children: ReactNode;
 };
 
+const DRAG_OUT_MIN_DISTANCE = 48;
+
 export const HeaderDnD: FC<HeaderDndProps> = ({ headerGroup, children }) => {
-    const { table, onColumnOrderChange } = useTableContext();
+    const { table, onColumnOrderChange, onColumnRemove } = useTableContext();
+    const rowRef = useRef<HTMLTableRowElement>(null);
+    const [isRemoving, setIsRemoving] = useState(false);
     const sensors = useSortableSensors();
     const portalTarget = usePortalTarget();
     // Ids stay frozen while dragging so drop targets keep their start-of-drag rects as columns reorder live
@@ -63,8 +69,27 @@ export const HeaderDnD: FC<HeaderDndProps> = ({ headerGroup, children }) => {
         table.setColumnOrder([ROW_NUMBER_COLUMN_ID, ...colOrder]);
     };
 
-    const handleDragEnd = () => {
+    // Dragged past the table's left edge, towards the fields sidebar
+    const isDraggedOut = ({ active, delta }: DragMoveEvent | DragEndEvent) => {
+        const dragged = active.rect.current.translated;
+        const container = rowRef.current?.closest('table')?.parentElement;
+        if (!onColumnRemove || !dragged || !container) return false;
+        // A column scrolled half out of view must still be dragged, not nudged
+        return (
+            delta.x < -DRAG_OUT_MIN_DISTANCE &&
+            dragged.left + dragged.width / 2 <
+                container.getBoundingClientRect().left
+        );
+    };
+
+    const handleDragEnd = (event?: DragEndEvent) => {
         setDrag(null);
+        setIsRemoving(false);
+        if (drag && event && isDraggedOut(event)) {
+            table.setColumnOrder([ROW_NUMBER_COLUMN_ID, ...drag.colOrder]);
+            onColumnRemove?.(drag.activeId);
+            return;
+        }
         onColumnOrderChange?.(
             table
                 .getState()
@@ -80,19 +105,20 @@ export const HeaderDnD: FC<HeaderDndProps> = ({ headerGroup, children }) => {
             accessibility={{ container: portalTarget }}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
+            onDragMove={(event) => setIsRemoving(isDraggedOut(event))}
             onDragEnd={handleDragEnd}
-            onDragCancel={handleDragEnd}
+            onDragCancel={() => handleDragEnd()}
         >
             <SortableContext
                 items={headerIds}
                 strategy={sortingStrategy.horizontal}
             >
-                <tr>{children}</tr>
+                <tr ref={rowRef}>{children}</tr>
             </SortableContext>
             {createPortal(
                 <DragOverlay dropAnimation={null} className={classes.overlay}>
                     {!activeHeader || activeHeader.isPlaceholder ? null : (
-                        <div>
+                        <div data-removing={isRemoving || undefined}>
                             {flexRender(
                                 activeHeader.column.columnDef.header,
                                 activeHeader.getContext(),

@@ -1,10 +1,8 @@
 import {
-    assertUnreachable,
     copyDateZoomTileTargets,
     DashboardTileTypes,
     FeatureFlags,
     getDefaultStartOfWeek,
-    type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -73,8 +71,11 @@ import { useParameterEditorSelector } from '../dashboardControls/useParameterEdi
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { type EditFiltersVisibility } from '../dashboardFilters/EditFiltersVisibilityControl';
-import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
 import GuidedFilterSetupOverlay from '../dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
+import {
+    doesFilterRequirementApplyToTiles,
+    getUnmetFilterRequirementMembers,
+} from '../dashboardFilters/FilterRequirements/utils';
 import { getDateZoomSummaryLabel } from '../dateZoom/utils';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
@@ -838,58 +839,23 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         [gridLineStyles, dashboardGridBottomPadding],
     );
 
-    // Compute whether there are unmet filter requirements that apply to the current tab
-    // Note: We use doesFilterApplyToTile because getTabUuidsForFilterRules from common
-    // skips disabled filters, but required filters ARE disabled until a value is set
+    // Not getTabUuidsForFilterRules from common: it skips disabled filters,
+    // and required filters are disabled until a value is set
     const hasUnmetFilterRequirementsForCurrentTab = useMemo(() => {
-        if (unmetFilterRequirements.length === 0) {
-            return false;
-        }
-
-        // If no tabs or single tab, any unmet requirement locks the dashboard
-        if (!tabsEnabled) {
-            return true;
-        }
-
-        const doesFilterApplyToCurrentTab = (
-            filterRule: DashboardFilterRule,
-        ) => {
-            // If no tileTargets configuration, filter applies to all tiles
-            // So it applies to the current tab
-            if (!filterRule.tileTargets) {
-                return true;
-            }
-
-            // Check if any tile on the current tab is targeted by this filter
-            return (
-                dashboardTiles?.some((tile) => {
-                    if (tile.tabUuid !== activeTab?.uuid) return false;
-
-                    return doesFilterApplyToTile(
-                        filterRule,
-                        tile,
-                        filterableFieldsByTileUuid,
-                    );
-                }) ?? false
-            );
-        };
-
-        return unmetFilterRequirements.some((requirement) => {
-            switch (requirement.type) {
-                case 'single':
-                    return doesFilterApplyToCurrentTab(requirement.filter);
-                case 'group':
-                    // A group applies to a tab if any member applies to it
-                    return requirement.filters.some(
-                        doesFilterApplyToCurrentTab,
-                    );
-                default:
-                    return assertUnreachable(
-                        requirement,
-                        'Unknown filter requirement type',
-                    );
-            }
-        });
+        const activeTabTiles =
+            dashboardTiles?.filter(
+                (tile) => tile.tabUuid === activeTab?.uuid,
+            ) ?? [];
+        return unmetFilterRequirements.some(
+            (requirement) =>
+                // If no tabs or single tab, any unmet requirement locks the dashboard
+                !tabsEnabled ||
+                doesFilterRequirementApplyToTiles(
+                    getUnmetFilterRequirementMembers(requirement),
+                    activeTabTiles,
+                    filterableFieldsByTileUuid,
+                ),
+        );
     }, [
         unmetFilterRequirements,
         tabsEnabled,

@@ -52,6 +52,10 @@ test.describe('Pivot Tables', () => {
         // Ensure the sidebar has loaded before clicking configure below
         await expect(page.getByText('Tables').first()).toBeVisible();
         await page.getByText('Configure').first().click();
+        // On a new chart Configure opens the gallery; go on to the table's config
+        await page
+            .getByRole('button', { name: 'Configure Table', exact: true })
+            .click();
         await expect(
             page
                 .getByText('Drag dimensions into this area to pivot your table')

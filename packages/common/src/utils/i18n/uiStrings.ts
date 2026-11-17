@@ -655,6 +655,9 @@ export const DEFAULT_UI_STRINGS = {
     'explorer.backToChart': 'Back to Chart',
     'explorer.backToAi': 'Back to AI',
     'explorer.backToMetricsCatalog': 'Back to Metrics Catalog',
+    'explorer.loadingChart': 'Loading chart',
+    'explorer.loadingChartResults': 'Loading chart results',
+    'explorer.runningQuery': 'Running query',
 } as const satisfies Record<string, string>;
 
 export type UiStringKey = keyof typeof DEFAULT_UI_STRINGS;

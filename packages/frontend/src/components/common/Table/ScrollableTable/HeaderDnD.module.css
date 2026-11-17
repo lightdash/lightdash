@@ -5,3 +5,10 @@
 .overlay {
     cursor: grabbing;
 }
+
+/* Past the table's edge: letting go removes the column */
+.overlay [data-removing] {
+    color: var(--mantine-color-red-filled);
+    text-decoration: line-through;
+    opacity: 0.7;
+}

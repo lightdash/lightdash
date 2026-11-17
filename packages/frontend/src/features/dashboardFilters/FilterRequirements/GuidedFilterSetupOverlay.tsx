@@ -1,4 +1,4 @@
-import { type WeekDay } from '@lightdash/common';
+import { type DashboardFilterRule, type WeekDay } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
 import { IconFilterExclamation } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
@@ -20,12 +20,15 @@ type Props = {
     /** Applied to the modal root (embed passes its contract class) */
     className?: string;
     startOfWeek?: WeekDay;
+    /** Leaves out rules that do not reach what is on screen; unset, all are listed */
+    doesRuleApply?: (members: DashboardFilterRule[]) => boolean;
     onDismiss: () => void;
 };
 
 const GuidedFilterSetupOverlay: FC<Props> = ({
     className,
     startOfWeek,
+    doesRuleApply,
     onDismiss,
 }) => {
     const getUiString = useUiStrings();
@@ -45,9 +48,11 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
     const rules = useMemo(
         () =>
             getFilterRequirementRules(dashboardFilters).filter(
-                (rule) => !rule.members.every(isLocked),
+                (rule) =>
+                    !rule.members.every(isLocked) &&
+                    (doesRuleApply?.(rule.members) ?? true),
             ),
-        [dashboardFilters, isLocked],
+        [dashboardFilters, isLocked, doesRuleApply],
     );
 
     // Until the filterable fields arrive every member resolves an undefined
