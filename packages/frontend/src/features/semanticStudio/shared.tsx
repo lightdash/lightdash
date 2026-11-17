@@ -1146,22 +1146,30 @@ export const FieldDetailModal: FC<{
     const addToChat = useAddToStudioChat();
     const source = getSource(view.project, explore.sourceId);
     const saved = toFieldDraft(field);
-    // Drafts live in the view, so closing without saving keeps them.
-    const draft = view.getDraft(explore, field) ?? saved;
-    const isSaved = (next: FieldDraft) => isSameDraft(next, saved);
-    const setDraft = (next: FieldDraft) =>
-        view.setDraft(explore, field, isSaved(next) ? null : next);
+    // Typed here and handed to the view on close: the view keeps it, and typing does not render the whole page.
+    const [draft, setDraft] = useState(
+        () => view.getDraft(explore, field) ?? saved,
+    );
+    // What was just saved counts as saved before the field is read again.
+    const [committed, setCommitted] = useState<FieldDraft | null>(null);
+    const isSaved = (next: FieldDraft) =>
+        isSameDraft(next, saved) ||
+        (committed !== null && isSameDraft(next, committed));
+    const keep = useRef(() => {});
+    keep.current = () =>
+        view.setDraft(explore, field, isSaved(draft) ? null : draft);
+    useEffect(() => () => keep.current(), []);
     const canEdit = view.canEditFields(explore);
     const isLive = source.kind === 'live';
     const dirty = !isSaved(draft);
-    const discard = () => view.setDraft(explore, field, null);
+    const discard = () => setDraft(committed ?? saved);
     const update = useUpdateLiveSourceFields({
         projectUuid: view.project.id,
         connectionUuid: source.connectionUuid ?? '',
     });
     const save = () => {
         update.mutate([toFieldChange(field.name, draft, saved)], {
-            onSuccess: discard,
+            onSuccess: () => setCommitted(draft),
         });
     };
     const facts = [

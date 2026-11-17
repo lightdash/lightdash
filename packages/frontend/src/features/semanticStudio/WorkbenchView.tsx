@@ -39,7 +39,11 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import {
+    createContext,
+    lazy,
+    Suspense,
     useCallback,
+    useContext,
     useEffect,
     useMemo,
     useRef,
@@ -133,7 +137,7 @@ import {
     SemanticLayerNudge,
     SettingsLink,
 } from './shared';
-import { SourcePane, SourcesRail, type SourcesTarget } from './SourcesView';
+import { type SourcesTarget } from './SourcesView';
 import {
     AddToStudioChatContext,
     sameStudioChatRef,
@@ -175,6 +179,14 @@ import classes from './WorkbenchView.module.css';
 
 dayjs.extend(relativeTime);
 
+// The file tree and editor load only when Sources is opened.
+const SourcePane = lazy(() =>
+    import('./SourcesView').then((module) => ({ default: module.SourcePane })),
+);
+const SourcesRail = lazy(() =>
+    import('./SourcesView').then((module) => ({ default: module.SourcesRail })),
+);
+
 const ROW_HEIGHT = 28;
 
 /** What the workspace shows beside the rail. */
@@ -189,17 +201,25 @@ type Pane =
     | 'buildFirst'
     | 'empty';
 
+type DraftMarks = {
+    /** Each drafted model's name as the draft leaves it. */
+    labels: Map<string, string>;
+    /** Who else has unpublished changes to each model. */
+    others: Map<string, string[]>;
+};
+
+// Read once for the page: every row asking the draft itself costs a subscription per row.
+const DraftMarksContext = createContext<DraftMarks>({
+    labels: new Map(),
+    others: new Map(),
+});
+
 /** Says whose unpublished work a model has: this person's, someone else's, or both. */
-const DraftMarker: FC<{
-    projectUuid: string;
-    model: string;
-    isMine: boolean;
-}> = ({ projectUuid, model, isMine }) => {
-    const { data: draft } = useSemanticLayerDraft(projectUuid);
-    const others =
-        draft?.othersDrafting
-            .find((entry) => entry.model === model)
-            ?.drafters.map(({ name }) => name) ?? [];
+const DraftMarker: FC<{ model: string; isMine: boolean }> = ({
+    model,
+    isMine,
+}) => {
+    const others = useContext(DraftMarksContext).others.get(model) ?? [];
     if (!isMine && others.length === 0) return null;
     const whose = [...(isMine ? ['you'] : []), ...others].join(', ');
     return (
@@ -213,17 +233,8 @@ const DraftMarker: FC<{
 };
 
 /** A model's name as this person's draft leaves it, so the list and the review say the same thing. */
-const ModelLabel: FC<{ projectUuid: string; model: string; label: string }> = ({
-    projectUuid,
-    model,
-    label,
-}) => {
-    const { data: draft } = useSemanticLayerDraft(projectUuid);
-    return (
-        draft?.models.find((entry) => entry.model === model)?.explore?.label ??
-        label
-    );
-};
+const ModelLabel: FC<{ model: string; label: string }> = ({ model, label }) =>
+    useContext(DraftMarksContext).labels.get(model) ?? label;
 
 const Tree: FC<{
     view: ViewModel;
@@ -331,7 +342,6 @@ const Tree: FC<{
                             <Text truncate className={classes.treeLabel}>
                                 {node.ref.type === 'explore' ? (
                                     <ModelLabel
-                                        projectUuid={view.project.id}
                                         model={node.ref.exploreId}
                                         label={node.label}
                                     />
@@ -341,7 +351,6 @@ const Tree: FC<{
                             </Text>
                             {node.ref.type === 'explore' ? (
                                 <DraftMarker
-                                    projectUuid={view.project.id}
                                     model={node.ref.exploreId}
                                     isMine={drafted.has(node.ref.exploreId)}
                                 />
@@ -901,12 +910,11 @@ const Rail: FC<{
  * ponytail: not virtualised; only native YAML projects get here, so add it if one reaches thousands of models.
  */
 const CodeRail: FC<{
-    projectUuid: string;
     files: string[];
     selected: string | null;
     drafted: Set<string>;
     onOpen: (file: string) => void;
-}> = ({ projectUuid, files, selected, drafted, onOpen }) => (
+}> = ({ files, selected, drafted, onOpen }) => (
     <Box className={classes.rail}>
         <Box className={classes.treeScroll}>
             {files.map((file) => (
@@ -921,11 +929,7 @@ const CodeRail: FC<{
                     <Text truncate className={classes.treeLabel} title={file}>
                         {file}.yml
                     </Text>
-                    <DraftMarker
-                        projectUuid={projectUuid}
-                        model={file}
-                        isMine={drafted.has(file)}
-                    />
+                    <DraftMarker model={file} isMine={drafted.has(file)} />
                 </Box>
             ))}
         </Box>
@@ -1021,6 +1025,25 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
     const [hasStarted, setHasStarted] = useState(false);
     const hasDraft = (draft?.changes.length ?? 0) > 0;
+    const draftMarks = useMemo<DraftMarks>(
+        () => ({
+            labels: new Map(
+                (draft?.models ?? []).flatMap(
+                    ({ model, explore }): [string, string][] =>
+                        explore?.label ? [[model, explore.label]] : [],
+                ),
+            ),
+            others: new Map(
+                (draft?.othersDrafting ?? []).map(
+                    ({ model, drafters }): [string, string[]] => [
+                        model,
+                        drafters.map(({ name }) => name),
+                    ],
+                ),
+            ),
+        }),
+        [draft],
+    );
     // With nothing live, what the draft adds is the page.
     const isBuildingFirstModel = isEmpty && hasDraft;
     // With changes to check and nothing else asked for, the changes are the page.
@@ -1731,21 +1754,23 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         proposal={shownProposal}
                     />
                 ) : (
-                    <SourcePane
-                        target={sourcesTarget}
-                        proposal={shownProposal}
-                        onSaved={(prUrl, thread) => {
-                            if (prUrl === sourcesPrUrl) return;
-                            // A save from live started a change of its own, with a conversation to ask about it in.
-                            if (thread) setStoredThread(thread);
-                            else if (!sourcesTarget.threadUuid)
-                                startNewThread();
-                            setOpenedPrUrl(prUrl);
-                            setIsOnLive(false);
-                            setIsChatOpen(true);
-                        }}
-                        onAddToChat={attachToChat}
-                    />
+                    <Suspense fallback={null}>
+                        <SourcePane
+                            target={sourcesTarget}
+                            proposal={shownProposal}
+                            onSaved={(prUrl, thread) => {
+                                if (prUrl === sourcesPrUrl) return;
+                                // A save from live started a change of its own, with a conversation to ask about it in.
+                                if (thread) setStoredThread(thread);
+                                else if (!sourcesTarget.threadUuid)
+                                    startNewThread();
+                                setOpenedPrUrl(prUrl);
+                                setIsOnLive(false);
+                                setIsChatOpen(true);
+                            }}
+                            onAddToChat={attachToChat}
+                        />
+                    </Suspense>
                 );
             case 'review':
                 return draft ? (
@@ -1802,262 +1827,282 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     };
 
     return (
-        <LiveSourceManager
-            projectUuid={view.project.id}
-            enabled={view.permissions.live}
-            onRemoved={() =>
-                view.select({ type: 'kind', kind: 'live' }, { replace: true })
-            }
-        >
-            <ExternalSourceManager
+        <DraftMarksContext.Provider value={draftMarks}>
+            <LiveSourceManager
                 projectUuid={view.project.id}
-                enabled={view.permissions.files}
+                enabled={view.permissions.live}
                 onRemoved={() =>
                     view.select(
-                        { type: 'kind', kind: 'files' },
+                        { type: 'kind', kind: 'live' },
                         { replace: true },
                     )
                 }
             >
-                <Box
-                    className={classes.shell}
-                    data-no-chat={!hasChat || !isChatOpen}
+                <ExternalSourceManager
+                    projectUuid={view.project.id}
+                    enabled={view.permissions.files}
+                    onRemoved={() =>
+                        view.select(
+                            { type: 'kind', kind: 'files' },
+                            { replace: true },
+                        )
+                    }
                 >
-                    {pane === 'intro' ? null : (
-                        <SemanticStudioAgent
-                            projectUuid={view.project.id}
-                            {...openModel}
-                            attached={attached}
-                            onAttach={attachToChat}
-                            onDetach={(ref) =>
-                                setAttached((current) =>
-                                    current.filter(
-                                        (item) => !sameStudioChatRef(item, ref),
-                                    ),
-                                )
-                            }
-                            onAttachedSent={() => setAttached([])}
-                            prompt={askedPrompt}
-                            onPromptTaken={() => setAskedPrompt(null)}
-                            showStarters={canBuildFirstModel}
-                        />
-                    )}
-                    <Box className={classes.workspace}>
-                        {pane === 'intro' || !chat.isAvailable ? null : (
-                            <>
-                                <Group
-                                    className={classes.toolbar}
-                                    justify="space-between"
-                                    wrap="nowrap"
-                                    gap="sm"
-                                >
-                                    <div
-                                        className={classes.views}
-                                        role="tablist"
-                                        aria-label="Views"
+                    <Box
+                        className={classes.shell}
+                        data-no-chat={!hasChat || !isChatOpen}
+                    >
+                        {pane === 'intro' ? null : (
+                            <SemanticStudioAgent
+                                projectUuid={view.project.id}
+                                {...openModel}
+                                attached={attached}
+                                onAttach={attachToChat}
+                                onDetach={(ref) =>
+                                    setAttached((current) =>
+                                        current.filter(
+                                            (item) =>
+                                                !sameStudioChatRef(item, ref),
+                                        ),
+                                    )
+                                }
+                                onAttachedSent={() => setAttached([])}
+                                prompt={askedPrompt}
+                                onPromptTaken={() => setAskedPrompt(null)}
+                                showStarters={canBuildFirstModel}
+                            />
+                        )}
+                        <Box className={classes.workspace}>
+                            {pane === 'intro' || !chat.isAvailable ? null : (
+                                <>
+                                    <Group
+                                        className={classes.toolbar}
+                                        justify="space-between"
+                                        wrap="nowrap"
+                                        gap="sm"
                                     >
-                                        <UnstyledButton
-                                            role="tab"
-                                            className={classes.view}
-                                            aria-selected={
-                                                !isSourcesView && !isChangesView
-                                            }
-                                            onClick={() => switchView('models')}
+                                        <div
+                                            className={classes.views}
+                                            role="tablist"
+                                            aria-label="Views"
                                         >
-                                            Models
-                                        </UnstyledButton>
-                                        <UnstyledButton
-                                            role="tab"
-                                            className={classes.view}
-                                            aria-selected={isSourcesView}
-                                            onClick={showSources}
-                                        >
-                                            Sources
-                                        </UnstyledButton>
-                                    </div>
-                                    {changePicker ? (
+                                            <UnstyledButton
+                                                role="tab"
+                                                className={classes.view}
+                                                aria-selected={
+                                                    !isSourcesView &&
+                                                    !isChangesView
+                                                }
+                                                onClick={() =>
+                                                    switchView('models')
+                                                }
+                                            >
+                                                Models
+                                            </UnstyledButton>
+                                            <UnstyledButton
+                                                role="tab"
+                                                className={classes.view}
+                                                aria-selected={isSourcesView}
+                                                onClick={showSources}
+                                            >
+                                                Sources
+                                            </UnstyledButton>
+                                        </div>
+                                        {changePicker ? (
+                                            <Group
+                                                gap="xs"
+                                                wrap="nowrap"
+                                                miw={0}
+                                                className={
+                                                    classes.toolbarChange
+                                                }
+                                            >
+                                                {changePicker}
+                                                {isChangeInSources && stage ? (
+                                                    <StudioStageLine
+                                                        stage={stage}
+                                                        href={changeUrl}
+                                                    />
+                                                ) : null}
+                                            </Group>
+                                        ) : null}
                                         <Group
                                             gap="xs"
                                             wrap="nowrap"
                                             miw={0}
-                                            className={classes.toolbarChange}
+                                            ml="auto"
                                         >
-                                            {changePicker}
-                                            {isChangeInSources && stage ? (
-                                                <StudioStageLine
-                                                    stage={stage}
-                                                    href={changeUrl}
-                                                />
-                                            ) : null}
-                                        </Group>
-                                    ) : null}
-                                    <Group
-                                        gap="xs"
-                                        wrap="nowrap"
-                                        miw={0}
-                                        ml="auto"
-                                    >
-                                        {keepsDraft ? (
-                                            !isChatOpen ? (
-                                                <Button
-                                                    size="xs"
-                                                    variant="default"
-                                                    flex="none"
-                                                    onClick={() =>
-                                                        setIsChatOpen(true)
-                                                    }
-                                                >
-                                                    Build
-                                                </Button>
-                                            ) : null
-                                        ) : (
-                                            <>
-                                                {hasChat && !isChatOpen ? (
+                                            {keepsDraft ? (
+                                                !isChatOpen ? (
                                                     <Button
                                                         size="xs"
                                                         variant="default"
                                                         flex="none"
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconMessage
-                                                                }
-                                                                size={14}
-                                                            />
-                                                        }
                                                         onClick={() =>
                                                             setIsChatOpen(true)
                                                         }
                                                     >
-                                                        Chat
+                                                        Build
                                                     </Button>
-                                                ) : null}
-                                                {isChangeInSources ? (
-                                                    <>
-                                                        {changeLinks}
-                                                        {changeActions}
-                                                    </>
-                                                ) : null}
-                                            </>
-                                        )}
+                                                ) : null
+                                            ) : (
+                                                <>
+                                                    {hasChat && !isChatOpen ? (
+                                                        <Button
+                                                            size="xs"
+                                                            variant="default"
+                                                            flex="none"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconMessage
+                                                                    }
+                                                                    size={14}
+                                                                />
+                                                            }
+                                                            onClick={() =>
+                                                                setIsChatOpen(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        >
+                                                            Chat
+                                                        </Button>
+                                                    ) : null}
+                                                    {isChangeInSources ? (
+                                                        <>
+                                                            {changeLinks}
+                                                            {changeActions}
+                                                        </>
+                                                    ) : null}
+                                                </>
+                                            )}
+                                        </Group>
                                     </Group>
-                                </Group>
-                                {isChangeOpen && pane === 'review' ? (
-                                    <Group
-                                        className={classes.changeBar}
-                                        wrap="nowrap"
-                                        gap="sm"
-                                    >
-                                        <Tooltip
-                                            label={
-                                                hasWorkspaces
-                                                    ? 'All changes'
-                                                    : 'Back to live'
-                                            }
+                                    {isChangeOpen && pane === 'review' ? (
+                                        <Group
+                                            className={classes.changeBar}
+                                            wrap="nowrap"
+                                            gap="sm"
                                         >
-                                            <ActionIcon
-                                                variant="subtle"
-                                                color="gray"
-                                                size="md"
-                                                aria-label={
+                                            <Tooltip
+                                                label={
                                                     hasWorkspaces
                                                         ? 'All changes'
                                                         : 'Back to live'
                                                 }
-                                                onClick={
-                                                    hasWorkspaces
-                                                        ? showChanges
-                                                        : showLive
+                                            >
+                                                <ActionIcon
+                                                    variant="subtle"
+                                                    color="gray"
+                                                    size="md"
+                                                    aria-label={
+                                                        hasWorkspaces
+                                                            ? 'All changes'
+                                                            : 'Back to live'
+                                                    }
+                                                    onClick={
+                                                        hasWorkspaces
+                                                            ? showChanges
+                                                            : showLive
+                                                    }
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconArrowLeft}
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                            <Tooltip
+                                                label={
+                                                    workspace?.hint ??
+                                                    'What this change does'
                                                 }
                                             >
-                                                <MantineIcon
-                                                    icon={IconArrowLeft}
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                        <Tooltip
-                                            label={
-                                                workspace?.hint ??
-                                                'What this change does'
-                                            }
-                                        >
-                                            <Text
-                                                className={classes.changeName}
-                                            >
-                                                {shownWorkspace?.name ??
-                                                    workspace?.name}
-                                            </Text>
-                                        </Tooltip>
-                                        {stage ? (
-                                            <Box className={classes.stageLine}>
-                                                <StudioStageLine
-                                                    stage={stage}
-                                                    href={changeUrl}
-                                                />
-                                            </Box>
-                                        ) : null}
-                                        {changeLinks}
-                                        {changeActions}
-                                    </Group>
-                                ) : null}
-                            </>
-                        )}
-                        <Box
-                            className={classes.workspaceBody}
-                            data-sources={pane === 'sources' || undefined}
-                            data-no-rail={
-                                isReviewPane ||
-                                (pane !== 'code' &&
-                                    pane !== 'sources' &&
-                                    isEmpty)
-                            }
-                        >
-                            {pane === 'code' ? (
-                                <CodeRail
-                                    projectUuid={view.project.id}
-                                    files={files}
-                                    selected={file}
-                                    drafted={drafted}
-                                    onOpen={(next) =>
-                                        setSearchParams({
-                                            [VIEW_PARAM]: 'code',
-                                            [FILE_PARAM]: next,
-                                        })
-                                    }
-                                />
-                            ) : pane === 'sources' ? (
-                                <SourcesRail
-                                    target={sourcesTarget}
-                                    proposal={shownProposal}
-                                    hasOverview={!!sourcesPrUrl}
-                                />
-                            ) : isEmpty || isReviewPane ? null : (
-                                <Rail
-                                    view={view}
-                                    expanded={expanded}
-                                    drafted={drafted}
-                                    onToggle={toggle}
-                                    onOpen={open}
-                                />
+                                                <Text
+                                                    className={
+                                                        classes.changeName
+                                                    }
+                                                >
+                                                    {shownWorkspace?.name ??
+                                                        workspace?.name}
+                                                </Text>
+                                            </Tooltip>
+                                            {stage ? (
+                                                <Box
+                                                    className={
+                                                        classes.stageLine
+                                                    }
+                                                >
+                                                    <StudioStageLine
+                                                        stage={stage}
+                                                        href={changeUrl}
+                                                    />
+                                                </Box>
+                                            ) : null}
+                                            {changeLinks}
+                                            {changeActions}
+                                        </Group>
+                                    ) : null}
+                                </>
                             )}
-                            {pane === 'browse' ? (
-                                renderPaneWithChat()
-                            ) : (
-                                <Box
-                                    className={classes.main}
-                                    data-full={
-                                        pane === 'code' ||
-                                        pane === 'sources' ||
-                                        pane === 'changes'
-                                    }
-                                >
-                                    {renderPaneWithChat()}
-                                </Box>
-                            )}
+                            <Box
+                                className={classes.workspaceBody}
+                                data-sources={pane === 'sources' || undefined}
+                                data-no-rail={
+                                    isReviewPane ||
+                                    (pane !== 'code' &&
+                                        pane !== 'sources' &&
+                                        isEmpty)
+                                }
+                            >
+                                {pane === 'code' ? (
+                                    <CodeRail
+                                        files={files}
+                                        selected={file}
+                                        drafted={drafted}
+                                        onOpen={(next) =>
+                                            setSearchParams({
+                                                [VIEW_PARAM]: 'code',
+                                                [FILE_PARAM]: next,
+                                            })
+                                        }
+                                    />
+                                ) : pane === 'sources' ? (
+                                    <Suspense fallback={null}>
+                                        <SourcesRail
+                                            target={sourcesTarget}
+                                            proposal={shownProposal}
+                                            hasOverview={!!sourcesPrUrl}
+                                        />
+                                    </Suspense>
+                                ) : isEmpty || isReviewPane ? null : (
+                                    <Rail
+                                        view={view}
+                                        expanded={expanded}
+                                        drafted={drafted}
+                                        onToggle={toggle}
+                                        onOpen={open}
+                                    />
+                                )}
+                                {pane === 'browse' ? (
+                                    renderPaneWithChat()
+                                ) : (
+                                    <Box
+                                        className={classes.main}
+                                        data-full={
+                                            pane === 'code' ||
+                                            pane === 'sources' ||
+                                            pane === 'changes'
+                                        }
+                                    >
+                                        {renderPaneWithChat()}
+                                    </Box>
+                                )}
+                            </Box>
                         </Box>
                     </Box>
-                </Box>
-            </ExternalSourceManager>
-        </LiveSourceManager>
+                </ExternalSourceManager>
+            </LiveSourceManager>
+        </DraftMarksContext.Provider>
     );
 };

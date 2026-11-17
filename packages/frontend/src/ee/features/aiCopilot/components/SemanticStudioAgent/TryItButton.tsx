@@ -1,6 +1,14 @@
 import { Button, Tooltip } from '@mantine/core';
 import { IconPlayerPlay } from '@tabler/icons-react';
-import { lazy, Suspense, useEffect, useRef, useState, type FC } from 'react';
+import {
+    lazy,
+    Suspense,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useDevelopmentView } from '../../../../../features/semanticStudio/developmentView';
 import {
@@ -73,6 +81,7 @@ export const TryItButton: FC<{
 }> = ({ projectUuid, pullRequest, look }) => {
     const { changedModels, previewProjectUuid, prUrl } = pullRequest;
     const [isTrying, setIsTrying] = useState(false);
+    const stopTrying = useCallback(() => setIsTrying(false), []);
     if (changedModels.length === 0) return null;
     return (
         <>
@@ -91,7 +100,7 @@ export const TryItButton: FC<{
                     models={changedModels}
                     previewProjectUuid={previewProjectUuid}
                     prUrl={prUrl}
-                    onClose={() => setIsTrying(false)}
+                    onClose={stopTrying}
                 />
             ) : null}
         </>
