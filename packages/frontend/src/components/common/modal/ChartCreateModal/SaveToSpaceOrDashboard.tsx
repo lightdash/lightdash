@@ -49,6 +49,7 @@ import {
 } from '../../../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
+import { useSavedToDashboardToast } from '../../../../hooks/dashboard/useSavedToDashboardToast';
 import { getTileLinkPath } from '../../../../hooks/dashboard/useTileLink';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
@@ -162,7 +163,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         useCreateMutation({
             redirectOnSuccess: redirectToChartOnSuccess,
             showViewChartAction,
+            showToastOnSuccess: saveDestination !== SaveDestination.Dashboard,
         });
+    const showSavedToDashboardToast = useSavedToDashboardToast();
 
     const {
         clearIsEditingDashboardChart,
@@ -326,9 +329,14 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
         form.values.dashboardUuid ?? undefined,
         projectUuid,
+        false,
+        undefined,
+        { showToastOnSuccess: false },
     );
     const { mutateAsync: createDashboard, isLoading: isCreatingDashboard } =
-        useCreateDashboardMutation(projectUuid);
+        useCreateDashboardMutation(projectUuid, false, {
+            showToastOnSuccess: false,
+        });
     const { mutateAsync: createSpace, isLoading: isCreatingSpace } =
         useCreateSpaceMutation(projectUuid);
     const {
@@ -583,15 +591,22 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     ]),
                     tabs: destinationDashboard.tabs,
                 };
-                if (isCreatingNewDashboard && projectUuid) {
-                    await updateDashboardApi(
-                        lightdashApi,
-                        destinationDashboard.uuid,
-                        updateFields,
-                        projectUuid,
-                    );
-                } else {
-                    await updateDashboard(updateFields);
+                const updatedDashboard =
+                    isCreatingNewDashboard && projectUuid
+                        ? await updateDashboardApi(
+                              lightdashApi,
+                              destinationDashboard.uuid,
+                              updateFields,
+                              projectUuid,
+                          )
+                        : await updateDashboard(updateFields);
+                if (projectUrlIdentifier) {
+                    showSavedToDashboardToast({
+                        projectUrlIdentifier,
+                        dashboard: updatedDashboard,
+                        tileUuid: newTile.uuid,
+                        tabUuid: destinationTab?.uuid ?? null,
+                    });
                 }
 
                 if (redirectOnSuccess && projectUrlIdentifier) {
@@ -669,6 +684,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             projectUrlIdentifier,
             navigate,
             showToastSuccess,
+            showSavedToDashboardToast,
             getUnsavedDashboardTiles,
             setUnsavedDashboardTiles,
             getDashboardActiveTabUuid,
