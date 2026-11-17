@@ -306,6 +306,37 @@ describe('getApiSourceQueryIssues', () => {
         ]);
     });
 
+    test('lets a selected-only incompatibility filter on the field it refuses selecting', () => {
+        const selectedOnly: ApiSourceExplore = {
+            ...apiSource,
+            incompatible: [
+                {
+                    fields: ['report_sessions'],
+                    with: ['report_channel'],
+                    reason: 'sessions are one total.',
+                    selectedOnly: true,
+                },
+            ],
+        };
+        const filtered = query({
+            dimensions: [],
+            filters: {
+                dimensions: {
+                    id: 'dims',
+                    and: [rule('report_channel', FilterOperator.EQUALS)],
+                },
+            },
+        });
+        expect(getApiSourceQueryIssues(selectedOnly, filtered)).toEqual([]);
+        expect(
+            getApiSourceQueryIssues(selectedOnly, query()).map(
+                ({ message }) => message,
+            ),
+        ).toEqual([
+            '"report_sessions" can\'t be combined with "report_channel": sessions are one total.',
+        ]);
+    });
+
     test('refuses more dimensions or metrics than one call allows', () => {
         expect(
             messages(

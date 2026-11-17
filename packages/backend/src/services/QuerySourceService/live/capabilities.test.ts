@@ -164,6 +164,8 @@ type Case = {
     name: string;
     /** The refusal's code wherever it is refused; per message when they differ. */
     code?: LiveSourceRefusalCode;
+    /** Where a connector refuses it under another code. */
+    codes?: Partial<Record<ApiConnectorType, LiveSourceRefusalCode>>;
     query: (connector: ApiConnectorType) => Partial<MetricQuery>;
     context?: ApiSourceQueryContext;
     /** Today's refusal per connector; absent means the query runs. */
@@ -215,7 +217,14 @@ const id = (
     connector: ApiConnectorType,
     key: keyof (typeof SOURCES)[number]['fields'],
 ) => toFieldId(connector, getSource(connector).fields[key]);
-const date = (connector: ApiConnectorType) => toFieldId(connector, 'date');
+const date = (connector: ApiConnectorType) => {
+    // A source names its date field when it isn't `date`
+    const source = getSource(connector);
+    return toFieldId(
+        connector,
+        'date' in source ? String(source.date) : 'date',
+    );
+};
 
 // Every refusal the shared check replaced, with the message users saw
 // before connectors declared capabilities.
@@ -494,7 +503,10 @@ const toQuery = (
     overrides: Partial<MetricQuery>,
 ): MetricQuery => ({
     exploreName: `${connector}_explore`,
-    dimensions: [id(connector, 'dimension')],
+    dimensions:
+        'selectsDimension' in getSource(connector)
+            ? []
+            : [id(connector, 'dimension')],
     metrics: [id(connector, 'metric')],
     filters: {},
     sorts: [],
@@ -521,7 +533,8 @@ describe('live data source capabilities keep their refusals', () => {
 
         test.each(CASES)(
             '$name',
-            ({ query, context, expected, stale, code }) => {
+            ({ query, context, expected, stale, code: caseCode, codes }) => {
+                const code = codes?.[connector] ?? caseCode;
                 const metricQuery = toQuery(connector, query(connector));
                 const messages = getMessages(explore, metricQuery, context);
                 expect(messages).toEqual(expected[connector] ?? []);
@@ -607,8 +620,11 @@ describe('connector capability declarations', () => {
 
         test('the date range field uses the date operators', () => {
             definitions.forEach(({ dateRange, dimensions }) => {
+                if (!dateRange) {
+                    return;
+                }
                 const field = dimensions.find(
-                    ({ name }) => name === dateRange?.dimension,
+                    ({ name }) => name === dateRange.dimension,
                 );
                 expect(field?.filterOperators).toEqual(
                     capabilities.dates.operators,

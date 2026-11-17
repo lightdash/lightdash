@@ -266,7 +266,9 @@ const Stat: FC<{ label: string; value: string; title?: string }> = ({
 export const LiveSourceSummary: FC<{
     projectUuid: string;
     connection: LiveSourceConnection;
-}> = ({ projectUuid, connection }) => {
+    /** The labels of the source's explores, when it has several. */
+    exploreLabels?: string[];
+}> = ({ projectUuid, connection, exploreLabels = [] }) => {
     const { data: usage } = useExternalConnectionApiUsage(projectUuid);
     const { data: fields } = useLiveSourceFields({
         projectUuid,
@@ -277,7 +279,11 @@ export const LiveSourceSummary: FC<{
     return (
         <Box className={classes.summary} aria-label="Live data source">
             <Stat label="Integration" value={row.integration} />
-            <Stat label="Explore" value={fields?.exploreName ?? '—'} />
+            {exploreLabels.length > 1 ? (
+                <Stat label="Explores" value={exploreLabels.join(', ')} />
+            ) : (
+                <Stat label="Explore" value={fields?.exploreName ?? '—'} />
+            )}
             <Stat
                 label="Access"
                 value={
