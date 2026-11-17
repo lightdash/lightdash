@@ -11,7 +11,7 @@ export type MobilePitchDismissReason =
 
 export const MOBILE_PITCH_DISMISS_STRINGS = {
     action: 'Not interested',
-    title: 'Why not?',
+    title: 'Help us improve the app',
     reasons: {
         no_work_phone: "Don't use my phone for work",
         not_needed: "Don't need it",

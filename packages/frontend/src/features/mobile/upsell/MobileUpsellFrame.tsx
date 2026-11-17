@@ -1,6 +1,8 @@
 import { FocusTrap, Stack, Text, Title, UnstyledButton } from '@mantine/core';
 import { useDocumentVisibility } from '@mantine/hooks';
+import { IconX } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { MOBILE_SIGN_IN_STRINGS } from '../mobileStrings';
 import { AskUpsell } from './AskUpsell';
 import { BrowseUpsell } from './BrowseUpsell';
@@ -96,6 +98,18 @@ const Pitch = ({
                 interested is shown: when a phone is confirming, focus must go
                 to Decline. */}
             {canDismiss && <FocusTrap.InitialFocus />}
+            {canDismiss && (
+                <UnstyledButton
+                    type="button"
+                    className={classes.dismiss}
+                    onClick={() => setAskingWhy(true)}
+                >
+                    <span className={classes.dismissLabel}>
+                        {MOBILE_PITCH_DISMISS_STRINGS.action}
+                    </span>
+                    <MantineIcon icon={IconX} size="sm" />
+                </UnstyledButton>
+            )}
             <div className={classes.pitch}>
                 <Title order={3} className={classes.headline}>
                     {copy.headline}
@@ -135,17 +149,6 @@ const Pitch = ({
                     </div>
                 )}
                 {status}
-                {canDismiss && (
-                    <UnstyledButton
-                        type="button"
-                        className={classes.dismiss}
-                        onClick={() => setAskingWhy(true)}
-                    >
-                        <Text component="span" fz="xs" c="dimmed">
-                            {MOBILE_PITCH_DISMISS_STRINGS.action}
-                        </Text>
-                    </UnstyledButton>
-                )}
             </div>
         </div>
     );
