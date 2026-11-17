@@ -1268,22 +1268,32 @@ export const mergePullRequest = async ({
 }): Promise<{ merged: boolean; sha: string | null }> => {
     const { octokit, headers } = getOctokit(installationId, token);
 
-    try {
-        const response = await octokit.rest.pulls.merge({
-            owner,
-            repo,
-            pull_number: pullNumber,
-            sha,
-            headers,
-        });
+    let lastError: unknown;
+    // A repository can switch any of these off, and GitHub then refuses that one by name.
+    for (const mergeMethod of ['merge', 'squash', 'rebase'] as const) {
+        try {
+            // eslint-disable-next-line no-await-in-loop
+            const response = await octokit.rest.pulls.merge({
+                owner,
+                repo,
+                pull_number: pullNumber,
+                sha,
+                merge_method: mergeMethod,
+                headers,
+            });
 
-        return {
-            merged: response.data.merged === true,
-            sha: response.data.sha ?? null,
-        };
-    } catch (e) {
-        throw new UnexpectedGitError(getErrorMessage(e));
+            return {
+                merged: response.data.merged === true,
+                sha: response.data.sha ?? null,
+            };
+        } catch (e) {
+            lastError = e;
+            if (!/not allowed on this repository/i.test(getErrorMessage(e))) {
+                break;
+            }
+        }
     }
+    throw new UnexpectedGitError(getErrorMessage(lastError));
 };
 
 // Closes a PR without merging it (sets state to `closed`). Reversible — it can

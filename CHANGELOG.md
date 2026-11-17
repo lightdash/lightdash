@@ -1,3 +1,10 @@
+## [3.289.1](https://github.com/lightdash/lightdash/compare/3.289.0...3.289.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* exclude preview content from analytics settings ([#32732](https://github.com/lightdash/lightdash/issues/32732)) ([96a7ce9](https://github.com/lightdash/lightdash/commit/96a7ce9aefe1e706e20cdcc7cf0ed87e333cb7a8))
+
 # [3.289.0](https://github.com/lightdash/lightdash/compare/3.288.0...3.289.0) (2026-11-17)
 
 
