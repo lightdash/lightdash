@@ -207,6 +207,25 @@ describe('editContent composer charts', () => {
         const output = await execute(sqlPatch);
 
         expect(save).not.toHaveBeenCalled();
-        expect(output.result).toBe(COMPOSER_CHART_SQL_UNASKED_RESULT);
+        expect(output.result).toContain(COMPOSER_CHART_SQL_UNASKED_RESULT);
+    });
+
+    it('saves no SQL on Slack when every check before the save failed', async () => {
+        const prepare = vi
+            .fn()
+            .mockRejectedValue(new Error('database unavailable'));
+        const { needsApproval, execute, save } = makeTool(
+            {
+                mode: 'thread_approval',
+                approval: makeApproval('approved', { slack: true }),
+            },
+            prepare,
+        );
+
+        await expect(needsApproval(sqlPatch)).resolves.toBe(false);
+        const output = await execute(sqlPatch);
+
+        expect(save).not.toHaveBeenCalled();
+        expect(output.result).toContain(COMPOSER_CHART_SQL_UNASKED_RESULT);
     });
 });

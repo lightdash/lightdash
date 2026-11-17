@@ -3,6 +3,7 @@ import {
     isComposerChartContentArgs,
     isSqlApprovalToolCall,
     isSqlChartContentArgs,
+    ParameterError,
 } from '@lightdash/common';
 import {
     toolFailure,
@@ -156,32 +157,30 @@ export const createSqlChartGate = (
         };
         try {
             const isComposerChart = isComposerChartContentArgs(args);
-            let gatedSql: string | null = null;
-            if ((isSqlChart || isComposerChart) && approvalGate) {
-                // A refused edit saves nothing; running it reports the refusal.
-                gatedSql = await getGatedSql(args).catch(() => null);
-                const asked = askedComposerSql.get(toolCallId);
-                askedComposerSql.delete(toolCallId);
-                if (
-                    isComposerChart &&
-                    gatedSql !== null &&
-                    asked !== undefined &&
-                    asked !== gatedSql
-                ) {
-                    return toolFailure(COMPOSER_CHART_SQL_UNASKED_RESULT);
-                }
-            }
+            const askedSql = askedComposerSql.get(toolCallId);
+            askedComposerSql.delete(toolCallId);
             // For a composer chart, the service asks only when the edit adds warehouse SQL.
             const call =
                 (isSqlChart || isComposerChart) && approvalGate
                     ? await approvalGate.forToolCall(toolCallId, {
-                          sql: gatedSql,
+                          // A refused edit saves nothing; running it reports the refusal.
+                          sql: await getGatedSql(args).catch(() => null),
                       })
                     : null;
             const approveSql = call ? getSqlChartApproveSql(call) : null;
             const output = await execute(
                 approveSql
                     ? async (request) => {
+                          // Never save composer SQL the approval check did not see.
+                          if (
+                              isComposerChart &&
+                              askedSql !== undefined &&
+                              askedSql !== request.sql
+                          ) {
+                              throw new ParameterError(
+                                  COMPOSER_CHART_SQL_UNASKED_RESULT,
+                              );
+                          }
                           try {
                               await approveSql(request);
                           } catch (error) {
