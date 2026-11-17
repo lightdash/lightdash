@@ -52,6 +52,23 @@ describe('embedded usage attribution', () => {
         expect(withBrands(['a', 'b'])?.tenantId).toBeNull();
     });
 
+    it('omits malformed values that PostgreSQL cannot store', () => {
+        for (const brand of ['in\0valid', '\uD800']) {
+            expect(
+                attribution({
+                    userAttributes: { brand },
+                    usageAnalytics: { tenantAttribute: 'brand' },
+                })?.tenantId,
+            ).toBeNull();
+        }
+        expect(
+            attribution({
+                userAttributes: { brand: 'Brand 🟢' },
+                usageAnalytics: { tenantAttribute: 'brand' },
+            })?.tenantId,
+        ).toBe('Brand 🟢');
+    });
+
     it('uses a stable token fingerprint, leaving the viewer ID empty', () => {
         const first = attribution({});
         expect(first).toMatchObject({

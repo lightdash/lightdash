@@ -2,7 +2,11 @@ import type { Account, EmbeddedUsageAttribution } from '@lightdash/common';
 import { createHash } from 'node:crypto';
 
 const asIdentifier = (value: unknown): string | null =>
-    typeof value === 'string' && value.trim() && value.length <= 254
+    typeof value === 'string' &&
+    value.trim() &&
+    value.length <= 254 &&
+    value.isWellFormed() &&
+    !value.includes('\0')
         ? value
         : null;
 
