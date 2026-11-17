@@ -16034,6 +16034,7 @@ const models: TsoaRoute.Models = {
             'youtube_analytics',
             'linkedin_ads',
             'github',
+            'pylon',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -16246,6 +16247,22 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.PYLON': {
+        dataType: 'refEnum',
+        enums: ['pylon'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PylonApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                connector: { ref: 'ApiConnectorType.PYLON', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnectionApiSource: {
         dataType: 'refAlias',
         type: {
@@ -16259,6 +16276,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'YoutubeAnalyticsApiSource' },
                 { ref: 'LinkedInAdsApiSource' },
                 { ref: 'GithubApiSource' },
+                { ref: 'PylonApiSource' },
             ],
             validators: {},
         },

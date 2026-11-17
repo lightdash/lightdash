@@ -1,3 +1,10 @@
+# [3.293.0](https://github.com/lightdash/lightdash/compare/3.292.0...3.293.0) (2026-11-17)
+
+
+### Features
+
+* **live-sources:** add Pylon live integration ([#32746](https://github.com/lightdash/lightdash/issues/32746)) ([30b0116](https://github.com/lightdash/lightdash/commit/30b0116fa52b839987b36d1e8088be54fdfb1747))
+
 # [3.292.0](https://github.com/lightdash/lightdash/compare/3.291.0...3.292.0) (2026-11-17)
 
 
