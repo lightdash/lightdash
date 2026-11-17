@@ -73,10 +73,19 @@ const DISPLAY_ORDER = [
     ApiConnectorType.YOUTUBE_ANALYTICS,
 ] as const satisfies readonly ApiConnectorType[];
 
-const toSetup = (entry: LiveIntegrationCatalogEntry): LiveSourceSetup =>
-    entry.setup === 'token'
-        ? { kind: 'token', form: META_ADS_TOKEN_FORM }
-        : { kind: entry.setup };
+/** The form of each integration connected with an account id and a token. */
+const TOKEN_FORMS: Partial<Record<ApiConnectorType, TokenLiveSourceForm>> = {
+    [ApiConnectorType.META_ADS]: META_ADS_TOKEN_FORM,
+};
+
+const toSetup = (entry: LiveIntegrationCatalogEntry): LiveSourceSetup => {
+    if (entry.setup !== 'token') {
+        return { kind: entry.setup };
+    }
+    const form = TOKEN_FORMS[entry.connector];
+    if (!form) throw new Error(`No token form for ${entry.connector}`);
+    return { kind: 'token', form };
+};
 
 /**
  * Every integration shown when adding a live data source: the shared

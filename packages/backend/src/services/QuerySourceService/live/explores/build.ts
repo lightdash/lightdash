@@ -156,6 +156,7 @@ const buildDefinitionExplore = (
         | 'definition'
         | 'exploreName'
         | 'label'
+        | 'groupLabel'
         | 'connectionUuid'
         | 'definitionHash'
         | 'aiHint'
@@ -279,22 +280,22 @@ export const buildLiveExplores = ({
         definitions: [wide, ...others],
     } = getLiveBaseLayer(apiSource.connector);
     const definitionHashes = getLiveDefinitionHashes(apiSource.connector);
-    const build = (definition: LiveExploreDefinition, isWide: boolean) =>
+    const isSingle = others.length === 0;
+    const build = (definition: LiveExploreDefinition) =>
         buildDefinitionExplore(apiSource.connector, {
             definition,
             exploreName: getLiveExploreName(sourceName, definition.name),
-            // The wide model keeps the source's name; the others add theirs
-            label: isWide ? label : `${label} ${definition.label}`,
+            // One explore is the source; several are named by their model
+            // and grouped under the source
+            label: isSingle ? label : definition.label,
+            ...(isSingle ? {} : { groupLabel: label }),
             connectionUuid,
             definitionHash: definitionHashes[definition.name],
             aiHint,
         });
     return [
-        build(
-            applyLiveSourceFieldEdits({ base: wide, scannedFields, edits }),
-            true,
-        ),
-        ...others.map((definition) => build(definition, false)),
+        build(applyLiveSourceFieldEdits({ base: wide, scannedFields, edits })),
+        ...others.map(build),
     ];
 };
 
