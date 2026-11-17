@@ -1,3 +1,12 @@
+## [3.276.2](https://github.com/lightdash/lightdash/compare/3.276.1...3.276.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* **charts:** check custom metric SQL when a chart is saved ([#32659](https://github.com/lightdash/lightdash/issues/32659)) ([46ab7ba](https://github.com/lightdash/lightdash/commit/46ab7ba550b20f860572f029ab286f8f3e668d13))
+* **connections:** align DuckDB settings responses ([#32494](https://github.com/lightdash/lightdash/issues/32494)) ([8df586b](https://github.com/lightdash/lightdash/commit/8df586b628e30a1c3c02cdb600a442c7f8fbd12e))
+* **promotion:** resolve project context consistently ([#32495](https://github.com/lightdash/lightdash/issues/32495)) ([6a26081](https://github.com/lightdash/lightdash/commit/6a26081b46ce5cbb12e0b8e8824fefdcf8fd1dca))
+
 ## [3.276.1](https://github.com/lightdash/lightdash/compare/3.276.0...3.276.1) (2026-11-17)
 
 
