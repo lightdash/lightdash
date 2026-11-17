@@ -46,12 +46,48 @@ export const createLiveCalls = (
     };
 };
 
+/** Where integrations keep a response's rows, after a top-level array. */
+const ROW_KEYS = ['data', 'items', 'rows', 'results', 'elements'] as const;
+
+/**
+ * Rows in one response: a top-level array, or the first array under `data`,
+ * `items`, `rows`, `results` or `elements`. A successful response without
+ * one has none (APIs like GA4 leave `rows` out of an empty report); a
+ * response outside 2xx is null.
+ */
+export const countLiveResponseRows = ({
+    status,
+    body,
+}: Pick<LiveHttpResponse, 'status' | 'body'>): number | null => {
+    if (!isOk(status)) return null;
+    if (Array.isArray(body)) return body.length;
+    if (typeof body !== 'object' || body === null) return 0;
+    const record = body as Record<string, unknown>;
+    const rows = ROW_KEYS.map((key) => record[key]).find(Array.isArray);
+    return rows ? rows.length : 0;
+};
+
+/** One HTTP call a query made, as its connection's call log keeps it. */
+export type LiveHttpCall = {
+    method: string;
+    /** Without the query string, which can hold filter values. */
+    path: string;
+    /** Null when no response arrived. */
+    providerStatus: number | null;
+    rowCount: number | null;
+    responseBytes: number;
+    durationMs: number;
+    errorMessage: string | null;
+};
+
 /** What one query's calls cost, counted by the transport so failed queries count too. */
 export type LiveCallUsage = {
     apiCalls: number;
     responseBytes: number;
     /** Status of the last response, or null when no response arrived. */
     providerStatus: number | null;
+    /** Every call the query made, in order. */
+    httpCalls: LiveHttpCall[];
 };
 
 /** A finished query, as its connection's call log keeps it. */

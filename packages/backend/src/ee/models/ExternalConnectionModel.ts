@@ -47,12 +47,14 @@ import {
     ApiSourceCallCountersTableName,
     ApiSourceCallLeasesTableName,
     ApiSourceCallsTableName,
+    ApiSourceHttpCallsTableName,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTableName,
     ExternalConnectionSamplesTableName,
     ExternalConnectionSecretsTableName,
     ExternalConnectionsTableName,
     type ApiSourceCallsTable,
+    type ApiSourceHttpCallsTable,
     type DbExternalConnection,
     type DbExternalConnectionSample,
 } from '../database/entities/externalConnections';
@@ -1852,10 +1854,31 @@ export class ExternalConnectionModel {
         return counters + leases;
     }
 
+    /** Writes a finished query and its HTTP calls together. */
     async insertApiSourceCall(
         call: Knex.ResolveTableType<ApiSourceCallsTable, 'insert'>,
+        httpCalls: Array<
+            Omit<
+                Knex.ResolveTableType<ApiSourceHttpCallsTable, 'insert'>,
+                'api_source_call_uuid'
+            >
+        >,
     ): Promise<void> {
-        await this.database(ApiSourceCallsTableName).insert(call);
+        await this.database.transaction(async (trx) => {
+            const [{ api_source_call_uuid: apiSourceCallUuid }] = await trx(
+                ApiSourceCallsTableName,
+            )
+                .insert(call)
+                .returning('api_source_call_uuid');
+            if (httpCalls.length > 0) {
+                await trx(ApiSourceHttpCallsTableName).insert(
+                    httpCalls.map((httpCall) => ({
+                        ...httpCall,
+                        api_source_call_uuid: apiSourceCallUuid,
+                    })),
+                );
+            }
+        });
     }
 
     /** API calls, response bytes and median fetch time per connection, over every logged query in the project. */

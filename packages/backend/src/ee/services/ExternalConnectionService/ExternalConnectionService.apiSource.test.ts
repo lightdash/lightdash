@@ -355,20 +355,25 @@ describe('ExternalConnectionService api sources', () => {
     });
 
     it('logs a finished query with what its calls cost', async () => {
+        mockSecureFetch.mockResolvedValue(
+            postHogQueryResponse([['a', 'UInt64']], [[1], [2], [3]]),
+        );
         const { service, externalConnectionModel, analytics } = buildService();
         const source = await service.getLiveSource(account, 'proj-1', 'conn-1');
-        await runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 10 });
+        // PostHog sends one row past the limit, so the call reads 3 for a 2-row result
+        await runLiveRequest(source, { query: 'SELECT 1 AS a', limit: 2 });
         const { bodyText } = await mockSecureFetch.mock.results[0].value;
+        const responseBytes = Buffer.byteLength(bodyText, 'utf8');
 
         await source.logCall({
             queryUuid: 'query-1',
             context: QueryExecutionContext.AI,
             query: 'SELECT 1 AS a',
-            rowLimit: 10,
+            rowLimit: 2,
             outcome: 'ok',
             errorMessage: null,
             durationMs: 120,
-            rowCount: 1,
+            rowCount: 2,
             columnCount: 2,
             truncated: false,
             cacheHit: false,
@@ -376,32 +381,49 @@ describe('ExternalConnectionService api sources', () => {
 
         expect(
             externalConnectionModel.insertApiSourceCall,
-        ).toHaveBeenCalledExactlyOnceWith({
-            external_connection_uuid: 'conn-1',
-            project_uuid: 'proj-1',
-            user_uuid: account.user.id,
-            context: QueryExecutionContext.AI,
-            query_uuid: 'query-1',
-            query: 'SELECT 1 AS a',
-            row_limit: 10,
-            outcome: 'ok',
-            error_message: null,
-            provider_status: 200,
-            api_calls: 1,
-            duration_ms: 120,
-            row_count: 1,
-            column_count: 2,
-            truncated: false,
-            response_bytes: Buffer.byteLength(bodyText, 'utf8'),
-            cache_hit: false,
-        });
-        const [, trackedEvent] = analytics.trackAccount.mock.calls[0];
+        ).toHaveBeenCalledExactlyOnceWith(
+            {
+                external_connection_uuid: 'conn-1',
+                project_uuid: 'proj-1',
+                user_uuid: account.user.id,
+                context: QueryExecutionContext.AI,
+                query_uuid: 'query-1',
+                query: 'SELECT 1 AS a',
+                row_limit: 2,
+                outcome: 'ok',
+                error_message: null,
+                provider_status: 200,
+                api_calls: 1,
+                duration_ms: 120,
+                row_count: 2,
+                column_count: 2,
+                truncated: false,
+                response_bytes: responseBytes,
+                cache_hit: false,
+            },
+            [
+                {
+                    sequence: 1,
+                    method: 'POST',
+                    path: expect.stringContaining('/query/'),
+                    provider_status: 200,
+                    row_count: 3,
+                    response_bytes: responseBytes,
+                    duration_ms: expect.any(Number),
+                    error_message: null,
+                },
+            ],
+        );
+        const [[, trackedEvent], [, httpCallEvent], ...rest] =
+            analytics.trackAccount.mock.calls;
+        expect(rest).toHaveLength(0);
         expect(trackedEvent).toMatchObject({
             event: 'live_source.query_finished',
             properties: {
                 externalConnectionUuid: 'conn-1',
                 projectId: 'proj-1',
                 context: QueryExecutionContext.AI,
+                queryUuid: 'query-1',
                 outcome: 'ok',
                 errorOrigin: null,
                 errorCode: null,
@@ -409,13 +431,28 @@ describe('ExternalConnectionService api sources', () => {
                 apiCalls: 1,
                 providerStatus: 200,
                 durationMs: 120,
-                rowCount: 1,
+                rowCount: 2,
                 truncated: false,
-                responseBytes: Buffer.byteLength(bodyText, 'utf8'),
+                responseBytes,
+            },
+        });
+        expect(httpCallEvent).toMatchObject({
+            event: 'live_source.http_call',
+            properties: {
+                externalConnectionUuid: 'conn-1',
+                projectId: 'proj-1',
+                integration: 'posthog',
+                queryUuid: 'query-1',
+                sequence: 1,
+                method: 'POST',
+                providerStatus: 200,
+                rowCount: 3,
+                responseBytes,
             },
         });
         // The query text can hold filter values, so it stays out of analytics.
         expect(JSON.stringify(trackedEvent)).not.toContain('SELECT 1 AS a');
+        expect(JSON.stringify(httpCallEvent)).not.toContain('SELECT 1 AS a');
     });
 
     it('counts a call that never got a response, and never fails on logging', async () => {
@@ -435,6 +472,17 @@ describe('ExternalConnectionService api sources', () => {
             apiCalls: 1,
             responseBytes: 0,
             providerStatus: null,
+            httpCalls: [
+                {
+                    method: 'POST',
+                    path: expect.stringContaining('/query/'),
+                    providerStatus: null,
+                    rowCount: null,
+                    responseBytes: 0,
+                    durationMs: expect.any(Number),
+                    errorMessage: expect.stringContaining('did not respond'),
+                },
+            ],
         });
         await expect(
             source.logCall({
@@ -509,7 +557,10 @@ describe('ExternalConnectionService api sources', () => {
             externalConnectionModel.insertApiSourceCall,
         ).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({ cache_hit: true, api_calls: 0 }),
+            [],
         );
+        // No HTTP calls, so no http_call events either
+        expect(analytics.trackAccount).toHaveBeenCalledTimes(1);
         const [, trackedEvent] = analytics.trackAccount.mock.calls[0];
         expect(trackedEvent).toMatchObject({
             event: 'live_source.query_finished',

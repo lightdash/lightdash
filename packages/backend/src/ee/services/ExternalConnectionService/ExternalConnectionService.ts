@@ -70,8 +70,10 @@ import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { SavedChartModel } from '../../../models/SavedChartModel';
 import { BaseService } from '../../../services/BaseService';
 import {
+    countLiveResponseRows,
     createLiveCalls,
     type LiveCallUsage,
+    type LiveHttpCall,
     type LiveTransport,
     type MeteredLiveSource,
 } from '../../../services/QuerySourceService/live/calls';
@@ -110,8 +112,12 @@ import { getLiveSourceQueryErrorCode } from '../../../services/QuerySourceServic
 import { runLiveRequest } from '../../../services/QuerySourceService/live/query/run';
 import { getLiveIntegration } from '../../../services/QuerySourceService/live/registry';
 import { getLiveSourceTestCheck } from '../../../services/QuerySourceService/live/testCheck';
-import { type LiveScanResult } from '../../../services/QuerySourceService/live/types';
+import {
+    type LiveHttpRequest,
+    type LiveScanResult,
+} from '../../../services/QuerySourceService/live/types';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { traceSpan } from '../../../tracing/tracing';
 import {
     normalizeCredentialUrlHref,
     normalizeCredentialUrlOrigin,
@@ -2168,27 +2174,41 @@ export class ExternalConnectionService extends BaseService {
             },
             usage: () => ({ ...usage }),
             logCall: async (call) => {
+                // A stored result answered a cache hit, so it called nothing.
+                const httpCalls = call.cacheHit ? [] : usage.httpCalls;
                 try {
-                    await this.externalConnectionModel.insertApiSourceCall({
-                        external_connection_uuid:
-                            connection.externalConnectionUuid,
-                        project_uuid: projectUuid,
-                        user_uuid: account.user.id,
-                        context: call.context,
-                        query_uuid: call.queryUuid,
-                        query: call.query,
-                        row_limit: call.rowLimit,
-                        outcome: call.outcome,
-                        error_message: call.errorMessage,
-                        provider_status: usage.providerStatus,
-                        api_calls: usage.apiCalls,
-                        duration_ms: call.durationMs,
-                        row_count: call.rowCount,
-                        column_count: call.columnCount,
-                        truncated: call.truncated,
-                        response_bytes: usage.responseBytes,
-                        cache_hit: call.cacheHit,
-                    });
+                    await this.externalConnectionModel.insertApiSourceCall(
+                        {
+                            external_connection_uuid:
+                                connection.externalConnectionUuid,
+                            project_uuid: projectUuid,
+                            user_uuid: account.user.id,
+                            context: call.context,
+                            query_uuid: call.queryUuid,
+                            query: call.query,
+                            row_limit: call.rowLimit,
+                            outcome: call.outcome,
+                            error_message: call.errorMessage,
+                            provider_status: usage.providerStatus,
+                            api_calls: usage.apiCalls,
+                            duration_ms: call.durationMs,
+                            row_count: call.rowCount,
+                            column_count: call.columnCount,
+                            truncated: call.truncated,
+                            response_bytes: usage.responseBytes,
+                            cache_hit: call.cacheHit,
+                        },
+                        httpCalls.map((httpCall, index) => ({
+                            sequence: index + 1,
+                            method: httpCall.method,
+                            path: httpCall.path,
+                            provider_status: httpCall.providerStatus,
+                            row_count: httpCall.rowCount,
+                            response_bytes: httpCall.responseBytes,
+                            duration_ms: httpCall.durationMs,
+                            error_message: httpCall.errorMessage,
+                        })),
+                    );
                 } catch (error) {
                     this.logger.error(
                         `Failed to log api query ${call.queryUuid} for connection ${connection.externalConnectionUuid}: ${getErrorMessage(error)}`,
@@ -2204,6 +2224,7 @@ export class ExternalConnectionService extends BaseService {
                         externalConnectionUuid:
                             connection.externalConnectionUuid,
                         integration: connection.apiSource?.connector ?? null,
+                        queryUuid: call.queryUuid,
                         context: call.context,
                         outcome: call.outcome,
                         errorOrigin: errorCode
@@ -2219,6 +2240,27 @@ export class ExternalConnectionService extends BaseService {
                         truncated: call.truncated,
                         responseBytes: usage.responseBytes,
                     },
+                });
+                httpCalls.forEach((httpCall, index) => {
+                    this.analytics.trackAccount(account, {
+                        event: 'live_source.http_call',
+                        properties: {
+                            organizationId: connection.organizationUuid,
+                            projectId: projectUuid,
+                            externalConnectionUuid:
+                                connection.externalConnectionUuid,
+                            integration:
+                                connection.apiSource?.connector ?? null,
+                            queryUuid: call.queryUuid,
+                            sequence: index + 1,
+                            method: httpCall.method,
+                            path: httpCall.path,
+                            providerStatus: httpCall.providerStatus,
+                            rowCount: httpCall.rowCount,
+                            responseBytes: httpCall.responseBytes,
+                            durationMs: httpCall.durationMs,
+                        },
+                    });
                 });
             },
         };
@@ -2375,13 +2417,13 @@ export class ExternalConnectionService extends BaseService {
             apiCalls: 0,
             responseBytes: 0,
             providerStatus: null,
+            httpCalls: [],
         };
-        const sendOnce: LiveTransport = async (request) => {
+        const fetchOnce = async (request: LiveHttpRequest) => {
             const secret =
                 await this.externalConnectionModel.getDecryptedSecret(
                     connection.externalConnectionUuid,
                 );
-            usage.apiCalls += 1;
             try {
                 const { response, responseBytes } =
                     await this.executeExternalFetch(
@@ -2396,13 +2438,7 @@ export class ExternalConnectionService extends BaseService {
                         },
                         { account, appUuid: null },
                     );
-                usage.responseBytes += responseBytes;
-                usage.providerStatus = response.status;
-                return {
-                    status: response.status,
-                    headers: response.headers,
-                    body: response.body,
-                };
+                return { response, responseBytes };
             } catch (error) {
                 if (error instanceof SecureFetchError) {
                     if (error.reason === 'timeout') {
@@ -2419,6 +2455,61 @@ export class ExternalConnectionService extends BaseService {
                 throw error;
             }
         };
+        // Each call is kept for the query's call log and traced on its own.
+        const sendOnce: LiveTransport = (request) =>
+            traceSpan(
+                {
+                    op: 'http.client',
+                    name: 'live_source.http_call',
+                    attributes: {
+                        'lightdash.integration': apiSource.connector,
+                        'http.request.method': request.method,
+                        'url.path': request.path,
+                    },
+                },
+                async (span) => {
+                    usage.apiCalls += 1;
+                    const startedAt = performance.now();
+                    const httpCall: LiveHttpCall = {
+                        method: request.method,
+                        path: request.path,
+                        providerStatus: null,
+                        rowCount: null,
+                        responseBytes: 0,
+                        durationMs: 0,
+                        errorMessage: null,
+                    };
+                    usage.httpCalls.push(httpCall);
+                    try {
+                        const { response, responseBytes } =
+                            await fetchOnce(request);
+                        usage.responseBytes += responseBytes;
+                        usage.providerStatus = response.status;
+                        httpCall.providerStatus = response.status;
+                        httpCall.responseBytes = responseBytes;
+                        httpCall.rowCount = countLiveResponseRows(response);
+                        span.setAttributes({
+                            'http.response.status_code': response.status,
+                            'lightdash.responseBytes': responseBytes,
+                            ...(httpCall.rowCount !== null
+                                ? { 'lightdash.rowCount': httpCall.rowCount }
+                                : {}),
+                        });
+                        return {
+                            status: response.status,
+                            headers: response.headers,
+                            body: response.body,
+                        };
+                    } catch (error) {
+                        httpCall.errorMessage = getErrorMessage(error);
+                        throw error;
+                    } finally {
+                        httpCall.durationMs = Math.round(
+                            performance.now() - startedAt,
+                        );
+                    }
+                },
+            );
         const send: LiveTransport = async (request) => {
             callsThisQuery += 1;
             if (isPerQuery && callsThisQuery > limits.callsPerQuery) {

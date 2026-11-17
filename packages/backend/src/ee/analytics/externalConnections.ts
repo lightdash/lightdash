@@ -61,6 +61,8 @@ export type ExternalConnectionEvent = BaseTrack &
               event: 'live_source.query_finished';
               properties: ExternalConnectionBaseProperties & {
                   integration: ApiConnectorType | null;
+                  /** Joins the query's `live_source.http_call` events. */
+                  queryUuid: string;
                   context: string;
                   outcome: string;
                   /** Who failed; null when the query succeeded. */
@@ -76,6 +78,25 @@ export type ExternalConnectionEvent = BaseTrack &
                   columnCount: number | null;
                   truncated: boolean | null;
                   responseBytes: number;
+              };
+          }
+        | {
+              /** One HTTP call a live data source query made to its integration; sent with the query's `live_source.query_finished`. */
+              event: 'live_source.http_call';
+              properties: ExternalConnectionBaseProperties & {
+                  integration: ApiConnectorType | null;
+                  queryUuid: string;
+                  /** 1 for the query's first call, counting up. */
+                  sequence: number;
+                  method: string;
+                  /** Without the query string, which can hold filter values. */
+                  path: string;
+                  /** Null when no response arrived. */
+                  providerStatus: number | null;
+                  /** Rows in this call's response; null when it failed or got no response. */
+                  rowCount: number | null;
+                  responseBytes: number;
+                  durationMs: number;
               };
           }
         | {

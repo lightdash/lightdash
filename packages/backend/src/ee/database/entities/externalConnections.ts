@@ -16,6 +16,7 @@ export const ExternalConnectionSamplesTableName = 'external_connection_samples';
 export const ApiSourceCallCountersTableName = 'api_source_call_counters';
 export const ApiSourceCallLeasesTableName = 'api_source_call_leases';
 export const ApiSourceCallsTableName = 'api_source_calls';
+export const ApiSourceHttpCallsTableName = 'api_source_http_calls';
 
 export type DbExternalConnection = {
     external_connection_uuid: string;
@@ -213,7 +214,11 @@ export type ApiSourceCallLeasesTable = Knex.CompositeTableType<
     Partial<Pick<DbApiSourceCallLease, 'lease_uuid' | 'expires_at'>>
 >;
 
-/** One query a live source sent to its integration, written once it finished. */
+/**
+ * One live data source query, written once it finished; its HTTP calls are
+ * in `api_source_http_calls`. `api_calls`, `response_bytes` and
+ * `provider_status` roll those calls up.
+ */
 export type DbApiSourceCall = {
     api_source_call_uuid: string;
     external_connection_uuid: string;
@@ -228,6 +233,7 @@ export type DbApiSourceCall = {
     provider_status: number | null;
     api_calls: number;
     duration_ms: number;
+    /** Rows in the query's result; not the sum of its calls' row counts. */
     row_count: number | null;
     column_count: number | null;
     truncated: boolean | null;
@@ -236,6 +242,36 @@ export type DbApiSourceCall = {
     cache_hit: boolean;
     created_at: Date;
 };
+
+/** One HTTP call a live data source query made to its integration. */
+export type DbApiSourceHttpCall = {
+    api_source_http_call_uuid: string;
+    api_source_call_uuid: string;
+    /** 1 for the query's first call, counting up. */
+    sequence: number;
+    method: string;
+    /** The path called, without its query string, which can hold filter values. */
+    path: string;
+    /** Null when no response arrived. */
+    provider_status: number | null;
+    /**
+     * Rows in this call's response: a top-level array, or the array under
+     * `data`, `items`, `rows`, `results` or `elements`; 0 for a successful
+     * response without one. Null when the call failed or got no response.
+     * The query's calls don't add up to its `api_source_calls.row_count`.
+     */
+    row_count: number | null;
+    response_bytes: number;
+    duration_ms: number;
+    error_message: string | null;
+    created_at: Date;
+};
+
+export type ApiSourceHttpCallsTable = Knex.CompositeTableType<
+    DbApiSourceHttpCall,
+    Omit<DbApiSourceHttpCall, 'api_source_http_call_uuid' | 'created_at'>,
+    never
+>;
 
 export type ApiSourceCallsTable = Knex.CompositeTableType<
     DbApiSourceCall,

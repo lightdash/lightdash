@@ -750,6 +750,8 @@ import {
     ApiSourceCallLeasesTableName,
     ApiSourceCallsTable,
     ApiSourceCallsTableName,
+    ApiSourceHttpCallsTable,
+    ApiSourceHttpCallsTableName,
     AppExternalConnectionsTable,
     AppExternalConnectionsTableName,
     ExternalConnectionRateCountersTable,
@@ -1117,6 +1119,7 @@ declare module 'knex/types/tables' {
         [ApiSourceCallCountersTableName]: ApiSourceCallCountersTable;
         [ApiSourceCallLeasesTableName]: ApiSourceCallLeasesTable;
         [ApiSourceCallsTableName]: ApiSourceCallsTable;
+        [ApiSourceHttpCallsTableName]: ApiSourceHttpCallsTable;
         [AppUserStateTableName]: AppUserStateTable;
         [AppSharedStateTableName]: AppSharedStateTable;
         [AppSharedStateHistoryTableName]: AppSharedStateHistoryTable;
