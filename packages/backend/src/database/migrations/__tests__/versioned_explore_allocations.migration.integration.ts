@@ -1122,3 +1122,93 @@ test('deploy allocation leaves unbound joined tables unchanged without extra sou
         await database('projects').where('project_uuid', projectUuid).delete();
     }
 });
+
+test.each([
+    { alias: 'orders', collision: false, parent: 'orders' },
+    { alias: undefined, collision: true, parent: 'secondary__orders' },
+])(
+    'deploy allocation keeps chained repeated-column tables under cross-source parent $parent',
+    async ({ alias, collision, parent }) => {
+        const { projectUuid, primaryUuid } = await createLineageProject();
+        try {
+            const sourceUuid = await createRepeatedColumnSource(projectUuid);
+            const orders = {
+                ...lineageModel(sourceUuid, 'orders', []),
+                package_name: 'secondary',
+                unique_id: 'model.secondary.orders',
+                lightdash_source_name: 'secondary',
+            };
+            orders.columns['items.name'] = {
+                name: 'items.name',
+                data_type: DimensionType.STRING,
+                repeated_ancestors: ['items'],
+                meta: {},
+            };
+            orders.columns['items.parts.sku'] = {
+                name: 'items.parts.sku',
+                data_type: DimensionType.STRING,
+                repeated_ancestors: ['items', 'items.parts'],
+                meta: {},
+            };
+            const joinedName = alias ?? 'secondary__orders';
+            const models = [
+                orders,
+                lineageModel(primaryUuid, 'reports', [], {
+                    joins: [
+                        {
+                            join: 'secondary__orders',
+                            ...(alias ? { alias } : {}),
+                            sql_on: `\${reports.id} = \${${joinedName}.id}`,
+                        },
+                    ],
+                }),
+                ...(collision ? [lineageModel(primaryUuid, 'orders', [])] : []),
+            ];
+            const compiled = await convertExplores(
+                models,
+                false,
+                SupportedDbtAdapter.BIGQUERY,
+                bigqueryClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+                {
+                    deferExploreNaming: collision,
+                    includeModelIdentity: true,
+                    allowPartialCompilation: true,
+                },
+            );
+            expect(compiled.filter(isExploreError)).toEqual([]);
+            const result = await allocateLineageExplores(
+                projectUuid,
+                compiled,
+                deployNaming(),
+            );
+            const reports = result.explores.find(
+                (explore) => explore.dbtModelIdentity?.modelName === 'reports',
+            ) as Explore;
+            expect(isExploreError(reports)).toBe(false);
+            expect(
+                result.warnings.filter((warning) =>
+                    warning.startsWith('Joined table'),
+                ),
+            ).toEqual([]);
+            expect(result.warnings).toHaveLength(collision ? 2 : 0);
+            expect(reports.tables[`${parent}__items`]).toMatchObject({
+                name: `${parent}__items`,
+                nestedFrom: { parentTable: parent },
+            });
+            expect(reports.tables[`${parent}__items__parts`]).toMatchObject({
+                name: `${parent}__items__parts`,
+                nestedFrom: { parentTable: `${parent}__items` },
+            });
+            expect(
+                getItemId(
+                    reports.tables[`${parent}__items__parts`].dimensions.sku,
+                ),
+            ).toBe(`${parent}__items__parts_sku`);
+        } finally {
+            await database('projects')
+                .where('project_uuid', projectUuid)
+                .delete();
+        }
+    },
+);
