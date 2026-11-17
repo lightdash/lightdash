@@ -70,7 +70,13 @@ export type LiveExploreDefinition = {
     maxDimensions: number | null;
     maxMetrics: number | null;
     dateRange: { dimension: string; defaultDays: number } | null;
-    incompatible: { fields: string[]; with: string[]; reason: string }[];
+    incompatible: {
+        fields: string[];
+        with: string[];
+        reason: string;
+        /** Only selected fields clash; filtering on them is fine. */
+        selectedOnly?: true;
+    }[];
 };
 
 /** Builds a live data source explore whose field ids are `<exploreName>_<field name>`. */
@@ -78,6 +84,7 @@ export const buildLiveExplore = ({
     definition,
     exploreName,
     label,
+    groupLabel,
     connectionUuid,
     integration,
     baseVersion,
@@ -89,6 +96,8 @@ export const buildLiveExplore = ({
     definition: LiveExploreDefinition;
     exploreName: string;
     label: string;
+    /** The source's name, when its integration has several explores. */
+    groupLabel?: string;
     connectionUuid: string;
     integration: ApiConnectorType;
     baseVersion: number;
@@ -165,6 +174,7 @@ export const buildLiveExplore = ({
     const explore = new ExploreCompiler(warehouseSqlBuilder).compileExplore({
         name: exploreName,
         label,
+        ...(groupLabel ? { groupLabel } : {}),
         tags: [],
         baseTable: exploreName,
         joinedTables: [],
@@ -223,6 +233,9 @@ export const buildLiveExplore = ({
                 fields: incompatibility.fields.map(toFieldId),
                 with: incompatibility.with.map(toFieldId),
                 reason: incompatibility.reason,
+                ...(incompatibility.selectedOnly
+                    ? { selectedOnly: incompatibility.selectedOnly }
+                    : {}),
             })),
             capabilities: {
                 ...capabilities,
@@ -286,6 +299,16 @@ export const getLiveExplore = (explore: Explore): ApiSourceExplore => {
         );
     }
     return apiSource;
+};
+
+/**
+ * The name of the definition a live explore was built from, such as
+ * `pull_requests`, for integrations with more than one explore.
+ */
+export const getLiveDefinitionName = (explore: Explore): string => {
+    getLiveExplore(explore);
+    const { sqlTable } = explore.tables[explore.baseTable];
+    return sqlTable.replace(/^["`]|["`]$/g, '');
 };
 
 /** The filters that apply: enabled, with something to compare against. */

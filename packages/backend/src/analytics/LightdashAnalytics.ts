@@ -823,7 +823,7 @@ export type QueryCompletedEvent = BaseTrack & {
         totalRowCount: number | null;
         columnsCount: number | null;
         // Set only when executionSource is 'live_source'.
-        apiConnector?: ApiConnectorType;
+        integration?: ApiConnectorType;
         apiQueryOutcome?: LiveQueryOutcome;
         /** Set only when a live_source query failed. */
         liveSourceErrorCode?: LiveSourceUpstreamErrorCode;

@@ -70,6 +70,7 @@ export enum ApiConnectorType {
     GOOGLE_ADS = 'google_ads',
     YOUTUBE_ANALYTICS = 'youtube_analytics',
     LINKEDIN_ADS = 'linkedin_ads',
+    GITHUB = 'github',
 }
 
 /**

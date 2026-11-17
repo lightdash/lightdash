@@ -150,6 +150,22 @@ export const LIVE_INTEGRATION_CATALOG: {
         agentQueryGuide:
             'one adAnalytics report as a JSON object with pivot (ACCOUNT, CAMPAIGN_GROUP or CAMPAIGN), timeGranularity (ALL, DAILY, MONTHLY or YEARLY), dateRange ({start, end} as YYYY-MM-DD), fields (1-18 metric names such as impressions, clicks, costInLocalCurrency, oneClickLeads, externalWebsiteConversions), and optionally dimensions (day, month, year, campaign.id, campaign.name, campaign.status, campaign.type, campaign.objectiveType, campaignGroup.id, campaignGroup.name), campaigns and campaignGroups (lists of numeric IDs). The ad account comes from the source, so never set it. This is sponsored Campaign Manager data, not organic Company Page analytics. approximateMemberReach is deduplicated, so never sum it, and works for at most 92 days. A report returns at most 14,999 rows with no pagination, so aggregate rather than asking for every day of every campaign.',
     },
+    [ApiConnectorType.GITHUB]: {
+        id: 'github',
+        label: 'GitHub',
+        messageLabel: 'GitHub',
+        agentLabel: 'GitHub',
+        description: 'Pull requests, issues and contributors of a repository',
+        setup: 'token',
+        settings: z.object({
+            connector: z.literal(ApiConnectorType.GITHUB),
+            owner: z.string(),
+            repo: z.string(),
+        }),
+        getTarget: ({ owner, repo }) => `${owner}/${repo}`,
+        agentQueryGuide:
+            'one JSON object of one of two kinds. A search: {"kind": "search", "type": "pr" or "issue", "q": GitHub search qualifiers such as is:open, is:merged, author:octocat, label:"bug", created:2026-10-01..2026-10-31 or NOT "word" in:title,body, "columns": fields to list from number, title, url, state, author, assignee, labels, draft, comments, created_at, updated_at, closed_at, merged_at and state_reason, or ["total_count"] alone for a count, and optionally "sort" (created, updated or comments) and "order" (asc or desc)}. The repository and the type are added for you, so never put repo:, org:, user: or is:pr in q. Search matches whole words and reads at most 1,000 results, so count with total_count rather than listing. Contributors: {"kind": "contributors", "columns": from author, week, commits, additions and deletions, and optionally "since" and "until" (YYYY-MM-DD), "authors" and "excludeAuthors"}. It reads default-branch commits per author and week, summed over the weeks when week is not a column; additions and deletions are 0 on repositories with 10,000 commits or more.',
+    },
 };
 
 /** One integration's catalog entry, for a source of any connector. */

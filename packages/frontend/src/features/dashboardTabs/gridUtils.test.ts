@@ -27,6 +27,9 @@ import {
     resolveDropOverlaps,
     getRowInsertion,
     getGapFill,
+    getSnapDwellRemaining,
+    getSnapRest,
+    SNAP_DWELL_MS,
     getAddTileSlot,
     getPointerCell,
     getPointerPosition,
@@ -615,6 +618,72 @@ describe('dropping a tile on empty space', () => {
             item('dragged', 0, 20),
         ];
         expect(fill(layout, 17, 1)).toBeNull();
+    });
+});
+
+describe('resting over a slot before snapping to it', () => {
+    const slot = { x: 0, y: 4, w: 12, h: 6 };
+    const resting = getSnapRest({
+        previous: null,
+        slot,
+        pointer: { clientX: 100, clientY: 100 },
+        now: 1000,
+    });
+
+    it('does not snap a tile that has just reached a slot', () => {
+        expect(getSnapDwellRemaining(resting, 1000)).toBe(SNAP_DWELL_MS);
+    });
+
+    it('snaps once the pointer has stayed put long enough', () => {
+        const later = getSnapRest({
+            previous: resting,
+            slot,
+            pointer: { clientX: 103, clientY: 98 },
+            now: 1000 + SNAP_DWELL_MS,
+        });
+        expect(getSnapDwellRemaining(later, 1000 + SNAP_DWELL_MS)).toBe(0);
+    });
+
+    it('starts waiting again when the pointer keeps moving', () => {
+        const later = getSnapRest({
+            previous: resting,
+            slot,
+            pointer: { clientX: 160, clientY: 100 },
+            now: 1000 + SNAP_DWELL_MS,
+        });
+        expect(getSnapDwellRemaining(later, 1000 + SNAP_DWELL_MS)).toBe(
+            SNAP_DWELL_MS,
+        );
+    });
+
+    it('starts waiting again over another slot', () => {
+        const later = getSnapRest({
+            previous: resting,
+            slot: { ...slot, x: 12 },
+            pointer: { clientX: 100, clientY: 100 },
+            now: 1000 + SNAP_DWELL_MS,
+        });
+        expect(getSnapDwellRemaining(later, 1000 + SNAP_DWELL_MS)).toBe(
+            SNAP_DWELL_MS,
+        );
+    });
+
+    it('lets go of a snap once the pointer moves on', () => {
+        const snapped = getSnapRest({
+            previous: resting,
+            slot,
+            pointer: { clientX: 100, clientY: 100 },
+            now: 1000 + SNAP_DWELL_MS,
+        });
+        const movedOn = getSnapRest({
+            previous: snapped,
+            slot,
+            pointer: { clientX: 100, clientY: 140 },
+            now: 1100 + SNAP_DWELL_MS,
+        });
+        expect(
+            getSnapDwellRemaining(movedOn, 1100 + SNAP_DWELL_MS),
+        ).toBeGreaterThan(0);
     });
 });
 

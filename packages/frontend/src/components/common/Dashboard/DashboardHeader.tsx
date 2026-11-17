@@ -136,9 +136,10 @@ import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { EDIT_BAR_POSITION } from './editBarPosition';
 import { EDIT_SHORTCUTS, toHotkeyItems } from './editShortcuts';
+import { DashboardEditTour, EXAMPLE_PENDING_CHANGES } from './onboarding';
 import { PendingChangesButton } from './PendingChangesButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
-import { ShortcutHint } from './ShortcutHint';
+import { ShortcutHint, TourFrame } from './ShortcutHint';
 import { TidyTilesButton } from './TidyTilesButton';
 import { TileLayoutHistoryButtons } from './TileLayoutHistoryButtons';
 import { useDashboardManageAccess } from './useDashboardManageAccess';
@@ -249,6 +250,7 @@ const DashboardHeader = memo(
                 : [],
         );
         const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+        const [showsExampleChanges, setShowsExampleChanges] = useState(false);
         const [isRefreshOptionsOpen, setIsRefreshOptionsOpen] = useState(false);
         const [isUpdating, setIsUpdating] = useState(false);
         const [isSlugRenameModalOpen, slugRenameModalHandlers] =
@@ -763,30 +765,50 @@ const DashboardHeader = memo(
                                 position={EDIT_BAR_POSITION}
                                 className={headerClasses.editBar}
                             >
+                                <TourFrame name="dashboard-edit-bar" />
                                 <TileLayoutHistoryButtons />
                                 <ActionBar.Divider />
-                                <ShortcutHint
-                                    shortcut={EDIT_SHORTCUTS.addTile}
-                                    position="top"
+                                <Group
+                                    gap="xs"
+                                    wrap="nowrap"
+                                    data-tour="dashboard-edit-tiles"
+                                    data-tour-hints
                                 >
-                                    <AddTileButton
-                                        onAddTiles={onAddTiles}
-                                        disabled={isSaving}
-                                        setAddingTab={setAddingTab}
-                                        activeTabUuid={activeTabUuid}
-                                        dashboardTabs={dashboardTabs}
-                                        onNewChart={onNewChart}
-                                        radius="md"
+                                    <ShortcutHint
                                         shortcut={EDIT_SHORTCUTS.addTile}
-                                    />
-                                </ShortcutHint>
-                                <TidyTilesButton />
+                                        position="top"
+                                    >
+                                        <AddTileButton
+                                            onAddTiles={onAddTiles}
+                                            disabled={isSaving}
+                                            setAddingTab={setAddingTab}
+                                            activeTabUuid={activeTabUuid}
+                                            dashboardTabs={dashboardTabs}
+                                            onNewChart={onNewChart}
+                                            radius="md"
+                                            shortcut={EDIT_SHORTCUTS.addTile}
+                                        />
+                                    </ShortcutHint>
+                                    <TidyTilesButton />
+                                </Group>
                                 <ActionBar.Divider />
-                                <CanvasZoomControls />
-                                <CanvasBackgroundControl />
+                                <Group
+                                    gap="xs"
+                                    wrap="nowrap"
+                                    data-tour="dashboard-edit-canvas"
+                                    data-tour-hints
+                                >
+                                    <CanvasZoomControls />
+                                    <CanvasBackgroundControl />
+                                </Group>
                                 <EditFiltersVisibilityControl
                                     value={editFiltersVisibility}
                                     onChange={onEditFiltersVisibilityChange}
+                                />
+                                <DashboardEditTour
+                                    onExampleChangesToggle={
+                                        setShowsExampleChanges
+                                    }
                                 />
                             </ActionBar>
                         )}
@@ -794,6 +816,11 @@ const DashboardHeader = memo(
                         {pendingSettingsChanges !== null && (
                             <PendingChangesButton
                                 settingsChanges={pendingSettingsChanges}
+                                exampleChanges={
+                                    showsExampleChanges
+                                        ? EXAMPLE_PENDING_CHANGES
+                                        : null
+                                }
                             />
                         )}
                         <ShortcutHint

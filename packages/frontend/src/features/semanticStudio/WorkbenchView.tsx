@@ -664,9 +664,19 @@ const MainPane: FC<{
     const liveActions = useLiveSourceActions();
     const isLiveSourcesPage =
         !!liveActions && ref?.type === 'kind' && ref.kind === 'live';
+    const sourceExploreLabels = source
+        ? view.project.explores
+              .filter(({ sourceId }) => sourceId === source.id)
+              .map(({ label }) => label)
+        : [];
+    // A source with several explores shows its usage and controls on its own
+    // page, not on each explore's
+    const isLiveSourcePage =
+        ref?.type !== 'kind' &&
+        (ref?.type !== 'explore' || sourceExploreLabels.length === 1);
     const liveConnection = useManagedLiveSource(
         view.project.id,
-        ref?.type !== 'kind' && source?.kind === 'live'
+        isLiveSourcePage && source?.kind === 'live'
             ? source.connectionUuid
             : undefined,
     );
@@ -766,6 +776,7 @@ const MainPane: FC<{
                     <LiveSourceSummary
                         projectUuid={view.project.id}
                         connection={liveConnection}
+                        exploreLabels={sourceExploreLabels}
                     />
                 ) : null}
                 {externalSource ? (

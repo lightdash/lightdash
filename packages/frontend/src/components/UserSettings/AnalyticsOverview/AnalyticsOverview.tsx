@@ -36,6 +36,7 @@ import {
     type ReactNode,
 } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { useExploreByProjectUuid } from '../../../hooks/useExplore';
 import { useProjects } from '../../../hooks/useProjects';
 import MantineIcon from '../../common/MantineIcon';
 import { PolymorphicPaperButton } from '../../common/PolymorphicPaperButton';
@@ -217,9 +218,20 @@ const AnalyticsOverview = ({
             value: project.projectUuid,
             label: project.name,
         }));
+    const inventoryExplore = useExploreByProjectUuid(
+        selectedProject === null ? 'content_inventory' : undefined,
+        projectUuid,
+    );
     const filters: AnalyticsFilters = {
         ...analyticsDateRange(Number(days), new Date()),
         projectUuid: selectedProject,
+        // Existing managed models gain the field on their next content sync.
+        excludePreviewContent: inventoryExplore.isLoading
+            ? null
+            : Boolean(
+                  inventoryExplore.data?.tables.content_health?.dimensions
+                      .project_type,
+              ),
     };
     const tab =
         analyticsTabs.find(({ id }) => id === activeTab) ?? analyticsTabs[0];

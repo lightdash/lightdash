@@ -11,6 +11,7 @@ import {
     type OAuthClientSummary,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
+import { MobileOrgDisabledOAuthError } from '../../auth/mobileAppAccess';
 import { assertOAuthCredentialOperationAllowed } from '../../auth/oauthScopes/credentials';
 import {
     oauthApiResource,
@@ -112,6 +113,12 @@ export class OAuthService extends BaseService {
                             user as UserWithOrganizationUuid,
                         ),
                     this.getSiteUrl(),
+                    (client, user) =>
+                        this.oauthModel.assertMobileAppAccess(
+                            client,
+                            (user as UserWithOrganizationUuid).organizationUuid,
+                            'invalid_grant',
+                        ),
                 ) as unknown as typeof OAuth2Server.AbstractGrantType,
                 ...(getManagedSignInService
                     ? {
@@ -247,6 +254,24 @@ export class OAuthService extends BaseService {
                 client,
             );
         return this.oauthModel.validateRedirectUri(redirectUri, client);
+    }
+
+    public async isMobileAppAccessDenied(
+        clientId: string,
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const client = await this.oauthModel.getClient(clientId);
+        if (client === false) return false;
+        try {
+            await this.oauthModel.assertMobileAppAccess(
+                client,
+                organizationUuid,
+            );
+            return false;
+        } catch (error) {
+            if (error instanceof MobileOrgDisabledOAuthError) return true;
+            throw error;
+        }
     }
 
     public async token(

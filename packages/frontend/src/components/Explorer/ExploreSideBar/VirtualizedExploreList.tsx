@@ -53,6 +53,7 @@ interface VirtualizedExploreListProps {
     customUngroupedExplores: SummaryExplore[];
     preAggregateExplores: SummaryExplore[];
     externalSourceExplores: SummaryExplore[];
+    liveSourceExplores: SummaryExplore[];
     searchQuery: string;
     connections: WarehouseConnectionForUserCredentials[] | null;
     onExploreClick: (explore: SummaryExplore) => void;
@@ -89,6 +90,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
     customUngroupedExplores,
     preAggregateExplores,
     externalSourceExplores,
+    liveSourceExplores,
     searchQuery,
     connections,
     onExploreClick,
@@ -183,6 +185,64 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
             });
         }
 
+        if (liveSourceExplores.length > 0) {
+            const isLiveSourcesExpanded =
+                expandedSections.has('Live data sources') || !!searchQuery;
+            items.push({ type: 'divider', id: `divider-${itemId++}` });
+            items.push({
+                type: 'section-header',
+                id: `section-${itemId++}`,
+                label: 'Live data sources',
+                // Sources, not explores: GitHub's three explores are one source
+                count: new Set(
+                    liveSourceExplores.map(
+                        (explore) => explore.groupLabel ?? explore.name,
+                    ),
+                ).size,
+                isExpanded: isLiveSourcesExpanded,
+            });
+            if (isLiveSourcesExpanded) {
+                // A source with several explores is a folder, before the
+                // sources with one, like groups in the main list
+                const bySource = groupBy(
+                    liveSourceExplores,
+                    (explore) => explore.groupLabel ?? '',
+                );
+                const folders = Object.keys(bySource).filter(Boolean).sort();
+                for (const sourceName of folders) {
+                    const path = `live-source:${sourceName}`;
+                    const isExpanded =
+                        expandedGroupPaths.has(path) || !!searchQuery;
+                    items.push({
+                        type: 'group-header',
+                        id: `group-${itemId++}`,
+                        label: sourceName,
+                        path,
+                        depth: 0,
+                        isExpanded,
+                    });
+                    if (isExpanded) {
+                        for (const explore of bySource[sourceName]) {
+                            items.push({
+                                type: 'explore',
+                                id: `live-source-${itemId++}`,
+                                explore,
+                                depth: 1,
+                            });
+                        }
+                    }
+                }
+                for (const explore of bySource[''] ?? []) {
+                    items.push({
+                        type: 'explore',
+                        id: `live-source-${itemId++}`,
+                        explore,
+                        depth: 0,
+                    });
+                }
+            }
+        }
+
         if (externalSourceExplores.length > 0) {
             // Auto-expand while searching so matches inside the section are
             // visible without a manual toggle.
@@ -275,6 +335,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
         customUngroupedExplores,
         preAggregateExplores,
         externalSourceExplores,
+        liveSourceExplores,
         expandedGroupPaths,
         expandedSections,
         searchQuery,

@@ -159,17 +159,27 @@ export const useExploreFields = ({
 
     const fields = useMemo((): Field[] | undefined => {
         if (liveConnection) {
-            return live.data
-                ? live.data.fields.map((field) =>
-                      fromLive(field, live.data.exploreName, explore.label),
-                  )
-                : undefined;
+            if (!live.data) return undefined;
+            // The live fields cover the source's first explore; any other
+            // explore of the source shows its compiled fields
+            if (live.data.exploreName === explore.name) {
+                return live.data.fields.map((field) =>
+                    fromLive(field, live.data.exploreName, explore.label),
+                );
+            }
         }
         if (!compiled.data) return undefined;
         return draft
             ? draftedFields(compiled.data, draft)
             : compiledFields(compiled.data);
-    }, [liveConnection, live.data, compiled.data, explore.label, draft]);
+    }, [
+        liveConnection,
+        live.data,
+        compiled.data,
+        explore.name,
+        explore.label,
+        draft,
+    ]);
 
     const details = useMemo((): ExploreDetails | undefined => {
         if (!compiled.data) return undefined;
@@ -183,7 +193,10 @@ export const useExploreFields = ({
         };
     }, [compiled.data]);
 
-    const query = liveConnection ? live : compiled;
+    const query =
+        liveConnection && (!live.data || live.data.exploreName === explore.name)
+            ? live
+            : compiled;
     return {
         fields,
         details,
