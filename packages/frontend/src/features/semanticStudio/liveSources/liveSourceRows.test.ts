@@ -4,7 +4,12 @@ import {
     type ExternalConnectionApiUsage,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { toLiveSourceRows } from './liveSourceRows';
+import {
+    formatFreshness,
+    getLiveSourceFreshness,
+    toLiveSourceRows,
+    type LiveSourceConnection,
+} from './liveSourceRows';
 
 const connection = (
     overrides: Partial<ExternalConnection>,
@@ -92,6 +97,37 @@ describe('toLiveSourceRows', () => {
             apiCalls: '—',
             cacheHits: '—',
             medianLatency: null,
+        });
+    });
+});
+
+describe('live source freshness', () => {
+    it.each([
+        [0, 'Always fetch'],
+        [30, '30 sec'],
+        [60, '1 min'],
+        [900, '15 min'],
+        [3_600, '1 hour'],
+        [86_400, '24 hours'],
+    ])('describes %s seconds as %s', (seconds, label) => {
+        expect(formatFreshness(seconds)).toBe(label);
+    });
+
+    it('uses the integration default until an admin sets a window', () => {
+        const posthog = {
+            apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '1' },
+        } as LiveSourceConnection;
+        expect(getLiveSourceFreshness(posthog)).toMatchObject({
+            seconds: 60,
+            isDefault: true,
+            label: '1 min (default)',
+        });
+        expect(
+            getLiveSourceFreshness({ ...posthog, cacheTtlSeconds: 0 }),
+        ).toMatchObject({
+            seconds: 0,
+            isDefault: false,
+            label: 'Always fetch',
         });
     });
 });

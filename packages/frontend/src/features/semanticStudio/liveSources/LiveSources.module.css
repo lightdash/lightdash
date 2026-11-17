@@ -65,7 +65,7 @@
 
 .summary {
     display: grid;
-    /* Three rows of three: what it reads, how it is used, then its fields. */
+    /* Rows of three: what it reads, how it is used, then its fields. */
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1px;
     flex: none;
@@ -88,6 +88,11 @@
     background: var(--mantine-color-body);
 }
 
+/* A lone stat on the last row fills it instead of leaving empty cells. */
+.stat:last-child:nth-child(3n + 1) {
+    grid-column: 1 / -1;
+}
+
 .statLabel {
     font-size: 12px;
     color: var(--mantine-color-dimmed);
@@ -105,5 +110,13 @@
 @media (max-width: 900px) {
     .summary {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .stat:last-child:nth-child(3n + 1) {
+        grid-column: auto;
+    }
+
+    .stat:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
     }
 }
