@@ -20,7 +20,10 @@ import {
 import MantineIcon from '../../components/common/MantineIcon';
 import { useNavBarMenuProps } from '../../components/NavBar/NavBarPortalContext';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import { isSignInIdle, isWaitingForScan } from './isSignInIdle';
+import { useMobilePitchDismissed } from './mobilePitchDismissed';
 import classes from './MobileSettingsPage.module.css';
 import { useMobileSignInSeen } from './mobileSignInSeen';
 import {
@@ -37,6 +40,7 @@ import {
     type MobileUpsellChoice,
 } from './upsell/getMobileUpsell';
 import { MobileUpsellFrame } from './upsell/MobileUpsellFrame';
+import { type MobilePitchDismissReason } from './upsell/pitchDismiss';
 import {
     useMobileSignInCode,
     type MobileSignInPhase,
@@ -90,6 +94,10 @@ const MobileSignInPopover: FC<{
     const id = useId();
     const [opened, setOpened] = useState(false);
     const { seen, markSeen } = useMobileSignInSeen();
+    const { dismissed: pitchDismissed, dismiss: dismissPitch } =
+        useMobilePitchDismissed();
+    const tracking = useTracking({ failSilently: true });
+    const pitch = pitchDismissed ? null : upsell;
     const preview = usePreviewSignInPhase();
     const liveSignIn = useMobileSignInCode({
         autoShow: opened && !preview.holdsMint,
@@ -100,7 +108,15 @@ const MobileSignInPopover: FC<{
     const isConfirming = signIn.phase === 'claimed';
     const qrPlaceholder = previewSignIn ? <PreviewQrPattern /> : undefined;
     const dropdown = useRef<HTMLDivElement>(null);
+    const phoneButton = useRef<HTMLButtonElement>(null);
+    const returnFocusToButton = useRef(false);
     useKeepFocusInPopover(signIn.phase, dropdown);
+
+    useEffect(() => {
+        if (opened || !returnFocusToButton.current) return;
+        returnFocusToButton.current = false;
+        phoneButton.current?.focus();
+    }, [opened]);
 
     const open = () => {
         setOpened(true);
@@ -110,6 +126,17 @@ const MobileSignInPopover: FC<{
     const close = () => {
         setOpened(false);
         liveSignIn.hide();
+    };
+
+    const onDismissPitch = (reason: MobilePitchDismissReason) => {
+        if (pitch === null) return;
+        tracking?.track({
+            name: EventName.MOBILE_PITCH_DISMISSED,
+            properties: { reason, variation: pitch },
+        });
+        dismissPitch();
+        returnFocusToButton.current = true;
+        close();
     };
 
     return (
@@ -122,7 +149,7 @@ const MobileSignInPopover: FC<{
             offset={-2}
             width={
                 menuProps.withinPortal
-                    ? upsell
+                    ? pitch
                         ? PITCH_POPOVER_WIDTH
                         : POPOVER_WIDTH
                     : undefined
@@ -148,6 +175,7 @@ const MobileSignInPopover: FC<{
                     disabled={opened}
                 >
                     <Button
+                        ref={phoneButton}
                         id={id}
                         aria-label={MOBILE_STRINGS.signInTitle}
                         aria-haspopup="dialog"
@@ -163,7 +191,7 @@ const MobileSignInPopover: FC<{
                             size={12}
                             color="red"
                             offset={1}
-                            disabled={seen}
+                            disabled={seen || pitchDismissed}
                         >
                             <MantineIcon icon={IconDeviceMobile} />
                         </Indicator>
@@ -173,7 +201,8 @@ const MobileSignInPopover: FC<{
             </Popover.Target>
             <Popover.Dropdown ref={dropdown}>
                 <MobileUpsellFrame
-                    variation={upsell}
+                    variation={pitch}
+                    onDismiss={pitch ? onDismissPitch : undefined}
                     isIdle={isSignInIdle(signIn)}
                     isWaitingForScan={isWaitingForScan(signIn)}
                     isSignedIn={signIn.phase === 'redeemed'}
