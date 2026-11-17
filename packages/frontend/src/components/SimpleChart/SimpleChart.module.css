@@ -1,0 +1,73 @@
+/* Hosts the ghost axis labels over a chart that can be sorted */
+.sortHost {
+    position: relative;
+    width: 100%;
+    min-height: inherit;
+}
+
+.sortHost[data-expand] {
+    height: 100%;
+}
+
+/* Stands in for an axis title the chart does not draw, and reads like one */
+.ghostAxis {
+    position: absolute;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 6px;
+    border-radius: var(--mantine-radius-sm);
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    line-height: 18px;
+    white-space: nowrap;
+    opacity: 0;
+    transition:
+        opacity 140ms ease,
+        color 140ms ease,
+        background-color 140ms ease;
+}
+
+/* Where each axis title would be drawn */
+.ghostAxis[data-side='left'] {
+    top: 50%;
+    left: 12px;
+    transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.ghostAxis[data-side='right'] {
+    top: 50%;
+    right: 12px;
+    transform: translate(50%, -50%) rotate(-90deg);
+}
+
+.ghostAxis[data-side='bottom'] {
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.ghostAxis[data-side='top'] {
+    top: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* The label is turned on its side; the sort arrow stays upright */
+.ghostAxis[data-side='left'] svg,
+.ghostAxis[data-side='right'] svg {
+    transform: rotate(90deg);
+}
+
+.sortHost:hover .ghostAxis {
+    opacity: 0.75;
+}
+
+.ghostAxis:hover,
+.ghostAxis:focus-visible {
+    color: var(--mantine-color-blue-light-color);
+    background-color: var(--mantine-color-blue-light);
+    opacity: 1 !important;
+}

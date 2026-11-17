@@ -1,13 +1,11 @@
 import { formatItemValue, isField, type SortField } from '@lightdash/common';
+import { ActionIcon, Box, Group, Select, Text, Tooltip } from '@mantine/core';
 import {
-    ActionIcon,
-    Box,
-    Group,
-    SegmentedControl,
-    Text,
-    Tooltip,
-} from '@mantine/core';
-import { IconGripVertical, IconMinus } from '@tabler/icons-react';
+    IconGripVertical,
+    IconSortAscending,
+    IconSortDescending,
+    IconX,
+} from '@tabler/icons-react';
 import clsx from 'clsx';
 import { type FC, useMemo } from 'react';
 import { useColumns } from '../../hooks/useColumns';
@@ -19,31 +17,35 @@ import {
     SortNullsFirst,
     sortNullsFirstLabels,
 } from '../../utils/sortUtils';
+import FieldIcon from '../common/Filters/FieldIcon';
 import MantineIcon from '../common/MantineIcon';
 import { type SortableItemState } from '../common/Sortable/Sortable';
 import { type TableColumn } from '../common/Table/types';
 import classes from './SortItem.module.css';
 
 interface SortItemProps {
-    isFirstItem: boolean;
     isOnlyItem: boolean;
     isEditMode: boolean;
     sort: SortField;
     column?: TableColumn;
+    /** This sort's own field plus every column not sorted yet. */
+    fieldOptions: { value: string; label: string }[];
     sortable: SortableItemState;
     onAddSortField: (options: { descending: boolean }) => void;
+    onChangeField: (fieldId: string) => void;
     onRemoveSortField: () => void;
     onSetSortFieldNullsFirst: (nullsFirst: boolean | undefined) => void;
 }
 
 const SortItem: FC<SortItemProps> = ({
-    isFirstItem,
     isOnlyItem,
     isEditMode,
     sort,
     column,
+    fieldOptions,
     sortable,
     onAddSortField,
+    onChangeField,
     onRemoveSortField,
     onSetSortFieldNullsFirst,
 }) => {
@@ -84,98 +86,127 @@ const SortItem: FC<SortItemProps> = ({
             // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
             style={sortable.style}
             wrap="nowrap"
-            justify="space-between"
-            pl="xs"
-            pr="xxs"
-            py="two"
-            miw={560}
+            gap="xs"
             className={clsx(
                 sortable.className,
                 classes.sortItem,
                 sortable.isDragging && classes.sortItemDragging,
             )}
         >
-            <Group gap="xs">
-                {isEditMode && !isOnlyItem && (
-                    <Box
-                        {...sortable.handleProps}
-                        className={clsx(
-                            sortable.handleProps.className,
-                            classes.dragHandle,
-                        )}
-                    >
-                        <MantineIcon icon={IconGripVertical} />
-                    </Box>
-                )}
+            {isEditMode && (
+                <Box
+                    {...sortable.handleProps}
+                    className={clsx(
+                        sortable.handleProps.className,
+                        classes.dragHandle,
+                    )}
+                    data-disabled={isOnlyItem || undefined}
+                >
+                    <MantineIcon icon={IconGripVertical} />
+                </Box>
+            )}
 
-                <Text fz="xs">{isFirstItem ? 'Sort by' : 'then by'}</Text>
-
-                <Text fz="sm" fw={500}>
-                    {(isField(item) ? item.label : item.name) || sort.fieldId}
-                </Text>
-
-                {pivotLabel && (
-                    <Text fz="xs" c="dimmed">
+            {pivotLabel ? (
+                // A sort on one pivoted column keeps its field: changing it
+                // would drop the pivot value it points at
+                <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
+                    <Text fz="xs" fw={500} truncate>
+                        {(isField(item) ? item.label : item.name) ||
+                            sort.fieldId}
+                    </Text>
+                    <Text fz="xs" c="dimmed" truncate>
                         @ {pivotLabel}
                     </Text>
-                )}
-            </Group>
-
-            <Group gap="xs">
-                <SegmentedControl
-                    disabled={!isEditMode}
-                    value={selectedSortDirection}
+                </Group>
+            ) : (
+                <Select
+                    aria-label="Sort field"
                     size="xs"
-                    color="ldDark.5"
-                    data={getSortDirectionOrder(item).map((direction) => ({
-                        label: getSortLabel(item, direction),
-                        value: direction,
-                    }))}
+                    flex={1}
+                    miw={180}
+                    searchable
+                    allowDeselect={false}
+                    disabled={!isEditMode}
+                    leftSection={<FieldIcon item={item} size={12} stroke={2} />}
+                    data={fieldOptions}
+                    value={sort.fieldId}
                     onChange={(value) => {
-                        if (value) {
-                            onAddSortField({
-                                descending: value === SortDirection.DESC,
-                            });
+                        if (value && value !== sort.fieldId) {
+                            onChangeField(value);
                         }
                     }}
+                    comboboxProps={{ withinPortal: false }}
                 />
+            )}
 
-                <Text ml="lg" fz="xs" fw={500}>
-                    Nulls
-                </Text>
-
-                <SegmentedControl
-                    disabled={!isEditMode}
-                    value={selectedSortNullsFirst}
-                    size="xs"
-                    color="ldDark.5"
-                    data={Object.entries(sortNullsFirstLabels).map(
-                        ([value, label]) => ({
-                            label,
-                            value,
-                        }),
-                    )}
-                    onChange={(value) => {
-                        if (value) {
-                            onSetSortFieldNullsFirst(
-                                value === SortNullsFirst.FIRST
-                                    ? true
-                                    : value === SortNullsFirst.LAST
-                                      ? false
-                                      : undefined,
-                            );
+            <Select
+                aria-label="Sort direction"
+                size="xs"
+                w={104}
+                allowDeselect={false}
+                disabled={!isEditMode}
+                leftSection={
+                    <MantineIcon
+                        icon={
+                            sort.descending
+                                ? IconSortDescending
+                                : IconSortAscending
                         }
-                    }}
-                />
+                    />
+                }
+                data={getSortDirectionOrder(item).map((direction) => ({
+                    label: getSortLabel(item, direction),
+                    value: direction,
+                }))}
+                value={selectedSortDirection}
+                onChange={(value) => {
+                    if (value) {
+                        onAddSortField({
+                            descending: value === SortDirection.DESC,
+                        });
+                    }
+                }}
+                comboboxProps={{ withinPortal: false }}
+            />
 
-                {isEditMode && (
-                    <Tooltip label="Remove sort">
-                        <ActionIcon onClick={onRemoveSortField} size="xs">
-                            <MantineIcon icon={IconMinus} />
-                        </ActionIcon>
-                    </Tooltip>
+            <Select
+                aria-label="Nulls position"
+                size="xs"
+                w={132}
+                allowDeselect={false}
+                disabled={!isEditMode}
+                data={Object.entries(sortNullsFirstLabels).map(
+                    ([value, label]) => ({
+                        label: `Nulls ${label.toLowerCase()}`,
+                        value,
+                    }),
                 )}
-            </Group>
+                value={selectedSortNullsFirst}
+                onChange={(value) => {
+                    if (value) {
+                        onSetSortFieldNullsFirst(
+                            value === SortNullsFirst.FIRST
+                                ? true
+                                : value === SortNullsFirst.LAST
+                                  ? false
+                                  : undefined,
+                        );
+                    }
+                }}
+                comboboxProps={{ withinPortal: false }}
+            />
+
+            {isEditMode && (
+                <Tooltip label="Remove sort">
+                    <ActionIcon
+                        aria-label="Remove sort"
+                        onClick={onRemoveSortField}
+                        size="sm"
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
         </Group>
     );
 };

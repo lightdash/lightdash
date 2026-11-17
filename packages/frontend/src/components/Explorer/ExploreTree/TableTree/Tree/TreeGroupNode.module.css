@@ -1,5 +1,6 @@
 .chevron {
-    margin: 1px;
+    margin-inline: 1px;
+    color: var(--mantine-color-text);
     transition: transform 200ms ease;
     transform: rotate(0deg);
 

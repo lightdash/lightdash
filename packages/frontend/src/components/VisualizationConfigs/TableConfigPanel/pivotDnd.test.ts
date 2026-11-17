@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { DroppableIds, findPivotList, getPivotDrop } from './pivotDnd';
+import {
+    canDropInPivotList,
+    DroppableIds,
+    findPivotList,
+    getPivotDrop,
+} from './pivotDnd';
 
 const lists = {
     [DroppableIds.COLUMNS]: ['c1', 'c2'],
@@ -49,5 +54,63 @@ describe('getPivotDrop', () => {
             source: { droppableId: DroppableIds.ROWS, index: 0 },
             destination: { droppableId: DroppableIds.METRICS, index: 0 },
         });
+    });
+});
+
+describe('canDropInPivotList', () => {
+    const dimension = { isDimension: true, isValueField: false };
+    const metric = { isDimension: false, isValueField: true };
+
+    it('lets dimensions move between rows and columns', () => {
+        expect(
+            canDropInPivotList(
+                DroppableIds.ROWS,
+                DroppableIds.COLUMNS,
+                dimension,
+            ),
+        ).toBe(true);
+        expect(
+            canDropInPivotList(
+                DroppableIds.COLUMNS,
+                DroppableIds.ROWS,
+                dimension,
+            ),
+        ).toBe(true);
+        expect(
+            canDropInPivotList(
+                DroppableIds.ROWS,
+                DroppableIds.METRICS,
+                dimension,
+            ),
+        ).toBe(false);
+    });
+
+    it('lets value fields move between rows and metrics, never to columns', () => {
+        expect(
+            canDropInPivotList(DroppableIds.METRICS, DroppableIds.ROWS, metric),
+        ).toBe(true);
+        expect(
+            canDropInPivotList(DroppableIds.ROWS, DroppableIds.METRICS, metric),
+        ).toBe(true);
+        expect(
+            canDropInPivotList(
+                DroppableIds.METRICS,
+                DroppableIds.COLUMNS,
+                metric,
+            ),
+        ).toBe(false);
+    });
+
+    it('reorders within rows and columns but not within metrics', () => {
+        expect(
+            canDropInPivotList(DroppableIds.ROWS, DroppableIds.ROWS, dimension),
+        ).toBe(true);
+        expect(
+            canDropInPivotList(
+                DroppableIds.METRICS,
+                DroppableIds.METRICS,
+                metric,
+            ),
+        ).toBe(false);
     });
 });

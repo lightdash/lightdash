@@ -58,7 +58,7 @@ const GroupHeader: FC<GroupHeaderProps> = ({
                         offset={0}
                     >
                         <Group>
-                            <Text fz="sm" fw={500} c="dimmed">
+                            <Text fz="sm" fw={500} className={classes.label}>
                                 {label}
                             </Text>
                         </Group>
