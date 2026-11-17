@@ -74,7 +74,7 @@ const Pitch = ({
     const copy = UPSELL_STRINGS[variation];
     const Graphic = GRAPHICS[variation];
     const canDismiss = onDismiss !== undefined && isIdle && !isSignedIn;
-    if (askingWhy && onDismiss) {
+    if (askingWhy && canDismiss && onDismiss) {
         return (
             <div
                 className={classes.frame}
