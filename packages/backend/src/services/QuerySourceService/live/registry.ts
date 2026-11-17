@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     type ExternalConnectionApiSource,
 } from '@lightdash/common';
+import { attioIntegration } from './integrations/attio';
 import { ga4Integration } from './integrations/ga4';
 import { githubIntegration } from './integrations/github';
 import { googleAdsIntegration } from './integrations/googleAds';
@@ -27,6 +28,7 @@ const LIVE_INTEGRATIONS: {
     [ApiConnectorType.LINKEDIN_ADS]: linkedInAdsIntegration,
     [ApiConnectorType.GITHUB]: githubIntegration,
     [ApiConnectorType.PYLON]: pylonIntegration,
+    [ApiConnectorType.ATTIO]: attioIntegration,
 };
 
 export const getLiveIntegration = (

@@ -2,6 +2,11 @@
 
 exports[`connector capability declarations > the summable tags 1`] = `
 {
+  "attio": {
+    "count": {
+      "aggregation": "additive",
+    },
+  },
   "ga4": {
     "active_users": {
       "aggregation": "non_additive",

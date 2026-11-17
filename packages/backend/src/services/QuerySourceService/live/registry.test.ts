@@ -57,6 +57,10 @@ const SAMPLE_SETTINGS: {
     [ApiConnectorType.PYLON]: {
         connector: ApiConnectorType.PYLON,
     },
+    [ApiConnectorType.ATTIO]: {
+        connector: ApiConnectorType.ATTIO,
+        object: 'companies',
+    },
 };
 
 const SERVER_ERROR: LiveHttpResponse = {

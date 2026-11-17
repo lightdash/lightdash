@@ -5,7 +5,9 @@ import {
     REQUESTABLE_LIVE_INTEGRATIONS,
     type LiveIntegrationCatalogEntry,
 } from '@lightdash/common';
+import { ATTIO_TOKEN_FORM } from './attioConnection';
 import { GITHUB_TOKEN_FORM } from './githubConnection';
+import attioIcon from './icons/attio.svg';
 import githubIcon from './icons/github.svg';
 import googleAdsIcon from './icons/google-ads.svg';
 import googleAnalyticsIcon from './icons/google-analytics.svg';
@@ -61,6 +63,7 @@ const ICONS: Record<string, string> = {
     [ApiConnectorType.YOUTUBE_ANALYTICS]: youtubeAnalyticsIcon,
     [ApiConnectorType.GITHUB]: githubIcon,
     [ApiConnectorType.PYLON]: pylonIcon,
+    [ApiConnectorType.ATTIO]: attioIcon,
     shopify: shopifyIcon,
     stripe: stripeIcon,
     salesforce: salesforceIcon,
@@ -79,6 +82,7 @@ const DISPLAY_ORDER = [
     ApiConnectorType.YOUTUBE_ANALYTICS,
     ApiConnectorType.GITHUB,
     ApiConnectorType.PYLON,
+    ApiConnectorType.ATTIO,
 ] as const satisfies readonly ApiConnectorType[];
 
 /** The form of each integration connected with an account id and a token. */
@@ -86,6 +90,7 @@ const TOKEN_FORMS: Partial<Record<ApiConnectorType, TokenLiveSourceForm>> = {
     [ApiConnectorType.META_ADS]: META_ADS_TOKEN_FORM,
     [ApiConnectorType.GITHUB]: GITHUB_TOKEN_FORM,
     [ApiConnectorType.PYLON]: PYLON_TOKEN_FORM,
+    [ApiConnectorType.ATTIO]: ATTIO_TOKEN_FORM,
 };
 
 const toSetup = (entry: LiveIntegrationCatalogEntry): LiveSourceSetup => {
