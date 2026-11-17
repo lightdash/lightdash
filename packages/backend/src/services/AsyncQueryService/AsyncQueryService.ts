@@ -9451,18 +9451,24 @@ export class AsyncQueryService extends ProjectService {
         filterOverrides,
         schedulerFilters,
         dashboardFilters,
+        includeUnpublishedDraft,
         userAttributeOverrides,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncSavedChartQueryResults> {
         // Check user is in organization
         assertIsAccountWithOrg(account);
 
-        const storedChart = await this.savedChartModel.get(
+        const publishedChart = await this.savedChartModel.get(
             chartUuid,
             versionUuid,
             {
                 projectUuid,
             },
         );
+        // A chart version is a fixed point in history, never the draft
+        const storedChart =
+            includeUnpublishedDraft && !versionUuid
+                ? await this.applyOpenChartDraft(account, publishedChart)
+                : publishedChart;
         // Applied to the stored chart so merge queries built from it see the
         // delivery's filters too. The delivery runs as its creator, so this is
         // where a creator who lost explore access stops widening the chart.
@@ -9988,7 +9994,7 @@ export class AsyncQueryService extends ProjectService {
             chart,
             (draftUuid, error) =>
                 this.logger.warn(
-                    `Ignoring invalid chart draft ${draftUuid} while running dashboard tile`,
+                    `Ignoring invalid chart draft ${draftUuid} while running its query`,
                     error,
                 ),
         );
