@@ -74,7 +74,7 @@ const isAbortError = (error: unknown) =>
     error instanceof DOMException && error.name === 'AbortError';
 const imageBudgetError = () =>
     new Error(
-        'Attach up to 5 images per message, and 10 images or 12 MiB per conversation. Remove an image or start a new conversation.',
+        `Attach up to ${AI_THREAD_IMAGES_MAX_PER_PROMPT} images per message, and ${AI_THREAD_IMAGES_MAX_PER_THREAD} images or ${AI_THREAD_IMAGES_MAX_THREAD_BYTES / (1024 * 1024)} MiB per conversation. Remove an image or start a new conversation.`,
     );
 /** Images earlier messages already added to the conversation. */
 export type SentThreadImages = { count: number; bytes: number };
