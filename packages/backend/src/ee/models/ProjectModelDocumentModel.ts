@@ -454,12 +454,12 @@ export class ProjectModelDocumentModel {
         );
     }
 
-    /** The latest change anyone else published to each of these models after the given time. */
+    /** The latest change published to each of these models after the given time, by anyone, marking the person's own. */
     async findPublishedSince(
         projectUuid: string,
         userUuid: string,
         since: Map<string, Date>,
-    ): Promise<Map<string, { by: string | null; at: Date }>> {
+    ): Promise<Map<string, { by: string | null; at: Date; isYours: boolean }>> {
         if (since.size === 0) return new Map();
         const rows = await this.database(ProjectModelRevisionsTableName)
             .innerJoin(
@@ -478,12 +478,14 @@ export class ProjectModelDocumentModel {
                     firstName: string | null;
                     lastName: string | null;
                     at: Date;
+                    publisherUuid: string | null;
                 }[]
             >({
                 model: `${ProjectModelRevisionsTableName}.name`,
                 firstName: `${UserTableName}.first_name`,
                 lastName: `${UserTableName}.last_name`,
                 at: `${ProjectModelChangeSetsTableName}.created_at`,
+                publisherUuid: `${ProjectModelChangeSetsTableName}.created_by_user_uuid`,
             })
             .where(
                 `${ProjectModelChangeSetsTableName}.project_uuid`,
@@ -500,36 +502,29 @@ export class ProjectModelDocumentModel {
                     Math.min(...[...since.values()].map((at) => at.getTime())),
                 ),
             )
-            .where((builder) =>
-                builder
-                    .whereNull(
-                        `${ProjectModelChangeSetsTableName}.created_by_user_uuid`,
-                    )
-                    .orWhereNot(
-                        `${ProjectModelChangeSetsTableName}.created_by_user_uuid`,
-                        userUuid,
-                    ),
-            )
             .orderBy(`${ProjectModelChangeSetsTableName}.created_at`, 'asc');
         // Oldest first, so the last one kept for a model is its latest.
         return new Map(
-            rows.flatMap(({ model, firstName, lastName, at }) => {
-                const started = since.get(model);
-                return started && at > started
-                    ? [
-                          [
-                              model,
-                              {
-                                  by:
-                                      firstName === null
-                                          ? null
-                                          : `${firstName} ${lastName ?? ''}`.trim(),
-                                  at,
-                              },
-                          ],
-                      ]
-                    : [];
-            }),
+            rows.flatMap(
+                ({ model, firstName, lastName, at, publisherUuid }) => {
+                    const started = since.get(model);
+                    return started && at > started
+                        ? [
+                              [
+                                  model,
+                                  {
+                                      by:
+                                          firstName === null
+                                              ? null
+                                              : `${firstName} ${lastName ?? ''}`.trim(),
+                                      at,
+                                      isYours: publisherUuid === userUuid,
+                                  },
+                              ],
+                          ]
+                        : [];
+                },
+            ),
         );
     }
 

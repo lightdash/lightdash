@@ -169,7 +169,10 @@ const setup = ({
     previewOf?: string;
     previewExplores?: Record<string, Explore | ExploreError>;
     previewCompile?: JobStatusType | null;
-    publishedSince?: Map<string, { by: string | null; at: Date }>;
+    publishedSince?: Map<
+        string,
+        { by: string | null; at: Date; isYours: boolean }
+    >;
     enabled?: boolean;
     /** A repository connection makes `stored` the models in that repository. */
     dbtConnection?: Project['dbtConnection'];
@@ -1466,7 +1469,7 @@ describe('SemanticStudioService', () => {
                     },
                 ],
                 publishedSince: new Map([
-                    ['orders', { by: 'Grace Hopper', at }],
+                    ['orders', { by: 'Grace Hopper', at, isYours: false }],
                 ]),
             });
             await context.service.proposeDraftChange(
@@ -1483,7 +1486,7 @@ describe('SemanticStudioService', () => {
                 expect.objectContaining({
                     model: 'orders',
                     alsoChanging: [{ name: 'Ada Lovelace', paths: ['label'] }],
-                    publishedSince: { by: 'Grace Hopper', at },
+                    publishedSince: { by: 'Grace Hopper', at, isYours: false },
                 }),
             ]);
         });
