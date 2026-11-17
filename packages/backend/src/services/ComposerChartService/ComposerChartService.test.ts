@@ -630,7 +630,7 @@ describe('ComposerChartService.run', () => {
     };
 
     test('resolves the dashboard saved filters and parameter state for a run without app state', async () => {
-        const { service, asyncQueryService } = setupRun();
+        const { service, asyncQueryService, submitComposerRun } = setupRun();
         await service.runWithSavedDashboardState(
             viewer(),
             projectUuid,
@@ -643,6 +643,9 @@ describe('ComposerChartService.run', () => {
                 parameters: undefined,
                 excludedParameterKeys: undefined,
             }),
+        );
+        expect(submitComposerRun).toHaveBeenCalledWith(
+            expect.objectContaining({ context: QueryExecutionContext.AI }),
         );
     });
 

@@ -77,8 +77,9 @@ type ComposerChartServiceArguments = {
     >;
 };
 
-/** Where a bound run is recorded in query history: a dashboard view, a scheduled delivery or a dashboard CSV export. */
+/** Where a bound run is recorded in query history: a dashboard view, a scheduled delivery, a dashboard CSV export or an AI agent. */
 export type ComposerChartRunContext =
+    | QueryExecutionContext.AI
     | QueryExecutionContext.DASHBOARD
     | QueryExecutionContext.SCHEDULED_DELIVERY
     | QueryExecutionContext.CSV;
@@ -672,6 +673,7 @@ export class ComposerChartService extends BaseService {
             dashboardUuid: request.dashboardUuid,
             tileUuid: request.tileUuid,
             invalidateCache: request.invalidateCache,
+            context,
             dashboardState: {
                 type: 'request',
                 dashboardFilters: request.dashboardFilters,
@@ -693,6 +695,7 @@ export class ComposerChartService extends BaseService {
     ): Promise<ComposerChartRunResults> {
         return this.runOnTile(account, projectUuid, composerChartUuid, {
             ...tile,
+            context: QueryExecutionContext.AI,
             dashboardState: { type: 'saved' },
         });
     }
@@ -705,6 +708,7 @@ export class ComposerChartService extends BaseService {
             ComposerChartRunRequest,
             'dashboardUuid' | 'tileUuid' | 'invalidateCache'
         > & {
+            context: ComposerChartRunContext;
             dashboardState:
                 | ({ type: 'request' } & Pick<
                       ComposerChartRunRequest,
@@ -807,7 +811,7 @@ export class ComposerChartService extends BaseService {
                     account,
                     projectUuid,
                     binding,
-                    context,
+                    context: request.context,
                     invalidateCache: request.invalidateCache,
                 }),
         );
