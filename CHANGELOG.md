@@ -1,3 +1,10 @@
+# [3.298.0](https://github.com/lightdash/lightdash/compare/3.297.0...3.298.0) (2026-11-17)
+
+
+### Features
+
+* **frontend:** pre-aggregate card in Semantic Studio with a sample, daily usage, chart misses and details ([#32796](https://github.com/lightdash/lightdash/issues/32796)) ([b82dda2](https://github.com/lightdash/lightdash/commit/b82dda29538dc79a5c21bccb41dc7e8d3a61d0f1))
+
 # [3.297.0](https://github.com/lightdash/lightdash/compare/3.296.0...3.297.0) (2026-11-17)
 
 
