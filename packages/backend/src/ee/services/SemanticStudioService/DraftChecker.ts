@@ -8,6 +8,7 @@ import {
     JoinRelationship,
     MetricType,
     parseModelDocument,
+    preAggregatePostProcessor,
     QueryExecutionContext,
     setModelJoinRelationships,
     type Account,
@@ -144,6 +145,8 @@ const compileDocuments = async (
         ),
         warehouseSqlBuilder,
         lightdashProjectConfig: { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        // Without this a model's pre_aggregates are dropped, as the CLI and repository compilers keep them.
+        postProcessors: [preAggregatePostProcessor],
     });
     return { explores, quote: warehouseSqlBuilder.getFieldQuoteChar() };
 };
