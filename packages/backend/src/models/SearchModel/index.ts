@@ -231,7 +231,7 @@ export class SearchModel {
                 `${DashboardVersionsTableName} as last_version`,
             ),
             on: this.database.raw(
-                `last_version.dashboard_id = ${DashboardsTableName}.dashboard_id AND last_version.dashboard_version_id = (SELECT MAX(dashboard_version_id) FROM ${DashboardVersionsTableName} WHERE dashboard_id = ${DashboardsTableName}.dashboard_id)`,
+                `last_version.dashboard_id = ${DashboardsTableName}.dashboard_id AND last_version.dashboard_version_id = (SELECT dashboard_version_id FROM ${DashboardVersionsTableName} WHERE dashboard_id = ${DashboardsTableName}.dashboard_id ORDER BY created_at DESC, dashboard_version_id DESC LIMIT 1)`,
             ),
         };
 
@@ -322,11 +322,22 @@ export class SearchModel {
                 'eligible_dashboards.dashboard_id',
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
-            .select(`${DashboardVersionsTableName}.dashboard_id`)
-            .max(
-                `${DashboardVersionsTableName}.dashboard_version_id as dashboard_version_id`,
+            .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
+            .select(
+                `${DashboardVersionsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_version_id`,
             )
-            .groupBy(`${DashboardVersionsTableName}.dashboard_id`);
+            .orderBy([
+                { column: `${DashboardVersionsTableName}.dashboard_id` },
+                {
+                    column: `${DashboardVersionsTableName}.created_at`,
+                    order: 'desc',
+                },
+                {
+                    column: `${DashboardVersionsTableName}.dashboard_version_id`,
+                    order: 'desc',
+                },
+            ]);
 
         const tileChartMatches = this.database('matching_charts')
             .innerJoin(

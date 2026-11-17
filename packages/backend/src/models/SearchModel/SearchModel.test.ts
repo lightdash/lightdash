@@ -45,6 +45,15 @@ describe('SearchModel dashboard tile charts', () => {
         await model.searchDashboards('project-uuid', 'query');
 
         expectLatestVersionTiles();
+        // matching and last-modified must pick the same version as the tiles
+        const allSql = tracker.history.all.map(({ sql }) => sql).join('\n');
+        expect(allSql).not.toMatch(/max\([^)]*dashboard_version_id/i);
+        expect(allSql).toContain(
+            'ORDER BY created_at DESC, dashboard_version_id DESC LIMIT 1',
+        );
+        expect(allSql).toContain(
+            `distinct on ("${DashboardVersionsTableName}"."dashboard_id")`,
+        );
     });
 
     it('reads only the latest version when listing dashboard charts', async () => {
