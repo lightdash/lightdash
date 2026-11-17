@@ -66,6 +66,21 @@ export default defineConfig({
     test: {
         clearMocks: false,
         maxWorkers: baseConfig.test.maxWorkers,
+        // What `--changed` treats as changed, and the files that make it run everything.
+        experimental: {
+            vcsProvider: path.resolve(
+                __dirname,
+                '../../scripts/vitest-changed-files.mjs',
+            ),
+        },
+        forceRerunTriggers: [
+            '**/package.json',
+            '**/pnpm-lock.yaml',
+            '**/{vitest,vite}.config.*',
+            '**/tsconfig*.json',
+            '**/packages/backend/setupVitest.ts',
+            '**/scripts/vitest-changed-files.mjs',
+        ],
         projects: [
             {
                 extends: false,
