@@ -78,7 +78,6 @@ type ContentProps = HeaderActionHandlers & {
 const DashboardChartEditorView: FC<
     Pick<
         ContentProps,
-        | 'editChart'
         | 'onExploreSelect'
         | 'onBackToTables'
         | 'onOpenChartPage'
@@ -88,7 +87,6 @@ const DashboardChartEditorView: FC<
         title: string;
     }
 > = ({
-    editChart,
     onExploreSelect,
     onBackToTables,
     onOpenChartPage,
@@ -99,31 +97,27 @@ const DashboardChartEditorView: FC<
     const rightSidebarProps = useChartGalleryRightSidebar({ enabled: true });
 
     return (
-        <MergeProvider savedMerge={editChart?.merge ?? null}>
-            <Page
-                withContainerHeight
-                title={title}
-                sidebar={
-                    <ExploreSideBar
-                        onExploreClick={(explore) =>
-                            onExploreSelect(explore.name)
-                        }
-                        onBackToTables={onBackToTables}
-                    />
-                }
-                isSidebarOpen
-                {...rightSidebarProps}
-                withFullHeight
-                withPaddedContent
-            >
-                <DashboardChartEditorHeaderActions
-                    onOpenChartPage={onOpenChartPage}
-                    onOpenVersionHistory={onOpenVersionHistory}
-                    onDeleted={onDeleted}
+        <Page
+            withContainerHeight
+            title={title}
+            sidebar={
+                <ExploreSideBar
+                    onExploreClick={(explore) => onExploreSelect(explore.name)}
+                    onBackToTables={onBackToTables}
                 />
-                <Explorer />
-            </Page>
-        </MergeProvider>
+            }
+            isSidebarOpen
+            {...rightSidebarProps}
+            withFullHeight
+            withPaddedContent
+        >
+            <DashboardChartEditorHeaderActions
+                onOpenChartPage={onOpenChartPage}
+                onOpenVersionHistory={onOpenVersionHistory}
+                onDeleted={onDeleted}
+            />
+            <Explorer />
+        </Page>
     );
 };
 
@@ -158,19 +152,21 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
 
     return (
         <Provider store={store}>
-            <ExplorerEffects />
-            <UnsavedChangesBridge onDirtyChange={onDirtyChange} />
-            {withUrlSync && <ChartEditorUrlSync />}
-            <SavedChartMetadataBridge chart={chartOnServer} />
-            <DashboardChartEditorView
-                editChart={editChart}
-                onExploreSelect={onExploreSelect}
-                onBackToTables={onBackToTables}
-                onOpenChartPage={onOpenChartPage}
-                onOpenVersionHistory={onOpenVersionHistory}
-                onDeleted={onDeleted}
-                title={data ? data.label : 'Tables'}
-            />
+            {/* The merge context gates the query effects and the sidebar too */}
+            <MergeProvider savedMerge={editChart?.merge ?? null}>
+                <ExplorerEffects />
+                <UnsavedChangesBridge onDirtyChange={onDirtyChange} />
+                {withUrlSync && <ChartEditorUrlSync />}
+                <SavedChartMetadataBridge chart={chartOnServer} />
+                <DashboardChartEditorView
+                    onExploreSelect={onExploreSelect}
+                    onBackToTables={onBackToTables}
+                    onOpenChartPage={onOpenChartPage}
+                    onOpenVersionHistory={onOpenVersionHistory}
+                    onDeleted={onDeleted}
+                    title={data ? data.label : 'Tables'}
+                />
+            </MergeProvider>
         </Provider>
     );
 };
