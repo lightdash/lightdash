@@ -1038,6 +1038,19 @@ describe('SemanticStudioService', () => {
             expect(explores?.has('explore_1')).toBe(false);
         });
 
+        it('does not hide live models while the preview holds only explores copied into it', async () => {
+            const explores = await dbt({
+                previewExplores: {
+                    copied: { ...branch, type: ExploreType.VIRTUAL },
+                },
+            }).service.findPreviewExplores(
+                repoWriter,
+                PROJECT_UUID,
+                PREVIEW_UUID,
+            );
+            expect(explores?.get('explore_0')).not.toBeNull();
+        });
+
         it('is nothing for a preview of another project, a person who cannot write, or a project that keeps a draft', async () => {
             expect(
                 await dbt({

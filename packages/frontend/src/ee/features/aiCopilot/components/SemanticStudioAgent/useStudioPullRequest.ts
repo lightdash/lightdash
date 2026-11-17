@@ -1,16 +1,18 @@
 import {
+    isAiWritebackRunInProgress,
     isToolEditDbtProjectResult,
     type ApiError,
     type CiChecks,
     type SemanticStudioWorkspace,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useStudioWorkspaces } from '../../../../../features/semanticStudio/useStudioWorkspaces';
 import { findPreviewProjectUuid } from '../../../../../features/semanticStudio/useTryInExplore';
 import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import { pullRequestCiChecksQuery } from '../../hooks/usePullRequestCiChecks';
 import { useWholePullRequestDiff } from '../../hooks/usePullRequestDiff';
+import { useWritebackRunStatus } from '../../hooks/useWritebackRunStatus';
 import {
     getModelsOfFiles,
     splitPatchIntoFiles,
@@ -134,7 +136,7 @@ export const useStudioPendingChange = (
     projectUuid: string,
 ): StudioPendingChange | null => {
     const { thread } = useStudioAgent(projectUuid);
-    const { data } = useStudioThread(
+    const { data, refetch } = useStudioThread(
         projectUuid,
         thread?.agent.uuid,
         thread?.threadUuid,
@@ -147,6 +149,18 @@ export const useStudioPendingChange = (
                 : [],
         )
         .at(-1);
+    const runUuid =
+        latest?.metadata.status === 'pending'
+            ? latest.metadata.aiWritebackRunUuid
+            : null;
+    const { data: run } = useWritebackRunStatus(projectUuid, runUuid);
+    const hasRunEnded = !!run && !isAiWritebackRunInProgress(run.status);
+    // A run ends before its result is written to the thread, so the thread is read again until it has it.
+    useEffect(() => {
+        if (!runUuid || !hasRunEnded) return undefined;
+        const timer = setInterval(() => void refetch(), 3_000);
+        return () => clearInterval(timer);
+    }, [runUuid, hasRunEnded, refetch]);
     return latest?.metadata.status === 'pending'
         ? {
               aiWritebackRunUuid: latest.metadata.aiWritebackRunUuid,

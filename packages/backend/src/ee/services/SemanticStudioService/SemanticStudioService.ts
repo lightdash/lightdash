@@ -1054,8 +1054,8 @@ export class SemanticStudioService extends BaseService {
             this.projectModel.getAllExploreSummaries(projectUuid),
             this.projectModel.findExploresFromCache(previewProjectUuid, 'name'),
         ]);
-        // A preview has no explores until its first compile; until then the person's own compiled change stands in.
-        if (Object.keys(explores).length === 0) {
+        // Until its first compile a preview holds only the explores copied into it; the person's own compiled change stands in.
+        if (Object.values(explores).every(isUserManagedExplore)) {
             return this.findDbtTryOutExplores(user, projectUuid);
         }
         return new Map<string, Explore | ExploreError | null>([
