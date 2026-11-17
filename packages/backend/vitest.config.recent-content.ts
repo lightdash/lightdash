@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import unitConfig from './vitest.config';
+import { baseConfig as unitConfig } from './vitest.config';
 
 // PostgreSQL only: these tests do not bootstrap an app or require an EE license.
 export default defineConfig({
