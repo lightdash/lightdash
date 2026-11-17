@@ -103,7 +103,10 @@ const tagOf = ({ area, kind }: PendingChange) =>
         ? 'Reordered'
         : `${AREA_NAMES[area]} ${KIND_VERBS[kind]}`;
 
-const ChangeRow: FC<{ change: PendingChange }> = ({ change }) => {
+const ChangeRow: FC<{ change: PendingChange; isExample: boolean }> = ({
+    change,
+    isExample,
+}) => {
     const mark = markOf(change.kind);
     return (
         <Group gap="xs" wrap="nowrap">
@@ -113,6 +116,11 @@ const ChangeRow: FC<{ change: PendingChange }> = ({ change }) => {
             <TruncatedText maxWidth="100%" fz="xs" fw={500} flex={1} miw={0}>
                 {change.label}
             </TruncatedText>
+            {isExample && (
+                <Badge size="xs" variant="light" color="gray" flex="0 0 auto">
+                    Example
+                </Badge>
+            )}
             <Text fz="xs" c="dimmed" flex="0 0 auto">
                 {tagOf(change)}
             </Text>
@@ -241,15 +249,11 @@ export const PendingChangesButton = memo<Props>(
                     data-tour="dashboard-edit-changes-list"
                 >
                     <Stack gap="xs" className={classes.list}>
-                        {exampleChanges !== null && (
-                            <Badge size="xs" variant="light" color="gray">
-                                Example
-                            </Badge>
-                        )}
                         {shownChanges.map((change) => (
                             <ChangeRow
                                 key={`${change.area}:${change.kind}:${change.id}`}
                                 change={change}
+                                isExample={exampleChanges !== null}
                             />
                         ))}
                     </Stack>
