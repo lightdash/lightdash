@@ -79,6 +79,7 @@ function buildService(
         savedChartService?: unknown;
         documentService?: unknown;
         composerChartService?: unknown;
+        contentDraftModel?: unknown;
         featureFlags?: Record<string, boolean>;
         chartStudioAvailable?: boolean;
     } = {},
@@ -142,6 +143,7 @@ function buildService(
             verify: async () => undefined,
             unverify: async () => undefined,
         } as never,
+        contentDraftModel: (overrides.contentDraftModel ?? {}) as never,
     });
     // The runtime config predicate has its own tests; stub its answer here.
     vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(
@@ -1329,6 +1331,183 @@ describe('AppGenerateService data app vizs', () => {
                 ),
             ).rejects.toThrow('Not authorized to access this visualization');
             expect(appModel.getVersion).not.toHaveBeenCalled();
+        });
+
+        describe('rendering from an unpublished draft', () => {
+            const vizConfig = {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid: 'data-app-viz-1',
+                    dataAppVizVersion: 2,
+                },
+            };
+            const draftAppModel = () => ({
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+            });
+            // The published chart is cartesian; only the draft binds the viz.
+            const draftDeps = (
+                openDraft: { uuid: string; draft: unknown } | undefined,
+                publishedChartConfig: unknown = {
+                    type: ChartType.CARTESIAN,
+                    config: {},
+                },
+            ) => {
+                const findOpenDraft = vi.fn().mockResolvedValue(openDraft);
+                return {
+                    findOpenDraft,
+                    deps: {
+                        savedChartService: {
+                            hasAccess: vi.fn().mockResolvedValue([]),
+                        },
+                        savedChartModel: {
+                            get: vi.fn().mockResolvedValue({
+                                uuid: 'chart-1',
+                                projectUuid: 'project-1',
+                                chartConfig: publishedChartConfig,
+                            }),
+                        },
+                        contentDraftModel: { findOpenDraft },
+                    },
+                };
+            };
+            const boundDraft = {
+                uuid: 'draft-1',
+                draft: { chartConfig: vizConfig },
+            };
+
+            it("serves the version pinned by the requester's own draft", async () => {
+                const appModel = draftAppModel();
+                const { deps, findOpenDraft } = draftDeps(boundDraft);
+                const service = buildService(appModel, deps);
+
+                await expect(
+                    service.getChartDataAppVizRenderMetadata(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                        undefined,
+                        true,
+                    ),
+                ).resolves.toMatchObject({ state: 'ready', version: 2 });
+                expect(findOpenDraft).toHaveBeenCalledWith(
+                    'project-1',
+                    'chart',
+                    'chart-1',
+                    'user-1',
+                );
+                expect(appModel.getVersion).toHaveBeenCalledWith(
+                    'data-app-viz-1',
+                    2,
+                );
+            });
+
+            it("mints a token for the version the requester's draft pins", async () => {
+                const { deps } = draftDeps(boundDraft);
+                const service = buildService(draftAppModel(), deps);
+
+                await expect(
+                    service.getChartDataAppVizPreviewToken(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                        2,
+                        undefined,
+                        true,
+                    ),
+                ).resolves.toEqual(expect.any(String));
+            });
+
+            it('ignores the draft unless the request asks for it', async () => {
+                const { deps, findOpenDraft } = draftDeps(boundDraft);
+                const service = buildService(draftAppModel(), deps);
+
+                await expect(
+                    service.getChartDataAppVizRenderMetadata(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                await expect(
+                    service.getChartDataAppVizPreviewToken(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                        2,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(findOpenDraft).not.toHaveBeenCalled();
+            });
+
+            it('rejects when the requester has no open draft', async () => {
+                const { deps, findOpenDraft } = draftDeps(undefined);
+                const service = buildService(draftAppModel(), deps);
+
+                await expect(
+                    service.getChartDataAppVizRenderMetadata(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                        undefined,
+                        true,
+                    ),
+                ).rejects.toThrow(
+                    'Not authorized to access this visualization',
+                );
+                expect(findOpenDraft).toHaveBeenCalledTimes(1);
+            });
+
+            it('does not consult the draft when a chart version is requested', async () => {
+                const { deps, findOpenDraft } = draftDeps(
+                    boundDraft,
+                    vizConfig,
+                );
+                const service = buildService(draftAppModel(), deps);
+
+                await expect(
+                    service.getChartDataAppVizRenderMetadata(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                        'chart-version-7',
+                        true,
+                    ),
+                ).resolves.toMatchObject({ state: 'ready', version: 2 });
+                expect(findOpenDraft).not.toHaveBeenCalled();
+            });
+
+            it('falls back to the published chart when the draft is invalid', async () => {
+                const { deps, findOpenDraft } = draftDeps({
+                    uuid: 'draft-1',
+                    draft: { chartConfig: 'not-a-config' },
+                });
+                const service = buildService(draftAppModel(), deps);
+
+                await expect(
+                    service.getChartDataAppVizRenderMetadata(
+                        USER,
+                        'project-1',
+                        'chart-1',
+                        'data-app-viz-1',
+                        undefined,
+                        true,
+                    ),
+                ).rejects.toThrow(
+                    'Not authorized to access this visualization',
+                );
+                expect(findOpenDraft).toHaveBeenCalledTimes(1);
+            });
         });
 
         it('resolves the template-filtered viz before checking the feature flag', async () => {
