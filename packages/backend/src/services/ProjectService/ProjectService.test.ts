@@ -3707,6 +3707,7 @@ describe('ProjectService', () => {
         const withoutSharedCredentials = {
             type: WarehouseTypes.SNOWFLAKE as const,
             account: 'account',
+            user: '',
             database: 'analytics',
             warehouse: 'warehouse',
             schema: 'public',
