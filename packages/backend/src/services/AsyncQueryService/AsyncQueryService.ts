@@ -524,7 +524,11 @@ import {
     QueryEstimateCache,
 } from './queryCostEstimate';
 import type { QueryPollingSource } from './queryPollingSource';
-import { canReuseApiResult, canReuseQueryResult } from './queryResultReuse';
+import {
+    canReuseQueryResult,
+    toStoredLiveResult,
+    type StoredLiveResult,
+} from './queryResultReuse';
 import { queryUsageProperties, queryWorkloadOrigin } from './queryUsage';
 import {
     EstimateAsyncMetricQueryArgs,
@@ -12951,9 +12955,7 @@ export class AsyncQueryService extends ProjectService {
         toResult: ApiResultShaper;
     }): Promise<{
         queryUuid: string;
-        reusable: Awaited<
-            ReturnType<AsyncQueryService['findReusableApiResult']>
-        >;
+        reusable: StoredLiveResult | null;
     }> {
         assertIsAccountWithOrg(account);
         const identityEnabled = await this.isResultIdentityEnabled(account);
@@ -12985,15 +12987,21 @@ export class AsyncQueryService extends ProjectService {
             authMethod: account.authentication.type,
             agentIdentity: reader.kind === 'agent' ? reader.claim : null,
         };
-        // Reuse is per user: rows come straight from the source, unfiltered by
-        // anything Lightdash can check against another reader.
+        // Rows come straight from the source, unfiltered by anything Lightdash
+        // checks per reader, so the key holds everything that decides them:
+        // the source and the compiled request. A source signed in with one
+        // credential answers everyone alike and shares its results; one that
+        // queries as each viewer keeps them per user.
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
             sql: cacheKeySql,
-            userUuid: account.user.id,
+            userUuid:
+                source.cache.scope.kind === 'viewer'
+                    ? source.cache.scope.userUuid
+                    : null,
         });
         const reusable = invalidateCache
             ? null
-            : await this.findReusableApiResult(projectUuid, cacheKey);
+            : await this.findReusableApiResult(projectUuid, cacheKey, source);
 
         const queryCreatedAt = new Date();
         const { queryUuid } = await this.createQueryHistory(
@@ -13029,73 +13037,20 @@ export class AsyncQueryService extends ProjectService {
         );
 
         if (reusable) {
-            await this.queryHistoryModel.update(
-                queryUuid,
-                projectUuid,
-                {
-                    status: QueryHistoryStatus.READY,
-                    error: null,
-                    // Reuse keeps the original fetch time instead of 0 ms.
-                    warehouse_execution_time_ms:
-                        reusable.queryHistory.warehouseExecutionTimeMs,
-                    total_row_count: reusable.totalRowCount,
-                    cache_key: cacheKey,
-                    results_file_name: reusable.resultsFileName,
-                    results_created_at: reusable.resultsCreatedAt,
-                    results_updated_at: reusable.resultsUpdatedAt,
-                    results_expires_at: reusable.resultsExpiresAt,
-                    columns: reusable.columns,
-                    fields:
-                        history.fields ??
-                        pythonColumnsToFields(reusable.columns ?? {}),
-                },
-                account,
-            );
-            this.prometheusMetrics?.trackQueryStateTransition(
-                QueryHistoryStatus.PENDING,
-                QueryHistoryStatus.READY,
-                context,
-            );
-            this.trackQueryTerminalStatus(
-                QueryHistoryStatus.READY,
-                queryCreatedAt,
-                context,
-            );
-            this.trackApiQueryCompleted({
+            await this.completeLiveQueryFromStored({
                 account,
                 queryUuid,
                 projectUuid,
                 organizationUuid,
+                source,
+                payload,
+                limit,
+                cacheKey,
                 context,
-                connector: source.integration.connector,
                 queryCreatedAt,
-                outcome: 'ok',
-                errorMessage: null,
-                totalRowCount: reusable.totalRowCount,
-                columnsCount: reusable.columns
-                    ? Object.keys(reusable.columns).length
-                    : null,
-                truncated: null,
-                cacheHit: true,
+                fields: history.fields,
+                stored: reusable,
             });
-            void source.logCall({
-                queryUuid,
-                context,
-                query: payload.query,
-                rowLimit: limit,
-                outcome: 'ok',
-                errorMessage: null,
-                durationMs: Date.now() - queryCreatedAt.getTime(),
-                rowCount: reusable.totalRowCount,
-                columnCount: reusable.columns
-                    ? Object.keys(reusable.columns).length
-                    : null,
-                truncated: null,
-                cacheHit: true,
-            });
-            this.prometheusMetrics?.incrementLiveSourceCacheHit(
-                source.integration.connector,
-            );
             return { queryUuid, reusable };
         }
 
@@ -13122,6 +13077,101 @@ export class AsyncQueryService extends ProjectService {
         });
 
         return { queryUuid, reusable: null };
+    }
+
+    /** Answers a live query with rows another query already fetched, without calling the integration. */
+    private async completeLiveQueryFromStored({
+        account,
+        queryUuid,
+        projectUuid,
+        organizationUuid,
+        source,
+        payload,
+        limit,
+        cacheKey,
+        context,
+        queryCreatedAt,
+        fields,
+        stored,
+    }: {
+        account: Account;
+        queryUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        source: MeteredLiveSource;
+        payload: ApiSourcePayload;
+        limit: number;
+        cacheKey: string;
+        context: QueryExecutionContext;
+        queryCreatedAt: Date;
+        fields: ItemsMap | null;
+        stored: StoredLiveResult;
+    }): Promise<void> {
+        await this.queryHistoryModel.update(
+            queryUuid,
+            projectUuid,
+            {
+                status: QueryHistoryStatus.READY,
+                error: null,
+                // Reuse keeps the original fetch time instead of 0 ms.
+                warehouse_execution_time_ms: stored.warehouseExecutionTimeMs,
+                total_row_count: stored.totalRowCount,
+                cache_key: cacheKey,
+                results_file_name: stored.resultsFileName,
+                results_created_at: stored.resultsCreatedAt,
+                results_updated_at: stored.resultsUpdatedAt,
+                results_expires_at: stored.resultsExpiresAt,
+                columns: stored.columns,
+                fields: fields ?? pythonColumnsToFields(stored.columns ?? {}),
+            },
+            account,
+        );
+        this.prometheusMetrics?.trackQueryStateTransition(
+            QueryHistoryStatus.PENDING,
+            QueryHistoryStatus.READY,
+            context,
+        );
+        this.trackQueryTerminalStatus(
+            QueryHistoryStatus.READY,
+            queryCreatedAt,
+            context,
+        );
+        const columnCount = stored.columns
+            ? Object.keys(stored.columns).length
+            : null;
+        this.trackApiQueryCompleted({
+            account,
+            queryUuid,
+            projectUuid,
+            organizationUuid,
+            context,
+            connector: source.integration.connector,
+            queryCreatedAt,
+            outcome: 'ok',
+            errorMessage: null,
+            totalRowCount: stored.totalRowCount,
+            columnsCount: columnCount,
+            truncated: null,
+            cacheHit: true,
+        });
+        // Logged as a cache hit with no API calls: it never reached the
+        // integration or its call limiter.
+        void source.logCall({
+            queryUuid,
+            context,
+            query: payload.query,
+            rowLimit: limit,
+            outcome: 'ok',
+            errorMessage: null,
+            durationMs: Date.now() - queryCreatedAt.getTime(),
+            rowCount: stored.totalRowCount,
+            columnCount,
+            truncated: null,
+            cacheHit: true,
+        });
+        this.prometheusMetrics?.incrementLiveSourceCacheHit(
+            source.integration.connector,
+        );
     }
 
     private async runLiveQuery({
@@ -13401,25 +13451,20 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    /** This user's latest rows for the same live query, if they are recent enough to reuse. */
-    private async findReusableApiResult(projectUuid: string, cacheKey: string) {
+    /** The latest result for the same live query, when its rows are fresh enough to reuse. */
+    private async findReusableApiResult(
+        projectUuid: string,
+        cacheKey: string,
+        source: MeteredLiveSource,
+    ): Promise<StoredLiveResult | null> {
         const latest = await this.queryHistoryModel.findMostRecentByCacheKey(
             cacheKey,
             projectUuid,
             { excludeAgentProduced: false },
         );
-        if (
-            !latest ||
-            !canReuseApiResult({
-                status: latest.queryHistory.status,
-                resultsFileName: latest.resultsFileName,
-                resultsCreatedAt: latest.resultsCreatedAt,
-                resultsExpiresAt: latest.resultsExpiresAt,
-            })
-        ) {
-            return null;
-        }
-        return latest;
+        return latest
+            ? toStoredLiveResult(latest.queryHistory, source.cache)
+            : null;
     }
 
     /** One live query, measured by outcome; rethrows what it caught. */

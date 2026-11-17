@@ -98,6 +98,7 @@ const buildService = ({
         ),
         findByUuid: vi.fn().mockResolvedValue(connection),
         getProjectOrganizationUuid: vi.fn().mockResolvedValue('org-1'),
+        purgeLiveSourceCache: vi.fn().mockResolvedValue(undefined),
         getDecryptedSecret: vi.fn(async () => storedSecret),
         updateSecretLocked: vi.fn(
             async (
@@ -376,6 +377,10 @@ describe('PostHog sign-in', () => {
             expect(JSON.parse((config as { secret: string }).secret)).toEqual(
                 expect.objectContaining({ accessToken: 'pha_2' }),
             );
+            // The new sign-in may read differently from the old one.
+            expect(
+                externalConnectionModel.purgeLiveSourceCache,
+            ).toHaveBeenCalledExactlyOnceWith('conn-1', expect.any(Date));
         });
 
         it('refuses a grant for another project', async () => {
