@@ -571,4 +571,26 @@ describe('live API source metrics', () => {
             value: 0,
         });
     });
+
+    it('counts live data source cache hits by integration', async () => {
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.start();
+        const hits = prometheus.register.getSingleMetric(
+            'lightdash_live_source_cache_hits_total',
+        );
+        expect((await hits!.get()).values).toContainEqual({
+            labels: { integration: 'posthog' },
+            value: 0,
+        });
+
+        metrics.incrementLiveSourceCacheHit(ApiConnectorType.POSTHOG);
+
+        expect((await hits!.get()).values).toContainEqual({
+            labels: { integration: 'posthog' },
+            value: 1,
+        });
+    });
 });

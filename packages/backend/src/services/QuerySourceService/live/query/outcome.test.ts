@@ -9,7 +9,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import {
     getLiveQueryOutcome,
-    getLiveSourceUpstreamErrorCode,
+    getLiveSourceQueryErrorCode,
     isLiveSourceErrorReportable,
     LIVE_QUERY_OUTCOMES,
 } from './outcome';
@@ -28,30 +28,32 @@ describe('getLiveQueryOutcome', () => {
     });
 });
 
-describe('getLiveSourceUpstreamErrorCode', () => {
-    it('gives every failed outcome a stable code', () => {
+describe('getLiveSourceQueryErrorCode', () => {
+    it("gives every failed outcome a stable code, ours apart from the integration's", () => {
         expect(
             Object.fromEntries(
                 LIVE_QUERY_OUTCOMES.map((outcome) => [
                     outcome,
-                    getLiveSourceUpstreamErrorCode(outcome),
+                    getLiveSourceQueryErrorCode(outcome),
                 ]),
             ),
         ).toEqual({
             ok: null,
-            invalid_request: 'live_source.upstream.invalid_request',
+            invalid_request: 'live_source.internal.invalid_request',
             query_error: 'live_source.upstream.invalid_request',
             connection_error: 'live_source.upstream.auth',
             rate_limited: 'live_source.upstream.rate_limited',
             timeout: 'live_source.upstream.timeout',
             upstream_error: 'live_source.upstream.unknown',
-            internal_error: 'live_source.upstream.unknown',
+            internal_error: 'live_source.internal.error',
         });
     });
 
-    it('reports only requests we built wrong or errors we do not know', () => {
+    it('reports every failure of ours and the integration rejecting or not understanding', () => {
         expect(
             [
+                'live_source.internal.invalid_request',
+                'live_source.internal.error',
                 'live_source.upstream.auth',
                 'live_source.upstream.rate_limited',
                 'live_source.upstream.invalid_request',
@@ -63,6 +65,8 @@ describe('getLiveSourceUpstreamErrorCode', () => {
                 ),
             ),
         ).toEqual([
+            'live_source.internal.invalid_request',
+            'live_source.internal.error',
             'live_source.upstream.invalid_request',
             'live_source.upstream.unknown',
         ]);

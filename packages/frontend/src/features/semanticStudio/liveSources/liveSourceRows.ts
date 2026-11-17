@@ -20,6 +20,7 @@ export type LiveSourceUsage = {
     /** Bytes read from the integration, in words, such as 361 KB. */
     dataRead: string;
     apiCalls: string;
+    cacheHits: string;
     /** Null until the integration has been called. */
     medianLatency: string | null;
 };
@@ -40,6 +41,7 @@ export const isLiveSourceConnection = (
 const LOADING_USAGE: LiveSourceUsage = {
     dataRead: '—',
     apiCalls: '—',
+    cacheHits: '—',
     medianLatency: null,
 };
 
@@ -48,6 +50,7 @@ const formatLiveSourceUsage = (
 ): LiveSourceUsage => ({
     dataRead: formatEstimatedBytes(usage?.responseBytes ?? 0),
     apiCalls: (usage?.apiCalls ?? 0).toLocaleString(),
+    cacheHits: (usage?.cacheHits ?? 0).toLocaleString(),
     medianLatency:
         usage && usage.medianDurationMs !== null
             ? formatDuration(usage.medianDurationMs)

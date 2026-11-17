@@ -192,6 +192,9 @@ export const LiveSourcesTable: FC<{
                     API calls
                 </span>
                 <span role="columnheader" className={classes.number}>
+                    Cache hits
+                </span>
+                <span role="columnheader" className={classes.number}>
                     Median latency
                 </span>
                 <span />
@@ -227,6 +230,9 @@ export const LiveSourcesTable: FC<{
                     </span>
                     <span role="cell" className={classes.number}>
                         {used.apiCalls}
+                    </span>
+                    <span role="cell" className={classes.number}>
+                        {used.cacheHits}
                     </span>
                     <Text
                         span
@@ -298,6 +304,7 @@ export const LiveSourceSummary: FC<{
             />
             <Stat label="Data read" value={row.usage.dataRead} />
             <Stat label="API calls" value={row.usage.apiCalls} />
+            <Stat label="Cache hits" value={row.usage.cacheHits} />
             <Stat
                 label="Median latency"
                 value={row.usage.medianLatency ?? '—'}

@@ -71,6 +71,7 @@ import {
     getFieldsFromMetricQuery,
     getItemId,
     getItemMap,
+    getLiveSourceErrorOrigin,
     getMergeColumnTotals,
     getMetricOverridesWithPopInheritance,
     getMetrics,
@@ -185,6 +186,7 @@ import {
     type FieldValueSearchResult,
     type Filters,
     type InvalidateExploresResultsCache,
+    type LiveSourceInternalErrorCode,
     type LiveSourceUpstreamErrorCode,
     type MergeQueryChart,
     type MergeQueryExecutionMode,
@@ -405,10 +407,14 @@ import {
 import { toLiveQueryError } from '../QuerySourceService/live/explores/definition';
 import {
     getLiveQueryOutcome,
-    getLiveSourceUpstreamErrorCode,
+    getLiveSourceQueryErrorCode,
     isLiveSourceErrorReportable,
     type LiveQueryOutcome,
 } from '../QuerySourceService/live/query/outcome';
+import {
+    getLiveQueryShape,
+    type LiveQueryShape,
+} from '../QuerySourceService/live/query/queryShape';
 import {
     runLiveRequest,
     type LiveQueryResult,
@@ -12753,6 +12759,7 @@ export class AsyncQueryService extends ProjectService {
         exploreName,
         apiSource,
         issues,
+        queryShape,
         context,
         querySurface,
     }: {
@@ -12762,6 +12769,7 @@ export class AsyncQueryService extends ProjectService {
         exploreName: string;
         apiSource: ApiSourceExplore;
         issues: ApiSourceQueryIssue[];
+        queryShape: LiveQueryShape;
         context: QueryExecutionContext;
         querySurface: QuerySurface | undefined;
     }): void {
@@ -12777,8 +12785,10 @@ export class AsyncQueryService extends ProjectService {
                     externalConnectionUuid: apiSource.connectionUuid,
                     integration: apiSource.integration,
                     exploreName,
-                    code,
+                    errorOrigin: 'refused',
+                    errorCode: code,
                     fieldId,
+                    queryShape,
                     querySurface: querySurface ?? null,
                     context,
                 },
@@ -12825,6 +12835,11 @@ export class AsyncQueryService extends ProjectService {
                 exploreName: explore.name,
                 apiSource,
                 issues,
+                queryShape: getLiveQueryShape(queryComposer.getMetricQuery(), {
+                    isPivoted: !!queryComposer.getPivotConfiguration(),
+                    dateZoomGranularity:
+                        queryComposer.getDateZoom()?.granularity,
+                }),
                 context,
                 querySurface,
             });
@@ -13076,7 +13091,11 @@ export class AsyncQueryService extends ProjectService {
                     ? Object.keys(reusable.columns).length
                     : null,
                 truncated: null,
+                cacheHit: true,
             });
+            this.prometheusMetrics?.incrementLiveSourceCacheHit(
+                source.integration.connector,
+            );
             return { queryUuid, reusable };
         }
 
@@ -13167,6 +13186,7 @@ export class AsyncQueryService extends ProjectService {
                         query: payload.query,
                         rowLimit: limit,
                         durationMs: executeMs ?? Date.now() - startedAt,
+                        cacheHit: false,
                         ...call,
                     });
                 try {
@@ -13286,45 +13306,57 @@ export class AsyncQueryService extends ProjectService {
                 } catch (e) {
                     const message = getErrorMessage(e);
                     const outcome = getLiveQueryOutcome(e);
-                    const errorCode = getLiveSourceUpstreamErrorCode(outcome);
+                    const errorCode = getLiveSourceQueryErrorCode(outcome);
                     span.setAttributes({
                         'lightdash.error': message,
                         ...(errorCode
-                            ? { 'lightdash.liveSourceErrorCode': errorCode }
+                            ? {
+                                  'lightdash.errorCode': errorCode,
+                                  'lightdash.errorOrigin':
+                                      getLiveSourceErrorOrigin(errorCode),
+                              }
                             : {}),
                     });
                     this.logger.warn(
                         `Api query ${queryUuid} failed: code=${errorCode ?? '-'} integration=${connectorType} explore=${exploreName ?? '-'} context=${context}: ${message}`,
                     );
-                    // Only compiled queries: a request the agent wrote itself
+                    // Our own failures always; the integration's only for
+                    // compiled queries, since a request the agent wrote itself
                     // failing is the agent's to fix, not ours
                     if (
-                        exploreName !== null &&
                         errorCode !== null &&
                         isLiveSourceErrorReportable(errorCode)
                     ) {
-                        Sentry.withScope((scope) => {
-                            scope.setTag(
-                                'lightdash.integration',
-                                connectorType,
-                            );
-                            scope.setTag(
-                                'lightdash.liveSourceErrorCode',
-                                errorCode,
-                            );
-                            scope.setFingerprint([
-                                'live-source-upstream',
-                                connectorType,
-                                errorCode,
-                            ]);
-                            scope.setContext('live_source', {
-                                queryUuid,
-                                projectUuid,
-                                exploreName,
-                                context,
+                        const errorOrigin = getLiveSourceErrorOrigin(errorCode);
+                        if (
+                            errorOrigin === 'internal' ||
+                            exploreName !== null
+                        ) {
+                            Sentry.withScope((scope) => {
+                                scope.setTag(
+                                    'lightdash.integration',
+                                    connectorType,
+                                );
+                                scope.setTag(
+                                    'lightdash.errorOrigin',
+                                    errorOrigin,
+                                );
+                                scope.setTag('lightdash.errorCode', errorCode);
+                                scope.setFingerprint([
+                                    'live-source',
+                                    errorOrigin,
+                                    connectorType,
+                                    errorCode,
+                                ]);
+                                scope.setContext('live_source', {
+                                    queryUuid,
+                                    projectUuid,
+                                    exploreName,
+                                    context,
+                                });
+                                Sentry.captureException(e);
                             });
-                            Sentry.captureException(e);
-                        });
+                        }
                     }
                     await this.queryHistoryModel.updateStatusToError(
                         queryUuid,
@@ -13351,7 +13383,7 @@ export class AsyncQueryService extends ProjectService {
                         connector: connectorType,
                         queryCreatedAt,
                         outcome,
-                        liveSourceErrorCode: errorCode,
+                        errorCode,
                         errorMessage: message,
                         totalRowCount: null,
                         columnsCount: null,
@@ -13437,7 +13469,7 @@ export class AsyncQueryService extends ProjectService {
         connector,
         queryCreatedAt,
         outcome,
-        liveSourceErrorCode = null,
+        errorCode = null,
         errorMessage,
         totalRowCount,
         columnsCount,
@@ -13452,7 +13484,10 @@ export class AsyncQueryService extends ProjectService {
         connector: ApiConnectorType;
         queryCreatedAt: Date;
         outcome: LiveQueryOutcome;
-        liveSourceErrorCode?: LiveSourceUpstreamErrorCode | null;
+        errorCode?:
+            | LiveSourceInternalErrorCode
+            | LiveSourceUpstreamErrorCode
+            | null;
         errorMessage: string | null;
         totalRowCount: number | null;
         columnsCount: number | null;
@@ -13499,7 +13534,13 @@ export class AsyncQueryService extends ProjectService {
                         columnsCount,
                         integration: connector,
                         apiQueryOutcome: outcome,
-                        ...(liveSourceErrorCode ? { liveSourceErrorCode } : {}),
+                        ...(errorCode
+                            ? {
+                                  errorCode,
+                                  errorOrigin:
+                                      getLiveSourceErrorOrigin(errorCode),
+                              }
+                            : {}),
                         ...(truncated !== null ? { truncated } : {}),
                     },
                 });

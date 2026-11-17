@@ -67,6 +67,8 @@ export type LiveQueryCall = {
     columnCount: number | null;
     /** True when the API had rows past the ones read; null when it wasn't called. */
     truncated: boolean | null;
+    /** True when a stored result answered the query and the integration wasn't called. */
+    cacheHit: boolean;
 };
 
 /** One connection's integration, ready for one query, metering what it sends. */
