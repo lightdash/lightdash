@@ -20,6 +20,7 @@ type Props = {
     showStage: boolean;
 };
 
+/** One line, "Working <current step>", as in agent replies; earlier steps on click. */
 const BuildProgressCard: FC<Props> = ({
     version,
     narration,
@@ -31,12 +32,17 @@ const BuildProgressCard: FC<Props> = ({
     const steps = statusMessage
         ? [...narration.activity, statusMessage]
         : narration.activity;
-    const hasSteps = steps.length > 0 || narration.reasoning.length > 0;
-    // Folded, only the step running now shows, as in agent replies.
-    const rowCount =
-        groupBuildSteps(steps, true).groups.length +
+    const { groups, currentIndex } = groupBuildSteps(steps, true);
+    const current = currentIndex === null ? null : groups[currentIndex];
+    const earlierCount =
+        groups.length -
+        (current ? 1 : 0) +
         (narration.reasoning.length > 0 ? 1 : 0);
-    const canExpand = rowCount > 1;
+    const canExpand = earlierCount > 0;
+    const stageLabel =
+        showStage && stageIndex < BUILD_STAGES.length
+            ? getBuildStageLabel(stageIndex, version !== null && version > 1)
+            : null;
 
     return (
         <Box className={classes.progressCard}>
@@ -56,17 +62,23 @@ const BuildProgressCard: FC<Props> = ({
                     >
                         Working
                     </Text>
-                    {showStage && stageIndex < BUILD_STAGES.length && (
+                    {(current?.label ?? stageLabel) && (
+                        <Text
+                            size="xs"
+                            truncate
+                            className={classes.workingStage}
+                        >
+                            {current?.label ?? stageLabel}
+                        </Text>
+                    )}
+                    {current && current.targets.length > 0 && (
                         <Text
                             size="xs"
                             truncate
                             miw={0}
-                            className={classes.workingStage}
+                            className={classes.stepTarget}
                         >
-                            {getBuildStageLabel(
-                                stageIndex,
-                                version !== null && version > 1,
-                            )}
+                            {current.targets[current.targets.length - 1]}
                         </Text>
                     )}
                     {canExpand && (
@@ -80,13 +92,13 @@ const BuildProgressCard: FC<Props> = ({
                     )}
                 </Group>
             </UnstyledButton>
-            {hasSteps && (
+            {open && canExpand && (
                 <Box className={classes.cardSection}>
                     <BuildSteps
                         steps={steps}
                         reasoning={narration.reasoning}
                         isLive
-                        latestOnly={!open}
+                        omitCurrent
                     />
                 </Box>
             )}

@@ -138,6 +138,7 @@
 }
 
 .workingStage {
+    flex-shrink: 0;
     color: var(--mantine-color-dimmed);
 }
 

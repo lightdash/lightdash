@@ -17,8 +17,8 @@ type Props = {
     reasoning: string[];
     /** Marks the latest work as in progress. */
     isLive: boolean;
-    /** Shows only the step running now; the rest stay folded. */
-    latestOnly: boolean;
+    /** Leaves out the running step, which the live header already shows. */
+    omitCurrent: boolean;
 };
 
 /** Reasoning as a step row: latest thought inline, all of it on click. */
@@ -164,28 +164,27 @@ const GroupStep: FC<{ group: BuildStepGroup; isCurrent: boolean }> = ({
 };
 
 /** Tool steps grouped by kind of work; each group expands to its targets. */
-const BuildSteps: FC<Props> = ({ steps, reasoning, isLive, latestOnly }) => {
+const BuildSteps: FC<Props> = ({ steps, reasoning, isLive, omitCurrent }) => {
     const { groups, currentIndex } = groupBuildSteps(steps, isLive);
-    const showThinking =
-        reasoning.length > 0 && (!latestOnly || groups.length === 0);
-    const firstShown = latestOnly ? Math.max(groups.length - 1, 0) : 0;
 
     return (
         <Box component="ol" className={classes.steps}>
-            {showThinking && (
+            {reasoning.length > 0 && (
                 <ThinkingStep
                     texts={reasoning}
                     isLive={isLive}
                     isCurrent={isLive && groups.length === 0}
                 />
             )}
-            {groups.slice(firstShown).map((group, i) => (
-                <GroupStep
-                    key={`${group.kind}-${group.label}`}
-                    group={group}
-                    isCurrent={firstShown + i === currentIndex}
-                />
-            ))}
+            {groups.map((group, i) =>
+                omitCurrent && i === currentIndex ? null : (
+                    <GroupStep
+                        key={`${group.kind}-${group.label}`}
+                        group={group}
+                        isCurrent={i === currentIndex}
+                    />
+                ),
+            )}
         </Box>
     );
 };

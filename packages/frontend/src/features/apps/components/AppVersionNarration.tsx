@@ -71,7 +71,7 @@ const BuildLogRow: FC<{
                         steps={narration.activity}
                         reasoning={narration.reasoning}
                         isLive={false}
-                        latestOnly={false}
+                        omitCurrent={false}
                     />
                 </Box>
             </Collapse>
@@ -117,7 +117,7 @@ const ActivityLogRow: FC<{ steps: string[] }> = ({ steps }) => {
                         steps={steps}
                         reasoning={[]}
                         isLive={false}
-                        latestOnly={false}
+                        omitCurrent={false}
                     />
                 </Box>
             </Collapse>
